@@ -1,23 +1,12 @@
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono, Inter } from 'next/font/google'
 import { NextIntlClientProvider, hasLocale } from 'next-intl'
 import { getMessages, setRequestLocale } from 'next-intl/server'
 import { notFound } from 'next/navigation'
+import { Navbar } from '@/components/layout/Navbar'
 import { routing } from '@/i18n/routing'
 import { cn } from '@/lib/utils'
+import { notoSans, nunitoSans, inter } from '../fonts'
 import '../globals.css'
-
-const inter = Inter({ subsets: ['latin'], variable: '--font-sans' })
-
-const geistSans = Geist({
-  variable: '--font-geist-sans',
-  subsets: ['latin'],
-})
-
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
-})
 
 export const metadata: Metadata = {
   title: 'Whats-Auto',
@@ -50,14 +39,15 @@ export default async function LocaleLayout({
       className={cn(
         'h-full',
         'antialiased',
-        geistSans.variable,
-        geistMono.variable,
-        'font-sans',
+        notoSans.variable,
+        nunitoSans.variable,
         inter.variable,
+        'font-sans'
       )}
     >
       <body className="min-h-full flex flex-col">
         <NextIntlClientProvider messages={messages}>
+          <Navbar />
           {children}
         </NextIntlClientProvider>
       </body>

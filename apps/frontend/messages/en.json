@@ -1,15 +1,112 @@
 {
   "nav": {
+    "brand": "Whats-Auto",
     "pricing": "Pricing",
     "features": "Features",
     "integrations": "Integrations",
     "getStarted": "Get Started",
-    "login": "Login"
+    "login": "Login",
+    "mainNav": "Main navigation",
+    "localeSwitcher": "Change language",
+    "menuOpen": "Open menu",
+    "menuClose": "Close menu"
   },
   "hero": {
     "headline": "Automate WhatsApp like never before",
     "subheadline": "From sales to support — all on autopilot.",
-    "cta": "Start for free"
+    "cta": "Start for free",
+    "visualLabel": "WhatsApp automation preview"
+  },
+  "landing": {
+    "features": {
+      "title": "Everything you need to automate WhatsApp",
+      "subtitle": "Powerful features built for modern businesses"
+    },
+    "pricing": {
+      "title": "Simple, transparent pricing",
+      "subtitle": "Start free, scale as you grow",
+      "viewAll": "See full pricing",
+      "starter": {
+        "name": "Starter",
+        "price": "Free",
+        "period": "forever",
+        "description": "Perfect for solo founders getting started",
+        "cta": "Get started"
+      },
+      "growth": {
+        "name": "Growth",
+        "price": "₹999",
+        "period": "/month",
+        "description": "For growing teams with higher volume",
+        "cta": "Start trial"
+      },
+      "enterprise": {
+        "name": "Enterprise",
+        "price": "Custom",
+        "period": "",
+        "description": "For large organizations with custom needs",
+        "cta": "Contact sales"
+      }
+    },
+    "cta": {
+      "headline": "Ready to automate your WhatsApp?",
+      "subheadline": "Join thousands of businesses saving hours every week.",
+      "button": "Get started for free"
+    }
+  },
+  "features": {
+    "whatsapp-automation": {
+      "title": "WhatsApp Automation",
+      "summary": "Send and receive messages automatically.",
+      "content": {
+        "p1": "Automate outbound campaigns, order updates, and support replies without manual copy-paste. Connect your WhatsApp Business account once and let workflows handle the rest.",
+        "p2": "Trigger messages from events in your stack — new orders, abandoned carts, ticket updates — and keep every conversation on-brand with templates you control.",
+        "highlight1": "Broadcast and drip campaigns with delivery tracking",
+        "highlight2": "Inbound message routing to the right team or bot",
+        "highlight3": "Template library with variable placeholders"
+      }
+    },
+    "smart-replies": {
+      "title": "Smart Replies",
+      "summary": "AI-powered reply suggestions.",
+      "content": {
+        "p1": "Draft contextual replies in seconds using conversation history and your knowledge base. Agents stay in control — approve, edit, or send with one tap.",
+        "p2": "Smart Replies learns your tone over time and surfaces the best suggestions for FAQs, pricing questions, and follow-ups.",
+        "highlight1": "One-click insert into the composer",
+        "highlight2": "Multilingual suggestions for EN and HI",
+        "highlight3": "Confidence scores so teams trust every suggestion"
+      }
+    }
+  },
+  "featureDetail": {
+    "cta": "Get started"
+  },
+  "integrations": {
+    "shopify": {
+      "name": "Shopify",
+      "tagline": "Sync your store in minutes.",
+      "content": {
+        "p1": "Connect Shopify to Whats-Auto and turn store events into timely WhatsApp messages — order confirmations, shipping updates, and win-back nudges.",
+        "step1": "Install the Whats-Auto app from Shopify and authorize your store",
+        "step2": "Choose which order and customer events should trigger messages",
+        "step3": "Map template variables to Shopify fields like order ID and tracking URL",
+        "p2": "Changes sync in real time so customers always get accurate status updates on the channel they actually read."
+      }
+    },
+    "razorpay": {
+      "name": "Razorpay",
+      "tagline": "Automate payment confirmations.",
+      "content": {
+        "p1": "Send instant payment receipts and failed-payment reminders over WhatsApp when Razorpay webhooks fire — no manual follow-ups required.",
+        "step1": "Add your Razorpay webhook URL in the Razorpay dashboard",
+        "step2": "Select payment captured, failed, and refund events in Whats-Auto",
+        "step3": "Customize message templates per event with amount and invoice links",
+        "p2": "Reduce support load and improve collection rates with automated, personalized payment notifications."
+      }
+    }
+  },
+  "integrationDetail": {
+    "cta": "Connect integration"
   },
   "auth": {
     "login": {
