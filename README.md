@@ -1,2 +1,2 @@
 # whats-auto
-automation
+It's the modern customer support platform designed to help businesses deliver exceptional customer support experience. Built for scale and flexibility, it gives you full control over your customer data while providing powerful tools to manage conversations across channels.
