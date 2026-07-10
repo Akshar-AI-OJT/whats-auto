@@ -1,0 +1,24 @@
+{
+  "nav": {
+    "pricing": "Pricing",
+    "features": "Features",
+    "integrations": "Integrations",
+    "getStarted": "Get Started",
+    "login": "Login"
+  },
+  "hero": {
+    "headline": "Automate WhatsApp like never before",
+    "subheadline": "From sales to support — all on autopilot.",
+    "cta": "Start for free"
+  },
+  "auth": {
+    "login": {
+      "title": "Welcome back",
+      "submit": "Sign in"
+    },
+    "register": {
+      "title": "Create your account",
+      "submit": "Sign up"
+    }
+  }
+}
