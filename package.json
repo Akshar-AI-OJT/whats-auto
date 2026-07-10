@@ -22,5 +22,8 @@
     "turbo": "^2.9.16"
   },
   "packageManager": "pnpm@11.8.0",
-  "prettier": "@adonisjs/prettier-config"
+  "prettier": "@adonisjs/prettier-config",
+  "dependencies": {
+    "@types/better-sqlite3": "^7.6.13"
+  }
 }

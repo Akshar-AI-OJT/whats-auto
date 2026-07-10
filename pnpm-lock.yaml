@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      '@types/better-sqlite3':
+        specifier: ^7.6.13
+        version: 7.6.13
     devDependencies:
       '@adonisjs/prettier-config':
         specifier: ^1.5.0
@@ -123,6 +127,9 @@ importers:
       better-auth:
         specifier: ^1.6.23
         version: 1.6.23(better-sqlite3@12.11.1)(next@16.2.10(@babel/core@7.29.7)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      better-sqlite3:
+        specifier: ^12.11.1
+        version: 12.11.1
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -1687,6 +1694,9 @@ packages:
 
   '@tybys/wasm-util@0.10.3':
     resolution: {integrity: sha512-F3fo1MYrRJYL3zER0OUOmkutjr1Vp23m7OsSgp7nq4SP6OqX6C/56XFIPAl5bt3zaBRjmW7SGz3u/6LwFpYcOg==}
+
+  '@types/better-sqlite3@7.6.13':
+    resolution: {integrity: sha512-NMv9ASNARoKksWtsq/SHakpYAYnhBrQgGD8zkLYk/jaK8jUGn08CfEdTRgYhMypUQAfzSP8W6gNLe0q19/t4VA==}
 
   '@types/chai@5.2.3':
     resolution: {integrity: sha512-Mw558oeA9fFbv65/y4mHtXDs9bPnFMZAL/jxdPFUpOHHIXX91mcgEHbS5Lahr+pwZFR8A7GQleRWeI6cGFC2UA==}
@@ -6535,6 +6545,10 @@ snapshots:
     dependencies:
       tslib: 2.8.1
     optional: true
+
+  '@types/better-sqlite3@7.6.13':
+    dependencies:
+      '@types/node': 25.9.5
 
   '@types/chai@5.2.3':
     dependencies:
