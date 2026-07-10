@@ -1,0 +1,12 @@
+packages:
+  - 'apps/*'
+
+allowBuilds:
+  '@parcel/watcher': false
+  '@swc/core': true
+  better-sqlite3: true
+  esbuild: true
+  sharp: false
+  unrs-resolver: false
+onlyBuiltDependencies:
+  - better-sqlite3
