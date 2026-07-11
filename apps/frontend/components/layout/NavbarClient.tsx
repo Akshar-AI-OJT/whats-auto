@@ -16,16 +16,35 @@ interface NavbarClientProps {
 }
 
 function DesktopDropdown({ dropdown }: { dropdown: NavDropdown }) {
+  const triggerClass =
+    'inline-flex h-9 items-center rounded-md text-sm font-medium transition-colors hover:bg-muted'
+
   return (
-    <div className="group relative">
-      <button
-        type="button"
-        className="inline-flex h-9 items-center gap-1 rounded-md px-3 text-sm font-medium transition-colors hover:bg-muted"
-        aria-haspopup="true"
-      >
-        {dropdown.label}
-        <ChevronDownIcon className="size-4 text-muted-foreground" />
-      </button>
+    <div className="group relative inline-flex items-center">
+      {dropdown.href ? (
+        <>
+          <Link href={dropdown.href} className={cn(triggerClass, 'px-3')}>
+            {dropdown.label}
+          </Link>
+          <button
+            type="button"
+            className={cn(triggerClass, 'w-7 justify-center')}
+            aria-haspopup="true"
+            aria-label={dropdown.label}
+          >
+            <ChevronDownIcon className="size-4 text-muted-foreground" />
+          </button>
+        </>
+      ) : (
+        <button
+          type="button"
+          className={cn(triggerClass, 'gap-1 px-3')}
+          aria-haspopup="true"
+        >
+          {dropdown.label}
+          <ChevronDownIcon className="size-4 text-muted-foreground" />
+        </button>
+      )}
       <div
         className={cn(
           'invisible absolute top-full left-0 z-50 mt-1 min-w-52 rounded-md border border-border bg-popover p-1 opacity-0 shadow-md',

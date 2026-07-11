@@ -20,13 +20,40 @@ interface MobileMenuProps {
   nav: NavData
 }
 
-function NavAccordionSection({
+function NavMenuSection({
   dropdown,
   onNavigate,
 }: {
-  dropdown: NavData['features']
+  dropdown: NavData['features'] | NavData['integrations']
   onNavigate: () => void
 }) {
+  if (dropdown.href) {
+    return (
+      <div className="py-1">
+        <Link
+          href={dropdown.href}
+          onClick={onNavigate}
+          className="block py-3 text-base font-medium"
+        >
+          {dropdown.label}
+        </Link>
+        <ul className="flex flex-col pl-2">
+          {dropdown.items.map((item) => (
+            <li key={item.href}>
+              <Link
+                href={item.href}
+                onClick={onNavigate}
+                className="block py-3 text-muted-foreground transition-colors hover:text-foreground"
+              >
+                {item.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )
+  }
+
   return (
     <AccordionItem value={dropdown.id}>
       <AccordionTrigger className="py-3 text-base hover:no-underline">
@@ -68,9 +95,10 @@ export function MobileMenu({ id, open, onOpenChange, nav }: MobileMenuProps) {
             {nav.pricing.label}
           </Link>
 
+          <NavMenuSection dropdown={nav.features} onNavigate={closeMenu} />
+
           <Accordion>
-            <NavAccordionSection dropdown={nav.features} onNavigate={closeMenu} />
-            <NavAccordionSection dropdown={nav.integrations} onNavigate={closeMenu} />
+            <NavMenuSection dropdown={nav.integrations} onNavigate={closeMenu} />
           </Accordion>
 
           <div className="my-4 border-t border-border" />

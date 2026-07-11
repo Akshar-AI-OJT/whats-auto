@@ -20,11 +20,12 @@
   "landing": {
     "features": {
       "title": "Everything you need to automate WhatsApp",
-      "subtitle": "Powerful features built for modern businesses"
+      "subtitle": "A quick look at what Whats-Auto can do. See the full feature list for details.",
+      "viewAll": "See all features"
     },
     "pricing": {
       "title": "Simple, transparent pricing",
-      "subtitle": "Start free, scale as you grow",
+      "subtitle": "Preview our plans below. Compare tiers and features on the full pricing page.",
       "viewAll": "See full pricing",
       "starter": {
         "name": "Starter",
@@ -52,6 +53,35 @@
       "headline": "Ready to automate your WhatsApp?",
       "subheadline": "Join thousands of businesses saving hours every week.",
       "button": "Get started for free"
+    }
+  },
+  "featuresPage": {
+    "title": "Features",
+    "subtitle": "Everything Whats-Auto offers to automate WhatsApp for your business."
+  },
+  "pricingPage": {
+    "title": "Pricing",
+    "subtitle": "Choose the plan that fits your team. Start free and upgrade when you need more.",
+    "starter": {
+      "name": "Starter",
+      "price": "Free",
+      "period": "forever",
+      "description": "Perfect for solo founders getting started",
+      "cta": "Get started"
+    },
+    "growth": {
+      "name": "Growth",
+      "price": "₹999",
+      "period": "/month",
+      "description": "For growing teams with higher volume",
+      "cta": "Start trial"
+    },
+    "enterprise": {
+      "name": "Enterprise",
+      "price": "Custom",
+      "period": "",
+      "description": "For large organizations with custom needs",
+      "cta": "Contact sales"
     }
   },
   "features": {

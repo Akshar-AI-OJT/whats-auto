@@ -6,6 +6,8 @@ import type { NavData } from '@/components/layout/types'
 
 export async function Navbar() {
   const t = await getTranslations('nav')
+  const tFeatures = await getTranslations('features')
+  const tIntegrations = await getTranslations('integrations')
 
   const nav: NavData = {
     brand: t('brand'),
@@ -13,8 +15,9 @@ export async function Navbar() {
     features: {
       id: 'features',
       label: t('features'),
+      href: '/features',
       items: features.map((feature) => ({
-        label: feature.title,
+        label: tFeatures(`${feature.slug}.title`),
         href: `/features/${feature.slug}`,
       })),
     },
@@ -22,7 +25,7 @@ export async function Navbar() {
       id: 'integrations',
       label: t('integrations'),
       items: integrations.map((integration) => ({
-        label: integration.name,
+        label: tIntegrations(`${integration.slug}.name`),
         href: `/integrations/${integration.slug}`,
       })),
     },

@@ -6,6 +6,7 @@ export interface NavLink {
 export interface NavDropdown {
   id: string
   label: string
+  href?: string
   items: NavLink[]
 }
 

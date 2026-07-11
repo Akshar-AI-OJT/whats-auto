@@ -22,7 +22,7 @@ export async function PricingSection() {
   }))
 
   return (
-    <section id="pricing" className="border-b border-border">
+    <section className="border-b border-border">
       <div className="mx-auto max-w-screen-xl px-4 py-16 md:py-24">
         <div className="mx-auto mb-10 max-w-2xl text-center md:mb-14">
           <h2 className="text-2xl font-semibold tracking-tight md:text-4xl">
