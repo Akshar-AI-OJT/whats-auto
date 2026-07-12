@@ -36,11 +36,7 @@ function DesktopDropdown({ dropdown }: { dropdown: NavDropdown }) {
           </button>
         </>
       ) : (
-        <button
-          type="button"
-          className={cn(triggerClass, 'gap-1 px-3')}
-          aria-haspopup="true"
-        >
+        <button type="button" className={cn(triggerClass, 'gap-1 px-3')} aria-haspopup="true">
           {dropdown.label}
           <ChevronDownIcon className="size-4 text-muted-foreground" />
         </button>
@@ -91,7 +87,7 @@ export function NavbarClient({ nav }: NavbarClientProps) {
         <nav
           role="navigation"
           aria-label={t('mainNav')}
-          className="mx-auto flex h-16 max-w-screen-xl items-center gap-4 px-4"
+          className="mx-auto flex h-16 max-w-7xl items-center gap-4 px-4"
         >
           <Link href="/" className="shrink-0 text-lg font-semibold tracking-tight">
             {nav.brand}
