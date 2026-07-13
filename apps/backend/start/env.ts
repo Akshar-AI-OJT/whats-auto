@@ -24,4 +24,26 @@ export default await Env.create(new URL('../', import.meta.url), {
 
   // Session
   SESSION_DRIVER: Env.schema.enum(['cookie', 'memory', 'database'] as const),
+
+  // Cors
+  CORS_ORIGIN: Env.schema.string({ format: 'url', tld: false }),
+
+  // Better Auth
+  BETTER_AUTH_SECRET: Env.schema.secret(),
+  BETTER_AUTH_URL: Env.schema.string({ format: 'url', tld: false }),
+
+  // Auth Provider
+  GOOGLE_CLIENT_ID: Env.schema.string(),
+  GOOGLE_CLIENT_SECRET: Env.schema.secret(),
+
+  // Postgres
+  PG_HOST: Env.schema.string(),
+  PG_PORT: Env.schema.number(),
+  PG_USER: Env.schema.string(),
+  PG_PASSWORD: Env.schema.secret(),
+  PG_DB_NAME: Env.schema.string(),
+
+  // Resend
+  RESEND_API_KEY: Env.schema.secret(),
+  EMAIL_FROM: Env.schema.string(),
 })
