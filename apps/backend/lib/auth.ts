@@ -1,4 +1,5 @@
 import { betterAuth } from 'better-auth'
+import { createAuthMiddleware, APIError } from 'better-auth/api'
 import { emailOTP } from 'better-auth/plugins'
 import { magicLink } from 'better-auth/plugins'
 import { jwt } from 'better-auth/plugins'
@@ -63,44 +64,37 @@ export const auth = betterAuth({
   ...(hasGoogle
     ? {
         socialProviders: {
-          google: { clientId: googleClientId!, clientSecret: googleClientSecret! },
+          google: {
+            clientId: googleClientId!,
+            clientSecret: googleClientSecret!.valueOf(),
+          },
         },
       }
     : {}),
 
   // ─── App-layer guard: block suspended / deleted users at sign-in ───────
   hooks: {
-    before: [
-      {
-        matcher: (ctx) =>
-          ctx.path === '/sign-in/email' ||
-          ctx.path === '/sign-in/social' ||
-          ctx.path === '/sign-in/magic-link',
-        handler: async (ctx) => {
-          const { email } = ctx.body as { email?: string }
-          if (!email) return
+    before: createAuthMiddleware(async (ctx) => {
+      const signInPaths = ['/sign-in/email', '/sign-in/social', '/sign-in/magic-link']
+      if (!signInPaths.includes(ctx.path)) return
 
-          const { rows } = await pool.query(
-            `SELECT "isActive", "isDeleted" FROM "users" WHERE "email" = $1 LIMIT 1`,
-            [email]
-          )
+      const { email } = ctx.body as { email?: string }
+      if (!email) return
 
-          if (!rows.length) return // unknown email — let better-auth handle it
+      const { rows } = await pool.query<{ isActive: boolean; isDeleted: boolean }>(
+        `SELECT "isActive", "isDeleted" FROM "users" WHERE "email" = $1 LIMIT 1`,
+        [email]
+      )
 
-          if (rows[0].isDeleted) {
-            return new Response(JSON.stringify({ error: 'Account no longer exists.' }), {
-              status: 403,
-            })
-          }
-          if (!rows[0].isActive) {
-            return new Response(
-              JSON.stringify({ error: 'Account is suspended. Contact support.' }),
-              { status: 403 }
-            )
-          }
-        },
-      },
-    ],
+      if (!rows.length) return // unknown email — let better-auth handle it
+
+      if (rows[0].isDeleted) {
+        throw new APIError('FORBIDDEN', { message: 'Account no longer exists.' })
+      }
+      if (!rows[0].isActive) {
+        throw new APIError('FORBIDDEN', { message: 'Account is suspended. Contact support.' })
+      }
+    }),
   },
 
   plugins: [
