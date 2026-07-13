@@ -7,44 +7,121 @@
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
 
-export class AuthAccessTokenSchema extends BaseModel {
-  static $columns = ['abilities', 'createdAt', 'expiresAt', 'hash', 'id', 'lastUsedAt', 'name', 'tokenableId', 'type', 'updatedAt'] as const
-  $columns = AuthAccessTokenSchema.$columns
+export class AccountSchema extends BaseModel {
+  static $columns = ['accessToken', 'accessTokenExpiresAt', 'accountId', 'createdAt', 'id', 'idToken', 'password', 'providerId', 'refreshToken', 'refreshTokenExpiresAt', 'scope', 'updatedAt', 'userId'] as const
+  $columns = AccountSchema.$columns
   @column()
-  declare abilities: string
-  @column.dateTime({ autoCreate: true })
+  declare accessToken: string | null
+  @column.dateTime()
+  declare accessTokenExpiresAt: DateTime | null
+  @column()
+  declare accountId: string
+  @column.dateTime()
   declare createdAt: DateTime | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare idToken: string | null
+  @column({ serializeAs: null })
+  declare password: string | null
+  @column()
+  declare providerId: string
+  @column()
+  declare refreshToken: string | null
+  @column.dateTime()
+  declare refreshTokenExpiresAt: DateTime | null
+  @column()
+  declare scope: string | null
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+  @column()
+  declare userId: string
+}
+
+export class JwkSchema extends BaseModel {
+  static $columns = ['alg', 'createdAt', 'crv', 'expiresAt', 'id', 'privateKey', 'publicKey'] as const
+  $columns = JwkSchema.$columns
+  @column()
+  declare alg: string | null
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare crv: string | null
   @column.dateTime()
   declare expiresAt: DateTime | null
-  @column()
-  declare hash: string
   @column({ isPrimary: true })
-  declare id: number
+  declare id: string
+  @column()
+  declare privateKey: string
+  @column()
+  declare publicKey: string
+}
+
+export class SessionSchema extends BaseModel {
+  static $columns = ['createdAt', 'expiresAt', 'id', 'ipAddress', 'token', 'updatedAt', 'userAgent', 'userId'] as const
+  $columns = SessionSchema.$columns
   @column.dateTime()
-  declare lastUsedAt: DateTime | null
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare expiresAt: DateTime | null
+  @column({ isPrimary: true })
+  declare id: string
   @column()
-  declare name: string | null
+  declare ipAddress: string | null
   @column()
-  declare tokenableId: number
-  @column()
-  declare type: string
-  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare token: string
+  @column.dateTime()
   declare updatedAt: DateTime | null
+  @column()
+  declare userAgent: string | null
+  @column()
+  declare userId: string
 }
 
 export class UserSchema extends BaseModel {
-  static $columns = ['createdAt', 'email', 'fullName', 'id', 'password', 'updatedAt'] as const
+  static $columns = ['createdAt', 'deletedAt', 'email', 'emailVerified', 'firstname', 'id', 'image', 'isActive', 'isDeleted', 'lastname', 'name', 'updatedAt', 'updatedBy'] as const
   $columns = UserSchema.$columns
-  @column.dateTime({ autoCreate: true })
+  @column.dateTime()
   declare createdAt: DateTime
+  @column.dateTime()
+  declare deletedAt: DateTime | null
   @column()
   declare email: string
   @column()
-  declare fullName: string | null
+  declare emailVerified: boolean
+  @column()
+  declare firstname: string
   @column({ isPrimary: true })
-  declare id: number
-  @column({ serializeAs: null })
-  declare password: string
-  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare id: string
+  @column()
+  declare image: string | null
+  @column()
+  declare isActive: boolean
+  @column()
+  declare isDeleted: boolean
+  @column()
+  declare lastname: string
+  @column()
+  declare name: string
+  @column.dateTime()
   declare updatedAt: DateTime | null
+  @column()
+  declare updatedBy: string | null
+}
+
+export class VerificationSchema extends BaseModel {
+  static $columns = ['createdAt', 'expiresAt', 'id', 'identifier', 'updatedAt', 'value'] as const
+  $columns = VerificationSchema.$columns
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare expiresAt: DateTime
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare identifier: string
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+  @column()
+  declare value: string
 }
