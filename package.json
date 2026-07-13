@@ -24,6 +24,7 @@
   "packageManager": "pnpm@11.8.0",
   "prettier": "@adonisjs/prettier-config",
   "dependencies": {
-    "@types/better-sqlite3": "^7.6.13"
+    "@types/better-sqlite3": "^7.6.13",
+    "pg": "^8.22.0"
   }
 }
