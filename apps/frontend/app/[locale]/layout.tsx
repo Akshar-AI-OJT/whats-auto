@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { NextIntlClientProvider, hasLocale } from 'next-intl'
 import { getMessages, setRequestLocale } from 'next-intl/server'
 import { notFound } from 'next/navigation'
+import { ConditionalNavbar } from '@/components/layout/ConditionalNavbar'
 import { Navbar } from '@/components/layout/Navbar'
 import { routing } from '@/i18n/routing'
 import { cn } from '@/lib/utils'
@@ -47,7 +48,9 @@ export default async function LocaleLayout({
     >
       <body className="min-h-full flex flex-col">
         <NextIntlClientProvider messages={messages}>
-          <Navbar />
+          <ConditionalNavbar>
+            <Navbar />
+          </ConditionalNavbar>
           {children}
         </NextIntlClientProvider>
       </body>

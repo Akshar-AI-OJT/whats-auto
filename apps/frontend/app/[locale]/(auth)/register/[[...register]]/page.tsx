@@ -1,5 +1,3 @@
-'use client'
-
 import { SignupForm } from '@/components/auth/signup-form'
 import { GalleryVerticalEndIcon } from 'lucide-react'
 import { Link } from '@/i18n/navigation'
@@ -26,8 +24,10 @@ export default function SignupPage() {
       <div className="relative hidden bg-muted lg:block">
         <Image
           src="/placeholder.svg"
-          alt="Image"
-          className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
+          alt=""
+          fill
+          className="object-cover dark:brightness-[0.2] dark:grayscale"
+          priority
         />
       </div>
     </div>

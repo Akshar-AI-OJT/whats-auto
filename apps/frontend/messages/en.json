@@ -141,11 +141,57 @@
   "auth": {
     "login": {
       "title": "Welcome back",
-      "submit": "Sign in"
+      "subtitle": "Enter your email below to login to your account",
+      "email": "Email",
+      "password": "Password",
+      "submit": "Login",
+      "submitting": "Signing in…",
+      "sending": "Sending link…",
+      "sendMagic": "Email me a magic link",
+      "magicLink": "Use magic link",
+      "magicHint": "We'll email you a sign-in link.",
+      "magicSent": "Check your email for the magic link.",
+      "usePassword": "Use password instead",
+      "orContinue": "Or continue with",
+      "google": "Login with Google",
+      "noAccount": "Don't have an account?",
+      "signUp": "Sign up",
+      "errors": {
+        "generic": "Something went wrong. Please try again."
+      }
     },
     "register": {
       "title": "Create your account",
-      "submit": "Sign up"
+      "subtitle": "Get started with Whats-Auto",
+      "firstname": "First Name",
+      "lastname": "Last Name",
+      "email": "Email",
+      "password": "Password",
+      "confirmPassword": "Confirm Password",
+      "passwordHint": "Must be at least 8 characters long.",
+      "submit": "Create Account",
+      "submitting": "Creating account…",
+      "orContinue": "Or continue with",
+      "google": "Sign up with Google",
+      "haveAccount": "Already have an account?",
+      "signIn": "Sign in",
+      "otpTitle": "Verify your email",
+      "otpSubtitle": "We sent a 6-digit code to {email}",
+      "otpLabel": "Verification code",
+      "verify": "Verify email",
+      "verifying": "Verifying…",
+      "resendOtp": "Resend code",
+      "errors": {
+        "generic": "Something went wrong. Please try again.",
+        "passwordMismatch": "Passwords do not match.",
+        "passwordLength": "Password must be at least 8 characters."
+      }
     }
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "subtitle": "You're signed in.",
+    "loading": "Loading…",
+    "signOut": "Sign out"
   }
 }
