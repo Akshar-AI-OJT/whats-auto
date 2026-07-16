@@ -1,6 +1,5 @@
 import { betterAuth } from 'better-auth'
 import { createAuthMiddleware, APIError } from 'better-auth/api'
-import { emailOTP } from 'better-auth/plugins'
 import { jwt } from 'better-auth/plugins'
 import env from '#start/env'
 import hash from '@adonisjs/core/services/hash'
@@ -42,9 +41,11 @@ export const auth = betterAuth({
 
   account: {
     modelName: 'accounts',
+    // Option B: same email + Google → link to existing verified user and sign in
     accountLinking: {
-      enabled: false,
-      trustedProviders: [],
+      enabled: true,
+      trustedProviders: ['google'],
+      allowDifferentEmails: false,
     },
   },
 
@@ -99,6 +100,19 @@ export const auth = betterAuth({
           google: {
             clientId: googleClientId!,
             clientSecret: googleClientSecret!.release(),
+            mapProfileToUser: (profile: {
+              given_name?: string
+              family_name?: string
+              name?: string
+            }) => {
+              const parts = (profile.name ?? '').trim().split(/\s+/).filter(Boolean)
+              const firstname = profile.given_name?.trim() || parts[0] || 'User'
+              const lastname =
+                profile.family_name?.trim() ||
+                (parts.length > 1 ? parts.slice(1).join(' ') : firstname)
+
+              return { firstname, lastname }
+            },
           },
         },
       }
@@ -113,19 +127,30 @@ export const auth = betterAuth({
         })
       }
 
-      if (ctx.path === '/sign-up/social' || ctx.path === '/sign-in/social') {
+      if (ctx.path === '/request-password-reset' || ctx.path === '/forget-password') {
         const body = ctx.body as { email?: string }
         if (body.email) {
-          const { rows: existingUsers } = await pool.query(
+          const { rows: users } = await pool.query<{ id: string }>(
             `SELECT id FROM "users" WHERE "email" = $1 LIMIT 1`,
-            [body.email]
+            [body.email.toLowerCase()]
           )
 
-          if (existingUsers.length > 0) {
-            throw new APIError('UNPROCESSABLE_ENTITY', {
-              message:
-                'An account with this email already exists. Please sign in with your password.',
-            })
+          if (users.length > 0) {
+            const { rows: accounts } = await pool.query<{
+              providerId: string
+              password: string | null
+            }>(`SELECT "providerId", "password" FROM "accounts" WHERE "userId" = $1`, [users[0].id])
+
+            const hasCredential = accounts.some(
+              (account) => account.providerId === 'credential' && Boolean(account.password)
+            )
+
+            if (!hasCredential) {
+              throw new APIError('BAD_REQUEST', {
+                message: 'This account uses Google sign-in. Please sign in with Google instead.',
+                code: 'USE_GOOGLE_SIGN_IN',
+              })
+            }
           }
         }
       }
@@ -153,33 +178,6 @@ export const auth = betterAuth({
   },
 
   plugins: [
-    // ─── Email OTP — sent after email+password signup ────────────────────
-    emailOTP({
-      // Without this, requireEmailVerification: true has nothing to call —
-      // better-auth never wires sendVerificationEmail → OTP on its own.
-      overrideDefaultEmailVerification: true,
-      async sendVerificationOTP({ email, otp, type }) {
-        console.info(`[emailOTP] sending ${type} OTP to ${email}`)
-
-        const { error } = await resend.emails.send({
-          from: env.get('EMAIL_FROM'),
-          to: email,
-          subject: 'Your Verification Code',
-          text: `Your code is: ${otp}. It expires in 5 minutes.`,
-        })
-
-        // Surface email failures so the caller gets a 500, not a silent failure.
-        // The user row already exists as unverified — they can request a new OTP
-        // from the login page (better-auth's resend endpoint).
-        if (error) {
-          console.error('[emailOTP] Resend error:', error)
-          throw new Error(`Failed to send OTP email: ${error.message}`)
-        }
-      },
-      otpLength: 6,
-      expiresIn: 300, // 5 minutes
-    }),
-
     // ─── JWT — signs short-lived access tokens for AdonisJS API calls ────
     jwt(),
   ],

@@ -18,14 +18,24 @@ router.get('/', () => {
   return { hello: 'world' }
 })
 
-// better-auth handles all /api/auth/* endpoints (signup, login, OTP, OAuth, etc.)
+// better-auth handles /api/auth/* (login, OAuth, forgot/reset password, session, etc.)
 router.any('/api/auth/*', async (ctx) => {
   return handleBetterAuth(ctx)
 })
 
-router.post('/api/v1/auth/pre-signup', [PreSignupController, 'handle'])
-router.post('/api/v1/auth/pre-signup/resend', [PreSignupController, 'resend'])
-router.post('/api/v1/auth/verify-signup', [VerifySignupController, 'handle'])
+router
+  .group(() => {
+    router
+      .post('pre-signup', [PreSignupController, 'handle'])
+      .use(middleware.rateLimit({ max: 5, windowMs: 15 * 60 * 1000, name: 'pre-signup' }))
+    router
+      .post('pre-signup/resend', [PreSignupController, 'resend'])
+      .use(middleware.rateLimit({ max: 5, windowMs: 15 * 60 * 1000, name: 'pre-signup-resend' }))
+    router
+      .post('verify-signup', [VerifySignupController, 'handle'])
+      .use(middleware.rateLimit({ max: 10, windowMs: 15 * 60 * 1000, name: 'verify-signup' }))
+  })
+  .prefix('/api/v1/auth')
 
 router
   .group(() => {

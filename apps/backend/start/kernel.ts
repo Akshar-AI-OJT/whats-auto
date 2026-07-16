@@ -47,4 +47,5 @@ router.use([
 export const middleware = router.named({
   auth: () => import('#middleware/auth_middleware'),
   jwtAuth: () => import('#middleware/jwt_auth_middleware'),
+  rateLimit: () => import('#middleware/rate_limit_middleware'),
 })

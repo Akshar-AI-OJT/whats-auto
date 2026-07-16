@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { api, type ApiError } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldGroup, FieldLabel } from '@/components/ui/field'
@@ -11,21 +11,31 @@ import { cn } from '@/lib/utils'
 
 export function ForgotPasswordForm({ className, ...props }: React.ComponentProps<'form'>) {
   const t = useTranslations('auth.forgotPassword')
+  const locale = useLocale()
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
 
-  async function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
     setPending(true)
 
     try {
-      await api.auth.forgotPassword({ email })
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL
+      await api.auth.forgotPassword({
+        email,
+        redirectTo: `${appUrl}/${locale}/reset-password`,
+      })
       setSent(true)
     } catch (err) {
-      setError((err as ApiError).message || t('errors.generic'))
+      const apiError = err as ApiError
+      if (apiError.code === 'USE_GOOGLE_SIGN_IN') {
+        setError(t('errors.useGoogle'))
+      } else {
+        setError(apiError.message || t('errors.generic'))
+      }
     } finally {
       setPending(false)
     }

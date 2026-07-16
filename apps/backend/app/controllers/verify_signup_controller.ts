@@ -1,60 +1,61 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { fromNodeHeaders } from 'better-auth/node'
-import hash from '@adonisjs/core/services/hash'
 import { auth } from '#lib/auth'
 import { pool } from '#lib/db'
 import { copyBetterAuthResponse } from '#lib/copy_better_auth_response'
-import { deletePendingSignup, loadPendingSignup, verificationKey } from '#lib/pre_signup'
+import {
+  deletePendingSignup,
+  loadPendingSignup,
+  verificationKey,
+  verifyOtp,
+  verifyPassword,
+} from '#lib/pre_signup'
+import { verifySignupValidator } from '#validators/auth'
 
 export default class VerifySignupController {
   async handle({ request, response }: HttpContext) {
-    const { email, otp, password } = request.body() as {
-      email?: string
-      otp?: string
-      password?: string
-    }
-
-    if (!email || !otp || !password) {
-      return response.unprocessableEntity({ error: 'Email, OTP, and password are required.' })
-    }
-
-    if (password.length < 8) {
-      return response.unprocessableEntity({ error: 'Password must be at least 8 characters.' })
-    }
-
-    const normalizedEmail = email.toLowerCase()
-    const pending = await loadPendingSignup(normalizedEmail)
+    const { email, otp, password } = await request.validateUsing(verifySignupValidator)
+    const pending = await loadPendingSignup(email)
 
     if (!pending) {
       return response.badRequest({ error: 'No pending signup found. Please register again.' })
     }
 
     if (new Date(pending.expiresAt) < new Date()) {
-      await deletePendingSignup(normalizedEmail)
+      await deletePendingSignup(email)
       return response.badRequest({ error: 'OTP has expired. Please register again.' })
     }
 
-    if (pending.payload.otp !== otp) {
+    if (!verifyOtp(otp, pending.payload.otpHash)) {
       return response.badRequest({ error: 'Invalid OTP. Please check your email.' })
     }
 
-    const { firstname, lastname } = pending.payload
-    const name = `${firstname} ${lastname}`.trim()
-    const hashedPassword = await hash.make(password)
+    const passwordMatches = await verifyPassword(password, pending.payload.passwordHash)
+    if (!passwordMatches) {
+      return response.badRequest({
+        error: 'Password does not match the one used during registration.',
+        code: 'PASSWORD_MISMATCH',
+      })
+    }
 
+    const { firstname, lastname, passwordHash } = pending.payload
+    const name = `${firstname} ${lastname}`.trim()
+
+    let userId: string | null = null
     const client = await pool.connect()
 
     try {
       await client.query('BEGIN')
 
       const existingUser = await client.query(`SELECT id FROM "users" WHERE "email" = $1 LIMIT 1`, [
-        normalizedEmail,
+        email,
       ])
 
       if (existingUser.rows.length > 0) {
         await client.query('ROLLBACK')
         return response.unprocessableEntity({
           error: 'An account with this email already exists.',
+          code: 'EMAIL_ALREADY_EXISTS',
         })
       }
 
@@ -65,23 +66,20 @@ export default class VerifySignupController {
         )
         VALUES ($1, $2, $3, $4, TRUE, TRUE, FALSE, NOW(), NOW())
         RETURNING "id"`,
-        [name, firstname, lastname, normalizedEmail]
+        [name, firstname, lastname, email]
       )
 
-      const userId = userResult.rows[0].id
+      userId = userResult.rows[0].id
 
       await client.query(
         `INSERT INTO "accounts" (
           "userId", "accountId", "providerId", "password", "createdAt", "updatedAt"
         )
         VALUES ($1, $2, 'credential', $3, NOW(), NOW())`,
-        [userId, userId, hashedPassword]
+        [userId, userId, passwordHash]
       )
 
-      await client.query(`DELETE FROM "verifications" WHERE "identifier" = $1`, [
-        verificationKey(normalizedEmail),
-      ])
-
+      // Keep pending OTP until sign-in succeeds so a failed session can retry.
       await client.query('COMMIT')
     } catch {
       await client.query('ROLLBACK')
@@ -90,11 +88,32 @@ export default class VerifySignupController {
       client.release()
     }
 
-    const webResponse = await auth.api.signInEmail({
-      body: { email: normalizedEmail, password },
-      headers: fromNodeHeaders(request.headers()),
-      asResponse: true,
-    })
+    let webResponse: Response
+    try {
+      webResponse = await auth.api.signInEmail({
+        body: { email, password },
+        headers: fromNodeHeaders(request.headers()),
+        asResponse: true,
+      })
+    } catch {
+      if (userId) {
+        await pool.query(`DELETE FROM "users" WHERE "id" = $1`, [userId])
+      }
+      return response.internalServerError({
+        error: 'Account created but sign-in failed. Please try verifying again.',
+      })
+    }
+
+    if (!webResponse.ok) {
+      if (userId) {
+        await pool.query(`DELETE FROM "users" WHERE "id" = $1`, [userId])
+      }
+      return copyBetterAuthResponse({ request, response } as HttpContext, webResponse)
+    }
+
+    await pool.query(`DELETE FROM "verifications" WHERE "identifier" = $1`, [
+      verificationKey(email),
+    ])
 
     return copyBetterAuthResponse({ request, response } as HttpContext, webResponse)
   }

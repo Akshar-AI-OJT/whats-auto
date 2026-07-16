@@ -177,6 +177,7 @@
       "verify": "Verify email",
       "verifying": "Verifying…",
       "resendOtp": "Resend code",
+      "resendOtpCooldown": "Resend code in {seconds}s",
       "back": "Back",
       "errors": {
         "generic": "Something went wrong. Please try again.",
@@ -195,7 +196,8 @@
       "sentSubtitle": "We sent a password reset link to {email}. It expires in 1 hour.",
       "backToLogin": "Back to login",
       "errors": {
-        "generic": "Something went wrong. Please try again."
+        "generic": "Something went wrong. Please try again.",
+        "useGoogle": "This account uses Google sign-in. Please sign in with Google instead."
       }
     },
     "resetPassword": {

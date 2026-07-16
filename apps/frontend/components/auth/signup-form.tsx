@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { useEffect, useRef, useState } from 'react'
+import { useLocale, useTranslations } from 'next-intl'
 import { FcGoogle } from 'react-icons/fc'
 import { cn } from '@/lib/utils'
 import { api, type ApiError } from '@/lib/api'
@@ -20,6 +20,7 @@ type Step = 'register' | 'otp'
 
 export function SignupForm({ className, ...props }: React.ComponentProps<'form'>) {
   const t = useTranslations('auth.register')
+  const locale = useLocale()
   const router = useRouter()
 
   const [step, setStep] = useState<Step>('register')
@@ -31,13 +32,43 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
   const [otp, setOtp] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const [resendCooldown, setResendCooldown] = useState(0)
+  const cooldownTimerRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    return () => {
+      if (cooldownTimerRef.current !== null) {
+        window.clearInterval(cooldownTimerRef.current)
+      }
+    }
+  }, [])
+
+  function startResendCooldown(seconds = 60) {
+    if (cooldownTimerRef.current !== null) {
+      window.clearInterval(cooldownTimerRef.current)
+    }
+    setResendCooldown(seconds)
+    cooldownTimerRef.current = window.setInterval(() => {
+      setResendCooldown((prev) => {
+        if (prev <= 1) {
+          if (cooldownTimerRef.current !== null) {
+            window.clearInterval(cooldownTimerRef.current)
+            cooldownTimerRef.current = null
+          }
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+  }
 
   async function handleGoogle() {
     setError(null)
     setPending(true)
 
     try {
-      const { data } = await api.auth.google()
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL
+      const { data } = await api.auth.google(`${appUrl}/${locale}/dashboard`)
       if (data.url) {
         window.location.href = data.url
         return
@@ -74,6 +105,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
     try {
       await api.auth.signup({ firstname, lastname, email, password })
       setStep('otp')
+      startResendCooldown(60)
     } catch (err) {
       const apiError = err as ApiError
       if (apiError.code === 'EMAIL_ALREADY_EXISTS') {
@@ -103,13 +135,20 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
   }
 
   async function handleResendOtp() {
+    if (resendCooldown > 0) return
+
     setError(null)
     setPending(true)
 
     try {
       await api.auth.resendOtp({ email })
+      startResendCooldown(60)
     } catch (err) {
-      setError((err as ApiError).message || t('errors.generic'))
+      const apiError = err as ApiError
+      if (apiError.retryAfter) {
+        startResendCooldown(apiError.retryAfter)
+      }
+      setError(apiError.message || t('errors.generic'))
     } finally {
       setPending(false)
     }
@@ -165,10 +204,10 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
             <button
               type="button"
               className="underline underline-offset-4 disabled:opacity-50"
-              disabled={pending}
+              disabled={pending || resendCooldown > 0}
               onClick={() => void handleResendOtp()}
             >
-              {t('resendOtp')}
+              {resendCooldown > 0 ? t('resendOtpCooldown', { seconds: resendCooldown }) : t('resendOtp')}
             </button>
           </FieldDescription>
         </FieldGroup>

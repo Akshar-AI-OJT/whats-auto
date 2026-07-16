@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { FcGoogle } from 'react-icons/fc'
 import { cn } from '@/lib/utils'
 import { api, type ApiError } from '@/lib/api'
@@ -18,6 +18,7 @@ import { Link, useRouter } from '@/i18n/navigation'
 
 export function LoginForm({ className, ...props }: React.ComponentProps<'form'>) {
   const t = useTranslations('auth.login')
+  const locale = useLocale()
   const router = useRouter()
 
   const [email, setEmail] = useState('')
@@ -30,7 +31,8 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
     setPending(true)
 
     try {
-      const { data } = await api.auth.google()
+      const appUrl = process.env.NEXT_PUBLIC_APP_URL
+      const { data } = await api.auth.google(`${appUrl}/${locale}/dashboard`)
       if (data.url) {
         window.location.href = data.url
         return

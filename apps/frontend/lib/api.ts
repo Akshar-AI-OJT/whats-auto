@@ -10,17 +10,20 @@ export type ApiError = {
   message: string
   status: number
   code?: string
+  retryAfter?: number
 }
 
 async function parseError(response: Response): Promise<ApiError> {
   let message = response.statusText || 'Request failed'
   let code: string | undefined
+  let retryAfter: number | undefined
 
   try {
     const data = (await response.json()) as {
       message?: string
-      error?: string | { message?: string }
+      error?: string | { message?: string; code?: string }
       code?: string
+      retryAfter?: number
     }
 
     if (typeof data.message === 'string') {
@@ -31,12 +34,28 @@ async function parseError(response: Response): Promise<ApiError> {
       message = data.error.message
     }
 
-    code = data.code
+    code =
+      data.code ??
+      (typeof data.error === 'object' && data.error?.code ? data.error.code : undefined)
+
+    if (!code && /already exists/i.test(message)) {
+      code = 'EMAIL_ALREADY_EXISTS'
+    }
+
+    if (typeof data.retryAfter === 'number') {
+      retryAfter = data.retryAfter
+    } else {
+      const header = response.headers.get('Retry-After')
+      if (header) {
+        const parsed = Number(header)
+        if (!Number.isNaN(parsed)) retryAfter = parsed
+      }
+    }
   } catch {
     // non-JSON body — keep statusText
   }
 
-  return { message, status: response.status, code }
+  return { message, status: response.status, code, retryAfter }
 }
 
 async function request<T>(
@@ -118,12 +137,13 @@ export const api = {
         body: JSON.stringify(body),
       }),
 
-    forgotPassword: (body: { email: string }) =>
-      request('/api/auth/forget-password', {
+    forgotPassword: (body: { email: string; redirectTo?: string }) =>
+      request('/api/auth/request-password-reset', {
         method: 'POST',
         body: JSON.stringify({
           email: body.email,
-          redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/reset-password`,
+          redirectTo:
+            body.redirectTo ?? `${process.env.NEXT_PUBLIC_APP_URL}/reset-password`,
         }),
       }),
 
