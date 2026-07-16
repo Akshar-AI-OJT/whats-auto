@@ -16,22 +16,17 @@ import {
 import { Input } from '@/components/ui/input'
 import { Link, useRouter } from '@/i18n/navigation'
 
-type Mode = 'password' | 'magic'
-
 export function LoginForm({ className, ...props }: React.ComponentProps<'form'>) {
   const t = useTranslations('auth.login')
   const router = useRouter()
 
-  const [mode, setMode] = useState<Mode>('password')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [info, setInfo] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
 
   async function handleGoogle() {
     setError(null)
-    setInfo(null)
     setPending(true)
 
     try {
@@ -42,7 +37,12 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
       }
       setError(t('errors.generic'))
     } catch (err) {
-      setError((err as ApiError).message || t('errors.generic'))
+      const apiError = err as ApiError
+      if (apiError.code === 'EMAIL_ALREADY_EXISTS') {
+        setError(t('errors.emailExists'))
+      } else {
+        setError(apiError.message || t('errors.generic'))
+      }
     } finally {
       setPending(false)
     }
@@ -51,16 +51,9 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
-    setInfo(null)
     setPending(true)
 
     try {
-      if (mode === 'magic') {
-        await api.auth.magicLink({ email })
-        setInfo(t('magicSent'))
-        return
-      }
-
       await api.auth.login({ email, password })
       router.push('/dashboard')
       router.refresh()
@@ -92,67 +85,43 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
           />
         </Field>
 
-        {mode === 'password' ? (
-          <Field>
-            <div className="flex items-center">
-              <FieldLabel htmlFor="password">{t('password')}</FieldLabel>
-              <button
-                type="button"
-                className="ml-auto text-sm underline-offset-4 hover:underline"
-                onClick={() => {
-                  setMode('magic')
-                  setError(null)
-                  setInfo(null)
-                }}
-              >
-                {t('magicLink')}
-              </button>
-            </div>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </Field>
-        ) : (
-          <FieldDescription>
-            {t('magicHint')}{' '}
-            <button
-              type="button"
-              className="underline underline-offset-4"
-              onClick={() => {
-                setMode('password')
-                setError(null)
-                setInfo(null)
-              }}
+        <Field>
+          <div className="flex items-center">
+            <FieldLabel htmlFor="password">{t('password')}</FieldLabel>
+            <Link
+              href="/forgot-password"
+              className="ml-auto text-sm underline-offset-4 hover:underline"
             >
-              {t('usePassword')}
-            </button>
-          </FieldDescription>
-        )}
+              {t('forgotPassword')}
+            </Link>
+          </div>
+          <Input
+            id="password"
+            name="password"
+            type="password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </Field>
 
         {error ? <p className="text-sm text-destructive text-center">{error}</p> : null}
-        {info ? <p className="text-sm text-muted-foreground text-center">{info}</p> : null}
 
         <Field>
           <Button type="submit" disabled={pending}>
-            {pending
-              ? mode === 'magic'
-                ? t('sending')
-                : t('submitting')
-              : mode === 'magic'
-                ? t('sendMagic')
-                : t('submit')}
+            {pending ? t('submitting') : t('submit')}
           </Button>
         </Field>
 
         <FieldSeparator>{t('orContinue')}</FieldSeparator>
 
         <Field>
-          <Button variant="outline" type="button" disabled={pending} onClick={() => void handleGoogle()}>
+          <Button
+            variant="outline"
+            type="button"
+            disabled={pending}
+            onClick={() => void handleGoogle()}
+          >
             <FcGoogle />
             {t('google')}
           </Button>

@@ -1,22 +1,11 @@
 import { betterAuth } from 'better-auth'
 import { createAuthMiddleware, APIError } from 'better-auth/api'
 import { emailOTP } from 'better-auth/plugins'
-import { magicLink } from 'better-auth/plugins'
 import { jwt } from 'better-auth/plugins'
-import { Pool } from 'pg'
-import { Resend } from 'resend'
 import env from '#start/env'
 import hash from '@adonisjs/core/services/hash'
-
-const pool = new Pool({
-  host: env.get('PG_HOST'),
-  port: env.get('PG_PORT'),
-  user: env.get('PG_USER'),
-  password: env.get('PG_PASSWORD').release(),
-  database: env.get('PG_DB_NAME'),
-})
-
-const resend = new Resend(env.get('RESEND_API_KEY').release())
+import { pool } from '#lib/db'
+import { resend } from '#lib/mail'
 
 const googleClientId = env.get('GOOGLE_CLIENT_ID')
 const googleClientSecret = env.get('GOOGLE_CLIENT_SECRET')
@@ -53,6 +42,10 @@ export const auth = betterAuth({
 
   account: {
     modelName: 'accounts',
+    accountLinking: {
+      enabled: false,
+      trustedProviders: [],
+    },
   },
 
   session: {
@@ -79,6 +72,24 @@ export const auth = betterAuth({
         return await hash.verify(hashedPassword, password)
       },
     },
+    sendResetPassword: async ({ user, url }) => {
+      const { error } = await resend.emails.send({
+        from: env.get('EMAIL_FROM'),
+        to: user.email,
+        subject: 'Reset your Whats-Auto password',
+        html: `
+          <p>Hi ${user.name ?? user.email},</p>
+          <p>Click the link below to reset your password. It expires in 1 hour.</p>
+          <p><a href="${url}">Reset Password</a></p>
+          <p>If you didn't request this, ignore this email.</p>
+        `,
+      })
+
+      if (error) {
+        throw new Error(`Failed to send reset email: ${error.message}`)
+      }
+    },
+    resetPasswordTokenExpiresIn: 3600,
   },
 
   // ─── Google OAuth (only when credentials are present) ─────────────────
@@ -97,22 +108,29 @@ export const auth = betterAuth({
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
       if (ctx.path === '/sign-up/email') {
-        const body = ctx.body as { firstname?: string; lastname?: string; name?: string }
+        throw new APIError('BAD_REQUEST', {
+          message: 'Email signup requires OTP verification. Use the registration form.',
+        })
+      }
 
-        if (body.firstname && body.lastname) {
-          return {
-            context: {
-              ...ctx,
-              body: {
-                ...ctx.body,
-                name: `${body.firstname} ${body.lastname}`.trim(),
-              },
-            },
+      if (ctx.path === '/sign-up/social' || ctx.path === '/sign-in/social') {
+        const body = ctx.body as { email?: string }
+        if (body.email) {
+          const { rows: existingUsers } = await pool.query(
+            `SELECT id FROM "users" WHERE "email" = $1 LIMIT 1`,
+            [body.email]
+          )
+
+          if (existingUsers.length > 0) {
+            throw new APIError('UNPROCESSABLE_ENTITY', {
+              message:
+                'An account with this email already exists. Please sign in with your password.',
+            })
           }
         }
       }
 
-      const signInPaths = ['/sign-in/email', '/sign-in/social', '/sign-in/magic-link']
+      const signInPaths = ['/sign-in/email', '/sign-in/social']
       if (!signInPaths.includes(ctx.path)) return
 
       const { email } = ctx.body as { email?: string }
@@ -159,23 +177,6 @@ export const auth = betterAuth({
         }
       },
       otpLength: 6,
-      expiresIn: 300, // 5 minutes
-    }),
-
-    // ─── Magic link — passwordless login ─────────────────────────────────
-    magicLink({
-      async sendMagicLink({ email, url }) {
-        const { error } = await resend.emails.send({
-          from: env.get('EMAIL_FROM'),
-          to: email,
-          subject: 'Your Magic Sign-in Link',
-          html: `<p>Click to sign in (expires in 5 min):</p><p><a href="${url}">Sign In</a></p>`,
-        })
-
-        if (error) {
-          throw new Error(`Failed to send magic link email: ${error.message}`)
-        }
-      },
       expiresIn: 300, // 5 minutes
     }),
 

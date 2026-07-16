@@ -2,7 +2,13 @@
 
 import { usePathname } from '@/i18n/navigation'
 
-const AUTH_PREFIXES = ['/login', '/register']
+const AUTH_PREFIXES = [
+  '/login',
+  '/register',
+  '/dashboard',
+  '/forgot-password',
+  '/reset-password',
+]
 
 export function ConditionalNavbar({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()

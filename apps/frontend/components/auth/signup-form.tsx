@@ -44,7 +44,12 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
       }
       setError(t('errors.generic'))
     } catch (err) {
-      setError((err as ApiError).message || t('errors.generic'))
+      const apiError = err as ApiError
+      if (apiError.code === 'EMAIL_ALREADY_EXISTS') {
+        setError(t('errors.emailExists'))
+      } else {
+        setError(apiError.message || t('errors.generic'))
+      }
     } finally {
       setPending(false)
     }
@@ -70,7 +75,12 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
       await api.auth.signup({ firstname, lastname, email, password })
       setStep('otp')
     } catch (err) {
-      setError((err as ApiError).message || t('errors.generic'))
+      const apiError = err as ApiError
+      if (apiError.code === 'EMAIL_ALREADY_EXISTS') {
+        setError(t('errors.emailExists'))
+      } else {
+        setError(apiError.message || t('errors.generic'))
+      }
     } finally {
       setPending(false)
     }
@@ -82,7 +92,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
     setPending(true)
 
     try {
-      await api.auth.verifyOtp({ email, otp })
+      await api.auth.verifyOtp({ email, otp, password })
       router.push('/dashboard')
       router.refresh()
     } catch (err) {
@@ -108,6 +118,17 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
   if (step === 'otp') {
     return (
       <form className={cn('flex flex-col gap-6', className)} onSubmit={handleVerifyOtp} {...props}>
+        <button
+          type="button"
+          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors self-start"
+          onClick={() => {
+            setStep('register')
+            setOtp('')
+            setError(null)
+          }}
+        >
+          ← {t('back')}
+        </button>
         <FieldGroup>
           <div className="flex flex-col items-center gap-1 text-center">
             <h1 className="text-2xl font-bold">{t('otpTitle')}</h1>

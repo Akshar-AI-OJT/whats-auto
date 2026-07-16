@@ -95,12 +95,9 @@ export type ProfileUser = {
 export const api = {
   auth: {
     signup: (body: SignupBody) =>
-      request('/api/auth/sign-up/email', {
+      request<{ status: string }>('/api/v1/auth/pre-signup', {
         method: 'POST',
-        body: JSON.stringify({
-          ...body,
-          name: `${body.firstname} ${body.lastname}`.trim(),
-        }),
+        body: JSON.stringify(body),
       }),
 
     login: (body: LoginBody) =>
@@ -109,28 +106,31 @@ export const api = {
         body: JSON.stringify(body),
       }),
 
-    verifyOtp: (body: { email: string; otp: string }) =>
-      request('/api/auth/email-otp/verify-email', {
+    verifyOtp: (body: { email: string; otp: string; password: string }) =>
+      request('/api/v1/auth/verify-signup', {
         method: 'POST',
         body: JSON.stringify(body),
       }),
 
     resendOtp: (body: { email: string }) =>
-      request('/api/auth/email-otp/send-verification-otp', {
+      request<{ status: string }>('/api/v1/auth/pre-signup/resend', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+
+    forgotPassword: (body: { email: string }) =>
+      request('/api/auth/forget-password', {
         method: 'POST',
         body: JSON.stringify({
           email: body.email,
-          type: 'email-verification',
+          redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/reset-password`,
         }),
       }),
 
-    magicLink: (body: { email: string; callbackURL?: string }) =>
-      request('/api/auth/sign-in/magic-link', {
+    resetPassword: (body: { token: string; newPassword: string }) =>
+      request('/api/auth/reset-password', {
         method: 'POST',
-        body: JSON.stringify({
-          email: body.email,
-          callbackURL: body.callbackURL ?? `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`,
-        }),
+        body: JSON.stringify(body),
       }),
 
     google: (callbackURL?: string) =>

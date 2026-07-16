@@ -144,20 +144,16 @@
       "subtitle": "Enter your email below to login to your account",
       "email": "Email",
       "password": "Password",
+      "forgotPassword": "Forgot password?",
       "submit": "Login",
       "submitting": "Signing in…",
-      "sending": "Sending link…",
-      "sendMagic": "Email me a magic link",
-      "magicLink": "Use magic link",
-      "magicHint": "We'll email you a sign-in link.",
-      "magicSent": "Check your email for the magic link.",
-      "usePassword": "Use password instead",
       "orContinue": "Or continue with",
       "google": "Login with Google",
       "noAccount": "Don't have an account?",
       "signUp": "Sign up",
       "errors": {
-        "generic": "Something went wrong. Please try again."
+        "generic": "Something went wrong. Please try again.",
+        "emailExists": "An account with this email already exists. Please sign in with your password."
       }
     },
     "register": {
@@ -181,10 +177,42 @@
       "verify": "Verify email",
       "verifying": "Verifying…",
       "resendOtp": "Resend code",
+      "back": "Back",
       "errors": {
         "generic": "Something went wrong. Please try again.",
+        "emailExists": "An account with this email already exists. Please sign in with your password.",
         "passwordMismatch": "Passwords do not match.",
         "passwordLength": "Password must be at least 8 characters."
+      }
+    },
+    "forgotPassword": {
+      "title": "Forgot your password?",
+      "subtitle": "Enter your email and we'll send you a reset link.",
+      "email": "Email",
+      "submit": "Send reset link",
+      "submitting": "Sending…",
+      "sentTitle": "Check your email",
+      "sentSubtitle": "We sent a password reset link to {email}. It expires in 1 hour.",
+      "backToLogin": "Back to login",
+      "errors": {
+        "generic": "Something went wrong. Please try again."
+      }
+    },
+    "resetPassword": {
+      "title": "Set new password",
+      "subtitle": "Enter your new password below.",
+      "password": "New Password",
+      "confirmPassword": "Confirm New Password",
+      "submit": "Reset password",
+      "submitting": "Resetting…",
+      "successTitle": "Password reset!",
+      "successSubtitle": "Your password has been updated. Redirecting to login…",
+      "requestNew": "Request a new reset link",
+      "errors": {
+        "generic": "Something went wrong. Please try again.",
+        "mismatch": "Passwords do not match.",
+        "length": "Password must be at least 8 characters.",
+        "invalidToken": "This reset link is invalid or missing."
       }
     }
   },
