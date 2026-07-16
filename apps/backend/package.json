@@ -9,8 +9,9 @@
     "./registry": "./.adonisjs/client/registry/index.ts"
   },
   "scripts": {
-    "start": "node bin/server.js",
+    "start": "node build/bin/server.js",
     "build": "node ace build",
+    "postbuild": "node -e \"const fs = require('fs'); if (fs.existsSync('.env')) fs.copyFileSync('.env', 'build/.env')\"",
     "dev": "node ace serve --hmr",
     "test": "node ace test",
     "lint": "eslint .",
@@ -36,7 +37,8 @@
     "#tests/*": "./tests/*.js",
     "#start/*": "./start/*.js",
     "#config/*": "./config/*.js",
-    "#lib/*": "./lib/*.js"
+    "#lib/*": "./lib/*.js",
+    "#types/*": "./types/*.js"
   },
   "devDependencies": {
     "@adonisjs/assembler": "^8.4.0",

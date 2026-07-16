@@ -1,5 +1,6 @@
 import app from '@adonisjs/core/services/app'
 import { defineConfig } from '@adonisjs/lucid'
+import env from '#start/env'
 
 const dbConfig = defineConfig({
   /**
@@ -55,11 +56,11 @@ const dbConfig = defineConfig({
     pg: {
       client: 'pg',
       connection: {
-        host: process.env.PG_HOST,
-        port: Number(process.env.PG_PORT || 5432),
-        user: process.env.PG_USER,
-        password: process.env.PG_PASSWORD,
-        database: process.env.PG_DB_NAME,
+        host: env.get('PG_HOST'),
+        port: Number(env.get('PG_PORT') || 5432),
+        user: env.get('PG_USER'),
+        password: env.get('PG_PASSWORD').release(),
+        database: env.get('PG_DB_NAME'),
       },
       migrations: {
         naturalSort: true,
