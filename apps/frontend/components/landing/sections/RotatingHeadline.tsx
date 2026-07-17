@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { AnimatePresence, motion } from 'framer-motion'
+import { AnimatePresence, motion, MotionConfig } from 'framer-motion'
 
 interface RotatingHeadlineProps {
   prefix: string
@@ -13,8 +13,8 @@ interface RotatingHeadlineProps {
 }
 
 /**
- * "The #1 [word1] [word2] platform" with word1/word2 rotating together
- * in sync, each inside a highlighted pill, sliding vertically.
+ * "The #1 [word1] [word2] platform" with word1/word2 rotating together.
+ * Each highlight box sizes to its active word.
  */
 export function RotatingHeadline({
   prefix,
@@ -35,56 +35,63 @@ export function RotatingHeadline({
   }, [length, interval])
 
   return (
-    <h1 className="flex flex-wrap items-center gap-x-3 gap-y-3 text-3xl font-semibold tracking-tight md:text-5xl lg:text-6xl">
-      <span>{prefix}</span>
-      <HighlightWord word={words1[index % words1.length]} squareCorner="tr" />
-      <span className="flex items-center gap-3">
-        <HighlightWord word={words2[index % words2.length]} squareCorner="tl" />
-        <span>{suffix}</span>
-      </span>
-    </h1>
+    <MotionConfig reducedMotion="never">
+      <h1 className="font-display-black flex flex-wrap items-center justify-center gap-x-3 gap-y-3 text-center text-[2.5rem] text-ink sm:text-5xl md:text-6xl lg:text-[4rem]">
+        <span className="whitespace-nowrap">{prefix}</span>
+        <HighlightWord
+          active={words1[index % words1.length]}
+          squareCorner="tr"
+        />
+        <span className="inline-flex flex-wrap items-center justify-center gap-x-3 gap-y-3">
+          <HighlightWord
+            active={words2[index % words2.length]}
+            squareCorner="tl"
+          />
+          <span className="whitespace-nowrap">{suffix}</span>
+        </span>
+      </h1>
+    </MotionConfig>
   )
 }
 
 function HighlightWord({
-  word,
+  active,
   squareCorner,
 }: {
-  word: string
+  active: string
   /** which corner to leave un-rounded, so the two boxes look like they interlock */
   squareCorner: 'tr' | 'tl'
 }) {
   const cornerClass =
     squareCorner === 'tr'
-      ? 'rounded-tl-lg rounded-br-lg rounded-bl-lg rounded-tr-none origin-top-right -rotate-1'
-      : 'rounded-tr-lg rounded-br-lg rounded-bl-lg rounded-tl-none origin-top-left rotate-1'
+      ? 'rounded-tl-xl rounded-br-xl rounded-bl-xl rounded-tr-none origin-top-right -rotate-1'
+      : 'rounded-tr-xl rounded-br-xl rounded-bl-xl rounded-tl-none origin-top-left rotate-1'
 
   return (
-    <span className="relative inline-block px-3 py-4 align-middle">
-      {/* invisible copy reserves box width/height so layout doesn't jump */}
-      <span className="invisible" aria-hidden>
-        {word}
+    <span className="relative inline-grid align-middle">
+      {/* Invisible copy reserves box width/height for the active word. */}
+      <span aria-hidden className="invisible col-start-1 row-start-1 whitespace-nowrap px-3 py-4">
+        {active}
       </span>
 
       {/* background box: this is the only layer that tilts */}
       <span
         aria-hidden
-        className={`absolute inset-0 border-2 border-foreground bg-primary
-                   shadow-[5px_5px_0_0_var(--foreground)] ${cornerClass}`}
+        className={`pointer-events-none absolute inset-0 border-2 border-ink bg-primary shadow-[5px_5px_0_0_var(--ink)] ${cornerClass}`}
       />
 
       {/* text layer: stays upright, clips the sliding word */}
-      <span className="absolute inset-0 flex items-center justify-center overflow-hidden text-primary-foreground">
-        <AnimatePresence mode="popLayout">
+      <span className="absolute inset-0 flex items-center justify-center overflow-hidden text-on-primary">
+        <AnimatePresence mode="popLayout" initial={false}>
           <motion.span
-            key={word}
+            key={active}
             initial={{ y: '110%', opacity: 0 }}
             animate={{ y: '0%', opacity: 1 }}
             exit={{ y: '-110%', opacity: 0 }}
             transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
-            className="absolute inset-0 flex items-center justify-center"
+            className="absolute inset-0 flex items-center justify-center whitespace-nowrap"
           >
-            {word}
+            {active}
           </motion.span>
         </AnimatePresence>
       </span>

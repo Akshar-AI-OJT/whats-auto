@@ -27,33 +27,6 @@ function NavMenuSection({
   dropdown: NavData['features'] | NavData['integrations']
   onNavigate: () => void
 }) {
-  if (dropdown.href) {
-    return (
-      <div className="py-1">
-        <Link
-          href={dropdown.href}
-          onClick={onNavigate}
-          className="block py-3 text-base font-medium"
-        >
-          {dropdown.label}
-        </Link>
-        <ul className="flex flex-col pl-2">
-          {dropdown.items.map((item) => (
-            <li key={item.href}>
-              <Link
-                href={item.href}
-                onClick={onNavigate}
-                className="block py-3 text-muted-foreground transition-colors hover:text-foreground"
-              >
-                {item.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </div>
-    )
-  }
-
   return (
     <AccordionItem value={dropdown.id}>
       <AccordionTrigger className="py-3 text-base hover:no-underline">
@@ -66,7 +39,7 @@ function NavMenuSection({
               <Link
                 href={item.href}
                 onClick={onNavigate}
-                className="block py-3 pl-2 text-muted-foreground transition-colors hover:text-foreground"
+                className="block py-3 pl-2 text-body transition-colors hover:text-ink"
               >
                 {item.label}
               </Link>
@@ -85,9 +58,11 @@ export function MobileMenu({ id, open, onOpenChange, nav }: MobileMenuProps) {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent id={id} side="right" className="w-full gap-0 p-0 sm:max-w-sm">
+      <SheetContent id={id} side="right" className="w-full gap-0 border-l border-border bg-canvas p-0 sm:max-w-sm">
         <SheetHeader className="border-b border-border px-4 py-4">
-          <SheetTitle className="text-left text-lg">{nav.brand}</SheetTitle>
+          <SheetTitle className="font-display text-left text-lg text-ink">
+            {nav.brand}
+          </SheetTitle>
         </SheetHeader>
 
         <div className="flex flex-1 flex-col overflow-y-auto px-4 py-2">
@@ -95,9 +70,8 @@ export function MobileMenu({ id, open, onOpenChange, nav }: MobileMenuProps) {
             {nav.pricing.label}
           </Link>
 
-          <NavMenuSection dropdown={nav.features} onNavigate={closeMenu} />
-
           <Accordion>
+            <NavMenuSection dropdown={nav.features} onNavigate={closeMenu} />
             <NavMenuSection dropdown={nav.integrations} onNavigate={closeMenu} />
           </Accordion>
 

@@ -67,8 +67,8 @@ export function ResetPasswordForm({ className, ...props }: React.ComponentProps<
     return (
       <FieldGroup>
         <div className="flex flex-col items-center gap-2 text-center">
-          <h1 className="text-2xl font-bold">{t('successTitle')}</h1>
-          <p className="text-sm text-muted-foreground">{t('successSubtitle')}</p>
+          <h1 className="font-display text-2xl text-ink">{t('successTitle')}</h1>
+          <p className="text-sm text-body">{t('successSubtitle')}</p>
         </div>
       </FieldGroup>
     )
@@ -78,8 +78,8 @@ export function ResetPasswordForm({ className, ...props }: React.ComponentProps<
     <form className={cn('flex flex-col gap-6', className)} onSubmit={handleSubmit} {...props}>
       <FieldGroup>
         <div className="flex flex-col items-center gap-1 text-center">
-          <h1 className="text-2xl font-bold">{t('title')}</h1>
-          <p className="text-sm text-muted-foreground">{t('subtitle')}</p>
+          <h1 className="font-display text-2xl text-ink">{t('title')}</h1>
+          <p className="text-sm text-body">{t('subtitle')}</p>
         </div>
 
         <Field>

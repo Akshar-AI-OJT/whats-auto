@@ -22,21 +22,19 @@ export async function PricingSection() {
   }))
 
   return (
-    <section className="border-b border-border">
-      <div className="mx-auto max-w-screen-xl px-4 py-16 md:py-24">
+    <section className="bg-canvas">
+      <div className="mx-auto max-w-[1200px] px-4 py-16 md:px-6 md:py-24">
         <div className="mx-auto mb-10 max-w-2xl text-center md:mb-14">
-          <h2 className="text-2xl font-semibold tracking-tight md:text-4xl">
+          <h2 className="font-display-black text-3xl text-ink md:text-5xl">
             {t('title')}
           </h2>
-          <p className="mt-3 text-base text-muted-foreground md:text-lg">
-            {t('subtitle')}
-          </p>
+          <p className="mt-4 text-base text-body md:text-lg">{t('subtitle')}</p>
         </div>
 
         <div
           className={cn(
             'flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4',
-            'md:grid md:grid-cols-3 md:gap-6 md:overflow-visible md:pb-0',
+            'md:grid md:grid-cols-3 md:gap-6 md:overflow-visible md:pb-0'
           )}
         >
           {tiers.map((tier) => (
@@ -44,7 +42,7 @@ export async function PricingSection() {
           ))}
         </div>
 
-        <div className="mt-8 text-center">
+        <div className="mt-10 text-center">
           <Link href="/pricing" className={buttonVariants({ variant: 'link' })}>
             {t('viewAll')}
           </Link>

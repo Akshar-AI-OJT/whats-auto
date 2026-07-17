@@ -16,16 +16,16 @@ export function FeatureCard({ slug, icon, title, summary }: FeatureCardProps) {
     <Link
       href={`/features/${slug}`}
       className={cn(
-        'group flex flex-col gap-4 rounded-xl border border-border bg-card p-6 transition-colors hover:border-primary/30 hover:bg-muted/40',
+        'group flex flex-col gap-4 rounded-xl bg-canvas-soft p-6 transition-colors hover:bg-primary-pale'
       )}
     >
-      <div className="flex size-11 items-center justify-center rounded-lg bg-primary/10 text-primary">
+      <div className="flex size-11 items-center justify-center rounded-lg bg-canvas text-ink">
         <Icon className="size-5" aria-hidden />
       </div>
-      <h3 className="text-lg font-semibold group-hover:text-primary">
+      <h3 className="text-lg font-semibold text-ink group-hover:text-ink-deep">
         {title}
       </h3>
-      <p className="text-sm text-muted-foreground md:text-base">{summary}</p>
+      <p className="text-sm text-body md:text-base">{summary}</p>
     </Link>
   )
 }

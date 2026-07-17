@@ -2,7 +2,7 @@
 
 import { usePathname } from '@/i18n/navigation'
 
-const AUTH_PREFIXES = [
+const HIDE_PREFIXES = [
   '/login',
   '/register',
   '/dashboard',
@@ -10,15 +10,12 @@ const AUTH_PREFIXES = [
   '/reset-password',
 ]
 
-export function ConditionalNavbar({ children }: { children: React.ReactNode }) {
+export function ConditionalChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
-  const hideNavbar = AUTH_PREFIXES.some(
+  const hide = HIDE_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
   )
 
-  if (hideNavbar) {
-    return null
-  }
-
+  if (hide) return null
   return <>{children}</>
 }

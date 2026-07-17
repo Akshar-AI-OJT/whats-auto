@@ -70,8 +70,8 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
     <form className={cn('flex flex-col gap-6', className)} onSubmit={handleSubmit} {...props}>
       <FieldGroup>
         <div className="flex flex-col items-center gap-1 text-center">
-          <h1 className="text-2xl font-bold">{t('title')}</h1>
-          <p className="text-sm text-balance text-muted-foreground">{t('subtitle')}</p>
+          <h1 className="font-display text-2xl text-ink">{t('title')}</h1>
+          <p className="text-sm text-balance text-body">{t('subtitle')}</p>
         </div>
 
         <Field>

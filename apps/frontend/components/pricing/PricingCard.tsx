@@ -11,19 +11,34 @@ export function PricingCard({ tier }: PricingCardProps) {
   return (
     <article
       className={cn(
-        'flex w-[85vw] shrink-0 snap-center flex-col rounded-xl border border-border bg-card p-6 md:w-auto',
-        tier.highlighted &&
-          'border-primary shadow-md ring-1 ring-primary/20 md:scale-[1.02]',
+        'flex w-[85vw] shrink-0 snap-center flex-col rounded-xl p-6 md:w-auto',
+        tier.highlighted
+          ? 'bg-ink text-canvas'
+          : 'bg-canvas-soft text-ink'
       )}
     >
       <h3 className="text-lg font-semibold">{tier.name}</h3>
       <div className="mt-4 flex items-baseline gap-1">
-        <span className="text-3xl font-bold tracking-tight">{tier.price}</span>
+        <span className="font-display text-3xl tracking-tight md:text-4xl">
+          {tier.price}
+        </span>
         {tier.period ? (
-          <span className="text-sm text-muted-foreground">{tier.period}</span>
+          <span
+            className={cn(
+              'text-sm',
+              tier.highlighted ? 'text-canvas-soft/70' : 'text-mute'
+            )}
+          >
+            {tier.period}
+          </span>
         ) : null}
       </div>
-      <p className="mt-3 flex-1 text-sm text-muted-foreground md:text-base">
+      <p
+        className={cn(
+          'mt-3 flex-1 text-sm md:text-base',
+          tier.highlighted ? 'text-canvas-soft/80' : 'text-body'
+        )}
+      >
         {tier.description}
       </p>
       <Link
@@ -33,6 +48,7 @@ export function PricingCard({ tier }: PricingCardProps) {
             variant: tier.highlighted ? 'default' : 'outline',
           }),
           'mt-6 w-full',
+          !tier.highlighted && 'border-ink bg-canvas'
         )}
       >
         {tier.cta}

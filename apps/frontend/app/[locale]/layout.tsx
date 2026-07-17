@@ -2,16 +2,17 @@ import type { Metadata } from 'next'
 import { NextIntlClientProvider, hasLocale } from 'next-intl'
 import { getMessages, setRequestLocale } from 'next-intl/server'
 import { notFound } from 'next/navigation'
-import { ConditionalNavbar } from '@/components/layout/ConditionalNavbar'
+import { ConditionalChrome } from '@/components/layout/ConditionalChrome'
+import { Footer } from '@/components/layout/Footer'
 import { Navbar } from '@/components/layout/Navbar'
 import { routing } from '@/i18n/routing'
 import { cn } from '@/lib/utils'
-import { notoSans, nunitoSans, inter } from '../fonts'
+import { manrope, inter, interBody, interHeading } from '../fonts'
 import '../globals.css'
 
 export const metadata: Metadata = {
   title: 'Whats-Auto',
-  description: 'Automate WhatsApp like never before',
+  description: 'Automate WhatsApp for sales, support, and marketing',
 }
 
 export function generateStaticParams() {
@@ -38,20 +39,23 @@ export default async function LocaleLayout({
     <html
       lang={locale}
       className={cn(
-        'h-full',
-        'antialiased',
-        notoSans.variable,
-        nunitoSans.variable,
+        'h-full antialiased',
+        manrope.variable,
         inter.variable,
+        interBody.variable,
+        interHeading.variable,
         'font-sans'
       )}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="flex min-h-full flex-col bg-canvas-soft text-ink">
         <NextIntlClientProvider messages={messages}>
-          <ConditionalNavbar>
+          <ConditionalChrome>
             <Navbar />
-          </ConditionalNavbar>
+          </ConditionalChrome>
           {children}
+          <ConditionalChrome>
+            <Footer />
+          </ConditionalChrome>
         </NextIntlClientProvider>
       </body>
     </html>
