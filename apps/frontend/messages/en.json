@@ -26,6 +26,51 @@
       "subtitle": "A quick look at what Whats-Auto can do. See the full feature list for details.",
       "viewAll": "See all features"
     },
+    "info": {
+      "title": "Everything your team needs in one place",
+      "points": {
+        "automation": {
+          "eyebrow": "Automation core",
+          "title": "Automations that run themselves",
+          "description": "Trigger WhatsApp messages from any event in your stack — a new order, a support ticket, an abandoned cart — without a single line of manual follow-up.",
+          "bullet1": "Event-driven message triggers",
+          "bullet2": "Delivery tracking on every send",
+          "bullet3": "Reusable templates with variables"
+        },
+        "replies": {
+          "eyebrow": "Editorial freedom",
+          "title": "Smart Replies that sound like you",
+          "description": "Draft contextual replies in seconds using conversation history and your knowledge base. Your team stays in control — approve, edit, or send with one tap.",
+          "bullet1": "One-click insert into the composer",
+          "bullet2": "Multilingual suggestions for EN and HI",
+          "bullet3": "Confidence scores your team can trust"
+        },
+        "integrations": {
+          "eyebrow": "Connected content",
+          "title": "Connects to the stack you already run",
+          "description": "Sync orders, payments, and customer data straight from Shopify and Razorpay into every WhatsApp conversation — no manual copy-paste required.",
+          "bullet1": "Native Shopify order + shipping sync",
+          "bullet2": "Native Razorpay payment events",
+          "bullet3": "Webhooks for anything else"
+        },
+        "workflows": {
+          "eyebrow": "Automation at scale",
+          "title": "Workflows that scale with your team",
+          "description": "From a single founder to a 50-person support desk, route conversations to the right person or bot automatically as volume grows.",
+          "bullet1": "Team inbox with smart routing",
+          "bullet2": "Role-based permissions",
+          "bullet3": "Escalation rules that just work"
+        },
+        "everywhere": {
+          "eyebrow": "One platform, every conversation",
+          "title": "Power sales, support, and marketing — one inbox",
+          "description": "Whats-Auto is the single platform behind every customer conversation, so nothing falls through the cracks between teams.",
+          "bullet1": "Unified customer conversation history",
+          "bullet2": "Campaigns and support from one place",
+          "bullet3": "Reporting across every channel"
+        }
+      }
+    },
     "pricing": {
       "title": "Simple, transparent pricing",
       "subtitle": "Preview our plans below. Compare tiers and features on the full pricing page.",
