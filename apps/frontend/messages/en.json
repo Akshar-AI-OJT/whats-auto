@@ -12,7 +12,10 @@
     "menuClose": "Close menu"
   },
   "hero": {
-    "headline": "Automate WhatsApp like never before",
+    "headlinePrefix": "The #1",
+    "words1": ["WhatsApp", "business", "sales"],
+    "words2": ["automation", "messaging", "support"],
+    "headlineSuffix": "platform",
     "subheadline": "From sales to support — all on autopilot.",
     "cta": "Start for free",
     "visualLabel": "WhatsApp automation preview"
