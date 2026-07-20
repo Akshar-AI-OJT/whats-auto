@@ -12,6 +12,17 @@ import {
 import { preSignupValidator, resendSignupOtpValidator } from '#validators/auth'
 
 export default class PreSignupController {
+  /**
+   * @summary Initiate registration (step 1 of 2)
+   * @description Validates email uniqueness, hashes the password, stores a pending signup,
+   * and sends a 6-digit OTP to the given email address.
+   * @tag Auth
+   * @requestBody { "firstname": "John", "lastname": "Doe", "email": "john@example.com", "password": "secret1234" }
+   * @responseBody 200 - { "status": "otp_sent" }
+   * @responseBody 422 - { "error": "An account with this email already exists.", "code": "EMAIL_ALREADY_EXISTS" }
+   * @responseBody 500 - { "error": "Failed to send OTP. Please try again." }
+   * @responseBody 429 - { "error": "Too many requests. Please try again later.", "code": "RATE_LIMITED" }
+   */
   async handle({ request, response }: HttpContext) {
     const { firstname, lastname, email, password } = await request.validateUsing(preSignupValidator)
 
@@ -44,6 +55,16 @@ export default class PreSignupController {
     return response.ok({ status: 'otp_sent' })
   }
 
+  /**
+   * @summary Resend OTP (step 1b — resend)
+   * @description Resends the OTP to a pending signup email. Subject to a 60s cooldown.
+   * @tag Auth
+   * @requestBody { "email": "john@example.com" }
+   * @responseBody 200 - { "status": "otp_sent" }
+   * @responseBody 400 - { "error": "No pending signup found. Please register again." }
+   * @responseBody 429 - { "error": "Please wait 45s before requesting another code.", "code": "RESEND_COOLDOWN", "retryAfter": 45 }
+   * @responseBody 500 - { "error": "Failed to send OTP. Please try again." }
+   */
   async resend({ request, response }: HttpContext) {
     const { email } = await request.validateUsing(resendSignupOtpValidator)
     const pending = await loadPendingSignup(email)

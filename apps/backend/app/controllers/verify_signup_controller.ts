@@ -13,6 +13,18 @@ import {
 import { verifySignupValidator } from '#validators/auth'
 
 export default class VerifySignupController {
+  /**
+   * @summary Complete registration (step 2 of 2)
+   * @description Verifies the OTP and password, creates the user + credential account,
+   * signs the user in via Better Auth, and returns a session cookie.
+   * @tag Auth
+   * @requestBody { "email": "john@example.com", "otp": "123456", "password": "secret1234" }
+   * @responseBody 200 - { "token": { "accessToken": "string" }, "user": { "id": "uuid", "email": "string", "name": "string" } }
+   * @responseBody 400 - { "error": "Invalid OTP. Please check your email." }
+   * @responseBody 422 - { "error": "An account with this email already exists.", "code": "EMAIL_ALREADY_EXISTS" }
+   * @responseBody 500 - { "error": "Failed to create account. Please try again." }
+   * @responseBody 429 - { "error": "Too many requests. Please try again later.", "code": "RATE_LIMITED" }
+   */
   async handle({ request, response }: HttpContext) {
     const { email, otp, password } = await request.validateUsing(verifySignupValidator)
     const pending = await loadPendingSignup(email)

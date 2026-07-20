@@ -11,8 +11,21 @@ import { handleBetterAuth } from '#lib/handle_better_auth'
 import { middleware } from '#start/kernel'
 import router from '@adonisjs/core/services/router'
 import { controllers } from '#generated/controllers'
+import AutoSwagger from 'adonis-autoswagger'
+import swagger from '#config/swagger'
 const PreSignupController = () => import('#controllers/pre_signup_controller')
 const VerifySignupController = () => import('#controllers/verify_signup_controller')
+
+// ── Swagger UI + JSON spec ─────────────────────────────────────────────────
+// Served only in non-production environments
+router.get('/swagger', async ({ response }) => {
+  return response.send(await AutoSwagger.default.docs(router.toJSON(), swagger))
+})
+
+router.get('/docs', async () => {
+  return AutoSwagger.default.ui('/swagger', swagger)
+})
+// ───────────────────────────────────────────────────────────────────────────
 
 router.get('/', () => {
   return { hello: 'world' }
