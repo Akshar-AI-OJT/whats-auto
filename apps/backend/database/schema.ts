@@ -38,6 +38,46 @@ export class AccountSchema extends BaseModel {
   declare userId: string
 }
 
+export class AuthorizationAuditEventSchema extends BaseModel {
+  static $columns = ['actorUserId', 'after', 'before', 'createdAt', 'eventType', 'id', 'organizationId', 'reason', 'targetId', 'targetType'] as const
+  $columns = AuthorizationAuditEventSchema.$columns
+  @column()
+  declare actorUserId: string | null
+  @column()
+  declare after: any | null
+  @column()
+  declare before: any | null
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare eventType: string
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare organizationId: string
+  @column()
+  declare reason: string | null
+  @column()
+  declare targetId: string | null
+  @column()
+  declare targetType: string
+}
+
+export class ContactSchema extends BaseModel {
+  static $columns = ['createdAt', 'id', 'organizationId', 'phone', 'updatedAt'] as const
+  $columns = ContactSchema.$columns
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare organizationId: string
+  @column()
+  declare phone: string
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+}
+
 export class JwkSchema extends BaseModel {
   static $columns = ['alg', 'createdAt', 'crv', 'expiresAt', 'id', 'privateKey', 'publicKey'] as const
   $columns = JwkSchema.$columns
@@ -57,9 +97,83 @@ export class JwkSchema extends BaseModel {
   declare publicKey: string
 }
 
+export class OrganizationInvitationSchema extends BaseModel {
+  static $columns = ['createdAt', 'email', 'expiresAt', 'id', 'inviterId', 'organizationId', 'role', 'status'] as const
+  $columns = OrganizationInvitationSchema.$columns
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare email: string
+  @column.dateTime()
+  declare expiresAt: DateTime
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare inviterId: string
+  @column()
+  declare organizationId: string
+  @column()
+  declare role: string
+  @column()
+  declare status: string
+}
+
+export class OrganizationMemberSchema extends BaseModel {
+  static $columns = ['createdAt', 'id', 'organizationId', 'role', 'userId'] as const
+  $columns = OrganizationMemberSchema.$columns
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare organizationId: string
+  @column()
+  declare role: string
+  @column()
+  declare userId: string
+}
+
+export class OrganizationRoleSchema extends BaseModel {
+  static $columns = ['createdAt', 'displayName', 'id', 'organizationId', 'permission', 'role', 'updatedAt'] as const
+  $columns = OrganizationRoleSchema.$columns
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare displayName: string
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare organizationId: string
+  @column()
+  declare permission: string
+  @column()
+  declare role: string
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+}
+
+export class OrganizationSchema extends BaseModel {
+  static $columns = ['createdAt', 'id', 'logo', 'metadata', 'name', 'slug'] as const
+  $columns = OrganizationSchema.$columns
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare logo: string | null
+  @column()
+  declare metadata: string | null
+  @column()
+  declare name: string
+  @column()
+  declare slug: string
+}
+
 export class SessionSchema extends BaseModel {
-  static $columns = ['createdAt', 'expiresAt', 'id', 'ipAddress', 'token', 'updatedAt', 'userAgent', 'userId'] as const
+  static $columns = ['activeOrganizationId', 'createdAt', 'expiresAt', 'id', 'ipAddress', 'token', 'updatedAt', 'userAgent', 'userId'] as const
   $columns = SessionSchema.$columns
+  @column()
+  declare activeOrganizationId: string | null
   @column.dateTime()
   declare createdAt: DateTime
   @column.dateTime()
