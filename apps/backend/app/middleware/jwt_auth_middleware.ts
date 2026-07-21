@@ -15,6 +15,8 @@ export default class JwtAuthMiddleware {
     }
 
     request.authUser = session.user
+    // activeOrganizationId is stored in the session by Better Auth's org plugin
+    request.activeOrganizationId = (session.session as any).activeOrganizationId ?? undefined
     return next()
   }
 }
