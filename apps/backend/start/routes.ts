@@ -16,7 +16,7 @@ import swagger from '#config/swagger'
 const PreSignupController = () => import('#controllers/pre_signup_controller')
 const VerifySignupController = () => import('#controllers/verify_signup_controller')
 
-// ── Swagger UI + JSON spec ─────────────────────────────────────────────────
+//  Swagger UI + JSON spec
 // Served only in non-production environments
 router.get('/swagger', async ({ response }) => {
   return response.send(await AutoSwagger.default.docs(router.toJSON(), swagger))
@@ -25,7 +25,6 @@ router.get('/swagger', async ({ response }) => {
 router.get('/docs', async () => {
   return AutoSwagger.default.ui('/swagger', swagger)
 })
-// ───────────────────────────────────────────────────────────────────────────
 
 router.get('/', () => {
   return { hello: 'world' }
@@ -56,3 +55,64 @@ router
   })
   .prefix('/api/v1/account')
   .use(middleware.jwtAuth())
+
+//  Access context (frontend polls this after login/org switch)
+router
+  .get('/api/v1/access-context', [controllers.AccessContext, 'show'])
+  .use([middleware.jwtAuth(), middleware.tenant()])
+
+// roles
+router
+  .group(() => {
+    router.get('/', [controllers.Roles, 'index'])
+    router
+      .post('/', [controllers.Roles, 'create'])
+      .use(middleware.requirePermission({ permission: 'roles:create' }))
+    router
+      .post('/:roleKey/preview', [controllers.Roles, 'preview'])
+      .use(middleware.requirePermission({ permission: 'roles:edit' }))
+    router
+      .put('/:roleKey', [controllers.Roles, 'update'])
+      .use(middleware.requirePermission({ permission: 'roles:edit' }))
+    router
+      .delete('/:roleKey', [controllers.Roles, 'destroy'])
+      .use(middleware.requirePermission({ permission: 'roles:delete' }))
+  })
+  .prefix('/api/v1/roles')
+  .use([
+    middleware.jwtAuth(),
+    middleware.tenant(),
+    middleware.requirePermission({ permission: 'team:view' }),
+  ])
+
+//members
+router
+  .group(() => {
+    router.get('/', [controllers.Members, 'index'])
+    router
+      .patch('/:memberId/role', [controllers.Members, 'assignRole'])
+      .use(middleware.requirePermission({ permission: 'team:role_assign' }))
+    router
+      .delete('/:memberId', [controllers.Members, 'remove'])
+      .use(middleware.requirePermission({ permission: 'team:remove' }))
+  })
+  .prefix('/api/v1/members')
+  .use([
+    middleware.jwtAuth(),
+    middleware.tenant(),
+    middleware.requirePermission({ permission: 'team:view' }),
+  ])
+
+//ownership transfer
+router
+  .post('/api/v1/ownership/transfer', [controllers.Ownership, 'transfer'])
+  .use([middleware.jwtAuth(), middleware.tenant()])
+
+//audit history
+router
+  .get('/api/v1/audit', [controllers.Audit, 'index'])
+  .use([
+    middleware.jwtAuth(),
+    middleware.tenant(),
+    middleware.requirePermission({ permission: 'team:view' }),
+  ])
