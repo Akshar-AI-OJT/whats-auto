@@ -38,6 +38,7 @@ router.use([
   () => import('@adonisjs/shield/shield_middleware'),
   () => import('@adonisjs/auth/initialize_auth_middleware'),
   () => import('#middleware/silent_auth_middleware'),
+  () => import('#middleware/initialize_bouncer_middleware'),
 ])
 
 /**
@@ -48,4 +49,6 @@ export const middleware = router.named({
   auth: () => import('#middleware/auth_middleware'),
   jwtAuth: () => import('#middleware/jwt_auth_middleware'),
   rateLimit: () => import('#middleware/rate_limit_middleware'),
+  tenant: () => import('#middleware/tenant_middleware'),
+  requirePermission: () => import('#middleware/require_permission_middleware'),
 })
