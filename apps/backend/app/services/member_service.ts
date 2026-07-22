@@ -7,6 +7,26 @@ import { assertAssignableRoleKey } from '#services/role_service'
 
 export class MemberService {
   /**
+   * List members of a tenant (no createdAt — DB default only).
+   */
+  async listMembers(organizationId: string) {
+    const rows = await db
+      .from('organization_members as m')
+      .innerJoin('users as u', 'u.id', 'm.userId')
+      .where('m.organizationId', organizationId)
+      .select('m.id', 'm.userId', 'm.role', 'u.email', 'u.name')
+      .orderBy('m.role', 'asc')
+
+    return rows.map((r) => ({
+      id: r.id as string,
+      userId: r.userId as string,
+      role: r.role as string,
+      email: r.email as string,
+      name: r.name as string,
+    }))
+  }
+
+  /**
    * Reassign a member's role.
    * Validates: manager holds all permissions of the new role.
    */

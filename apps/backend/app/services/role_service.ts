@@ -30,11 +30,12 @@ export class RoleService {
     const rows = await db
       .from('organization_roles')
       .where('organizationId', organizationId)
-      .select('role', 'displayName', 'permission', 'createdAt', 'updatedAt')
+      .select('role', 'displayName', 'permission')
       .orderBy('createdAt', 'asc')
 
     return rows.map((r) => ({
-      ...r,
+      role: r.role as string,
+      displayName: r.displayName as string,
       permissions: fromPermissionJson(JSON.parse(r.permission)),
     }))
   }
