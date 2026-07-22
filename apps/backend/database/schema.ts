@@ -38,9 +38,9 @@ export class AccountSchema extends BaseModel {
   declare userId: string
 }
 
-export class AuthorizationAuditEventSchema extends BaseModel {
+export class AuthorizationAuditSchema extends BaseModel {
   static $columns = ['actorUserId', 'after', 'before', 'createdAt', 'eventType', 'id', 'organizationId', 'reason', 'targetId', 'targetType'] as const
-  $columns = AuthorizationAuditEventSchema.$columns
+  $columns = AuthorizationAuditSchema.$columns
   @column()
   declare actorUserId: string | null
   @column()

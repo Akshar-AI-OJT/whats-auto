@@ -18,7 +18,7 @@ export default class extends BaseSchema {
     })
     this.schema.raw(`
       CREATE INDEX "authorization_audit_events_tenant_time"
-        ON "authorization_audit_events" ("organizationId", "createdAt" DESC)
+        ON "authorization_audits" ("organizationId", "createdAt" DESC)
     `)
   }
 
