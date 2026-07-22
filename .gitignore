@@ -1,0 +1,45 @@
+
+# Dependencies
+node_modules
+
+# Build outputs
+build
+dist
+.turbo
+
+# Secrets
+.env
+.env.local
+.env.production.local
+.env.development.local
+
+# Temp files
+/tmp
+*.pdf
+
+# Logs
+npm-debug.log
+yarn-error.log
+*.log
+
+# Editors
+.fleet
+.idea
+.vscode
+.cursor/
+.prettierignore
+.editorconfig
+
+# Platform specific
+.DS_Store
+
+# Frontend compiled assets
+public/assets
+
+
+*.md
+todo.md
+*.sql
+.agents/
+skills-lock.json
+*.xlsx
