@@ -49,3 +49,9 @@ export const previewRoleUpdateValidator = vine.create(
     permissions: vine.array(vine.enum(ALL_PERMISSIONS)).minLength(1),
   })
 )
+
+export const listAuditValidator = vine.create(
+  vine.object({
+    limit: vine.number().withoutDecimals().min(1).max(100).optional(),
+  })
+)
