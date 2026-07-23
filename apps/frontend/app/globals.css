@@ -145,6 +145,29 @@
   --sidebar-ring: #9fe870;
 }
 
+/**
+ * Auth pages only — WhatsApp green as accent, not surface color.
+ * Neutrals dominate; green reserved for CTAs, icons, badges, progress.
+ */
+.auth-palette {
+  --primary: #25d366;
+  --primary-foreground: #ffffff;
+  --on-primary: #ffffff;
+  --primary-active: #2fe076;
+  --primary-neutral: #1fa855;
+  --primary-pale: #eafbf2;
+  --brand: #128c7e;
+  --positive: #1fa855;
+  --positive-deep: #128c7e;
+  --ring: #25d366;
+  --accent: #f1f5f9;
+  --accent-foreground: #0e0f0c;
+  --canvas: #ffffff;
+  --canvas-soft: #f8fafc;
+  --background: #f8fafc;
+  --border: #e2e8f0;
+}
+
 /* Light brand lock — Wise marketing is sage/white; dark stays readable but keeps lime CTA */
 .dark {
   --background: #0e0f0c;
@@ -186,12 +209,14 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    @apply font-sans;
+    overflow-x: clip;
+  }
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: 'calt';
-  }
-  html {
-    @apply font-sans;
+    overflow-x: clip;
   }
 }
 
@@ -215,5 +240,41 @@
     font-family: var(--font-body), var(--font-sans), system-ui, sans-serif;
     font-weight: 600;
     letter-spacing: 0.02em;
+  }
+
+  @keyframes hero-float {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-5px);
+    }
+  }
+
+  @keyframes hero-fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-hero-float {
+    animation: hero-float 8s ease-in-out infinite;
+  }
+
+  .animate-hero-fade-up {
+    animation: hero-fade-up 0.7s ease-out both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-hero-float,
+    .animate-hero-fade-up {
+      animation: none;
+    }
   }
 }

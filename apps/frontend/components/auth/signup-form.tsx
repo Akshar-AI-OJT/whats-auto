@@ -1,7 +1,8 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
+import { ArrowLeft, Clock3, Loader2, Lock, Mail, User } from 'lucide-react'
 import { FcGoogle } from 'react-icons/fc'
 import { cn } from '@/lib/utils'
 import { api, type ApiError } from '@/lib/api'
@@ -9,19 +10,102 @@ import { Button } from '@/components/ui/button'
 import {
   Field,
   FieldDescription,
+  FieldError,
   FieldGroup,
   FieldLabel,
   FieldSeparator,
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { AuthPasswordToggle } from '@/components/auth/auth-password-toggle'
+import {
+  authDividerClassName,
+  authInputClassName,
+  authInputWithIconClassName,
+  authOutlineButtonClassName,
+  authPrimaryButtonClassName,
+} from '@/components/auth/auth-field-styles'
+import { AuthLayout } from '@/components/auth/auth-layout'
+import { AuthBranding } from '@/components/auth/auth-branding'
 import { Link, useRouter } from '@/i18n/navigation'
 
 type Step = 'register' | 'otp'
+type Pending = 'idle' | 'register' | 'google' | 'otp' | 'resend'
+type Strength = 'weak' | 'medium' | 'strong'
+
+type FieldErrors = {
+  firstname?: string
+  lastname?: string
+  email?: string
+  password?: string
+  confirmPassword?: string
+  otp?: string
+}
+
+const OTP_LENGTH = 6
+
+const backToLoginClassName =
+  'inline-flex items-center justify-center gap-1.5 rounded-sm text-sm leading-5 font-medium text-body transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas'
+
+function formatCountdown(seconds: number) {
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  return `${m}:${s.toString().padStart(2, '0')}`
+}
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+}
+
+/** Client-only strength score — does not change backend password rules. */
+function getPasswordStrength(password: string): Strength | null {
+  if (!password) return null
+
+  let score = 0
+  if (password.length >= 8) score += 1
+  if (password.length >= 12) score += 1
+  if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score += 1
+  if (/\d/.test(password)) score += 1
+  if (/[^A-Za-z0-9]/.test(password)) score += 1
+
+  if (score <= 2) return 'weak'
+  if (score <= 3) return 'medium'
+  return 'strong'
+}
+
+const strengthFill: Record<Strength, string> = {
+  weak: 'bg-negative',
+  medium: 'bg-warning-deep',
+  strong: 'bg-positive',
+}
+
+const strengthText: Record<Strength, string> = {
+  weak: 'text-negative',
+  medium: 'text-warning-deep',
+  strong: 'text-positive-deep',
+}
 
 export function SignupForm({ className, ...props }: React.ComponentProps<'form'>) {
   const t = useTranslations('auth.register')
   const locale = useLocale()
   const router = useRouter()
+
+  const formErrorId = useId()
+  const firstnameId = useId()
+  const lastnameId = useId()
+  const emailId = useId()
+  const passwordId = useId()
+  const confirmPasswordId = useId()
+  const otpId = useId()
+  const passwordHintId = useId()
+  const strengthId = useId()
+  const otpHintId = useId()
+
+  const firstnameErrorId = useId()
+  const lastnameErrorId = useId()
+  const emailErrorId = useId()
+  const passwordErrorId = useId()
+  const confirmPasswordErrorId = useId()
+  const otpErrorId = useId()
 
   const [step, setStep] = useState<Step>('register')
   const [firstname, setFirstname] = useState('')
@@ -30,10 +114,19 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [otp, setOtp] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [error, setError] = useState<string | null>(null)
-  const [pending, setPending] = useState(false)
+  const [pending, setPending] = useState<Pending>('idle')
   const [resendCooldown, setResendCooldown] = useState(0)
   const cooldownTimerRef = useRef<number | null>(null)
+  const otpInputRefs = useRef<Array<HTMLInputElement | null>>([])
+
+  const isPending = pending !== 'idle'
+  const strength = getPasswordStrength(password)
+  const strengthLevel =
+    strength === 'weak' ? 1 : strength === 'medium' ? 2 : strength === 'strong' ? 3 : 0
 
   useEffect(() => {
     return () => {
@@ -42,6 +135,13 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
       }
     }
   }, [])
+
+  function clearFieldError(key: keyof FieldErrors) {
+    setFieldErrors((prev) => {
+      if (!prev[key]) return prev
+      return { ...prev, [key]: undefined }
+    })
+  }
 
   function startResendCooldown(seconds = 60) {
     if (cooldownTimerRef.current !== null) {
@@ -62,9 +162,47 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
     }, 1000)
   }
 
+  function validateRegister(): FieldErrors {
+    const next: FieldErrors = {}
+
+    if (!firstname.trim()) next.firstname = t('errors.firstnameRequired')
+    if (!lastname.trim()) next.lastname = t('errors.lastnameRequired')
+
+    if (!email.trim()) {
+      next.email = t('errors.emailRequired')
+    } else if (!isValidEmail(email.trim())) {
+      next.email = t('errors.emailInvalid')
+    }
+
+    if (!password) {
+      next.password = t('errors.passwordRequired')
+    } else if (password.length < 8) {
+      next.password = t('errors.passwordLength')
+    }
+
+    if (!confirmPassword) {
+      next.confirmPassword = t('errors.confirmPasswordRequired')
+    } else if (password !== confirmPassword) {
+      next.confirmPassword = t('errors.passwordMismatch')
+    }
+
+    return next
+  }
+
+  function validateOtp(): FieldErrors {
+    const next: FieldErrors = {}
+    if (!otp) {
+      next.otp = t('errors.otpRequired')
+    } else if (otp.length !== 6) {
+      next.otp = t('errors.otpInvalid')
+    }
+    return next
+  }
+
   async function handleGoogle() {
     setError(null)
-    setPending(true)
+    setFieldErrors({})
+    setPending('google')
 
     try {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL
@@ -82,28 +220,27 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
         setError(apiError.message || t('errors.generic'))
       }
     } finally {
-      setPending(false)
+      setPending('idle')
     }
   }
 
-  async function handleRegister(event: React.SubmitEvent<HTMLFormElement>) {
+  async function handleRegister(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
 
-    if (password !== confirmPassword) {
-      setError(t('errors.passwordMismatch'))
-      return
-    }
+    const nextErrors = validateRegister()
+    setFieldErrors(nextErrors)
+    if (Object.keys(nextErrors).length > 0) return
 
-    if (password.length < 8) {
-      setError(t('errors.passwordLength'))
-      return
-    }
-
-    setPending(true)
+    setPending('register')
 
     try {
-      await api.auth.signup({ firstname, lastname, email, password })
+      await api.auth.signup({
+        firstname: firstname.trim(),
+        lastname: lastname.trim(),
+        email: email.trim(),
+        password,
+      })
       setStep('otp')
       startResendCooldown(60)
     } catch (err) {
@@ -114,14 +251,19 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
         setError(apiError.message || t('errors.generic'))
       }
     } finally {
-      setPending(false)
+      setPending('idle')
     }
   }
 
   async function handleVerifyOtp(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
-    setPending(true)
+
+    const nextErrors = validateOtp()
+    setFieldErrors(nextErrors)
+    if (Object.keys(nextErrors).length > 0) return
+
+    setPending('otp')
 
     try {
       await api.auth.verifyOtp({ email, otp, password })
@@ -130,7 +272,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
     } catch (err) {
       setError((err as ApiError).message || t('errors.generic'))
     } finally {
-      setPending(false)
+      setPending('idle')
     }
   }
 
@@ -138,7 +280,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
     if (resendCooldown > 0) return
 
     setError(null)
-    setPending(true)
+    setPending('resend')
 
     try {
       await api.auth.resendOtp({ email })
@@ -150,178 +292,566 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
       }
       setError(apiError.message || t('errors.generic'))
     } finally {
-      setPending(false)
+      setPending('idle')
     }
   }
 
   if (step === 'otp') {
+    const focusOtpInput = (index: number) => {
+      otpInputRefs.current[index]?.focus()
+      otpInputRefs.current[index]?.select()
+    }
+
+    const updateOtpValue = (next: string) => {
+      setOtp(next.replace(/\D/g, '').slice(0, OTP_LENGTH))
+      clearFieldError('otp')
+    }
+
+    const handleOtpDigitChange = (index: number, raw: string) => {
+      const digits = raw.replace(/\D/g, '')
+      if (!digits) {
+        const chars = Array.from({ length: OTP_LENGTH }, (_, i) => otp[i] ?? '')
+        chars[index] = ''
+        updateOtpValue(chars.join(''))
+        return
+      }
+
+      if (digits.length > 1) {
+        const merged = (otp.slice(0, index) + digits).replace(/\D/g, '').slice(0, OTP_LENGTH)
+        updateOtpValue(merged)
+        focusOtpInput(Math.min(merged.length, OTP_LENGTH - 1))
+        return
+      }
+
+      const chars = Array.from({ length: OTP_LENGTH }, (_, i) => otp[i] ?? '')
+      chars[index] = digits
+      const next = chars.join('').replace(/\s/g, '')
+      updateOtpValue(next)
+      if (index < OTP_LENGTH - 1) focusOtpInput(index + 1)
+    }
+
+    const handleOtpKeyDown = (
+      index: number,
+      event: React.KeyboardEvent<HTMLInputElement>
+    ) => {
+      if (event.key !== 'Backspace') return
+
+      if (otp[index]) {
+        event.preventDefault()
+        const chars = Array.from({ length: OTP_LENGTH }, (_, i) => otp[i] ?? '')
+        chars[index] = ''
+        updateOtpValue(chars.join(''))
+        return
+      }
+
+      if (index > 0) {
+        event.preventDefault()
+        const chars = Array.from({ length: OTP_LENGTH }, (_, i) => otp[i] ?? '')
+        chars[index - 1] = ''
+        updateOtpValue(chars.join(''))
+        focusOtpInput(index - 1)
+      }
+    }
+
+    const handleOtpPaste = (event: React.ClipboardEvent<HTMLInputElement>) => {
+      event.preventDefault()
+      const pasted = event.clipboardData.getData('text').replace(/\D/g, '').slice(0, OTP_LENGTH)
+      if (!pasted) return
+      updateOtpValue(pasted)
+      focusOtpInput(Math.min(pasted.length, OTP_LENGTH - 1))
+    }
+
     return (
-      <form className={cn('flex flex-col gap-6', className)} onSubmit={handleVerifyOtp} {...props}>
-        <button
-          type="button"
-          className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors self-start"
-          onClick={() => {
-            setStep('register')
-            setOtp('')
-            setError(null)
-          }}
+      <AuthLayout branding={<AuthBranding variant="otp" />}>
+        <form
+          className={cn('flex w-full min-w-0 flex-col', className)}
+          onSubmit={handleVerifyOtp}
+          noValidate
+          aria-busy={isPending}
+          aria-describedby={error ? formErrorId : undefined}
+          {...props}
         >
-          ← {t('back')}
-        </button>
-        <FieldGroup>
-          <div className="flex flex-col items-center gap-1 text-center">
-            <h1 className="font-display text-2xl text-ink">{t('otpTitle')}</h1>
-            <p className="text-sm text-balance text-body">
-              {t('otpSubtitle', { email })}
-            </p>
-          </div>
+          <FieldGroup className="gap-8">
+            <div className="flex flex-col gap-3 text-left">
+              <h1 className="font-display text-[1.75rem] leading-8 tracking-tight text-ink sm:text-2xl">
+                {t('otpTitle')}
+              </h1>
+              <p className="text-sm leading-6 text-pretty break-words text-body">
+                {email ? t('otpSubtitleWithEmail', { email }) : t('otpSubtitle')}
+              </p>
+              <button
+                type="button"
+                disabled={isPending}
+                className="inline-flex items-center gap-1 self-start rounded-sm text-xs leading-4 font-medium text-mute transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:opacity-50"
+                onClick={() => {
+                  setStep('register')
+                  setOtp('')
+                  setError(null)
+                  setFieldErrors({})
+                }}
+              >
+                {t('changeEmail')}
+              </button>
+            </div>
 
-          <Field>
-            <FieldLabel htmlFor="otp">{t('otpLabel')}</FieldLabel>
-            <Input
-              id="otp"
-              name="otp"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              placeholder="123456"
-              required
-              maxLength={6}
-              value={otp}
-              onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              className="bg-background tracking-widest text-center text-lg"
-            />
-          </Field>
+            <Field data-invalid={fieldErrors.otp ? true : undefined} className="gap-3">
+              <FieldLabel htmlFor={otpId} className="text-sm font-medium leading-5 text-ink">
+                {t('otpLabel')}
+              </FieldLabel>
+              <div
+                className="flex w-full items-center justify-between gap-2 sm:gap-2.5"
+                role="group"
+                aria-labelledby={otpId}
+                onPaste={handleOtpPaste}
+              >
+                {Array.from({ length: OTP_LENGTH }, (_, index) => (
+                  <Input
+                    key={index}
+                    ref={(node) => {
+                      otpInputRefs.current[index] = node
+                    }}
+                    id={index === 0 ? otpId : undefined}
+                    name={index === 0 ? 'otp' : undefined}
+                    inputMode="numeric"
+                    autoComplete={index === 0 ? 'one-time-code' : 'off'}
+                    maxLength={1}
+                    disabled={isPending}
+                    aria-label={`${t('otpLabel')} ${index + 1}`}
+                    aria-invalid={Boolean(fieldErrors.otp)}
+                    aria-describedby={
+                      [
+                        fieldErrors.otp ? otpErrorId : null,
+                        index === 0 ? otpHintId : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' ') || undefined
+                    }
+                    value={otp[index] ?? ''}
+                    onChange={(e) => handleOtpDigitChange(index, e.target.value)}
+                    onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                    onFocus={(e) => e.target.select()}
+                    className={cn(
+                      authInputClassName,
+                      'h-12 w-full min-w-0 max-w-[3.25rem] px-0 text-center text-lg font-semibold tracking-normal sm:h-14 sm:max-w-none sm:text-xl'
+                    )}
+                  />
+                ))}
+              </div>
+              <FieldDescription id={otpHintId} className="text-xs leading-4 text-mute">
+                {t('otpHint')}
+              </FieldDescription>
+              {fieldErrors.otp ? (
+                <FieldError id={otpErrorId} className="text-xs leading-4 text-negative">
+                  {fieldErrors.otp}
+                </FieldError>
+              ) : null}
+            </Field>
 
-          {error ? <p className="text-sm text-destructive text-center">{error}</p> : null}
+            <div className="flex flex-col items-center gap-3">
+              <div
+                className="inline-flex items-center gap-2 rounded-full border border-[#E2E8F0] bg-canvas px-3.5 py-1.5 text-xs font-medium leading-4 text-body"
+                aria-live="polite"
+              >
+                <Clock3 className="size-3.5 text-mute" aria-hidden />
+                {resendCooldown > 0
+                  ? t('otpCountdown', { time: formatCountdown(resendCooldown) })
+                  : t('otpCountdownReady')}
+              </div>
 
-          <Field>
-            <Button type="submit" disabled={pending || otp.length !== 6}>
-              {pending ? t('verifying') : t('verify')}
-            </Button>
-          </Field>
+              <button
+                type="button"
+                className="rounded-sm text-sm leading-5 font-medium text-ink underline underline-offset-4 transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:pointer-events-none disabled:opacity-50"
+                disabled={isPending || resendCooldown > 0}
+                aria-busy={pending === 'resend'}
+                onClick={() => void handleResendOtp()}
+              >
+                {pending === 'resend' ? (
+                  <span className="inline-flex items-center gap-2">
+                    <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                    {t('resendOtp')}
+                  </span>
+                ) : resendCooldown > 0 ? (
+                  t('resendOtpCooldown', { seconds: resendCooldown })
+                ) : (
+                  t('resendOtp')
+                )}
+              </button>
+            </div>
 
-          <FieldDescription className="text-center">
-            <button
-              type="button"
-              className="underline underline-offset-4 disabled:opacity-50"
-              disabled={pending || resendCooldown > 0}
-              onClick={() => void handleResendOtp()}
-            >
-              {resendCooldown > 0 ? t('resendOtpCooldown', { seconds: resendCooldown }) : t('resendOtp')}
-            </button>
-          </FieldDescription>
-        </FieldGroup>
-      </form>
+            {error ? (
+              <div
+                id={formErrorId}
+                role="alert"
+                className="rounded-xl border border-negative/25 bg-negative/5 px-4 py-3 text-left text-sm leading-5 text-negative"
+              >
+                {error}
+              </div>
+            ) : null}
+
+            <Field className="gap-0">
+              <Button
+                type="submit"
+                disabled={isPending || otp.length !== OTP_LENGTH}
+                aria-busy={pending === 'otp'}
+                className={authPrimaryButtonClassName}
+              >
+                {pending === 'otp' ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                    <span>{t('verifying')}</span>
+                  </>
+                ) : (
+                  t('verify')
+                )}
+              </Button>
+            </Field>
+
+            <FieldDescription className="text-center">
+              <Link href="/login" className={backToLoginClassName}>
+                <ArrowLeft className="size-3.5" aria-hidden />
+                {t('backToLogin')}
+              </Link>
+            </FieldDescription>
+          </FieldGroup>
+        </form>
+      </AuthLayout>
     )
   }
 
   return (
-    <form className={cn('flex flex-col gap-6', className)} onSubmit={handleRegister} {...props}>
-      <FieldGroup>
-        <div className="flex flex-col items-center gap-1 text-center">
-          <h1 className="font-display text-2xl text-ink">{t('title')}</h1>
-          <p className="text-sm text-balance text-body">{t('subtitle')}</p>
+    <AuthLayout branding={<AuthBranding variant="register" />}>
+    <form
+      className={cn('flex w-full min-w-0 flex-col', className)}
+      onSubmit={handleRegister}
+      noValidate
+      aria-busy={isPending}
+      aria-describedby={error ? formErrorId : undefined}
+      {...props}
+    >
+      <FieldGroup className="gap-8">
+        <div className="flex flex-col gap-3 text-left">
+          <h1 className="font-display text-[1.75rem] leading-8 tracking-tight text-ink sm:text-2xl">
+            {t('title')}
+          </h1>
+          <p className="text-sm leading-6 text-pretty text-body">{t('subtitle')}</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Field>
-            <FieldLabel htmlFor="firstname">{t('firstname')}</FieldLabel>
-            <Input
-              id="firstname"
-              name="firstname"
-              type="text"
-              placeholder="John"
-              required
-              className="bg-background"
-              value={firstname}
-              onChange={(e) => setFirstname(e.target.value)}
-            />
+        <div className="grid min-w-0 grid-cols-1 gap-8 min-[375px]:grid-cols-2 min-[375px]:gap-4">
+          <Field
+            data-invalid={fieldErrors.firstname ? true : undefined}
+            className="min-w-0 gap-2"
+          >
+            <FieldLabel
+              htmlFor={firstnameId}
+              className="text-sm font-medium leading-5 text-ink"
+            >
+              {t('firstname')}
+            </FieldLabel>
+            <div className="relative">
+              <User
+                className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-mute"
+                aria-hidden
+              />
+              <Input
+                id={firstnameId}
+                name="firstname"
+                type="text"
+                autoComplete="given-name"
+                placeholder="John"
+                required
+                disabled={isPending}
+                aria-invalid={Boolean(fieldErrors.firstname)}
+                aria-describedby={fieldErrors.firstname ? firstnameErrorId : undefined}
+                className={authInputWithIconClassName}
+                value={firstname}
+                onChange={(e) => {
+                  setFirstname(e.target.value)
+                  clearFieldError('firstname')
+                }}
+              />
+            </div>
+            {fieldErrors.firstname ? (
+              <FieldError id={firstnameErrorId} className="text-xs leading-4 text-negative">
+                {fieldErrors.firstname}
+              </FieldError>
+            ) : null}
           </Field>
-          <Field>
-            <FieldLabel htmlFor="lastname">{t('lastname')}</FieldLabel>
-            <Input
-              id="lastname"
-              name="lastname"
-              type="text"
-              placeholder="Doe"
-              required
-              className="bg-background"
-              value={lastname}
-              onChange={(e) => setLastname(e.target.value)}
-            />
+
+          <Field
+            data-invalid={fieldErrors.lastname ? true : undefined}
+            className="min-w-0 gap-2"
+          >
+            <FieldLabel
+              htmlFor={lastnameId}
+              className="text-sm font-medium leading-5 text-ink"
+            >
+              {t('lastname')}
+            </FieldLabel>
+            <div className="relative">
+              <User
+                className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-mute"
+                aria-hidden
+              />
+              <Input
+                id={lastnameId}
+                name="lastname"
+                type="text"
+                autoComplete="family-name"
+                placeholder="Doe"
+                required
+                disabled={isPending}
+                aria-invalid={Boolean(fieldErrors.lastname)}
+                aria-describedby={fieldErrors.lastname ? lastnameErrorId : undefined}
+                className={authInputWithIconClassName}
+                value={lastname}
+                onChange={(e) => {
+                  setLastname(e.target.value)
+                  clearFieldError('lastname')
+                }}
+              />
+            </div>
+            {fieldErrors.lastname ? (
+              <FieldError id={lastnameErrorId} className="text-xs leading-4 text-negative">
+                {fieldErrors.lastname}
+              </FieldError>
+            ) : null}
           </Field>
         </div>
 
-        <Field>
-          <FieldLabel htmlFor="email">{t('email')}</FieldLabel>
-          <Input
-            id="email"
-            name="email"
-            type="email"
-            placeholder="johndoe@mail.com"
-            required
-            className="bg-background"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
+        <Field data-invalid={fieldErrors.email ? true : undefined} className="gap-2">
+          <FieldLabel htmlFor={emailId} className="text-sm font-medium leading-5 text-ink">
+            {t('email')}
+          </FieldLabel>
+          <div className="relative">
+            <Mail
+              className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-mute"
+              aria-hidden
+            />
+            <Input
+              id={emailId}
+              name="email"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              placeholder="johndoe@mail.com"
+              required
+              disabled={isPending}
+              aria-invalid={Boolean(fieldErrors.email)}
+              aria-describedby={fieldErrors.email ? emailErrorId : undefined}
+              className={authInputWithIconClassName}
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value)
+                clearFieldError('email')
+              }}
+            />
+          </div>
+          {fieldErrors.email ? (
+            <FieldError id={emailErrorId} className="text-xs leading-4 text-negative">
+              {fieldErrors.email}
+            </FieldError>
+          ) : null}
         </Field>
 
-        <Field>
-          <FieldLabel htmlFor="password">{t('password')}</FieldLabel>
-          <Input
-            id="password"
-            name="password"
-            type="password"
-            required
-            minLength={8}
-            className="bg-background"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <FieldDescription>{t('passwordHint')}</FieldDescription>
+        <Field data-invalid={fieldErrors.password ? true : undefined} className="gap-2">
+          <FieldLabel htmlFor={passwordId} className="text-sm font-medium leading-5 text-ink">
+            {t('password')}
+          </FieldLabel>
+          <div className="relative">
+            <Lock
+              className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-mute"
+              aria-hidden
+            />
+            <Input
+              id={passwordId}
+              name="password"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="new-password"
+              required
+              minLength={8}
+              disabled={isPending}
+              aria-invalid={Boolean(fieldErrors.password)}
+              aria-describedby={
+                [
+                  fieldErrors.password ? passwordErrorId : null,
+                  password ? strengthId : null,
+                  passwordHintId,
+                ]
+                  .filter(Boolean)
+                  .join(' ') || undefined
+              }
+              className={cn(authInputWithIconClassName, 'pr-12')}
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value)
+                clearFieldError('password')
+                if (fieldErrors.confirmPassword && e.target.value === confirmPassword) {
+                  clearFieldError('confirmPassword')
+                }
+              }}
+            />
+            <AuthPasswordToggle
+              show={showPassword}
+              disabled={isPending}
+              labelShow={t('showPassword')}
+              labelHide={t('hidePassword')}
+              controls={passwordId}
+              onToggle={() => setShowPassword((prev) => !prev)}
+            />
+          </div>
+
+          {password ? (
+            <div id={strengthId} className="flex flex-col gap-2" aria-live="polite">
+              <div
+                className="grid grid-cols-3 gap-1"
+                role="meter"
+                aria-valuemin={0}
+                aria-valuemax={3}
+                aria-valuenow={strengthLevel}
+                aria-label={t('passwordStrengthLabel')}
+              >
+                {[1, 2, 3].map((segment) => (
+                  <div
+                    key={segment}
+                    className={cn(
+                      'h-1 rounded-full bg-border transition-colors',
+                      strength && segment <= strengthLevel && strengthFill[strength]
+                    )}
+                  />
+                ))}
+              </div>
+              {strength ? (
+                <p className={cn('text-xs leading-4 font-medium', strengthText[strength])}>
+                  {t(`passwordStrength.${strength}`)}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
+
+          <FieldDescription id={passwordHintId} className="text-xs leading-4 text-mute">
+            {t('passwordHint')}
+          </FieldDescription>
+
+          {fieldErrors.password ? (
+            <FieldError id={passwordErrorId} className="text-xs leading-4 text-negative">
+              {fieldErrors.password}
+            </FieldError>
+          ) : null}
         </Field>
 
-        <Field>
-          <FieldLabel htmlFor="confirm-password">{t('confirmPassword')}</FieldLabel>
-          <Input
-            id="confirm-password"
-            name="confirmPassword"
-            type="password"
-            required
-            className="bg-background"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-          />
+        <Field
+          data-invalid={fieldErrors.confirmPassword ? true : undefined}
+          className="gap-2"
+        >
+          <FieldLabel
+            htmlFor={confirmPasswordId}
+            className="text-sm font-medium leading-5 text-ink"
+          >
+            {t('confirmPassword')}
+          </FieldLabel>
+          <div className="relative">
+            <Lock
+              className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-mute"
+              aria-hidden
+            />
+            <Input
+              id={confirmPasswordId}
+              name="confirmPassword"
+              type={showConfirmPassword ? 'text' : 'password'}
+              autoComplete="new-password"
+              required
+              disabled={isPending}
+              aria-invalid={Boolean(fieldErrors.confirmPassword)}
+              aria-describedby={
+                fieldErrors.confirmPassword ? confirmPasswordErrorId : undefined
+              }
+              className={cn(authInputWithIconClassName, 'pr-12')}
+              value={confirmPassword}
+              onChange={(e) => {
+                setConfirmPassword(e.target.value)
+                clearFieldError('confirmPassword')
+              }}
+            />
+            <AuthPasswordToggle
+              show={showConfirmPassword}
+              disabled={isPending}
+              labelShow={t('showConfirmPassword')}
+              labelHide={t('hideConfirmPassword')}
+              controls={confirmPasswordId}
+              onToggle={() => setShowConfirmPassword((prev) => !prev)}
+            />
+          </div>
+          {fieldErrors.confirmPassword ? (
+            <FieldError
+              id={confirmPasswordErrorId}
+              className="text-xs leading-4 text-negative"
+            >
+              {fieldErrors.confirmPassword}
+            </FieldError>
+          ) : null}
         </Field>
 
-        {error ? <p className="text-sm text-destructive text-center">{error}</p> : null}
+        {error ? (
+          <div
+            id={formErrorId}
+            role="alert"
+            className="rounded-xl border border-negative/25 bg-negative/5 px-4 py-3 text-left text-sm leading-5 text-negative"
+          >
+            {error}
+          </div>
+        ) : null}
 
-        <Field>
-          <Button type="submit" disabled={pending}>
-            {pending ? t('submitting') : t('submit')}
+        <Field className="gap-0">
+          <Button
+            type="submit"
+            disabled={isPending}
+            aria-busy={pending === 'register'}
+            className={authPrimaryButtonClassName}
+          >
+            {pending === 'register' ? (
+              <>
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+                <span>{t('submitting')}</span>
+              </>
+            ) : (
+              t('submit')
+            )}
           </Button>
         </Field>
 
-        <FieldSeparator>{t('orContinue')}</FieldSeparator>
+        <FieldSeparator className={authDividerClassName}>{t('orContinue')}</FieldSeparator>
 
-        <Field>
+        <Field className="gap-5">
           <Button
             variant="outline"
             type="button"
-            disabled={pending}
+            disabled={isPending}
+            aria-busy={pending === 'google'}
+            className={authOutlineButtonClassName}
             onClick={() => void handleGoogle()}
           >
-            <FcGoogle />
-            {t('google')}
+            {pending === 'google' ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <FcGoogle className="size-5" aria-hidden />
+            )}
+            <span>{t('google')}</span>
           </Button>
-          <FieldDescription className="px-6 text-center">
+          <FieldDescription className="text-center text-sm leading-5 text-body">
             {t('haveAccount')}{' '}
-            <Link href="/login" className="underline underline-offset-4">
+            <Link
+              href="/login"
+              className="rounded-sm font-medium text-ink underline underline-offset-4 transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
+            >
               {t('signIn')}
             </Link>
           </FieldDescription>
         </Field>
       </FieldGroup>
     </form>
+    </AuthLayout>
   )
 }
