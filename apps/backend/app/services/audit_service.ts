@@ -13,7 +13,7 @@ export class AuditService {
     const limit = Math.min(Math.max(Math.trunc(requested), 1), MAX_LIMIT)
 
     const rows = await db
-      .from('authorization_audit_events')
+      .from('authorization_audits')
       .where('organizationId', organizationId)
       .select(
         'id',

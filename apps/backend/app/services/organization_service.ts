@@ -101,7 +101,7 @@ export class OrganizationService {
         ]
       )
 
-      await trx.table('authorization_audit_events').insert({
+      await trx.table('authorization_audits').insert({
         organizationId,
         actorUserId,
         targetType: 'ownership',

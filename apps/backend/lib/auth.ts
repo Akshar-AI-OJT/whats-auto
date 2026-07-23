@@ -206,11 +206,17 @@ export const auth = betterAuth({
       creatorRole: 'owner',
       allowRoleCreation: false,
       dynamicAccessControl: { enabled: true },
-      organizationTableName: 'organizations',
-      memberTableName: 'organization_members',
-      invitationTableName: 'organization_invitations',
       keepMemberActiveOrganizationOnSetActive: true,
       schema: {
+        organization: {
+          modelName: 'organizations',
+        },
+        member: {
+          modelName: 'organization_members',
+        },
+        invitation: {
+          modelName: 'organization_invitations',
+        },
         organizationRole: {
           modelName: 'organization_roles',
           additionalFields: {
