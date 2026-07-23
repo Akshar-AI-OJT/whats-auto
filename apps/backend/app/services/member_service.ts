@@ -72,7 +72,7 @@ export class MemberService {
     await db.transaction(async (trx) => {
       await trx.from('organization_members').where('id', memberId).update({ role: newRole })
 
-      await trx.table('authorization_audit_events').insert({
+      await trx.table('authorization_audits').insert({
         organizationId,
         actorUserId,
         targetType: 'member',
@@ -104,7 +104,7 @@ export class MemberService {
     await db.transaction(async (trx) => {
       await trx.from('organization_members').where('id', memberId).delete()
 
-      await trx.table('authorization_audit_events').insert({
+      await trx.table('authorization_audits').insert({
         organizationId,
         actorUserId,
         targetType: 'member',

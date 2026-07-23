@@ -68,7 +68,7 @@ export class RoleService {
         displayName,
         permission: JSON.stringify(toStoredPermissionJson(permissions)),
       })
-      await trx.table('authorization_audit_events').insert({
+      await trx.table('authorization_audits').insert({
         organizationId,
         actorUserId,
         targetType: 'role',
@@ -161,7 +161,7 @@ export class RoleService {
           permission: JSON.stringify(toStoredPermissionJson(newPermissions)),
         })
 
-      await trx.table('authorization_audit_events').insert({
+      await trx.table('authorization_audits').insert({
         organizationId,
         actorUserId,
         targetType: 'role',
@@ -216,7 +216,7 @@ export class RoleService {
         .where('role', roleKey)
         .delete()
       // Audit
-      await trx.table('authorization_audit_events').insert({
+      await trx.table('authorization_audits').insert({
         organizationId,
         actorUserId,
         targetType: 'role',
