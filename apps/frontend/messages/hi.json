@@ -3,6 +3,10 @@
     "brand": "Whats-Auto",
     "pricing": "मूल्य निर्धारण",
     "features": "विशेषताएँ",
+    "howItWorks": "यह कैसे काम करता है",
+    "faq": "अक्सर पूछे जाने वाले प्रश्न",
+    "resources": "संसाधन",
+    "contact": "संपर्क",
     "integrations": "एकीकरण",
     "getStarted": "शुरू करें",
     "login": "लॉग इन",
@@ -12,18 +16,81 @@
     "menuClose": "मेनू बंद करें"
   },
   "hero": {
-    "eyebrow": "1,000+ व्यवसायों का भरोसा",
-    "headlinePrefix": "सबसे #1",
-    "words1": ["WhatsApp", "बिज़नेस", "सेल्स"],
-    "words2": ["ऑटोमेशन", "मैसेजिंग", "सपोर्ट"],
-    "headlineSuffix": "प्लेटफ़ॉर्म",
-    "subheadline": "ब्रॉडकास्ट, चैटबॉट और कैटलॉग एक ही जगह। मुफ़्त शुरू करें।",
-    "cta": "मुफ़्त में शुरू करें",
-    "ctaSecondary": "विशेषताएँ देखें",
-    "visualLabel": "WhatsApp ऑटोमेशन प्रोडक्ट पूर्वावलोकन",
-    "visualPlaceholder": "प्रोडक्ट स्क्रीनशॉट प्लेसहोल्डर"
+    "badge": "AI पावर्ड WhatsApp ऑटोमेशन",
+    "headline": "अपना पूरा WhatsApp बिज़नेस ऑटोपायलट पर चलाएँ",
+    "description": "कस्टमर बातचीत मैनेज करें, जवाब ऑटोमेट करें, ब्रॉडकास्ट कैंपेन लॉन्च करें, और अपनी टीम के साथ सहयोग करें—सब एक इंटेलिजेंट WhatsApp वर्कस्पेस से।",
+    "cta": "शुरू करें",
+    "ctaSecondary": "डेमो बुक करें",
+    "ctaSecondaryBadge": "Soon",
+    "ctaSecondaryTooltip": "डेमो बुकिंग जल्द उपलब्ध होगी।",
+    "chips": [
+      "आधिकारिक WhatsApp API",
+      "AI चैट असिस्टेंट",
+      "शेयर टीम इनबॉक्स",
+      "ब्रॉडकास्ट कैंपेन"
+    ],
+    "visualLabel": "WhatsApp AI बातचीत पूर्वावलोकन",
+    "mock": {
+      "businessName": "Whats-Auto Store",
+      "businessStatus": "ऑनलाइन · आमतौर पर तुरंत जवाब",
+      "customerMessage": "नमस्ते, आज के ऑफ़र जानना चाहता/चाहती हूँ।",
+      "aiReply": "नमस्ते 👋\nमैं आज के ऑफ़र, प्रोडक्ट कैटलॉग, कीमत और ऑर्डर स्टेटस में मदद कर सकता हूँ।\nआप क्या देखना चाहेंगे?",
+      "aiLabel": "AI Assistant",
+      "timeCustomer": "10:24 AM",
+      "timeAi": "10:24 AM",
+      "todayLabel": "आज",
+      "composerPlaceholder": "संदेश लिखें",
+      "aiSuggestedReply": "AI Suggested Reply",
+      "automatedResponse": "Automated Response",
+      "cards": {
+        "assistantTitle": "AI Assistant",
+        "assistantStatus": "Ready",
+        "broadcastTitle": "Broadcast Campaign",
+        "broadcastStatus": "Create & Send",
+        "inboxTitle": "Shared Inbox",
+        "inboxStatus": "Manage Conversations",
+        "teamTitle": "Team Workspace",
+        "teamStatus": "Multi-Tenant",
+        "authTitle": "Secure Authentication",
+        "authStatus": "RBAC Enabled",
+        "templatesTitle": "Templates",
+        "templatesStatus": "Ready to Use"
+      }
+    }
   },
   "landing": {
+    "featurePreview": {
+      "badge": "✨ Platform Features",
+      "title": "WhatsApp पर बढ़ने के लिए सब कुछ",
+      "subtitle": "AI-पावर्ड बातचीत से टीम सहयोग तक, Whats-Auto एक इंटेलिजेंट वर्कस्पेस से कस्टमर कम्युनिकेशन मैनेज करने में मदद करता है।",
+      "cta": "सभी विशेषताएँ देखें",
+      "items": {
+        "ai": {
+          "title": "AI Assistant",
+          "description": "कॉन्टेक्स्ट-अवेयर सुझावों के साथ AI-जनरेटेड जवाब।"
+        },
+        "broadcast": {
+          "title": "Broadcast Campaigns",
+          "description": "कैंपेन लॉन्च करें और हज़ारों कस्टमर्स तक आसानी से पहुँचें।"
+        },
+        "inbox": {
+          "title": "Shared Team Inbox",
+          "description": "एक शेयर वर्कस्पेस से अपनी टीम के साथ सहयोग करें।"
+        },
+        "analytics": {
+          "title": "Analytics",
+          "description": "बातचीत, एंगेजमेंट और कैंपेन परफ़ॉर्मेंस ट्रैक करें।"
+        },
+        "multiTenant": {
+          "title": "Multi-Tenant Workspace",
+          "description": "एक अकाउंट से कई संगठनों को सुरक्षित रूप से मैनेज करें।"
+        },
+        "auth": {
+          "title": "Secure Authentication",
+          "description": "Google Login, OTP वेरिफ़िकेशन और सुरक्षित अकाउंट मैनेजमेंट।"
+        }
+      }
+    },
     "features": {
       "title": "WhatsApp पर आपको जो चाहिए, सब कुछ",
       "subtitle": "एक वर्कस्पेस से ब्रॉडकास्ट करें, बेचें और सपोर्ट दें।",
@@ -60,6 +127,37 @@
         "clickTracking": {
           "title": "क्लिक ट्रैकिंग",
           "description": "हर भेज में कौन से लिंक और CTA कन्वर्ट करते हैं, मापें।"
+        }
+      }
+    },
+    "whyWhatsAuto": {
+      "badge": "✨ Why Whats-Auto",
+      "title": "कस्टमर बातचीत ऑटोमेट करने के लिए सब कुछ।",
+      "subtitle": "तेज़ जवाब, बेहतर एंगेजमेंट, और स्मार्ट WhatsApp कम्युनिकेशन चाहने वाले बढ़ते बिज़नेस के लिए—सब एक प्लेटफ़ॉर्म पर।",
+      "items": {
+        "aiAssistant": {
+          "title": "AI Chat Assistant",
+          "description": "AI से कस्टमर सवालों के मानवीय जैसे जवाब अपने-आप दें।"
+        },
+        "broadcast": {
+          "title": "Broadcast Campaigns",
+          "description": "हज़ारों कस्टमर्स को कुछ ही क्लिक में प्रमोशनल मैसेज और अपडेट भेजें।"
+        },
+        "inbox": {
+          "title": "Shared Team Inbox",
+          "description": "पूरी सपोर्ट टीम के साथ एक WhatsApp वर्कस्पेस से सहयोग करें।"
+        },
+        "whatsappApi": {
+          "title": "Official WhatsApp API",
+          "description": "सुरक्षित और भरोसेमंद मैसेजिंग के लिए आधिकारिक WhatsApp Business API पर बना।"
+        },
+        "analytics": {
+          "title": "Analytics & Insights",
+          "description": "कैंपेन परफ़ॉर्मेंस, कस्टमर एंगेजमेंट और रिस्पॉन्स ट्रेंड ट्रैक करें।"
+        },
+        "multiTenant": {
+          "title": "Multi-Tenant Workspace",
+          "description": "कई संगठनों और टीमों को एक प्लेटफ़ॉर्म से सुरक्षित रूप से मैनेज करें।"
         }
       }
     },
@@ -103,6 +201,47 @@
     "trust": {
       "label": "उन टीमों का भरोसा जो WhatsApp पर बेचती और सपोर्ट करती हैं"
     },
+    "pricingPreview": {
+      "badge": "💰 Pricing",
+      "title": "हर बिज़नेस के लिए सरल मूल्य निर्धारण",
+      "subtitle": "छोटे से शुरू करें, बढ़ते हुए स्केल करें। अपनी ज़रूरत के हिसाब से प्लान चुनें।",
+      "footerPrompt": "विस्तृत तुलना चाहिए?",
+      "footerCta": "पूरा मूल्य निर्धारण देखें",
+      "plans": {
+        "starter": {
+          "name": "Starter",
+          "price": "₹499/mo",
+          "cta": "Get Started",
+          "features": [
+            "AI Assistant",
+            "Shared Inbox",
+            "Broadcast Campaigns"
+          ]
+        },
+        "growth": {
+          "name": "Growth",
+          "badge": "Most Popular",
+          "price": "₹1,499/mo",
+          "cta": "Start Growing",
+          "features": [
+            "Everything in Starter",
+            "Workflow Automation",
+            "Team Collaboration",
+            "Advanced Analytics"
+          ]
+        },
+        "enterprise": {
+          "name": "Enterprise",
+          "price": "Custom",
+          "cta": "Contact Sales",
+          "features": [
+            "Dedicated Support",
+            "Custom Integrations",
+            "Enterprise Security"
+          ]
+        }
+      }
+    },
     "pricing": {
       "title": "सरल, पारदर्शी मूल्य निर्धारण",
       "subtitle": "नीचे प्लान का पूर्वावलोकन। पूरी तुलना के लिए मूल्य निर्धारण पेज देखें।",
@@ -130,71 +269,389 @@
       }
     },
     "cta": {
-      "headline": "अपना WhatsApp ऑटोमेट करने के लिए तैयार?",
-      "subheadline": "हर हफ़्ते घंटों की बचत करने वाले हज़ारों व्यवसायों से जुड़ें।",
-      "button": "मुफ़्त में शुरू करें"
+      "badge": "🚀 Get Started",
+      "headline": "अपने WhatsApp बिज़नेस को बदलने के लिए तैयार?",
+      "subheadline": "बातचीत ऑटोमेट करें, कस्टमर्स से तेज़ी से जुड़ें, और AI-पावर्ड WhatsApp ऑटोमेशन से अपना बिज़नेस स्केल करें।",
+      "primary": "शुरू करें",
+      "secondary": "डेमो बुक करें",
+      "secondaryBadge": "Coming Soon",
+      "secondaryTooltip": "डेमो बुकिंग जल्द उपलब्ध होगी।",
+      "perks": [
+        "क्रेडिट कार्ड की ज़रूरत नहीं",
+        "मिनटों में सेटअप",
+        "सुरक्षित ऑथेंटिकेशन"
+      ]
     }
   },
   "footer": {
     "brand": "Whats-Auto",
-    "tagline": "सेल्स, सपोर्ट और मार्केटिंग के लिए WhatsApp ऑटोमेशन।",
+    "description": "AI-पावर्ड WhatsApp ऑटोमेशन प्लेटफ़ॉर्म जो बिज़नेस को बातचीत ऑटोमेट करने, कैंपेन मैनेज करने और कस्टमर एंगेजमेंट बढ़ाने में मदद करता है।",
+    "soon": "Soon",
     "copyright": "© {year} Whats-Auto. सर्वाधिकार सुरक्षित।",
-    "legal": {
-      "privacy": "गोपनीयता",
-      "terms": "नियम"
+    "builtWith": "❤️ के साथ Next.js, Better Auth और AdonisJS से बना",
+    "social": {
+      "linkedin": "LinkedIn",
+      "github": "GitHub",
+      "twitter": "X (Twitter)",
+      "email": "Email"
     },
     "columns": {
       "product": {
-        "title": "प्रोडक्ट",
+        "title": "Product",
         "links": {
-          "features": "विशेषताएँ",
-          "pricing": "मूल्य निर्धारण",
-          "integrations": "एकीकरण"
+          "features": "Features",
+          "pricing": "Pricing",
+          "security": "Security",
+          "roadmap": "Roadmap"
         }
       },
       "company": {
-        "title": "कंपनी",
+        "title": "Company",
         "links": {
-          "getStarted": "शुरू करें",
-          "login": "लॉग इन"
+          "about": "About",
+          "contact": "Contact",
+          "privacy": "Privacy Policy",
+          "terms": "Terms & Conditions"
         }
       },
       "resources": {
-        "title": "संसाधन",
+        "title": "Resources",
         "links": {
-          "automation": "WhatsApp ऑटोमेशन",
-          "smartReplies": "स्मार्ट रिप्लाई"
+          "docs": "Documentation",
+          "support": "Support",
+          "faqs": "FAQs",
+          "blog": "Blog"
         }
       }
     }
   },
   "featuresPage": {
+    "metaTitle": "विशेषताएँ — Whats-Auto",
+    "metaDescription": "WhatsApp बातचीत ऑटोमेट करने के लिए सब कुछ — AI असिस्टेंट, ब्रॉडकास्ट, शेयर इनबॉक्स, एनालिटिक्स और सुरक्षित मल्टी-टेनेंट वर्कस्पेस।",
     "title": "विशेषताएँ",
-    "subtitle": "आपके व्यवसाय के लिए WhatsApp ऑटोमेट करने की Whats-Auto की सभी सुविधाएँ।"
+    "subtitle": "आपके व्यवसाय के लिए WhatsApp ऑटोमेट करने की Whats-Auto की सभी सुविधाएँ।",
+    "hero": {
+      "badge": "✨ Product Features",
+      "title": "WhatsApp बातचीत ऑटोमेट करने के लिए सब कुछ।",
+      "description": "बातचीत मैनेज करें, जवाब ऑटोमेट करें, कैंपेन लॉन्च करें, टीम के साथ सहयोग करें, और एक इंटेलिजेंट वर्कस्पेस से बिज़नेस बढ़ाएँ।",
+      "ctaPrimary": "शुरू करें",
+      "ctaSecondary": "विशेषताएँ देखें",
+      "visualLabel": "WhatsApp वर्कस्पेस पूर्वावलोकन",
+      "mock": {
+        "workspaceTitle": "Whats-Auto Workspace",
+        "inboxLabel": "Shared inbox · Live",
+        "online": "Online",
+        "threadName": "Whats-Auto Store",
+        "customerMsg": "नमस्ते, आज के ऑफ़र जानना चाहता/चाहती हूँ।",
+        "aiMsg": "मैं ऑफ़र, कैटलॉग और ऑर्डर स्टेटस में मदद कर सकता हूँ। क्या देखना चाहेंगे?",
+        "aiBadge": "AI Assistant",
+        "chips": {
+          "ai": "AI Assistant",
+          "broadcast": "Broadcast Campaign",
+          "inbox": "Shared Inbox",
+          "analytics": "Analytics",
+          "auth": "Secure Authentication",
+          "tenant": "Multi Tenant"
+        }
+      }
+    },
+    "grid": {
+      "title": "सब शामिल",
+      "subtitle": "बढ़ती टीमों और आधुनिक बिज़नेस के लिए डिज़ाइन किया गया।",
+      "items": {
+        "ai": {
+          "title": "AI Assistant",
+          "bullets": [
+            "AI-generated replies",
+            "Context-aware suggestions",
+            "Smart automation"
+          ]
+        },
+        "broadcast": {
+          "title": "Broadcast Campaigns",
+          "bullets": [
+            "Create campaigns",
+            "Schedule broadcasts",
+            "Delivery tracking"
+          ]
+        },
+        "inbox": {
+          "title": "Shared Team Inbox",
+          "bullets": [
+            "Assign conversations",
+            "Collaborate",
+            "Notes & mentions"
+          ]
+        },
+        "analytics": {
+          "title": "Analytics",
+          "bullets": [
+            "Conversation metrics",
+            "Response time",
+            "Campaign performance"
+          ]
+        },
+        "multiTenant": {
+          "title": "Multi-Tenant",
+          "bullets": [
+            "Separate organizations",
+            "Workspace isolation",
+            "Role management"
+          ]
+        },
+        "auth": {
+          "title": "Secure Authentication",
+          "bullets": [
+            "Google OAuth",
+            "OTP verification",
+            "Password recovery & JWT"
+          ]
+        },
+        "workflow": {
+          "title": "Workflow Automation",
+          "bullets": [
+            "Automated flows",
+            "Message triggers",
+            "Conditional actions"
+          ]
+        },
+        "templates": {
+          "title": "Templates",
+          "bullets": [
+            "Saved responses",
+            "Reusable campaigns",
+            "Quick deployment"
+          ]
+        }
+      }
+    },
+    "spotlights": {
+      "title": "Built for Real Workflows",
+      "subtitle": "देखें कि हर क्षमता आपकी टीम को तेज़ी से जवाब देने और बातचीत बढ़ाने में कैसे मदद करती है।",
+      "items": {
+        "ai": {
+          "title": "AI Assistant",
+          "description": "मानवीय जैसे AI जवाब से तुरंत जवाब दें, ज़रूरत पड़ने पर टीम को हैंडऑफ़ करें।",
+          "visualLabel": "AI असिस्टेंट बातचीत",
+          "points": [
+            "AI replies",
+            "Human handoff",
+            "Smart suggestions",
+            "Instant responses"
+          ]
+        },
+        "broadcast": {
+          "title": "Broadcast Campaigns",
+          "description": "शेड्यूल्ड कैंपेन से ऑप्ट-इन ऑडियंस तक पहुँचें और डिलीवरी साफ़ देखें।",
+          "visualLabel": "ब्रॉडकास्ट कैंपेन मॉकअप",
+          "points": [
+            "Schedule",
+            "Segment contacts",
+            "Delivery insights"
+          ]
+        },
+        "inbox": {
+          "title": "Team Collaboration",
+          "description": "असाइनमेंट और इंटरनल कॉन्टेक्स्ट के साथ एक शेयर WhatsApp वर्कस्पेस से सपोर्ट चलाएँ।",
+          "visualLabel": "शेयर इनबॉक्स इलस्ट्रेशन",
+          "points": [
+            "Assign chats",
+            "Internal notes",
+            "Multi-agent support"
+          ]
+        },
+        "analytics": {
+          "title": "Analytics & Reports",
+          "description": "वर्कस्पेस छोड़े बिना एंगेजमेंट और कैंपेन परफ़ॉर्मेंस समझें।",
+          "visualLabel": "एनालिटिक्स इलस्ट्रेशन",
+          "points": [
+            "Campaign metrics",
+            "Reply rates",
+            "Team performance"
+          ]
+        }
+      }
+    },
+    "workflow": {
+      "title": "यह कैसे काम करता है",
+      "subtitle": "कनेक्टेड WhatsApp से ऑटोमेटेड बातचीत तक पाँच साफ़ चरणों में।",
+      "steps": {
+        "connect": {
+          "title": "Connect WhatsApp",
+          "description": "अपना आधिकारिक WhatsApp Business API सुरक्षित रूप से लिंक करें।"
+        },
+        "import": {
+          "title": "Import Contacts",
+          "description": "ऑप्ट-इन कॉन्टैक्ट्स लाएँ और सेगमेंट में व्यवस्थित करें।"
+        },
+        "launch": {
+          "title": "Launch Campaign",
+          "description": "ब्रॉडकास्ट भेजें या ऑटोमेटेड बातचीत फ़्लो शुरू करें।"
+        },
+        "ai": {
+          "title": "AI Handles Replies",
+          "description": "आम सवालों के जवाब AI दे और ज़रूरत पर एस्केलेट करे।"
+        },
+        "track": {
+          "title": "Track Analytics",
+          "description": "डिलीवरी, एंगेजमेंट और टीम रिस्पॉन्स ट्रेंड मॉनिटर करें।"
+        }
+      }
+    },
+    "security": {
+      "title": "एंटरप्राइज़-ग्रेड सुरक्षा",
+      "subtitle": "ऑथेंटिकेशन, एक्सेस कंट्रोल और एन्क्रिप्टेड API से हर वर्कस्पेस सुरक्षित रखें।",
+      "comingSoon": "जल्द आ रहा है",
+      "items": {
+        "oauth": {
+          "title": "OAuth",
+          "description": "तेज़ और भरोसेमंद लॉगिन के लिए Google OAuth।"
+        },
+        "otp": {
+          "title": "OTP Verification",
+          "description": "रजिस्ट्रेशन के दौरान वन-टाइम कोड से अकाउंट वेरिफ़ाई करें।"
+        },
+        "jwt": {
+          "title": "JWT Authentication",
+          "description": "Authenticated API एक्सेस के लिए सुरक्षित सेशन टोकन।"
+        },
+        "rbac": {
+          "title": "RBAC",
+          "description": "टीमों और वर्कस्पेस पर रोल-बेस्ड एक्सेस कंट्रोल।"
+        },
+        "encrypted": {
+          "title": "Encrypted API",
+          "description": "ट्रांज़िट में डेटा के लिए TLS-सुरक्षित API ट्रैफ़िक।"
+        },
+        "audit": {
+          "title": "Audit Logs",
+          "description": "संगठन में संवेदनशील ऑथराइज़ेशन इवेंट ट्रैक करें।"
+        }
+      }
+    },
+    "cta": {
+      "title": "कस्टमर बातचीत ऑटोमेट करने के लिए तैयार?",
+      "description": "मिनटों में अपना वर्कस्पेस शुरू करें।",
+      "primary": "शुरू करें",
+      "secondary": "डेमो बुक करें"
+    }
   },
   "pricingPage": {
+    "metaTitle": "मूल्य निर्धारण — Whats-Auto",
+    "metaDescription": "WhatsApp ऑटोमेशन के लिए सरल, पारदर्शी मूल्य निर्धारण। छोटे से शुरू करें और बातचीत बढ़ने के साथ स्केल करें।",
     "title": "मूल्य निर्धारण",
-    "subtitle": "अपनी टीम के लिए सही प्लान चुनें। मुफ़्त शुरू करें और ज़रूरत पड़ने पर अपग्रेड करें।",
-    "starter": {
-      "name": "स्टार्टर",
-      "price": "मुफ़्त",
-      "period": "हमेशा के लिए",
-      "description": "शुरुआत करने वालों के लिए बिल्कुल सही",
-      "cta": "शुरू करें"
+    "subtitle": "अपने बिज़नेस के लिए सही प्लान चुनें। छोटे से शुरू करें और कस्टमर बातचीत बढ़ने के साथ स्केल करें।",
+    "hero": {
+      "badge": "💰 Pricing",
+      "title": "Simple, Transparent Pricing",
+      "subtitle": "अपने बिज़नेस के लिए सही प्लान चुनें। छोटे से शुरू करें और कस्टमर बातचीत बढ़ने के साथ स्केल करें।",
+      "ctaPrimary": "शुरू करें",
+      "ctaSecondary": "सेल्स से संपर्क करें"
     },
-    "growth": {
-      "name": "ग्रोथ",
-      "price": "₹999",
-      "period": "/माह",
-      "description": "बढ़ती टीमों के लिए अधिक वॉल्यूम",
-      "cta": "ट्रायल शुरू करें"
+    "plans": {
+      "starter": {
+        "name": "Starter",
+        "price": "₹499",
+        "period": "/ month",
+        "description": "व्यक्तियों और छोटे बिज़नेस के लिए बिल्कुल सही।",
+        "cta": "Get Started",
+        "features": [
+          "AI Assistant",
+          "Shared Inbox",
+          "Broadcast Campaigns",
+          "Basic Analytics",
+          "Email Support"
+        ]
+      },
+      "growth": {
+        "name": "Growth",
+        "badge": "Most Popular",
+        "price": "₹1,499",
+        "period": "/ month",
+        "description": "बातचीत स्केल करने के लिए तैयार बढ़ती टीमों के लिए।",
+        "cta": "Start Growing",
+        "features": [
+          "Everything in Starter",
+          "Multi-Tenant Workspace",
+          "Team Collaboration",
+          "Advanced Analytics",
+          "Workflow Automation",
+          "Priority Support"
+        ]
+      },
+      "enterprise": {
+        "name": "Enterprise",
+        "price": "Custom Pricing",
+        "period": "",
+        "description": "बड़े संगठनों के लिए।",
+        "cta": "Contact Sales",
+        "features": [
+          "Everything in Growth",
+          "Dedicated Support",
+          "Custom Integrations",
+          "SLA",
+          "Enterprise Security",
+          "Custom Onboarding"
+        ]
+      }
     },
-    "enterprise": {
-      "name": "एंटरप्राइज़",
-      "price": "कस्टम",
-      "period": "",
-      "description": "बड़े संगठनों के लिए कस्टम समाधान",
-      "cta": "सेल्स से संपर्क करें"
+    "comparison": {
+      "title": "प्लान तुलना",
+      "subtitle": "हर टियर में क्या शामिल है देखें—कोई छुपी सुविधाएँ नहीं।",
+      "featureLabel": "Feature",
+      "columns": {
+        "starter": "Starter",
+        "growth": "Growth",
+        "enterprise": "Enterprise"
+      },
+      "rows": {
+        "ai": "AI Assistant",
+        "broadcast": "Broadcast Campaigns",
+        "inbox": "Shared Inbox",
+        "templates": "Templates",
+        "analytics": "Analytics",
+        "multiTenant": "Multi-Tenant",
+        "workflow": "Workflow Automation",
+        "prioritySupport": "Priority Support",
+        "dedicatedSupport": "Dedicated Support"
+      },
+      "values": {
+        "yes": "शामिल",
+        "no": "शामिल नहीं",
+        "custom": "Custom"
+      }
+    },
+    "faq": {
+      "title": "अक्सर पूछे जाने वाले प्रश्न",
+      "subtitle": "प्लान, बिलिंग और सपोर्ट के बारे में त्वरित जवाब।",
+      "items": {
+        "upgrade": {
+          "question": "How can I upgrade?",
+          "answer": "आप कभी भी वर्कस्पेस सेटिंग्स से अपग्रेड कर सकते हैं। बदलाव अगले बिलिंग साइकल से लागू होते हैं, और अपग्रेड के तुरंत बाद नई सुविधाएँ उपलब्ध रहती हैं।"
+        },
+        "cancel": {
+          "question": "Can I cancel anytime?",
+          "answer": "हाँ। आप कभी भी प्लान कैंसल कर सकते हैं। मौजूदा बिलिंग अवधि के अंत तक एक्सेस रहेगा—Starter और Growth पर कोई लंबी कॉन्ट्रैक्ट नहीं।"
+        },
+        "trial": {
+          "question": "Do you offer free trials?",
+          "answer": "हम फ्री ट्रायल देते हैं ताकि आप कमिट करने से पहले वर्कस्पेस आज़मा सकें। अकाउंट बनाने के लिए Get Started चुनें।"
+        },
+        "enterprise": {
+          "question": "Do you support enterprise deployments?",
+          "answer": "हाँ। Enterprise में डेडिकेटेड सपोर्ट, कस्टम इंटीग्रेशन, SLA विकल्प और बड़े संगठनों के लिए सुरक्षा ज़रूरतें शामिल हैं।"
+        },
+        "support": {
+          "question": "How do I contact support?",
+          "answer": "हर प्लान पर ईमेल सपोर्ट शामिल है। Growth पर प्राथमिकता सपोर्ट है, और Enterprise को डेडिकेटेड चैनल मिलता है। सेल्स: sales@whats-auto.com।"
+        }
+      }
+    },
+    "cta": {
+      "title": "Ready to automate your WhatsApp conversations?",
+      "description": "आज ही अपना वर्कस्पेस शुरू करें और आत्मविश्वास के साथ स्केल करें।",
+      "primary": "Get Started",
+      "secondary": "Contact Sales"
     }
   },
   "features": {
@@ -254,80 +711,134 @@
   "auth": {
     "login": {
       "title": "वापसी पर स्वागत है",
-      "subtitle": "अपने खाते में लॉगिन करने के लिए अपना ईमेल दर्ज करें",
+      "subtitle": "अपने वर्कस्पेस में जारी रखने के लिए साइन इन करें।",
       "email": "ईमेल",
       "password": "पासवर्ड",
+      "rememberMe": "मुझे याद रखें",
       "forgotPassword": "पासवर्ड भूल गए?",
+      "showPassword": "पासवर्ड दिखाएँ",
+      "hidePassword": "पासवर्ड छिपाएँ",
       "submit": "लॉगिन",
       "submitting": "साइन इन हो रहा है…",
       "orContinue": "या इससे जारी रखें",
       "google": "Google से लॉगिन करें",
       "noAccount": "खाता नहीं है?",
-      "signUp": "साइन अप करें",
+      "signUp": "खाता बनाएँ",
       "errors": {
         "generic": "कुछ गलत हो गया। कृपया फिर से कोशिश करें।",
-        "emailExists": "इस ईमेल से पहले से खाता मौजूद है। कृपया अपने पासवर्ड से साइन इन करें।"
+        "emailExists": "इस ईमेल से पहले से खाता मौजूद है। कृपया अपने पासवर्ड से साइन इन करें।",
+        "emailRequired": "ईमेल आवश्यक है।",
+        "emailInvalid": "सही ईमेल पता दर्ज करें।",
+        "passwordRequired": "पासवर्ड आवश्यक है।"
       }
     },
     "register": {
       "title": "अपना खाता बनाएँ",
-      "subtitle": "Whats-Auto के साथ शुरू करें",
+      "subtitle": "कुछ ही मिनटों में ग्राहक बातचीत ऑटोमेट करना शुरू करें।",
       "firstname": "पहला नाम",
       "lastname": "अंतिम नाम",
       "email": "ईमेल",
       "password": "पासवर्ड",
       "confirmPassword": "पासवर्ड की पुष्टि करें",
       "passwordHint": "कम से कम 8 अक्षर होने चाहिए।",
+      "showPassword": "पासवर्ड दिखाएँ",
+      "hidePassword": "पासवर्ड छिपाएँ",
+      "showConfirmPassword": "पुष्टि पासवर्ड दिखाएँ",
+      "hideConfirmPassword": "पुष्टि पासवर्ड छिपाएँ",
+      "passwordStrengthLabel": "पासवर्ड की मजबूती",
+      "passwordStrength": {
+        "weak": "कमज़ोर",
+        "medium": "मध्यम",
+        "strong": "मज़बूत"
+      },
       "submit": "खाता बनाएँ",
       "submitting": "खाता बनाया जा रहा है…",
       "orContinue": "या इससे जारी रखें",
-      "google": "Google से साइन अप करें",
+      "google": "Google से जारी रखें",
       "haveAccount": "पहले से खाता है?",
-      "signIn": "साइन इन करें",
-      "otpTitle": "अपना ईमेल सत्यापित करें",
-      "otpSubtitle": "हमने {email} पर 6 अंकों का कोड भेजा है",
+      "signIn": "साइन इन",
+      "otpTitle": "कोड सत्यापित करें",
+      "otpSubtitle": "हमने आपके ईमेल पर 6 अंकों का सत्यापन कोड भेजा है।",
+      "otpSubtitleWithEmail": "हमने {email} पर 6 अंकों का सत्यापन कोड भेजा है।",
       "otpLabel": "सत्यापन कोड",
-      "verify": "ईमेल सत्यापित करें",
+      "otpHint": "अपने ईमेल से 6 अंकों का कोड दर्ज करें।",
+      "otpCountdown": "कोड {time} में समाप्त होगा",
+      "otpCountdownReady": "कोड तैयार है — अब फिर से भेज सकते हैं",
+      "verify": "कोड सत्यापित करें",
       "verifying": "सत्यापित हो रहा है…",
       "resendOtp": "कोड फिर से भेजें",
       "resendOtpCooldown": "{seconds} सेकंड में कोड फिर से भेजें",
+      "changeEmail": "दूसरा ईमेल उपयोग करें",
+      "backToLogin": "लॉगिन पर वापस जाएँ",
       "back": "वापस जाएँ",
       "errors": {
         "generic": "कुछ गलत हो गया। कृपया फिर से कोशिश करें।",
         "emailExists": "इस ईमेल से पहले से खाता मौजूद है। कृपया अपने पासवर्ड से साइन इन करें।",
         "passwordMismatch": "पासवर्ड मेल नहीं खाते।",
-        "passwordLength": "पासवर्ड कम से कम 8 अक्षर का होना चाहिए।"
+        "passwordLength": "पासवर्ड कम से कम 8 अक्षर का होना चाहिए।",
+        "firstnameRequired": "पहला नाम आवश्यक है।",
+        "lastnameRequired": "अंतिम नाम आवश्यक है।",
+        "emailRequired": "ईमेल आवश्यक है।",
+        "emailInvalid": "सही ईमेल पता दर्ज करें।",
+        "passwordRequired": "पासवर्ड आवश्यक है।",
+        "confirmPasswordRequired": "पासवर्ड की पुष्टि करें।",
+        "otpRequired": "सत्यापन कोड दर्ज करें।",
+        "otpInvalid": "सही 6 अंकों का कोड दर्ज करें।"
       }
     },
     "forgotPassword": {
-      "title": "पासवर्ड भूल गए?",
-      "subtitle": "अपना ईमेल दर्ज करें और हम आपको रीसेट लिंक भेजेंगे।",
+      "title": "पासवर्ड भूल गए",
+      "subtitle": "अपने खाते से जुड़ा ईमेल दर्ज करें और हम आपको एक सुरक्षित पासवर्ड रीसेट लिंक भेजेंगे।",
       "email": "ईमेल",
       "submit": "रीसेट लिंक भेजें",
       "submitting": "भेजा जा रहा है…",
       "sentTitle": "अपना ईमेल चेक करें",
-      "sentSubtitle": "हमने {email} पर पासवर्ड रीसेट लिंक भेजा है। यह 1 घंटे में समाप्त हो जाएगा।",
+      "sentSubtitle": "यदि इस ईमेल से खाता मौजूद है, तो हमने पासवर्ड रीसेट लिंक भेज दिया है।",
+      "resend": "ईमेल फिर से भेजें",
+      "resending": "भेजा जा रहा है…",
+      "resendCooldown": "{seconds} सेकंड में ईमेल फिर से भेजें",
       "backToLogin": "लॉगिन पर वापस जाएँ",
       "errors": {
         "generic": "कुछ गलत हो गया। कृपया फिर से कोशिश करें।",
-        "useGoogle": "यह खाता Google साइन-इन उपयोग करता है। कृपया Google से साइन इन करें।"
+        "useGoogle": "यह खाता Google साइन-इन उपयोग करता है। कृपया Google से साइन इन करें।",
+        "emailRequired": "ईमेल आवश्यक है।",
+        "emailInvalid": "सही ईमेल पता दर्ज करें।"
       }
     },
     "resetPassword": {
-      "title": "नया पासवर्ड सेट करें",
-      "subtitle": "नीचे अपना नया पासवर्ड दर्ज करें।",
+      "title": "पासवर्ड रीसेट करें",
+      "subtitle": "अपने खाते के लिए एक मज़बूत पासवर्ड चुनें।",
       "password": "नया पासवर्ड",
-      "confirmPassword": "नए पासवर्ड की पुष्टि करें",
-      "submit": "पासवर्ड रीसेट करें",
-      "submitting": "रीसेट हो रहा है…",
-      "successTitle": "पासवर्ड रीसेट हो गया!",
+      "confirmPassword": "पासवर्ड की पुष्टि करें",
+      "showPassword": "पासवर्ड दिखाएँ",
+      "hidePassword": "पासवर्ड छिपाएँ",
+      "showConfirmPassword": "पुष्टि पासवर्ड दिखाएँ",
+      "hideConfirmPassword": "पुष्टि पासवर्ड छिपाएँ",
+      "passwordStrengthLabel": "पासवर्ड की मजबूती",
+      "passwordStrength": {
+        "weak": "कमज़ोर",
+        "medium": "मध्यम",
+        "strong": "मज़बूत"
+      },
+      "requirements": {
+        "length": "कम से कम 8 अक्षर",
+        "case": "बड़े और छोटे अक्षर",
+        "number": "कम से कम एक संख्या",
+        "special": "कम से कम एक विशेष वर्ण"
+      },
+      "submit": "पासवर्ड अपडेट करें",
+      "submitting": "अपडेट हो रहा है…",
+      "successTitle": "पासवर्ड अपडेट हो गया",
       "successSubtitle": "आपका पासवर्ड अपडेट हो गया है। लॉगिन पर रीडायरेक्ट हो रहा है…",
       "requestNew": "नया रीसेट लिंक माँगें",
+      "backToLogin": "लॉगिन पर वापस जाएँ",
       "errors": {
         "generic": "कुछ गलत हो गया। कृपया फिर से कोशिश करें।",
         "mismatch": "पासवर्ड मेल नहीं खाते।",
         "length": "पासवर्ड कम से कम 8 अक्षर का होना चाहिए।",
-        "invalidToken": "यह रीसेट लिंक अमान्य है या मौजूद नहीं है।"
+        "invalidToken": "यह रीसेट लिंक अमान्य है या मौजूद नहीं है।",
+        "passwordRequired": "पासवर्ड आवश्यक है।",
+        "confirmRequired": "पासवर्ड की पुष्टि करें।"
       }
     }
   },

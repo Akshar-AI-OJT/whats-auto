@@ -1,18 +1,18 @@
 import { CTASection } from '@/components/landing/sections/CTASection'
-import { FeaturesSection } from '@/components/landing/sections/FeaturesSection'
+import { FeaturePreviewSection } from '@/components/landing/sections/FeaturePreviewSection'
 import { HeroSection } from '@/components/landing/sections/HeroSection'
-import { PricingSection } from '@/components/landing/sections/PricingSection'
-import { TrustBarSection } from '@/components/landing/sections/TrustBarSection'
-import { WhyChooseUsSection } from '@/components/landing/sections/WhyChooseUsSection'
+import { PricingPreviewSection } from '@/components/landing/sections/PricingPreviewSection'
+import { WhyWhatsAutoSection } from '@/components/landing/sections/WhyWhatsAutoSection'
 
 export function LandingPage() {
   return (
-    <main className="flex flex-1 flex-col">
+    <main className="w-full flex-1">
       <HeroSection />
-      <TrustBarSection />
-      <FeaturesSection />
-      <WhyChooseUsSection />
-      <PricingSection />
+      <WhyWhatsAutoSection />
+      <FeaturePreviewSection />
+      {/* How It Works */}
+      <PricingPreviewSection />
+      {/* FAQ */}
       <CTASection />
     </main>
   )

@@ -3,6 +3,10 @@
     "brand": "Whats-Auto",
     "pricing": "Pricing",
     "features": "Features",
+    "howItWorks": "How it Works",
+    "faq": "FAQ",
+    "resources": "Resources",
+    "contact": "Contact",
     "integrations": "Integrations",
     "getStarted": "Get Started",
     "login": "Login",
@@ -12,18 +16,81 @@
     "menuClose": "Close menu"
   },
   "hero": {
-    "eyebrow": "Trusted by 1,000+ businesses",
-    "headlinePrefix": "The #1",
-    "words1": ["WhatsApp", "business", "sales"],
-    "words2": ["automation", "messaging", "support"],
-    "headlineSuffix": "platform",
-    "subheadline": "Broadcasts, chatbots, and catalogs in one place. Start free.",
-    "cta": "Start for free",
-    "ctaSecondary": "See features",
-    "visualLabel": "WhatsApp automation product preview",
-    "visualPlaceholder": "Product screenshot placeholder"
+    "badge": "AI Powered WhatsApp Automation",
+    "headline": "Run Your Entire WhatsApp Business on Autopilot",
+    "description": "Manage customer conversations, automate replies, launch broadcast campaigns, and collaborate with your team—all from one intelligent WhatsApp workspace.",
+    "cta": "Get Started",
+    "ctaSecondary": "Book Demo",
+    "ctaSecondaryBadge": "Soon",
+    "ctaSecondaryTooltip": "Demo booking will be available soon.",
+    "chips": [
+      "Official WhatsApp API",
+      "AI Chat Assistant",
+      "Shared Team Inbox",
+      "Broadcast Campaigns"
+    ],
+    "visualLabel": "WhatsApp AI conversation preview",
+    "mock": {
+      "businessName": "Whats-Auto Store",
+      "businessStatus": "online · typically replies instantly",
+      "customerMessage": "Hi, I'd like to know today's offers.",
+      "aiReply": "Hello 👋\nI can help you with today's offers, product catalog, pricing, and order status.\nWhat would you like to explore?",
+      "aiLabel": "AI Assistant",
+      "timeCustomer": "10:24 AM",
+      "timeAi": "10:24 AM",
+      "todayLabel": "Today",
+      "composerPlaceholder": "Type a message",
+      "aiSuggestedReply": "AI Suggested Reply",
+      "automatedResponse": "Automated Response",
+      "cards": {
+        "assistantTitle": "AI Assistant",
+        "assistantStatus": "Ready",
+        "broadcastTitle": "Broadcast Campaign",
+        "broadcastStatus": "Create & Send",
+        "inboxTitle": "Shared Inbox",
+        "inboxStatus": "Manage Conversations",
+        "teamTitle": "Team Workspace",
+        "teamStatus": "Multi-Tenant",
+        "authTitle": "Secure Authentication",
+        "authStatus": "RBAC Enabled",
+        "templatesTitle": "Templates",
+        "templatesStatus": "Ready to Use"
+      }
+    }
   },
   "landing": {
+    "featurePreview": {
+      "badge": "✨ Platform Features",
+      "title": "Everything You Need to Grow on WhatsApp",
+      "subtitle": "From AI-powered conversations to team collaboration, Whats-Auto helps you manage customer communication from one intelligent workspace.",
+      "cta": "Explore All Features",
+      "items": {
+        "ai": {
+          "title": "AI Assistant",
+          "description": "AI-generated replies with context-aware suggestions."
+        },
+        "broadcast": {
+          "title": "Broadcast Campaigns",
+          "description": "Launch campaigns and reach thousands of customers effortlessly."
+        },
+        "inbox": {
+          "title": "Shared Team Inbox",
+          "description": "Collaborate with your team from one shared workspace."
+        },
+        "analytics": {
+          "title": "Analytics",
+          "description": "Track conversations, engagement, and campaign performance."
+        },
+        "multiTenant": {
+          "title": "Multi-Tenant Workspace",
+          "description": "Manage multiple organizations securely from one account."
+        },
+        "auth": {
+          "title": "Secure Authentication",
+          "description": "Google Login, OTP verification, and secure account management."
+        }
+      }
+    },
     "features": {
       "title": "Everything you need on WhatsApp",
       "subtitle": "Broadcast, sell, and support from one workspace.",
@@ -60,6 +127,37 @@
         "clickTracking": {
           "title": "Click Tracking",
           "description": "Measure which links and CTAs convert in every send."
+        }
+      }
+    },
+    "whyWhatsAuto": {
+      "badge": "✨ Why Whats-Auto",
+      "title": "Everything you need to automate customer conversations.",
+      "subtitle": "Built for growing businesses that want faster replies, better customer engagement, and smarter WhatsApp communication—all from one platform.",
+      "items": {
+        "aiAssistant": {
+          "title": "AI Chat Assistant",
+          "description": "Automatically answer customer questions using AI with human-like responses."
+        },
+        "broadcast": {
+          "title": "Broadcast Campaigns",
+          "description": "Send promotional messages and updates to thousands of customers in just a few clicks."
+        },
+        "inbox": {
+          "title": "Shared Team Inbox",
+          "description": "Collaborate with your entire support team from one WhatsApp workspace."
+        },
+        "whatsappApi": {
+          "title": "Official WhatsApp API",
+          "description": "Built on the official WhatsApp Business API for secure and reliable messaging."
+        },
+        "analytics": {
+          "title": "Analytics & Insights",
+          "description": "Track campaign performance, customer engagement, and response trends."
+        },
+        "multiTenant": {
+          "title": "Multi-Tenant Workspace",
+          "description": "Manage multiple organizations and teams securely from one platform."
         }
       }
     },
@@ -103,6 +201,47 @@
     "trust": {
       "label": "Trusted by teams that sell and support on WhatsApp"
     },
+    "pricingPreview": {
+      "badge": "💰 Pricing",
+      "title": "Simple Pricing for Every Business",
+      "subtitle": "Start small, scale as you grow. Choose the plan that fits your business needs.",
+      "footerPrompt": "Need a detailed comparison?",
+      "footerCta": "View Full Pricing",
+      "plans": {
+        "starter": {
+          "name": "Starter",
+          "price": "₹499/mo",
+          "cta": "Get Started",
+          "features": [
+            "AI Assistant",
+            "Shared Inbox",
+            "Broadcast Campaigns"
+          ]
+        },
+        "growth": {
+          "name": "Growth",
+          "badge": "Most Popular",
+          "price": "₹1,499/mo",
+          "cta": "Start Growing",
+          "features": [
+            "Everything in Starter",
+            "Workflow Automation",
+            "Team Collaboration",
+            "Advanced Analytics"
+          ]
+        },
+        "enterprise": {
+          "name": "Enterprise",
+          "price": "Custom",
+          "cta": "Contact Sales",
+          "features": [
+            "Dedicated Support",
+            "Custom Integrations",
+            "Enterprise Security"
+          ]
+        }
+      }
+    },
     "pricing": {
       "title": "Simple, transparent pricing",
       "subtitle": "Preview our plans below. Compare tiers and features on the full pricing page.",
@@ -130,18 +269,31 @@
       }
     },
     "cta": {
-      "headline": "Ready to automate your WhatsApp?",
-      "subheadline": "Join thousands of businesses saving hours every week.",
-      "button": "Get started for free"
+      "badge": "🚀 Get Started",
+      "headline": "Ready to Transform Your WhatsApp Business?",
+      "subheadline": "Automate conversations, engage customers faster, and scale your business with AI-powered WhatsApp automation.",
+      "primary": "Get Started",
+      "secondary": "Book Demo",
+      "secondaryBadge": "Coming Soon",
+      "secondaryTooltip": "Demo booking will be available soon.",
+      "perks": [
+        "No credit card required",
+        "Setup in minutes",
+        "Secure authentication"
+      ]
     }
   },
   "footer": {
     "brand": "Whats-Auto",
-    "tagline": "WhatsApp automation for sales, support, and marketing.",
+    "description": "AI-powered WhatsApp automation platform helping businesses automate conversations, manage campaigns, and grow customer engagement.",
+    "soon": "Soon",
     "copyright": "© {year} Whats-Auto. All rights reserved.",
-    "legal": {
-      "privacy": "Privacy",
-      "terms": "Terms"
+    "builtWith": "Built with ❤️ using Next.js, Better Auth & AdonisJS",
+    "social": {
+      "linkedin": "LinkedIn",
+      "github": "GitHub",
+      "twitter": "X (Twitter)",
+      "email": "Email"
     },
     "columns": {
       "product": {
@@ -149,52 +301,357 @@
         "links": {
           "features": "Features",
           "pricing": "Pricing",
-          "integrations": "Integrations"
+          "security": "Security",
+          "roadmap": "Roadmap"
         }
       },
       "company": {
         "title": "Company",
         "links": {
-          "getStarted": "Get started",
-          "login": "Log in"
+          "about": "About",
+          "contact": "Contact",
+          "privacy": "Privacy Policy",
+          "terms": "Terms & Conditions"
         }
       },
       "resources": {
         "title": "Resources",
         "links": {
-          "automation": "WhatsApp Automation",
-          "smartReplies": "Smart Replies"
+          "docs": "Documentation",
+          "support": "Support",
+          "faqs": "FAQs",
+          "blog": "Blog"
         }
       }
     }
   },
   "featuresPage": {
+    "metaTitle": "Features — Whats-Auto",
+    "metaDescription": "Everything you need to automate WhatsApp conversations — AI assistant, broadcasts, shared inbox, analytics, and secure multi-tenant workspaces.",
     "title": "Features",
-    "subtitle": "Everything Whats-Auto offers to automate WhatsApp for your business."
+    "subtitle": "Everything Whats-Auto offers to automate WhatsApp for your business.",
+    "hero": {
+      "badge": "✨ Product Features",
+      "title": "Everything you need to automate WhatsApp conversations.",
+      "description": "Manage conversations, automate replies, launch campaigns, collaborate with your team, and grow your business using one intelligent workspace.",
+      "ctaPrimary": "Get Started",
+      "ctaSecondary": "Explore Features",
+      "visualLabel": "WhatsApp workspace preview",
+      "mock": {
+        "workspaceTitle": "Whats-Auto Workspace",
+        "inboxLabel": "Shared inbox · Live",
+        "online": "Online",
+        "threadName": "Whats-Auto Store",
+        "customerMsg": "Hi, I'd like to know today's offers.",
+        "aiMsg": "I can help with offers, catalog, and order status. What should we explore?",
+        "aiBadge": "AI Assistant",
+        "chips": {
+          "ai": "AI Assistant",
+          "broadcast": "Broadcast Campaign",
+          "inbox": "Shared Inbox",
+          "analytics": "Analytics",
+          "auth": "Secure Authentication",
+          "tenant": "Multi Tenant"
+        }
+      }
+    },
+    "grid": {
+      "title": "Everything included",
+      "subtitle": "Designed for growing teams and modern businesses.",
+      "items": {
+        "ai": {
+          "title": "AI Assistant",
+          "bullets": [
+            "AI-generated replies",
+            "Context-aware suggestions",
+            "Smart automation"
+          ]
+        },
+        "broadcast": {
+          "title": "Broadcast Campaigns",
+          "bullets": [
+            "Create campaigns",
+            "Schedule broadcasts",
+            "Delivery tracking"
+          ]
+        },
+        "inbox": {
+          "title": "Shared Team Inbox",
+          "bullets": [
+            "Assign conversations",
+            "Collaborate",
+            "Notes & mentions"
+          ]
+        },
+        "analytics": {
+          "title": "Analytics",
+          "bullets": [
+            "Conversation metrics",
+            "Response time",
+            "Campaign performance"
+          ]
+        },
+        "multiTenant": {
+          "title": "Multi-Tenant",
+          "bullets": [
+            "Separate organizations",
+            "Workspace isolation",
+            "Role management"
+          ]
+        },
+        "auth": {
+          "title": "Secure Authentication",
+          "bullets": [
+            "Google OAuth",
+            "OTP verification",
+            "Password recovery & JWT"
+          ]
+        },
+        "workflow": {
+          "title": "Workflow Automation",
+          "bullets": [
+            "Automated flows",
+            "Message triggers",
+            "Conditional actions"
+          ]
+        },
+        "templates": {
+          "title": "Templates",
+          "bullets": [
+            "Saved responses",
+            "Reusable campaigns",
+            "Quick deployment"
+          ]
+        }
+      }
+    },
+    "spotlights": {
+      "title": "Built for Real Workflows",
+      "subtitle": "See how each capability helps your team reply faster and grow conversations.",
+      "items": {
+        "ai": {
+          "title": "AI Assistant",
+          "description": "Answer customers instantly with human-like AI replies, then hand off to your team when needed.",
+          "visualLabel": "AI assistant conversation",
+          "points": [
+            "AI replies",
+            "Human handoff",
+            "Smart suggestions",
+            "Instant responses"
+          ]
+        },
+        "broadcast": {
+          "title": "Broadcast Campaigns",
+          "description": "Reach opted-in audiences with scheduled campaigns and clear delivery visibility.",
+          "visualLabel": "Broadcast campaign mockup",
+          "points": [
+            "Schedule",
+            "Segment contacts",
+            "Delivery insights"
+          ]
+        },
+        "inbox": {
+          "title": "Team Collaboration",
+          "description": "Run support from one shared WhatsApp workspace with assignment and internal context.",
+          "visualLabel": "Shared inbox illustration",
+          "points": [
+            "Assign chats",
+            "Internal notes",
+            "Multi-agent support"
+          ]
+        },
+        "analytics": {
+          "title": "Analytics & Reports",
+          "description": "Understand engagement and campaign performance without leaving your workspace.",
+          "visualLabel": "Analytics illustration",
+          "points": [
+            "Campaign metrics",
+            "Reply rates",
+            "Team performance"
+          ]
+        }
+      }
+    },
+    "workflow": {
+      "title": "How it works",
+      "subtitle": "Go from connected WhatsApp to automated conversations in five clear steps.",
+      "steps": {
+        "connect": {
+          "title": "Connect WhatsApp",
+          "description": "Link your official WhatsApp Business API account securely."
+        },
+        "import": {
+          "title": "Import Contacts",
+          "description": "Bring in opted-in contacts and organize them into segments."
+        },
+        "launch": {
+          "title": "Launch Campaign",
+          "description": "Send broadcasts or start automated conversation flows."
+        },
+        "ai": {
+          "title": "AI Handles Replies",
+          "description": "Let AI answer common questions and escalate when needed."
+        },
+        "track": {
+          "title": "Track Analytics",
+          "description": "Monitor delivery, engagement, and team response trends."
+        }
+      }
+    },
+    "security": {
+      "title": "Enterprise-grade security",
+      "subtitle": "Protect every workspace with authentication, access control, and encrypted APIs.",
+      "comingSoon": "Coming Soon",
+      "items": {
+        "oauth": {
+          "title": "OAuth",
+          "description": "Sign in with Google OAuth for a fast, trusted login experience."
+        },
+        "otp": {
+          "title": "OTP Verification",
+          "description": "Verify accounts with one-time codes during registration."
+        },
+        "jwt": {
+          "title": "JWT Authentication",
+          "description": "Secure session tokens for authenticated API access."
+        },
+        "rbac": {
+          "title": "RBAC",
+          "description": "Role-based access control across teams and workspaces."
+        },
+        "encrypted": {
+          "title": "Encrypted API",
+          "description": "TLS-protected API traffic for secure data in transit."
+        },
+        "audit": {
+          "title": "Audit Logs",
+          "description": "Track sensitive authorization events across your organization."
+        }
+      }
+    },
+    "cta": {
+      "title": "Ready to automate your customer conversations?",
+      "description": "Start your workspace in minutes.",
+      "primary": "Get Started",
+      "secondary": "Book Demo"
+    }
   },
   "pricingPage": {
+    "metaTitle": "Pricing — Whats-Auto",
+    "metaDescription": "Simple, transparent pricing for WhatsApp automation. Start small and scale as your customer conversations grow.",
     "title": "Pricing",
-    "subtitle": "Choose the plan that fits your team. Start free and upgrade when you need more.",
-    "starter": {
-      "name": "Starter",
-      "price": "Free",
-      "period": "forever",
-      "description": "Perfect for solo founders getting started",
-      "cta": "Get started"
+    "subtitle": "Choose a plan that fits your business. Start small and scale as your customer conversations grow.",
+    "hero": {
+      "badge": "💰 Pricing",
+      "title": "Simple, Transparent Pricing",
+      "subtitle": "Choose a plan that fits your business. Start small and scale as your customer conversations grow.",
+      "ctaPrimary": "Get Started",
+      "ctaSecondary": "Contact Sales"
     },
-    "growth": {
-      "name": "Growth",
-      "price": "₹999",
-      "period": "/month",
-      "description": "For growing teams with higher volume",
-      "cta": "Start trial"
+    "plans": {
+      "starter": {
+        "name": "Starter",
+        "price": "₹499",
+        "period": "/ month",
+        "description": "Perfect for individuals and small businesses.",
+        "cta": "Get Started",
+        "features": [
+          "AI Assistant",
+          "Shared Inbox",
+          "Broadcast Campaigns",
+          "Basic Analytics",
+          "Email Support"
+        ]
+      },
+      "growth": {
+        "name": "Growth",
+        "badge": "Most Popular",
+        "price": "₹1,499",
+        "period": "/ month",
+        "description": "For growing teams ready to scale conversations.",
+        "cta": "Start Growing",
+        "features": [
+          "Everything in Starter",
+          "Multi-Tenant Workspace",
+          "Team Collaboration",
+          "Advanced Analytics",
+          "Workflow Automation",
+          "Priority Support"
+        ]
+      },
+      "enterprise": {
+        "name": "Enterprise",
+        "price": "Custom Pricing",
+        "period": "",
+        "description": "For large organizations.",
+        "cta": "Contact Sales",
+        "features": [
+          "Everything in Growth",
+          "Dedicated Support",
+          "Custom Integrations",
+          "SLA",
+          "Enterprise Security",
+          "Custom Onboarding"
+        ]
+      }
     },
-    "enterprise": {
-      "name": "Enterprise",
-      "price": "Custom",
-      "period": "",
-      "description": "For large organizations with custom needs",
-      "cta": "Contact sales"
+    "comparison": {
+      "title": "Compare plans",
+      "subtitle": "See what’s included at every tier—no hidden feature fluff.",
+      "featureLabel": "Feature",
+      "columns": {
+        "starter": "Starter",
+        "growth": "Growth",
+        "enterprise": "Enterprise"
+      },
+      "rows": {
+        "ai": "AI Assistant",
+        "broadcast": "Broadcast Campaigns",
+        "inbox": "Shared Inbox",
+        "templates": "Templates",
+        "analytics": "Analytics",
+        "multiTenant": "Multi-Tenant",
+        "workflow": "Workflow Automation",
+        "prioritySupport": "Priority Support",
+        "dedicatedSupport": "Dedicated Support"
+      },
+      "values": {
+        "yes": "Included",
+        "no": "Not included",
+        "custom": "Custom"
+      }
+    },
+    "faq": {
+      "title": "Frequently asked questions",
+      "subtitle": "Quick answers about plans, billing, and support.",
+      "items": {
+        "upgrade": {
+          "question": "How can I upgrade?",
+          "answer": "You can upgrade anytime from your workspace settings. Changes apply to your next billing cycle, and your team keeps access to new features immediately after upgrading."
+        },
+        "cancel": {
+          "question": "Can I cancel anytime?",
+          "answer": "Yes. You can cancel your plan at any time. You’ll retain access until the end of your current billing period, with no long-term contracts on Starter or Growth."
+        },
+        "trial": {
+          "question": "Do you offer free trials?",
+          "answer": "We offer a free trial so you can explore the workspace before committing. Start with Get Started to create your account and evaluate core features."
+        },
+        "enterprise": {
+          "question": "Do you support enterprise deployments?",
+          "answer": "Yes. Enterprise plans include dedicated support, custom integrations, SLA options, and security requirements tailored to larger organizations."
+        },
+        "support": {
+          "question": "How do I contact support?",
+          "answer": "Email support is included on every plan. Growth includes priority support, and Enterprise customers get a dedicated support channel. You can also reach sales at sales@whats-auto.com."
+        }
+      }
+    },
+    "cta": {
+      "title": "Ready to automate your WhatsApp conversations?",
+      "description": "Start your workspace today and scale with confidence.",
+      "primary": "Get Started",
+      "secondary": "Contact Sales"
     }
   },
   "features": {
@@ -254,80 +711,134 @@
   "auth": {
     "login": {
       "title": "Welcome back",
-      "subtitle": "Enter your email below to login to your account",
+      "subtitle": "Sign in to continue to your workspace.",
       "email": "Email",
       "password": "Password",
+      "rememberMe": "Remember me",
       "forgotPassword": "Forgot password?",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password",
       "submit": "Login",
       "submitting": "Signing in…",
       "orContinue": "Or continue with",
       "google": "Login with Google",
       "noAccount": "Don't have an account?",
-      "signUp": "Sign up",
+      "signUp": "Create account",
       "errors": {
         "generic": "Something went wrong. Please try again.",
-        "emailExists": "An account with this email already exists. Please sign in with your password."
+        "emailExists": "An account with this email already exists. Please sign in with your password.",
+        "emailRequired": "Email is required.",
+        "emailInvalid": "Enter a valid email address.",
+        "passwordRequired": "Password is required."
       }
     },
     "register": {
       "title": "Create your account",
-      "subtitle": "Get started with Whats-Auto",
+      "subtitle": "Start automating customer conversations in just a few minutes.",
       "firstname": "First Name",
       "lastname": "Last Name",
       "email": "Email",
       "password": "Password",
       "confirmPassword": "Confirm Password",
       "passwordHint": "Must be at least 8 characters long.",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password",
+      "showConfirmPassword": "Show confirm password",
+      "hideConfirmPassword": "Hide confirm password",
+      "passwordStrengthLabel": "Password strength",
+      "passwordStrength": {
+        "weak": "Weak",
+        "medium": "Medium",
+        "strong": "Strong"
+      },
       "submit": "Create Account",
       "submitting": "Creating account…",
       "orContinue": "Or continue with",
-      "google": "Sign up with Google",
+      "google": "Continue with Google",
       "haveAccount": "Already have an account?",
-      "signIn": "Sign in",
-      "otpTitle": "Verify your email",
-      "otpSubtitle": "We sent a 6-digit code to {email}",
+      "signIn": "Sign In",
+      "otpTitle": "Verify Code",
+      "otpSubtitle": "We've sent a 6-digit verification code to your email.",
+      "otpSubtitleWithEmail": "We've sent a 6-digit verification code to {email}.",
       "otpLabel": "Verification code",
-      "verify": "Verify email",
+      "otpHint": "Enter the 6-digit code from your email.",
+      "otpCountdown": "Code expires in {time}",
+      "otpCountdownReady": "Code ready — you can resend now",
+      "verify": "Verify Code",
       "verifying": "Verifying…",
-      "resendOtp": "Resend code",
-      "resendOtpCooldown": "Resend code in {seconds}s",
+      "resendOtp": "Resend Code",
+      "resendOtpCooldown": "Resend Code in {seconds}s",
+      "changeEmail": "Use a different email",
+      "backToLogin": "Back to Login",
       "back": "Back",
       "errors": {
         "generic": "Something went wrong. Please try again.",
         "emailExists": "An account with this email already exists. Please sign in with your password.",
         "passwordMismatch": "Passwords do not match.",
-        "passwordLength": "Password must be at least 8 characters."
+        "passwordLength": "Password must be at least 8 characters.",
+        "firstnameRequired": "First name is required.",
+        "lastnameRequired": "Last name is required.",
+        "emailRequired": "Email is required.",
+        "emailInvalid": "Enter a valid email address.",
+        "passwordRequired": "Password is required.",
+        "confirmPasswordRequired": "Confirm your password.",
+        "otpRequired": "Enter the verification code.",
+        "otpInvalid": "Enter a valid 6-digit code."
       }
     },
     "forgotPassword": {
-      "title": "Forgot your password?",
-      "subtitle": "Enter your email and we'll send you a reset link.",
+      "title": "Forgot Password",
+      "subtitle": "Enter the email associated with your account and we'll send you a secure password reset link.",
       "email": "Email",
-      "submit": "Send reset link",
+      "submit": "Send Reset Link",
       "submitting": "Sending…",
       "sentTitle": "Check your email",
-      "sentSubtitle": "We sent a password reset link to {email}. It expires in 1 hour.",
-      "backToLogin": "Back to login",
+      "sentSubtitle": "If an account exists for this email, we've sent a password reset link.",
+      "resend": "Resend email",
+      "resending": "Sending…",
+      "resendCooldown": "Resend email in {seconds}s",
+      "backToLogin": "Back to Login",
       "errors": {
         "generic": "Something went wrong. Please try again.",
-        "useGoogle": "This account uses Google sign-in. Please sign in with Google instead."
+        "useGoogle": "This account uses Google sign-in. Please sign in with Google instead.",
+        "emailRequired": "Email is required.",
+        "emailInvalid": "Enter a valid email address."
       }
     },
     "resetPassword": {
-      "title": "Set new password",
-      "subtitle": "Enter your new password below.",
+      "title": "Reset Password",
+      "subtitle": "Choose a strong password for your account.",
       "password": "New Password",
-      "confirmPassword": "Confirm New Password",
-      "submit": "Reset password",
-      "submitting": "Resetting…",
-      "successTitle": "Password reset!",
+      "confirmPassword": "Confirm Password",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password",
+      "showConfirmPassword": "Show confirm password",
+      "hideConfirmPassword": "Hide confirm password",
+      "passwordStrengthLabel": "Password strength",
+      "passwordStrength": {
+        "weak": "Weak",
+        "medium": "Medium",
+        "strong": "Strong"
+      },
+      "requirements": {
+        "length": "At least 8 characters",
+        "case": "Uppercase and lowercase letters",
+        "number": "At least one number",
+        "special": "At least one special character"
+      },
+      "submit": "Update Password",
+      "submitting": "Updating…",
+      "successTitle": "Password updated",
       "successSubtitle": "Your password has been updated. Redirecting to login…",
       "requestNew": "Request a new reset link",
+      "backToLogin": "Back to Login",
       "errors": {
         "generic": "Something went wrong. Please try again.",
         "mismatch": "Passwords do not match.",
         "length": "Password must be at least 8 characters.",
-        "invalidToken": "This reset link is invalid or missing."
+        "invalidToken": "This reset link is invalid or missing.",
+        "passwordRequired": "Password is required.",
+        "confirmRequired": "Confirm your password."
       }
     }
   },

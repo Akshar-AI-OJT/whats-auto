@@ -1,20 +1,24 @@
 import { Suspense } from 'react'
+import { Loader2 } from 'lucide-react'
 import { ResetPasswordForm } from '@/components/auth/reset-password-form'
-import { AuthShell } from '@/components/auth/auth-shell'
+import { AuthLayout } from '@/components/auth/auth-layout'
+import { AuthBranding } from '@/components/auth/auth-branding'
 
 function ResetPasswordFallback() {
-  return <div className="text-center text-sm text-mute">Loading…</div>
+  return (
+    <div className="flex items-center justify-center gap-2 py-8 text-sm leading-5 text-mute">
+      <Loader2 className="size-4 animate-spin" aria-hidden />
+      <span>Loading…</span>
+    </div>
+  )
 }
 
 export default function ResetPasswordPage() {
   return (
-    <AuthShell
-      panelTitle="Choose a new password"
-      panelSubtitle="Pick something strong. You will be signed out of other sessions."
-    >
+    <AuthLayout branding={<AuthBranding variant="reset-password" />}>
       <Suspense fallback={<ResetPasswordFallback />}>
         <ResetPasswordForm />
       </Suspense>
-    </AuthShell>
+    </AuthLayout>
   )
 }

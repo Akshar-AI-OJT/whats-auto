@@ -18,31 +18,26 @@ export function LocaleSwitcher() {
 
   return (
     <div
-      className="inline-flex items-center gap-0.5 rounded-full border border-border px-1 py-0.5 text-sm"
+      className="inline-flex items-center gap-0.5 rounded-xl border border-[#E2E8F0] bg-canvas/80 p-0.5 text-xs shadow-[0_1px_2px_rgb(15_23_42/0.04)]"
       role="group"
       aria-label={t('localeSwitcher')}
     >
-      {routing.locales.map((loc, index) => (
-        <span key={loc} className="inline-flex items-center">
-          {index > 0 ? (
-            <span aria-hidden className="px-1 text-muted-foreground">
-              |
-            </span>
-          ) : null}
-          <button
-            type="button"
-            onClick={() => switchLocale(loc)}
-            className={cn(
-              'inline-flex min-h-11 min-w-11 items-center justify-center rounded-full px-2 transition-colors',
-              locale === loc
-                ? 'font-semibold underline underline-offset-4'
-                : 'text-muted-foreground hover:text-foreground',
-            )}
-            aria-current={locale === loc ? 'true' : undefined}
-          >
-            {loc.toUpperCase()}
-          </button>
-        </span>
+      {routing.locales.map((loc) => (
+        <button
+          key={loc}
+          type="button"
+          onClick={() => switchLocale(loc)}
+          className={cn(
+            'inline-flex h-8 min-w-9 items-center justify-center rounded-lg px-2.5 font-semibold tracking-wide transition-colors',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
+            locale === loc
+              ? 'bg-primary text-on-primary shadow-sm'
+              : 'text-mute hover:bg-[#F1F5F9] hover:text-ink'
+          )}
+          aria-current={locale === loc ? 'true' : undefined}
+        >
+          {loc.toUpperCase()}
+        </button>
       ))}
     </div>
   )
