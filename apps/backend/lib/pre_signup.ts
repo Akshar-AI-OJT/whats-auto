@@ -100,7 +100,20 @@ export async function sendSignupOtpEmail(email: string, otp: string) {
     text: `Your verification code is: ${otp}. It expires in 5 minutes.`,
   })
 
-  if (error) {
-    throw new Error(`Failed to send OTP email: ${error.message}`)
+  if (!error) {
+    if (env.get('NODE_ENV') === 'development') {
+      console.info(`[DEV] OTP email sent to ${email}. OTP: ${otp}`)
+    }
+    return
   }
+
+  // Resend test domain (onboarding@resend.dev) only delivers to the Resend account email.
+  // In development, keep signup usable by logging the OTP to the backend console.
+  if (env.get('NODE_ENV') === 'development') {
+    console.warn(`[DEV] Resend failed for ${email}: ${error.message}`)
+    console.warn(`[DEV] Use this OTP to continue signup: ${otp}`)
+    return
+  }
+
+  throw new Error(`Failed to send OTP email: ${error.message}`)
 }

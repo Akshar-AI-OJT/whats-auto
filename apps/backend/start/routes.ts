@@ -15,6 +15,7 @@ import AutoSwagger from 'adonis-autoswagger'
 import swagger from '#config/swagger'
 const PreSignupController = () => import('#controllers/pre_signup_controller')
 const VerifySignupController = () => import('#controllers/verify_signup_controller')
+const TenantsController = () => import('#controllers/tenants_controller')
 
 //  Swagger UI + JSON spec
 // Served only in non-production environments
@@ -60,6 +61,18 @@ router
 router
   .get('/api/v1/access-context', [controllers.AccessContext, 'show'])
   .use([middleware.jwtAuth(), middleware.tenant()])
+
+// tenants (organizations) — jwtAuth only; membership/owner checks live in TenantService
+router
+  .group(() => {
+    router.post('/', [TenantsController, 'store'])
+    router.get('/', [TenantsController, 'index'])
+    router.get('/:id', [TenantsController, 'show'])
+    router.put('/:id', [TenantsController, 'update'])
+    router.delete('/:id', [TenantsController, 'destroy'])
+  })
+  .prefix('/api/v1/tenants')
+  .use(middleware.jwtAuth())
 
 // roles
 router

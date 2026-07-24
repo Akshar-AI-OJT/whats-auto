@@ -1,4 +1,5 @@
 import db from '@adonisjs/lucid/services/db'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { SEEDED_ROLES } from '#abilities/role_seeds'
 import { toStoredPermissionJson } from '#abilities/permissions'
 import RoleException from '#exceptions/role_exception'
@@ -10,7 +11,10 @@ export class OrganizationService {
    * Seeds the 3 default dynamic roles (admin, agent, viewer).
    * Owner is static in Better Auth — never seeded here.
    */
-  async seedDefaultRoles(organizationId: string): Promise<void> {
+  async seedDefaultRoles(
+    organizationId: string,
+    trx?: TransactionClientContract
+  ): Promise<void> {
     const rows = SEEDED_ROLES.map((seed) => ({
       organizationId,
       role: seed.role,
@@ -18,7 +22,8 @@ export class OrganizationService {
       permission: JSON.stringify(toStoredPermissionJson(seed.permissions)),
     }))
 
-    await db.table('organization_roles').insert(rows)
+    const client = trx ?? db
+    await client.table('organization_roles').insert(rows)
   }
 
   /**
