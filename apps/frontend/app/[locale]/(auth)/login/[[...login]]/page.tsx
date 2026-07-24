@@ -1,13 +1,11 @@
 import { LoginForm } from '@/components/auth/login-form'
-import { AuthShell } from '@/components/auth/auth-shell'
+import { AuthLayout } from '@/components/auth/auth-layout'
+import { AuthBranding } from '@/components/auth/auth-branding'
 
 export default function LoginPage() {
   return (
-    <AuthShell
-      panelTitle="Welcome back to Whats-Auto"
-      panelSubtitle="Sign in to manage broadcasts, chatbots, and customer conversations."
-    >
+    <AuthLayout branding={<AuthBranding variant="login" />}>
       <LoginForm />
-    </AuthShell>
+    </AuthLayout>
   )
 }

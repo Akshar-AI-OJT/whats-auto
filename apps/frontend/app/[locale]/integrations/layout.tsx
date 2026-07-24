@@ -3,5 +3,5 @@ export default function IntegrationsLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
-  return <div className="flex flex-1 flex-col">{children}</div>
+  return <div className="w-full flex-1">{children}</div>
 }

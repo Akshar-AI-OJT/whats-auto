@@ -39,7 +39,7 @@ export default async function LocaleLayout({
     <html
       lang={locale}
       className={cn(
-        'h-full antialiased',
+        'antialiased',
         manrope.variable,
         inter.variable,
         interBody.variable,
@@ -47,7 +47,7 @@ export default async function LocaleLayout({
         'font-sans'
       )}
     >
-      <body className="flex min-h-full flex-col bg-canvas-soft text-ink">
+      <body className="flex min-h-dvh flex-col overflow-x-clip bg-canvas-soft text-ink">
         <NextIntlClientProvider messages={messages}>
           <ConditionalChrome>
             <Navbar />
