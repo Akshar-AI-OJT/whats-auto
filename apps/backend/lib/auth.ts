@@ -5,21 +5,10 @@ import env from '#start/env'
 import hash from '@adonisjs/core/services/hash'
 import { pool } from '#lib/db'
 import { resend } from '#lib/mail'
-import { organization } from 'better-auth/plugins'
-import { createAccessControl } from 'better-auth/plugins/access'
-import { ALL_PERMISSIONS, toPermissionJson, toStoredPermissionJson } from '#abilities/permissions'
-import { OrganizationService } from '#services/organization_service'
-import { InvitationLifecycleService } from '#services/invitation_lifecycle_service'
 
 const googleClientId = env.get('GOOGLE_CLIENT_ID')
 const googleClientSecret = env.get('GOOGLE_CLIENT_SECRET')
 const hasGoogle = Boolean(googleClientId) && Boolean(googleClientSecret)
-
-const ac = createAccessControl({
-  // Better-Auth org invite endpoints check invitation:create|cancel
-  invitation: ['create', 'cancel'],
-  ...toPermissionJson(ALL_PERMISSIONS),
-})
 
 export const auth = betterAuth({
   database: pool,
@@ -186,89 +175,10 @@ export const auth = betterAuth({
         throw new APIError('FORBIDDEN', { message: 'Account is suspended. Contact support.' })
       }
     }),
-    after: createAuthMiddleware(async (ctx) => {
-      if (ctx.path === '/organization/create' && ctx.context?.returned) {
-        const org = ctx.context.returned as { id?: string }
-        if (org?.id) {
-          const svc = new OrganizationService()
-          await svc.seedDefaultRoles(org.id)
-        }
-      }
-    }),
   },
 
   plugins: [
     // JWT — signs short-lived access tokens for AdonisJS API calls
     jwt(),
-    // custom RBAC for product gates; BA for membership + invites + active org.
-    // dynamicAccessControl lets BA resolve invite roles from organization_roles.
-    organization({
-      creatorRole: 'owner',
-      allowRoleCreation: false,
-      dynamicAccessControl: { enabled: true },
-      keepMemberActiveOrganizationOnSetActive: true,
-      schema: {
-        organization: {
-          modelName: 'organizations',
-        },
-        member: {
-          modelName: 'organization_members',
-        },
-        invitation: {
-          modelName: 'organization_invitations',
-        },
-        organizationRole: {
-          modelName: 'organization_roles',
-          additionalFields: {
-            displayName: { type: 'string', required: true, input: true },
-          },
-        },
-      },
-      ac,
-      roles: {
-        owner: ac.newRole({ ...toStoredPermissionJson(ALL_PERMISSIONS) }),
-      },
-      organizationHooks: {
-        beforeCreateInvitation: async ({ invitation, inviter, organization: org }) => {
-          const inviterUserId =
-            (inviter as { id?: string; user?: { id?: string } }).user?.id ??
-            (inviter as { id?: string }).id
-          if (!inviterUserId || !org?.id || !invitation.role) {
-            throw new APIError('BAD_REQUEST', { message: 'Invalid invitation payload' })
-          }
-          const lifecycle = new InvitationLifecycleService()
-          await lifecycle.assertInviteAllowed({
-            organizationId: org.id,
-            inviterUserId,
-            role: String(invitation.role),
-          })
-          return { data: invitation }
-        },
-        beforeAcceptInvitation: async ({ invitation, organization: org }) => {
-          if (!org?.id || !invitation.role) {
-            throw new APIError('BAD_REQUEST', { message: 'Invalid invitation' })
-          }
-          const lifecycle = new InvitationLifecycleService()
-          await lifecycle.assertAcceptableRole({
-            organizationId: org.id,
-            role: String(invitation.role),
-          })
-        },
-      },
-
-      async sendInvitationEmail({ email, inviter, organization: org, role, invitation }) {
-        const inviteLink = `${env.get('APP_URL')}/accept-invitation/${invitation.id}`
-        const { error } = await resend.emails.send({
-          from: env.get('EMAIL_FROM'),
-          to: email,
-          subject: `You've been invited to ${org.name}`,
-          html: `
-            <p>${inviter.user.name} invited you to join <strong>${org.name}</strong> as <strong>${role}</strong>.</p>
-            <p><a href="${inviteLink}">Accept Invitation</a> — link expires in 48 hours.</p>
-          `,
-        })
-        if (error) throw new Error(`Failed to send invite email: ${error.message}`)
-      },
-    }),
   ],
 })
