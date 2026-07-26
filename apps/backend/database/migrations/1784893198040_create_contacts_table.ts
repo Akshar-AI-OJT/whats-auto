@@ -7,7 +7,7 @@ export default class extends BaseSchema {
     this.schema.createTable(this.tableName, (table) => {
       table.uuid('id').primary().defaultTo(this.raw(`gen_random_uuid()`))
       table.uuid('organizationId').notNullable().references('organizations.id').onDelete('cascade')
-      table.text('phone').notNullable()
+      table.string('phone', 100).notNullable()
       table.timestamp('createdAt', { useTz: true }).notNullable().defaultTo(this.raw('now()'))
       table.timestamp('updatedAt', { useTz: true }).nullable()
     })
