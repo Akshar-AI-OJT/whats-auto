@@ -22,7 +22,7 @@ export async function TermsPage() {
   ]
 
   return (
-    <main className="w-full flex-1 overflow-x-clip">
+    <main className="w-full flex-1">
       <TermsHero />
       <TermsUpdated />
       <LegalBodyLayout

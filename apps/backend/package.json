@@ -38,6 +38,7 @@
     "#start/*": "./start/*.js",
     "#config/*": "./config/*.js",
     "#lib/*": "./lib/*.js",
+    "#lib/meta_whatsapp/*": "./lib/meta_whatsapp/*.js",
     "#types/*": "./types/*.js"
   },
   "devDependencies": {

@@ -93,7 +93,7 @@ export function LegalQuickNav({ items, title, mobileTitle }: LegalQuickNavProps)
   }
 
   return (
-    <div className="w-full lg:w-auto">
+    <div className="w-full lg:h-full">
       {/* Mobile accordion */}
       <div className="mb-2 lg:hidden">
         <div
@@ -141,26 +141,24 @@ export function LegalQuickNav({ items, title, mobileTitle }: LegalQuickNavProps)
         </div>
       </div>
 
-      {/* Desktop sticky sidebar */}
-      <aside className="relative z-20 hidden lg:block">
-        <div
-          className={cn(
-            'sticky top-24 max-h-[calc(100dvh-7rem)] overflow-y-auto',
-            'rounded-[24px] border border-[#E2E8F0] bg-canvas/90 p-4 backdrop-blur-sm',
-            'shadow-[0_1px_2px_rgb(15_23_42/0.04),0_12px_32px_rgb(15_23_42/0.05)]'
-          )}
-        >
-          <p className="mb-3 px-2 text-xs font-semibold tracking-wide text-mute uppercase">
-            {title}
-          </p>
-          <nav aria-label={title}>
-            <NavList
-              items={items}
-              activeId={activeId}
-              onSelect={scrollToSection}
-            />
-          </nav>
-        </div>
+      {/* Desktop sticky sidebar — sticky on the aside so it can travel the full column height */}
+      <aside
+        className={cn(
+          'sticky top-24 z-20 hidden max-h-[calc(100dvh-7rem)] lg:block',
+          'overflow-y-auto rounded-[24px] border border-[#E2E8F0] bg-canvas/90 p-4 backdrop-blur-sm',
+          'shadow-[0_1px_2px_rgb(15_23_42/0.04),0_12px_32px_rgb(15_23_42/0.05)]'
+        )}
+      >
+        <p className="mb-3 px-2 text-xs font-semibold tracking-wide text-mute uppercase">
+          {title}
+        </p>
+        <nav aria-label={title}>
+          <NavList
+            items={items}
+            activeId={activeId}
+            onSelect={scrollToSection}
+          />
+        </nav>
       </aside>
     </div>
   )

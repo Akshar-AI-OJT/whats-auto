@@ -21,6 +21,7 @@ const OrganizationsController = () => import('#controllers/organizations_control
 const InvitationsController = () => import('#controllers/invitations_controller')
 const SuperAdminOrganizationsController = () =>
   import('#controllers/super_admin_organizations_controller')
+const WhatsappWebhookController = () => import('#controllers/whatsapp_webhook_controller')
 
 //  Swagger UI + JSON spec
 // Served only in non-production environments
@@ -40,6 +41,26 @@ router.get('/', () => {
 router.any('/api/auth/*', async (ctx) => {
   return handleBetterAuth(ctx)
 })
+
+/*
+|--------------------------------------------------------------------------
+| Platform inbound webhooks (public — Meta / future providers)
+| No jwtAuth / tenant. Auth = verify token (GET) + HMAC signature (POST).
+|--------------------------------------------------------------------------
+*/
+router
+  .group(() => {
+    router.get('/whatsapp', [WhatsappWebhookController, 'verify'])
+    router.post('/whatsapp', [WhatsappWebhookController, 'receive'])
+  })
+  .prefix('/api/v1/webhooks')
+
+/*
+|--------------------------------------------------------------------------
+| Tenant WhatsApp product APIs (Phase 2+)
+| Example: /api/v1/whatsapp/configs — jwtAuth + tenant + whatsapp:* perms
+|--------------------------------------------------------------------------
+*/
 
 router
   .group(() => {
