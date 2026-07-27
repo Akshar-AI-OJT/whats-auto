@@ -20,7 +20,7 @@ export async function PrivacyPage() {
   ]
 
   return (
-    <main className="w-full flex-1 overflow-x-clip">
+    <main className="w-full flex-1">
       <PrivacyHero />
       <LegalBodyLayout
         nav={
