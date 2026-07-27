@@ -1224,9 +1224,139 @@
     }
   },
   "dashboard": {
+    "brand": "Whats-Auto",
+    "brandTagline": "वर्कस्पेस",
     "title": "डैशबोर्ड",
-    "subtitle": "आप साइन इन हैं।",
+    "subtitle": "वापसी पर स्वागत है! यहाँ आपके WhatsApp वर्कस्पेस का अवलोकन है।",
     "loading": "लोड हो रहा है…",
-    "signOut": "साइन आउट"
+    "signOut": "साइन आउट",
+    "nav": {
+      "ariaLabel": "डैशबोर्ड नेविगेशन",
+      "comingSoon": "जल्द आ रहा है",
+      "dashboard": "डैशबोर्ड",
+      "contacts": "संपर्क",
+      "inbox": "इनबॉक्स",
+      "messages": "संदेश",
+      "campaigns": "कैंपेन",
+      "templates": "टेम्पलेट्स",
+      "notifications": "सूचनाएँ",
+      "analytics": "एनालिटिक्स",
+      "billing": "बिलिंग",
+      "auditLogs": "ऑडिट लॉग्स",
+      "settings": "सेटिंग्स"
+    },
+    "sidebar": {
+      "planLabel": "वर्तमान प्लान",
+      "planName": "Growth",
+      "collapse": "साइडबार संक्षिप्त करें",
+      "expand": "साइडबार विस्तृत करें"
+    },
+    "workspace": {
+      "listLabel": "वर्कस्पेस",
+      "active": "सक्रिय",
+      "members": "सदस्य",
+      "create": "वर्कस्पेस बनाएँ",
+      "primary": "Acme Workspace",
+      "secondary": "Demo Store"
+    },
+    "topbar": {
+      "openMenu": "नेविगेशन खोलें",
+      "searchLabel": "वर्कस्पेस खोजें",
+      "searchPlaceholder": "संपर्क, बातचीत, कैंपेन या टेम्पलेट खोजें…",
+      "searchShortcutLabel": "खोज पर जाएँ ({shortcut})",
+      "notifications": "सूचनाएँ",
+      "profile": "प्रोफ़ाइल",
+      "profileMenu": "अकाउंट मेनू खोलें",
+      "myProfile": "मेरी प्रोफ़ाइल",
+      "workspace": "वर्कस्पेस",
+      "billing": "बिलिंग",
+      "settings": "सेटिंग्स",
+      "guestName": "अकाउंट"
+    },
+    "notifications": {
+      "title": "सूचनाएँ",
+      "markAllRead": "सभी पढ़ी हुई चिह्नित करें",
+      "markRead": "पढ़ी हुई चिह्नित करें",
+      "empty": "आप पूरी तरह अपडेट हैं",
+      "unread": "अपठित",
+      "unreadCount": "{count} अपठित"
+    },
+    "theme": {
+      "switchToLight": "लाइट मोड पर जाएँ",
+      "switchToDark": "डार्क मोड पर जाएँ"
+    },
+    "home": {
+      "eyebrow": "अवलोकन",
+      "welcome": "वापसी पर स्वागत है",
+      "welcomeNamed": "स्वागत है, {name}",
+      "subtitle": "आज आपके WhatsApp ऑटोमेशन वर्कस्पेस में क्या हो रहा है, यह देखें।",
+      "kpis": {
+        "contacts": {
+          "label": "कुल संपर्क",
+          "hint": "पिछले 30 दिनों की तुलना में"
+        },
+        "conversations": {
+          "label": "सक्रिय बातचीत",
+          "hint": "अभी खुली"
+        },
+        "campaigns": {
+          "label": "भेजे गए कैंपेन",
+          "hint": "इस महीने"
+        },
+        "delivery": {
+          "label": "डिलीवरी दर",
+          "hint": "पिछले 7 दिन"
+        }
+      },
+      "conversations": {
+        "title": "हाल की बातचीत",
+        "description": "आपके जुड़े नंबरों पर नवीनतम चैट।",
+        "viewAll": "सभी देखें",
+        "status": {
+          "open": "खुली",
+          "waiting": "प्रतीक्षा में",
+          "resolved": "हल"
+        }
+      },
+      "campaigns": {
+        "title": "हाल के कैंपेन",
+        "description": "ब्रॉडकास्ट प्रदर्शन एक नज़र में।",
+        "sent": "भेजे",
+        "delivered": "डिलीवर",
+        "status": {
+          "sent": "भेजा",
+          "scheduled": "निर्धारित",
+          "draft": "ड्राफ्ट"
+        },
+        "progress": {
+          "sent": "डिलीवरी",
+          "scheduled": "तैयार",
+          "draft": "प्रगति"
+        },
+        "actions": {
+          "view": "देखें",
+          "edit": "संपादित करें",
+          "duplicate": "डुप्लिकेट",
+          "pause": "रोकें",
+          "delete": "हटाएँ"
+        }
+      },
+      "quickActions": {
+        "title": "त्वरित क्रियाएँ",
+        "description": "सबसे उपयोगी वर्कफ़्लो पर जाएँ।",
+        "newCampaign": "नया कैंपेन",
+        "newCampaignDesc": "संपर्क सेगमेंट पर ब्रॉडकास्ट लॉन्च करें।",
+        "addContact": "संपर्क जोड़ें",
+        "addContactDesc": "सूची में संपर्क बनाएँ या आयात करें।",
+        "createTemplate": "टेम्पलेट बनाएँ",
+        "createTemplateDesc": "पुन: उपयोग योग्य WhatsApp संदेश टेम्पलेट डिज़ाइन करें।",
+        "broadcastMessage": "ब्रॉडकास्ट संदेश",
+        "broadcastMessageDesc": "अपने दर्शकों को एक बार का संदेश भेजें।"
+      },
+      "activity": {
+        "title": "हाल की गतिविधि",
+        "description": "वर्कस्पेस इवेंट्स का लाइव ट्रेल्स।"
+      }
+    }
   }
 }
