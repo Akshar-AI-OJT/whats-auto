@@ -9,8 +9,9 @@ export default class extends BaseSchema {
     'accounts',
     'sessions',
     'verifications',
-    'organization_roles',
+    'roles',
     'contacts',
+    'organizations',
   ] as const
 
   async up() {

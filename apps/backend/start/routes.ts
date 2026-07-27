@@ -16,6 +16,9 @@ import swagger from '#config/swagger'
 const PreSignupController = () => import('#controllers/pre_signup_controller')
 const VerifySignupController = () => import('#controllers/verify_signup_controller')
 const TenantsController = () => import('#controllers/tenants_controller')
+const ContactsController = () => import('#controllers/contacts_controller')
+const OrganizationsController = () => import('#controllers/organizations_controller')
+const InvitationsController = () => import('#controllers/invitations_controller')
 
 //  Swagger UI + JSON spec
 // Served only in non-production environments
@@ -57,6 +60,52 @@ router
   .prefix('/api/v1/account')
   .use(middleware.jwtAuth())
 
+// organizations — create/list/set-active do not require an active org yet
+router.post('/api/v1/organizations', [OrganizationsController, 'store']).use([middleware.jwtAuth()])
+router.get('/api/v1/organizations', [OrganizationsController, 'index']).use([middleware.jwtAuth()])
+router
+  .post('/api/v1/organizations/:id/set-active', [OrganizationsController, 'setActive'])
+  .use([middleware.jwtAuth()])
+
+router
+  .group(() => {
+    router
+      .patch('/:id', [OrganizationsController, 'update'])
+      .use(middleware.requirePermission({ permission: 'org:settings_manage' }))
+    router
+      .delete('/:id', [OrganizationsController, 'destroy'])
+      .use(middleware.requirePermission({ permission: 'org:delete' }))
+    router
+      .post('/:id/invitations', [InvitationsController, 'store'])
+      .use(middleware.requirePermission({ permission: 'team:invite' }))
+  })
+  .prefix('/api/v1/organizations')
+  .use([middleware.jwtAuth(), middleware.tenant()])
+
+// invitations — list stays active-org scoped; accept/reject/cancel use invitation :id
+router
+  .get('/api/v1/invitations', [InvitationsController, 'index'])
+  .use([
+    middleware.jwtAuth(),
+    middleware.tenant(),
+    middleware.requirePermission({ permission: 'team:view' }),
+  ])
+
+router.get('/api/v1/invitations/:id', [InvitationsController, 'show'])
+router
+  .post('/api/v1/invitations/:id/accept', [InvitationsController, 'accept'])
+  .use([middleware.jwtAuth()])
+router
+  .post('/api/v1/invitations/:id/reject', [InvitationsController, 'reject'])
+  .use([middleware.jwtAuth()])
+router
+  .post('/api/v1/invitations/:id/cancel', [InvitationsController, 'cancel'])
+  .use([
+    middleware.jwtAuth(),
+    middleware.tenant(),
+    middleware.requirePermission({ permission: 'team:invite' }),
+  ])
+
 //  Access context (frontend polls this after login/org switch)
 router
   .get('/api/v1/access-context', [controllers.AccessContext, 'show'])
@@ -80,16 +129,19 @@ router
     router.get('/', [controllers.Roles, 'index'])
     router
       .post('/', [controllers.Roles, 'create'])
-      .use(middleware.requirePermission({ permission: 'roles:create' }))
+      .use(middleware.requirePermission({ permission: 'roles:manage' }))
     router
       .post('/:roleKey/preview', [controllers.Roles, 'preview'])
-      .use(middleware.requirePermission({ permission: 'roles:edit' }))
+      .use(middleware.requirePermission({ permission: 'roles:manage' }))
     router
       .put('/:roleKey', [controllers.Roles, 'update'])
-      .use(middleware.requirePermission({ permission: 'roles:edit' }))
+      .use(middleware.requirePermission({ permission: 'roles:manage' }))
+    router
+      .post('/:roleKey/reset', [controllers.Roles, 'reset'])
+      .use(middleware.requirePermission({ permission: 'roles:manage' }))
     router
       .delete('/:roleKey', [controllers.Roles, 'destroy'])
-      .use(middleware.requirePermission({ permission: 'roles:delete' }))
+      .use(middleware.requirePermission({ permission: 'roles:manage' }))
   })
   .prefix('/api/v1/roles')
   .use([
@@ -129,3 +181,16 @@ router
     middleware.tenant(),
     middleware.requirePermission({ permission: 'team:view' }),
   ])
+
+// contacts — sample RLS business table (tenant isolation demo)
+router
+  .group(() => {
+    router
+      .get('/', [ContactsController, 'index'])
+      .use(middleware.requirePermission({ permission: 'contacts:view' }))
+    router
+      .post('/', [ContactsController, 'store'])
+      .use(middleware.requirePermission({ permission: 'contacts:create' }))
+  })
+  .prefix('/api/v1/contacts')
+  .use([middleware.jwtAuth(), middleware.tenant()])
