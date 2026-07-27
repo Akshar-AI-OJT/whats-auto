@@ -1,0 +1,296 @@
+import db from '@adonisjs/lucid/services/db'
+import { DateTime } from 'luxon'
+import env from '#start/env'
+import { resend } from '#lib/mail'
+import { resolveAssignableRoleForOrg } from '#services/role_service'
+
+const INVITE_TTL_HOURS = 24
+
+export class InvitationService {
+  /**
+   * Create a pending invitation and send the invite email.
+   */
+  async createInvitation(params: {
+    organizationId: string
+    inviterId: string
+    email: string
+    role: string
+  }) {
+    const { organizationId, inviterId, email, role } = params
+    const normalizedEmail = email.toLowerCase()
+
+    const roleRow = await resolveAssignableRoleForOrg(organizationId, role)
+
+    const existingMember = await db
+      .from('organization_members as m')
+      .innerJoin('users as u', 'u.id', 'm.userId')
+      .where('m.organizationId', organizationId)
+      .whereRaw('LOWER(u.email) = ?', [normalizedEmail])
+      .select('m.id')
+      .first()
+
+    if (existingMember) {
+      throw new Error('User is already a member of this organization')
+    }
+
+    const org = await db
+      .from('organizations')
+      .where('id', organizationId)
+      .whereNull('deletedAt')
+      .select('name')
+      .firstOrFail()
+
+    const inviter = await db.from('users').where('id', inviterId).select('name').firstOrFail()
+
+    const expiresAt = DateTime.utc().plus({ hours: INVITE_TTL_HOURS }).toSQL()!
+
+    const invitation = await db.transaction(async (trx) => {
+      const [row] = await trx
+        .table('organization_invitations')
+        .insert({
+          organizationId,
+          roleId: roleRow.id,
+          inviterId,
+          email: normalizedEmail,
+          status: 'pending',
+          expiresAt,
+        })
+        .returning(['id', 'email', 'status', 'expiresAt', 'createdAt'])
+
+      await trx.table('authorization_audits').insert({
+        organizationId,
+        actorUserId: inviterId,
+        targetType: 'invitation',
+        targetId: row.id,
+        eventType: 'invitation.created',
+        after: JSON.stringify({ email: normalizedEmail, role }),
+      })
+
+      return row
+    })
+
+    const inviteLink = `${env.get('APP_URL')}/accept-invitation/${invitation.id}`
+    const { error } = await resend.emails.send({
+      from: env.get('EMAIL_FROM'),
+      to: normalizedEmail,
+      subject: `You've been invited to ${org.name}`,
+      html: `
+        <p>${inviter.name} invited you to join <strong>${org.name}</strong> as <strong>${role}</strong>.</p>
+        <p><a href="${inviteLink}">Accept Invitation</a> — link expires in ${INVITE_TTL_HOURS} hours.</p>
+      `,
+    })
+    if (error) throw new Error(`Failed to send invite email: ${error.message}`)
+
+    return {
+      id: invitation.id as string,
+      email: invitation.email as string,
+      role,
+      status: invitation.status as string,
+      expiresAt: invitation.expiresAt as string,
+      createdAt: invitation.createdAt as string,
+    }
+  }
+
+  /**
+   * List pending invitations for an organization.
+   */
+  async listInvitations(organizationId: string) {
+    const rows = await db
+      .from('organization_invitations as i')
+      .innerJoin('roles as r', 'r.id', 'i.roleId')
+      .innerJoin('users as u', 'u.id', 'i.inviterId')
+      .where('i.organizationId', organizationId)
+      .where('i.status', 'pending')
+      .select(
+        'i.id',
+        'i.email',
+        'r.name as role',
+        'u.name as inviterName',
+        'i.createdAt',
+        'i.expiresAt'
+      )
+      .orderBy('i.createdAt', 'desc')
+
+    return rows.map((r) => ({
+      id: r.id as string,
+      email: r.email as string,
+      role: r.role as string,
+      inviterName: r.inviterName as string,
+      createdAt: r.createdAt as string,
+      expiresAt: r.expiresAt as string,
+    }))
+  }
+
+  /**
+   * Public-safe invitation preview (no auth required — invitation id is the secret).
+   */
+  async getInvitationPreview(invitationId: string) {
+    const row = await db
+      .from('organization_invitations as i')
+      .innerJoin('organizations as o', 'o.id', 'i.organizationId')
+      .innerJoin('roles as r', 'r.id', 'i.roleId')
+      .innerJoin('users as u', 'u.id', 'i.inviterId')
+      .where('i.id', invitationId)
+      .whereNull('o.deletedAt')
+      .select(
+        'i.id',
+        'i.email',
+        'i.status',
+        'i.expiresAt',
+        'o.name as organizationName',
+        'r.name as role',
+        'u.name as inviterName'
+      )
+      .first()
+
+    if (!row) {
+      throw new Error('Invitation not found')
+    }
+
+    return {
+      id: row.id as string,
+      email: row.email as string,
+      status: row.status as string,
+      expiresAt: row.expiresAt as string,
+      organizationName: row.organizationName as string,
+      role: row.role as string,
+      inviterName: row.inviterName as string,
+    }
+  }
+
+  /**
+   * Accept a pending invitation. Creates organization_members + user_roles.
+   */
+  async acceptInvitation(params: { invitationId: string; userId: string; userEmail: string }) {
+    const { invitationId, userId, userEmail } = params
+
+    const invitation = await db
+      .from('organization_invitations')
+      .where('id', invitationId)
+      .firstOrFail()
+
+    if (invitation.status !== 'pending') {
+      throw new Error('Invitation is no longer pending')
+    }
+
+    if (DateTime.fromJSDate(new Date(invitation.expiresAt as string)) < DateTime.utc()) {
+      throw new Error('Invitation has expired')
+    }
+
+    if ((invitation.email as string).toLowerCase() !== userEmail.toLowerCase()) {
+      throw new Error('Invitation email does not match your account')
+    }
+
+    const alreadyMember = await db
+      .from('organization_members')
+      .where('organizationId', invitation.organizationId)
+      .where('userId', userId)
+      .select('id')
+      .first()
+
+    if (alreadyMember) {
+      throw new Error('You are already a member of this organization')
+    }
+
+    await db.transaction(async (trx) => {
+      await trx.table('organization_members').insert({
+        organizationId: invitation.organizationId,
+        userId,
+        roleId: invitation.roleId,
+      })
+
+      await trx.table('user_roles').insert({
+        userId,
+        roleId: invitation.roleId,
+        organizationId: invitation.organizationId,
+      })
+
+      await trx
+        .from('organization_invitations')
+        .where('id', invitationId)
+        .update({ status: 'accepted' })
+
+      await trx.table('authorization_audits').insert({
+        organizationId: invitation.organizationId,
+        actorUserId: userId,
+        targetType: 'invitation',
+        targetId: invitationId,
+        eventType: 'invitation.accepted',
+        after: JSON.stringify({ userId }),
+      })
+    })
+
+    return { organizationId: invitation.organizationId as string }
+  }
+
+  /**
+   * Reject a pending invitation (invitee).
+   */
+  async rejectInvitation(params: { invitationId: string; userEmail: string }) {
+    const { invitationId, userEmail } = params
+
+    const invitation = await db
+      .from('organization_invitations')
+      .where('id', invitationId)
+      .firstOrFail()
+
+    if (invitation.status !== 'pending') {
+      throw new Error('Invitation is no longer pending')
+    }
+
+    if ((invitation.email as string).toLowerCase() !== userEmail.toLowerCase()) {
+      throw new Error('Invitation email does not match your account')
+    }
+
+    await db.transaction(async (trx) => {
+      await trx
+        .from('organization_invitations')
+        .where('id', invitationId)
+        .update({ status: 'rejected' })
+
+      await trx.table('authorization_audits').insert({
+        organizationId: invitation.organizationId,
+        actorUserId: null,
+        targetType: 'invitation',
+        targetId: invitationId,
+        eventType: 'invitation.rejected',
+      })
+    })
+  }
+
+  /**
+   * Cancel a pending invitation (org member with team:invite).
+   */
+  async cancelInvitation(params: {
+    invitationId: string
+    organizationId: string
+    actorUserId: string
+  }) {
+    const { invitationId, organizationId, actorUserId } = params
+
+    const invitation = await db
+      .from('organization_invitations')
+      .where('id', invitationId)
+      .where('organizationId', organizationId)
+      .firstOrFail()
+
+    if (invitation.status !== 'pending') {
+      throw new Error('Invitation is no longer pending')
+    }
+
+    await db.transaction(async (trx) => {
+      await trx
+        .from('organization_invitations')
+        .where('id', invitationId)
+        .update({ status: 'canceled' })
+
+      await trx.table('authorization_audits').insert({
+        organizationId,
+        actorUserId,
+        targetType: 'invitation',
+        targetId: invitationId,
+        eventType: 'invitation.canceled',
+      })
+    })
+  }
+}

@@ -38,6 +38,52 @@ export class AccountSchema extends BaseModel {
   declare userId: string
 }
 
+export class AuthorizationAuditSchema extends BaseModel {
+  static $columns = ['actorUserId', 'after', 'before', 'createdAt', 'eventType', 'granted', 'id', 'organizationId', 'permissionId', 'reason', 'roleId', 'targetId', 'targetType'] as const
+  $columns = AuthorizationAuditSchema.$columns
+  @column()
+  declare actorUserId: string | null
+  @column()
+  declare after: any | null
+  @column()
+  declare before: any | null
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare eventType: string
+  @column()
+  declare granted: boolean | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare organizationId: string
+  @column()
+  declare permissionId: string | null
+  @column()
+  declare reason: string | null
+  @column()
+  declare roleId: string | null
+  @column()
+  declare targetId: string | null
+  @column()
+  declare targetType: string
+}
+
+export class ContactSchema extends BaseModel {
+  static $columns = ['createdAt', 'id', 'organizationId', 'phone', 'updatedAt'] as const
+  $columns = ContactSchema.$columns
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare organizationId: string
+  @column()
+  declare phone: string
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+}
+
 export class JwkSchema extends BaseModel {
   static $columns = ['alg', 'createdAt', 'crv', 'expiresAt', 'id', 'privateKey', 'publicKey'] as const
   $columns = JwkSchema.$columns
@@ -57,9 +103,136 @@ export class JwkSchema extends BaseModel {
   declare publicKey: string
 }
 
+export class OrganizationInvitationSchema extends BaseModel {
+  static $columns = ['createdAt', 'email', 'expiresAt', 'id', 'inviterId', 'organizationId', 'roleId', 'status'] as const
+  $columns = OrganizationInvitationSchema.$columns
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare email: string
+  @column.dateTime()
+  declare expiresAt: DateTime
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare inviterId: string
+  @column()
+  declare organizationId: string
+  @column()
+  declare roleId: string
+  @column()
+  declare status: string
+}
+
+export class OrganizationMemberSchema extends BaseModel {
+  static $columns = ['createdAt', 'id', 'organizationId', 'roleId', 'userId'] as const
+  $columns = OrganizationMemberSchema.$columns
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare organizationId: string
+  @column()
+  declare roleId: string
+  @column()
+  declare userId: string
+}
+
+export class OrganizationRolePermissionSchema extends BaseModel {
+  static $columns = ['granted', 'id', 'organizationId', 'permissionId', 'roleId'] as const
+  $columns = OrganizationRolePermissionSchema.$columns
+  @column()
+  declare granted: boolean
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare organizationId: string
+  @column()
+  declare permissionId: string
+  @column()
+  declare roleId: string
+}
+
+export class OrganizationSchema extends BaseModel {
+  static $columns = ['country', 'createdAt', 'currency', 'deletedAt', 'email', 'id', 'industry', 'name', 'phone', 'slug', 'status', 'timezone', 'updatedAt', 'website'] as const
+  $columns = OrganizationSchema.$columns
+  @column()
+  declare country: string
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare currency: string | null
+  @column.dateTime()
+  declare deletedAt: DateTime | null
+  @column()
+  declare email: string
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare industry: string | null
+  @column()
+  declare name: string
+  @column()
+  declare phone: string | null
+  @column()
+  declare slug: string
+  @column()
+  declare status: boolean
+  @column()
+  declare timezone: string
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+  @column()
+  declare website: string | null
+}
+
+export class PermissionSchema extends BaseModel {
+  static $columns = ['action', 'createdAt', 'description', 'id', 'module', 'name'] as const
+  $columns = PermissionSchema.$columns
+  @column()
+  declare action: string
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare description: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare module: string
+  @column()
+  declare name: string
+}
+
+export class RolePermissionSchema extends BaseModel {
+  static $columns = ['permissionId', 'roleId'] as const
+  $columns = RolePermissionSchema.$columns
+  @column()
+  declare permissionId: string
+  @column()
+  declare roleId: string
+}
+
+export class RoleSchema extends BaseModel {
+  static $columns = ['createdAt', 'id', 'name', 'organizationId', 'updatedAt'] as const
+  $columns = RoleSchema.$columns
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare name: string
+  @column()
+  declare organizationId: string | null
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+}
+
 export class SessionSchema extends BaseModel {
-  static $columns = ['createdAt', 'expiresAt', 'id', 'ipAddress', 'token', 'updatedAt', 'userAgent', 'userId'] as const
+  static $columns = ['activeOrganizationId', 'createdAt', 'expiresAt', 'id', 'ipAddress', 'token', 'updatedAt', 'userAgent', 'userId'] as const
   $columns = SessionSchema.$columns
+  @column()
+  declare activeOrganizationId: string | null
   @column.dateTime()
   declare createdAt: DateTime
   @column.dateTime()
@@ -74,6 +247,19 @@ export class SessionSchema extends BaseModel {
   declare updatedAt: DateTime | null
   @column()
   declare userAgent: string | null
+  @column()
+  declare userId: string
+}
+
+export class UserRoleSchema extends BaseModel {
+  static $columns = ['id', 'organizationId', 'roleId', 'userId'] as const
+  $columns = UserRoleSchema.$columns
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare organizationId: string | null
+  @column()
+  declare roleId: string
   @column()
   declare userId: string
 }

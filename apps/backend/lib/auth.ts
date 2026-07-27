@@ -58,7 +58,7 @@ export const auth = betterAuth({
     modelName: 'verifications',
   },
 
-  // ─── Email + password ──────────────────────────────────────────────────
+  // Email + password
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,
@@ -93,7 +93,7 @@ export const auth = betterAuth({
     resetPasswordTokenExpiresIn: 3600,
   },
 
-  // ─── Google OAuth (only when credentials are present) ─────────────────
+  // Google OAuth (only when credentials are present)
   ...(hasGoogle
     ? {
         socialProviders: {
@@ -118,7 +118,7 @@ export const auth = betterAuth({
       }
     : {}),
 
-  // ─── App-layer guard: block suspended / deleted users at sign-in ───────
+  // App-layer guard: block suspended / deleted users at sign-in
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
       if (ctx.path === '/sign-up/email') {
@@ -178,7 +178,7 @@ export const auth = betterAuth({
   },
 
   plugins: [
-    // ─── JWT — signs short-lived access tokens for AdonisJS API calls ────
+    // JWT — signs short-lived access tokens for AdonisJS API calls
     jwt(),
   ],
 })

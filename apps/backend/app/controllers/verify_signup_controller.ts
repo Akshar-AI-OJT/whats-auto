@@ -73,10 +73,8 @@ export default class VerifySignupController {
 
       const userResult = await client.query<{ id: string }>(
         `INSERT INTO "users" (
-          "name", "firstname", "lastname", "email", "emailVerified",
-          "isActive", "isDeleted", "createdAt", "updatedAt"
-        )
-        VALUES ($1, $2, $3, $4, TRUE, TRUE, FALSE, NOW(), NOW())
+          "name", "firstname", "lastname", "email", "emailVerified")
+        VALUES ($1, $2, $3, $4, TRUE)
         RETURNING "id"`,
         [name, firstname, lastname, email]
       )
@@ -85,9 +83,9 @@ export default class VerifySignupController {
 
       await client.query(
         `INSERT INTO "accounts" (
-          "userId", "accountId", "providerId", "password", "createdAt", "updatedAt"
+          "userId", "accountId", "providerId", "password"
         )
-        VALUES ($1, $2, 'credential', $3, NOW(), NOW())`,
+        VALUES ($1, $2, 'credential', $3)`,
         [userId, userId, passwordHash]
       )
 

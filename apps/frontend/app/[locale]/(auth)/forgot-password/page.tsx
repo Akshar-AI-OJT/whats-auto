@@ -1,13 +1,11 @@
 import { ForgotPasswordForm } from '@/components/auth/forgot-password-form'
-import { AuthShell } from '@/components/auth/auth-shell'
+import { AuthLayout } from '@/components/auth/auth-layout'
+import { AuthBranding } from '@/components/auth/auth-branding'
 
 export default function ForgotPasswordPage() {
   return (
-    <AuthShell
-      panelTitle="Reset your password"
-      panelSubtitle="We will email you a secure link that expires in one hour."
-    >
+    <AuthLayout branding={<AuthBranding variant="forgot-password" />}>
       <ForgotPasswordForm />
-    </AuthShell>
+    </AuthLayout>
   )
 }
