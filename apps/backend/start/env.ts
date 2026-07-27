@@ -46,4 +46,8 @@ export default await Env.create(new URL('../', import.meta.url), {
   // Resend
   RESEND_API_KEY: Env.schema.secret(),
   EMAIL_FROM: Env.schema.string(),
+
+  WHATSAPP_VERIFY_TOKEN: Env.schema.string(),
+
+  META_APP_SECRET: Env.schema.secret(),
 })
