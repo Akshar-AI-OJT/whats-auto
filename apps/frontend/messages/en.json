@@ -1224,9 +1224,139 @@
     }
   },
   "dashboard": {
+    "brand": "Whats-Auto",
+    "brandTagline": "Workspace",
     "title": "Dashboard",
-    "subtitle": "You're signed in.",
+    "subtitle": "Welcome back! Here's an overview of your WhatsApp workspace.",
     "loading": "Loading…",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "nav": {
+      "ariaLabel": "Dashboard navigation",
+      "comingSoon": "Coming soon",
+      "dashboard": "Dashboard",
+      "contacts": "Contacts",
+      "inbox": "Inbox",
+      "messages": "Messages",
+      "campaigns": "Campaigns",
+      "templates": "Templates",
+      "notifications": "Notifications",
+      "analytics": "Analytics",
+      "billing": "Billing",
+      "auditLogs": "Audit Logs",
+      "settings": "Settings"
+    },
+    "sidebar": {
+      "planLabel": "Current plan",
+      "planName": "Growth",
+      "collapse": "Collapse sidebar",
+      "expand": "Expand sidebar"
+    },
+    "workspace": {
+      "listLabel": "Workspaces",
+      "active": "Active",
+      "members": "members",
+      "create": "Create workspace",
+      "primary": "Acme Workspace",
+      "secondary": "Demo Store"
+    },
+    "topbar": {
+      "openMenu": "Open navigation",
+      "searchLabel": "Search workspace",
+      "searchPlaceholder": "Find contacts, conversations, campaigns, or templates…",
+      "searchShortcutLabel": "Focus search ({shortcut})",
+      "notifications": "Notifications",
+      "profile": "Profile",
+      "profileMenu": "Open account menu",
+      "myProfile": "My Profile",
+      "workspace": "Workspace",
+      "billing": "Billing",
+      "settings": "Settings",
+      "guestName": "Account"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "markAllRead": "Mark all as read",
+      "markRead": "Mark as read",
+      "empty": "You’re all caught up",
+      "unread": "Unread",
+      "unreadCount": "{count} unread"
+    },
+    "theme": {
+      "switchToLight": "Switch to light mode",
+      "switchToDark": "Switch to dark mode"
+    },
+    "home": {
+      "eyebrow": "Overview",
+      "welcome": "Welcome back",
+      "welcomeNamed": "Welcome back, {name}",
+      "subtitle": "Here’s what’s happening across your WhatsApp automation workspace today.",
+      "kpis": {
+        "contacts": {
+          "label": "Total Contacts",
+          "hint": "vs last 30 days"
+        },
+        "conversations": {
+          "label": "Active Conversations",
+          "hint": "open right now"
+        },
+        "campaigns": {
+          "label": "Campaigns Sent",
+          "hint": "this month"
+        },
+        "delivery": {
+          "label": "Delivery Rate",
+          "hint": "last 7 days"
+        }
+      },
+      "conversations": {
+        "title": "Recent Conversations",
+        "description": "Latest chats across your connected numbers.",
+        "viewAll": "View all",
+        "status": {
+          "open": "Open",
+          "waiting": "Waiting",
+          "resolved": "Resolved"
+        }
+      },
+      "campaigns": {
+        "title": "Recent Campaigns",
+        "description": "Broadcast performance at a glance.",
+        "sent": "Sent",
+        "delivered": "Delivered",
+        "status": {
+          "sent": "Sent",
+          "scheduled": "Scheduled",
+          "draft": "Draft"
+        },
+        "progress": {
+          "sent": "Delivery",
+          "scheduled": "Ready",
+          "draft": "Progress"
+        },
+        "actions": {
+          "view": "View",
+          "edit": "Edit",
+          "duplicate": "Duplicate",
+          "pause": "Pause",
+          "delete": "Delete"
+        }
+      },
+      "quickActions": {
+        "title": "Quick Actions",
+        "description": "Jump into the workflows you use most.",
+        "newCampaign": "New Campaign",
+        "newCampaignDesc": "Launch a broadcast to a contact segment.",
+        "addContact": "Add Contact",
+        "addContactDesc": "Create or import contacts into your list.",
+        "createTemplate": "Create Template",
+        "createTemplateDesc": "Design a reusable WhatsApp message template.",
+        "broadcastMessage": "Broadcast Message",
+        "broadcastMessageDesc": "Send a one-time message to your audience."
+      },
+      "activity": {
+        "title": "Recent Activity",
+        "description": "A live trail of workspace events."
+      }
+    }
   }
 }
