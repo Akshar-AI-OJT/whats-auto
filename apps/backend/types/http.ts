@@ -16,7 +16,8 @@ export type AuthzPrincipal = AuthUser & {
 declare module '@adonisjs/core/http' {
   interface HttpRequest {
     authUser?: AuthUser
-    activeOrganizationId?: string // set by jwtAuth — from session
+    sessionId?: string // set by jwtAuth — Better Auth session id
+    activeOrganizationId?: string // set by jwtAuth — from sessions table
     activeMember?: ActiveMember // set by tenant middleware
     memberPermissions?: Set<Permission> // set by tenant middleware — cached for this request
   }

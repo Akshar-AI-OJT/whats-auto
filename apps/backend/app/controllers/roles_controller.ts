@@ -5,18 +5,20 @@ import {
   createRoleValidator,
   deleteRoleValidator,
   previewRoleUpdateValidator,
+  resetRoleValidator,
   updateRoleValidator,
 } from '#validators/organization'
 import '#types/http'
 
 export default class RolesController {
   /**
-   * @summary List dynamic roles for the active organization
+   * @summary List roles for the active organization
+   * @description Returns global admin/agent/viewer (with effective org overrides) plus custom org roles.
    * @tag Roles
    * @security BearerAuth
-   * @responseBody 200 - { "data": [{ "role": "agent", "displayName": "Agent", "permissions": ["inbox:view"] }] }
+   * @responseBody 200 - { "data": [{ "role": "agent", "isSystem": true, "hasOverrides": false, "permissions": ["inbox:view"] }] }
    * @responseBody 401 - { "error": "Missing or invalid session" }
-   * @responseBody 403 - { "error": "No active organization. Call /api/auth/organization/set-active first.", "code": "NO_ACTIVE_ORG" }
+   * @responseBody 403 - { "error": "No active organization. Call POST /api/v1/organizations/:id/set-active first.", "code": "NO_ACTIVE_ORG" }
    */
   async index({ request, serialize }: HttpContext) {
     const roles = await new RoleService().listRoles(request.activeMember!.organizationId)
@@ -24,13 +26,13 @@ export default class RolesController {
   }
 
   /**
-   * @summary Create a dynamic role
-   * @description Slugifies displayName into an immutable role key. Cannot escalate beyond the caller's permissions. Cannot create reserved key "owner".
+   * @summary Create a custom org-scoped role
+   * @description Slugifies name into an immutable role key (max 20 chars). Cannot escalate beyond the caller's permissions. Cannot use system role names.
    * @tag Roles
    * @security BearerAuth
-   * @requestBody { "displayName": "Support Lead", "permissions": ["inbox:view", "inbox:reply", "team:view"] }
+   * @requestBody { "name": "Support Lead", "permissions": ["inbox:view", "inbox:reply", "team:view"] }
    * @responseBody 200 - { "data": { "role": "support_lead" } }
-   * @responseBody 403 - { "error": "Permission denied: roles:create", "code": "PERMISSION_DENIED" }
+   * @responseBody 403 - { "error": "Permission denied: roles:manage", "code": "PERMISSION_DENIED" }
    * @responseBody 422 - { "error": "Cannot grant permissions you do not hold", "code": "E_PERMISSION_ESCALATION" }
    */
   async create({ request, response, serialize }: HttpContext) {
@@ -39,7 +41,7 @@ export default class RolesController {
     try {
       const role = await new RoleService().createRole({
         organizationId: request.activeMember!.organizationId,
-        displayName: payload.displayName,
+        name: payload.name,
         permissions: payload.permissions,
         actorUserId: request.authUser!.id,
         managerPermissions: request.memberPermissions!,
@@ -56,8 +58,8 @@ export default class RolesController {
    * @security BearerAuth
    * @paramPath roleKey - Role key e.g. agent - @type(string)
    * @requestBody { "permissions": ["inbox:view", "contacts:view"] }
-   * @responseBody 200 - { "data": { "displayName": "Agent", "permissionsAdded": [], "permissionsRemoved": ["inbox:reply"], "affectedMembers": [{ "id": "uuid", "userId": "uuid" }] } }
-   * @responseBody 403 - { "error": "Permission denied: roles:edit", "code": "PERMISSION_DENIED" }
+   * @responseBody 200 - { "data": { "role": "agent", "isSystem": true, "permissionsAdded": [], "permissionsRemoved": ["inbox:reply"], "affectedMembers": [{ "id": "uuid", "userId": "uuid" }] } }
+   * @responseBody 403 - { "error": "Permission denied: roles:manage", "code": "PERMISSION_DENIED" }
    * @responseBody 422 - { "error": "Role \"owner\" is protected", "code": "E_ROLE_PROTECTED" }
    */
   async preview({ request, params, response, serialize }: HttpContext) {
@@ -77,13 +79,13 @@ export default class RolesController {
 
   /**
    * @summary Update a role's permissions
-   * @description Requires a reason (audited). Cannot escalate beyond the caller's permissions.
+   * @description Custom roles rewrite role_permissions. System roles admin/agent/viewer write organization_role_permissions overrides. Requires a reason (audited).
    * @tag Roles
    * @security BearerAuth
    * @paramPath roleKey - Role key e.g. agent - @type(string)
    * @requestBody { "permissions": ["inbox:view", "inbox:reply"], "reason": "Narrow agent inbox access" }
    * @responseBody 200 - { "data": { "ok": true } }
-   * @responseBody 403 - { "error": "Permission denied: roles:edit", "code": "PERMISSION_DENIED" }
+   * @responseBody 403 - { "error": "Permission denied: roles:manage", "code": "PERMISSION_DENIED" }
    * @responseBody 422 - { "error": "Cannot grant permissions you do not hold", "code": "E_PERMISSION_ESCALATION" }
    */
   async update({ request, params, response, serialize }: HttpContext) {
@@ -105,14 +107,40 @@ export default class RolesController {
   }
 
   /**
-   * @summary Delete a role and reassign its members
-   * @description Requires replacementRole (existing, not owner, not the deleted key) and a reason.
+   * @summary Reset a system role to seeded defaults
+   * @description Deletes all organization_role_permissions overrides for admin/agent/viewer. Custom roles cannot be reset.
    * @tag Roles
    * @security BearerAuth
-   * @paramPath roleKey - Role key to delete - @type(string)
+   * @paramPath roleKey - System role key e.g. agent - @type(string)
+   * @requestBody { "reason": "Restore default agent permissions" }
+   * @responseBody 200 - { "data": { "ok": true } }
+   * @responseBody 422 - { "error": "Only system roles can be reset to defaults", "code": "E_ROLE_RESET_CUSTOM" }
+   */
+  async reset({ request, params, response, serialize }: HttpContext) {
+    const payload = await request.validateUsing(resetRoleValidator)
+
+    try {
+      await new RoleService().resetRole({
+        organizationId: request.activeMember!.organizationId,
+        roleKey: params.roleKey,
+        reason: payload.reason,
+        actorUserId: request.authUser!.id,
+      })
+      return serialize({ ok: true })
+    } catch (error) {
+      return mapRbacError(error, response)
+    }
+  }
+
+  /**
+   * @summary Delete a custom role and reassign its members
+   * @description System roles cannot be deleted. Requires replacementRole and a reason. Also re-points invitations and user_roles.
+   * @tag Roles
+   * @security BearerAuth
+   * @paramPath roleKey - Custom role key to delete - @type(string)
    * @requestBody { "replacementRole": "viewer", "reason": "Consolidating support roles" }
    * @responseBody 200 - { "data": { "ok": true } }
-   * @responseBody 403 - { "error": "Permission denied: roles:delete", "code": "PERMISSION_DENIED" }
+   * @responseBody 403 - { "error": "Permission denied: roles:manage", "code": "PERMISSION_DENIED" }
    * @responseBody 422 - { "error": "Replacement role \"viewer\" does not exist", "code": "E_ROLE_REPLACEMENT_MISSING" }
    */
   async destroy({ request, params, response, serialize }: HttpContext) {

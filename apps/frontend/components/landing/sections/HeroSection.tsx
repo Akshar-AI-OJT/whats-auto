@@ -57,27 +57,21 @@ export async function HeroSection() {
                 aria-hidden
               />
             </Link>
-            <button
-              type="button"
-              disabled
-              aria-disabled="true"
-              tabIndex={-1}
-              title={t('ctaSecondaryTooltip')}
+            <Link
+              href="/book-demo"
               className={cn(
                 buttonVariants({ variant: 'outline', size: 'lg' }),
-                'justify-center gap-2 rounded-xl border-[#E2E8F0] bg-canvas',
-                'cursor-not-allowed opacity-90',
-                'disabled:pointer-events-auto disabled:cursor-not-allowed disabled:opacity-90',
-                'hover:translate-y-0 hover:border-[#E2E8F0] hover:bg-canvas hover:shadow-none',
-                'active:scale-100'
+                'group justify-center gap-2 rounded-xl border-[#E2E8F0] bg-canvas',
+                'transition-[transform,background-color,border-color,box-shadow] duration-200',
+                'hover:-translate-y-0.5 hover:border-[#CBD5E1] hover:bg-canvas hover:shadow-sm'
               )}
             >
-              <Calendar className="size-4 text-mute" aria-hidden />
-              <span>{t('ctaSecondary')}</span>
-              <span className="rounded-full border border-[#E2E8F0] bg-[#F8FAFC] px-2 py-0.5 text-[10px] font-semibold tracking-wide text-mute uppercase">
-                {t('ctaSecondaryBadge')}
-              </span>
-            </button>
+              <Calendar
+                className="size-4 text-mute transition-colors duration-200 group-hover:text-ink"
+                aria-hidden
+              />
+              {t('ctaSecondary')}
+            </Link>
           </div>
 
           <ul className="mt-7 flex flex-wrap gap-2">

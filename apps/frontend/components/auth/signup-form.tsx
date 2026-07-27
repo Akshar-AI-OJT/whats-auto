@@ -120,7 +120,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState<Pending>('idle')
   const [resendCooldown, setResendCooldown] = useState(0)
-  const cooldownTimerRef = useRef<number | null>(null)
+  const [cooldownUntil, setCooldownUntil] = useState<number | null>(null)
   const otpInputRefs = useRef<Array<HTMLInputElement | null>>([])
 
   const isPending = pending !== 'idle'
@@ -128,13 +128,24 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
   const strengthLevel =
     strength === 'weak' ? 1 : strength === 'medium' ? 2 : strength === 'strong' ? 3 : 0
 
+  /** Single countdown interval — keyed by deadline so Strict Mode remounts cleanly. */
   useEffect(() => {
-    return () => {
-      if (cooldownTimerRef.current !== null) {
-        window.clearInterval(cooldownTimerRef.current)
+    if (cooldownUntil === null) return
+
+    const tick = () => {
+      const remaining = Math.max(0, Math.ceil((cooldownUntil - Date.now()) / 1000))
+      setResendCooldown(remaining)
+      if (remaining <= 0) {
+        setCooldownUntil(null)
       }
     }
-  }, [])
+
+    tick()
+    const intervalId = window.setInterval(tick, 1000)
+    return () => {
+      window.clearInterval(intervalId)
+    }
+  }, [cooldownUntil])
 
   function clearFieldError(key: keyof FieldErrors) {
     setFieldErrors((prev) => {
@@ -144,22 +155,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
   }
 
   function startResendCooldown(seconds = 60) {
-    if (cooldownTimerRef.current !== null) {
-      window.clearInterval(cooldownTimerRef.current)
-    }
-    setResendCooldown(seconds)
-    cooldownTimerRef.current = window.setInterval(() => {
-      setResendCooldown((prev) => {
-        if (prev <= 1) {
-          if (cooldownTimerRef.current !== null) {
-            window.clearInterval(cooldownTimerRef.current)
-            cooldownTimerRef.current = null
-          }
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
+    setCooldownUntil(Date.now() + seconds * 1000)
   }
 
   function validateRegister(): FieldErrors {
@@ -470,8 +466,6 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
                     <Loader2 className="size-3.5 animate-spin" aria-hidden />
                     {t('resendOtp')}
                   </span>
-                ) : resendCooldown > 0 ? (
-                  t('resendOtpCooldown', { seconds: resendCooldown })
                 ) : (
                   t('resendOtp')
                 )}

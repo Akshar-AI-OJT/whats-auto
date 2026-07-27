@@ -325,6 +325,387 @@
       }
     }
   },
+  "bookDemoPage": {
+    "hero": {
+      "badge": "📅 Live Product Demo",
+      "title": "Book a Personalized Demo",
+      "description": "Discover how Whats-Auto can automate customer conversations, improve team collaboration, and help your business grow through AI-powered WhatsApp automation.",
+      "cta": "Book Your Slot",
+      "meta": "30 Minutes • Free Consultation",
+      "visualLabel": "Live product demo preview",
+      "illustration": {
+        "title": "Personalized Demo",
+        "subtitle": "Walk through Whats-Auto live",
+        "meetLabel": "Google Meet",
+        "duration": "30 min session",
+        "aiChip": "AI Assistant",
+        "calendarChip": "Pick a time",
+        "meetChip": "Google Meet"
+      }
+    },
+    "experience": {
+      "badge": "✨ Demo Benefits",
+      "title": "What You'll Experience",
+      "subtitle": "Every demo is tailored to your business requirements.",
+      "items": {
+        "walkthrough": {
+          "title": "Live Product Walkthrough",
+          "description": "Understand every major feature in a guided product tour."
+        },
+        "ai": {
+          "title": "AI Automation",
+          "description": "See how AI helps automate conversations and customer support."
+        },
+        "qa": {
+          "title": "Live Q&A",
+          "description": "Ask questions specific to your business workflows."
+        },
+        "practices": {
+          "title": "Best Practices",
+          "description": "Learn implementation tips and recommended workflows."
+        }
+      }
+    },
+    "booking": {
+      "scheduleTitle": "Choose Your Preferred Date & Time",
+      "scheduleHint": "Pick a day and slot that works for your team.",
+      "calendarLabel": "Calendar",
+      "slotsLabel": "Available Time Slots",
+      "prevMonth": "Previous month",
+      "nextMonth": "Next month",
+      "weekdays": {
+        "sun": "Su",
+        "mon": "Mo",
+        "tue": "Tu",
+        "wed": "We",
+        "thu": "Th",
+        "fri": "Fr",
+        "sat": "Sa"
+      },
+      "detailsTitle": "Your Details",
+      "detailsHint": "Tell us a bit about you so we can personalize the demo.",
+      "fields": {
+        "fullName": "Full Name",
+        "email": "Work Email",
+        "company": "Company Name",
+        "phone": "Phone Number",
+        "companySize": "Company Size",
+        "purpose": "Purpose of Demo"
+      },
+      "placeholders": {
+        "fullName": "Jane Doe",
+        "email": "jane@company.com",
+        "company": "Acme Inc.",
+        "phone": "+1 555 000 0000",
+        "companySize": "Select company size",
+        "purpose": "Select purpose"
+      },
+      "purposeOptions": {
+        "overview": "Product Overview",
+        "collaboration": "Team Collaboration",
+        "ai": "AI Automation",
+        "enterprise": "Enterprise Discussion",
+        "other": "Other"
+      },
+      "privacyAgree": "I agree to the <privacy>Privacy Policy</privacy>.",
+      "cta": "Book Demo",
+      "meetNote": "Google Meet details will be shared after confirmation.",
+      "errors": {
+        "nameRequired": "Full name is required.",
+        "emailInvalid": "Enter a valid work email.",
+        "privacyRequired": "Please agree to the Privacy Policy.",
+        "dateRequired": "Please select a date.",
+        "slotRequired": "Please select a time slot."
+      },
+      "summary": {
+        "title": "Demo Summary",
+        "date": "Date",
+        "time": "Time",
+        "duration": "Duration",
+        "platform": "Platform",
+        "price": "Price",
+        "durationValue": "30 Minutes",
+        "platformValue": "Google Meet",
+        "priceValue": "FREE",
+        "pending": "Not selected",
+        "perks": {
+          "invite": "Calendar invite",
+          "meet": "Google Meet link",
+          "reminder": "Reminder email"
+        }
+      },
+      "success": {
+        "title": "Demo Scheduled Successfully!",
+        "subtitle": "Your personalized demo has been reserved.",
+        "whatsNext": "What's Next",
+        "backHome": "Back to Home",
+        "bookAnother": "Book Another Demo",
+        "summary": {
+          "date": "Date",
+          "time": "Time",
+          "duration": "Duration",
+          "platform": "Platform",
+          "durationValue": "30 Minutes",
+          "platformValue": "Google Meet"
+        },
+        "next": {
+          "email": "Confirmation email will be sent",
+          "meet": "Google Meet invitation will be shared",
+          "reminder": "Calendar reminder before your meeting",
+          "contact": "Our team will contact you if anything changes"
+        }
+      }
+    },
+    "why": {
+      "title": "Why Book a Demo?",
+      "subtitle": "A short session designed to help you understand how Whats-Auto fits your business.",
+      "items": {
+        "duration": {
+          "title": "30 Minutes",
+          "description": "Quick and focused product walkthrough."
+        },
+        "personalized": {
+          "title": "Personalized",
+          "description": "Tailored according to your business needs."
+        },
+        "free": {
+          "title": "Free Consultation",
+          "description": "No cost, no obligation."
+        }
+      }
+    },
+    "cta": {
+      "badge": "🚀 Get Started",
+      "title": "Ready to Explore Whats-Auto?",
+      "description": "Book a free demo and discover how AI-powered WhatsApp automation can help your business scale.",
+      "primary": "Book Your Slot",
+      "secondary": "Contact Sales",
+      "secondaryBadge": "Coming Soon",
+      "secondaryTooltip": "Contact Sales is coming soon"
+    }
+  },
+  "aboutPage": {
+    "metaTitle": "About — Whats-Auto",
+    "metaDescription": "Learn how Whats-Auto helps businesses automate WhatsApp conversations with AI, shared inboxes, and secure multi-tenant workspaces.",
+    "hero": {
+      "badge": "🚀 About Whats-Auto",
+      "title": "Building Smarter WhatsApp Automation for Modern Businesses",
+      "description": "Whats-Auto helps businesses automate customer conversations, streamline communication, and improve engagement using AI-powered workflows designed for speed, reliability, and scalability.",
+      "ctaPrimary": "Get Started",
+      "ctaSecondary": "Explore Features",
+      "visualLabel": "WhatsApp AI automation illustration",
+      "illustration": {
+        "businessName": "Whats-Auto Store",
+        "businessStatus": "online · AI assisted",
+        "todayLabel": "Today",
+        "customerMessage": "Hi, can you help with my order status?",
+        "aiLabel": "AI Assistant",
+        "aiReply": "Sure — I can check that for you right away.",
+        "timeCustomer": "10:24",
+        "timeAi": "10:24",
+        "aiChip": "AI Assistant",
+        "aiChipStatus": "Replying instantly",
+        "nodeTrigger": "Trigger",
+        "nodeAi": "AI",
+        "nodeReply": "Reply",
+        "workflowLabel": "Automation flow"
+      }
+    },
+    "mission": {
+      "title": "Our Mission",
+      "content": "Our mission is to simplify business communication by making WhatsApp automation accessible, intelligent, and easy to use. We aim to reduce repetitive work so businesses can focus on building meaningful customer relationships."
+    },
+    "why": {
+      "title": "Why We Built Whats-Auto",
+      "subtitle": "Businesses deserve automation that is simple, reliable, and intelligent.",
+      "items": {
+        "speed": {
+          "title": "Faster Communication",
+          "description": "Respond to customers instantly."
+        },
+        "ai": {
+          "title": "AI-Powered Automation",
+          "description": "Reduce repetitive manual work."
+        },
+        "growth": {
+          "title": "Business Growth",
+          "description": "Improve customer engagement through automation."
+        },
+        "security": {
+          "title": "Secure by Design",
+          "description": "Built with security and scalability in mind."
+        }
+      }
+    },
+    "values": {
+      "title": "Our Core Values",
+      "items": {
+        "innovation": {
+          "title": "Innovation",
+          "description": "Continuously improving through AI and modern technologies."
+        },
+        "reliability": {
+          "title": "Reliability",
+          "description": "Building products businesses can trust every day."
+        },
+        "security": {
+          "title": "Security",
+          "description": "Protecting customer data and conversations."
+        },
+        "customerFirst": {
+          "title": "Customer First",
+          "description": "Designing every feature around real business needs."
+        }
+      }
+    },
+    "vision": {
+      "title": "Our Vision",
+      "content": "We envision a future where every business, regardless of size, can automate customer interactions with intelligent AI while maintaining a personal and human experience."
+    },
+    "cta": {
+      "title": "Ready to Experience Whats-Auto?",
+      "description": "Discover how AI-powered WhatsApp automation can transform your customer communication.",
+      "primary": "Get Started",
+      "secondary": "Book Demo"
+    }
+  },
+  "privacyPage": {
+    "metaTitle": "Privacy Policy — Whats-Auto",
+    "metaDescription": "Learn how Whats-Auto collects, uses, and protects your information when you use our WhatsApp automation platform.",
+    "hero": {
+      "badge": "🔒 Privacy Policy",
+      "title": "Your Privacy Matters",
+      "description": "At Whats-Auto, protecting your data is one of our highest priorities. This Privacy Policy explains what information we collect, how we use it, and how we keep it secure.",
+      "updatedLabel": "Last Updated",
+      "updatedDate": "July 2026"
+    },
+    "nav": {
+      "title": "On This Page",
+      "mobileTitle": "Contents",
+      "collect": "Information We Collect",
+      "use": "How We Use Your Information",
+      "protection": "Data Protection",
+      "cookies": "Cookies",
+      "thirdParty": "Third-Party Services",
+      "rights": "Your Rights",
+      "updates": "Policy Updates",
+      "contact": "Contact"
+    },
+    "sections": {
+      "collect": {
+        "title": "Information We Collect",
+        "content": "We may collect information such as your name, email address, company details, and account preferences when you use Whats-Auto."
+      },
+      "use": {
+        "title": "How We Use Your Information",
+        "content": "Your information is used to:",
+        "bullets": [
+          "Create and manage your account",
+          "Improve our services",
+          "Provide customer support",
+          "Send important notifications",
+          "Maintain platform security"
+        ]
+      },
+      "protection": {
+        "title": "Data Protection",
+        "content": "We implement industry-standard security practices to protect your information from unauthorized access, alteration, or disclosure."
+      },
+      "cookies": {
+        "title": "Cookies",
+        "content": "We may use cookies and similar technologies to improve your browsing experience and understand product usage."
+      },
+      "thirdParty": {
+        "title": "Third-Party Services",
+        "content": "Our platform may integrate with trusted third-party services such as authentication providers, analytics tools, and cloud infrastructure."
+      },
+      "rights": {
+        "title": "Your Rights",
+        "content": "You may request access, correction, or deletion of your personal information by contacting our support team."
+      },
+      "updates": {
+        "title": "Policy Updates",
+        "content": "This Privacy Policy may be updated periodically. Any significant changes will be reflected on this page."
+      }
+    },
+    "contact": {
+      "title": "Questions About Privacy?",
+      "description": "If you have any questions regarding this Privacy Policy or your personal data, feel free to contact our support team.",
+      "email": "support@whats-auto.com",
+      "button": "Contact Support",
+      "buttonBadge": "Coming Soon",
+      "buttonTooltip": "Contact Support is coming soon"
+    }
+  },
+  "termsPage": {
+    "metaTitle": "Terms & Conditions — Whats-Auto",
+    "metaDescription": "Read the Terms & Conditions for using Whats-Auto, our AI-powered WhatsApp automation platform.",
+    "hero": {
+      "badge": "📄 Terms & Conditions",
+      "title": "Terms & Conditions",
+      "description": "Please read these terms carefully before using Whats-Auto. By accessing or using our platform, you agree to be bound by these Terms & Conditions."
+    },
+    "updated": {
+      "label": "Last Updated",
+      "date": "July 2026",
+      "note": "We may update these terms as Whats-Auto evolves. Significant changes will appear on this page."
+    },
+    "nav": {
+      "title": "On This Page",
+      "mobileTitle": "Contents",
+      "acceptance": "Acceptance of Terms",
+      "accounts": "User Accounts",
+      "acceptableUse": "Acceptable Use",
+      "intellectualProperty": "Intellectual Property",
+      "availability": "Service Availability",
+      "liability": "Limitation of Liability",
+      "updates": "Changes to Terms",
+      "governingLaw": "Governing Law",
+      "contact": "Contact"
+    },
+    "sections": {
+      "acceptance": {
+        "title": "Acceptance of Terms",
+        "content": "By accessing or using Whats-Auto, you agree to be bound by these Terms & Conditions."
+      },
+      "accounts": {
+        "title": "User Accounts",
+        "content": "Users are responsible for maintaining the confidentiality of their account credentials and all activities performed under their account."
+      },
+      "acceptableUse": {
+        "title": "Acceptable Use",
+        "content": "Users agree not to misuse the platform, interfere with its operation, or attempt unauthorized access to any systems or data."
+      },
+      "intellectualProperty": {
+        "title": "Intellectual Property",
+        "content": "All software, branding, designs, content, and platform features are the property of Whats-Auto unless otherwise stated."
+      },
+      "availability": {
+        "title": "Service Availability",
+        "content": "We strive to provide reliable services but cannot guarantee uninterrupted availability at all times."
+      },
+      "liability": {
+        "title": "Limitation of Liability",
+        "content": "Whats-Auto shall not be liable for indirect, incidental, or consequential damages arising from the use of the platform."
+      },
+      "updates": {
+        "title": "Changes to Terms",
+        "content": "We may update these Terms & Conditions from time to time. Continued use of the platform after updates constitutes acceptance of the revised terms."
+      },
+      "governingLaw": {
+        "title": "Governing Law",
+        "content": "These Terms & Conditions shall be governed by the applicable laws and regulations of the jurisdiction in which Whats-Auto operates."
+      }
+    },
+    "contact": {
+      "title": "Need Help?",
+      "description": "If you have questions regarding these Terms & Conditions, our team is here to help.",
+      "email": "support@whats-auto.com",
+      "button": "Contact Support",
+      "buttonBadge": "Coming Soon",
+      "buttonTooltip": "Contact Support is coming soon"
+    }
+  },
   "featuresPage": {
     "metaTitle": "Features — Whats-Auto",
     "metaDescription": "Everything you need to automate WhatsApp conversations — AI assistant, broadcasts, shared inbox, analytics, and secure multi-tenant workspaces.",
