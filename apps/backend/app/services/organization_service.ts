@@ -1,10 +1,7 @@
 import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import { SEEDED_ROLES } from '#abilities/role_seeds'
-import { toStoredPermissionJson } from '#abilities/permissions'
-import RoleException from '#exceptions/role_exception'
-import { assertAssignableRoleKey } from '#services/role_service'
 import { DateTime } from 'luxon'
+import Organization from '#models/organization'
 import { getGlobalRoleIdByName, resolveAssignableRoleForOrg } from '#services/role_service'
 
 export type CreateOrganizationInput = {
@@ -30,18 +27,19 @@ export type UpdateOrganizationInput = {
 
 export class OrganizationService {
   /**
+   * Per-org role seed hook. Global admin/agent/viewer permissions are seeded via rbac_seeder.
+   */
+  async seedDefaultRoles(
+    _organizationId: string,
+    _trx?: TransactionClientContract
+  ): Promise<void> {
+    return
+  }
+
+  /**
    * Create an organization and make the caller the owner.
    * Dual-writes organization_members + user_roles, sets active org on the session.
    */
-  async seedDefaultRoles(
-    organizationId: string,
-    trx?: TransactionClientContract
-  ): Promise<void> {
-    const rows = SEEDED_ROLES.map((seed) => ({
-      organizationId,
-      role: seed.role,
-      displayName: seed.displayName,
-      permission: JSON.stringify(toStoredPermissionJson(seed.permissions)),
   async createOrganization(params: {
     userId: string
     sessionId: string
@@ -143,6 +141,16 @@ export class OrganizationService {
       role: r.role as string,
       createdAt: r.createdAt as string,
     }))
+  }
+
+  /**
+   * Platform-wide paginated organization list for Super Admin.
+   * Includes soft-deleted organizations so admins can audit full tenant history.
+   */
+  async listOrganizationsPaginated(params: { page: number; perPage: number }) {
+    const { page, perPage } = params
+
+    return Organization.query().orderBy('createdAt', 'desc').paginate(page, perPage)
   }
 
   /**
@@ -271,8 +279,6 @@ export class OrganizationService {
   async deleteOrganization(params: { organizationId: string; actorUserId: string }) {
     const { organizationId, actorUserId } = params
 
-    const client = trx ?? db
-    await client.table('organization_roles').insert(rows)
     const org = await db
       .from('organizations')
       .where('id', organizationId)

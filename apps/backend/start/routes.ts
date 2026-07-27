@@ -19,6 +19,8 @@ const TenantsController = () => import('#controllers/tenants_controller')
 const ContactsController = () => import('#controllers/contacts_controller')
 const OrganizationsController = () => import('#controllers/organizations_controller')
 const InvitationsController = () => import('#controllers/invitations_controller')
+const SuperAdminOrganizationsController = () =>
+  import('#controllers/super_admin_organizations_controller')
 
 //  Swagger UI + JSON spec
 // Served only in non-production environments
@@ -59,6 +61,16 @@ router
   })
   .prefix('/api/v1/account')
   .use(middleware.jwtAuth())
+
+// super admin — platform scope (no active organization required)
+router
+  .group(() => {
+    router
+      .get('/organizations', [SuperAdminOrganizationsController, 'index'])
+      .use(middleware.requirePermission({ permission: 'platform:tenants_view' }))
+  })
+  .prefix('/api/v1/super-admin')
+  .use([middleware.jwtAuth(), middleware.platform()])
 
 // organizations — create/list/set-active do not require an active org yet
 router.post('/api/v1/organizations', [OrganizationsController, 'store']).use([middleware.jwtAuth()])
