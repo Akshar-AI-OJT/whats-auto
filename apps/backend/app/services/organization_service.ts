@@ -1,5 +1,7 @@
 import db from '@adonisjs/lucid/services/db'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { DateTime } from 'luxon'
+import Organization from '#models/organization'
 import { getGlobalRoleIdByName, resolveAssignableRoleForOrg } from '#services/role_service'
 
 export type CreateOrganizationInput = {
@@ -24,6 +26,16 @@ export type UpdateOrganizationInput = {
 }
 
 export class OrganizationService {
+  /**
+   * Per-org role seed hook. Global admin/agent/viewer permissions are seeded via rbac_seeder.
+   */
+  async seedDefaultRoles(
+    _organizationId: string,
+    _trx?: TransactionClientContract
+  ): Promise<void> {
+    return
+  }
+
   /**
    * Create an organization and make the caller the owner.
    * Dual-writes organization_members + user_roles, sets active org on the session.
@@ -129,6 +141,16 @@ export class OrganizationService {
       role: r.role as string,
       createdAt: r.createdAt as string,
     }))
+  }
+
+  /**
+   * Platform-wide paginated organization list for Super Admin.
+   * Includes soft-deleted organizations so admins can audit full tenant history.
+   */
+  async listOrganizationsPaginated(params: { page: number; perPage: number }) {
+    const { page, perPage } = params
+
+    return Organization.query().orderBy('createdAt', 'desc').paginate(page, perPage)
   }
 
   /**

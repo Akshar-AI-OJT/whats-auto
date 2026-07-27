@@ -15,9 +15,12 @@ import AutoSwagger from 'adonis-autoswagger'
 import swagger from '#config/swagger'
 const PreSignupController = () => import('#controllers/pre_signup_controller')
 const VerifySignupController = () => import('#controllers/verify_signup_controller')
+const TenantsController = () => import('#controllers/tenants_controller')
 const ContactsController = () => import('#controllers/contacts_controller')
 const OrganizationsController = () => import('#controllers/organizations_controller')
 const InvitationsController = () => import('#controllers/invitations_controller')
+const SuperAdminOrganizationsController = () =>
+  import('#controllers/super_admin_organizations_controller')
 const WhatsappWebhookController = () => import('#controllers/whatsapp_webhook_controller')
 
 //  Swagger UI + JSON spec
@@ -80,6 +83,16 @@ router
   .prefix('/api/v1/account')
   .use(middleware.jwtAuth())
 
+// super admin — platform scope (no active organization required)
+router
+  .group(() => {
+    router
+      .get('/organizations', [SuperAdminOrganizationsController, 'index'])
+      .use(middleware.requirePermission({ permission: 'platform:tenants_view' }))
+  })
+  .prefix('/api/v1/super-admin')
+  .use([middleware.jwtAuth(), middleware.platform()])
+
 // organizations — create/list/set-active do not require an active org yet
 router.post('/api/v1/organizations', [OrganizationsController, 'store']).use([middleware.jwtAuth()])
 router.get('/api/v1/organizations', [OrganizationsController, 'index']).use([middleware.jwtAuth()])
@@ -130,6 +143,18 @@ router
 router
   .get('/api/v1/access-context', [controllers.AccessContext, 'show'])
   .use([middleware.jwtAuth(), middleware.tenant()])
+
+// tenants (organizations) — jwtAuth only; membership/owner checks live in TenantService
+router
+  .group(() => {
+    router.post('/', [TenantsController, 'store'])
+    router.get('/', [TenantsController, 'index'])
+    router.get('/:id', [TenantsController, 'show'])
+    router.put('/:id', [TenantsController, 'update'])
+    router.delete('/:id', [TenantsController, 'destroy'])
+  })
+  .prefix('/api/v1/tenants')
+  .use(middleware.jwtAuth())
 
 // roles
 router
