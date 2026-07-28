@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import {
   AlertTriangle,
   FileText,
@@ -64,6 +65,25 @@ const TYPE_ICONS: Record<ActivityType, LucideIcon> = {
   inbox: AlertTriangle,
 }
 
+/** Relative/"now"-based labels are computed only after mount to avoid hydration drift. */
+function useRelativeTimestamp(timestamp: string | Date) {
+  const dateTime =
+    typeof timestamp === 'string' ? timestamp : timestamp.toISOString()
+  const isServer = typeof window === 'undefined'
+
+  const relativeLabel = useMemo(
+    () => (isServer ? null : formatConversationTimestamp(timestamp)),
+    [isServer, timestamp]
+  )
+
+  const absoluteLabel = useMemo(
+    () => (isServer ? undefined : new Date(timestamp).toLocaleString()),
+    [isServer, timestamp]
+  )
+
+  return { dateTime, relativeLabel, absoluteLabel }
+}
+
 export function ActivityItem({
   title,
   detail,
@@ -77,7 +97,7 @@ export function ActivityItem({
 }: ActivityItemProps) {
   const Icon = icon ?? TYPE_ICONS[type]
   const styles = TONE_STYLES[tone]
-  const timeLabel = formatConversationTimestamp(timestamp)
+  const { dateTime, relativeLabel, absoluteLabel } = useRelativeTimestamp(timestamp)
 
   const rowClassName = cn(
     'group relative flex w-full gap-3.5 text-left sm:gap-4',
@@ -114,13 +134,12 @@ export function ActivityItem({
             <span className="mt-1.5 block text-sm leading-6 text-body">{detail}</span>
           </span>
           <time
-            dateTime={
-              typeof timestamp === 'string' ? timestamp : timestamp.toISOString()
-            }
+            dateTime={dateTime}
+            title={absoluteLabel}
             className="shrink-0 pt-0.5 text-xs tabular-nums text-mute"
-            title={new Date(timestamp).toLocaleString()}
+            suppressHydrationWarning
           >
-            {timeLabel}
+            {relativeLabel ?? '\u00a0'}
           </time>
         </span>
       </span>
