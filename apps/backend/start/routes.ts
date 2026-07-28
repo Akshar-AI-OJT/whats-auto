@@ -19,6 +19,7 @@ const TenantsController = () => import('#controllers/tenants_controller')
 const ContactsController = () => import('#controllers/contacts_controller')
 const OrganizationsController = () => import('#controllers/organizations_controller')
 const InvitationsController = () => import('#controllers/invitations_controller')
+const OnboardingController = () => import('#controllers/onboarding_controller')
 const SuperAdminOrganizationsController = () =>
   import('#controllers/super_admin_organizations_controller')
 const WhatsappWebhookController = () => import('#controllers/whatsapp_webhook_controller')
@@ -143,6 +144,9 @@ router
 router
   .get('/api/v1/access-context', [controllers.AccessContext, 'show'])
   .use([middleware.jwtAuth(), middleware.tenant()])
+
+// Onboarding state — no active org required; tells the client which screen comes next
+router.get('/api/v1/onboarding/state', [OnboardingController, 'show']).use([middleware.jwtAuth()])
 
 // tenants (organizations) — jwtAuth only; membership/owner checks live in TenantService
 router

@@ -50,4 +50,6 @@ export default await Env.create(new URL('../', import.meta.url), {
   WHATSAPP_VERIFY_TOKEN: Env.schema.string(),
 
   META_APP_SECRET: Env.schema.secret(),
+
+  META_EMBEDDED_SIGNUP_CONFIG_ID: Env.schema.string()
 })
