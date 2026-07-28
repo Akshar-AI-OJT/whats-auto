@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link } from '@/i18n/navigation'
-import { getFeatureIcon } from '@/components/features/icons'
+import { featureIconMap } from '@/components/features/icons'
 import { buttonVariants } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -19,7 +19,7 @@ export function FeatureDetail({
   ctaLabel,
   children,
 }: FeatureDetailProps) {
-  const Icon = getFeatureIcon(icon)
+  const Icon = featureIconMap[icon] ?? featureIconMap.MessageCircle
 
   return (
     <article className="bg-canvas">

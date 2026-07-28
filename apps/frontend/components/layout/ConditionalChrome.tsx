@@ -6,6 +6,7 @@ const HIDE_PREFIXES = [
   '/login',
   '/register',
   '/dashboard',
+  '/admin',
   '/forgot-password',
   '/reset-password',
 ]

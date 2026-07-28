@@ -14,17 +14,16 @@ export function FeaturesReveal({
   delayMs?: number
 }) {
   const ref = useRef<HTMLDivElement>(null)
-  const [visible, setVisible] = useState(false)
+  const [visible, setVisible] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  })
 
   useEffect(() => {
+    if (visible) return
+
     const el = ref.current
     if (!el) return
-
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (reduce) {
-      setVisible(true)
-      return
-    }
 
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -38,7 +37,7 @@ export function FeaturesReveal({
 
     observer.observe(el)
     return () => observer.disconnect()
-  }, [])
+  }, [visible])
 
   return (
     <div
