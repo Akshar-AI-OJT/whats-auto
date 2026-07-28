@@ -8,6 +8,8 @@ import { Navbar } from '@/components/layout/Navbar'
 import { ThemeProvider } from '@/components/theme/ThemeProvider'
 import { themeInitScript } from '@/components/theme/theme-script'
 import { routing } from '@/i18n/routing'
+import { manrope, inter, interBody, interHeading } from '../fonts'
+import { cn } from '@/lib/utils'
 
 export const metadata: Metadata = {
   title: 'Whats-Auto',
@@ -35,15 +37,6 @@ export default async function LocaleLayout({
   const messages = await getMessages()
 
   return (
-    <NextIntlClientProvider messages={messages}>
-      <ConditionalChrome>
-        <Navbar />
-      </ConditionalChrome>
-      {children}
-      <ConditionalChrome>
-        <Footer />
-      </ConditionalChrome>
-    </NextIntlClientProvider>
     <html
       lang={locale}
       suppressHydrationWarning
