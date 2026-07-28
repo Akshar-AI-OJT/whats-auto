@@ -23,7 +23,9 @@ const OnboardingController = () => import('#controllers/onboarding_controller')
 const SuperAdminOrganizationsController = () =>
   import('#controllers/super_admin_organizations_controller')
 const WhatsappWebhookController = () => import('#controllers/whatsapp_webhook_controller')
-
+const WhatsappEmbeddedSignupController = () =>
+  import('#controllers/whatsapp_embedded_signup_controller')
+const WhatsappConfigsController = () => import('#controllers/whatsapp_configs_controller')
 
 //  Swagger UI + JSON spec
 // Served only in non-production environments
