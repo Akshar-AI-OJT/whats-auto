@@ -16,6 +16,7 @@ export default class OrganizationsController {
    * @requestBody { "name": "Acme Inc", "slug": "acme", "email": "ops@acme.com", "country": "US", "timezone": "America/New_York" }
    * @responseBody 200 - { "data": { "id": "uuid", "name": "Acme Inc", "slug": "acme", "role": "owner" } }
    * @responseBody 401 - { "error": "Missing or invalid session" }
+   * @responseBody 409 - { "error": "Accept or decline your pending invitation before creating an organization", "code": "E_INVITE_PENDING" }
    */
   async store({ request, response, serialize }: HttpContext) {
     const payload = await request.validateUsing(createOrganizationValidator)

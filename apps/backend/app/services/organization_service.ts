@@ -2,6 +2,7 @@ import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { DateTime } from 'luxon'
 import Organization from '#models/organization'
+import InvitationException from '#exceptions/invitation_exception'
 import { getGlobalRoleIdByName, resolveAssignableRoleForOrg } from '#services/role_service'
 
 export type CreateOrganizationInput = {
@@ -29,11 +30,39 @@ export class OrganizationService {
   /**
    * Per-org role seed hook. Global admin/agent/viewer permissions are seeded via rbac_seeder.
    */
-  async seedDefaultRoles(
-    _organizationId: string,
-    _trx?: TransactionClientContract
-  ): Promise<void> {
+  async seedDefaultRoles(_organizationId: string, _trx?: TransactionClientContract): Promise<void> {
     return
+  }
+
+  /**
+   * A user who belongs to no organization yet must resolve a pending invitation first,
+   * otherwise invitees end up creating a second workspace instead of joining the inviter's.
+   * Users who already belong to an organization stay free to create more.
+   */
+  protected async assertNoBlockingInvitation(userId: string) {
+    const membership = await db
+      .from('organization_members')
+      .where('userId', userId)
+      .select('id')
+      .first()
+
+    if (membership) return
+
+    const user = await db.from('users').where('id', userId).select('email').firstOrFail()
+
+    const pending = await db
+      .from('organization_invitations as i')
+      .innerJoin('organizations as o', 'o.id', 'i.organizationId')
+      .whereRaw('LOWER(i.email) = ?', [(user.email as string).toLowerCase()])
+      .where('i.status', 'pending')
+      .where('i.expiresAt', '>', new Date())
+      .whereNull('o.deletedAt')
+      .select('i.id')
+      .first()
+
+    if (pending) {
+      throw InvitationException.pendingInvitationBlocksOrgCreation()
+    }
   }
 
   /**
@@ -46,6 +75,9 @@ export class OrganizationService {
     data: CreateOrganizationInput
   }) {
     const { userId, sessionId, data } = params
+
+    await this.assertNoBlockingInvitation(userId)
+
     const ownerRoleId = await getGlobalRoleIdByName('owner')
 
     return db.transaction(async (trx) => {

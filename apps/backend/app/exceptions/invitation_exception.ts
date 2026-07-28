@@ -1,0 +1,21 @@
+import { Exception } from '@adonisjs/core/exceptions'
+import type { HttpContext } from '@adonisjs/core/http'
+
+/**
+ * Invitation lifecycle conflicts with stable API codes.
+ */
+export default class InvitationException extends Exception {
+  static pendingInvitationBlocksOrgCreation() {
+    return new this('Accept or decline your pending invitation before creating an organization', {
+      status: 409,
+      code: 'E_INVITE_PENDING',
+    })
+  }
+
+  handle(error: this, { response }: HttpContext) {
+    return response.status(error.status).send({
+      error: error.message,
+      code: error.code,
+    })
+  }
+}
