@@ -36,3 +36,12 @@ export const listSuperAdminOrganizationsValidator = vine.create(
     perPage: vine.number().withoutDecimals().min(1).max(100).optional(),
   })
 )
+<<<<<<< HEAD
+=======
+
+export const organizationIdParamValidator = vine.create(
+  vine.object({
+    id: vine.string().trim().uuid(),
+  })
+)
+>>>>>>> feature/superadmin-role

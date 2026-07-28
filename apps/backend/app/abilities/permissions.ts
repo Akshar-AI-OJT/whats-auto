@@ -1,5 +1,6 @@
 export const PERMISSIONS = {
   PLATFORM_TENANTS_VIEW: 'platform:tenants_view',
+  PLATFORM_TENANTS_UPDATE: 'platform:tenants_update',
   PLATFORM_TENANTS_SUSPEND: 'platform:tenants_suspend',
   PLATFORM_TENANTS_DELETE: 'platform:tenants_delete',
   PLATFORM_TENANTS_BILLING: 'platform:tenants_billing',
