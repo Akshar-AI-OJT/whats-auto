@@ -1,5 +1,6 @@
 'use client'
 
+import { useSyncExternalStore } from 'react'
 import { Moon, Sun } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
@@ -9,10 +10,37 @@ type ThemeToggleProps = {
   className?: string
 }
 
+const toggleButtonClassName = cn(
+  'relative inline-flex size-10 shrink-0 items-center justify-center rounded-xl border border-dash-border bg-canvas text-ink',
+  'transition-[background-color,border-color,color,box-shadow] duration-200',
+  'hover:border-dash-border-strong hover:bg-dash-surface'
+)
+
+/** Empty subscribe: client snapshot is always `true` after hydration. */
+function subscribeNoop() {
+  return () => {}
+}
+
+function useIsClient() {
+  return useSyncExternalStore(subscribeNoop, () => true, () => false)
+}
+
 export function ThemeToggle({ className }: ThemeToggleProps) {
   const t = useTranslations('dashboard.theme')
   const { resolvedTheme, toggleTheme } = useTheme()
+  const mounted = useIsClient()
   const isDark = resolvedTheme === 'dark'
+
+  if (!mounted) {
+    return (
+      <button
+        type="button"
+        className={cn(toggleButtonClassName, className)}
+        aria-label="Toggle theme"
+        disabled
+      />
+    )
+  }
 
   return (
     <button
@@ -20,12 +48,7 @@ export function ThemeToggle({ className }: ThemeToggleProps) {
       onClick={toggleTheme}
       title={isDark ? t('switchToLight') : t('switchToDark')}
       aria-label={isDark ? t('switchToLight') : t('switchToDark')}
-      className={cn(
-        'relative inline-flex size-10 shrink-0 items-center justify-center rounded-xl border border-dash-border bg-canvas text-ink',
-        'transition-[background-color,border-color,color,box-shadow] duration-200',
-        'hover:border-dash-border-strong hover:bg-dash-surface',
-        className
-      )}
+      className={cn(toggleButtonClassName, className)}
     >
       <Sun
         className={cn(

@@ -569,6 +569,25 @@
       "secondary": "Book Demo"
     }
   },
+  "contactPage": {
+    "metaTitle": "Contact — Whats-Auto",
+    "metaDescription": "Get in touch with the Whats-Auto team for product, onboarding, and support questions.",
+    "title": "Contact Us",
+    "description": "Have questions about Whats-Auto, pricing, onboarding, or integrations? Send us a message and our team will get back to you.",
+    "emailLabel": "Contact email:",
+    "email": "hello@whats-auto.com",
+    "form": {
+      "name": "Name",
+      "email": "Email",
+      "message": "Message",
+      "submit": "Send Message"
+    },
+    "placeholders": {
+      "name": "Enter your name",
+      "email": "you@company.com",
+      "message": "Tell us how we can help."
+    }
+  },
   "privacyPage": {
     "metaTitle": "Privacy Policy — Whats-Auto",
     "metaDescription": "Learn how Whats-Auto collects, uses, and protects your information when you use our WhatsApp automation platform.",
@@ -1356,6 +1375,415 @@
       "activity": {
         "title": "Recent Activity",
         "description": "A live trail of workspace events."
+      }
+    }
+  },
+  "admin": {
+    "brand": "Whats-Auto",
+    "brandTagline": "Super Admin",
+    "nav": {
+      "ariaLabel": "Admin navigation",
+      "comingSoon": "Coming soon",
+      "dashboard": "Dashboard",
+      "organizations": "Organizations",
+      "subscriptions": "Subscriptions",
+      "platformUsers": "Platform Users",
+      "analytics": "Analytics",
+      "auditLogs": "Audit Logs",
+      "settings": "Settings"
+    },
+    "sidebar": {
+      "roleLabel": "Access level",
+      "roleName": "Super Admin",
+      "collapse": "Collapse sidebar",
+      "expand": "Expand sidebar"
+    },
+    "navbar": {
+      "openMenu": "Open admin navigation",
+      "title": "Platform console",
+      "subtitle": "Manage organizations, subscriptions, and platform users",
+      "logout": "Logout"
+    },
+    "home": {
+      "eyebrow": "Platform overview",
+      "title": "Admin dashboard",
+      "subtitle": "Monitor organizations, subscriptions, and platform health at a glance.",
+      "kpis": {
+        "totalOrganizations": {
+          "label": "Total Organizations",
+          "hint": "All registered tenants"
+        },
+        "activeOrganizations": {
+          "label": "Active Organizations",
+          "hint": "Paying or engaged"
+        },
+        "trialOrganizations": {
+          "label": "Trial Organizations",
+          "hint": "Currently on trial"
+        },
+        "suspendedOrganizations": {
+          "label": "Suspended Organizations",
+          "hint": "Access paused"
+        },
+        "totalPlatformUsers": {
+          "label": "Total Platform Users",
+          "hint": "Across all tenants"
+        },
+        "monthlyRevenue": {
+          "label": "Monthly Revenue",
+          "hint": "Current billing period"
+        },
+        "activeWhatsappNumbers": {
+          "label": "Active WhatsApp Numbers",
+          "hint": "Connected numbers"
+        },
+        "pendingSupportTickets": {
+          "label": "Pending Support Tickets",
+          "hint": "Awaiting response"
+        }
+      },
+      "charts": {
+        "orgGrowth": {
+          "title": "Organization Growth",
+          "description": "New and cumulative organizations over the last 6 months.",
+          "ariaLabel": "Line chart of organization growth by month"
+        },
+        "subscriptions": {
+          "title": "Subscription Distribution",
+          "description": "Active plans across the platform.",
+          "ariaLabel": "Donut chart of subscription plan distribution",
+          "totalLabel": "Orgs",
+          "plans": {
+            "starter": "Starter",
+            "growth": "Growth",
+            "pro": "Pro",
+            "enterprise": "Enterprise"
+          }
+        },
+        "revenue": {
+          "title": "Revenue Trend",
+          "description": "Monthly recurring revenue for the last 6 months.",
+          "ariaLabel": "Bar chart of monthly revenue. Peak near {max}."
+        }
+      },
+      "activity": {
+        "title": "Recent Activity",
+        "description": "Latest platform events across tenants.",
+        "items": {
+          "orgCreated": "New organization created",
+          "orgCreatedDetail": "Nova Retail joined Whats-Auto on the Growth plan.",
+          "planUpgraded": "Subscription upgraded",
+          "planUpgradedDetail": "Acme Workspace moved from Starter to Pro.",
+          "ticketOpened": "Support ticket opened",
+          "ticketOpenedDetail": "Priority billing issue from Contoso Logistics.",
+          "userInvited": "Platform user invited",
+          "userInvitedDetail": "Admin invite sent to ops@brightpath.io.",
+          "paymentReceived": "Payment received",
+          "paymentReceivedDetail": "$1,290 collected from Horizon Health (Pro)."
+        }
+      }
+    },
+    "organizations": {
+      "eyebrow": "Tenant management",
+      "title": "Organizations",
+      "subtitle": "Search, filter, and manage every organization on the platform.",
+      "tableTitle": "All organizations",
+      "tableDescription": "{count, plural, =0 {No organizations match} one {# organization} other {# organizations}}",
+      "searchLabel": "Search organizations",
+      "searchPlaceholder": "Search by name, slug, or owner…",
+      "statusFilterLabel": "Filter by status",
+      "planFilterLabel": "Filter by plan",
+      "empty": "No organizations match your filters.",
+      "columns": {
+        "organization": "Organization",
+        "owner": "Owner",
+        "plan": "Plan",
+        "status": "Status",
+        "members": "Members",
+        "created": "Created Date",
+        "actions": "Actions"
+      },
+      "filters": {
+        "status": {
+          "all": "All statuses",
+          "active": "Active",
+          "trial": "Trial",
+          "suspended": "Suspended"
+        },
+        "plan": {
+          "all": "All plans",
+          "starter": "Starter",
+          "growth": "Growth",
+          "pro": "Pro",
+          "enterprise": "Enterprise"
+        }
+      },
+      "actions": {
+        "menuLabel": "Actions for {name}",
+        "view": "View",
+        "suspend": "Suspend",
+        "activate": "Activate",
+        "delete": "Delete"
+      },
+      "detail": {
+        "eyebrow": "Organization",
+        "back": "Back to organizations",
+        "notFoundTitle": "Organization not found",
+        "notFoundDescription": "This organization is missing from the mock catalog.",
+        "general": {
+          "title": "General Information",
+          "description": "Core tenant profile and contact details.",
+          "fields": {
+            "name": "Organization",
+            "slug": "Slug",
+            "owner": "Owner",
+            "ownerEmail": "Owner email",
+            "industry": "Industry",
+            "website": "Website",
+            "country": "Country",
+            "timezone": "Timezone",
+            "phone": "Phone",
+            "created": "Created date"
+          }
+        },
+        "subscription": {
+          "title": "Subscription",
+          "description": "Current plan, billing, and renewal details.",
+          "fields": {
+            "plan": "Plan",
+            "billingCycle": "Billing cycle",
+            "amount": "Amount",
+            "seats": "Seats",
+            "renewsOn": "Renews on",
+            "paymentMethod": "Payment method",
+            "invoiceEmail": "Invoice email"
+          },
+          "billingCycle": {
+            "monthly": "Monthly",
+            "annual": "Annual",
+            "short": {
+              "monthly": "mo",
+              "annual": "yr"
+            }
+          }
+        },
+        "stats": {
+          "title": "Workspace Statistics",
+          "description": "Usage snapshot for this organization.",
+          "cards": {
+            "contacts": {
+              "label": "Contacts",
+              "hint": "In workspace lists"
+            },
+            "conversations": {
+              "label": "Conversations",
+              "hint": "Active threads"
+            },
+            "campaignsSent": {
+              "label": "Campaigns sent",
+              "hint": "Lifetime total"
+            },
+            "messagesSent": {
+              "label": "Messages sent",
+              "hint": "WhatsApp outbound"
+            },
+            "whatsappNumbers": {
+              "label": "WhatsApp numbers",
+              "hint": "Connected lines"
+            },
+            "templates": {
+              "label": "Templates",
+              "hint": "Approved + drafts"
+            }
+          }
+        },
+        "members": {
+          "title": "Workspace Members",
+          "description": "{count, plural, one {Showing # member} other {Showing # members}}",
+          "columns": {
+            "member": "Member",
+            "role": "Role",
+            "lastActive": "Last active"
+          },
+          "roles": {
+            "owner": "Owner",
+            "admin": "Admin",
+            "member": "Member"
+          }
+        },
+        "activity": {
+          "title": "Recent Activity",
+          "description": "Latest events inside this workspace."
+        }
+      }
+    },
+    "subscriptions": {
+      "eyebrow": "Billing catalog",
+      "title": "Subscriptions",
+      "subtitle": "Review platform plans, limits, and included features. Mock catalog only — no payments.",
+      "plansTitle": "Platform plans",
+      "plansDescription": "Limits and features available to tenant organizations.",
+      "perMonth": "/ month",
+      "customPrice": "Custom",
+      "unlimited": "Unlimited",
+      "popular": "Popular",
+      "activeOrgs": "{count} active orgs",
+      "featuresLabel": "Features",
+      "limits": {
+        "users": "User limit",
+        "messages": "Message limit",
+        "workspaces": "Workspace limit"
+      },
+      "plans": {
+        "starter": {
+          "name": "Starter",
+          "description": "For small teams getting started with WhatsApp automation."
+        },
+        "growth": {
+          "name": "Growth",
+          "description": "For growing workspaces that need campaigns and automation."
+        },
+        "scale": {
+          "name": "Scale",
+          "description": "For multi-workspace teams with higher volume and controls."
+        },
+        "enterprise": {
+          "name": "Enterprise",
+          "description": "Custom limits, SSO, and dedicated support for large orgs."
+        }
+      },
+      "features": {
+        "inbox": "Shared team inbox",
+        "basicCampaigns": "Basic broadcast campaigns",
+        "campaigns": "Advanced campaigns & segments",
+        "templates": "Message templates",
+        "emailSupport": "Email support",
+        "automation": "Workflow automation",
+        "analytics": "Analytics dashboard",
+        "prioritySupport": "Priority support",
+        "webhooks": "Webhooks & API access",
+        "roles": "Advanced roles & permissions",
+        "sso": "SSO / SAML",
+        "dedicatedSupport": "Dedicated success manager",
+        "sla": "Custom SLA"
+      }
+    },
+    "platformUsers": {
+      "eyebrow": "Access management",
+      "title": "Platform Users",
+      "subtitle": "Manage internal users who operate the Super Admin console.",
+      "tableTitle": "All platform users",
+      "tableDescription": "{count, plural, one {# user} other {# users}}",
+      "columns": {
+        "name": "Name",
+        "email": "Email",
+        "role": "Role",
+        "status": "Status",
+        "created": "Created Date"
+      },
+      "roles": {
+        "superAdmin": "Super Admin",
+        "platformAdmin": "Platform Admin",
+        "support": "Support",
+        "finance": "Finance"
+      },
+      "statuses": {
+        "active": "Active",
+        "invited": "Invited",
+        "inactive": "Inactive"
+      }
+    },
+    "auditLogs": {
+      "eyebrow": "Compliance",
+      "title": "Platform Audit Logs",
+      "subtitle": "Track sensitive admin actions across organizations and internal operators.",
+      "tableTitle": "Recent audit events",
+      "tableDescription": "{count, plural, one {# event} other {# events}}",
+      "columns": {
+        "timestamp": "Timestamp",
+        "user": "User",
+        "action": "Action",
+        "organization": "Organization",
+        "ipAddress": "IP Address",
+        "status": "Status"
+      },
+      "statuses": {
+        "success": "Success",
+        "warning": "Warning",
+        "failed": "Failed"
+      }
+    },
+    "settings": {
+      "eyebrow": "Administration",
+      "title": "Platform Settings",
+      "subtitle": "Manage core platform controls for branding, auth, integrations, and environment defaults.",
+      "sections": {
+        "platformBranding": {
+          "title": "Platform Branding",
+          "description": "Global brand identity shown across login and product surfaces."
+        },
+        "authentication": {
+          "title": "Authentication",
+          "description": "Session, access, and password security policy controls."
+        },
+        "smtp": {
+          "title": "SMTP",
+          "description": "Outgoing email provider configuration used for notifications."
+        },
+        "oauth": {
+          "title": "OAuth",
+          "description": "Third-party sign-in provider setup and callback endpoints."
+        },
+        "maintenanceMode": {
+          "title": "Maintenance Mode",
+          "description": "Traffic controls, allowlisting, and scheduled downtime windows."
+        },
+        "platformConfiguration": {
+          "title": "Platform Configuration",
+          "description": "Default environment and policy values for all organizations."
+        }
+      },
+      "fields": {
+        "platformName": "Platform Name",
+        "primaryDomain": "Primary Domain",
+        "supportEmail": "Support Email",
+        "sessionTimeout": "Session Timeout",
+        "mfaEnforcement": "MFA Enforcement",
+        "passwordPolicy": "Password Policy",
+        "provider": "Provider",
+        "fromAddress": "From Address",
+        "dailyLimit": "Daily Limit",
+        "googleSignIn": "Google Sign-in",
+        "microsoftSignIn": "Microsoft Sign-in",
+        "redirectUrl": "Redirect URL",
+        "currentState": "Current State",
+        "allowlistedIps": "Allowlisted IPs",
+        "nextWindow": "Next Window",
+        "defaultTimezone": "Default Timezone",
+        "dataRetention": "Data Retention",
+        "apiRateLimit": "API Rate Limit"
+      },
+      "states": {
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "scheduled": "Scheduled"
+      }
+    },
+    "analytics": {
+      "eyebrow": "Analytics",
+      "title": "Platform Analytics",
+      "subtitle": "Track growth, revenue, engagement, and subscription mix across the platform.",
+      "charts": {
+        "activeOrganizations": {
+          "title": "Active Organizations",
+          "description": "Monthly trend of currently active tenant organizations.",
+          "ariaLabel": "Line chart of active organizations by month"
+        },
+        "messageVolume": {
+          "title": "Message Volume",
+          "description": "Monthly outbound message volume across all organizations.",
+          "ariaLabel": "Bar chart of monthly message volume. Peak near {max}."
+        }
       }
     }
   }

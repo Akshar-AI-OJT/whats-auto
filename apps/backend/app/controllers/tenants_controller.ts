@@ -1,10 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { TenantService } from '#services/tenant_service'
-import {
-  createTenantValidator,
-  tenantIdValidator,
-  updateTenantValidator,
-} from '#validators/tenant'
+import { createTenantValidator, tenantIdValidator, updateTenantValidator } from '#validators/tenant'
 import '#types/http'
 
 export default class TenantsController {
