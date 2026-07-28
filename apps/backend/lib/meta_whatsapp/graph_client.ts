@@ -1,0 +1,230 @@
+import env from '#start/env'
+import type {
+  MetaGraphErrorBody,
+  MetaPhoneNumberDetails,
+  MetaSendMessageResult,
+  MetaTokenExchangeResult,
+} from '#lib/meta_whatsapp/types'
+
+/**
+ * Contract for Meta Graph WhatsApp operations.
+ */
+export interface MetaGraphClient {
+  exchangeEmbeddedSignupCode(code: string): Promise<MetaTokenExchangeResult>
+  subscribeAppToWaba(params: { wabaId: string; accessToken: string }): Promise<void>
+  registerPhoneNumber(params: {
+    phoneNumberId: string
+    accessToken: string
+    pin: string
+  }): Promise<void>
+  getPhoneNumber(params: {
+    phoneNumberId: string
+    accessToken: string
+  }): Promise<MetaPhoneNumberDetails>
+  /**
+   * Low-level Cloud API template send. Callers that send product templates should
+   * load name/language (and later components) from `message_templates`, then pass
+   * them here — and set `messages.messageTemplateId` when persisting the outbound row.
+   * Current `configs/:id/test` path hardcodes hello_world and does not use that table yet.
+   */
+  sendTemplateMessage(params: {
+    phoneNumberId: string
+    accessToken: string
+    to: string
+    templateName: string
+    languageCode: string
+  }): Promise<MetaSendMessageResult>
+}
+
+export class MetaGraphApiError extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+    readonly body: MetaGraphErrorBody | null,
+    readonly operation: string
+  ) {
+    super(message)
+    this.name = 'MetaGraphApiError'
+  }
+}
+
+type FetchLike = typeof fetch
+
+/**
+ * HTTP implementation of Meta Graph API (Cloud API + OAuth code exchange).
+ */
+export class HttpMetaGraphClient implements MetaGraphClient {
+  constructor(
+    protected readonly options: {
+      appId: string
+      appSecret: string
+      graphVersion: string
+      fetchImpl?: FetchLike
+    }
+  ) {}
+
+  protected get fetch(): FetchLike {
+    return this.options.fetchImpl ?? globalThis.fetch.bind(globalThis)
+  }
+
+  protected get baseUrl(): string {
+    return `https://graph.facebook.com/${this.options.graphVersion}`
+  }
+
+  async exchangeEmbeddedSignupCode(code: string): Promise<MetaTokenExchangeResult> {
+    const url =
+      `${this.baseUrl}/oauth/access_token?` +
+      new URLSearchParams({
+        client_id: this.options.appId,
+        client_secret: this.options.appSecret,
+        code,
+      }).toString()
+
+    const json = await this.requestJson<Record<string, unknown>>('exchangeCode', url, {
+      method: 'GET',
+    })
+
+    const accessToken = json.access_token
+    if (typeof accessToken !== 'string' || !accessToken) {
+      throw new MetaGraphApiError(
+        'Meta token exchange returned no access_token',
+        502,
+        json,
+        'exchangeCode'
+      )
+    }
+
+    return {
+      accessToken,
+      tokenType: typeof json.token_type === 'string' ? json.token_type : undefined,
+      expiresIn: typeof json.expires_in === 'number' ? json.expires_in : undefined,
+    }
+  }
+
+  async subscribeAppToWaba(params: { wabaId: string; accessToken: string }): Promise<void> {
+    const url = `${this.baseUrl}/${encodeURIComponent(params.wabaId)}/subscribed_apps`
+    await this.requestJson('subscribeApps', url, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${params.accessToken}` },
+    })
+  }
+
+  async registerPhoneNumber(params: {
+    phoneNumberId: string
+    accessToken: string
+    pin: string
+  }): Promise<void> {
+    const url = `${this.baseUrl}/${encodeURIComponent(params.phoneNumberId)}/register`
+    await this.requestJson('registerPhone', url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${params.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        pin: params.pin,
+      }),
+    })
+  }
+
+  async getPhoneNumber(params: {
+    phoneNumberId: string
+    accessToken: string
+  }): Promise<MetaPhoneNumberDetails> {
+    const url =
+      `${this.baseUrl}/${encodeURIComponent(params.phoneNumberId)}` +
+      `?fields=display_phone_number,verified_name,quality_rating`
+
+    const json = await this.requestJson<Record<string, unknown>>('getPhone', url, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${params.accessToken}` },
+    })
+
+    return {
+      id: String(json.id ?? params.phoneNumberId),
+      displayPhoneNumber:
+        typeof json.display_phone_number === 'string' ? json.display_phone_number : undefined,
+      verifiedName: typeof json.verified_name === 'string' ? json.verified_name : undefined,
+      qualityRating: typeof json.quality_rating === 'string' ? json.quality_rating : undefined,
+    }
+  }
+
+  /**
+   * POST /{phone-number-id}/messages (type=template).
+   * NOTE: Product sends should resolve templateName/languageCode from `message_templates`
+   * (and later body/header components) before calling this; persist `messages.messageTemplateId`.
+   * Smoke-test path may still pass a hardcoded Meta sample like hello_world.
+   */
+  async sendTemplateMessage(params: {
+    phoneNumberId: string
+    accessToken: string
+    to: string
+    templateName: string
+    languageCode: string
+  }): Promise<MetaSendMessageResult> {
+    const url = `${this.baseUrl}/${encodeURIComponent(params.phoneNumberId)}/messages`
+    const json = await this.requestJson<Record<string, unknown>>('sendTemplate', url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${params.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: params.to,
+        type: 'template',
+        template: {
+          name: params.templateName,
+          language: { code: params.languageCode },
+        },
+      }),
+    })
+
+    const messages = json.messages as Array<{ id?: string }> | undefined
+    return {
+      messageId: messages?.[0]?.id,
+      raw: json,
+    }
+  }
+
+  protected async requestJson<T = Record<string, unknown>>(
+    operation: string,
+    url: string,
+    init: RequestInit
+  ): Promise<T> {
+    const response = await this.fetch(url, init)
+    let body: MetaGraphErrorBody & Record<string, unknown>
+    try {
+      body = (await response.json()) as MetaGraphErrorBody & Record<string, unknown>
+    } catch {
+      throw new MetaGraphApiError(
+        `Meta Graph ${operation} returned non-JSON (HTTP ${response.status})`,
+        response.status,
+        null,
+        operation
+      )
+    }
+
+    if (!response.ok) {
+      const message =
+        body.error?.message ?? `Meta Graph ${operation} failed (HTTP ${response.status})`
+      throw new MetaGraphApiError(message, response.status, body, operation)
+    }
+
+    return body as T
+  }
+}
+
+/**
+ * Default client wired from platform env. Services should prefer this factory
+ * (or an injected client) over constructing HttpMetaGraphClient ad hoc.
+ */
+export function createMetaGraphClient(fetchImpl?: FetchLike): MetaGraphClient {
+  return new HttpMetaGraphClient({
+    appId: env.get('META_APP_ID'),
+    appSecret: env.get('META_APP_SECRET').release(),
+    graphVersion: env.get('META_GRAPH_API_VERSION'),
+    fetchImpl,
+  })
+}

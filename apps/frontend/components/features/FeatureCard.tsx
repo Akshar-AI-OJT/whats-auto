@@ -1,5 +1,5 @@
 import { Link } from '@/i18n/navigation'
-import { getFeatureIcon } from '@/components/features/icons'
+import { featureIconMap } from '@/components/features/icons'
 import { cn } from '@/lib/utils'
 
 interface FeatureCardProps {
@@ -10,7 +10,7 @@ interface FeatureCardProps {
 }
 
 export function FeatureCard({ slug, icon, title, summary }: FeatureCardProps) {
-  const Icon = getFeatureIcon(icon)
+  const Icon = featureIconMap[icon] ?? featureIconMap.MessageCircle
 
   return (
     <Link

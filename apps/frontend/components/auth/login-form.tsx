@@ -6,6 +6,11 @@ import { Loader2, Lock, Mail } from 'lucide-react'
 import { FcGoogle } from 'react-icons/fc'
 import { cn } from '@/lib/utils'
 import { api, type ApiError } from '@/lib/api'
+import {
+  DEV_SUPER_ADMIN_DASHBOARD_PATH,
+  markDevSuperAdminSession,
+  matchesDevSuperAdminCredentials,
+} from '@/lib/dev-super-admin-auth'
 import { Button } from '@/components/ui/button'
 import {
   Field,
@@ -136,6 +141,13 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
     setPending('email')
 
     try {
+      // TEMPORARY: isolated Super Admin bypass — remove with lib/dev-super-admin-auth.ts
+      if (matchesDevSuperAdminCredentials(trimmedEmail, password)) {
+        markDevSuperAdminSession()
+        router.push(DEV_SUPER_ADMIN_DASHBOARD_PATH)
+        return
+      }
+
       await api.auth.login({ email: trimmedEmail, password })
       router.push('/dashboard')
       router.refresh()

@@ -63,8 +63,7 @@ function isUniqueViolation(error: unknown): boolean {
   for (let depth = 0; depth < 4 && current && typeof current === 'object'; depth++) {
     const code = (current as { code?: string }).code
     if (code === '23505') return true
-    current =
-      (current as { cause?: unknown }).cause ?? (current as { original?: unknown }).original
+    current = (current as { cause?: unknown }).cause ?? (current as { original?: unknown }).original
   }
   return false
 }

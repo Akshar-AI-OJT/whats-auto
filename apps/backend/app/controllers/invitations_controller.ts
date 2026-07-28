@@ -68,7 +68,7 @@ export default class InvitationsController {
 
   /**
    * @summary Accept an invitation
-   * @description Caller must be authenticated; email must match the invitation. Creates membership + user_roles.
+   * @description Caller must be authenticated; email must match the invitation. Creates membership + user_roles and sets the joined organization active on the session.
    * @tag Invitations
    * @security BearerAuth
    * @paramPath id - Invitation id - @type(string)
@@ -81,6 +81,7 @@ export default class InvitationsController {
         invitationId: params.id,
         userId: request.authUser!.id,
         userEmail: request.authUser!.email,
+        sessionId: request.sessionId!,
       })
       return serialize(result)
     } catch (error) {
