@@ -1,20 +1,18 @@
-export interface NavLink {
+export interface NavAnchorLink {
   label: string
+  /**
+   * Landing in-page anchor (`#pricing`) or absolute path (`/features`).
+   */
   href: string
-}
-
-export interface NavDropdown {
-  id: string
-  label: string
-  href?: string
-  items: NavLink[]
+  /** DOM id without `#` for landing scroll spy, or route key (e.g. `features`). */
+  sectionId: string
+  /** When true, always navigate to `href` (e.g. `/features`) instead of landing anchors. */
+  isPageLink?: boolean
 }
 
 export interface NavData {
   brand: string
-  pricing: NavLink
-  features: NavDropdown
-  integrations: NavDropdown
-  login: NavLink
-  getStarted: NavLink
+  links: NavAnchorLink[]
+  login: { label: string; href: string }
+  getStarted: { label: string; href: string }
 }

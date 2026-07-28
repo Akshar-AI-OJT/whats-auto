@@ -1,34 +1,112 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useId, useState, startTransition } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
+import { Loader2, Lock, Mail } from 'lucide-react'
 import { FcGoogle } from 'react-icons/fc'
 import { cn } from '@/lib/utils'
 import { api, type ApiError } from '@/lib/api'
+import {
+  DEV_SUPER_ADMIN_DASHBOARD_PATH,
+  markDevSuperAdminSession,
+  matchesDevSuperAdminCredentials,
+} from '@/lib/dev-super-admin-auth'
 import { Button } from '@/components/ui/button'
 import {
   Field,
   FieldDescription,
+  FieldError,
   FieldGroup,
   FieldLabel,
   FieldSeparator,
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { AuthPasswordToggle } from '@/components/auth/auth-password-toggle'
+import {
+  authDividerClassName,
+  authInputWithIconClassName,
+  authOutlineButtonClassName,
+  authPrimaryButtonClassName,
+} from '@/components/auth/auth-field-styles'
 import { Link, useRouter } from '@/i18n/navigation'
+
+const REMEMBER_EMAIL_KEY = 'whats-auto-remember-email'
+
+type FieldErrors = {
+  email?: string
+  password?: string
+}
+
+function isValidEmail(value: string) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+}
 
 export function LoginForm({ className, ...props }: React.ComponentProps<'form'>) {
   const t = useTranslations('auth.login')
   const locale = useLocale()
   const router = useRouter()
+  const formErrorId = useId()
+  const emailId = useId()
+  const passwordId = useId()
+  const rememberId = useId()
+  const emailErrorId = useId()
+  const passwordErrorId = useId()
 
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [rememberMe, setRememberMe] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [error, setError] = useState<string | null>(null)
-  const [pending, setPending] = useState(false)
+  const [pending, setPending] = useState<'idle' | 'email' | 'google'>('idle')
+  const isPending = pending !== 'idle'
+
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(REMEMBER_EMAIL_KEY)
+      if (saved) {
+        startTransition(() => {
+          setEmail(saved)
+          setRememberMe(true)
+        })
+      }
+    } catch {
+      /* ignore storage errors */
+    }
+  }, [])
+
+  function validate(): FieldErrors {
+    const next: FieldErrors = {}
+
+    if (!email.trim()) {
+      next.email = t('errors.emailRequired')
+    } else if (!isValidEmail(email.trim())) {
+      next.email = t('errors.emailInvalid')
+    }
+
+    if (!password) {
+      next.password = t('errors.passwordRequired')
+    }
+
+    return next
+  }
+
+  function persistRememberedEmail(nextEmail: string, remember: boolean) {
+    try {
+      if (remember) {
+        window.localStorage.setItem(REMEMBER_EMAIL_KEY, nextEmail)
+      } else {
+        window.localStorage.removeItem(REMEMBER_EMAIL_KEY)
+      }
+    } catch {
+      /* ignore storage errors */
+    }
+  }
 
   async function handleGoogle() {
     setError(null)
-    setPending(true)
+    setFieldErrors({})
+    setPending('google')
 
     try {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL
@@ -46,90 +124,223 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
         setError(apiError.message || t('errors.generic'))
       }
     } finally {
-      setPending(false)
+      setPending('idle')
     }
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
-    setPending(true)
+
+    const nextErrors = validate()
+    setFieldErrors(nextErrors)
+    if (Object.keys(nextErrors).length > 0) return
+
+    const trimmedEmail = email.trim()
+    persistRememberedEmail(trimmedEmail, rememberMe)
+    setPending('email')
 
     try {
-      await api.auth.login({ email, password })
+      // TEMPORARY: isolated Super Admin bypass — remove with lib/dev-super-admin-auth.ts
+      if (matchesDevSuperAdminCredentials(trimmedEmail, password)) {
+        markDevSuperAdminSession()
+        router.push(DEV_SUPER_ADMIN_DASHBOARD_PATH)
+        return
+      }
+
+      await api.auth.login({ email: trimmedEmail, password })
       router.push('/dashboard')
       router.refresh()
     } catch (err) {
       setError((err as ApiError).message || t('errors.generic'))
     } finally {
-      setPending(false)
+      setPending('idle')
     }
   }
 
   return (
-    <form className={cn('flex flex-col gap-6', className)} onSubmit={handleSubmit} {...props}>
-      <FieldGroup>
-        <div className="flex flex-col items-center gap-1 text-center">
-          <h1 className="font-display text-2xl text-ink">{t('title')}</h1>
-          <p className="text-sm text-balance text-body">{t('subtitle')}</p>
+    <form
+      className={cn('flex w-full min-w-0 flex-col', className)}
+      onSubmit={handleSubmit}
+      noValidate
+      aria-busy={isPending}
+      aria-describedby={error ? formErrorId : undefined}
+      {...props}
+    >
+      <FieldGroup className="gap-8">
+        <div className="flex flex-col gap-3 text-left">
+          <h1 className="font-display text-[1.75rem] leading-8 tracking-tight text-ink sm:text-2xl">
+            {t('title')}
+          </h1>
+          <p className="text-sm leading-6 text-pretty text-body">{t('subtitle')}</p>
         </div>
 
-        <Field>
-          <FieldLabel htmlFor="email">{t('email')}</FieldLabel>
-          <Input
-            id="email"
-            name="email"
-            type="email"
-            placeholder="johndoe@mail.com"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-        </Field>
-
-        <Field>
-          <div className="flex items-center">
-            <FieldLabel htmlFor="password">{t('password')}</FieldLabel>
-            <Link
-              href="/forgot-password"
-              className="ml-auto text-sm underline-offset-4 hover:underline"
-            >
-              {t('forgotPassword')}
-            </Link>
+        <Field data-invalid={fieldErrors.email ? true : undefined} className="gap-2">
+          <FieldLabel htmlFor={emailId} className="text-sm font-medium leading-5 text-ink">
+            {t('email')}
+          </FieldLabel>
+          <div className="relative">
+            <Mail
+              className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-mute"
+              aria-hidden
+            />
+            <Input
+              id={emailId}
+              name="email"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
+              placeholder="johndoe@mail.com"
+              required
+              disabled={isPending}
+              aria-invalid={Boolean(fieldErrors.email)}
+              aria-describedby={fieldErrors.email ? emailErrorId : undefined}
+              className={authInputWithIconClassName}
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value)
+                if (fieldErrors.email) {
+                  setFieldErrors((prev) => ({ ...prev, email: undefined }))
+                }
+              }}
+            />
           </div>
-          <Input
-            id="password"
-            name="password"
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
+          {fieldErrors.email ? (
+            <FieldError id={emailErrorId} className="text-xs leading-4 text-negative">
+              {fieldErrors.email}
+            </FieldError>
+          ) : null}
         </Field>
 
-        {error ? <p className="text-sm text-destructive text-center">{error}</p> : null}
+        <Field data-invalid={fieldErrors.password ? true : undefined} className="gap-2">
+          <FieldLabel htmlFor={passwordId} className="text-sm font-medium leading-5 text-ink">
+            {t('password')}
+          </FieldLabel>
+          <div className="relative">
+            <Lock
+              className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-mute"
+              aria-hidden
+            />
+            <Input
+              id={passwordId}
+              name="password"
+              type={showPassword ? 'text' : 'password'}
+              autoComplete="current-password"
+              required
+              disabled={isPending}
+              aria-invalid={Boolean(fieldErrors.password)}
+              aria-describedby={fieldErrors.password ? passwordErrorId : undefined}
+              className={cn(authInputWithIconClassName, 'pr-12')}
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value)
+                if (fieldErrors.password) {
+                  setFieldErrors((prev) => ({ ...prev, password: undefined }))
+                }
+              }}
+            />
+            <AuthPasswordToggle
+              show={showPassword}
+              disabled={isPending}
+              labelShow={t('showPassword')}
+              labelHide={t('hidePassword')}
+              controls={passwordId}
+              onToggle={() => setShowPassword((prev) => !prev)}
+            />
+          </div>
+          {fieldErrors.password ? (
+            <FieldError id={passwordErrorId} className="text-xs leading-4 text-negative">
+              {fieldErrors.password}
+            </FieldError>
+          ) : null}
+        </Field>
 
-        <Field>
-          <Button type="submit" disabled={pending}>
-            {pending ? t('submitting') : t('submit')}
+        <div className="flex items-center justify-between gap-4">
+          <label
+            htmlFor={rememberId}
+            className="flex cursor-pointer items-center gap-2 text-sm leading-5 text-body select-none"
+          >
+            <input
+              id={rememberId}
+              name="rememberMe"
+              type="checkbox"
+              checked={rememberMe}
+              disabled={isPending}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className={cn(
+                'size-4 shrink-0 rounded border border-border bg-canvas text-primary',
+                'accent-primary',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas',
+                'disabled:cursor-not-allowed disabled:opacity-50'
+              )}
+            />
+            {t('rememberMe')}
+          </label>
+          <Link
+            href="/forgot-password"
+            className="shrink-0 rounded-sm text-sm leading-5 font-medium text-body underline-offset-4 transition-colors hover:text-ink hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
+          >
+            {t('forgotPassword')}
+          </Link>
+        </div>
+
+        {error ? (
+          <div
+            id={formErrorId}
+            role="alert"
+            className="rounded-xl border border-negative/25 bg-negative/5 px-4 py-3 text-left text-sm leading-5 text-negative"
+          >
+            {error}
+          </div>
+        ) : null}
+
+        <Field className="gap-0">
+          <Button
+            type="submit"
+            disabled={isPending}
+            aria-busy={pending === 'email'}
+            className={authPrimaryButtonClassName}
+          >
+            {pending === 'email' ? (
+              <>
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+                <span>{t('submitting')}</span>
+              </>
+            ) : (
+              t('submit')
+            )}
           </Button>
         </Field>
 
-        <FieldSeparator>{t('orContinue')}</FieldSeparator>
+        <FieldSeparator className={authDividerClassName}>
+          {t('orContinue')}
+        </FieldSeparator>
 
-        <Field>
+        <Field className="gap-5">
           <Button
             variant="outline"
             type="button"
-            disabled={pending}
+            disabled={isPending}
+            aria-busy={pending === 'google'}
+            className={authOutlineButtonClassName}
             onClick={() => void handleGoogle()}
           >
-            <FcGoogle />
-            {t('google')}
+            {pending === 'google' ? (
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+            ) : (
+              <FcGoogle className="size-5" aria-hidden />
+            )}
+            <span>{t('google')}</span>
           </Button>
-          <FieldDescription className="text-center">
+          <FieldDescription className="text-center text-sm leading-5 text-body">
             {t('noAccount')}{' '}
-            <Link href="/register" className="underline underline-offset-4">
+            <Link
+              href="/register"
+              className="rounded-sm font-medium text-ink underline underline-offset-4 transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
+            >
               {t('signUp')}
             </Link>
           </FieldDescription>

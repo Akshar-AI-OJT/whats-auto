@@ -5,10 +5,8 @@ import { notFound } from 'next/navigation'
 import { ConditionalChrome } from '@/components/layout/ConditionalChrome'
 import { Footer } from '@/components/layout/Footer'
 import { Navbar } from '@/components/layout/Navbar'
+import { ThemeProvider } from '@/components/theme/ThemeProvider'
 import { routing } from '@/i18n/routing'
-import { cn } from '@/lib/utils'
-import { manrope, inter, interBody, interHeading } from '../fonts'
-import '../globals.css'
 
 export const metadata: Metadata = {
   title: 'Whats-Auto',
@@ -36,28 +34,16 @@ export default async function LocaleLayout({
   const messages = await getMessages()
 
   return (
-    <html
-      lang={locale}
-      className={cn(
-        'h-full antialiased',
-        manrope.variable,
-        inter.variable,
-        interBody.variable,
-        interHeading.variable,
-        'font-sans'
-      )}
-    >
-      <body className="flex min-h-full flex-col bg-canvas-soft text-ink">
-        <NextIntlClientProvider messages={messages}>
-          <ConditionalChrome>
-            <Navbar />
-          </ConditionalChrome>
-          {children}
-          <ConditionalChrome>
-            <Footer />
-          </ConditionalChrome>
-        </NextIntlClientProvider>
-      </body>
-    </html>
+    <ThemeProvider>
+      <NextIntlClientProvider messages={messages}>
+        <ConditionalChrome>
+          <Navbar />
+        </ConditionalChrome>
+        {children}
+        <ConditionalChrome>
+          <Footer />
+        </ConditionalChrome>
+      </NextIntlClientProvider>
+    </ThemeProvider>
   )
 }

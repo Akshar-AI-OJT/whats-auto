@@ -39,7 +39,7 @@ export class AccountSchema extends BaseModel {
 }
 
 export class AuthorizationAuditSchema extends BaseModel {
-  static $columns = ['actorUserId', 'after', 'before', 'createdAt', 'eventType', 'id', 'organizationId', 'reason', 'targetId', 'targetType'] as const
+  static $columns = ['actorUserId', 'after', 'before', 'createdAt', 'eventType', 'granted', 'id', 'organizationId', 'permissionId', 'reason', 'roleId', 'targetId', 'targetType'] as const
   $columns = AuthorizationAuditSchema.$columns
   @column()
   declare actorUserId: string | null
@@ -51,12 +51,18 @@ export class AuthorizationAuditSchema extends BaseModel {
   declare createdAt: DateTime
   @column()
   declare eventType: string
+  @column()
+  declare granted: boolean | null
   @column({ isPrimary: true })
   declare id: string
   @column()
   declare organizationId: string
   @column()
+  declare permissionId: string | null
+  @column()
   declare reason: string | null
+  @column()
+  declare roleId: string | null
   @column()
   declare targetId: string | null
   @column()
@@ -64,8 +70,43 @@ export class AuthorizationAuditSchema extends BaseModel {
 }
 
 export class ContactSchema extends BaseModel {
-  static $columns = ['createdAt', 'id', 'organizationId', 'phone', 'updatedAt'] as const
+  static $columns = ['company', 'createdAt', 'createdByUserId', 'customFields', 'deletedAt', 'email', 'id', 'name', 'organizationId', 'phone', 'phoneNormalized', 'updatedAt'] as const
   $columns = ContactSchema.$columns
+  @column()
+  declare company: string | null
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare createdByUserId: string | null
+  @column()
+  declare customFields: any
+  @column.dateTime()
+  declare deletedAt: DateTime | null
+  @column()
+  declare email: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare name: string | null
+  @column()
+  declare organizationId: string
+  @column()
+  declare phone: string
+  @column()
+  declare phoneNormalized: string
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+}
+
+export class ConversationAssignmentSchema extends BaseModel {
+  static $columns = ['agentUserId', 'assignedByUserId', 'conversationId', 'createdAt', 'id', 'organizationId', 'reason'] as const
+  $columns = ConversationAssignmentSchema.$columns
+  @column()
+  declare agentUserId: string | null
+  @column()
+  declare assignedByUserId: string | null
+  @column()
+  declare conversationId: string
   @column.dateTime()
   declare createdAt: DateTime
   @column({ isPrimary: true })
@@ -73,9 +114,57 @@ export class ContactSchema extends BaseModel {
   @column()
   declare organizationId: string
   @column()
-  declare phone: string
+  declare reason: string | null
+}
+
+export class ConversationNoteSchema extends BaseModel {
+  static $columns = ['authorUserId', 'body', 'conversationId', 'createdAt', 'id', 'organizationId', 'updatedAt'] as const
+  $columns = ConversationNoteSchema.$columns
+  @column()
+  declare authorUserId: string
+  @column()
+  declare body: string
+  @column()
+  declare conversationId: string
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare organizationId: string
   @column.dateTime()
   declare updatedAt: DateTime | null
+}
+
+export class ConversationSchema extends BaseModel {
+  static $columns = ['assignedAgentId', 'closedAt', 'contactId', 'createdAt', 'firstResponseAt', 'id', 'lastMessageAt', 'lastMessageText', 'organizationId', 'status', 'unreadCount', 'updatedAt', 'whatsappConfigId'] as const
+  $columns = ConversationSchema.$columns
+  @column()
+  declare assignedAgentId: string | null
+  @column.dateTime()
+  declare closedAt: DateTime | null
+  @column()
+  declare contactId: string
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare firstResponseAt: DateTime | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column.dateTime()
+  declare lastMessageAt: DateTime | null
+  @column()
+  declare lastMessageText: string | null
+  @column()
+  declare organizationId: string
+  @column()
+  declare status: string
+  @column()
+  declare unreadCount: number
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+  @column()
+  declare whatsappConfigId: string
 }
 
 export class JwkSchema extends BaseModel {
@@ -97,8 +186,119 @@ export class JwkSchema extends BaseModel {
   declare publicKey: string
 }
 
+export class MediaAssetSchema extends BaseModel {
+  static $columns = ['fileName', 'filePath', 'fileSize', 'id', 'mimeType', 'organizationId', 'uploadedAt', 'uploadedBy'] as const
+  $columns = MediaAssetSchema.$columns
+  @column()
+  declare fileName: string
+  @column()
+  declare filePath: string
+  @column()
+  declare fileSize: bigint | number
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare mimeType: string
+  @column()
+  declare organizationId: string
+  @column.dateTime()
+  declare uploadedAt: DateTime
+  @column()
+  declare uploadedBy: string | null
+}
+
+export class MessageTemplateSchema extends BaseModel {
+  static $columns = ['bodyText', 'buttons', 'category', 'createdAt', 'createdByUserId', 'footerText', 'headerContent', 'headerMediaUrl', 'headerType', 'id', 'language', 'lastSubmittedAt', 'metaTemplateId', 'name', 'organizationId', 'qualityScore', 'rejectionReason', 'sampleValues', 'status', 'submissionError', 'updatedAt', 'whatsappConfigId'] as const
+  $columns = MessageTemplateSchema.$columns
+  @column()
+  declare bodyText: string
+  @column()
+  declare buttons: any | null
+  @column()
+  declare category: string
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare createdByUserId: string | null
+  @column()
+  declare footerText: string | null
+  @column()
+  declare headerContent: string | null
+  @column()
+  declare headerMediaUrl: string | null
+  @column()
+  declare headerType: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare language: string | null
+  @column.dateTime()
+  declare lastSubmittedAt: DateTime | null
+  @column()
+  declare metaTemplateId: string | null
+  @column()
+  declare name: string
+  @column()
+  declare organizationId: string
+  @column()
+  declare qualityScore: string | null
+  @column()
+  declare rejectionReason: string | null
+  @column()
+  declare sampleValues: any | null
+  @column()
+  declare status: string
+  @column()
+  declare submissionError: string | null
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+  @column()
+  declare whatsappConfigId: string | null
+}
+
+export class MessageSchema extends BaseModel {
+  static $columns = ['contentText', 'contentType', 'conversationId', 'createdAt', 'errorMessage', 'id', 'interactivePayload', 'interactiveReplyId', 'mediaAssetId', 'mediaUrl', 'messageTemplateId', 'organizationId', 'providerMessageId', 'replyToMessageId', 'senderId', 'senderType', 'status', 'updatedAt'] as const
+  $columns = MessageSchema.$columns
+  @column()
+  declare contentText: string | null
+  @column()
+  declare contentType: string
+  @column()
+  declare conversationId: string
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare errorMessage: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare interactivePayload: any | null
+  @column()
+  declare interactiveReplyId: string | null
+  @column()
+  declare mediaAssetId: string | null
+  @column()
+  declare mediaUrl: string | null
+  @column()
+  declare messageTemplateId: string | null
+  @column()
+  declare organizationId: string
+  @column()
+  declare providerMessageId: string | null
+  @column()
+  declare replyToMessageId: string | null
+  @column()
+  declare senderId: string | null
+  @column()
+  declare senderType: string
+  @column()
+  declare status: string
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+}
+
 export class OrganizationInvitationSchema extends BaseModel {
-  static $columns = ['createdAt', 'email', 'expiresAt', 'id', 'inviterId', 'organizationId', 'role', 'status'] as const
+  static $columns = ['createdAt', 'email', 'expiresAt', 'id', 'inviterId', 'organizationId', 'roleId', 'status'] as const
   $columns = OrganizationInvitationSchema.$columns
   @column.dateTime()
   declare createdAt: DateTime
@@ -113,13 +313,13 @@ export class OrganizationInvitationSchema extends BaseModel {
   @column()
   declare organizationId: string
   @column()
-  declare role: string
+  declare roleId: string
   @column()
   declare status: string
 }
 
 export class OrganizationMemberSchema extends BaseModel {
-  static $columns = ['createdAt', 'id', 'organizationId', 'role', 'userId'] as const
+  static $columns = ['createdAt', 'id', 'organizationId', 'roleId', 'userId'] as const
   $columns = OrganizationMemberSchema.$columns
   @column.dateTime()
   declare createdAt: DateTime
@@ -128,45 +328,98 @@ export class OrganizationMemberSchema extends BaseModel {
   @column()
   declare organizationId: string
   @column()
-  declare role: string
+  declare roleId: string
   @column()
   declare userId: string
 }
 
-export class OrganizationRoleSchema extends BaseModel {
-  static $columns = ['createdAt', 'displayName', 'id', 'organizationId', 'permission', 'role', 'updatedAt'] as const
-  $columns = OrganizationRoleSchema.$columns
-  @column.dateTime()
-  declare createdAt: DateTime
+export class OrganizationRolePermissionSchema extends BaseModel {
+  static $columns = ['granted', 'id', 'organizationId', 'permissionId', 'roleId'] as const
+  $columns = OrganizationRolePermissionSchema.$columns
   @column()
-  declare displayName: string
+  declare granted: boolean
   @column({ isPrimary: true })
   declare id: string
   @column()
   declare organizationId: string
   @column()
-  declare permission: string
+  declare permissionId: string
   @column()
-  declare role: string
-  @column.dateTime()
-  declare updatedAt: DateTime | null
+  declare roleId: string
 }
 
 export class OrganizationSchema extends BaseModel {
-  static $columns = ['createdAt', 'id', 'logo', 'metadata', 'name', 'slug'] as const
+  static $columns = ['country', 'createdAt', 'currency', 'deletedAt', 'email', 'id', 'industry', 'name', 'phone', 'slug', 'status', 'timezone', 'updatedAt', 'website'] as const
   $columns = OrganizationSchema.$columns
+  @column()
+  declare country: string
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare currency: string | null
+  @column.dateTime()
+  declare deletedAt: DateTime | null
+  @column()
+  declare email: string
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare industry: string | null
+  @column()
+  declare name: string
+  @column()
+  declare phone: string | null
+  @column()
+  declare slug: string
+  @column()
+  declare status: boolean
+  @column()
+  declare timezone: string
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+  @column()
+  declare website: string | null
+}
+
+export class PermissionSchema extends BaseModel {
+  static $columns = ['action', 'createdAt', 'description', 'id', 'module', 'name'] as const
+  $columns = PermissionSchema.$columns
+  @column()
+  declare action: string
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare description: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare module: string
+  @column()
+  declare name: string
+}
+
+export class RolePermissionSchema extends BaseModel {
+  static $columns = ['permissionId', 'roleId'] as const
+  $columns = RolePermissionSchema.$columns
+  @column()
+  declare permissionId: string
+  @column()
+  declare roleId: string
+}
+
+export class RoleSchema extends BaseModel {
+  static $columns = ['createdAt', 'id', 'name', 'organizationId', 'updatedAt'] as const
+  $columns = RoleSchema.$columns
   @column.dateTime()
   declare createdAt: DateTime
   @column({ isPrimary: true })
   declare id: string
   @column()
-  declare logo: string | null
-  @column()
-  declare metadata: string | null
-  @column()
   declare name: string
   @column()
-  declare slug: string
+  declare organizationId: string | null
+  @column.dateTime()
+  declare updatedAt: DateTime | null
 }
 
 export class SessionSchema extends BaseModel {
@@ -188,6 +441,19 @@ export class SessionSchema extends BaseModel {
   declare updatedAt: DateTime | null
   @column()
   declare userAgent: string | null
+  @column()
+  declare userId: string
+}
+
+export class UserRoleSchema extends BaseModel {
+  static $columns = ['id', 'organizationId', 'roleId', 'userId'] as const
+  $columns = UserRoleSchema.$columns
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare organizationId: string | null
+  @column()
+  declare roleId: string
   @column()
   declare userId: string
 }
@@ -238,4 +504,35 @@ export class VerificationSchema extends BaseModel {
   declare updatedAt: DateTime | null
   @column()
   declare value: string
+}
+
+export class WhatsappConfigSchema extends BaseModel {
+  static $columns = ['accessToken', 'connectedAt', 'createdAt', 'createdByUserId', 'id', 'organizationId', 'phoneNumberId', 'registeredAt', 'status', 'subscribedAppsAt', 'updatedAt', 'verifyToken', 'wabaId'] as const
+  $columns = WhatsappConfigSchema.$columns
+  @column()
+  declare accessToken: string
+  @column.dateTime()
+  declare connectedAt: DateTime | null
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare createdByUserId: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare organizationId: string
+  @column()
+  declare phoneNumberId: string
+  @column.dateTime()
+  declare registeredAt: DateTime | null
+  @column()
+  declare status: string
+  @column.dateTime()
+  declare subscribedAppsAt: DateTime | null
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+  @column()
+  declare verifyToken: string | null
+  @column()
+  declare wabaId: string | null
 }

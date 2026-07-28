@@ -15,6 +15,17 @@ import AutoSwagger from 'adonis-autoswagger'
 import swagger from '#config/swagger'
 const PreSignupController = () => import('#controllers/pre_signup_controller')
 const VerifySignupController = () => import('#controllers/verify_signup_controller')
+const TenantsController = () => import('#controllers/tenants_controller')
+const ContactsController = () => import('#controllers/contacts_controller')
+const OrganizationsController = () => import('#controllers/organizations_controller')
+const InvitationsController = () => import('#controllers/invitations_controller')
+const OnboardingController = () => import('#controllers/onboarding_controller')
+const SuperAdminOrganizationsController = () =>
+  import('#controllers/super_admin_organizations_controller')
+const WhatsappWebhookController = () => import('#controllers/whatsapp_webhook_controller')
+const WhatsappEmbeddedSignupController = () =>
+  import('#controllers/whatsapp_embedded_signup_controller')
+const WhatsappConfigsController = () => import('#controllers/whatsapp_configs_controller')
 
 //  Swagger UI + JSON spec
 // Served only in non-production environments
@@ -34,6 +45,50 @@ router.get('/', () => {
 router.any('/api/auth/*', async (ctx) => {
   return handleBetterAuth(ctx)
 })
+
+/*
+|--------------------------------------------------------------------------
+| Platform inbound webhooks (public — Meta / future providers)
+| No jwtAuth / tenant. Auth = verify token (GET) + HMAC signature (POST).
+|--------------------------------------------------------------------------
+*/
+router
+  .group(() => {
+    router.get('/whatsapp', [WhatsappWebhookController, 'verify'])
+    router.post('/whatsapp', [WhatsappWebhookController, 'receive'])
+  })
+  .prefix('/api/v1/webhooks')
+
+/*
+|--------------------------------------------------------------------------
+| Tenant WhatsApp product APIs (Phase 2+)
+| Embedded Signup + whatsapp_configs — jwtAuth + tenant + whatsapp:* perms
+|--------------------------------------------------------------------------
+*/
+router
+  .group(() => {
+    router
+      .get('/embedded-signup/session', [WhatsappEmbeddedSignupController, 'session'])
+      .use(middleware.requirePermission({ permission: 'whatsapp:connect' }))
+    router
+      .post('/embedded-signup/complete', [WhatsappEmbeddedSignupController, 'complete'])
+      .use(middleware.requirePermission({ permission: 'whatsapp:connect' }))
+
+    router
+      .get('/configs', [WhatsappConfigsController, 'index'])
+      .use(middleware.requirePermission({ permission: 'whatsapp:view' }))
+    router
+      .get('/configs/:id', [WhatsappConfigsController, 'show'])
+      .use(middleware.requirePermission({ permission: 'whatsapp:view' }))
+    router
+      .delete('/configs/:id', [WhatsappConfigsController, 'destroy'])
+      .use(middleware.requirePermission({ permission: 'whatsapp:connect' }))
+    router
+      .post('/configs/:id/test', [WhatsappConfigsController, 'test'])
+      .use(middleware.requirePermission({ permission: 'whatsapp:manage' }))
+  })
+  .prefix('/api/v1/whatsapp')
+  .use([middleware.jwtAuth(), middleware.tenant()])
 
 router
   .group(() => {
@@ -56,10 +111,81 @@ router
   .prefix('/api/v1/account')
   .use(middleware.jwtAuth())
 
+// super admin — platform scope (no active organization required)
+router
+  .group(() => {
+    router
+      .get('/organizations', [SuperAdminOrganizationsController, 'index'])
+      .use(middleware.requirePermission({ permission: 'platform:tenants_view' }))
+  })
+  .prefix('/api/v1/super-admin')
+  .use([middleware.jwtAuth(), middleware.platform()])
+
+// organizations — create/list/set-active do not require an active org yet
+router.post('/api/v1/organizations', [OrganizationsController, 'store']).use([middleware.jwtAuth()])
+router.get('/api/v1/organizations', [OrganizationsController, 'index']).use([middleware.jwtAuth()])
+router
+  .post('/api/v1/organizations/:id/set-active', [OrganizationsController, 'setActive'])
+  .use([middleware.jwtAuth()])
+
+router
+  .group(() => {
+    router
+      .patch('/:id', [OrganizationsController, 'update'])
+      .use(middleware.requirePermission({ permission: 'org:settings_manage' }))
+    router
+      .delete('/:id', [OrganizationsController, 'destroy'])
+      .use(middleware.requirePermission({ permission: 'org:delete' }))
+    router
+      .post('/:id/invitations', [InvitationsController, 'store'])
+      .use(middleware.requirePermission({ permission: 'team:invite' }))
+  })
+  .prefix('/api/v1/organizations')
+  .use([middleware.jwtAuth(), middleware.tenant()])
+
+// invitations — list stays active-org scoped; accept/reject/cancel use invitation :id
+router
+  .get('/api/v1/invitations', [InvitationsController, 'index'])
+  .use([
+    middleware.jwtAuth(),
+    middleware.tenant(),
+    middleware.requirePermission({ permission: 'team:view' }),
+  ])
+
+router.get('/api/v1/invitations/:id', [InvitationsController, 'show'])
+router
+  .post('/api/v1/invitations/:id/accept', [InvitationsController, 'accept'])
+  .use([middleware.jwtAuth()])
+router
+  .post('/api/v1/invitations/:id/reject', [InvitationsController, 'reject'])
+  .use([middleware.jwtAuth()])
+router
+  .post('/api/v1/invitations/:id/cancel', [InvitationsController, 'cancel'])
+  .use([
+    middleware.jwtAuth(),
+    middleware.tenant(),
+    middleware.requirePermission({ permission: 'team:invite' }),
+  ])
+
 //  Access context (frontend polls this after login/org switch)
 router
   .get('/api/v1/access-context', [controllers.AccessContext, 'show'])
   .use([middleware.jwtAuth(), middleware.tenant()])
+
+// Onboarding state — no active org required; tells the client which screen comes next
+router.get('/api/v1/onboarding/state', [OnboardingController, 'show']).use([middleware.jwtAuth()])
+
+// tenants (organizations) — jwtAuth only; membership/owner checks live in TenantService
+router
+  .group(() => {
+    router.post('/', [TenantsController, 'store'])
+    router.get('/', [TenantsController, 'index'])
+    router.get('/:id', [TenantsController, 'show'])
+    router.put('/:id', [TenantsController, 'update'])
+    router.delete('/:id', [TenantsController, 'destroy'])
+  })
+  .prefix('/api/v1/tenants')
+  .use(middleware.jwtAuth())
 
 // roles
 router
@@ -67,16 +193,19 @@ router
     router.get('/', [controllers.Roles, 'index'])
     router
       .post('/', [controllers.Roles, 'create'])
-      .use(middleware.requirePermission({ permission: 'roles:create' }))
+      .use(middleware.requirePermission({ permission: 'roles:manage' }))
     router
       .post('/:roleKey/preview', [controllers.Roles, 'preview'])
-      .use(middleware.requirePermission({ permission: 'roles:edit' }))
+      .use(middleware.requirePermission({ permission: 'roles:manage' }))
     router
       .put('/:roleKey', [controllers.Roles, 'update'])
-      .use(middleware.requirePermission({ permission: 'roles:edit' }))
+      .use(middleware.requirePermission({ permission: 'roles:manage' }))
+    router
+      .post('/:roleKey/reset', [controllers.Roles, 'reset'])
+      .use(middleware.requirePermission({ permission: 'roles:manage' }))
     router
       .delete('/:roleKey', [controllers.Roles, 'destroy'])
-      .use(middleware.requirePermission({ permission: 'roles:delete' }))
+      .use(middleware.requirePermission({ permission: 'roles:manage' }))
   })
   .prefix('/api/v1/roles')
   .use([
@@ -116,3 +245,16 @@ router
     middleware.tenant(),
     middleware.requirePermission({ permission: 'team:view' }),
   ])
+
+// contacts — sample RLS business table (tenant isolation demo)
+router
+  .group(() => {
+    router
+      .get('/', [ContactsController, 'index'])
+      .use(middleware.requirePermission({ permission: 'contacts:view' }))
+    router
+      .post('/', [ContactsController, 'store'])
+      .use(middleware.requirePermission({ permission: 'contacts:create' }))
+  })
+  .prefix('/api/v1/contacts')
+  .use([middleware.jwtAuth(), middleware.tenant()])

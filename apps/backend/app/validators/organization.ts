@@ -1,52 +1,64 @@
 import vine from '@vinejs/vine'
-import { ALL_PERMISSIONS } from '#abilities/permissions'
-import { RESERVED_ROLE_KEYS } from '#services/role_service'
+import { PRODUCT_PERMISSIONS } from '#abilities/permissions'
+import { SYSTEM_ROLE_NAMES, UNASSIGNABLE_ROLE_NAMES } from '#services/role_service'
 
-const nonReservedRole = () =>
+const assignableRole = () =>
   vine
     .string()
     .trim()
     .minLength(1)
-    .notIn([...RESERVED_ROLE_KEYS])
+    .maxLength(20)
+    .notIn([...UNASSIGNABLE_ROLE_NAMES])
 
 export const createRoleValidator = vine.create(
   vine.object({
-    displayName: vine.string().trim().minLength(2).maxLength(50),
-    permissions: vine.array(vine.enum(ALL_PERMISSIONS)).minLength(1),
+    name: vine
+      .string()
+      .trim()
+      .minLength(2)
+      .maxLength(20)
+      .notIn([...SYSTEM_ROLE_NAMES]),
+    permissions: vine.array(vine.enum(PRODUCT_PERMISSIONS)).minLength(1),
   })
 )
 
 export const updateRoleValidator = vine.create(
   vine.object({
-    permissions: vine.array(vine.enum(ALL_PERMISSIONS)).minLength(1),
+    permissions: vine.array(vine.enum(PRODUCT_PERMISSIONS)).minLength(1),
     reason: vine.string().trim().minLength(5).maxLength(500),
   })
 )
 
 export const deleteRoleValidator = vine.create(
   vine.object({
-    replacementRole: nonReservedRole(),
+    replacementRole: assignableRole(),
+    reason: vine.string().trim().minLength(5).maxLength(500),
+  })
+)
+
+export const resetRoleValidator = vine.create(
+  vine.object({
     reason: vine.string().trim().minLength(5).maxLength(500),
   })
 )
 
 export const assignMemberRoleValidator = vine.create(
   vine.object({
-    role: nonReservedRole(),
+    role: assignableRole(),
   })
 )
 
 export const transferOwnershipValidator = vine.create(
   vine.object({
     targetMemberId: vine.string().trim().uuid(),
-    replacementRoleForCurrentOwner: nonReservedRole(),
+    replacementRoleForCurrentOwner: assignableRole(),
     reason: vine.string().trim().minLength(5).maxLength(500),
   })
 )
 
 export const previewRoleUpdateValidator = vine.create(
   vine.object({
-    permissions: vine.array(vine.enum(ALL_PERMISSIONS)).minLength(1),
+    permissions: vine.array(vine.enum(PRODUCT_PERMISSIONS)).minLength(1),
   })
 )
 

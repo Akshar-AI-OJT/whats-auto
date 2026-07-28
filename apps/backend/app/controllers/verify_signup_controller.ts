@@ -74,7 +74,7 @@ export default class VerifySignupController {
       const userResult = await client.query<{ id: string }>(
         `INSERT INTO "users" (
           "name", "firstname", "lastname", "email", "emailVerified")
-        VALUES ($1, $2, $3, $4, TRUE,)
+        VALUES ($1, $2, $3, $4, TRUE)
         RETURNING "id"`,
         [name, firstname, lastname, email]
       )

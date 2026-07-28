@@ -1,3 +1,7 @@
-export default function AuthLayout({ children }: { children: React.ReactNode }) {
-  return <div className="min-h-svh bg-canvas-soft">{children}</div>
+export default function AuthRouteLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return <div className="auth-palette min-h-svh bg-[#F8FAFC]">{children}</div>
 }

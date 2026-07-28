@@ -3,6 +3,10 @@
     "brand": "Whats-Auto",
     "pricing": "Pricing",
     "features": "Features",
+    "howItWorks": "How it Works",
+    "faq": "FAQ",
+    "resources": "Resources",
+    "contact": "Contact",
     "integrations": "Integrations",
     "getStarted": "Get Started",
     "login": "Login",
@@ -12,18 +16,81 @@
     "menuClose": "Close menu"
   },
   "hero": {
-    "eyebrow": "Trusted by 1,000+ businesses",
-    "headlinePrefix": "The #1",
-    "words1": ["WhatsApp", "business", "sales"],
-    "words2": ["automation", "messaging", "support"],
-    "headlineSuffix": "platform",
-    "subheadline": "Broadcasts, chatbots, and catalogs in one place. Start free.",
-    "cta": "Start for free",
-    "ctaSecondary": "See features",
-    "visualLabel": "WhatsApp automation product preview",
-    "visualPlaceholder": "Product screenshot placeholder"
+    "badge": "AI Powered WhatsApp Automation",
+    "headline": "Run Your Entire WhatsApp Business on Autopilot",
+    "description": "Manage customer conversations, automate replies, launch broadcast campaigns, and collaborate with your team—all from one intelligent WhatsApp workspace.",
+    "cta": "Get Started",
+    "ctaSecondary": "Book Demo",
+    "ctaSecondaryBadge": "Soon",
+    "ctaSecondaryTooltip": "Demo booking will be available soon.",
+    "chips": [
+      "Official WhatsApp API",
+      "AI Chat Assistant",
+      "Shared Team Inbox",
+      "Broadcast Campaigns"
+    ],
+    "visualLabel": "WhatsApp AI conversation preview",
+    "mock": {
+      "businessName": "Whats-Auto Store",
+      "businessStatus": "online · typically replies instantly",
+      "customerMessage": "Hi, I'd like to know today's offers.",
+      "aiReply": "Hello 👋\nI can help you with today's offers, product catalog, pricing, and order status.\nWhat would you like to explore?",
+      "aiLabel": "AI Assistant",
+      "timeCustomer": "10:24 AM",
+      "timeAi": "10:24 AM",
+      "todayLabel": "Today",
+      "composerPlaceholder": "Type a message",
+      "aiSuggestedReply": "AI Suggested Reply",
+      "automatedResponse": "Automated Response",
+      "cards": {
+        "assistantTitle": "AI Assistant",
+        "assistantStatus": "Ready",
+        "broadcastTitle": "Broadcast Campaign",
+        "broadcastStatus": "Create & Send",
+        "inboxTitle": "Shared Inbox",
+        "inboxStatus": "Manage Conversations",
+        "teamTitle": "Team Workspace",
+        "teamStatus": "Multi-Tenant",
+        "authTitle": "Secure Authentication",
+        "authStatus": "RBAC Enabled",
+        "templatesTitle": "Templates",
+        "templatesStatus": "Ready to Use"
+      }
+    }
   },
   "landing": {
+    "featurePreview": {
+      "badge": "✨ Platform Features",
+      "title": "Everything You Need to Grow on WhatsApp",
+      "subtitle": "From AI-powered conversations to team collaboration, Whats-Auto helps you manage customer communication from one intelligent workspace.",
+      "cta": "Explore All Features",
+      "items": {
+        "ai": {
+          "title": "AI Assistant",
+          "description": "AI-generated replies with context-aware suggestions."
+        },
+        "broadcast": {
+          "title": "Broadcast Campaigns",
+          "description": "Launch campaigns and reach thousands of customers effortlessly."
+        },
+        "inbox": {
+          "title": "Shared Team Inbox",
+          "description": "Collaborate with your team from one shared workspace."
+        },
+        "analytics": {
+          "title": "Analytics",
+          "description": "Track conversations, engagement, and campaign performance."
+        },
+        "multiTenant": {
+          "title": "Multi-Tenant Workspace",
+          "description": "Manage multiple organizations securely from one account."
+        },
+        "auth": {
+          "title": "Secure Authentication",
+          "description": "Google Login, OTP verification, and secure account management."
+        }
+      }
+    },
     "features": {
       "title": "Everything you need on WhatsApp",
       "subtitle": "Broadcast, sell, and support from one workspace.",
@@ -60,6 +127,37 @@
         "clickTracking": {
           "title": "Click Tracking",
           "description": "Measure which links and CTAs convert in every send."
+        }
+      }
+    },
+    "whyWhatsAuto": {
+      "badge": "✨ Why Whats-Auto",
+      "title": "Everything you need to automate customer conversations.",
+      "subtitle": "Built for growing businesses that want faster replies, better customer engagement, and smarter WhatsApp communication—all from one platform.",
+      "items": {
+        "aiAssistant": {
+          "title": "AI Chat Assistant",
+          "description": "Automatically answer customer questions using AI with human-like responses."
+        },
+        "broadcast": {
+          "title": "Broadcast Campaigns",
+          "description": "Send promotional messages and updates to thousands of customers in just a few clicks."
+        },
+        "inbox": {
+          "title": "Shared Team Inbox",
+          "description": "Collaborate with your entire support team from one WhatsApp workspace."
+        },
+        "whatsappApi": {
+          "title": "Official WhatsApp API",
+          "description": "Built on the official WhatsApp Business API for secure and reliable messaging."
+        },
+        "analytics": {
+          "title": "Analytics & Insights",
+          "description": "Track campaign performance, customer engagement, and response trends."
+        },
+        "multiTenant": {
+          "title": "Multi-Tenant Workspace",
+          "description": "Manage multiple organizations and teams securely from one platform."
         }
       }
     },
@@ -103,6 +201,47 @@
     "trust": {
       "label": "Trusted by teams that sell and support on WhatsApp"
     },
+    "pricingPreview": {
+      "badge": "💰 Pricing",
+      "title": "Simple Pricing for Every Business",
+      "subtitle": "Start small, scale as you grow. Choose the plan that fits your business needs.",
+      "footerPrompt": "Need a detailed comparison?",
+      "footerCta": "View Full Pricing",
+      "plans": {
+        "starter": {
+          "name": "Starter",
+          "price": "₹499/mo",
+          "cta": "Get Started",
+          "features": [
+            "AI Assistant",
+            "Shared Inbox",
+            "Broadcast Campaigns"
+          ]
+        },
+        "growth": {
+          "name": "Growth",
+          "badge": "Most Popular",
+          "price": "₹1,499/mo",
+          "cta": "Start Growing",
+          "features": [
+            "Everything in Starter",
+            "Workflow Automation",
+            "Team Collaboration",
+            "Advanced Analytics"
+          ]
+        },
+        "enterprise": {
+          "name": "Enterprise",
+          "price": "Custom",
+          "cta": "Contact Sales",
+          "features": [
+            "Dedicated Support",
+            "Custom Integrations",
+            "Enterprise Security"
+          ]
+        }
+      }
+    },
     "pricing": {
       "title": "Simple, transparent pricing",
       "subtitle": "Preview our plans below. Compare tiers and features on the full pricing page.",
@@ -130,18 +269,31 @@
       }
     },
     "cta": {
-      "headline": "Ready to automate your WhatsApp?",
-      "subheadline": "Join thousands of businesses saving hours every week.",
-      "button": "Get started for free"
+      "badge": "🚀 Get Started",
+      "headline": "Ready to Transform Your WhatsApp Business?",
+      "subheadline": "Automate conversations, engage customers faster, and scale your business with AI-powered WhatsApp automation.",
+      "primary": "Get Started",
+      "secondary": "Book Demo",
+      "secondaryBadge": "Coming Soon",
+      "secondaryTooltip": "Demo booking will be available soon.",
+      "perks": [
+        "No credit card required",
+        "Setup in minutes",
+        "Secure authentication"
+      ]
     }
   },
   "footer": {
     "brand": "Whats-Auto",
-    "tagline": "WhatsApp automation for sales, support, and marketing.",
+    "description": "AI-powered WhatsApp automation platform helping businesses automate conversations, manage campaigns, and grow customer engagement.",
+    "soon": "Soon",
     "copyright": "© {year} Whats-Auto. All rights reserved.",
-    "legal": {
-      "privacy": "Privacy",
-      "terms": "Terms"
+    "builtWith": "Built with ❤️ using Next.js, Better Auth & AdonisJS",
+    "social": {
+      "linkedin": "LinkedIn",
+      "github": "GitHub",
+      "twitter": "X (Twitter)",
+      "email": "Email"
     },
     "columns": {
       "product": {
@@ -149,52 +301,757 @@
         "links": {
           "features": "Features",
           "pricing": "Pricing",
-          "integrations": "Integrations"
+          "security": "Security",
+          "roadmap": "Roadmap"
         }
       },
       "company": {
         "title": "Company",
         "links": {
-          "getStarted": "Get started",
-          "login": "Log in"
+          "about": "About",
+          "contact": "Contact",
+          "privacy": "Privacy Policy",
+          "terms": "Terms & Conditions"
         }
       },
       "resources": {
         "title": "Resources",
         "links": {
-          "automation": "WhatsApp Automation",
-          "smartReplies": "Smart Replies"
+          "docs": "Documentation",
+          "support": "Support",
+          "faqs": "FAQs",
+          "blog": "Blog"
         }
       }
     }
   },
+  "bookDemoPage": {
+    "hero": {
+      "badge": "📅 Live Product Demo",
+      "title": "Book a Personalized Demo",
+      "description": "Discover how Whats-Auto can automate customer conversations, improve team collaboration, and help your business grow through AI-powered WhatsApp automation.",
+      "cta": "Book Your Slot",
+      "meta": "30 Minutes • Free Consultation",
+      "visualLabel": "Live product demo preview",
+      "illustration": {
+        "title": "Personalized Demo",
+        "subtitle": "Walk through Whats-Auto live",
+        "meetLabel": "Google Meet",
+        "duration": "30 min session",
+        "aiChip": "AI Assistant",
+        "calendarChip": "Pick a time",
+        "meetChip": "Google Meet"
+      }
+    },
+    "experience": {
+      "badge": "✨ Demo Benefits",
+      "title": "What You'll Experience",
+      "subtitle": "Every demo is tailored to your business requirements.",
+      "items": {
+        "walkthrough": {
+          "title": "Live Product Walkthrough",
+          "description": "Understand every major feature in a guided product tour."
+        },
+        "ai": {
+          "title": "AI Automation",
+          "description": "See how AI helps automate conversations and customer support."
+        },
+        "qa": {
+          "title": "Live Q&A",
+          "description": "Ask questions specific to your business workflows."
+        },
+        "practices": {
+          "title": "Best Practices",
+          "description": "Learn implementation tips and recommended workflows."
+        }
+      }
+    },
+    "booking": {
+      "scheduleTitle": "Choose Your Preferred Date & Time",
+      "scheduleHint": "Pick a day and slot that works for your team.",
+      "calendarLabel": "Calendar",
+      "slotsLabel": "Available Time Slots",
+      "prevMonth": "Previous month",
+      "nextMonth": "Next month",
+      "weekdays": {
+        "sun": "Su",
+        "mon": "Mo",
+        "tue": "Tu",
+        "wed": "We",
+        "thu": "Th",
+        "fri": "Fr",
+        "sat": "Sa"
+      },
+      "detailsTitle": "Your Details",
+      "detailsHint": "Tell us a bit about you so we can personalize the demo.",
+      "fields": {
+        "fullName": "Full Name",
+        "email": "Work Email",
+        "company": "Company Name",
+        "phone": "Phone Number",
+        "companySize": "Company Size",
+        "purpose": "Purpose of Demo"
+      },
+      "placeholders": {
+        "fullName": "Jane Doe",
+        "email": "jane@company.com",
+        "company": "Acme Inc.",
+        "phone": "+1 555 000 0000",
+        "companySize": "Select company size",
+        "purpose": "Select purpose"
+      },
+      "purposeOptions": {
+        "overview": "Product Overview",
+        "collaboration": "Team Collaboration",
+        "ai": "AI Automation",
+        "enterprise": "Enterprise Discussion",
+        "other": "Other"
+      },
+      "privacyAgree": "I agree to the <privacy>Privacy Policy</privacy>.",
+      "cta": "Book Demo",
+      "meetNote": "Google Meet details will be shared after confirmation.",
+      "errors": {
+        "nameRequired": "Full name is required.",
+        "emailInvalid": "Enter a valid work email.",
+        "privacyRequired": "Please agree to the Privacy Policy.",
+        "dateRequired": "Please select a date.",
+        "slotRequired": "Please select a time slot."
+      },
+      "summary": {
+        "title": "Demo Summary",
+        "date": "Date",
+        "time": "Time",
+        "duration": "Duration",
+        "platform": "Platform",
+        "price": "Price",
+        "durationValue": "30 Minutes",
+        "platformValue": "Google Meet",
+        "priceValue": "FREE",
+        "pending": "Not selected",
+        "perks": {
+          "invite": "Calendar invite",
+          "meet": "Google Meet link",
+          "reminder": "Reminder email"
+        }
+      },
+      "success": {
+        "title": "Demo Scheduled Successfully!",
+        "subtitle": "Your personalized demo has been reserved.",
+        "whatsNext": "What's Next",
+        "backHome": "Back to Home",
+        "bookAnother": "Book Another Demo",
+        "summary": {
+          "date": "Date",
+          "time": "Time",
+          "duration": "Duration",
+          "platform": "Platform",
+          "durationValue": "30 Minutes",
+          "platformValue": "Google Meet"
+        },
+        "next": {
+          "email": "Confirmation email will be sent",
+          "meet": "Google Meet invitation will be shared",
+          "reminder": "Calendar reminder before your meeting",
+          "contact": "Our team will contact you if anything changes"
+        }
+      }
+    },
+    "why": {
+      "title": "Why Book a Demo?",
+      "subtitle": "A short session designed to help you understand how Whats-Auto fits your business.",
+      "items": {
+        "duration": {
+          "title": "30 Minutes",
+          "description": "Quick and focused product walkthrough."
+        },
+        "personalized": {
+          "title": "Personalized",
+          "description": "Tailored according to your business needs."
+        },
+        "free": {
+          "title": "Free Consultation",
+          "description": "No cost, no obligation."
+        }
+      }
+    },
+    "cta": {
+      "badge": "🚀 Get Started",
+      "title": "Ready to Explore Whats-Auto?",
+      "description": "Book a free demo and discover how AI-powered WhatsApp automation can help your business scale.",
+      "primary": "Book Your Slot",
+      "secondary": "Contact Sales",
+      "secondaryBadge": "Coming Soon",
+      "secondaryTooltip": "Contact Sales is coming soon"
+    }
+  },
+  "aboutPage": {
+    "metaTitle": "About — Whats-Auto",
+    "metaDescription": "Learn how Whats-Auto helps businesses automate WhatsApp conversations with AI, shared inboxes, and secure multi-tenant workspaces.",
+    "hero": {
+      "badge": "🚀 About Whats-Auto",
+      "title": "Building Smarter WhatsApp Automation for Modern Businesses",
+      "description": "Whats-Auto helps businesses automate customer conversations, streamline communication, and improve engagement using AI-powered workflows designed for speed, reliability, and scalability.",
+      "ctaPrimary": "Get Started",
+      "ctaSecondary": "Explore Features",
+      "visualLabel": "WhatsApp AI automation illustration",
+      "illustration": {
+        "businessName": "Whats-Auto Store",
+        "businessStatus": "online · AI assisted",
+        "todayLabel": "Today",
+        "customerMessage": "Hi, can you help with my order status?",
+        "aiLabel": "AI Assistant",
+        "aiReply": "Sure — I can check that for you right away.",
+        "timeCustomer": "10:24",
+        "timeAi": "10:24",
+        "aiChip": "AI Assistant",
+        "aiChipStatus": "Replying instantly",
+        "nodeTrigger": "Trigger",
+        "nodeAi": "AI",
+        "nodeReply": "Reply",
+        "workflowLabel": "Automation flow"
+      }
+    },
+    "mission": {
+      "title": "Our Mission",
+      "content": "Our mission is to simplify business communication by making WhatsApp automation accessible, intelligent, and easy to use. We aim to reduce repetitive work so businesses can focus on building meaningful customer relationships."
+    },
+    "why": {
+      "title": "Why We Built Whats-Auto",
+      "subtitle": "Businesses deserve automation that is simple, reliable, and intelligent.",
+      "items": {
+        "speed": {
+          "title": "Faster Communication",
+          "description": "Respond to customers instantly."
+        },
+        "ai": {
+          "title": "AI-Powered Automation",
+          "description": "Reduce repetitive manual work."
+        },
+        "growth": {
+          "title": "Business Growth",
+          "description": "Improve customer engagement through automation."
+        },
+        "security": {
+          "title": "Secure by Design",
+          "description": "Built with security and scalability in mind."
+        }
+      }
+    },
+    "values": {
+      "title": "Our Core Values",
+      "items": {
+        "innovation": {
+          "title": "Innovation",
+          "description": "Continuously improving through AI and modern technologies."
+        },
+        "reliability": {
+          "title": "Reliability",
+          "description": "Building products businesses can trust every day."
+        },
+        "security": {
+          "title": "Security",
+          "description": "Protecting customer data and conversations."
+        },
+        "customerFirst": {
+          "title": "Customer First",
+          "description": "Designing every feature around real business needs."
+        }
+      }
+    },
+    "vision": {
+      "title": "Our Vision",
+      "content": "We envision a future where every business, regardless of size, can automate customer interactions with intelligent AI while maintaining a personal and human experience."
+    },
+    "cta": {
+      "title": "Ready to Experience Whats-Auto?",
+      "description": "Discover how AI-powered WhatsApp automation can transform your customer communication.",
+      "primary": "Get Started",
+      "secondary": "Book Demo"
+    }
+  },
+  "contactPage": {
+    "metaTitle": "Contact — Whats-Auto",
+    "metaDescription": "Get in touch with the Whats-Auto team for product, onboarding, and support questions.",
+    "title": "Contact Us",
+    "description": "Have questions about Whats-Auto, pricing, onboarding, or integrations? Send us a message and our team will get back to you.",
+    "emailLabel": "Contact email:",
+    "email": "hello@whats-auto.com",
+    "form": {
+      "name": "Name",
+      "email": "Email",
+      "message": "Message",
+      "submit": "Send Message"
+    },
+    "placeholders": {
+      "name": "Enter your name",
+      "email": "you@company.com",
+      "message": "Tell us how we can help."
+    }
+  },
+  "privacyPage": {
+    "metaTitle": "Privacy Policy — Whats-Auto",
+    "metaDescription": "Learn how Whats-Auto collects, uses, and protects your information when you use our WhatsApp automation platform.",
+    "hero": {
+      "badge": "🔒 Privacy Policy",
+      "title": "Your Privacy Matters",
+      "description": "At Whats-Auto, protecting your data is one of our highest priorities. This Privacy Policy explains what information we collect, how we use it, and how we keep it secure.",
+      "updatedLabel": "Last Updated",
+      "updatedDate": "July 2026"
+    },
+    "nav": {
+      "title": "On This Page",
+      "mobileTitle": "Contents",
+      "collect": "Information We Collect",
+      "use": "How We Use Your Information",
+      "protection": "Data Protection",
+      "cookies": "Cookies",
+      "thirdParty": "Third-Party Services",
+      "rights": "Your Rights",
+      "updates": "Policy Updates",
+      "contact": "Contact"
+    },
+    "sections": {
+      "collect": {
+        "title": "Information We Collect",
+        "content": "We may collect information such as your name, email address, company details, and account preferences when you use Whats-Auto."
+      },
+      "use": {
+        "title": "How We Use Your Information",
+        "content": "Your information is used to:",
+        "bullets": [
+          "Create and manage your account",
+          "Improve our services",
+          "Provide customer support",
+          "Send important notifications",
+          "Maintain platform security"
+        ]
+      },
+      "protection": {
+        "title": "Data Protection",
+        "content": "We implement industry-standard security practices to protect your information from unauthorized access, alteration, or disclosure."
+      },
+      "cookies": {
+        "title": "Cookies",
+        "content": "We may use cookies and similar technologies to improve your browsing experience and understand product usage."
+      },
+      "thirdParty": {
+        "title": "Third-Party Services",
+        "content": "Our platform may integrate with trusted third-party services such as authentication providers, analytics tools, and cloud infrastructure."
+      },
+      "rights": {
+        "title": "Your Rights",
+        "content": "You may request access, correction, or deletion of your personal information by contacting our support team."
+      },
+      "updates": {
+        "title": "Policy Updates",
+        "content": "This Privacy Policy may be updated periodically. Any significant changes will be reflected on this page."
+      }
+    },
+    "contact": {
+      "title": "Questions About Privacy?",
+      "description": "If you have any questions regarding this Privacy Policy or your personal data, feel free to contact our support team.",
+      "email": "support@whats-auto.com",
+      "button": "Contact Support",
+      "buttonBadge": "Coming Soon",
+      "buttonTooltip": "Contact Support is coming soon"
+    }
+  },
+  "termsPage": {
+    "metaTitle": "Terms & Conditions — Whats-Auto",
+    "metaDescription": "Read the Terms & Conditions for using Whats-Auto, our AI-powered WhatsApp automation platform.",
+    "hero": {
+      "badge": "📄 Terms & Conditions",
+      "title": "Terms & Conditions",
+      "description": "Please read these terms carefully before using Whats-Auto. By accessing or using our platform, you agree to be bound by these Terms & Conditions."
+    },
+    "updated": {
+      "label": "Last Updated",
+      "date": "July 2026",
+      "note": "We may update these terms as Whats-Auto evolves. Significant changes will appear on this page."
+    },
+    "nav": {
+      "title": "On This Page",
+      "mobileTitle": "Contents",
+      "acceptance": "Acceptance of Terms",
+      "accounts": "User Accounts",
+      "acceptableUse": "Acceptable Use",
+      "intellectualProperty": "Intellectual Property",
+      "availability": "Service Availability",
+      "liability": "Limitation of Liability",
+      "updates": "Changes to Terms",
+      "governingLaw": "Governing Law",
+      "contact": "Contact"
+    },
+    "sections": {
+      "acceptance": {
+        "title": "Acceptance of Terms",
+        "content": "By accessing or using Whats-Auto, you agree to be bound by these Terms & Conditions."
+      },
+      "accounts": {
+        "title": "User Accounts",
+        "content": "Users are responsible for maintaining the confidentiality of their account credentials and all activities performed under their account."
+      },
+      "acceptableUse": {
+        "title": "Acceptable Use",
+        "content": "Users agree not to misuse the platform, interfere with its operation, or attempt unauthorized access to any systems or data."
+      },
+      "intellectualProperty": {
+        "title": "Intellectual Property",
+        "content": "All software, branding, designs, content, and platform features are the property of Whats-Auto unless otherwise stated."
+      },
+      "availability": {
+        "title": "Service Availability",
+        "content": "We strive to provide reliable services but cannot guarantee uninterrupted availability at all times."
+      },
+      "liability": {
+        "title": "Limitation of Liability",
+        "content": "Whats-Auto shall not be liable for indirect, incidental, or consequential damages arising from the use of the platform."
+      },
+      "updates": {
+        "title": "Changes to Terms",
+        "content": "We may update these Terms & Conditions from time to time. Continued use of the platform after updates constitutes acceptance of the revised terms."
+      },
+      "governingLaw": {
+        "title": "Governing Law",
+        "content": "These Terms & Conditions shall be governed by the applicable laws and regulations of the jurisdiction in which Whats-Auto operates."
+      }
+    },
+    "contact": {
+      "title": "Need Help?",
+      "description": "If you have questions regarding these Terms & Conditions, our team is here to help.",
+      "email": "support@whats-auto.com",
+      "button": "Contact Support",
+      "buttonBadge": "Coming Soon",
+      "buttonTooltip": "Contact Support is coming soon"
+    }
+  },
   "featuresPage": {
+    "metaTitle": "Features — Whats-Auto",
+    "metaDescription": "Everything you need to automate WhatsApp conversations — AI assistant, broadcasts, shared inbox, analytics, and secure multi-tenant workspaces.",
     "title": "Features",
-    "subtitle": "Everything Whats-Auto offers to automate WhatsApp for your business."
+    "subtitle": "Everything Whats-Auto offers to automate WhatsApp for your business.",
+    "hero": {
+      "badge": "✨ Product Features",
+      "title": "Everything you need to automate WhatsApp conversations.",
+      "description": "Manage conversations, automate replies, launch campaigns, collaborate with your team, and grow your business using one intelligent workspace.",
+      "ctaPrimary": "Get Started",
+      "ctaSecondary": "Explore Features",
+      "visualLabel": "WhatsApp workspace preview",
+      "mock": {
+        "workspaceTitle": "Whats-Auto Workspace",
+        "inboxLabel": "Shared inbox · Live",
+        "online": "Online",
+        "threadName": "Whats-Auto Store",
+        "customerMsg": "Hi, I'd like to know today's offers.",
+        "aiMsg": "I can help with offers, catalog, and order status. What should we explore?",
+        "aiBadge": "AI Assistant",
+        "chips": {
+          "ai": "AI Assistant",
+          "broadcast": "Broadcast Campaign",
+          "inbox": "Shared Inbox",
+          "analytics": "Analytics",
+          "auth": "Secure Authentication",
+          "tenant": "Multi Tenant"
+        }
+      }
+    },
+    "grid": {
+      "title": "Everything included",
+      "subtitle": "Designed for growing teams and modern businesses.",
+      "items": {
+        "ai": {
+          "title": "AI Assistant",
+          "bullets": [
+            "AI-generated replies",
+            "Context-aware suggestions",
+            "Smart automation"
+          ]
+        },
+        "broadcast": {
+          "title": "Broadcast Campaigns",
+          "bullets": [
+            "Create campaigns",
+            "Schedule broadcasts",
+            "Delivery tracking"
+          ]
+        },
+        "inbox": {
+          "title": "Shared Team Inbox",
+          "bullets": [
+            "Assign conversations",
+            "Collaborate",
+            "Notes & mentions"
+          ]
+        },
+        "analytics": {
+          "title": "Analytics",
+          "bullets": [
+            "Conversation metrics",
+            "Response time",
+            "Campaign performance"
+          ]
+        },
+        "multiTenant": {
+          "title": "Multi-Tenant",
+          "bullets": [
+            "Separate organizations",
+            "Workspace isolation",
+            "Role management"
+          ]
+        },
+        "auth": {
+          "title": "Secure Authentication",
+          "bullets": [
+            "Google OAuth",
+            "OTP verification",
+            "Password recovery & JWT"
+          ]
+        },
+        "workflow": {
+          "title": "Workflow Automation",
+          "bullets": [
+            "Automated flows",
+            "Message triggers",
+            "Conditional actions"
+          ]
+        },
+        "templates": {
+          "title": "Templates",
+          "bullets": [
+            "Saved responses",
+            "Reusable campaigns",
+            "Quick deployment"
+          ]
+        }
+      }
+    },
+    "spotlights": {
+      "title": "Built for Real Workflows",
+      "subtitle": "See how each capability helps your team reply faster and grow conversations.",
+      "items": {
+        "ai": {
+          "title": "AI Assistant",
+          "description": "Answer customers instantly with human-like AI replies, then hand off to your team when needed.",
+          "visualLabel": "AI assistant conversation",
+          "points": [
+            "AI replies",
+            "Human handoff",
+            "Smart suggestions",
+            "Instant responses"
+          ]
+        },
+        "broadcast": {
+          "title": "Broadcast Campaigns",
+          "description": "Reach opted-in audiences with scheduled campaigns and clear delivery visibility.",
+          "visualLabel": "Broadcast campaign mockup",
+          "points": [
+            "Schedule",
+            "Segment contacts",
+            "Delivery insights"
+          ]
+        },
+        "inbox": {
+          "title": "Team Collaboration",
+          "description": "Run support from one shared WhatsApp workspace with assignment and internal context.",
+          "visualLabel": "Shared inbox illustration",
+          "points": [
+            "Assign chats",
+            "Internal notes",
+            "Multi-agent support"
+          ]
+        },
+        "analytics": {
+          "title": "Analytics & Reports",
+          "description": "Understand engagement and campaign performance without leaving your workspace.",
+          "visualLabel": "Analytics illustration",
+          "points": [
+            "Campaign metrics",
+            "Reply rates",
+            "Team performance"
+          ]
+        }
+      }
+    },
+    "workflow": {
+      "title": "How it works",
+      "subtitle": "Go from connected WhatsApp to automated conversations in five clear steps.",
+      "steps": {
+        "connect": {
+          "title": "Connect WhatsApp",
+          "description": "Link your official WhatsApp Business API account securely."
+        },
+        "import": {
+          "title": "Import Contacts",
+          "description": "Bring in opted-in contacts and organize them into segments."
+        },
+        "launch": {
+          "title": "Launch Campaign",
+          "description": "Send broadcasts or start automated conversation flows."
+        },
+        "ai": {
+          "title": "AI Handles Replies",
+          "description": "Let AI answer common questions and escalate when needed."
+        },
+        "track": {
+          "title": "Track Analytics",
+          "description": "Monitor delivery, engagement, and team response trends."
+        }
+      }
+    },
+    "security": {
+      "title": "Enterprise-grade security",
+      "subtitle": "Protect every workspace with authentication, access control, and encrypted APIs.",
+      "comingSoon": "Coming Soon",
+      "items": {
+        "oauth": {
+          "title": "OAuth",
+          "description": "Sign in with Google OAuth for a fast, trusted login experience."
+        },
+        "otp": {
+          "title": "OTP Verification",
+          "description": "Verify accounts with one-time codes during registration."
+        },
+        "jwt": {
+          "title": "JWT Authentication",
+          "description": "Secure session tokens for authenticated API access."
+        },
+        "rbac": {
+          "title": "RBAC",
+          "description": "Role-based access control across teams and workspaces."
+        },
+        "encrypted": {
+          "title": "Encrypted API",
+          "description": "TLS-protected API traffic for secure data in transit."
+        },
+        "audit": {
+          "title": "Audit Logs",
+          "description": "Track sensitive authorization events across your organization."
+        }
+      }
+    },
+    "cta": {
+      "title": "Ready to automate your customer conversations?",
+      "description": "Start your workspace in minutes.",
+      "primary": "Get Started",
+      "secondary": "Book Demo"
+    }
   },
   "pricingPage": {
+    "metaTitle": "Pricing — Whats-Auto",
+    "metaDescription": "Simple, transparent pricing for WhatsApp automation. Start small and scale as your customer conversations grow.",
     "title": "Pricing",
-    "subtitle": "Choose the plan that fits your team. Start free and upgrade when you need more.",
-    "starter": {
-      "name": "Starter",
-      "price": "Free",
-      "period": "forever",
-      "description": "Perfect for solo founders getting started",
-      "cta": "Get started"
+    "subtitle": "Choose a plan that fits your business. Start small and scale as your customer conversations grow.",
+    "hero": {
+      "badge": "💰 Pricing",
+      "title": "Simple, Transparent Pricing",
+      "subtitle": "Choose a plan that fits your business. Start small and scale as your customer conversations grow.",
+      "ctaPrimary": "Get Started",
+      "ctaSecondary": "Contact Sales"
     },
-    "growth": {
-      "name": "Growth",
-      "price": "₹999",
-      "period": "/month",
-      "description": "For growing teams with higher volume",
-      "cta": "Start trial"
+    "plans": {
+      "starter": {
+        "name": "Starter",
+        "price": "₹499",
+        "period": "/ month",
+        "description": "Perfect for individuals and small businesses.",
+        "cta": "Get Started",
+        "features": [
+          "AI Assistant",
+          "Shared Inbox",
+          "Broadcast Campaigns",
+          "Basic Analytics",
+          "Email Support"
+        ]
+      },
+      "growth": {
+        "name": "Growth",
+        "badge": "Most Popular",
+        "price": "₹1,499",
+        "period": "/ month",
+        "description": "For growing teams ready to scale conversations.",
+        "cta": "Start Growing",
+        "features": [
+          "Everything in Starter",
+          "Multi-Tenant Workspace",
+          "Team Collaboration",
+          "Advanced Analytics",
+          "Workflow Automation",
+          "Priority Support"
+        ]
+      },
+      "enterprise": {
+        "name": "Enterprise",
+        "price": "Custom Pricing",
+        "period": "",
+        "description": "For large organizations.",
+        "cta": "Contact Sales",
+        "features": [
+          "Everything in Growth",
+          "Dedicated Support",
+          "Custom Integrations",
+          "SLA",
+          "Enterprise Security",
+          "Custom Onboarding"
+        ]
+      }
     },
-    "enterprise": {
-      "name": "Enterprise",
-      "price": "Custom",
-      "period": "",
-      "description": "For large organizations with custom needs",
-      "cta": "Contact sales"
+    "comparison": {
+      "title": "Compare plans",
+      "subtitle": "See what’s included at every tier—no hidden feature fluff.",
+      "featureLabel": "Feature",
+      "columns": {
+        "starter": "Starter",
+        "growth": "Growth",
+        "enterprise": "Enterprise"
+      },
+      "rows": {
+        "ai": "AI Assistant",
+        "broadcast": "Broadcast Campaigns",
+        "inbox": "Shared Inbox",
+        "templates": "Templates",
+        "analytics": "Analytics",
+        "multiTenant": "Multi-Tenant",
+        "workflow": "Workflow Automation",
+        "prioritySupport": "Priority Support",
+        "dedicatedSupport": "Dedicated Support"
+      },
+      "values": {
+        "yes": "Included",
+        "no": "Not included",
+        "custom": "Custom"
+      }
+    },
+    "faq": {
+      "title": "Frequently asked questions",
+      "subtitle": "Quick answers about plans, billing, and support.",
+      "items": {
+        "upgrade": {
+          "question": "How can I upgrade?",
+          "answer": "You can upgrade anytime from your workspace settings. Changes apply to your next billing cycle, and your team keeps access to new features immediately after upgrading."
+        },
+        "cancel": {
+          "question": "Can I cancel anytime?",
+          "answer": "Yes. You can cancel your plan at any time. You’ll retain access until the end of your current billing period, with no long-term contracts on Starter or Growth."
+        },
+        "trial": {
+          "question": "Do you offer free trials?",
+          "answer": "We offer a free trial so you can explore the workspace before committing. Start with Get Started to create your account and evaluate core features."
+        },
+        "enterprise": {
+          "question": "Do you support enterprise deployments?",
+          "answer": "Yes. Enterprise plans include dedicated support, custom integrations, SLA options, and security requirements tailored to larger organizations."
+        },
+        "support": {
+          "question": "How do I contact support?",
+          "answer": "Email support is included on every plan. Growth includes priority support, and Enterprise customers get a dedicated support channel. You can also reach sales at sales@whats-auto.com."
+        }
+      }
+    },
+    "cta": {
+      "title": "Ready to automate your WhatsApp conversations?",
+      "description": "Start your workspace today and scale with confidence.",
+      "primary": "Get Started",
+      "secondary": "Contact Sales"
     }
   },
   "features": {
@@ -254,87 +1111,680 @@
   "auth": {
     "login": {
       "title": "Welcome back",
-      "subtitle": "Enter your email below to login to your account",
+      "subtitle": "Sign in to continue to your workspace.",
       "email": "Email",
       "password": "Password",
+      "rememberMe": "Remember me",
       "forgotPassword": "Forgot password?",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password",
       "submit": "Login",
       "submitting": "Signing in…",
       "orContinue": "Or continue with",
       "google": "Login with Google",
       "noAccount": "Don't have an account?",
-      "signUp": "Sign up",
+      "signUp": "Create account",
       "errors": {
         "generic": "Something went wrong. Please try again.",
-        "emailExists": "An account with this email already exists. Please sign in with your password."
+        "emailExists": "An account with this email already exists. Please sign in with your password.",
+        "emailRequired": "Email is required.",
+        "emailInvalid": "Enter a valid email address.",
+        "passwordRequired": "Password is required."
       }
     },
     "register": {
       "title": "Create your account",
-      "subtitle": "Get started with Whats-Auto",
+      "subtitle": "Start automating customer conversations in just a few minutes.",
       "firstname": "First Name",
       "lastname": "Last Name",
       "email": "Email",
       "password": "Password",
       "confirmPassword": "Confirm Password",
       "passwordHint": "Must be at least 8 characters long.",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password",
+      "showConfirmPassword": "Show confirm password",
+      "hideConfirmPassword": "Hide confirm password",
+      "passwordStrengthLabel": "Password strength",
+      "passwordStrength": {
+        "weak": "Weak",
+        "medium": "Medium",
+        "strong": "Strong"
+      },
       "submit": "Create Account",
       "submitting": "Creating account…",
       "orContinue": "Or continue with",
-      "google": "Sign up with Google",
+      "google": "Continue with Google",
       "haveAccount": "Already have an account?",
-      "signIn": "Sign in",
-      "otpTitle": "Verify your email",
-      "otpSubtitle": "We sent a 6-digit code to {email}",
+      "signIn": "Sign In",
+      "otpTitle": "Verify Code",
+      "otpSubtitle": "We've sent a 6-digit verification code to your email.",
+      "otpSubtitleWithEmail": "We've sent a 6-digit verification code to {email}.",
       "otpLabel": "Verification code",
-      "verify": "Verify email",
+      "otpHint": "Enter the 6-digit code from your email.",
+      "otpCountdown": "Code expires in {time}",
+      "otpCountdownReady": "Code ready — you can resend now",
+      "verify": "Verify Code",
       "verifying": "Verifying…",
-      "resendOtp": "Resend code",
-      "resendOtpCooldown": "Resend code in {seconds}s",
+      "resendOtp": "Resend Code",
+      "resendOtpCooldown": "Resend Code in {seconds}s",
+      "changeEmail": "Use a different email",
+      "backToLogin": "Back to Login",
       "back": "Back",
       "errors": {
         "generic": "Something went wrong. Please try again.",
         "emailExists": "An account with this email already exists. Please sign in with your password.",
         "passwordMismatch": "Passwords do not match.",
-        "passwordLength": "Password must be at least 8 characters."
+        "passwordLength": "Password must be at least 8 characters.",
+        "firstnameRequired": "First name is required.",
+        "lastnameRequired": "Last name is required.",
+        "emailRequired": "Email is required.",
+        "emailInvalid": "Enter a valid email address.",
+        "passwordRequired": "Password is required.",
+        "confirmPasswordRequired": "Confirm your password.",
+        "otpRequired": "Enter the verification code.",
+        "otpInvalid": "Enter a valid 6-digit code."
       }
     },
     "forgotPassword": {
-      "title": "Forgot your password?",
-      "subtitle": "Enter your email and we'll send you a reset link.",
+      "title": "Forgot Password",
+      "subtitle": "Enter the email associated with your account and we'll send you a secure password reset link.",
       "email": "Email",
-      "submit": "Send reset link",
+      "submit": "Send Reset Link",
       "submitting": "Sending…",
       "sentTitle": "Check your email",
-      "sentSubtitle": "We sent a password reset link to {email}. It expires in 1 hour.",
-      "backToLogin": "Back to login",
+      "sentSubtitle": "If an account exists for this email, we've sent a password reset link.",
+      "resend": "Resend email",
+      "resending": "Sending…",
+      "resendCooldown": "Resend email in {seconds}s",
+      "backToLogin": "Back to Login",
       "errors": {
         "generic": "Something went wrong. Please try again.",
-        "useGoogle": "This account uses Google sign-in. Please sign in with Google instead."
+        "useGoogle": "This account uses Google sign-in. Please sign in with Google instead.",
+        "emailRequired": "Email is required.",
+        "emailInvalid": "Enter a valid email address."
       }
     },
     "resetPassword": {
-      "title": "Set new password",
-      "subtitle": "Enter your new password below.",
+      "title": "Reset Password",
+      "subtitle": "Choose a strong password for your account.",
       "password": "New Password",
-      "confirmPassword": "Confirm New Password",
-      "submit": "Reset password",
-      "submitting": "Resetting…",
-      "successTitle": "Password reset!",
+      "confirmPassword": "Confirm Password",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password",
+      "showConfirmPassword": "Show confirm password",
+      "hideConfirmPassword": "Hide confirm password",
+      "passwordStrengthLabel": "Password strength",
+      "passwordStrength": {
+        "weak": "Weak",
+        "medium": "Medium",
+        "strong": "Strong"
+      },
+      "requirements": {
+        "length": "At least 8 characters",
+        "case": "Uppercase and lowercase letters",
+        "number": "At least one number",
+        "special": "At least one special character"
+      },
+      "submit": "Update Password",
+      "submitting": "Updating…",
+      "successTitle": "Password updated",
       "successSubtitle": "Your password has been updated. Redirecting to login…",
       "requestNew": "Request a new reset link",
+      "backToLogin": "Back to Login",
       "errors": {
         "generic": "Something went wrong. Please try again.",
         "mismatch": "Passwords do not match.",
         "length": "Password must be at least 8 characters.",
-        "invalidToken": "This reset link is invalid or missing."
+        "invalidToken": "This reset link is invalid or missing.",
+        "passwordRequired": "Password is required.",
+        "confirmRequired": "Confirm your password."
       }
     }
   },
   "dashboard": {
+    "brand": "Whats-Auto",
+    "brandTagline": "Workspace",
     "title": "Dashboard",
-    "subtitle": "You're signed in.",
+    "subtitle": "Welcome back! Here's an overview of your WhatsApp workspace.",
     "loading": "Loading…",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "nav": {
+      "ariaLabel": "Dashboard navigation",
+      "comingSoon": "Coming soon",
+      "dashboard": "Dashboard",
+      "contacts": "Contacts",
+      "inbox": "Inbox",
+      "messages": "Messages",
+      "campaigns": "Campaigns",
+      "templates": "Templates",
+      "notifications": "Notifications",
+      "analytics": "Analytics",
+      "billing": "Billing",
+      "auditLogs": "Audit Logs",
+      "settings": "Settings"
+    },
+    "sidebar": {
+      "planLabel": "Current plan",
+      "planName": "Growth",
+      "collapse": "Collapse sidebar",
+      "expand": "Expand sidebar"
+    },
+    "workspace": {
+      "listLabel": "Workspaces",
+      "active": "Active",
+      "members": "members",
+      "create": "Create workspace",
+      "primary": "Acme Workspace",
+      "secondary": "Demo Store"
+    },
+    "topbar": {
+      "openMenu": "Open navigation",
+      "searchLabel": "Search workspace",
+      "searchPlaceholder": "Find contacts, conversations, campaigns, or templates…",
+      "searchShortcutLabel": "Focus search ({shortcut})",
+      "notifications": "Notifications",
+      "profile": "Profile",
+      "profileMenu": "Open account menu",
+      "myProfile": "My Profile",
+      "workspace": "Workspace",
+      "billing": "Billing",
+      "settings": "Settings",
+      "guestName": "Account"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "markAllRead": "Mark all as read",
+      "markRead": "Mark as read",
+      "empty": "You’re all caught up",
+      "unread": "Unread",
+      "unreadCount": "{count} unread"
+    },
+    "theme": {
+      "switchToLight": "Switch to light mode",
+      "switchToDark": "Switch to dark mode"
+    },
+    "home": {
+      "eyebrow": "Overview",
+      "welcome": "Welcome back",
+      "welcomeNamed": "Welcome back, {name}",
+      "subtitle": "Here’s what’s happening across your WhatsApp automation workspace today.",
+      "kpis": {
+        "contacts": {
+          "label": "Total Contacts",
+          "hint": "vs last 30 days"
+        },
+        "conversations": {
+          "label": "Active Conversations",
+          "hint": "open right now"
+        },
+        "campaigns": {
+          "label": "Campaigns Sent",
+          "hint": "this month"
+        },
+        "delivery": {
+          "label": "Delivery Rate",
+          "hint": "last 7 days"
+        }
+      },
+      "conversations": {
+        "title": "Recent Conversations",
+        "description": "Latest chats across your connected numbers.",
+        "viewAll": "View all",
+        "status": {
+          "open": "Open",
+          "waiting": "Waiting",
+          "resolved": "Resolved"
+        }
+      },
+      "campaigns": {
+        "title": "Recent Campaigns",
+        "description": "Broadcast performance at a glance.",
+        "sent": "Sent",
+        "delivered": "Delivered",
+        "status": {
+          "sent": "Sent",
+          "scheduled": "Scheduled",
+          "draft": "Draft"
+        },
+        "progress": {
+          "sent": "Delivery",
+          "scheduled": "Ready",
+          "draft": "Progress"
+        },
+        "actions": {
+          "view": "View",
+          "edit": "Edit",
+          "duplicate": "Duplicate",
+          "pause": "Pause",
+          "delete": "Delete"
+        }
+      },
+      "quickActions": {
+        "title": "Quick Actions",
+        "description": "Jump into the workflows you use most.",
+        "newCampaign": "New Campaign",
+        "newCampaignDesc": "Launch a broadcast to a contact segment.",
+        "addContact": "Add Contact",
+        "addContactDesc": "Create or import contacts into your list.",
+        "createTemplate": "Create Template",
+        "createTemplateDesc": "Design a reusable WhatsApp message template.",
+        "broadcastMessage": "Broadcast Message",
+        "broadcastMessageDesc": "Send a one-time message to your audience."
+      },
+      "activity": {
+        "title": "Recent Activity",
+        "description": "A live trail of workspace events."
+      }
+    }
+  },
+  "admin": {
+    "brand": "Whats-Auto",
+    "brandTagline": "Super Admin",
+    "nav": {
+      "ariaLabel": "Admin navigation",
+      "comingSoon": "Coming soon",
+      "dashboard": "Dashboard",
+      "organizations": "Organizations",
+      "subscriptions": "Subscriptions",
+      "platformUsers": "Platform Users",
+      "analytics": "Analytics",
+      "auditLogs": "Audit Logs",
+      "settings": "Settings"
+    },
+    "sidebar": {
+      "roleLabel": "Access level",
+      "roleName": "Super Admin",
+      "collapse": "Collapse sidebar",
+      "expand": "Expand sidebar"
+    },
+    "navbar": {
+      "openMenu": "Open admin navigation",
+      "title": "Platform console",
+      "subtitle": "Manage organizations, subscriptions, and platform users",
+      "logout": "Logout"
+    },
+    "home": {
+      "eyebrow": "Platform overview",
+      "title": "Admin dashboard",
+      "subtitle": "Monitor organizations, subscriptions, and platform health at a glance.",
+      "kpis": {
+        "totalOrganizations": {
+          "label": "Total Organizations",
+          "hint": "All registered tenants"
+        },
+        "activeOrganizations": {
+          "label": "Active Organizations",
+          "hint": "Paying or engaged"
+        },
+        "trialOrganizations": {
+          "label": "Trial Organizations",
+          "hint": "Currently on trial"
+        },
+        "suspendedOrganizations": {
+          "label": "Suspended Organizations",
+          "hint": "Access paused"
+        },
+        "totalPlatformUsers": {
+          "label": "Total Platform Users",
+          "hint": "Across all tenants"
+        },
+        "monthlyRevenue": {
+          "label": "Monthly Revenue",
+          "hint": "Current billing period"
+        },
+        "activeWhatsappNumbers": {
+          "label": "Active WhatsApp Numbers",
+          "hint": "Connected numbers"
+        },
+        "pendingSupportTickets": {
+          "label": "Pending Support Tickets",
+          "hint": "Awaiting response"
+        }
+      },
+      "charts": {
+        "orgGrowth": {
+          "title": "Organization Growth",
+          "description": "New and cumulative organizations over the last 6 months.",
+          "ariaLabel": "Line chart of organization growth by month"
+        },
+        "subscriptions": {
+          "title": "Subscription Distribution",
+          "description": "Active plans across the platform.",
+          "ariaLabel": "Donut chart of subscription plan distribution",
+          "totalLabel": "Orgs",
+          "plans": {
+            "starter": "Starter",
+            "growth": "Growth",
+            "pro": "Pro",
+            "enterprise": "Enterprise"
+          }
+        },
+        "revenue": {
+          "title": "Revenue Trend",
+          "description": "Monthly recurring revenue for the last 6 months.",
+          "ariaLabel": "Bar chart of monthly revenue. Peak near {max}."
+        }
+      },
+      "activity": {
+        "title": "Recent Activity",
+        "description": "Latest platform events across tenants.",
+        "items": {
+          "orgCreated": "New organization created",
+          "orgCreatedDetail": "Nova Retail joined Whats-Auto on the Growth plan.",
+          "planUpgraded": "Subscription upgraded",
+          "planUpgradedDetail": "Acme Workspace moved from Starter to Pro.",
+          "ticketOpened": "Support ticket opened",
+          "ticketOpenedDetail": "Priority billing issue from Contoso Logistics.",
+          "userInvited": "Platform user invited",
+          "userInvitedDetail": "Admin invite sent to ops@brightpath.io.",
+          "paymentReceived": "Payment received",
+          "paymentReceivedDetail": "$1,290 collected from Horizon Health (Pro)."
+        }
+      }
+    },
+    "organizations": {
+      "eyebrow": "Tenant management",
+      "title": "Organizations",
+      "subtitle": "Search, filter, and manage every organization on the platform.",
+      "tableTitle": "All organizations",
+      "tableDescription": "{count, plural, =0 {No organizations match} one {# organization} other {# organizations}}",
+      "searchLabel": "Search organizations",
+      "searchPlaceholder": "Search by name, slug, or owner…",
+      "statusFilterLabel": "Filter by status",
+      "planFilterLabel": "Filter by plan",
+      "empty": "No organizations match your filters.",
+      "columns": {
+        "organization": "Organization",
+        "owner": "Owner",
+        "plan": "Plan",
+        "status": "Status",
+        "members": "Members",
+        "created": "Created Date",
+        "actions": "Actions"
+      },
+      "filters": {
+        "status": {
+          "all": "All statuses",
+          "active": "Active",
+          "trial": "Trial",
+          "suspended": "Suspended"
+        },
+        "plan": {
+          "all": "All plans",
+          "starter": "Starter",
+          "growth": "Growth",
+          "pro": "Pro",
+          "enterprise": "Enterprise"
+        }
+      },
+      "actions": {
+        "menuLabel": "Actions for {name}",
+        "view": "View",
+        "suspend": "Suspend",
+        "activate": "Activate",
+        "delete": "Delete"
+      },
+      "detail": {
+        "eyebrow": "Organization",
+        "back": "Back to organizations",
+        "notFoundTitle": "Organization not found",
+        "notFoundDescription": "This organization is missing from the mock catalog.",
+        "general": {
+          "title": "General Information",
+          "description": "Core tenant profile and contact details.",
+          "fields": {
+            "name": "Organization",
+            "slug": "Slug",
+            "owner": "Owner",
+            "ownerEmail": "Owner email",
+            "industry": "Industry",
+            "website": "Website",
+            "country": "Country",
+            "timezone": "Timezone",
+            "phone": "Phone",
+            "created": "Created date"
+          }
+        },
+        "subscription": {
+          "title": "Subscription",
+          "description": "Current plan, billing, and renewal details.",
+          "fields": {
+            "plan": "Plan",
+            "billingCycle": "Billing cycle",
+            "amount": "Amount",
+            "seats": "Seats",
+            "renewsOn": "Renews on",
+            "paymentMethod": "Payment method",
+            "invoiceEmail": "Invoice email"
+          },
+          "billingCycle": {
+            "monthly": "Monthly",
+            "annual": "Annual",
+            "short": {
+              "monthly": "mo",
+              "annual": "yr"
+            }
+          }
+        },
+        "stats": {
+          "title": "Workspace Statistics",
+          "description": "Usage snapshot for this organization.",
+          "cards": {
+            "contacts": {
+              "label": "Contacts",
+              "hint": "In workspace lists"
+            },
+            "conversations": {
+              "label": "Conversations",
+              "hint": "Active threads"
+            },
+            "campaignsSent": {
+              "label": "Campaigns sent",
+              "hint": "Lifetime total"
+            },
+            "messagesSent": {
+              "label": "Messages sent",
+              "hint": "WhatsApp outbound"
+            },
+            "whatsappNumbers": {
+              "label": "WhatsApp numbers",
+              "hint": "Connected lines"
+            },
+            "templates": {
+              "label": "Templates",
+              "hint": "Approved + drafts"
+            }
+          }
+        },
+        "members": {
+          "title": "Workspace Members",
+          "description": "{count, plural, one {Showing # member} other {Showing # members}}",
+          "columns": {
+            "member": "Member",
+            "role": "Role",
+            "lastActive": "Last active"
+          },
+          "roles": {
+            "owner": "Owner",
+            "admin": "Admin",
+            "member": "Member"
+          }
+        },
+        "activity": {
+          "title": "Recent Activity",
+          "description": "Latest events inside this workspace."
+        }
+      }
+    },
+    "subscriptions": {
+      "eyebrow": "Billing catalog",
+      "title": "Subscriptions",
+      "subtitle": "Review platform plans, limits, and included features. Mock catalog only — no payments.",
+      "plansTitle": "Platform plans",
+      "plansDescription": "Limits and features available to tenant organizations.",
+      "perMonth": "/ month",
+      "customPrice": "Custom",
+      "unlimited": "Unlimited",
+      "popular": "Popular",
+      "activeOrgs": "{count} active orgs",
+      "featuresLabel": "Features",
+      "limits": {
+        "users": "User limit",
+        "messages": "Message limit",
+        "workspaces": "Workspace limit"
+      },
+      "plans": {
+        "starter": {
+          "name": "Starter",
+          "description": "For small teams getting started with WhatsApp automation."
+        },
+        "growth": {
+          "name": "Growth",
+          "description": "For growing workspaces that need campaigns and automation."
+        },
+        "scale": {
+          "name": "Scale",
+          "description": "For multi-workspace teams with higher volume and controls."
+        },
+        "enterprise": {
+          "name": "Enterprise",
+          "description": "Custom limits, SSO, and dedicated support for large orgs."
+        }
+      },
+      "features": {
+        "inbox": "Shared team inbox",
+        "basicCampaigns": "Basic broadcast campaigns",
+        "campaigns": "Advanced campaigns & segments",
+        "templates": "Message templates",
+        "emailSupport": "Email support",
+        "automation": "Workflow automation",
+        "analytics": "Analytics dashboard",
+        "prioritySupport": "Priority support",
+        "webhooks": "Webhooks & API access",
+        "roles": "Advanced roles & permissions",
+        "sso": "SSO / SAML",
+        "dedicatedSupport": "Dedicated success manager",
+        "sla": "Custom SLA"
+      }
+    },
+    "platformUsers": {
+      "eyebrow": "Access management",
+      "title": "Platform Users",
+      "subtitle": "Manage internal users who operate the Super Admin console.",
+      "tableTitle": "All platform users",
+      "tableDescription": "{count, plural, one {# user} other {# users}}",
+      "columns": {
+        "name": "Name",
+        "email": "Email",
+        "role": "Role",
+        "status": "Status",
+        "created": "Created Date"
+      },
+      "roles": {
+        "superAdmin": "Super Admin",
+        "platformAdmin": "Platform Admin",
+        "support": "Support",
+        "finance": "Finance"
+      },
+      "statuses": {
+        "active": "Active",
+        "invited": "Invited",
+        "inactive": "Inactive"
+      }
+    },
+    "auditLogs": {
+      "eyebrow": "Compliance",
+      "title": "Platform Audit Logs",
+      "subtitle": "Track sensitive admin actions across organizations and internal operators.",
+      "tableTitle": "Recent audit events",
+      "tableDescription": "{count, plural, one {# event} other {# events}}",
+      "columns": {
+        "timestamp": "Timestamp",
+        "user": "User",
+        "action": "Action",
+        "organization": "Organization",
+        "ipAddress": "IP Address",
+        "status": "Status"
+      },
+      "statuses": {
+        "success": "Success",
+        "warning": "Warning",
+        "failed": "Failed"
+      }
+    },
+    "settings": {
+      "eyebrow": "Administration",
+      "title": "Platform Settings",
+      "subtitle": "Manage core platform controls for branding, auth, integrations, and environment defaults.",
+      "sections": {
+        "platformBranding": {
+          "title": "Platform Branding",
+          "description": "Global brand identity shown across login and product surfaces."
+        },
+        "authentication": {
+          "title": "Authentication",
+          "description": "Session, access, and password security policy controls."
+        },
+        "smtp": {
+          "title": "SMTP",
+          "description": "Outgoing email provider configuration used for notifications."
+        },
+        "oauth": {
+          "title": "OAuth",
+          "description": "Third-party sign-in provider setup and callback endpoints."
+        },
+        "maintenanceMode": {
+          "title": "Maintenance Mode",
+          "description": "Traffic controls, allowlisting, and scheduled downtime windows."
+        },
+        "platformConfiguration": {
+          "title": "Platform Configuration",
+          "description": "Default environment and policy values for all organizations."
+        }
+      },
+      "fields": {
+        "platformName": "Platform Name",
+        "primaryDomain": "Primary Domain",
+        "supportEmail": "Support Email",
+        "sessionTimeout": "Session Timeout",
+        "mfaEnforcement": "MFA Enforcement",
+        "passwordPolicy": "Password Policy",
+        "provider": "Provider",
+        "fromAddress": "From Address",
+        "dailyLimit": "Daily Limit",
+        "googleSignIn": "Google Sign-in",
+        "microsoftSignIn": "Microsoft Sign-in",
+        "redirectUrl": "Redirect URL",
+        "currentState": "Current State",
+        "allowlistedIps": "Allowlisted IPs",
+        "nextWindow": "Next Window",
+        "defaultTimezone": "Default Timezone",
+        "dataRetention": "Data Retention",
+        "apiRateLimit": "API Rate Limit"
+      },
+      "states": {
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "scheduled": "Scheduled"
+      }
+    },
+    "analytics": {
+      "eyebrow": "Analytics",
+      "title": "Platform Analytics",
+      "subtitle": "Track growth, revenue, engagement, and subscription mix across the platform.",
+      "charts": {
+        "activeOrganizations": {
+          "title": "Active Organizations",
+          "description": "Monthly trend of currently active tenant organizations.",
+          "ariaLabel": "Line chart of active organizations by month"
+        },
+        "messageVolume": {
+          "title": "Message Volume",
+          "description": "Monthly outbound message volume across all organizations.",
+          "ariaLabel": "Bar chart of monthly message volume. Peak near {max}."
+        }
+      }
+    }
   }
 }

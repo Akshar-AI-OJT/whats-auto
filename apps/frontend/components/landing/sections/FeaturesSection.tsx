@@ -51,7 +51,7 @@ export async function FeaturesSection() {
   const t = await getTranslations('landing.features')
 
   return (
-    <section className="bg-canvas">
+    <section id="features" className="scroll-mt-24 bg-canvas">
       <div className="mx-auto max-w-[1200px] px-4 py-16 md:px-6 md:py-24">
         <div className="mx-auto mb-10 max-w-2xl text-center md:mb-14">
           <h2 className="font-display-black text-3xl text-ink md:text-5xl">{t('title')}</h2>
