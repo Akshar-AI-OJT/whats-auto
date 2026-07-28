@@ -44,6 +44,25 @@ export class AuthorizationService {
   }
 
   /**
+   * Resolve platform permissions for a user with a global superadmin grant.
+   * Used by platform middleware — no active organization required.
+   */
+  async resolvePlatformPermissionsForUser(userId: string): Promise<Set<Permission>> {
+    const grant = await db
+      .from('user_roles as ur')
+      .innerJoin('roles as r', 'r.id', 'ur.roleId')
+      .where('ur.userId', userId)
+      .whereNull('ur.organizationId')
+      .where('r.name', 'superadmin')
+      .select('r.id')
+      .first()
+
+    if (!grant) return new Set()
+
+    return this.resolvePermissions('', grant.id as string)
+  }
+
+  /**
    * Check a single permission against a resolved set.
    * The Set is resolved once per request (in tenant middleware) and cached there.
    */

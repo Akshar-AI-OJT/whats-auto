@@ -29,3 +29,16 @@ export const updateOrganizationValidator = vine.create(
     currency: vine.string().trim().maxLength(10).optional(),
   })
 )
+
+export const listSuperAdminOrganizationsValidator = vine.create(
+  vine.object({
+    page: vine.number().withoutDecimals().min(1).optional(),
+    perPage: vine.number().withoutDecimals().min(1).max(100).optional(),
+  })
+)
+
+export const organizationIdParamValidator = vine.create(
+  vine.object({
+    id: vine.string().trim().uuid(),
+  })
+)

@@ -1,9 +1,6 @@
 import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import { SEEDED_ROLES } from '#abilities/role_seeds'
-import { toStoredPermissionJson } from '#abilities/permissions'
-import RoleException from '#exceptions/role_exception'
-import { assertAssignableRoleKey } from '#services/role_service'
+import { Exception } from '@adonisjs/core/exceptions'
 import { DateTime } from 'luxon'
 import { getGlobalRoleIdByName, resolveAssignableRoleForOrg } from '#services/role_service'
 
@@ -30,18 +27,16 @@ export type UpdateOrganizationInput = {
 
 export class OrganizationService {
   /**
+   * Per-org role seed hook. Global admin/agent/viewer permissions are seeded via rbac_seeder.
+   */
+  async seedDefaultRoles(_organizationId: string, _trx?: TransactionClientContract): Promise<void> {
+    return
+  }
+
+  /**
    * Create an organization and make the caller the owner.
    * Dual-writes organization_members + user_roles, sets active org on the session.
    */
-  async seedDefaultRoles(
-    organizationId: string,
-    trx?: TransactionClientContract
-  ): Promise<void> {
-    const rows = SEEDED_ROLES.map((seed) => ({
-      organizationId,
-      role: seed.role,
-      displayName: seed.displayName,
-      permission: JSON.stringify(toStoredPermissionJson(seed.permissions)),
   async createOrganization(params: {
     userId: string
     sessionId: string
@@ -146,6 +141,16 @@ export class OrganizationService {
   }
 
   /**
+   * Platform-wide paginated organization list for Super Admin.
+   * Includes soft-deleted organizations so admins can audit full tenant history.
+   */
+  async listOrganizationsPaginated(params: { page: number; perPage: number }) {
+    const { page, perPage } = params
+
+    return db.from('organizations').orderBy('createdAt', 'desc').paginate(page, perPage)
+  }
+
+  /**
    * Set the active organization on the caller's session.
    */
   async setActiveOrganization(params: {
@@ -177,6 +182,7 @@ export class OrganizationService {
 
   /**
    * Update editable organization fields (not slug/email).
+   * Only provided fields are updated (partial update).
    */
   async updateOrganization(params: {
     organizationId: string
@@ -189,7 +195,14 @@ export class OrganizationService {
       .from('organizations')
       .where('id', organizationId)
       .whereNull('deletedAt')
-      .firstOrFail()
+      .first()
+
+    if (!existing) {
+      throw new Exception('Organization Not Found', {
+        status: 404,
+        code: 'E_ORGANIZATION_NOT_FOUND',
+      })
+    }
 
     const updates: Record<string, string | null> = {}
     if (patch.name !== undefined) updates.name = patch.name
@@ -271,13 +284,18 @@ export class OrganizationService {
   async deleteOrganization(params: { organizationId: string; actorUserId: string }) {
     const { organizationId, actorUserId } = params
 
-    const client = trx ?? db
-    await client.table('organization_roles').insert(rows)
     const org = await db
       .from('organizations')
       .where('id', organizationId)
       .whereNull('deletedAt')
-      .firstOrFail()
+      .first()
+
+    if (!org) {
+      throw new Exception('Organization Not Found', {
+        status: 404,
+        code: 'E_ORGANIZATION_NOT_FOUND',
+      })
+    }
 
     await db.transaction(async (trx) => {
       await trx.table('authorization_audits').insert({
@@ -302,6 +320,50 @@ export class OrganizationService {
       })
 
       // Clear active org on any sessions still pointing at this org
+      await trx
+        .from('sessions')
+        .where('activeOrganizationId', organizationId)
+        .update({ activeOrganizationId: null })
+    })
+  }
+
+  /**
+   * Soft-delete an organization without removing the row.
+   * Uses the existing soft-delete convention: set deletedAt and disable status.
+   */
+  async softDeleteOrganization(params: { organizationId: string; actorUserId: string }) {
+    const { organizationId, actorUserId } = params
+
+    const org = await db
+      .from('organizations')
+      .where('id', organizationId)
+      .whereNull('deletedAt')
+      .first()
+
+    if (!org) {
+      throw new Exception('Organization Not Found', {
+        status: 404,
+        code: 'E_ORGANIZATION_NOT_FOUND',
+      })
+    }
+
+    await db.transaction(async (trx) => {
+      await trx.table('authorization_audits').insert({
+        organizationId,
+        actorUserId,
+        targetType: 'organization',
+        targetId: organizationId,
+        eventType: 'organization.soft_deleted',
+        before: JSON.stringify({ status: org.status, deletedAt: org.deletedAt }),
+        after: JSON.stringify({ status: false, deletedAt: DateTime.utc().toISO() }),
+      })
+
+      await trx.from('organizations').where('id', organizationId).update({
+        status: false,
+        deletedAt: DateTime.utc().toSQL(),
+      })
+
+      // Existing org should not stay active on any session once soft-deleted.
       await trx
         .from('sessions')
         .where('activeOrganizationId', organizationId)
