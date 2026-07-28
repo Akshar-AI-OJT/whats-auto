@@ -23,6 +23,9 @@ const OnboardingController = () => import('#controllers/onboarding_controller')
 const SuperAdminOrganizationsController = () =>
   import('#controllers/super_admin_organizations_controller')
 const WhatsappWebhookController = () => import('#controllers/whatsapp_webhook_controller')
+const WhatsappEmbeddedSignupController = () =>
+  import('#controllers/whatsapp_embedded_signup_controller')
+const WhatsappConfigsController = () => import('#controllers/whatsapp_configs_controller')
 
 //  Swagger UI + JSON spec
 // Served only in non-production environments
@@ -59,9 +62,33 @@ router
 /*
 |--------------------------------------------------------------------------
 | Tenant WhatsApp product APIs (Phase 2+)
-| Example: /api/v1/whatsapp/configs — jwtAuth + tenant + whatsapp:* perms
+| Embedded Signup + whatsapp_configs — jwtAuth + tenant + whatsapp:* perms
 |--------------------------------------------------------------------------
 */
+router
+  .group(() => {
+    router
+      .get('/embedded-signup/session', [WhatsappEmbeddedSignupController, 'session'])
+      .use(middleware.requirePermission({ permission: 'whatsapp:connect' }))
+    router
+      .post('/embedded-signup/complete', [WhatsappEmbeddedSignupController, 'complete'])
+      .use(middleware.requirePermission({ permission: 'whatsapp:connect' }))
+
+    router
+      .get('/configs', [WhatsappConfigsController, 'index'])
+      .use(middleware.requirePermission({ permission: 'whatsapp:view' }))
+    router
+      .get('/configs/:id', [WhatsappConfigsController, 'show'])
+      .use(middleware.requirePermission({ permission: 'whatsapp:view' }))
+    router
+      .delete('/configs/:id', [WhatsappConfigsController, 'destroy'])
+      .use(middleware.requirePermission({ permission: 'whatsapp:connect' }))
+    router
+      .post('/configs/:id/test', [WhatsappConfigsController, 'test'])
+      .use(middleware.requirePermission({ permission: 'whatsapp:manage' }))
+  })
+  .prefix('/api/v1/whatsapp')
+  .use([middleware.jwtAuth(), middleware.tenant()])
 
 router
   .group(() => {
