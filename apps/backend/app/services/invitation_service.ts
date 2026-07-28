@@ -159,10 +159,16 @@ export class InvitationService {
   }
 
   /**
-   * Accept a pending invitation. Creates organization_members + user_roles.
+   * Accept a pending invitation. Creates organization_members + user_roles and
+   * makes the joined organization active on the caller's session.
    */
-  async acceptInvitation(params: { invitationId: string; userId: string; userEmail: string }) {
-    const { invitationId, userId, userEmail } = params
+  async acceptInvitation(params: {
+    invitationId: string
+    userId: string
+    userEmail: string
+    sessionId: string
+  }) {
+    const { invitationId, userId, userEmail, sessionId } = params
 
     const invitation = await db
       .from('organization_invitations')
@@ -209,6 +215,10 @@ export class InvitationService {
         .from('organization_invitations')
         .where('id', invitationId)
         .update({ status: 'accepted' })
+
+      await trx.from('sessions').where('id', sessionId).update({
+        activeOrganizationId: invitation.organizationId,
+      })
 
       await trx.table('authorization_audits').insert({
         organizationId: invitation.organizationId,

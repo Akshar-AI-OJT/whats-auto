@@ -15,7 +15,12 @@ export async function Navbar() {
         isPageLink: true,
       },
       { label: t('pricing'), href: '#pricing', sectionId: 'pricing' },
-      { label: t('contact'), href: '#contact', sectionId: 'contact' },
+      {
+        label: t('contact'),
+        href: '/contact',
+        sectionId: 'contact',
+        isPageLink: true,
+      },
       // Hidden until sections exist: #how-it-works, #faq
     ],
     login: { label: t('login'), href: '/login' },
