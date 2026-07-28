@@ -29,10 +29,7 @@ export class OrganizationService {
   /**
    * Per-org role seed hook. Global admin/agent/viewer permissions are seeded via rbac_seeder.
    */
-  async seedDefaultRoles(
-    _organizationId: string,
-    _trx?: TransactionClientContract
-  ): Promise<void> {
+  async seedDefaultRoles(_organizationId: string, _trx?: TransactionClientContract): Promise<void> {
     return
   }
 
