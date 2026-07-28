@@ -23,9 +23,7 @@ const OnboardingController = () => import('#controllers/onboarding_controller')
 const SuperAdminOrganizationsController = () =>
   import('#controllers/super_admin_organizations_controller')
 const WhatsappWebhookController = () => import('#controllers/whatsapp_webhook_controller')
-const WhatsappEmbeddedSignupController = () =>
-  import('#controllers/whatsapp_embedded_signup_controller')
-const WhatsappConfigsController = () => import('#controllers/whatsapp_configs_controller')
+
 
 //  Swagger UI + JSON spec
 // Served only in non-production environments
@@ -117,6 +115,12 @@ router
     router
       .get('/organizations', [SuperAdminOrganizationsController, 'index'])
       .use(middleware.requirePermission({ permission: 'platform:tenants_view' }))
+    router
+      .patch('/organizations/:id', [SuperAdminOrganizationsController, 'update'])
+      .use(middleware.requirePermission({ permission: 'platform:tenants_update' }))
+    router
+      .patch('/organizations/:id/soft-delete', [SuperAdminOrganizationsController, 'softDelete'])
+      .use(middleware.requirePermission({ permission: 'platform:tenants_delete' }))
   })
   .prefix('/api/v1/super-admin')
   .use([middleware.jwtAuth(), middleware.platform()])
