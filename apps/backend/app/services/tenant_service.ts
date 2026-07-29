@@ -248,12 +248,15 @@ export class TenantService {
   }
 
   /**
-   * Delete a tenant. Owner only. Cascades members/roles/invites via FKs.
+   * Delete a tenant. Owner only.
+   *
+   * Delegates to the organization soft delete so this legacy route cannot
+   * bypass it — this used to physically DELETE the row, cascading every
+   * organization-scoped table with no way back.
    */
   async delete(organizationId: string, actorUserId: string): Promise<void> {
     await this.assertOwner(organizationId, actorUserId)
-    // Audits cascade with the org row — no durable delete audit without a separate store.
-    await db.from('organizations').where('id', organizationId).delete()
+    await new OrganizationService().softDeleteOrganization({ organizationId, actorUserId })
   }
 
   private async assertOwner(organizationId: string, userId: string): Promise<void> {

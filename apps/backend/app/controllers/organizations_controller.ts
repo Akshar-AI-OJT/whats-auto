@@ -1,6 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { OrganizationService } from '#services/organization_service'
 import { mapRbacError } from '#lib/map_rbac_error'
+import { attachClearAccessToken, attachRemintedAccessToken } from '#lib/access_token_response'
 import {
   createOrganizationValidator,
   updateOrganizationValidator,
@@ -16,6 +17,7 @@ export default class OrganizationsController {
    * @security BearerAuth
    * @requestBody { "name": "Acme Inc", "slug": "acme", "email": "ops@acme.com", "country": "US", "timezone": "America/New_York" }
    * @responseBody 200 - { "data": { "id": "uuid", "name": "Acme Inc", "slug": "acme", "role": "owner" } }
+   * @responseHeader 200 - set-auth-jwt - Reminted access token for the new organization - @type(string)
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 409 - { "error": "Accept or decline your pending invitation before creating an organization", "code": "E_INVITE_PENDING" }
    */
@@ -28,6 +30,7 @@ export default class OrganizationsController {
         sessionId: request.sessionId!,
         data: payload,
       })
+      await attachRemintedAccessToken({ request, response }, request.sessionId!)
       return serialize(org)
     } catch (error) {
       return mapRbacError(error, response)
@@ -49,11 +52,12 @@ export default class OrganizationsController {
   /**
    * @setActive
    * @summary Set the active organization for the current session
-   * @description Also the step that decides what a freshly minted JWT will contain. Mint a new access token afterwards.
+   * @description Updates the session active organization and returns a reminted JWT in set-auth-jwt.
    * @tag Organizations
    * @security BearerAuth
    * @paramPath id - Organization id - @type(string)
    * @responseBody 200 - { "data": { "organizationId": "uuid" } }
+   * @responseHeader 200 - set-auth-jwt - Reminted access token for the selected organization - @type(string)
    * @responseBody 422 - { "error": "You are not a member of this organization", "code": "E_ORG_NOT_A_MEMBER" }
    */
   async setActive({ request, params, response, serialize }: HttpContext) {
@@ -63,6 +67,7 @@ export default class OrganizationsController {
         sessionId: request.sessionId!,
         organizationId: params.id,
       })
+      await attachRemintedAccessToken({ request, response }, request.sessionId!)
       return serialize(result)
     } catch (error) {
       return mapRbacError(error, response)
@@ -101,11 +106,12 @@ export default class OrganizationsController {
   /**
    * @destroy
    * @summary Soft-delete an organization
-   * @description Path `:id` must match the session active organization. Owner-only. Cascades members, invitations, role overrides, and user_roles. Audit history is retained.
+   * @description Path `:id` must match the session active organization. Owner-only. Marks the organization deleted and cuts off access for every member; nothing owned by the organization is erased.
    * @tag Organizations
    * @security BearerAuth
    * @paramPath id - Organization id - @type(string)
    * @responseBody 200 - { "data": { "ok": true } }
+   * @responseHeader 200 - Clear-Auth-Jwt - Drop the in-memory access token; there is no replacement - @type(string)
    * @responseBody 403 - { "error": "Only the organization owner can delete the organization.", "code": "NOT_OWNER" }
    */
   async destroy({ request, params, response, serialize }: HttpContext) {
@@ -120,10 +126,11 @@ export default class OrganizationsController {
     }
 
     try {
-      await new OrganizationService().deleteOrganization({
+      await new OrganizationService().softDeleteOrganization({
         organizationId: params.id,
         actorUserId: request.authUser!.id,
       })
+      attachClearAccessToken(response)
       return serialize({ ok: true })
     } catch (error) {
       return mapRbacError(error, response)

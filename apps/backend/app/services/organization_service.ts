@@ -5,6 +5,7 @@ import { DateTime } from 'luxon'
 import Organization from '#models/organization'
 import InvitationException from '#exceptions/invitation_exception'
 import { getGlobalRoleIdByName, resolveAssignableRoleForOrg } from '#services/role_service'
+import { bumpAllOrgMembersPermissionVersion } from '#lib/permission_version_bumps'
 
 export type CreateOrganizationInput = {
   name: string
@@ -41,10 +42,14 @@ export class OrganizationService {
    * Users who already belong to an organization stay free to create more.
    */
   protected async assertNoBlockingInvitation(userId: string) {
+    // Membership rows survive soft-delete, so a deleted org must not count as
+    // "already belongs somewhere" and skip the pending-invitation check.
     const membership = await db
-      .from('organization_members')
-      .where('userId', userId)
-      .select('id')
+      .from('organization_members as m')
+      .innerJoin('organizations as o', 'o.id', 'm.organizationId')
+      .where('m.userId', userId)
+      .whereNull('o.deletedAt')
+      .select('m.id')
       .first()
 
     if (membership) return
@@ -314,58 +319,13 @@ export class OrganizationService {
   }
 
   /**
-   * Soft-delete an organization and explicitly cascade related rows.
-   * Audit history is retained.
-   */
-  async deleteOrganization(params: { organizationId: string; actorUserId: string }) {
-    const { organizationId, actorUserId } = params
-
-    const org = await db
-      .from('organizations')
-      .where('id', organizationId)
-      .whereNull('deletedAt')
-      .first()
-
-    if (!org) {
-      throw new Exception('Organization Not Found', {
-        status: 404,
-        code: 'E_ORGANIZATION_NOT_FOUND',
-      })
-    }
-
-    await db.transaction(async (trx) => {
-      await trx.table('authorization_audits').insert({
-        organizationId,
-        actorUserId,
-        targetType: 'organization',
-        targetId: organizationId,
-        eventType: 'organization.deleted',
-        before: JSON.stringify({ name: org.name, slug: org.slug }),
-      })
-
-      await trx.from('organization_members').where('organizationId', organizationId).delete()
-      await trx.from('organization_invitations').where('organizationId', organizationId).delete()
-      await trx
-        .from('organization_role_permissions')
-        .where('organizationId', organizationId)
-        .delete()
-      await trx.from('user_roles').where('organizationId', organizationId).delete()
-
-      await trx.from('organizations').where('id', organizationId).update({
-        deletedAt: DateTime.utc().toSQL(),
-      })
-
-      // Clear active org on any sessions still pointing at this org
-      await trx
-        .from('sessions')
-        .where('activeOrganizationId', organizationId)
-        .update({ activeOrganizationId: null })
-    })
-  }
-
-  /**
-   * Soft-delete an organization without removing the row.
-   * Uses the existing soft-delete convention: set deletedAt and disable status.
+   * Soft-delete an organization.
+   *
+   * Nothing owned by the org is erased: `organizations.deletedAt` is the only
+   * lifecycle marker, and every organizationId foreign key already cascades,
+   * so a later hard delete of this row is all it takes to clean up. Access is
+   * cut off by bumping member permission versions (existing Bearer tokens go
+   * stale) and clearing the active org from sessions (no re-mint), not by RLS.
    */
   async softDeleteOrganization(params: { organizationId: string; actorUserId: string }) {
     const { organizationId, actorUserId } = params
@@ -383,6 +343,8 @@ export class OrganizationService {
       })
     }
 
+    const deletedAt = DateTime.utc()
+
     await db.transaction(async (trx) => {
       await trx.table('authorization_audits').insert({
         organizationId,
@@ -390,14 +352,17 @@ export class OrganizationService {
         targetType: 'organization',
         targetId: organizationId,
         eventType: 'organization.soft_deleted',
-        before: JSON.stringify({ status: org.status, deletedAt: org.deletedAt }),
-        after: JSON.stringify({ status: false, deletedAt: DateTime.utc().toISO() }),
+        before: JSON.stringify({ name: org.name, slug: org.slug, status: org.status }),
+        after: JSON.stringify({ status: false, deletedAt: deletedAt.toISO() }),
       })
 
       await trx.from('organizations').where('id', organizationId).update({
         status: false,
-        deletedAt: DateTime.utc().toSQL(),
+        deletedAt: deletedAt.toSQL(),
       })
+
+      // Member rows survive soft-delete — bump every version so Bearer tokens go stale.
+      await bumpAllOrgMembersPermissionVersion(trx, organizationId)
 
       // Existing org should not stay active on any session once soft-deleted.
       await trx
@@ -470,10 +435,12 @@ export class OrganizationService {
       const targetUserId = target.rows[0].userId as string
 
       // 1. Demote current owner first (immediate trigger requires this order)
-      await trx
-        .from('organization_members')
-        .where('id', currentOwnerMemberId)
-        .update({ roleId: replacement.id })
+      await trx.rawQuery(
+        `UPDATE "organization_members"
+         SET "roleId" = ?, "permissionVersion" = "permissionVersion" + 1
+         WHERE "id" = ?`,
+        [replacement.id, currentOwnerMemberId]
+      )
 
       await trx
         .from('user_roles')
@@ -482,10 +449,12 @@ export class OrganizationService {
         .update({ roleId: replacement.id })
 
       // 2. Promote target to owner
-      await trx
-        .from('organization_members')
-        .where('id', targetMemberId)
-        .update({ roleId: ownerRoleId })
+      await trx.rawQuery(
+        `UPDATE "organization_members"
+         SET "roleId" = ?, "permissionVersion" = "permissionVersion" + 1
+         WHERE "id" = ?`,
+        [ownerRoleId, targetMemberId]
+      )
 
       await trx
         .from('user_roles')
