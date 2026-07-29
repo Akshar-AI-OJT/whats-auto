@@ -9,7 +9,16 @@ export default class RequirePermissionMiddleware {
     next: NextFn,
     options: { permission: Permission }
   ) {
-    if (!request.memberPermissions?.has(options.permission)) {
+    // Missing set means auth middleware stack was misconfigured (tenant/platform not run).
+    if (!request.memberPermissions) {
+      return response.forbidden({
+        error: 'Permission context missing. Ensure tenant or platform middleware runs first.',
+        code: 'PERMISSION_CONTEXT_MISSING',
+        required: options.permission,
+      })
+    }
+
+    if (!request.memberPermissions.has(options.permission)) {
       return response.forbidden({
         error: `Permission denied: ${options.permission}`,
         code: 'PERMISSION_DENIED',

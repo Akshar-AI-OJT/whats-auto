@@ -5,6 +5,7 @@ import '#types/http'
 
 export default class WhatsappConfigsController {
   /**
+   * @index
    * @summary List WhatsApp configs for the active organization
    * @description Never returns accessToken. RLS-scoped.
    * @tag WhatsApp
@@ -17,6 +18,7 @@ export default class WhatsappConfigsController {
   }
 
   /**
+   * @show
    * @summary Get one WhatsApp config
    * @tag WhatsApp
    * @security BearerAuth
@@ -30,6 +32,7 @@ export default class WhatsappConfigsController {
   }
 
   /**
+   * @destroy
    * @summary Disconnect a WhatsApp config
    * @description Sets status=disconnected. Encrypted token is retained for a future reconnect path.
    * @tag WhatsApp
@@ -43,6 +46,7 @@ export default class WhatsappConfigsController {
   }
 
   /**
+   * @test
    * @summary Send a smoke-test template message
    * @description Uses the config's encrypted token. Defaults to hello_world / en_US.
    * @tag WhatsApp

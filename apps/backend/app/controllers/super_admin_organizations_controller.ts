@@ -1,24 +1,20 @@
 import type { HttpContext } from '@adonisjs/core/http'
-<<<<<<< HEAD
 import { OrganizationService } from '#services/organization_service'
-import { listSuperAdminOrganizationsValidator } from '#validators/organization_crud'
-=======
 import { Exception } from '@adonisjs/core/exceptions'
-import { OrganizationService } from '#services/organization_service'
 import {
   listSuperAdminOrganizationsValidator,
   organizationIdParamValidator,
   updateOrganizationValidator,
 } from '#validators/organization_crud'
 import { mapRbacError } from '#lib/map_rbac_error'
->>>>>>> feature/superadmin-role
 import '#types/http'
 
 export default class SuperAdminOrganizationsController {
   /**
+   * @index
    * @summary List all organizations (Super Admin)
    * @description Platform-wide paginated organization list. Requires Super Admin role and platform:tenants_view permission.
-   * @tag Super Admin
+   * @tag Super-Admin
    * @security BearerAuth
    * @paramQuery page - Page number (default 1) - @type(number)
    * @paramQuery perPage - Items per page (1-100, default 20) - @type(number)
@@ -38,8 +34,6 @@ export default class SuperAdminOrganizationsController {
 
     return serialize(organizations)
   }
-<<<<<<< HEAD
-=======
 
   /**
    * @summary Update an organization (Super Admin)
@@ -108,5 +102,4 @@ export default class SuperAdminOrganizationsController {
       return mapRbacError(error, response)
     }
   }
->>>>>>> feature/superadmin-role
 }

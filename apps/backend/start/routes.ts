@@ -13,6 +13,7 @@ import router from '@adonisjs/core/services/router'
 import { controllers } from '#generated/controllers'
 import AutoSwagger from 'adonis-autoswagger'
 import swagger from '#config/swagger'
+const AuthController = () => import('#controllers/auth_controller')
 const PreSignupController = () => import('#controllers/pre_signup_controller')
 const VerifySignupController = () => import('#controllers/verify_signup_controller')
 const TenantsController = () => import('#controllers/tenants_controller')
@@ -30,7 +31,13 @@ const WhatsappConfigsController = () => import('#controllers/whatsapp_configs_co
 //  Swagger UI + JSON spec
 // Served only in non-production environments
 router.get('/swagger', async ({ response }) => {
-  return response.send(await AutoSwagger.default.docs(router.toJSON(), swagger))
+  const spec = await AutoSwagger.default.json(router.toJSON(), swagger)
+
+  // A @tag annotation is appended once per operation, but OpenAPI requires unique tag names.
+  const tags = spec.tags as { name: string }[]
+  spec.tags = [...new Map(tags.map((tag) => [tag.name, tag])).values()]
+
+  return response.json(spec)
 })
 
 router.get('/docs', async () => {
@@ -42,6 +49,12 @@ router.get('/', () => {
 })
 
 // better-auth handles /api/auth/* (login, OAuth, forgot/reset password, session, etc.)
+router.post('/api/auth/sign-in/email', [AuthController, 'signInEmail'])
+router.post('/api/auth/sign-out', [AuthController, 'signOut'])
+router.get('/api/auth/get-session', [AuthController, 'getSession'])
+router.get('/api/auth/token', [AuthController, 'token'])
+router.get('/api/auth/jwks', [AuthController, 'jwks'])
+
 router.any('/api/auth/*', async (ctx) => {
   return handleBetterAuth(ctx)
 })

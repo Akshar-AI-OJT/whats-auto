@@ -13,6 +13,7 @@ import { preSignupValidator, resendSignupOtpValidator } from '#validators/auth'
 
 export default class PreSignupController {
   /**
+   * @handle
    * @summary Initiate registration (step 1 of 2)
    * @description Validates email uniqueness, hashes the password, stores a pending signup,
    * and sends a 6-digit OTP to the given email address.
@@ -56,6 +57,7 @@ export default class PreSignupController {
   }
 
   /**
+   * @resend
    * @summary Resend OTP (step 1b — resend)
    * @description Resends the OTP to a pending signup email. Subject to a 60s cooldown.
    * @tag Auth

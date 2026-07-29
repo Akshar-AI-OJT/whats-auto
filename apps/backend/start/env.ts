@@ -32,6 +32,10 @@ export default await Env.create(new URL('../', import.meta.url), {
   BETTER_AUTH_SECRET: Env.schema.secret(),
   BETTER_AUTH_URL: Env.schema.string({ format: 'url', tld: false }),
 
+  JWT_ISSUER: Env.schema.string({ format: 'url', tld: false }),
+  JWT_AUDIENCE: Env.schema.string(),
+  JWT_ACCESS_TOKEN_TTL: Env.schema.string(),
+
   // Auth Provider
   GOOGLE_CLIENT_ID: Env.schema.string(),
   GOOGLE_CLIENT_SECRET: Env.schema.secret(),
