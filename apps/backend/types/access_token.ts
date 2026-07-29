@@ -1,9 +1,8 @@
 /**
  * Access-token claim contract for Better Auth JWT scopes.
  *
- * Minted by AccessTokenClaimsService (Phase 2) and verified by
- * access_token_verifier (Phase 3). Keep field names stable — frontend
- * and middleware depend on this shape.
+ * Minted by AccessTokenClaimsService and verified by access_token_verifier.
+ * Keep field names stable — frontend and middleware depend on this shape.
  */
 export type AccessTokenUse = 'access'
 
@@ -32,8 +31,11 @@ export type AccessTokenClaims = {
    */
   scope: string
 
-  /** Version/hash of the effective permission set (revocation reserved for Phase 7) */
-  pv: string
+  /**
+   * Monotonic permission version from the authoritative grant row.
+   * Required for tenant and platform tokens; omitted for identity-only tokens.
+   */
+  pv?: number
 
   iss: string
   aud: string | string[]
@@ -42,7 +44,7 @@ export type AccessTokenClaims = {
 }
 
 /**
- * Payload returned by definePayload before jose/Better Auth adds iss/aud/iat/exp/sub.
+ * Payload returned by definePayload before jose/Better Auth adds iss/aud/iat/exp.
  * `sub` is set via getSubject; callers still include identity fields here.
  */
 export type AccessTokenPayload = Omit<AccessTokenClaims, 'iss' | 'aud' | 'iat' | 'exp'>

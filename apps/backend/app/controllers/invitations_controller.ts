@@ -1,6 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { InvitationService } from '#services/invitation_service'
 import { mapRbacError } from '#lib/map_rbac_error'
+import { attachRemintedAccessToken } from '#lib/access_token_response'
 import { createInvitationValidator } from '#validators/invitation'
 import '#types/http'
 
@@ -77,6 +78,7 @@ export default class InvitationsController {
    * @security BearerAuth
    * @paramPath id - Invitation id - @type(string)
    * @responseBody 200 - { "data": { "organizationId": "uuid" } }
+   * @responseHeader 200 - set-auth-jwt - Reminted access token for the joined organization - @type(string)
    * @responseBody 422 - { "error": "Invitation has expired", "code": "E_INVITE_EXPIRED" }
    */
   async accept({ request, params, response, serialize }: HttpContext) {
@@ -87,6 +89,7 @@ export default class InvitationsController {
         userEmail: request.authUser!.email,
         sessionId: request.sessionId!,
       })
+      await attachRemintedAccessToken({ request, response }, request.sessionId!)
       return serialize(result)
     } catch (error) {
       return mapRbacError(error, response)

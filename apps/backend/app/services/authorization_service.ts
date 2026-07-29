@@ -9,6 +9,12 @@ export type ActiveMember = {
   role: string
 }
 
+export type PlatformGrant = {
+  roleId: string
+  permissionVersion: number
+  permissions: Set<Permission>
+}
+
 export class AuthorizationService {
   /**
    * Resolve the complete set of permissions for a member.
@@ -44,22 +50,34 @@ export class AuthorizationService {
   }
 
   /**
-   * Resolve platform permissions for a user with a global superadmin grant.
-   * Used by platform middleware — no active organization required.
+   * Resolve the global superadmin grant including its permissionVersion.
    */
-  async resolvePlatformPermissionsForUser(userId: string): Promise<Set<Permission>> {
+  async resolvePlatformGrantForUser(userId: string): Promise<PlatformGrant | null> {
     const grant = await db
       .from('user_roles as ur')
       .innerJoin('roles as r', 'r.id', 'ur.roleId')
       .where('ur.userId', userId)
       .whereNull('ur.organizationId')
       .where('r.name', 'superadmin')
-      .select('r.id')
+      .select('ur.roleId', 'ur.permissionVersion')
       .first()
 
-    if (!grant) return new Set()
+    if (!grant) return null
 
-    return this.resolvePermissions('', grant.id as string)
+    return {
+      roleId: grant.roleId as string,
+      permissionVersion: Number(grant.permissionVersion),
+      permissions: await this.resolvePermissions('', grant.roleId as string),
+    }
+  }
+
+  /**
+   * Resolve platform permissions for a user with a global superadmin grant.
+   * Used by platform middleware — no active organization required.
+   */
+  async resolvePlatformPermissionsForUser(userId: string): Promise<Set<Permission>> {
+    const grant = await this.resolvePlatformGrantForUser(userId)
+    return grant?.permissions ?? new Set()
   }
 
   /**

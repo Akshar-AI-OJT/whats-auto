@@ -7,6 +7,7 @@ import {
   updateOrganizationValidator,
 } from '#validators/organization_crud'
 import { mapRbacError } from '#lib/map_rbac_error'
+import { attachClearAccessToken } from '#lib/access_token_response'
 import '#types/http'
 
 export default class SuperAdminOrganizationsController {
@@ -70,12 +71,14 @@ export default class SuperAdminOrganizationsController {
   }
 
   /**
+   * @softDelete
    * @summary Soft-delete an organization (Super Admin)
    * @description Marks the organization as deleted (soft delete) without removing the row. Requires Super Admin role and platform:tenants_delete permission.
-   * @tag Super Admin
+   * @tag Super-Admin
    * @security BearerAuth
    * @paramPath id - Organization id - @type(string)
    * @responseBody 200 - { "data": { "ok": true } }
+   * @responseHeader 200 - Clear-Auth-Jwt - Present when the deleted org was the caller's active organization - @type(string)
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 403 - { "error": "Permission denied: platform:tenants_delete", "code": "PERMISSION_DENIED" }
    * @responseBody 404 - { "error": "Organization Not Found", "code": "E_ORGANIZATION_NOT_FOUND" }
@@ -90,6 +93,12 @@ export default class SuperAdminOrganizationsController {
         organizationId: params.id,
         actorUserId: request.authUser!.id,
       })
+
+      const activeOrgId =
+        request.activeOrganizationId ?? request.accessTokenClaims?.org_id ?? undefined
+      if (activeOrgId === params.id) {
+        attachClearAccessToken(response)
+      }
 
       return serialize({ ok: true })
     } catch (error) {

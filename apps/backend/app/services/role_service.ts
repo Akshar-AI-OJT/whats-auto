@@ -2,6 +2,7 @@ import db from '@adonisjs/lucid/services/db'
 import type { Permission } from '#abilities/permissions'
 import { AuthorizationService } from '#services/authorization_service'
 import RoleException from '#exceptions/role_exception'
+import { bumpMembersByRolePermissionVersion } from '#lib/permission_version_bumps'
 
 /** Global system roles — blocked from custom-role creation. */
 export const SYSTEM_ROLE_NAMES = ['owner', 'superadmin', 'admin', 'agent', 'viewer'] as const
@@ -304,6 +305,8 @@ export class RoleService {
         .where('roleId', role.id)
         .delete()
 
+      await bumpMembersByRolePermissionVersion(trx, organizationId, role.id)
+
       await trx.table('authorization_audits').insert({
         organizationId,
         actorUserId,
@@ -347,11 +350,12 @@ export class RoleService {
     }
 
     await db.transaction(async (trx) => {
-      const membersReassigned = await trx
-        .from('organization_members')
-        .where('organizationId', organizationId)
-        .where('roleId', role.id)
-        .update({ roleId: replacement.id })
+      const membersReassigned = await trx.rawQuery(
+        `UPDATE "organization_members"
+         SET "roleId" = ?, "permissionVersion" = "permissionVersion" + 1
+         WHERE "organizationId" = ? AND "roleId" = ?`,
+        [replacement.id, organizationId, role.id]
+      )
 
       const userRolesReassigned = await trx
         .from('user_roles')
@@ -376,7 +380,7 @@ export class RoleService {
         before: JSON.stringify({ role: roleKey }),
         after: JSON.stringify({
           replacementRole,
-          membersReassigned,
+          membersReassigned: Number(membersReassigned.rowCount ?? 0),
           userRolesReassigned,
           invitationsRepointed,
         }),
@@ -412,6 +416,8 @@ export class RoleService {
           }))
         )
       }
+
+      await bumpMembersByRolePermissionVersion(trx, organizationId, role.id)
 
       await trx.table('authorization_audits').insert({
         organizationId,
@@ -521,6 +527,8 @@ export class RoleService {
           reason,
         })
       }
+
+      await bumpMembersByRolePermissionVersion(trx, organizationId, role.id)
     })
   }
 

@@ -1,6 +1,6 @@
 import db from '@adonisjs/lucid/services/db'
 import { AuthorizationService } from '#services/authorization_service'
-import { computePermissionVersion, formatScope } from '#lib/access_token_permissions'
+import { formatScope } from '#lib/access_token_permissions'
 import type { AccessTokenPayload } from '#types/access_token'
 
 type SessionUser = {
@@ -31,7 +31,6 @@ export class AccessTokenClaimsService {
       email: user.email,
       name: user.name,
       scope: '',
-      pv: computePermissionVersion(undefined, ''),
     }
 
     // Prefer DB over session payload — cookie cache can omit activeOrganizationId.
@@ -52,7 +51,7 @@ export class AccessTokenClaimsService {
         .innerJoin('roles as r', 'r.id', 'm.roleId')
         .where('m.organizationId', orgId)
         .where('m.userId', user.id)
-        .select('m.id', 'm.roleId', 'r.name as role')
+        .select('m.id', 'm.roleId', 'm.permissionVersion', 'r.name as role')
         .first()
 
       if (member) {
@@ -70,22 +69,23 @@ export class AccessTokenClaimsService {
           role_id: roleId,
           role,
           scope,
-          pv: computePermissionVersion(role, scope),
+          pv: Number(member.permissionVersion),
         }
       }
     }
 
     // No usable tenant membership — still grant platform role when globally superadmin.
-    const platform = await this.authz.resolvePlatformPermissionsForUser(user.id)
-    if (platform.size > 0) {
+    const platform = await this.authz.resolvePlatformGrantForUser(user.id)
+    if (platform) {
       return {
         ...base,
         role: 'superadmin',
         scope: '',
-        pv: computePermissionVersion('superadmin', ''),
+        pv: platform.permissionVersion,
       }
     }
 
+    // Identity-only: no pv — there is no grant row to version.
     return base
   }
 }
