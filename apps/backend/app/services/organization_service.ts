@@ -36,13 +36,6 @@ export class OrganizationService {
   }
 
   /**
-   * Per-org role seed hook. Global admin/agent/viewer permissions are seeded via rbac_seeder.
-   */
-  async seedDefaultRoles(_organizationId: string, _trx?: TransactionClientContract): Promise<void> {
-    return
-  }
-
-  /**
    * A user who belongs to no organization yet must resolve a pending invitation first,
    * otherwise invitees end up creating a second workspace instead of joining the inviter's.
    * Users who already belong to an organization stay free to create more.
@@ -181,16 +174,6 @@ export class OrganizationService {
       role: r.role as string,
       createdAt: r.createdAt as string,
     }))
-  }
-
-  /**
-   * Platform-wide paginated organization list for Super Admin.
-   * Includes soft-deleted organizations so admins can audit full tenant history.
-   */
-  async listOrganizationsPaginated(params: { page: number; perPage: number }) {
-    const { page, perPage } = params
-
-    return db.from('organizations').orderBy('createdAt', 'desc').paginate(page, perPage)
   }
 
   /**
