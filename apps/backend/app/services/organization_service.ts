@@ -28,8 +28,6 @@ export type UpdateOrganizationInput = {
 }
 
 export class OrganizationService {
-  
-
   /**
    * Per-org role seed hook. Global admin/agent/viewer permissions are seeded via rbac_seeder.
    */
@@ -177,8 +175,6 @@ export class OrganizationService {
       createdAt: r.createdAt as string,
     }))
   }
-
- 
 
   /**
    * Platform-wide paginated organization list for Super Admin.
