@@ -5,12 +5,13 @@ import '#types/http'
 
 export default class AuditController {
   /**
+   * @index
    * @summary List authorization audit events for the active organization
-   * @description Newest first. Optional limit query (1–100, default 50).
+   * @description Newest first. Optional limit query (1–100, default 50). targetId, before, after and reason are null for events where they do not apply.
    * @tag Audit
    * @security BearerAuth
    * @paramQuery limit - Max events to return (1-100) - @type(number)
-   * @responseBody 200 - { "data": [{ "id": "uuid", "actorUserId": "uuid", "targetType": "role", "targetId": null, "eventType": "role.created", "before": null, "after": {}, "reason": null, "createdAt": "2026-07-21T12:00:00.000Z" }] }
+   * @responseBody 200 - { "data": [{ "id": "uuid", "actorUserId": "uuid", "targetType": "role", "targetId": "uuid", "eventType": "role.created", "before": {}, "after": {}, "reason": "Narrow agent inbox access", "createdAt": "2026-07-21T12:00:00.000Z" }] }
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 403 - { "error": "Permission denied: team:view", "code": "PERMISSION_DENIED" }
    */

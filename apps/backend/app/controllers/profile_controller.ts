@@ -5,6 +5,7 @@ import '#types/http'
 
 export default class ProfileController {
   /**
+   * @show
    * @summary Get current user's profile
    * @tag Account
    * @security BearerAuth

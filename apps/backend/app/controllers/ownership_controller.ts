@@ -6,6 +6,7 @@ import '#types/http'
 
 export default class OwnershipController {
   /**
+   * @transfer
    * @summary Transfer organization ownership
    * @description Only the current owner may call this. Atomically promotes the target member and demotes the current owner to replacementRoleForCurrentOwner.
    * @tag Ownership
