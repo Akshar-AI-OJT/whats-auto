@@ -117,12 +117,12 @@ router
     router
       .get('/organizations', [SuperAdminOrganizationsController, 'index'])
       .use(middleware.requirePermission({ permission: 'platform:tenants_view' }))
-    router
-      .patch('/organizations/:id', [SuperAdminOrganizationsController, 'update'])
-      .use(middleware.requirePermission({ permission: 'platform:tenants_update' }))
-    router
-      .patch('/organizations/:id/soft-delete', [SuperAdminOrganizationsController, 'softDelete'])
-      .use(middleware.requirePermission({ permission: 'platform:tenants_delete' }))
+    // router
+    //   .patch('/organizations/:id', [SuperAdminOrganizationsController, 'update'])
+    //   .use(middleware.requirePermission({ permission: 'platform:tenants_update' }))
+    // router
+    //   .patch('/organizations/:id/soft-delete', [SuperAdminOrganizationsController, 'softDelete'])
+    //   .use(middleware.requirePermission({ permission: 'platform:tenants_delete' }))
   })
   .prefix('/api/v1/super-admin')
   .use([middleware.jwtAuth(), middleware.platform()])
