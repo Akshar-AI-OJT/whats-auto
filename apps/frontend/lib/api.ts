@@ -1,4 +1,8 @@
 function getBaseUrl() {
+  // Browser: same-origin relative /api so ngrok → Next rewrite → backend keeps cookies.
+  if (typeof window !== 'undefined') {
+    return ''
+  }
   const base = process.env.NEXT_PUBLIC_API_URL
   if (!base) {
     throw new Error('NEXT_PUBLIC_API_URL is not set')
@@ -88,6 +92,32 @@ async function request<T>(
   return { data, response }
 }
 
+/**
+ * Temporary: mint JWT from session cookie and call protected /api/v1 routes.
+ * Cookie-only jwtAuth has been unreliable through the ngrok → Next rewrite proxy.
+ */
+async function protectedRequest<T>(
+  path: string,
+  init: RequestInit = {}
+): Promise<{ data: T; response: Response }> {
+  const { data: tokenBody } = await request<{ token?: string }>('/api/auth/token', {
+    method: 'GET',
+  })
+
+  if (!tokenBody?.token) {
+    throw {
+      message: 'Could not mint access token. Sign in again and set an active organization.',
+      status: 401,
+      code: 'TOKEN_MINT_FAILED',
+    } satisfies ApiError
+  }
+
+  const headers = new Headers(init.headers)
+  headers.set('Authorization', `Bearer ${tokenBody.token}`)
+
+  return request<T>(path, { ...init, headers })
+}
+
 export type SignupBody = {
   firstname: string
   lastname: string
@@ -171,12 +201,43 @@ export const api = {
       request<{ user: ProfileUser | null; session: unknown } | null>('/api/auth/get-session', {
         method: 'GET',
       }),
+
+    token: () =>
+      request<{ token: string }>('/api/auth/token', {
+        method: 'GET',
+      }),
   },
 
   account: {
     profile: () =>
-      request<{ data?: ProfileUser } & ProfileUser>('/api/v1/account/profile', {
+      protectedRequest<{ data?: ProfileUser } & ProfileUser>('/api/v1/account/profile', {
         method: 'GET',
+      }),
+  },
+
+  /** Temporary WhatsApp Embedded Signup — uses Bearer JWT (minted from cookie). */
+  whatsapp: {
+    embeddedSignupSession: () =>
+      protectedRequest<{
+        data: { appId: string; configId: string; graphVersion: string }
+      }>('/api/v1/whatsapp/embedded-signup/session', { method: 'GET' }),
+
+    completeEmbeddedSignup: (body: {
+      code: string
+      wabaId: string
+      phoneNumberId: string
+      businessId?: string
+    }) =>
+      protectedRequest<{
+        data: {
+          id: string
+          phoneNumberId: string
+          wabaId: string | null
+          status: string
+        }
+      }>('/api/v1/whatsapp/embedded-signup/complete', {
+        method: 'POST',
+        body: JSON.stringify(body),
       }),
   },
 }
