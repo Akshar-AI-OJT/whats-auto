@@ -3,12 +3,13 @@ import type { NextFn } from '@adonisjs/core/types/http'
 import db from '@adonisjs/lucid/services/db'
 import { AuthorizationService } from '#services/authorization_service'
 import { permissionsFromClaims } from '#lib/access_token_permissions'
+import { checkTenantPermissionVersion } from '#lib/permission_version'
 import { runWithTenant } from '#services/tenant_context'
 import '#types/http'
 
 export default class TenantMiddleware {
   async handle({ request, response }: HttpContext, next: NextFn) {
-    // Bearer path — hydrate membership + permissions from verified claims (no RBAC queries).
+    // Bearer path — hydrate membership + permissions from verified claims.
     if (request.authMethod === 'bearer' && request.accessTokenClaims) {
       const claims = request.accessTokenClaims
 
@@ -16,6 +17,33 @@ export default class TenantMiddleware {
         return response.forbidden({
           error: 'No active organization. Call POST /api/v1/organizations/:id/set-active first.',
           code: 'NO_ACTIVE_ORG',
+        })
+      }
+
+      // Freshness check against organization_members.permissionVersion (before RLS stamp).
+      const memberRow = await db
+        .from('organization_members')
+        .where('id', claims.member_id)
+        .select('id', 'userId', 'organizationId', 'permissionVersion')
+        .first()
+
+      const versionCheck = checkTenantPermissionVersion({
+        claims,
+        member: memberRow
+          ? {
+              id: memberRow.id as string,
+              userId: memberRow.userId as string,
+              organizationId: memberRow.organizationId as string,
+              permissionVersion: Number(memberRow.permissionVersion),
+            }
+          : null,
+      })
+
+      if (!versionCheck.ok) {
+        return response.unauthorized({
+          error: 'Access token permissions are stale. Mint a new token.',
+          code: 'TOKEN_PERMISSIONS_STALE',
+          reason: versionCheck.reason,
         })
       }
 

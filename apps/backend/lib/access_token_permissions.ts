@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto'
 import {
   PERMISSIONS,
   PLATFORM_PERMISSIONS,
@@ -41,21 +40,4 @@ export function permissionsFromClaims(
   if (claims.role === 'owner') return new Set(PRODUCT_PERMISSIONS)
   if (claims.role === 'superadmin') return new Set(PLATFORM_PERMISSIONS)
   return parseScope(claims.scope)
-}
-
-/**
- * Stable short hash of the effective permission set (role + scope material).
- * Reserved for Phase 7 revocation; minted now so claim shape stays fixed.
- */
-export function computePermissionVersion(role: string | undefined, scope: string): string {
-  let material = scope
-  if (role === 'owner') {
-    material = formatScope(PRODUCT_PERMISSIONS)
-  } else if (role === 'superadmin') {
-    material = formatScope(PLATFORM_PERMISSIONS)
-  }
-  return createHash('sha256')
-    .update(`${role ?? ''}|${material}`)
-    .digest('hex')
-    .slice(0, 16)
 }

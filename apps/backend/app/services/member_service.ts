@@ -66,7 +66,12 @@ export class MemberService {
     }
 
     await db.transaction(async (trx) => {
-      await trx.from('organization_members').where('id', memberId).update({ roleId: role.id })
+      await trx.rawQuery(
+        `UPDATE "organization_members"
+         SET "roleId" = ?, "permissionVersion" = "permissionVersion" + 1
+         WHERE "id" = ?`,
+        [role.id, memberId]
+      )
 
       await trx
         .from('user_roles')

@@ -1,10 +1,5 @@
 import { test } from '@japa/runner'
-import {
-  computePermissionVersion,
-  formatScope,
-  parseScope,
-  permissionsFromClaims,
-} from '#lib/access_token_permissions'
+import { formatScope, parseScope, permissionsFromClaims } from '#lib/access_token_permissions'
 import { PRODUCT_PERMISSIONS } from '#abilities/permissions'
 
 test.group('access_token_permissions', () => {
@@ -28,12 +23,5 @@ test.group('access_token_permissions', () => {
 
   test('formatScope is sorted and stable', ({ assert }) => {
     assert.equal(formatScope(['team:view', 'contacts:view']), 'contacts:view team:view')
-  })
-
-  test('computePermissionVersion is deterministic', ({ assert }) => {
-    const a = computePermissionVersion('admin', 'contacts:view team:view')
-    const b = computePermissionVersion('admin', 'contacts:view team:view')
-    assert.equal(a, b)
-    assert.equal(a.length, 16)
   })
 })
