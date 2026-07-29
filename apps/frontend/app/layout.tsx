@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { getLocale } from 'next-intl/server'
 import { cn } from '@/lib/utils'
+import { themeInitScript } from '@/components/theme/theme-script'
 import { manrope, inter, interBody, interHeading } from './fonts'
 import './globals.css'
 
@@ -29,6 +30,9 @@ export default async function RootLayout({
         'font-sans'
       )}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body className="flex min-h-dvh flex-col overflow-x-clip bg-canvas-soft text-ink">
         {children}
       </body>
