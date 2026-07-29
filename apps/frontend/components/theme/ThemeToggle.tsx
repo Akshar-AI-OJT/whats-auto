@@ -1,6 +1,5 @@
 'use client'
 
-import { useSyncExternalStore } from 'react'
 import { Moon, Sun } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
@@ -16,31 +15,10 @@ const toggleButtonClassName = cn(
   'hover:border-dash-border-strong hover:bg-dash-surface'
 )
 
-/** Empty subscribe: client snapshot is always `true` after hydration. */
-function subscribeNoop() {
-  return () => {}
-}
-
-function useIsClient() {
-  return useSyncExternalStore(subscribeNoop, () => true, () => false)
-}
-
 export function ThemeToggle({ className }: ThemeToggleProps) {
   const t = useTranslations('dashboard.theme')
   const { resolvedTheme, toggleTheme } = useTheme()
-  const mounted = useIsClient()
   const isDark = resolvedTheme === 'dark'
-
-  if (!mounted) {
-    return (
-      <button
-        type="button"
-        className={cn(toggleButtonClassName, className)}
-        aria-label="Toggle theme"
-        disabled
-      />
-    )
-  }
 
   return (
     <button

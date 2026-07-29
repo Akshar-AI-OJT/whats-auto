@@ -2,10 +2,16 @@
 
 import { useEffect, useId, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { ArrowLeft, Clock3, Loader2, Lock, Mail, User } from 'lucide-react'
+import { ArrowLeft, Clock3, Loader2, Lock, Mail, Phone, User } from 'lucide-react'
 import { FcGoogle } from 'react-icons/fc'
 import { cn } from '@/lib/utils'
 import { api, type ApiError } from '@/lib/api'
+import {
+  isValidEmail,
+  isValidPhone,
+  ORG_SETUP_PATH,
+  savePendingOnboardingContact,
+} from '@/lib/onboarding'
 import { Button } from '@/components/ui/button'
 import {
   Field,
@@ -36,6 +42,7 @@ type FieldErrors = {
   firstname?: string
   lastname?: string
   email?: string
+  phone?: string
   password?: string
   confirmPassword?: string
   otp?: string
@@ -50,10 +57,6 @@ function formatCountdown(seconds: number) {
   const m = Math.floor(seconds / 60)
   const s = seconds % 60
   return `${m}:${s.toString().padStart(2, '0')}`
-}
-
-function isValidEmail(value: string) {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 }
 
 /** Client-only strength score — does not change backend password rules. */
@@ -93,6 +96,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
   const firstnameId = useId()
   const lastnameId = useId()
   const emailId = useId()
+  const phoneId = useId()
   const passwordId = useId()
   const confirmPasswordId = useId()
   const otpId = useId()
@@ -103,6 +107,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
   const firstnameErrorId = useId()
   const lastnameErrorId = useId()
   const emailErrorId = useId()
+  const phoneErrorId = useId()
   const passwordErrorId = useId()
   const confirmPasswordErrorId = useId()
   const otpErrorId = useId()
@@ -111,6 +116,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
   const [firstname, setFirstname] = useState('')
   const [lastname, setLastname] = useState('')
   const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [otp, setOtp] = useState('')
@@ -170,6 +176,12 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
       next.email = t('errors.emailInvalid')
     }
 
+    if (!phone.trim()) {
+      next.phone = t('errors.phoneRequired')
+    } else if (!isValidPhone(phone)) {
+      next.phone = t('errors.phoneInvalid')
+    }
+
     if (!password) {
       next.password = t('errors.passwordRequired')
     } else if (password.length < 8) {
@@ -202,7 +214,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
 
     try {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL
-      const { data } = await api.auth.google(`${appUrl}/${locale}/dashboard`)
+      const { data } = await api.auth.google(`${appUrl}/${locale}${ORG_SETUP_PATH}`)
       if (data.url) {
         window.location.href = data.url
         return
@@ -237,6 +249,8 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
         email: email.trim(),
         password,
       })
+      // Phone is collected for org setup (users table has no phone column yet).
+      savePendingOnboardingContact({ email: email.trim(), phone: phone.trim() })
       setStep('otp')
       startResendCooldown(60)
     } catch (err) {
@@ -263,7 +277,8 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
 
     try {
       await api.auth.verifyOtp({ email, otp, password })
-      router.push('/dashboard')
+      savePendingOnboardingContact({ email: email.trim(), phone: phone.trim() })
+      router.push(ORG_SETUP_PATH)
       router.refresh()
     } catch (err) {
       setError((err as ApiError).message || t('errors.generic'))
@@ -646,6 +661,41 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
           {fieldErrors.email ? (
             <FieldError id={emailErrorId} className="text-xs leading-4 text-negative">
               {fieldErrors.email}
+            </FieldError>
+          ) : null}
+        </Field>
+
+        <Field data-invalid={fieldErrors.phone ? true : undefined} className="gap-2">
+          <FieldLabel htmlFor={phoneId} className="text-sm font-medium leading-5 text-ink">
+            {t('phone')}
+          </FieldLabel>
+          <div className="relative">
+            <Phone
+              className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-mute"
+              aria-hidden
+            />
+            <Input
+              id={phoneId}
+              name="phone"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              placeholder="+91 98765 43210"
+              required
+              disabled={isPending}
+              aria-invalid={Boolean(fieldErrors.phone)}
+              aria-describedby={fieldErrors.phone ? phoneErrorId : undefined}
+              className={authInputWithIconClassName}
+              value={phone}
+              onChange={(e) => {
+                setPhone(e.target.value)
+                clearFieldError('phone')
+              }}
+            />
+          </div>
+          {fieldErrors.phone ? (
+            <FieldError id={phoneErrorId} className="text-xs leading-4 text-negative">
+              {fieldErrors.phone}
             </FieldError>
           ) : null}
         </Field>

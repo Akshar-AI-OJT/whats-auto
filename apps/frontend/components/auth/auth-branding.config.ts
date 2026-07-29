@@ -16,6 +16,7 @@ import {
 export type AuthBrandingVariant =
   | 'login'
   | 'register'
+  | 'organization'
   | 'forgot-password'
   | 'reset-password'
   | 'otp'
@@ -193,6 +194,47 @@ export const authBrandingConfig: Record<AuthBrandingVariant, AuthBrandingConfig>
           'absolute top-[38%] right-[8%] z-0 hidden items-center gap-1.5 rounded-full border border-[#E2E8F0] bg-canvas px-2 py-1 text-[10px] font-medium text-body shadow-sm md:flex',
         icon: MessageCircle,
         label: 'WhatsApp',
+      },
+    ],
+  },
+
+  organization: {
+    heading: 'Set up your organization workspace.',
+    subtitle:
+      'You become the Owner automatically. Invite Admins, Agents, and Viewers after you land in the dashboard.',
+    footer: 'One workspace. Clear ownership. Ready for your team.',
+    headingClassName:
+      'max-w-[16rem] font-display text-2xl leading-[1.1] tracking-tight text-ink sm:text-3xl md:max-w-[18rem] md:text-[2.05rem]',
+    subtitleClassName: subtitleClassNameDefault,
+    floatingCards: [
+      {
+        kind: 'checklist',
+        className: 'absolute top-2 left-0 z-20 w-[90%] -rotate-2 p-4 sm:w-[92%]',
+        icon: Users,
+        title: 'Workspace setup',
+        subtitle: 'Next up',
+        listStyle: 'stepper',
+        items: [
+          { label: 'Account verified', done: true },
+          { label: 'Organization created', done: false },
+          { label: 'Owner assigned', done: false },
+          { label: 'Invite your team', done: false },
+        ],
+      },
+      {
+        kind: 'chip',
+        className:
+          'absolute top-[58%] right-0 z-30 flex w-[11rem] rotate-[5deg] items-center gap-2 p-3 sm:w-[11.75rem]',
+        icon: ShieldCheck,
+        iconWrapClassName: 'size-7 bg-primary text-on-primary',
+        title: 'You are Owner',
+        subtitle: 'Automatic role',
+      },
+      {
+        kind: 'pill',
+        className: 'absolute bottom-2 left-2 z-10',
+        icon: MessageCircle,
+        label: 'WhatsApp-ready workspace',
       },
     ],
   },

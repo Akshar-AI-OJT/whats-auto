@@ -141,6 +141,34 @@ export type ProfileUser = {
   updatedAt: string | null
 }
 
+export type CreateOrganizationBody = {
+  name: string
+  slug: string
+  email: string
+  phone?: string
+  website?: string
+  industry?: string
+  country: string
+  timezone: string
+  currency?: string
+}
+
+export type CreatedOrganization = {
+  id: string
+  name: string
+  slug: string
+  role: string
+}
+
+export type OrganizationSummary = {
+  id: string
+  name: string
+  slug: string
+  email: string
+  role: string
+  createdAt: string
+}
+
 export const api = {
   auth: {
     signup: (body: SignupBody) =>
@@ -172,8 +200,7 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({
           email: body.email,
-          redirectTo:
-            body.redirectTo ?? `${process.env.NEXT_PUBLIC_APP_URL}/reset-password`,
+          redirectTo: body.redirectTo ?? `${process.env.NEXT_PUBLIC_APP_URL}/reset-password`,
         }),
       }),
 
@@ -188,7 +215,7 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({
           provider: 'google',
-          callbackURL: callbackURL ?? `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`,
+          callbackURL: callbackURL ?? `${process.env.NEXT_PUBLIC_APP_URL}/onboarding/organization`,
         }),
       }),
 
@@ -239,5 +266,26 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(body),
       }),
+  },
+  organizations: {
+    /** Reserved for tomorrow — do not call until auth/backend are confirmed. */
+    create: (body: CreateOrganizationBody) =>
+      request<{ data?: CreatedOrganization } & CreatedOrganization>('/api/v1/organizations', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+
+    /** Reserved for tomorrow — do not call until auth/backend are confirmed. */
+    list: () =>
+      request<{ data?: OrganizationSummary[] } | OrganizationSummary[]>('/api/v1/organizations', {
+        method: 'GET',
+      }),
+
+    /** Reserved for tomorrow — do not call until auth/backend are confirmed. */
+    setActive: (organizationId: string) =>
+      request<{ data?: { organizationId: string } } & { organizationId: string }>(
+        `/api/v1/organizations/${organizationId}/set-active`,
+        { method: 'POST' }
+      ),
   },
 }

@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl'
 import { useAuth } from '@/hooks/useAuth'
 import { DashboardShell } from './DashboardShell'
+import { OnboardingChecklist } from './overview/OnboardingChecklist'
 import { WelcomeSection } from './overview/WelcomeSection'
 import { KpiGrid } from './overview/KpiGrid'
 import { RecentConversations } from './overview/RecentConversations'
@@ -26,6 +27,7 @@ export function DashboardHome() {
     <DashboardShell>
       <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 sm:gap-6 xl:gap-7">
         <WelcomeSection />
+        <OnboardingChecklist />
         <KpiGrid />
 
         {/* Stack on mobile + tablet; side-by-side from xl (desktop) */}

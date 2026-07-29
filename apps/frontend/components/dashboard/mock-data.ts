@@ -200,44 +200,6 @@ export const MOCK_QUICK_ACTIONS: MockQuickAction[] = [
   },
 ]
 
-export type MockWorkspace = {
-  id: string
-  name: string
-  plan: string
-  /** 1–2 letter avatar initials */
-  initials: string
-  /** Accent for avatar background */
-  accent: 'green' | 'cyan' | 'amber'
-  members: number
-}
-
-export const MOCK_WORKSPACES: MockWorkspace[] = [
-  {
-    id: 'ws-1',
-    name: 'Acme Workspace',
-    plan: 'Growth',
-    initials: 'AW',
-    accent: 'green',
-    members: 12,
-  },
-  {
-    id: 'ws-2',
-    name: 'Demo Store',
-    plan: 'Starter',
-    initials: 'DS',
-    accent: 'cyan',
-    members: 4,
-  },
-  {
-    id: 'ws-3',
-    name: 'Nova Labs',
-    plan: 'Scale',
-    initials: 'NL',
-    accent: 'amber',
-    members: 28,
-  },
-]
-
 export type MockNotificationType =
   | 'campaign'
   | 'message'
