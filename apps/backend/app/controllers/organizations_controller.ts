@@ -9,6 +9,7 @@ import '#types/http'
 
 export default class OrganizationsController {
   /**
+   * @store
    * @summary Create an organization
    * @description Creates the org, makes the caller owner, and sets it as the active organization on the current session.
    * @tag Organizations
@@ -34,6 +35,7 @@ export default class OrganizationsController {
   }
 
   /**
+   * @index
    * @summary List organizations the current user belongs to
    * @tag Organizations
    * @security BearerAuth
@@ -45,7 +47,9 @@ export default class OrganizationsController {
   }
 
   /**
+   * @setActive
    * @summary Set the active organization for the current session
+   * @description Also the step that decides what a freshly minted JWT will contain. Mint a new access token afterwards.
    * @tag Organizations
    * @security BearerAuth
    * @paramPath id - Organization id - @type(string)
@@ -66,6 +70,7 @@ export default class OrganizationsController {
   }
 
   /**
+   * @update
    * @summary Update an organization
    * @description Path `:id` must match the session active organization. Editable fields: name, phone, website, industry, timezone, currency. Slug and email cannot be changed.
    * @tag Organizations
@@ -94,6 +99,7 @@ export default class OrganizationsController {
   }
 
   /**
+   * @destroy
    * @summary Soft-delete an organization
    * @description Path `:id` must match the session active organization. Owner-only. Cascades members, invitations, role overrides, and user_roles. Audit history is retained.
    * @tag Organizations
