@@ -3,7 +3,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { Check, ChevronDown, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { MockWorkspace } from './mock-data'
 
 export type WorkspaceSwitcherItem = {
   id: string
@@ -29,7 +28,7 @@ export type WorkspaceSwitcherProps = {
     create?: string
   }
   className?: string
-  /** Optional create-workspace action for future wiring. */
+  /** Create-workspace action — shown below the org list when provided. */
   onCreateWorkspace?: () => void
 }
 
@@ -275,16 +274,12 @@ export function WorkspaceSwitcher({
   )
 }
 
-/** Helper to map mock workspaces into switcher items. */
-export function toWorkspaceSwitcherItems(
-  workspaces: MockWorkspace[]
-): WorkspaceSwitcherItem[] {
-  return workspaces.map((ws) => ({
-    id: ws.id,
-    name: ws.name,
-    plan: ws.plan,
-    initials: ws.initials,
-    accent: ws.accent,
-    members: ws.members,
-  }))
+/** Map organization name → 1–2 letter avatar initials. */
+export function organizationInitials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return 'OR'
+  if (parts.length === 1) {
+    return parts[0].slice(0, 2).toUpperCase()
+  }
+  return `${parts[0][0] ?? ''}${parts[1][0] ?? ''}`.toUpperCase()
 }

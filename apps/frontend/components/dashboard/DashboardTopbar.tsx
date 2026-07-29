@@ -1,10 +1,12 @@
 'use client'
 
-import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react'
-import { Menu, Search } from 'lucide-react'
+import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
+import { Building2, Menu, Plus, Search } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
 import { useAuth } from '@/hooks/useAuth'
+import { useOrganizations } from './OrganizationsProvider'
+import { ORG_SETUP_PATH } from '@/lib/onboarding'
 import { cn } from '@/lib/utils'
 import {
   Sheet,
@@ -14,15 +16,21 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { DashboardSidebar } from './DashboardSidebar'
-import { MOCK_NOTIFICATIONS, MOCK_WORKSPACES } from './mock-data'
+import { MOCK_NOTIFICATIONS } from './mock-data'
 import { NotificationBell } from './NotificationBell'
 import { UserProfileMenu } from './UserProfileMenu'
-import { WorkspaceSwitcher } from './WorkspaceSwitcher'
+import {
+  WorkspaceSwitcher,
+  organizationInitials,
+  type WorkspaceSwitcherItem,
+} from './WorkspaceSwitcher'
 import { ThemeToggle } from '@/components/theme/ThemeToggle'
 
 type DashboardTopbarProps = {
   className?: string
 }
+
+const ACCENTS: WorkspaceSwitcherItem['accent'][] = ['green', 'cyan', 'amber']
 
 function detectMac() {
   if (typeof navigator === 'undefined') return false
@@ -33,19 +41,42 @@ function subscribeNoop() {
   return () => {}
 }
 
+function formatRoleLabel(role: string): string {
+  if (!role) return ''
+  return role.charAt(0).toUpperCase() + role.slice(1)
+}
+
 export function DashboardTopbar({ className }: DashboardTopbarProps) {
   const t = useTranslations('dashboard')
   const { user, signOut } = useAuth()
   const router = useRouter()
+  const {
+    organizations,
+    activeOrganizationId,
+    hasOrganizations,
+    isLoading: orgsLoading,
+    selectOrganization,
+  } = useOrganizations()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [workspaceOpen, setWorkspaceOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
-  const [workspaceId, setWorkspaceId] = useState(MOCK_WORKSPACES[0].id)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const searchId = useId()
   const [searchFocused, setSearchFocused] = useState(false)
   const isMac = useSyncExternalStore(subscribeNoop, detectMac, () => false)
+
+  const workspaces = useMemo<WorkspaceSwitcherItem[]>(
+    () =>
+      organizations.map((org, index) => ({
+        id: org.id,
+        name: org.name,
+        plan: formatRoleLabel(org.role),
+        initials: organizationInitials(org.name),
+        accent: ACCENTS[index % ACCENTS.length],
+      })),
+    [organizations]
+  )
 
   const displayName =
     user?.name?.trim() ||
@@ -93,6 +124,16 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
     router.refresh()
   }
 
+  function goToOrgOnboarding() {
+    setWorkspaceOpen(false)
+    router.push(ORG_SETUP_PATH)
+  }
+
+  async function handleWorkspaceChange(nextId: string) {
+    if (nextId === activeOrganizationId) return
+    await selectOrganization(nextId)
+  }
+
   return (
     <header
       className={cn(
@@ -130,29 +171,53 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
         </SheetContent>
       </Sheet>
 
-      <WorkspaceSwitcher
-        className="min-w-0"
-        workspaces={MOCK_WORKSPACES}
-        value={workspaceId}
-        open={workspaceOpen}
-        onOpenChange={(next) => {
-          setWorkspaceOpen(next)
-          if (next) {
-            setProfileOpen(false)
-            setNotificationsOpen(false)
-          }
-        }}
-        onChange={setWorkspaceId}
-        labels={{
-          listLabel: t('workspace.listLabel'),
-          active: t('workspace.active'),
-          members: t('workspace.members'),
-          create: t('workspace.create'),
-        }}
-        onCreateWorkspace={() => {
-          // UI-only for now — future create-workspace flow.
-        }}
-      />
+      {!orgsLoading && !hasOrganizations ? (
+        <button
+          type="button"
+          onClick={goToOrgOnboarding}
+          className={cn(
+            'inline-flex max-w-[14rem] items-center gap-2 rounded-xl border border-dashed border-primary/45 bg-primary-pale/50 px-2.5 py-1.5 text-left sm:max-w-[18rem]',
+            'transition-[background-color,border-color] duration-200 hover:border-primary/70 hover:bg-primary-pale'
+          )}
+        >
+          <span className="flex size-7 shrink-0 items-center justify-center rounded-lg border border-dashed border-primary/50 bg-canvas text-positive-deep">
+            <Building2 className="size-3.5" aria-hidden />
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-semibold text-positive-deep">
+              {t('workspace.emptyTitle')}
+            </span>
+            <span className="hidden truncate text-[11px] text-mute sm:block">
+              {t('workspace.emptyAction')}
+            </span>
+          </span>
+          <Plus className="size-4 shrink-0 text-positive-deep" aria-hidden />
+        </button>
+      ) : null}
+
+      {hasOrganizations ? (
+        <WorkspaceSwitcher
+          className="min-w-0"
+          workspaces={workspaces}
+          value={activeOrganizationId ?? workspaces[0]?.id}
+          open={workspaceOpen}
+          onOpenChange={(next) => {
+            setWorkspaceOpen(next)
+            if (next) {
+              setProfileOpen(false)
+              setNotificationsOpen(false)
+            }
+          }}
+          onChange={handleWorkspaceChange}
+          labels={{
+            listLabel: t('workspace.listLabel'),
+            active: t('workspace.active'),
+            members: t('workspace.members'),
+            create: t('workspace.create'),
+          }}
+          onCreateWorkspace={goToOrgOnboarding}
+        />
+      ) : null}
 
       {/* Global search — full width on mobile, flexes on tablet+ */}
       <div className="group/search relative order-last min-w-0 basis-full sm:order-none sm:flex-1 sm:basis-auto">

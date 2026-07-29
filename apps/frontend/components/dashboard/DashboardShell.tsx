@@ -3,6 +3,7 @@
 import { DashboardChromeProvider, useDashboardChrome } from './DashboardChromeContext'
 import { DashboardSidebar } from './DashboardSidebar'
 import { DashboardTopbar } from './DashboardTopbar'
+import { OrganizationsProvider } from './OrganizationsProvider'
 import { cn } from '@/lib/utils'
 
 type DashboardShellProps = {
@@ -37,8 +38,10 @@ function DashboardShellFrame({ children, className }: DashboardShellProps) {
 
 export function DashboardShell({ children, className }: DashboardShellProps) {
   return (
-    <DashboardChromeProvider>
-      <DashboardShellFrame className={className}>{children}</DashboardShellFrame>
-    </DashboardChromeProvider>
+    <OrganizationsProvider>
+      <DashboardChromeProvider>
+        <DashboardShellFrame className={className}>{children}</DashboardShellFrame>
+      </DashboardChromeProvider>
+    </OrganizationsProvider>
   )
 }
