@@ -13,6 +13,7 @@ import router from '@adonisjs/core/services/router'
 import { controllers } from '#generated/controllers'
 import AutoSwagger from 'adonis-autoswagger'
 import swagger from '#config/swagger'
+const AuthController = () => import('#controllers/auth_controller')
 const PreSignupController = () => import('#controllers/pre_signup_controller')
 const VerifySignupController = () => import('#controllers/verify_signup_controller')
 const TenantsController = () => import('#controllers/tenants_controller')
@@ -22,6 +23,8 @@ const InvitationsController = () => import('#controllers/invitations_controller'
 const OnboardingController = () => import('#controllers/onboarding_controller')
 const SuperAdminOrganizationsController = () =>
   import('#controllers/super_admin_organizations_controller')
+const SuperAdminSubscriptionsController = () =>
+  import('#controllers/super_admin_subscriptions_controller')
 const WhatsappWebhookController = () => import('#controllers/whatsapp_webhook_controller')
 const WhatsappEmbeddedSignupController = () =>
   import('#controllers/whatsapp_embedded_signup_controller')
@@ -30,7 +33,13 @@ const WhatsappConfigsController = () => import('#controllers/whatsapp_configs_co
 //  Swagger UI + JSON spec
 // Served only in non-production environments
 router.get('/swagger', async ({ response }) => {
-  return response.send(await AutoSwagger.default.docs(router.toJSON(), swagger))
+  const spec = await AutoSwagger.default.json(router.toJSON(), swagger)
+
+  // A @tag annotation is appended once per operation, but OpenAPI requires unique tag names.
+  const tags = spec.tags as { name: string }[]
+  spec.tags = [...new Map(tags.map((tag) => [tag.name, tag])).values()]
+
+  return response.json(spec)
 })
 
 router.get('/docs', async () => {
@@ -42,6 +51,12 @@ router.get('/', () => {
 })
 
 // better-auth handles /api/auth/* (login, OAuth, forgot/reset password, session, etc.)
+router.post('/api/auth/sign-in/email', [AuthController, 'signInEmail'])
+router.post('/api/auth/sign-out', [AuthController, 'signOut'])
+router.get('/api/auth/get-session', [AuthController, 'getSession'])
+router.get('/api/auth/token', [AuthController, 'token'])
+router.get('/api/auth/jwks', [AuthController, 'jwks'])
+
 router.any('/api/auth/*', async (ctx) => {
   return handleBetterAuth(ctx)
 })
@@ -117,6 +132,21 @@ router
     router
       .get('/organizations', [SuperAdminOrganizationsController, 'index'])
       .use(middleware.requirePermission({ permission: 'platform:tenants_view' }))
+    router
+      .get('/subscriptions', [SuperAdminSubscriptionsController, 'index'])
+      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
+    router
+      .post('/subscriptions', [SuperAdminSubscriptionsController, 'store'])
+      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
+    router
+      .get('/subscriptions/:id', [SuperAdminSubscriptionsController, 'show'])
+      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
+    router
+      .patch('/subscriptions/:id', [SuperAdminSubscriptionsController, 'update'])
+      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
+    router
+      .patch('/subscriptions/:id/delete', [SuperAdminSubscriptionsController, 'softDelete'])
+      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
     router
       .patch('/organizations/:id', [SuperAdminOrganizationsController, 'update'])
       .use(middleware.requirePermission({ permission: 'platform:tenants_update' }))

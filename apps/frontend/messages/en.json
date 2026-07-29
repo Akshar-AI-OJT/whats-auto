@@ -1137,7 +1137,8 @@
       "subtitle": "Start automating customer conversations in just a few minutes.",
       "firstname": "First Name",
       "lastname": "Last Name",
-      "email": "Email",
+      "email": "Business Email",
+      "phone": "Phone Number",
       "password": "Password",
       "confirmPassword": "Confirm Password",
       "passwordHint": "Must be at least 8 characters long.",
@@ -1178,8 +1179,10 @@
         "passwordLength": "Password must be at least 8 characters.",
         "firstnameRequired": "First name is required.",
         "lastnameRequired": "Last name is required.",
-        "emailRequired": "Email is required.",
+        "emailRequired": "Business email is required.",
         "emailInvalid": "Enter a valid email address.",
+        "phoneRequired": "Phone number is required.",
+        "phoneInvalid": "Enter a valid phone number.",
         "passwordRequired": "Password is required.",
         "confirmPasswordRequired": "Confirm your password.",
         "otpRequired": "Enter the verification code.",
@@ -1242,6 +1245,137 @@
       }
     }
   },
+  "onboarding": {
+    "organization": {
+      "eyebrow": "Step {step} of {total}",
+      "steps": {
+        "basics": "Basics",
+        "company": "Company",
+        "preferences": "Preferences"
+      },
+      "ownerNote": "You become the Owner automatically when you create this organization. Owner is never selected manually.",
+      "name": "Organization Name",
+      "namePlaceholder": "Acme Workspace",
+      "slug": "Organization Slug",
+      "slugPlaceholder": "acme-workspace",
+      "slugHint": "Lowercase letters, numbers, and hyphens only. Auto-generated from the name — you can edit it.",
+      "email": "Organization Email",
+      "emailPlaceholder": "ops@acme.com",
+      "phone": "Organization Phone Number",
+      "phonePlaceholder": "+91 98765 43210",
+      "continue": "Continue",
+      "back": "Back",
+      "createWorkspace": "Create Workspace",
+      "creating": "Creating workspace…",
+      "step1": {
+        "title": "Create your organization",
+        "subtitle": "This workspace is where your WhatsApp team will collaborate."
+      },
+      "step2": {
+        "title": "Tell us about your company",
+        "subtitle": "A few details help us tailor your Whats-Auto workspace.",
+        "logo": "Company Logo",
+        "logoUpload": "Upload company logo",
+        "logoEmpty": "No logo uploaded",
+        "logoHint": "PNG, JPG, or WebP. Optional — you can add this later.",
+        "logoRemove": "Remove logo",
+        "industry": "Industry",
+        "industryPlaceholder": "Select industry",
+        "companySize": "Company Size",
+        "companySizePlaceholder": "Select company size",
+        "country": "Country",
+        "countryPlaceholder": "Select country",
+        "timezone": "Timezone",
+        "industries": {
+          "retail": "Retail",
+          "ecommerce": "E-commerce",
+          "healthcare": "Healthcare",
+          "education": "Education",
+          "saas": "SaaS / Software",
+          "finance": "Finance",
+          "hospitality": "Hospitality",
+          "realEstate": "Real Estate",
+          "agency": "Agency / Marketing",
+          "other": "Other"
+        },
+        "companySizes": {
+          "1-10": "1–10 employees",
+          "11-50": "11–50 employees",
+          "51-200": "51–200 employees",
+          "201-500": "201–500 employees",
+          "500plus": "500+ employees"
+        },
+        "countries": {
+          "IN": "India",
+          "US": "United States",
+          "GB": "United Kingdom",
+          "AE": "United Arab Emirates",
+          "SG": "Singapore",
+          "AU": "Australia",
+          "CA": "Canada",
+          "DE": "Germany",
+          "FR": "France",
+          "NL": "Netherlands"
+        }
+      },
+      "step3": {
+        "title": "Workspace Preferences",
+        "subtitle": "Choose defaults for language, time, theme, and notifications.",
+        "defaultLanguage": "Default Language",
+        "dateFormat": "Date Format",
+        "timeFormat": "Time Format",
+        "themePreference": "Theme Preference",
+        "notifications": "Notification Preferences",
+        "notificationsHint": "Select how you’d like to hear from Whats-Auto. You can change these anytime.",
+        "languages": {
+          "en": "English",
+          "hi": "Hindi"
+        },
+        "timeFormats": {
+          "12h": "12-hour (AM/PM)",
+          "24h": "24-hour"
+        },
+        "themes": {
+          "system": "System",
+          "light": "Light",
+          "dark": "Dark"
+        },
+        "notificationOptions": {
+          "emailUpdates": {
+            "label": "Email updates",
+            "description": "Product news and account notices by email."
+          },
+          "productTips": {
+            "label": "Product tips",
+            "description": "Occasional tips to get more from your workspace."
+          },
+          "campaignAlerts": {
+            "label": "Campaign alerts",
+            "description": "Delivery and performance alerts for campaigns."
+          }
+        }
+      },
+      "errors": {
+        "generic": "Something went wrong. Please try again.",
+        "sessionExpired": "Your session expired. Please sign in again.",
+        "nameRequired": "Organization name is required (min 2 characters).",
+        "slugRequired": "Organization slug is required.",
+        "slugInvalid": "Use lowercase letters, numbers, and hyphens only (2–100 characters).",
+        "emailRequired": "Organization email is required.",
+        "emailInvalid": "Enter a valid email address.",
+        "phoneRequired": "Organization phone number is required.",
+        "phoneInvalid": "Enter a valid phone number.",
+        "industryRequired": "Select an industry.",
+        "companySizeRequired": "Select a company size.",
+        "countryRequired": "Select a country.",
+        "timezoneRequired": "Select a timezone.",
+        "languageRequired": "Select a default language.",
+        "dateFormatRequired": "Select a date format.",
+        "timeFormatRequired": "Select a time format.",
+        "themeRequired": "Select a theme preference."
+      }
+    }
+  },
   "dashboard": {
     "brand": "Whats-Auto",
     "brandTagline": "Workspace",
@@ -1253,6 +1387,9 @@
       "ariaLabel": "Dashboard navigation",
       "comingSoon": "Coming soon",
       "dashboard": "Dashboard",
+      "team": "Team Management",
+      "teamMembers": "Team Members",
+      "inviteMember": "Invite Member",
       "contacts": "Contacts",
       "inbox": "Inbox",
       "messages": "Messages",
@@ -1263,6 +1400,40 @@
       "billing": "Billing",
       "auditLogs": "Audit Logs",
       "settings": "Settings"
+    },
+    "team": {
+      "eyebrow": "Workspace access",
+      "title": "Team Management",
+      "subtitle": "Invite teammates and manage roles. The organization creator is Owner automatically — Owner is never assigned from invites.",
+      "inviteCta": "Invite Member",
+      "membersTitle": "Team Members",
+      "membersDescription": "People with access to this WhatsApp workspace.",
+      "emptyTitle": "No teammates yet",
+      "emptyDescription": "Invite Admins, Agents, or Viewers to collaborate. Owner stays with the workspace creator.",
+      "invite": {
+        "title": "Invite Member",
+        "subtitle": "Send an invitation with a role. Owner is not available here.",
+        "email": "Email",
+        "phone": "Phone",
+        "phoneOptional": "Optional",
+        "phoneHint": "Phone is optional for now.",
+        "role": "Role",
+        "roleHint": "Choose Admin, Agent, or Viewer. Owner is reserved for the creator.",
+        "submit": "Send Invite",
+        "submitting": "Sending…",
+        "roles": {
+          "admin": "Admin",
+          "agent": "Agent",
+          "viewer": "Viewer"
+        },
+        "errors": {
+          "emailRequired": "Email is required.",
+          "emailInvalid": "Enter a valid email address.",
+          "phoneInvalid": "Enter a valid phone number.",
+          "roleRequired": "Select a role.",
+          "comingSoon": "Invites will connect to the API next. Form validation is ready."
+        }
+      }
     },
     "sidebar": {
       "planLabel": "Current plan",
@@ -1275,8 +1446,8 @@
       "active": "Active",
       "members": "members",
       "create": "Create workspace",
-      "primary": "Acme Workspace",
-      "secondary": "Demo Store"
+      "emptyTitle": "No workspace yet",
+      "emptyAction": "Create your organization"
     },
     "topbar": {
       "openMenu": "Open navigation",
@@ -1309,6 +1480,20 @@
       "welcome": "Welcome back",
       "welcomeNamed": "Welcome back, {name}",
       "subtitle": "Here’s what’s happening across your WhatsApp automation workspace today.",
+      "checklist": {
+        "eyebrow": "Getting started",
+        "title": "Onboarding checklist",
+        "dismiss": "Dismiss checklist",
+        "completed": {
+          "workspace": "Workspace Created"
+        },
+        "nextStepsTitle": "Next Steps",
+        "nextSteps": {
+          "whatsapp": "Connect WhatsApp Business",
+          "invite": "Invite Team Members",
+          "campaign": "Create First Campaign"
+        }
+      },
       "kpis": {
         "contacts": {
           "label": "Total Contacts",

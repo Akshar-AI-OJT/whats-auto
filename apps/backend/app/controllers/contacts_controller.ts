@@ -5,6 +5,7 @@ import '#types/http'
 
 export default class ContactsController {
   /**
+   * @index
    * @summary List contacts for the active organization
    * @description RLS-scoped sample business table. Rows from other orgs are invisible even if queried without an app-level organizationId filter.
    * @tag Contacts
@@ -18,6 +19,7 @@ export default class ContactsController {
   }
 
   /**
+   * @store
    * @summary Create a contact in the active organization
    * @tag Contacts
    * @security BearerAuth

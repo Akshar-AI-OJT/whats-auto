@@ -1,11 +1,13 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { InvitationService } from '#services/invitation_service'
 import { mapRbacError } from '#lib/map_rbac_error'
+import { attachRemintedAccessToken } from '#lib/access_token_response'
 import { createInvitationValidator } from '#validators/invitation'
 import '#types/http'
 
 export default class InvitationsController {
   /**
+   * @index
    * @summary List pending invitations for the active organization
    * @tag Invitations
    * @security BearerAuth
@@ -19,6 +21,7 @@ export default class InvitationsController {
   }
 
   /**
+   * @store
    * @summary Invite a user to an organization
    * @description Path `:id` must match the session active organization.
    * @tag Invitations
@@ -52,6 +55,7 @@ export default class InvitationsController {
   }
 
   /**
+   * @show
    * @summary Preview an invitation (public — invitation id is the secret)
    * @tag Invitations
    * @paramPath id - Invitation id - @type(string)
@@ -67,12 +71,14 @@ export default class InvitationsController {
   }
 
   /**
+   * @accept
    * @summary Accept an invitation
    * @description Caller must be authenticated; email must match the invitation. Creates membership + user_roles and sets the joined organization active on the session.
    * @tag Invitations
    * @security BearerAuth
    * @paramPath id - Invitation id - @type(string)
    * @responseBody 200 - { "data": { "organizationId": "uuid" } }
+   * @responseHeader 200 - set-auth-jwt - Reminted access token for the joined organization - @type(string)
    * @responseBody 422 - { "error": "Invitation has expired", "code": "E_INVITE_EXPIRED" }
    */
   async accept({ request, params, response, serialize }: HttpContext) {
@@ -83,6 +89,7 @@ export default class InvitationsController {
         userEmail: request.authUser!.email,
         sessionId: request.sessionId!,
       })
+      await attachRemintedAccessToken({ request, response }, request.sessionId!)
       return serialize(result)
     } catch (error) {
       return mapRbacError(error, response)
@@ -90,6 +97,7 @@ export default class InvitationsController {
   }
 
   /**
+   * @reject
    * @summary Reject an invitation
    * @tag Invitations
    * @security BearerAuth
@@ -109,6 +117,7 @@ export default class InvitationsController {
   }
 
   /**
+   * @cancel
    * @summary Cancel a pending invitation
    * @tag Invitations
    * @security BearerAuth

@@ -1,24 +1,21 @@
 import type { HttpContext } from '@adonisjs/core/http'
-<<<<<<< HEAD
 import { OrganizationService } from '#services/organization_service'
-import { listSuperAdminOrganizationsValidator } from '#validators/organization_crud'
-=======
 import { Exception } from '@adonisjs/core/exceptions'
-import { OrganizationService } from '#services/organization_service'
 import {
   listSuperAdminOrganizationsValidator,
   organizationIdParamValidator,
   updateOrganizationValidator,
 } from '#validators/organization_crud'
 import { mapRbacError } from '#lib/map_rbac_error'
->>>>>>> feature/superadmin-role
+import { attachClearAccessToken } from '#lib/access_token_response'
 import '#types/http'
 
 export default class SuperAdminOrganizationsController {
   /**
+   * @index
    * @summary List all organizations (Super Admin)
    * @description Platform-wide paginated organization list. Requires Super Admin role and platform:tenants_view permission.
-   * @tag Super Admin
+   * @tag Super-Admin
    * @security BearerAuth
    * @paramQuery page - Page number (default 1) - @type(number)
    * @paramQuery perPage - Items per page (1-100, default 20) - @type(number)
@@ -38,8 +35,6 @@ export default class SuperAdminOrganizationsController {
 
     return serialize(organizations)
   }
-<<<<<<< HEAD
-=======
 
   /**
    * @summary Update an organization (Super Admin)
@@ -76,12 +71,14 @@ export default class SuperAdminOrganizationsController {
   }
 
   /**
+   * @softDelete
    * @summary Soft-delete an organization (Super Admin)
    * @description Marks the organization as deleted (soft delete) without removing the row. Requires Super Admin role and platform:tenants_delete permission.
-   * @tag Super Admin
+   * @tag Super-Admin
    * @security BearerAuth
    * @paramPath id - Organization id - @type(string)
    * @responseBody 200 - { "data": { "ok": true } }
+   * @responseHeader 200 - Clear-Auth-Jwt - Present when the deleted org was the caller's active organization - @type(string)
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 403 - { "error": "Permission denied: platform:tenants_delete", "code": "PERMISSION_DENIED" }
    * @responseBody 404 - { "error": "Organization Not Found", "code": "E_ORGANIZATION_NOT_FOUND" }
@@ -97,6 +94,12 @@ export default class SuperAdminOrganizationsController {
         actorUserId: request.authUser!.id,
       })
 
+      const activeOrgId =
+        request.activeOrganizationId ?? request.accessTokenClaims?.org_id ?? undefined
+      if (activeOrgId === params.id) {
+        attachClearAccessToken(response)
+      }
+
       return serialize({ ok: true })
     } catch (error) {
       if (error instanceof Exception && error.code === 'E_ORGANIZATION_NOT_FOUND') {
@@ -108,5 +111,4 @@ export default class SuperAdminOrganizationsController {
       return mapRbacError(error, response)
     }
   }
->>>>>>> feature/superadmin-role
 }

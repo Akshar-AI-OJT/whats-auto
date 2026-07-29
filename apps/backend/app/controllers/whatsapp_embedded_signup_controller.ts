@@ -5,6 +5,7 @@ import '#types/http'
 
 export default class WhatsappEmbeddedSignupController {
   /**
+   * @session
    * @summary Get Embedded Signup session config for the FB JS SDK
    * @description Returns public Meta appId, configId, and graphVersion. No secrets. Requires active org + whatsapp:connect.
    * @tag WhatsApp
@@ -18,6 +19,7 @@ export default class WhatsappEmbeddedSignupController {
   }
 
   /**
+   * @complete
    * @summary Complete Embedded Signup after Meta FINISH
    * @description Exchanges the short-lived code, subscribes the WABA, registers the phone, and upserts whatsapp_configs. Organization comes from the active session — do not send organizationId from the client. Code TTL is ~30s.
    * @tag WhatsApp

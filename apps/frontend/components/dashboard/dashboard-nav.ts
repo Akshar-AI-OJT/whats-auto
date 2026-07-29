@@ -10,11 +10,13 @@ import {
   CreditCard,
   ScrollText,
   Settings,
+  UsersRound,
   type LucideIcon,
 } from 'lucide-react'
 
 export const DASHBOARD_NAV_KEYS = [
   'dashboard',
+  'team',
   'contacts',
   'inbox',
   'messages',
@@ -31,6 +33,7 @@ export type DashboardNavKey = (typeof DASHBOARD_NAV_KEYS)[number]
 
 export const DASHBOARD_NAV_ICONS: Record<DashboardNavKey, LucideIcon> = {
   dashboard: LayoutDashboard,
+  team: UsersRound,
   contacts: Users,
   inbox: Inbox,
   messages: MessageSquare,
@@ -43,7 +46,20 @@ export const DASHBOARD_NAV_ICONS: Record<DashboardNavKey, LucideIcon> = {
   settings: Settings,
 }
 
-/** Only Dashboard is a real route for now; others are layout placeholders. */
+/** Real routes only; placeholders stay without href. */
 export const DASHBOARD_NAV_HREFS: Partial<Record<DashboardNavKey, string>> = {
   dashboard: '/dashboard',
+  team: '/dashboard/team',
+}
+
+export type DashboardNavChild = {
+  key: 'teamMembers'
+  href?: string
+}
+
+/** Nested items under Team Management. */
+export const DASHBOARD_NAV_CHILDREN: Partial<
+  Record<DashboardNavKey, DashboardNavChild[]>
+> = {
+  team: [{ key: 'teamMembers', href: '/dashboard/team' }],
 }

@@ -12,6 +12,7 @@ import '#types/http'
 
 export default class RolesController {
   /**
+   * @index
    * @summary List roles for the active organization
    * @description Returns global admin/agent/viewer (with effective org overrides) plus custom org roles.
    * @tag Roles
@@ -26,6 +27,7 @@ export default class RolesController {
   }
 
   /**
+   * @create
    * @summary Create a custom org-scoped role
    * @description Slugifies name into an immutable role key (max 20 chars). Cannot escalate beyond the caller's permissions. Cannot use system role names.
    * @tag Roles
@@ -53,6 +55,7 @@ export default class RolesController {
   }
 
   /**
+   * @preview
    * @summary Preview a role permission update (read-only)
    * @tag Roles
    * @security BearerAuth
@@ -78,6 +81,7 @@ export default class RolesController {
   }
 
   /**
+   * @update
    * @summary Update a role's permissions
    * @description Custom roles rewrite role_permissions. System roles admin/agent/viewer write organization_role_permissions overrides. Requires a reason (audited).
    * @tag Roles
@@ -107,6 +111,7 @@ export default class RolesController {
   }
 
   /**
+   * @reset
    * @summary Reset a system role to seeded defaults
    * @description Deletes all organization_role_permissions overrides for admin/agent/viewer. Custom roles cannot be reset.
    * @tag Roles
@@ -133,6 +138,7 @@ export default class RolesController {
   }
 
   /**
+   * @destroy
    * @summary Delete a custom role and reassign its members
    * @description System roles cannot be deleted. Requires replacementRole and a reason. Also re-points invitations and user_roles.
    * @tag Roles

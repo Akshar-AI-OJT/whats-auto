@@ -1,17 +1,20 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { OrganizationService } from '#services/organization_service'
 import { mapRbacError } from '#lib/map_rbac_error'
+import { attachRemintedAccessToken } from '#lib/access_token_response'
 import { transferOwnershipValidator } from '#validators/organization'
 import '#types/http'
 
 export default class OwnershipController {
   /**
+   * @transfer
    * @summary Transfer organization ownership
    * @description Only the current owner may call this. Atomically promotes the target member and demotes the current owner to replacementRoleForCurrentOwner.
    * @tag Ownership
    * @security BearerAuth
    * @requestBody { "targetMemberId": "uuid", "replacementRoleForCurrentOwner": "admin", "reason": "Stepping down as day-to-day owner" }
    * @responseBody 200 - { "data": { "ok": true } }
+   * @responseHeader 200 - set-auth-jwt - Reminted access token for the demoted former owner - @type(string)
    * @responseBody 403 - { "error": "Only the organization owner can transfer ownership.", "code": "NOT_OWNER" }
    * @responseBody 422 - { "error": "Cannot transfer ownership to the same member", "code": "E_OWNERSHIP_SAME_MEMBER" }
    */
@@ -34,6 +37,7 @@ export default class OwnershipController {
         actorUserId: request.authUser!.id,
         reason: payload.reason,
       })
+      await attachRemintedAccessToken({ request, response }, request.sessionId!)
       return serialize({ ok: true })
     } catch (error) {
       return mapRbacError(error, response)

@@ -458,7 +458,14 @@ export class OrganizationInvitationSchema extends BaseModel {
 }
 
 export class OrganizationMemberSchema extends BaseModel {
-  static $columns = ['createdAt', 'id', 'organizationId', 'roleId', 'userId'] as const
+  static $columns = [
+    'createdAt',
+    'id',
+    'organizationId',
+    'permissionVersion',
+    'roleId',
+    'userId',
+  ] as const
   $columns = OrganizationMemberSchema.$columns
   @column.dateTime()
   declare createdAt: DateTime
@@ -466,6 +473,8 @@ export class OrganizationMemberSchema extends BaseModel {
   declare id: string
   @column()
   declare organizationId: string
+  @column()
+  declare permissionVersion: number
   @column()
   declare roleId: string
   @column()
@@ -742,12 +751,14 @@ export class UsageMeterSchema extends BaseModel {
 }
 
 export class UserRoleSchema extends BaseModel {
-  static $columns = ['id', 'organizationId', 'roleId', 'userId'] as const
+  static $columns = ['id', 'organizationId', 'permissionVersion', 'roleId', 'userId'] as const
   $columns = UserRoleSchema.$columns
   @column({ isPrimary: true })
   declare id: string
   @column()
   declare organizationId: string | null
+  @column()
+  declare permissionVersion: number
   @column()
   declare roleId: string
   @column()
