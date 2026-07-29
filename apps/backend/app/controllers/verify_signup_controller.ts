@@ -14,6 +14,7 @@ import { verifySignupValidator } from '#validators/auth'
 
 export default class VerifySignupController {
   /**
+   * @handle
    * @summary Complete registration (step 2 of 2)
    * @description Verifies the OTP and password, creates the user + credential account,
    * signs the user in via Better Auth, and returns a session cookie.

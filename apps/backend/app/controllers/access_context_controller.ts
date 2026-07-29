@@ -4,9 +4,10 @@ import '#types/http'
 
 export default class AccessContextController {
   /**
+   * @show
    * @summary Get access context for the active organization
    * @description Returns org, role, and flat permissions for the current session. Call after login or organization set-active. Owner receives the full product permission catalog.
-   * @tag Access
+   * @tag Access-Context
    * @security BearerAuth
    * @responseBody 200 - { "data": { "organizationId": "uuid", "organizationName": "Acme", "memberId": "uuid", "role": "owner", "displayName": "Owner", "isOwner": true, "permissions": ["inbox:view", "team:view"] } }
    * @responseBody 401 - { "error": "Missing or invalid session" }
