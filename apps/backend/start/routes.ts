@@ -23,6 +23,8 @@ const InvitationsController = () => import('#controllers/invitations_controller'
 const OnboardingController = () => import('#controllers/onboarding_controller')
 const SuperAdminOrganizationsController = () =>
   import('#controllers/super_admin_organizations_controller')
+const SuperAdminSubscriptionsController = () =>
+  import('#controllers/super_admin_subscriptions_controller')
 const WhatsappWebhookController = () => import('#controllers/whatsapp_webhook_controller')
 const WhatsappEmbeddedSignupController = () =>
   import('#controllers/whatsapp_embedded_signup_controller')
@@ -131,6 +133,26 @@ router
       .get('/organizations', [SuperAdminOrganizationsController, 'index'])
       .use(middleware.requirePermission({ permission: 'platform:tenants_view' }))
     router
+      .get('/subscriptions', [SuperAdminSubscriptionsController, 'index'])
+      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
+    router
+      .post('/subscriptions', [SuperAdminSubscriptionsController, 'store'])
+      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
+    router
+      .get('/subscriptions/:id', [SuperAdminSubscriptionsController, 'show'])
+      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
+    router
+      .patch('/subscriptions/:id', [SuperAdminSubscriptionsController, 'update'])
+      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
+    router
+      .patch('/subscriptions/:id/delete', [SuperAdminSubscriptionsController, 'softDelete'])
+      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
+    // router
+    //   .patch('/organizations/:id', [SuperAdminOrganizationsController, 'update'])
+    //   .use(middleware.requirePermission({ permission: 'platform:tenants_update' }))
+    // router
+    //   .patch('/organizations/:id/soft-delete', [SuperAdminOrganizationsController, 'softDelete'])
+    //   .use(middleware.requirePermission({ permission: 'platform:tenants_delete' }))
       .patch('/organizations/:id', [SuperAdminOrganizationsController, 'update'])
       .use(middleware.requirePermission({ permission: 'platform:tenants_update' }))
     router
