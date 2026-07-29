@@ -28,12 +28,7 @@ export type UpdateOrganizationInput = {
 }
 
 export class OrganizationService {
-  /**
-   * Per-org role seed hook. Global admin/agent/viewer permissions are seeded via rbac_seeder.
-   */
-  async seedDefaultRoles(_organizationId: string, _trx?: TransactionClientContract): Promise<void> {
-    return
-  }
+  
 
   /**
    * Per-org role seed hook. Global admin/agent/viewer permissions are seeded via rbac_seeder.
@@ -183,15 +178,7 @@ export class OrganizationService {
     }))
   }
 
-  /**
-   * Platform-wide paginated organization list for Super Admin.
-   * Includes soft-deleted organizations so admins can audit full tenant history.
-   */
-  async listOrganizationsPaginated(params: { page: number; perPage: number }) {
-    const { page, perPage } = params
-
-    return db.from('organizations').orderBy('createdAt', 'desc').paginate(page, perPage)
-  }
+ 
 
   /**
    * Platform-wide paginated organization list for Super Admin.
