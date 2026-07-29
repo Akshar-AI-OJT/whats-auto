@@ -6,6 +6,7 @@ import '#types/http'
 
 export default class InvitationsController {
   /**
+   * @index
    * @summary List pending invitations for the active organization
    * @tag Invitations
    * @security BearerAuth
@@ -19,6 +20,7 @@ export default class InvitationsController {
   }
 
   /**
+   * @store
    * @summary Invite a user to an organization
    * @description Path `:id` must match the session active organization.
    * @tag Invitations
@@ -52,6 +54,7 @@ export default class InvitationsController {
   }
 
   /**
+   * @show
    * @summary Preview an invitation (public — invitation id is the secret)
    * @tag Invitations
    * @paramPath id - Invitation id - @type(string)
@@ -67,8 +70,9 @@ export default class InvitationsController {
   }
 
   /**
+   * @accept
    * @summary Accept an invitation
-   * @description Caller must be authenticated; email must match the invitation. Creates membership + user_roles.
+   * @description Caller must be authenticated; email must match the invitation. Creates membership + user_roles and sets the joined organization active on the session.
    * @tag Invitations
    * @security BearerAuth
    * @paramPath id - Invitation id - @type(string)
@@ -81,6 +85,7 @@ export default class InvitationsController {
         invitationId: params.id,
         userId: request.authUser!.id,
         userEmail: request.authUser!.email,
+        sessionId: request.sessionId!,
       })
       return serialize(result)
     } catch (error) {
@@ -89,6 +94,7 @@ export default class InvitationsController {
   }
 
   /**
+   * @reject
    * @summary Reject an invitation
    * @tag Invitations
    * @security BearerAuth
@@ -108,6 +114,7 @@ export default class InvitationsController {
   }
 
   /**
+   * @cancel
    * @summary Cancel a pending invitation
    * @tag Invitations
    * @security BearerAuth

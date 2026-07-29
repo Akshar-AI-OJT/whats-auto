@@ -8,9 +8,10 @@ import type { MetaWebhookPayload } from '#lib/meta_whatsapp/types'
  */
 export default class WhatsappWebhookController {
   /**
+   * @verify
    * @summary Meta webhook subscription verification
    * @description Echoes hub.challenge when hub.verify_token matches platform WHATSAPP_VERIFY_TOKEN.
-   * @tag WhatsApp Webhooks
+   * @tag Webhooks
    * @responseBody 200 - plain challenge string
    * @responseBody 403 - { "error": "Invalid WhatsApp webhook verify token", "code": "E_WA_WEBHOOK_VERIFY_TOKEN" }
    */
@@ -25,9 +26,10 @@ export default class WhatsappWebhookController {
   }
 
   /**
+   * @receive
    * @summary Meta webhook event receiver
    * @description Verifies X-Hub-Signature-256 and acknowledges. Inbox persistence comes in a later phase.
-   * @tag WhatsApp Webhooks
+   * @tag Webhooks
    * @responseBody 200 - { "success": true }
    * @responseBody 403 - { "error": "Invalid WhatsApp webhook signature", "code": "E_WA_WEBHOOK_SIGNATURE" }
    */
