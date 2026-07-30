@@ -55,10 +55,12 @@ function normalizeClaims(payload: JWTPayload): AccessTokenClaims {
   const pv = asPermissionVersion(payload.pv)
   const iss = asString(payload.iss)
   const aud = payload.aud
+  // Better Auth jwt plugin reliably sets exp/iss/aud; iat is not always present
+  // (e.g. tokens reminted via set-auth-jwt after set-active).
   const iat = typeof payload.iat === 'number' ? payload.iat : undefined
   const exp = typeof payload.exp === 'number' ? payload.exp : undefined
 
-  if (!sub || !sid || !email || !name || scope === undefined || !iss || !aud || !iat || !exp) {
+  if (!sub || !sid || !email || !name || scope === undefined || !iss || !aud || !exp) {
     throw new AccessTokenVerificationError(
       'Access token is missing required claims',
       'INVALID_CLAIMS'
@@ -125,7 +127,7 @@ function normalizeClaims(payload: JWTPayload): AccessTokenClaims {
     ...(pv !== undefined ? { pv } : {}),
     iss,
     aud,
-    iat,
+    ...(iat !== undefined ? { iat } : {}),
     exp,
   }
 }
