@@ -309,6 +309,11 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
             openMenu: t('topbar.profileMenu'),
           }}
           onSignOut={handleSignOut}
+          onSelectItem={(id) => {
+            if (id === 'workspace' || id === 'settings') {
+              router.push('/dashboard/settings')
+            }
+          }}
         />
       </div>
     </header>

@@ -4,9 +4,11 @@ import { useEffect, useId, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { ArrowLeft, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { api, type ApiError } from '@/lib/api'
 import {
+  buildCreateOrganizationPayload,
+  clearLegacyOrganizationCache,
   clearPendingOnboardingContact,
-  createLocalOrganization,
   getDefaultOrgLocaleDefaults,
   isValidEmail,
   isValidOrganizationSlug,
@@ -61,7 +63,7 @@ function createInitialState(): OrganizationWizardState {
 
 /**
  * Organization onboarding wizard (3 steps).
- * Final submit prepares POST /api/v1/organizations payload; API call is wired later.
+ * Final submit creates the organization, then redirects to the dashboard.
  */
 export function OrganizationRegistrationForm({
   className,
@@ -148,8 +150,7 @@ export function OrganizationRegistrationForm({
     setPending(true)
 
     try {
-      // Temporary local workspace — swap for api.organizations.create tomorrow.
-      createLocalOrganization({
+      const payload = buildCreateOrganizationPayload({
         name: state.name,
         slug: state.slug,
         email: state.email,
@@ -158,6 +159,10 @@ export function OrganizationRegistrationForm({
         country: state.country,
         timezone: state.timezone,
       })
+
+      // Creator becomes owner and the org becomes the session's active organization.
+      await api.organizations.create(payload)
+      clearLegacyOrganizationCache()
 
       savePendingWorkspacePreferences({
         companySize: state.companySize,
@@ -173,8 +178,24 @@ export function OrganizationRegistrationForm({
       markOnboardingChecklistVisible()
       router.push('/dashboard')
       router.refresh()
-    } catch {
-      setError(t('errors.generic'))
+    } catch (err) {
+      const apiError = err as ApiError
+
+      if (apiError.status === 401) {
+        setError(t('errors.sessionExpired'))
+        router.replace('/login')
+        return
+      }
+
+      const message = apiError.message || t('errors.generic')
+      if (/slug/i.test(message)) {
+        setBasicsErrors((prev) => ({ ...prev, slug: message }))
+        setStep(1)
+      } else if (/email/i.test(message)) {
+        setBasicsErrors((prev) => ({ ...prev, email: message }))
+        setStep(1)
+      }
+      setError(message)
     } finally {
       setPending(false)
     }

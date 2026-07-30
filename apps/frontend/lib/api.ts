@@ -135,8 +135,46 @@ export type OrganizationSummary = {
   name: string
   slug: string
   email: string
+  phone?: string | null
+  website?: string | null
+  industry?: string | null
+  country?: string
+  timezone?: string
+  currency?: string | null
   role: string
   createdAt: string
+}
+
+export type UpdateOrganizationBody = {
+  name?: string
+  phone?: string
+  website?: string
+  industry?: string
+  timezone?: string
+  currency?: string
+}
+
+export type OrganizationDetails = {
+  id: string
+  name: string
+  slug: string
+  email: string
+  phone: string | null
+  website: string | null
+  industry: string | null
+  country: string
+  timezone: string
+  currency: string | null
+}
+
+export type AccessContext = {
+  organizationId: string
+  organizationName: string
+  memberId: string
+  role: string
+  displayName: string
+  isOwner: boolean
+  permissions: string[]
 }
 
 export const api = {
@@ -208,24 +246,44 @@ export const api = {
   },
 
   organizations: {
-    /** Reserved for tomorrow — do not call until auth/backend are confirmed. */
     create: (body: CreateOrganizationBody) =>
       request<{ data?: CreatedOrganization } & CreatedOrganization>('/api/v1/organizations', {
         method: 'POST',
         body: JSON.stringify(body),
       }),
 
-    /** Reserved for tomorrow — do not call until auth/backend are confirmed. */
     list: () =>
       request<{ data?: OrganizationSummary[] } | OrganizationSummary[]>('/api/v1/organizations', {
         method: 'GET',
       }),
 
-    /** Reserved for tomorrow — do not call until auth/backend are confirmed. */
     setActive: (organizationId: string) =>
       request<{ data?: { organizationId: string } } & { organizationId: string }>(
         `/api/v1/organizations/${organizationId}/set-active`,
         { method: 'POST' }
       ),
+
+    update: (organizationId: string, body: UpdateOrganizationBody) =>
+      request<{ data?: OrganizationDetails } & OrganizationDetails>(
+        `/api/v1/organizations/${organizationId}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    destroy: (organizationId: string) =>
+      request<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/organizations/${organizationId}`,
+        { method: 'DELETE' }
+      ),
+  },
+
+  access: {
+    /** Active organization + permissions for the current session. */
+    context: () =>
+      request<{ data?: AccessContext } & AccessContext>('/api/v1/access-context', {
+        method: 'GET',
+      }),
   },
 }
