@@ -132,6 +132,12 @@ router
       .get('/organizations', [SuperAdminOrganizationsController, 'index'])
       .use(middleware.requirePermission({ permission: 'platform:tenants_view' }))
     router
+      .patch('/organizations/:id', [SuperAdminOrganizationsController, 'update'])
+      .use(middleware.requirePermission({ permission: 'platform:tenants_update' }))
+    router
+      .patch('/organizations/:id/soft-delete', [SuperAdminOrganizationsController, 'softDelete'])
+      .use(middleware.requirePermission({ permission: 'platform:tenants_delete' }))
+    router
       .get('/subscriptions', [SuperAdminSubscriptionsController, 'index'])
       .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
     router
