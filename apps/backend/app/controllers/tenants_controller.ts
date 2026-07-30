@@ -5,6 +5,7 @@ import '#types/http'
 
 export default class TenantsController {
   /**
+   * @store
    * @summary Create a tenant (organization)
    * @description Creates an organization, assigns the caller as owner, and seeds default roles.
    * @tag Tenants
@@ -27,6 +28,7 @@ export default class TenantsController {
   }
 
   /**
+   * @index
    * @summary List tenants for the authenticated user
    * @tag Tenants
    * @security BearerAuth
@@ -39,6 +41,7 @@ export default class TenantsController {
   }
 
   /**
+   * @show
    * @summary Get a tenant by id
    * @description Caller must be a member of the tenant.
    * @tag Tenants
@@ -57,6 +60,7 @@ export default class TenantsController {
   }
 
   /**
+   * @update
    * @summary Update a tenant
    * @description Owner only. Updates name, slug, logo, and/or metadata.
    * @tag Tenants
@@ -83,6 +87,7 @@ export default class TenantsController {
   }
 
   /**
+   * @destroy
    * @summary Delete a tenant
    * @description Owner only. Cascades members, roles, invitations, and related rows.
    * @tag Tenants

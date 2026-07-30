@@ -5,10 +5,14 @@ import env from '#start/env'
 import hash from '@adonisjs/core/services/hash'
 import { pool } from '#lib/db'
 import { resend } from '#lib/mail'
+import accessTokenConfig from '#config/access_token'
+import { AccessTokenClaimsService } from '#services/access_token_claims_service'
 
 const googleClientId = env.get('GOOGLE_CLIENT_ID')
 const googleClientSecret = env.get('GOOGLE_CLIENT_SECRET')
 const hasGoogle = Boolean(googleClientId) && Boolean(googleClientSecret)
+
+const accessTokenClaimsService = new AccessTokenClaimsService()
 
 export const auth = betterAuth({
   database: pool,
@@ -52,6 +56,10 @@ export const auth = betterAuth({
   session: {
     modelName: 'sessions',
     cookieCache: { enabled: true, maxAge: 60 * 60 },
+    additionalFields: {
+      // Custom column — used by JWT definePayload for tenant scopes
+      activeOrganizationId: { type: 'string', required: false, input: false },
+    },
   },
 
   verification: {
@@ -178,7 +186,27 @@ export const auth = betterAuth({
   },
 
   plugins: [
-    // JWT — signs short-lived access tokens for AdonisJS API calls
-    jwt(),
+    jwt({
+      jwt: {
+        issuer: accessTokenConfig.issuer,
+        audience: accessTokenConfig.audience,
+        expirationTime: accessTokenConfig.expirationTime,
+        definePayload: async ({ user, session }) => {
+          return accessTokenClaimsService.build({
+            user: {
+              id: user.id,
+              email: user.email,
+              name: user.name,
+            },
+            session: {
+              id: session.id,
+              activeOrganizationId:
+                (session as { activeOrganizationId?: string | null }).activeOrganizationId ?? null,
+            },
+          })
+        },
+        getSubject: ({ user }) => user.id,
+      },
+    }),
   ],
 })

@@ -1,7 +1,9 @@
 import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import { Exception } from '@adonisjs/core/exceptions'
 import { DateTime } from 'luxon'
 import Organization from '#models/organization'
+import InvitationException from '#exceptions/invitation_exception'
 import { getGlobalRoleIdByName, resolveAssignableRoleForOrg } from '#services/role_service'
 
 export type CreateOrganizationInput = {
@@ -34,6 +36,37 @@ export class OrganizationService {
   }
 
   /**
+   * A user who belongs to no organization yet must resolve a pending invitation first,
+   * otherwise invitees end up creating a second workspace instead of joining the inviter's.
+   * Users who already belong to an organization stay free to create more.
+   */
+  protected async assertNoBlockingInvitation(userId: string) {
+    const membership = await db
+      .from('organization_members')
+      .where('userId', userId)
+      .select('id')
+      .first()
+
+    if (membership) return
+
+    const user = await db.from('users').where('id', userId).select('email').firstOrFail()
+
+    const pending = await db
+      .from('organization_invitations as i')
+      .innerJoin('organizations as o', 'o.id', 'i.organizationId')
+      .whereRaw('LOWER(i.email) = ?', [(user.email as string).toLowerCase()])
+      .where('i.status', 'pending')
+      .where('i.expiresAt', '>', new Date())
+      .whereNull('o.deletedAt')
+      .select('i.id')
+      .first()
+
+    if (pending) {
+      throw InvitationException.pendingInvitationBlocksOrgCreation()
+    }
+  }
+
+  /**
    * Create an organization and make the caller the owner.
    * Dual-writes organization_members + user_roles, sets active org on the session.
    */
@@ -43,6 +76,9 @@ export class OrganizationService {
     data: CreateOrganizationInput
   }) {
     const { userId, sessionId, data } = params
+
+    await this.assertNoBlockingInvitation(userId)
+
     const ownerRoleId = await getGlobalRoleIdByName('owner')
 
     return db.transaction(async (trx) => {
@@ -182,6 +218,7 @@ export class OrganizationService {
 
   /**
    * Update editable organization fields (not slug/email).
+   * Only provided fields are updated (partial update).
    */
   async updateOrganization(params: {
     organizationId: string
@@ -194,7 +231,14 @@ export class OrganizationService {
       .from('organizations')
       .where('id', organizationId)
       .whereNull('deletedAt')
-      .firstOrFail()
+      .first()
+
+    if (!existing) {
+      throw new Exception('Organization Not Found', {
+        status: 404,
+        code: 'E_ORGANIZATION_NOT_FOUND',
+      })
+    }
 
     const updates: Record<string, string | null> = {}
     if (patch.name !== undefined) updates.name = patch.name
@@ -280,7 +324,14 @@ export class OrganizationService {
       .from('organizations')
       .where('id', organizationId)
       .whereNull('deletedAt')
-      .firstOrFail()
+      .first()
+
+    if (!org) {
+      throw new Exception('Organization Not Found', {
+        status: 404,
+        code: 'E_ORGANIZATION_NOT_FOUND',
+      })
+    }
 
     await db.transaction(async (trx) => {
       await trx.table('authorization_audits').insert({
@@ -305,6 +356,50 @@ export class OrganizationService {
       })
 
       // Clear active org on any sessions still pointing at this org
+      await trx
+        .from('sessions')
+        .where('activeOrganizationId', organizationId)
+        .update({ activeOrganizationId: null })
+    })
+  }
+
+  /**
+   * Soft-delete an organization without removing the row.
+   * Uses the existing soft-delete convention: set deletedAt and disable status.
+   */
+  async softDeleteOrganization(params: { organizationId: string; actorUserId: string }) {
+    const { organizationId, actorUserId } = params
+
+    const org = await db
+      .from('organizations')
+      .where('id', organizationId)
+      .whereNull('deletedAt')
+      .first()
+
+    if (!org) {
+      throw new Exception('Organization Not Found', {
+        status: 404,
+        code: 'E_ORGANIZATION_NOT_FOUND',
+      })
+    }
+
+    await db.transaction(async (trx) => {
+      await trx.table('authorization_audits').insert({
+        organizationId,
+        actorUserId,
+        targetType: 'organization',
+        targetId: organizationId,
+        eventType: 'organization.soft_deleted',
+        before: JSON.stringify({ status: org.status, deletedAt: org.deletedAt }),
+        after: JSON.stringify({ status: false, deletedAt: DateTime.utc().toISO() }),
+      })
+
+      await trx.from('organizations').where('id', organizationId).update({
+        status: false,
+        deletedAt: DateTime.utc().toSQL(),
+      })
+
+      // Existing org should not stay active on any session once soft-deleted.
       await trx
         .from('sessions')
         .where('activeOrganizationId', organizationId)

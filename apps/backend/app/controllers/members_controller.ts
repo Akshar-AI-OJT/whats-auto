@@ -6,6 +6,7 @@ import '#types/http'
 
 export default class MembersController {
   /**
+   * @index
    * @summary List members of the active organization
    * @tag Members
    * @security BearerAuth
@@ -19,6 +20,7 @@ export default class MembersController {
   }
 
   /**
+   * @assignRole
    * @summary Assign a role to a member
    * @description Cannot change your own role, assign owner, or change the current owner's role (use ownership transfer).
    * @tag Members
@@ -48,6 +50,7 @@ export default class MembersController {
   }
 
   /**
+   * @remove
    * @summary Remove a member from the organization
    * @description Cannot remove the owner — transfer ownership first.
    * @tag Members

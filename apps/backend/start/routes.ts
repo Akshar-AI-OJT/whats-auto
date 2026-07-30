@@ -13,20 +13,31 @@ import router from '@adonisjs/core/services/router'
 import { controllers } from '#generated/controllers'
 import AutoSwagger from 'adonis-autoswagger'
 import swagger from '#config/swagger'
+const AuthController = () => import('#controllers/auth_controller')
 const PreSignupController = () => import('#controllers/pre_signup_controller')
 const VerifySignupController = () => import('#controllers/verify_signup_controller')
 const TenantsController = () => import('#controllers/tenants_controller')
 const ContactsController = () => import('#controllers/contacts_controller')
 const OrganizationsController = () => import('#controllers/organizations_controller')
 const InvitationsController = () => import('#controllers/invitations_controller')
+const OnboardingController = () => import('#controllers/onboarding_controller')
 const SuperAdminOrganizationsController = () =>
   import('#controllers/super_admin_organizations_controller')
 const WhatsappWebhookController = () => import('#controllers/whatsapp_webhook_controller')
+const WhatsappEmbeddedSignupController = () =>
+  import('#controllers/whatsapp_embedded_signup_controller')
+const WhatsappConfigsController = () => import('#controllers/whatsapp_configs_controller')
 
 //  Swagger UI + JSON spec
 // Served only in non-production environments
 router.get('/swagger', async ({ response }) => {
-  return response.send(await AutoSwagger.default.docs(router.toJSON(), swagger))
+  const spec = await AutoSwagger.default.json(router.toJSON(), swagger)
+
+  // A @tag annotation is appended once per operation, but OpenAPI requires unique tag names.
+  const tags = spec.tags as { name: string }[]
+  spec.tags = [...new Map(tags.map((tag) => [tag.name, tag])).values()]
+
+  return response.json(spec)
 })
 
 router.get('/docs', async () => {
@@ -38,6 +49,12 @@ router.get('/', () => {
 })
 
 // better-auth handles /api/auth/* (login, OAuth, forgot/reset password, session, etc.)
+router.post('/api/auth/sign-in/email', [AuthController, 'signInEmail'])
+router.post('/api/auth/sign-out', [AuthController, 'signOut'])
+router.get('/api/auth/get-session', [AuthController, 'getSession'])
+router.get('/api/auth/token', [AuthController, 'token'])
+router.get('/api/auth/jwks', [AuthController, 'jwks'])
+
 router.any('/api/auth/*', async (ctx) => {
   return handleBetterAuth(ctx)
 })
@@ -58,9 +75,33 @@ router
 /*
 |--------------------------------------------------------------------------
 | Tenant WhatsApp product APIs (Phase 2+)
-| Example: /api/v1/whatsapp/configs — jwtAuth + tenant + whatsapp:* perms
+| Embedded Signup + whatsapp_configs — jwtAuth + tenant + whatsapp:* perms
 |--------------------------------------------------------------------------
 */
+router
+  .group(() => {
+    router
+      .get('/embedded-signup/session', [WhatsappEmbeddedSignupController, 'session'])
+      .use(middleware.requirePermission({ permission: 'whatsapp:connect' }))
+    router
+      .post('/embedded-signup/complete', [WhatsappEmbeddedSignupController, 'complete'])
+      .use(middleware.requirePermission({ permission: 'whatsapp:connect' }))
+
+    router
+      .get('/configs', [WhatsappConfigsController, 'index'])
+      .use(middleware.requirePermission({ permission: 'whatsapp:view' }))
+    router
+      .get('/configs/:id', [WhatsappConfigsController, 'show'])
+      .use(middleware.requirePermission({ permission: 'whatsapp:view' }))
+    router
+      .delete('/configs/:id', [WhatsappConfigsController, 'destroy'])
+      .use(middleware.requirePermission({ permission: 'whatsapp:connect' }))
+    router
+      .post('/configs/:id/test', [WhatsappConfigsController, 'test'])
+      .use(middleware.requirePermission({ permission: 'whatsapp:manage' }))
+  })
+  .prefix('/api/v1/whatsapp')
+  .use([middleware.jwtAuth(), middleware.tenant()])
 
 router
   .group(() => {
@@ -89,6 +130,12 @@ router
     router
       .get('/organizations', [SuperAdminOrganizationsController, 'index'])
       .use(middleware.requirePermission({ permission: 'platform:tenants_view' }))
+    router
+      .patch('/organizations/:id', [SuperAdminOrganizationsController, 'update'])
+      .use(middleware.requirePermission({ permission: 'platform:tenants_update' }))
+    router
+      .patch('/organizations/:id/soft-delete', [SuperAdminOrganizationsController, 'softDelete'])
+      .use(middleware.requirePermission({ permission: 'platform:tenants_delete' }))
   })
   .prefix('/api/v1/super-admin')
   .use([middleware.jwtAuth(), middleware.platform()])
@@ -143,6 +190,9 @@ router
 router
   .get('/api/v1/access-context', [controllers.AccessContext, 'show'])
   .use([middleware.jwtAuth(), middleware.tenant()])
+
+// Onboarding state — no active org required; tells the client which screen comes next
+router.get('/api/v1/onboarding/state', [OnboardingController, 'show']).use([middleware.jwtAuth()])
 
 // tenants (organizations) — jwtAuth only; membership/owner checks live in TenantService
 router

@@ -33,8 +33,9 @@ const corsConfig = defineConfig({
 
   /**
    * Response headers exposed to the browser.
+   * set-auth-jwt: Better Auth jwt plugin attaches the access token on get-session.
    */
-  exposeHeaders: [],
+  exposeHeaders: ['set-auth-jwt'],
 
   /**
    * Allow cookies/authorization headers on cross-origin requests.

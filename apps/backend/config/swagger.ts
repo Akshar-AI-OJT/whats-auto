@@ -28,8 +28,22 @@ const swaggerConfig = {
       type: 'http',
       scheme: 'bearer',
       bearerFormat: 'JWT',
-      description:
-        'Better Auth session token. Sign in via POST /api/auth/sign-in/email — the token is in the Set-Cookie header (better-auth.session_token) or the JSON body.',
+      description: [
+        'JWT access token (EdDSA), verified against GET /api/auth/jwks.',
+        '',
+        'How to get one — all three steps are in this page:',
+        '1. POST /api/auth/sign-in/email — sets the session cookie.',
+        '2. POST /api/v1/organizations/{id}/set-active — pick the organization you want to act in.',
+        '3. GET /api/auth/token — copy the "token" value and paste it below.',
+        '',
+        'The token freezes org_id, role and scope for the organization that was active',
+        'at mint time. After another set-active you must mint a NEW token; the old one',
+        'keeps reporting the previous organization until it expires.',
+        '',
+        'Do NOT paste the better-auth.session_token cookie value here. It is not a JWT,',
+        'and because an invalid Bearer header never falls back to the cookie it will turn',
+        'working requests into 401 INVALID_TOKEN.',
+      ].join('\n'),
     },
   },
 
@@ -40,7 +54,10 @@ const swaggerConfig = {
   // Keep auth token in Swagger UI across page refreshes
   persistAuthorization: true,
 
-  ignore: ['/swagger', '/docs', '/', '/api/auth/*'],
+  // The last entry is a suffix match, so it hides only the better-auth catch-all route
+  // itself and leaves the explicitly declared /api/auth/... endpoints documented.
+  // A '/api/auth/' prefix entry would match those too and hide them.
+  ignore: ['/swagger', '/docs', '/', '*/auth/*'],
 }
 
 export default swaggerConfig
