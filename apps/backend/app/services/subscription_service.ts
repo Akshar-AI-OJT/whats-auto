@@ -5,21 +5,25 @@ import { SUBSCRIPTION_SOFT_DELETED_STATUS } from '#validators/subscription_crud'
 import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
 
+function toDateTime(date: DateTime | Date): DateTime {
+  return date instanceof Date ? DateTime.fromJSDate(date) : date
+}
+
 export type CreateSubscriptionInput = {
   organizationId: string
   planId: string
   status: string
-  currentPeriodStart: Date
-  currentPeriodEnd: Date
-  cancelAt?: Date
+  currentPeriodStart: DateTime | Date
+  currentPeriodEnd: DateTime | Date
+  cancelAt?: DateTime | Date
 }
 
 export type UpdateSubscriptionInput = {
   planId?: string
   status?: string
-  currentPeriodStart?: Date
-  currentPeriodEnd?: Date
-  cancelAt?: Date | null
+  currentPeriodStart?: DateTime | Date
+  currentPeriodEnd?: DateTime | Date
+  cancelAt?: DateTime | Date | null
 }
 
 export class SubscriptionService {
@@ -78,7 +82,10 @@ export class SubscriptionService {
    * Uses runWithTenant so RLS WITH CHECK passes for the target organization.
    */
   async createSubscription(data: CreateSubscriptionInput) {
-    if (data.currentPeriodEnd <= data.currentPeriodStart) {
+    const start = toDateTime(data.currentPeriodStart)
+    const end = toDateTime(data.currentPeriodEnd)
+
+    if (end <= start) {
       throw SubscriptionException.invalidPeriod()
     }
 
@@ -104,9 +111,9 @@ export class SubscriptionService {
         organizationId: data.organizationId,
         planId: data.planId,
         status: data.status,
-        currentPeriodStart: DateTime.fromJSDate(data.currentPeriodStart),
-        currentPeriodEnd: DateTime.fromJSDate(data.currentPeriodEnd),
-        cancelAt: data.cancelAt ? DateTime.fromJSDate(data.cancelAt) : null,
+        currentPeriodStart: start,
+        currentPeriodEnd: end,
+        cancelAt: data.cancelAt ? toDateTime(data.cancelAt) : null,
       })
     })
   }
@@ -128,11 +135,11 @@ export class SubscriptionService {
 
     const periodStart =
       patch.currentPeriodStart !== undefined
-        ? DateTime.fromJSDate(patch.currentPeriodStart)
+        ? toDateTime(patch.currentPeriodStart)
         : existing.currentPeriodStart
     const periodEnd =
       patch.currentPeriodEnd !== undefined
-        ? DateTime.fromJSDate(patch.currentPeriodEnd)
+        ? toDateTime(patch.currentPeriodEnd)
         : existing.currentPeriodEnd
 
     if (periodEnd <= periodStart) {
@@ -160,7 +167,7 @@ export class SubscriptionService {
         existing.currentPeriodEnd = periodEnd
       }
       if (patch.cancelAt !== undefined) {
-        existing.cancelAt = patch.cancelAt ? DateTime.fromJSDate(patch.cancelAt) : null
+        existing.cancelAt = patch.cancelAt ? toDateTime(patch.cancelAt) : null
       }
 
       await existing.save()

@@ -168,7 +168,20 @@ export class OrganizationService {
       .innerJoin('roles as r', 'r.id', 'm.roleId')
       .where('m.userId', userId)
       .whereNull('o.deletedAt')
-      .select('o.id', 'o.name', 'o.slug', 'o.email', 'r.name as role', 'o.createdAt')
+      .select(
+        'o.id',
+        'o.name',
+        'o.slug',
+        'o.email',
+        'o.phone',
+        'o.website',
+        'o.industry',
+        'o.country',
+        'o.timezone',
+        'o.currency',
+        'r.name as role',
+        'o.createdAt'
+      )
       .orderBy('o.name', 'asc')
 
     return rows.map((r) => ({
@@ -176,6 +189,12 @@ export class OrganizationService {
       name: r.name as string,
       slug: r.slug as string,
       email: r.email as string,
+      phone: (r.phone as string | null) ?? null,
+      website: (r.website as string | null) ?? null,
+      industry: (r.industry as string | null) ?? null,
+      country: r.country as string,
+      timezone: r.timezone as string,
+      currency: (r.currency as string | null) ?? null,
       role: r.role as string,
       createdAt: r.createdAt as string,
     }))
