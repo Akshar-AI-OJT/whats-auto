@@ -141,18 +141,8 @@ router
     router
       .get('/subscriptions/:id', [SuperAdminSubscriptionsController, 'show'])
       .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
+    
     router
-      .patch('/subscriptions/:id', [SuperAdminSubscriptionsController, 'update'])
-      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
-    router
-      .patch('/subscriptions/:id/delete', [SuperAdminSubscriptionsController, 'softDelete'])
-      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
-    // router
-    //   .patch('/organizations/:id', [SuperAdminOrganizationsController, 'update'])
-    //   .use(middleware.requirePermission({ permission: 'platform:tenants_update' }))
-    // router
-    //   .patch('/organizations/:id/soft-delete', [SuperAdminOrganizationsController, 'softDelete'])
-    //   .use(middleware.requirePermission({ permission: 'platform:tenants_delete' }))
       .patch('/organizations/:id', [SuperAdminOrganizationsController, 'update'])
       .use(middleware.requirePermission({ permission: 'platform:tenants_update' }))
     router
