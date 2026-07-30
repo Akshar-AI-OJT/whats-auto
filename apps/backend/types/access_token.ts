@@ -39,6 +39,7 @@ export type AccessTokenClaims = {
 
   iss: string
   aud: string | string[]
+  /** Present when the signer includes it; Better Auth may omit iat on remint. */
   iat?: number
   exp: number
 }

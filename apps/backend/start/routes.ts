@@ -16,7 +16,6 @@ import swagger from '#config/swagger'
 const AuthController = () => import('#controllers/auth_controller')
 const PreSignupController = () => import('#controllers/pre_signup_controller')
 const VerifySignupController = () => import('#controllers/verify_signup_controller')
-const TenantsController = () => import('#controllers/tenants_controller')
 const ContactsController = () => import('#controllers/contacts_controller')
 const OrganizationsController = () => import('#controllers/organizations_controller')
 const InvitationsController = () => import('#controllers/invitations_controller')
@@ -153,6 +152,12 @@ router
     router
       .patch('/subscriptions/:id/delete', [SuperAdminSubscriptionsController, 'softDelete'])
       .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
+    router
+      .patch('/organizations/:id', [SuperAdminOrganizationsController, 'update'])
+      .use(middleware.requirePermission({ permission: 'platform:tenants_update' }))
+    router
+      .patch('/organizations/:id/soft-delete', [SuperAdminOrganizationsController, 'softDelete'])
+      .use(middleware.requirePermission({ permission: 'platform:tenants_delete' }))
   })
   .prefix('/api/v1/super-admin')
   .use([middleware.jwtAuth(), middleware.platform()])
@@ -210,18 +215,6 @@ router
 
 // Onboarding state — no active org required; tells the client which screen comes next
 router.get('/api/v1/onboarding/state', [OnboardingController, 'show']).use([middleware.jwtAuth()])
-
-// tenants (organizations) — jwtAuth only; membership/owner checks live in TenantService
-router
-  .group(() => {
-    router.post('/', [TenantsController, 'store'])
-    router.get('/', [TenantsController, 'index'])
-    router.get('/:id', [TenantsController, 'show'])
-    router.put('/:id', [TenantsController, 'update'])
-    router.delete('/:id', [TenantsController, 'destroy'])
-  })
-  .prefix('/api/v1/tenants')
-  .use(middleware.jwtAuth())
 
 // roles
 router

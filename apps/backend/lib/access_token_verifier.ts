@@ -55,6 +55,8 @@ function normalizeClaims(payload: JWTPayload): AccessTokenClaims {
   const pv = asPermissionVersion(payload.pv)
   const iss = asString(payload.iss)
   const aud = payload.aud
+  // Better Auth jwt plugin reliably sets exp/iss/aud; iat is not always present
+  // (e.g. tokens reminted via set-auth-jwt after set-active).
   const iat = typeof payload.iat === 'number' ? payload.iat : undefined
   const exp = typeof payload.exp === 'number' ? payload.exp : undefined
 
