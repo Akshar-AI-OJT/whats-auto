@@ -4,19 +4,20 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
-  useSyncExternalStore,
+  useState,
 } from 'react'
 import {
-  LOCAL_ORGS_CHANGE_EVENT,
-  readLocalOrganizationsState,
-  setLocalActiveOrganizationId,
-  type LocalOrganization,
-} from '@/lib/onboarding'
+  api,
+  type AccessContext,
+  type ApiError,
+  type OrganizationSummary,
+} from '@/lib/api'
 
 type OrganizationsContextValue = {
-  organizations: LocalOrganization[]
-  activeOrganization: LocalOrganization | null
+  organizations: OrganizationSummary[]
+  activeOrganization: OrganizationSummary | null
   activeOrganizationId: string | null
   hasOrganizations: boolean
   isLoading: boolean
@@ -25,72 +26,121 @@ type OrganizationsContextValue = {
   selectOrganization: (organizationId: string) => Promise<void>
 }
 
-type LocalOrgsSnapshot = {
-  organizations: LocalOrganization[]
-  activeId: string | null
-}
-
 const OrganizationsContext = createContext<OrganizationsContextValue | null>(null)
 
-let cachedSnapshot: LocalOrgsSnapshot = { organizations: [], activeId: null }
-let cachedSnapshotKey = ''
-
-function readCachedLocalOrgsSnapshot(): LocalOrgsSnapshot {
-  const next = readLocalOrganizationsState()
-  const key = JSON.stringify(next)
-  if (key === cachedSnapshotKey) return cachedSnapshot
-  cachedSnapshotKey = key
-  cachedSnapshot = next
-  return cachedSnapshot
+function unwrapList(
+  data: { data?: OrganizationSummary[] } | OrganizationSummary[] | undefined
+): OrganizationSummary[] {
+  if (!data) return []
+  if (Array.isArray(data)) return data
+  if (Array.isArray(data.data)) return data.data
+  return []
 }
 
-function subscribeLocalOrgs(onStoreChange: () => void) {
-  if (typeof window === 'undefined') return () => {}
-
-  const notify = () => {
-    // Bust cache so the next getSnapshot returns fresh data.
-    cachedSnapshotKey = ''
-    onStoreChange()
-  }
-
-  window.addEventListener(LOCAL_ORGS_CHANGE_EVENT, notify)
-  window.addEventListener('storage', notify)
-  return () => {
-    window.removeEventListener(LOCAL_ORGS_CHANGE_EVENT, notify)
-    window.removeEventListener('storage', notify)
-  }
-}
-
-const SERVER_SNAPSHOT: LocalOrgsSnapshot = { organizations: [], activeId: null }
-
-function getLocalOrgsServerSnapshot(): LocalOrgsSnapshot {
-  return SERVER_SNAPSHOT
+function unwrapContext(
+  data: ({ data?: AccessContext } & AccessContext) | undefined
+): AccessContext | null {
+  if (!data) return null
+  return data.data ?? (data.organizationId ? data : null)
 }
 
 /**
- * Temporary frontend source of truth for workspaces (localStorage).
- * Swap helpers in `@/lib/onboarding` for org APIs when backend auth is ready.
+ * Access context returns 403 until the session has an active organization,
+ * which is a normal state right after signup — not an error.
+ */
+async function fetchActiveOrganizationId(): Promise<string | null> {
+  try {
+    const { data } = await api.access.context()
+    return unwrapContext(data)?.organizationId ?? null
+  } catch {
+    return null
+  }
+}
+
+async function fetchOrganizationsState(): Promise<{
+  organizations: OrganizationSummary[]
+  activeId: string | null
+}> {
+  const [listResult, activeOrganizationId] = await Promise.all([
+    api.organizations.list(),
+    fetchActiveOrganizationId(),
+  ])
+
+  const organizations = unwrapList(listResult.data)
+  const activeId =
+    activeOrganizationId && organizations.some((org) => org.id === activeOrganizationId)
+      ? activeOrganizationId
+      : (organizations[0]?.id ?? null)
+
+  return { organizations, activeId }
+}
+
+/**
+ * Server-backed source of truth for the signed-in user's workspaces.
+ * The organizations API is membership-scoped, so switching accounts can never
+ * leak another user's workspaces into the switcher.
  */
 export function OrganizationsProvider({ children }: { children: React.ReactNode }) {
-  const snapshot = useSyncExternalStore(
-    subscribeLocalOrgs,
-    readCachedLocalOrgsSnapshot,
-    getLocalOrgsServerSnapshot
-  )
+  const [organizations, setOrganizations] = useState<OrganizationSummary[]>([])
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   const refresh = useCallback(async () => {
-    cachedSnapshotKey = ''
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new Event(LOCAL_ORGS_CHANGE_EVENT))
+    try {
+      const next = await fetchOrganizationsState()
+      setOrganizations(next.organizations)
+      setActiveId(next.activeId)
+      setError(null)
+    } catch (err) {
+      setOrganizations([])
+      setActiveId(null)
+      setError((err as ApiError).message ?? 'Failed to load workspaces')
+    } finally {
+      setIsLoading(false)
     }
   }, [])
 
-  const selectOrganization = useCallback(async (organizationId: string) => {
-    setLocalActiveOrganizationId(organizationId)
+  useEffect(() => {
+    let cancelled = false
+
+    ;(async () => {
+      try {
+        const next = await fetchOrganizationsState()
+        if (cancelled) return
+        setOrganizations(next.organizations)
+        setActiveId(next.activeId)
+        setError(null)
+      } catch (err) {
+        if (cancelled) return
+        setOrganizations([])
+        setActiveId(null)
+        setError((err as ApiError).message ?? 'Failed to load workspaces')
+      } finally {
+        if (!cancelled) setIsLoading(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
   }, [])
 
+  const selectOrganization = useCallback(
+    async (organizationId: string) => {
+      const previousId = activeId
+      setActiveId(organizationId)
+      try {
+        await api.organizations.setActive(organizationId)
+      } catch (err) {
+        setActiveId(previousId)
+        setError((err as ApiError).message ?? 'Failed to switch workspace')
+      }
+    },
+    [activeId]
+  )
+
   const value = useMemo<OrganizationsContextValue>(() => {
-    const { organizations, activeId } = snapshot
     const activeOrganization =
       organizations.find((org) => org.id === activeId) ?? organizations[0] ?? null
 
@@ -99,12 +149,12 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
       activeOrganization,
       activeOrganizationId: activeOrganization?.id ?? null,
       hasOrganizations: organizations.length > 0,
-      isLoading: false,
-      error: null,
+      isLoading,
+      error,
       refresh,
       selectOrganization,
     }
-  }, [snapshot, refresh, selectOrganization])
+  }, [organizations, activeId, isLoading, error, refresh, selectOrganization])
 
   return (
     <OrganizationsContext.Provider value={value}>

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { api, type ApiError, type ProfileUser } from '@/lib/api'
+import { clearLegacyOrganizationCache } from '@/lib/onboarding'
 
 type AuthState = {
   user: ProfileUser | null
@@ -44,6 +45,7 @@ export function useAuth(): AuthState {
     try {
       await api.auth.logout()
     } finally {
+      clearLegacyOrganizationCache()
       setUser(null)
     }
   }, [])

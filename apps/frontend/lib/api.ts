@@ -139,6 +139,16 @@ export type OrganizationSummary = {
   createdAt: string
 }
 
+export type AccessContext = {
+  organizationId: string
+  organizationName: string
+  memberId: string
+  role: string
+  displayName: string
+  isOwner: boolean
+  permissions: string[]
+}
+
 export const api = {
   auth: {
     signup: (body: SignupBody) =>
@@ -210,7 +220,6 @@ export const api = {
   },
 
   organizations: {
-    /** Reserved for tomorrow — do not call until auth/backend are confirmed. */
     create: (body: CreateOrganizationBody) =>
       request<{ data?: CreatedOrganization } & CreatedOrganization>(
         '/api/v1/organizations',
@@ -220,18 +229,24 @@ export const api = {
         }
       ),
 
-    /** Reserved for tomorrow — do not call until auth/backend are confirmed. */
     list: () =>
       request<{ data?: OrganizationSummary[] } | OrganizationSummary[]>(
         '/api/v1/organizations',
         { method: 'GET' }
       ),
 
-    /** Reserved for tomorrow — do not call until auth/backend are confirmed. */
     setActive: (organizationId: string) =>
       request<{ data?: { organizationId: string } } & { organizationId: string }>(
         `/api/v1/organizations/${organizationId}/set-active`,
         { method: 'POST' }
       ),
+  },
+
+  access: {
+    /** Active organization + permissions for the current session. */
+    context: () =>
+      request<{ data?: AccessContext } & AccessContext>('/api/v1/access-context', {
+        method: 'GET',
+      }),
   },
 }
