@@ -39,7 +39,7 @@ export type AccessTokenClaims = {
 
   iss: string
   aud: string | string[]
-  iat: number
+  iat?: number
   exp: number
 }
 
