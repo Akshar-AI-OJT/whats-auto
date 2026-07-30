@@ -1435,6 +1435,49 @@
         }
       }
     },
+    "settings": {
+      "eyebrow": "Workspace",
+      "title": "Workspace Settings",
+      "subtitle": "Update organization details for the active workspace.",
+      "loading": "Loading workspace…",
+      "emptyDescription": "Create a workspace before managing settings.",
+      "emptyAction": "Create workspace",
+      "detailsTitle": "Organization details",
+      "detailsDescription": "These fields sync with your active organization. Slug and email cannot be changed here.",
+      "readOnlyNotice": "You can view this workspace, but you need permission to edit organization settings.",
+      "fields": {
+        "name": "Organization name",
+        "phone": "Phone",
+        "phoneHint": "Optional business phone number.",
+        "website": "Website",
+        "websitePlaceholder": "https://example.com",
+        "industry": "Industry",
+        "industryPlaceholder": "Select industry",
+        "timezone": "Timezone",
+        "currency": "Currency"
+      },
+      "save": "Save changes",
+      "saving": "Saving…",
+      "saved": "Workspace settings saved.",
+      "dangerTitle": "Danger zone",
+      "dangerDescription": "Deleting a workspace soft-deletes it and removes member access. This cannot be undone from the dashboard.",
+      "deleteCta": "Delete workspace",
+      "deleteConfirmTitle": "Delete this workspace?",
+      "deleteConfirmBody": "“{name}” will be deleted. Members will lose access immediately.",
+      "deleteConfirm": "Delete workspace",
+      "deleteCancel": "Cancel",
+      "deleting": "Deleting…",
+      "errors": {
+        "nameRequired": "Enter an organization name (at least 2 characters).",
+        "phoneInvalid": "Enter a valid phone number.",
+        "websiteInvalid": "Enter a valid website URL.",
+        "timezoneRequired": "Select a timezone.",
+        "noWorkspace": "No active workspace selected.",
+        "permissionDenied": "You do not have permission to perform this action.",
+        "sessionExpired": "Your session expired. Please sign in again.",
+        "generic": "Something went wrong. Please try again."
+      }
+    },
     "sidebar": {
       "planLabel": "Current plan",
       "planName": "Growth",

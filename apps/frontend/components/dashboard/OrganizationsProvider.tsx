@@ -15,14 +15,23 @@ import {
   type OrganizationSummary,
 } from '@/lib/api'
 
+const PERM_SETTINGS_MANAGE = 'org:settings_manage'
+const PERM_DELETE = 'org:delete'
+
 type OrganizationsContextValue = {
   organizations: OrganizationSummary[]
   activeOrganization: OrganizationSummary | null
   activeOrganizationId: string | null
+  accessContext: AccessContext | null
   hasOrganizations: boolean
+  canManageSettings: boolean
+  canDeleteOrganization: boolean
   isLoading: boolean
   error: string | null
-  refresh: () => Promise<void>
+  refresh: () => Promise<{
+    organizations: OrganizationSummary[]
+    activeId: string | null
+  }>
   selectOrganization: (organizationId: string) => Promise<void>
 }
 
@@ -48,10 +57,10 @@ function unwrapContext(
  * Access context returns 403 until the session has an active organization,
  * which is a normal state right after signup — not an error.
  */
-async function fetchActiveOrganizationId(): Promise<string | null> {
+async function fetchAccessContext(): Promise<AccessContext | null> {
   try {
     const { data } = await api.access.context()
-    return unwrapContext(data)?.organizationId ?? null
+    return unwrapContext(data)
   } catch {
     return null
   }
@@ -60,19 +69,27 @@ async function fetchActiveOrganizationId(): Promise<string | null> {
 async function fetchOrganizationsState(): Promise<{
   organizations: OrganizationSummary[]
   activeId: string | null
+  accessContext: AccessContext | null
 }> {
-  const [listResult, activeOrganizationId] = await Promise.all([
+  const [listResult, accessContext] = await Promise.all([
     api.organizations.list(),
-    fetchActiveOrganizationId(),
+    fetchAccessContext(),
   ])
 
   const organizations = unwrapList(listResult.data)
+  const activeFromSession = accessContext?.organizationId ?? null
   const activeId =
-    activeOrganizationId && organizations.some((org) => org.id === activeOrganizationId)
-      ? activeOrganizationId
+    activeFromSession && organizations.some((org) => org.id === activeFromSession)
+      ? activeFromSession
       : (organizations[0]?.id ?? null)
 
-  return { organizations, activeId }
+  return { organizations, activeId, accessContext }
+}
+
+function hasPermission(context: AccessContext | null, permission: string) {
+  if (!context) return false
+  if (context.isOwner) return true
+  return context.permissions.includes(permission)
 }
 
 /**
@@ -83,6 +100,7 @@ async function fetchOrganizationsState(): Promise<{
 export function OrganizationsProvider({ children }: { children: React.ReactNode }) {
   const [organizations, setOrganizations] = useState<OrganizationSummary[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [accessContext, setAccessContext] = useState<AccessContext | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -91,11 +109,15 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
       const next = await fetchOrganizationsState()
       setOrganizations(next.organizations)
       setActiveId(next.activeId)
+      setAccessContext(next.accessContext)
       setError(null)
+      return { organizations: next.organizations, activeId: next.activeId }
     } catch (err) {
       setOrganizations([])
       setActiveId(null)
+      setAccessContext(null)
       setError((err as ApiError).message ?? 'Failed to load workspaces')
+      return { organizations: [], activeId: null }
     } finally {
       setIsLoading(false)
     }
@@ -110,11 +132,13 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
         if (cancelled) return
         setOrganizations(next.organizations)
         setActiveId(next.activeId)
+        setAccessContext(next.accessContext)
         setError(null)
       } catch (err) {
         if (cancelled) return
         setOrganizations([])
         setActiveId(null)
+        setAccessContext(null)
         setError((err as ApiError).message ?? 'Failed to load workspaces')
       } finally {
         if (!cancelled) setIsLoading(false)
@@ -132,6 +156,8 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
       setActiveId(organizationId)
       try {
         await api.organizations.setActive(organizationId)
+        const nextContext = await fetchAccessContext()
+        setAccessContext(nextContext)
       } catch (err) {
         setActiveId(previousId)
         setError((err as ApiError).message ?? 'Failed to switch workspace')
@@ -148,13 +174,24 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
       organizations,
       activeOrganization,
       activeOrganizationId: activeOrganization?.id ?? null,
+      accessContext,
       hasOrganizations: organizations.length > 0,
+      canManageSettings: hasPermission(accessContext, PERM_SETTINGS_MANAGE),
+      canDeleteOrganization: hasPermission(accessContext, PERM_DELETE),
       isLoading,
       error,
       refresh,
       selectOrganization,
     }
-  }, [organizations, activeId, isLoading, error, refresh, selectOrganization])
+  }, [
+    organizations,
+    activeId,
+    accessContext,
+    isLoading,
+    error,
+    refresh,
+    selectOrganization,
+  ])
 
   return (
     <OrganizationsContext.Provider value={value}>

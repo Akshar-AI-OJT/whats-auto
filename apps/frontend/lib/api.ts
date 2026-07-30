@@ -135,8 +135,36 @@ export type OrganizationSummary = {
   name: string
   slug: string
   email: string
+  phone?: string | null
+  website?: string | null
+  industry?: string | null
+  country?: string
+  timezone?: string
+  currency?: string | null
   role: string
   createdAt: string
+}
+
+export type UpdateOrganizationBody = {
+  name?: string
+  phone?: string
+  website?: string
+  industry?: string
+  timezone?: string
+  currency?: string
+}
+
+export type OrganizationDetails = {
+  id: string
+  name: string
+  slug: string
+  email: string
+  phone: string | null
+  website: string | null
+  industry: string | null
+  country: string
+  timezone: string
+  currency: string | null
 }
 
 export type AccessContext = {
@@ -239,6 +267,21 @@ export const api = {
       request<{ data?: { organizationId: string } } & { organizationId: string }>(
         `/api/v1/organizations/${organizationId}/set-active`,
         { method: 'POST' }
+      ),
+
+    update: (organizationId: string, body: UpdateOrganizationBody) =>
+      request<{ data?: OrganizationDetails } & OrganizationDetails>(
+        `/api/v1/organizations/${organizationId}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    destroy: (organizationId: string) =>
+      request<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/organizations/${organizationId}`,
+        { method: 'DELETE' }
       ),
   },
 
