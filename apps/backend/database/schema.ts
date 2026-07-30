@@ -487,6 +487,39 @@ export class OrganizationRolePermissionSchema extends BaseModel {
   declare roleId: string
 }
 
+export class OrganizationSubscriptionSchema extends BaseModel {
+  static $columns = [
+    'cancelAt',
+    'createdAt',
+    'currentPeriodEnd',
+    'currentPeriodStart',
+    'id',
+    'organizationId',
+    'planId',
+    'status',
+    'updatedAt',
+  ] as const
+  $columns = OrganizationSubscriptionSchema.$columns
+  @column.dateTime()
+  declare cancelAt: DateTime | null
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare currentPeriodEnd: DateTime
+  @column.dateTime()
+  declare currentPeriodStart: DateTime
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare organizationId: string
+  @column()
+  declare planId: string
+  @column()
+  declare status: string
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+}
+
 export class OrganizationSchema extends BaseModel {
   static $columns = [
     'country',
@@ -535,6 +568,45 @@ export class OrganizationSchema extends BaseModel {
   declare website: string | null
 }
 
+export class PaymentTransactionSchema extends BaseModel {
+  static $columns = [
+    'amount',
+    'createdAt',
+    'currency',
+    'gateway',
+    'gatewayTransactionId',
+    'id',
+    'invoiceUrl',
+    'metadata',
+    'organizationId',
+    'status',
+    'subscriptionId',
+  ] as const
+  $columns = PaymentTransactionSchema.$columns
+  @column()
+  declare amount: string
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare currency: string
+  @column()
+  declare gateway: string
+  @column()
+  declare gatewayTransactionId: string
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare invoiceUrl: string | null
+  @column()
+  declare metadata: any
+  @column()
+  declare organizationId: string
+  @column()
+  declare status: string
+  @column()
+  declare subscriptionId: string
+}
+
 export class PermissionSchema extends BaseModel {
   static $columns = ['action', 'createdAt', 'description', 'id', 'module', 'name'] as const
   $columns = PermissionSchema.$columns
@@ -550,6 +622,36 @@ export class PermissionSchema extends BaseModel {
   declare module: string
   @column()
   declare name: string
+}
+
+export class PlanSchema extends BaseModel {
+  static $columns = [
+    'billingInterval',
+    'createdAt',
+    'currency',
+    'id',
+    'limits',
+    'name',
+    'price',
+    'updatedAt',
+  ] as const
+  $columns = PlanSchema.$columns
+  @column()
+  declare billingInterval: string
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare currency: string
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare limits: any
+  @column()
+  declare name: string
+  @column()
+  declare price: string
+  @column.dateTime()
+  declare updatedAt: DateTime | null
 }
 
 export class RolePermissionSchema extends BaseModel {
@@ -607,6 +709,36 @@ export class SessionSchema extends BaseModel {
   declare userAgent: string | null
   @column()
   declare userId: string
+}
+
+export class UsageMeterSchema extends BaseModel {
+  static $columns = [
+    'id',
+    'limitCount',
+    'metric',
+    'organizationId',
+    'periodEnd',
+    'periodStart',
+    'updatedAt',
+    'usedCount',
+  ] as const
+  $columns = UsageMeterSchema.$columns
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare limitCount: number
+  @column()
+  declare metric: string
+  @column()
+  declare organizationId: string
+  @column.dateTime()
+  declare periodEnd: DateTime
+  @column.dateTime()
+  declare periodStart: DateTime
+  @column.dateTime()
+  declare updatedAt: DateTime
+  @column()
+  declare usedCount: number
 }
 
 export class UserRoleSchema extends BaseModel {

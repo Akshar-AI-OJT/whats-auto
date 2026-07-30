@@ -22,6 +22,8 @@ const InvitationsController = () => import('#controllers/invitations_controller'
 const OnboardingController = () => import('#controllers/onboarding_controller')
 const SuperAdminOrganizationsController = () =>
   import('#controllers/super_admin_organizations_controller')
+const OrganizationAdminUsersController = () =>
+  import('#controllers/organization_admin_users_controller')
 const WhatsappWebhookController = () => import('#controllers/whatsapp_webhook_controller')
 const WhatsappEmbeddedSignupController = () =>
   import('#controllers/whatsapp_embedded_signup_controller')
@@ -126,6 +128,18 @@ router
   })
   .prefix('/api/v1/super-admin')
   .use([middleware.jwtAuth(), middleware.platform()])
+
+// organization admin — active-org scoped (admin/owner role enforced in controller)
+router
+  .group(() => {
+    router.get('/users', [OrganizationAdminUsersController, 'index'])
+    router.post('/users', [OrganizationAdminUsersController, 'store'])
+    router.get('/users/:id', [OrganizationAdminUsersController, 'show'])
+    router.patch('/users/:id', [OrganizationAdminUsersController, 'update'])
+    router.patch('/users/:id/delete', [OrganizationAdminUsersController, 'softDelete'])
+  })
+  .prefix('/api/v1/organization-admin')
+  .use([middleware.jwtAuth(), middleware.tenant()])
 
 // organizations — create/list/set-active do not require an active org yet
 router.post('/api/v1/organizations', [OrganizationsController, 'store']).use([middleware.jwtAuth()])
