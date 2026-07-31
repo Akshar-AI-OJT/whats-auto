@@ -46,6 +46,7 @@ export default await Env.create(new URL('../', import.meta.url), {
   PG_USER: Env.schema.string(),
   PG_PASSWORD: Env.schema.secret(),
   PG_DB_NAME: Env.schema.string(),
+  PG_SSL: Env.schema.boolean.optional(),
 
   // Resend
   RESEND_API_KEY: Env.schema.secret(),

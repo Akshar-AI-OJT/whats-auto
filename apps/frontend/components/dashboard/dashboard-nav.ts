@@ -50,6 +50,7 @@ export const DASHBOARD_NAV_ICONS: Record<DashboardNavKey, LucideIcon> = {
 export const DASHBOARD_NAV_HREFS: Partial<Record<DashboardNavKey, string>> = {
   dashboard: '/dashboard',
   team: '/dashboard/team',
+  settings: '/dashboard/settings',
 }
 
 export type DashboardNavChild = {
