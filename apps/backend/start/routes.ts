@@ -329,7 +329,7 @@ router
       .patch('/organizations/:id', [SuperAdminOrganizationsController, 'update'])
       .use(middleware.requirePermission({ permission: 'platform:tenants_update' }))
     router
-      .patch('/organizations/:id/soft-delete', [SuperAdminOrganizationsController, 'softDelete'])
+      .delete('/organizations/:id', [SuperAdminOrganizationsController, 'softDelete'])
       .use(middleware.requirePermission({ permission: 'platform:tenants_delete' }))
     router
       .get('/subscriptions', [SuperAdminSubscriptionsController, 'index'])
@@ -344,7 +344,7 @@ router
       .patch('/subscriptions/:id', [SuperAdminSubscriptionsController, 'update'])
       .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
     router
-      .patch('/subscriptions/:id/delete', [SuperAdminSubscriptionsController, 'softDelete'])
+      .delete('/subscriptions/:id', [SuperAdminSubscriptionsController, 'softDelete'])
       .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
   })
   .prefix('/api/v1/super-admin')
