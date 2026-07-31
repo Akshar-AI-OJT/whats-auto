@@ -1,15 +1,6 @@
 import vine from '@vinejs/vine'
-import { UNASSIGNABLE_ROLE_NAMES } from '#services/role_service'
 
 const email = () => vine.string().trim().email().normalizeEmail().maxLength(254)
-const password = () => vine.string().minLength(8).maxLength(128)
-const assignableRole = () =>
-  vine
-    .string()
-    .trim()
-    .minLength(1)
-    .maxLength(20)
-    .notIn([...UNASSIGNABLE_ROLE_NAMES])
 
 export const listOrganizationAdminUsersValidator = vine.create(
   vine.object({
@@ -21,16 +12,6 @@ export const listOrganizationAdminUsersValidator = vine.create(
 export const organizationAdminUserIdParamValidator = vine.create(
   vine.object({
     id: vine.string().trim().uuid(),
-  })
-)
-
-export const createOrganizationAdminUserValidator = vine.create(
-  vine.object({
-    firstname: vine.string().trim().minLength(1).maxLength(100),
-    lastname: vine.string().trim().minLength(1).maxLength(100),
-    email: email(),
-    password: password(),
-    role: assignableRole(),
   })
 )
 

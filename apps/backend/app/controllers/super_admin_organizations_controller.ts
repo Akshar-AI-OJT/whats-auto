@@ -1,8 +1,4 @@
 import type { HttpContext } from '@adonisjs/core/http'
-<<<<<<< HEAD
-import { OrganizationService } from '#services/organization_service'
-import { listSuperAdminOrganizationsValidator } from '#validators/organization_crud'
-=======
 import { Exception } from '@adonisjs/core/exceptions'
 import { OrganizationService } from '#services/organization_service'
 import {
@@ -11,7 +7,6 @@ import {
   updateOrganizationValidator,
 } from '#validators/organization_crud'
 import { mapRbacError } from '#lib/map_rbac_error'
->>>>>>> feature/superadmin-role
 import '#types/http'
 
 export default class SuperAdminOrganizationsController {
@@ -38,8 +33,6 @@ export default class SuperAdminOrganizationsController {
 
     return serialize(organizations)
   }
-<<<<<<< HEAD
-=======
 
   /**
    * @summary Update an organization (Super Admin)
@@ -108,5 +101,4 @@ export default class SuperAdminOrganizationsController {
       return mapRbacError(error, response)
     }
   }
->>>>>>> feature/superadmin-role
 }

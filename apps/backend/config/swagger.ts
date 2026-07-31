@@ -40,7 +40,7 @@ const swaggerConfig = {
   // Keep auth token in Swagger UI across page refreshes
   persistAuthorization: true,
 
-  ignore: ['/swagger', '/docs', '/', '/api/auth/*'],
+  ignore: ['/swagger', '/docs', '/'],
 }
 
 export default swaggerConfig
