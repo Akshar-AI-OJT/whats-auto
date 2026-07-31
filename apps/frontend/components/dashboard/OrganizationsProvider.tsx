@@ -21,11 +21,18 @@ const PERM_TEAM_VIEW = 'team:view'
 const PERM_TEAM_INVITE = 'team:invite'
 const PERM_TEAM_ROLE_ASSIGN = 'team:role_assign'
 const PERM_TEAM_REMOVE = 'team:remove'
+const PERM_CONTACTS_VIEW = 'contacts:view'
+const PERM_CONTACTS_CREATE = 'contacts:create'
 
 type OrganizationsContextValue = {
   organizations: OrganizationSummary[]
   activeOrganization: OrganizationSummary | null
   activeOrganizationId: string | null
+  /**
+   * Session-backed org id that tenant APIs (contacts, members, …) will use.
+   * Null while the UI selection is ahead of set-active (avoids stale RLS reads).
+   */
+  tenantOrganizationId: string | null
   accessContext: AccessContext | null
   hasOrganizations: boolean
   canManageSettings: boolean
@@ -34,6 +41,8 @@ type OrganizationsContextValue = {
   canInviteMembers: boolean
   canAssignRole: boolean
   canRemoveMember: boolean
+  canViewContacts: boolean
+  canCreateContacts: boolean
   isLoading: boolean
   error: string | null
   refresh: () => Promise<{
@@ -174,27 +183,39 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
   const selectOrganization = useCallback(
     async (organizationId: string) => {
       const previousId = activeId
+      const previousContext = accessContext
+      // Optimistic UI + clear session context so tenant pages stop using the
+      // previous org while set-active is in flight.
       setActiveId(organizationId)
+      setAccessContext(null)
       try {
         await api.organizations.setActive(organizationId)
         const nextContext = await fetchAccessContext()
         setAccessContext(nextContext)
       } catch (err) {
         setActiveId(previousId)
+        setAccessContext(previousContext)
         setError((err as ApiError).message ?? 'Failed to switch workspace')
       }
     },
-    [activeId]
+    [activeId, accessContext]
   )
 
   const value = useMemo<OrganizationsContextValue>(() => {
     const activeOrganization =
       organizations.find((org) => org.id === activeId) ?? organizations[0] ?? null
 
+    const sessionOrgId = accessContext?.organizationId ?? null
+    // Only expose a tenant id when UI selection and session agree — prevents
+    // fetching contacts/members against the previous org during set-active.
+    const tenantOrganizationId =
+      sessionOrgId && sessionOrgId === activeOrganization?.id ? sessionOrgId : null
+
     return {
       organizations,
       activeOrganization,
       activeOrganizationId: activeOrganization?.id ?? null,
+      tenantOrganizationId,
       accessContext,
       hasOrganizations: organizations.length > 0,
       canManageSettings: hasPermission(accessContext, PERM_SETTINGS_MANAGE),
@@ -203,6 +224,8 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
       canInviteMembers: hasPermission(accessContext, PERM_TEAM_INVITE),
       canAssignRole: hasPermission(accessContext, PERM_TEAM_ROLE_ASSIGN),
       canRemoveMember: hasPermission(accessContext, PERM_TEAM_REMOVE),
+      canViewContacts: hasPermission(accessContext, PERM_CONTACTS_VIEW),
+      canCreateContacts: hasPermission(accessContext, PERM_CONTACTS_CREATE),
       isLoading,
       error,
       refresh,

@@ -16,7 +16,6 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { DashboardSidebar } from './DashboardSidebar'
-import { MOCK_NOTIFICATIONS } from './mock-data'
 import { NotificationBell } from './NotificationBell'
 import { UserProfileMenu } from './UserProfileMenu'
 import {
@@ -277,7 +276,6 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
         <ThemeToggle />
 
         <NotificationBell
-          notifications={MOCK_NOTIFICATIONS}
           open={notificationsOpen}
           onOpenChange={(next) => {
             setNotificationsOpen(next)
