@@ -275,8 +275,7 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({
           email: body.email,
-          redirectTo:
-            body.redirectTo ?? `${process.env.NEXT_PUBLIC_APP_URL}/reset-password`,
+          redirectTo: body.redirectTo ?? `${process.env.NEXT_PUBLIC_APP_URL}/reset-password`,
         }),
       }),
 
@@ -291,8 +290,7 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({
           provider: 'google',
-          callbackURL:
-            callbackURL ?? `${process.env.NEXT_PUBLIC_APP_URL}/onboarding/organization`,
+          callbackURL: callbackURL ?? `${process.env.NEXT_PUBLIC_APP_URL}/onboarding/organization`,
         }),
       }),
 
@@ -318,19 +316,15 @@ export const api = {
 
   organizations: {
     create: (body: CreateOrganizationBody) =>
-      request<{ data?: CreatedOrganization } & CreatedOrganization>(
-        '/api/v1/organizations',
-        {
-          method: 'POST',
-          body: JSON.stringify(body),
-        }
-      ),
+      request<{ data?: CreatedOrganization } & CreatedOrganization>('/api/v1/organizations', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
 
     list: () =>
-      request<{ data?: OrganizationSummary[] } | OrganizationSummary[]>(
-        '/api/v1/organizations',
-        { method: 'GET' }
-      ),
+      request<{ data?: OrganizationSummary[] } | OrganizationSummary[]>('/api/v1/organizations', {
+        method: 'GET',
+      }),
 
     setActive: (organizationId: string) =>
       request<{ data?: { organizationId: string } } & { organizationId: string }>(
