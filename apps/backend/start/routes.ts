@@ -31,6 +31,7 @@ const WhatsappWebhookController = () => import('#controllers/whatsapp_webhook_co
 const WhatsappEmbeddedSignupController = () =>
   import('#controllers/whatsapp_embedded_signup_controller')
 const WhatsappConfigsController = () => import('#controllers/whatsapp_configs_controller')
+const MessageTemplatesController = () => import('#controllers/message_templates_controller')
 
 type JsonSchema = {
   type: 'object'
@@ -304,6 +305,22 @@ router
     router
       .post('/configs/:id/test', [WhatsappConfigsController, 'test'])
       .use(middleware.requirePermission({ permission: 'whatsapp:manage' }))
+
+    router
+      .get('/templates', [MessageTemplatesController, 'index'])
+      .use(middleware.requirePermission({ permission: 'whatsapp:view' }))
+    router
+      .get('/templates/:id', [MessageTemplatesController, 'show'])
+      .use(middleware.requirePermission({ permission: 'whatsapp:view' }))
+    router
+      .post('/templates', [MessageTemplatesController, 'store'])
+      .use(middleware.requirePermission({ permission: 'whatsapp:manage' }))
+    router
+      .post('/templates/sync', [MessageTemplatesController, 'sync'])
+      .use(middleware.requirePermission({ permission: 'whatsapp:manage' }))
+    router
+      .delete('/templates/:id', [MessageTemplatesController, 'destroy'])
+      .use(middleware.requirePermission({ permission: 'whatsapp:manage' }))
   })
   .prefix('/api/v1/whatsapp')
   .use([middleware.jwtAuth(), middleware.tenant()])
@@ -454,7 +471,6 @@ router
 //members
 router
   .group(() => {
-    router.get('/', [controllers.Members, 'index'])
     router
       .patch('/:memberId/role', [controllers.Members, 'assignRole'])
       .use(middleware.requirePermission({ permission: 'team:role_assign' }))
