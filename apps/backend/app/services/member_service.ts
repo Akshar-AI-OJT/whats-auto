@@ -3,6 +3,7 @@ import { AuthorizationService } from '#services/authorization_service'
 import type { Permission } from '#abilities/permissions'
 import RoleException from '#exceptions/role_exception'
 import { resolveAssignableRoleForOrg } from '#services/role_service'
+import { DateTime } from 'luxon'
 
 export class MemberService {
   /**
@@ -103,6 +104,7 @@ export class MemberService {
       .innerJoin('roles as r', 'r.id', 'm.roleId')
       .where('m.id', memberId)
       .where('m.organizationId', organizationId)
+      .where('m.isDeleted', false)
       .select('m.userId', 'r.name as role')
       .firstOrFail()
 
@@ -111,13 +113,10 @@ export class MemberService {
     }
 
     await db.transaction(async (trx) => {
-      await trx.from('organization_members').where('id', memberId).delete()
-
-      await trx
-        .from('user_roles')
-        .where('userId', member.userId)
-        .where('organizationId', organizationId)
-        .delete()
+      await trx.from('organization_members').where('id', memberId).update({
+        isDeleted: true,
+        deletedAt: DateTime.utc().toSQL(),
+      })
 
       await trx.table('authorization_audits').insert({
         organizationId,
