@@ -3,29 +3,9 @@ import { AuthorizationService } from '#services/authorization_service'
 import type { Permission } from '#abilities/permissions'
 import RoleException from '#exceptions/role_exception'
 import { resolveAssignableRoleForOrg } from '#services/role_service'
+import { DateTime } from 'luxon'
 
 export class MemberService {
-  /**
-   * List members of a tenant.
-   */
-  async listMembers(organizationId: string) {
-    const rows = await db
-      .from('organization_members as m')
-      .innerJoin('users as u', 'u.id', 'm.userId')
-      .innerJoin('roles as r', 'r.id', 'm.roleId')
-      .where('m.organizationId', organizationId)
-      .select('m.id', 'm.userId', 'r.name as role', 'u.email', 'u.name')
-      .orderBy('r.name', 'asc')
-
-    return rows.map((r) => ({
-      id: r.id as string,
-      userId: r.userId as string,
-      role: r.role as string,
-      email: r.email as string,
-      name: r.name as string,
-    }))
-  }
-
   /**
    * Reassign a member's role.
    * Validates: manager holds all permissions of the new role.
@@ -103,6 +83,7 @@ export class MemberService {
       .innerJoin('roles as r', 'r.id', 'm.roleId')
       .where('m.id', memberId)
       .where('m.organizationId', organizationId)
+      .where('m.isDeleted', false)
       .select('m.userId', 'r.name as role')
       .firstOrFail()
 
@@ -111,13 +92,10 @@ export class MemberService {
     }
 
     await db.transaction(async (trx) => {
-      await trx.from('organization_members').where('id', memberId).delete()
-
-      await trx
-        .from('user_roles')
-        .where('userId', member.userId)
-        .where('organizationId', organizationId)
-        .delete()
+      await trx.from('organization_members').where('id', memberId).update({
+        isDeleted: true,
+        deletedAt: DateTime.utc().toSQL(),
+      })
 
       await trx.table('authorization_audits').insert({
         organizationId,
