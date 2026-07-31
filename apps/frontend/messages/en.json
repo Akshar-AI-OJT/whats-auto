@@ -1516,6 +1516,49 @@
         }
       }
     },
+    "contacts": {
+      "eyebrow": "CRM",
+      "title": "Contacts",
+      "subtitle": "People you message from this WhatsApp workspace.",
+      "addCta": "Add Contact",
+      "listTitle": "All contacts",
+      "listDescription": "Stored per workspace. Phone numbers must be unique.",
+      "loading": "Loading contacts…",
+      "searchPlaceholder": "Search by name, phone, email, or company",
+      "emptyTitle": "No contacts yet",
+      "emptyDescription": "Add your first contact to start conversations and campaigns.",
+      "noMatches": "No contacts match your search.",
+      "addedAt": "Added {date}",
+      "errors": {
+        "loadFailed": "Couldn’t load contacts. Please try again.",
+        "permissionDenied": "You don’t have permission to view contacts in this workspace."
+      },
+      "add": {
+        "title": "Add Contact",
+        "subtitle": "Phone is required. Name, email, and company are optional.",
+        "phone": "Phone",
+        "phonePlaceholder": "+91 98765 43210",
+        "phoneHint": "Saved as entered; uniqueness uses digits only.",
+        "name": "Name",
+        "nameOptional": "Optional",
+        "email": "Email",
+        "emailOptional": "Optional",
+        "company": "Company",
+        "companyOptional": "Optional",
+        "submit": "Save contact",
+        "submitting": "Saving…",
+        "success": "Contact added.",
+        "errors": {
+          "phoneRequired": "Phone is required.",
+          "phoneInvalid": "Enter a valid phone number.",
+          "emailInvalid": "Enter a valid email address.",
+          "phoneExists": "A contact with this phone number already exists.",
+          "sessionExpired": "Your session expired. Please sign in again.",
+          "permissionDenied": "You don’t have permission to add contacts.",
+          "generic": "Couldn’t save this contact. Please try again."
+        }
+      }
+    },
     "settings": {
       "eyebrow": "Workspace",
       "title": "Workspace Settings",
@@ -1609,7 +1652,8 @@
         "title": "Onboarding checklist",
         "dismiss": "Dismiss checklist",
         "completed": {
-          "workspace": "Workspace Created"
+          "workspace": "Workspace Created",
+          "whatsapp": "WhatsApp Connected"
         },
         "nextStepsTitle": "Next Steps",
         "nextSteps": {
@@ -1621,25 +1665,27 @@
       "kpis": {
         "contacts": {
           "label": "Total Contacts",
-          "hint": "vs last 30 days"
+          "hint": "in this workspace"
         },
         "conversations": {
           "label": "Active Conversations",
-          "hint": "open right now"
+          "hint": "coming soon"
         },
         "campaigns": {
           "label": "Campaigns Sent",
-          "hint": "this month"
+          "hint": "coming soon"
         },
         "delivery": {
           "label": "Delivery Rate",
-          "hint": "last 7 days"
+          "hint": "coming soon"
         }
       },
       "conversations": {
         "title": "Recent Conversations",
         "description": "Latest chats across your connected numbers.",
         "viewAll": "View all",
+        "emptyTitle": "No conversations yet",
+        "emptyDescription": "Inbox conversations will show up here once WhatsApp messaging is connected.",
         "status": {
           "open": "Open",
           "waiting": "Waiting",
@@ -1649,6 +1695,8 @@
       "campaigns": {
         "title": "Recent Campaigns",
         "description": "Broadcast performance at a glance.",
+        "emptyTitle": "No campaigns yet",
+        "emptyDescription": "Campaigns will appear here after you launch your first broadcast.",
         "sent": "Sent",
         "delivered": "Delivered",
         "status": {
@@ -1683,7 +1731,9 @@
       },
       "activity": {
         "title": "Recent Activity",
-        "description": "A live trail of workspace events."
+        "description": "A live trail of workspace events.",
+        "emptyTitle": "No activity yet",
+        "emptyDescription": "Workspace events will show up here as your team starts using Whats-Auto."
       }
     }
   },

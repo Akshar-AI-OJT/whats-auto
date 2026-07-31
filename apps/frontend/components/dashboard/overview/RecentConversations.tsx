@@ -1,12 +1,11 @@
 'use client'
 
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, MessageCircle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
-import { MOCK_CONVERSATIONS } from '../mock-data'
 import { DashboardPanel } from '../ui/DashboardPanel'
 import { DashboardSectionHeader } from '../ui/DashboardSectionHeader'
-import { ConversationRow } from './ConversationRow'
+import { DashboardEmptyState } from './DashboardEmptyState'
 
 export function RecentConversations() {
   const t = useTranslations('dashboard.home')
@@ -19,10 +18,10 @@ export function RecentConversations() {
         action={
           <button
             type="button"
+            disabled
             className={cn(
-              'inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-sm font-semibold text-positive-deep',
-              'transition-[background-color,color,transform] duration-200',
-              'hover:bg-primary-pale hover:translate-x-0.5'
+              'inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-sm font-semibold text-mute',
+              'cursor-not-allowed opacity-70'
             )}
           >
             {t('conversations.viewAll')}
@@ -31,22 +30,11 @@ export function RecentConversations() {
         }
       />
 
-      <ul className="mt-5 flex flex-1 flex-col gap-1.5">
-        {MOCK_CONVERSATIONS.map((item) => (
-          <li key={item.id}>
-            <ConversationRow
-              id={item.id}
-              name={item.name}
-              preview={item.preview}
-              timestamp={item.timestamp}
-              unread={item.unread}
-              status={item.status}
-              presence={item.presence}
-              statusLabel={t(`conversations.status.${item.status}`)}
-            />
-          </li>
-        ))}
-      </ul>
+      <DashboardEmptyState
+        icon={<MessageCircle className="size-5" aria-hidden />}
+        title={t('conversations.emptyTitle')}
+        description={t('conversations.emptyDescription')}
+      />
     </DashboardPanel>
   )
 }

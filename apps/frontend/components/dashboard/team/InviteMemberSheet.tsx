@@ -54,7 +54,7 @@ export function InviteMemberSheet({
   onInvited,
 }: InviteMemberFormProps) {
   const t = useTranslations('dashboard.team.invite')
-  const { activeOrganizationId, canInviteMembers, isLoading: orgsLoading } =
+  const { tenantOrganizationId, canInviteMembers, isLoading: orgsLoading } =
     useOrganizations()
   const emailId = useId()
   const phoneId = useId()
@@ -116,7 +116,7 @@ export function InviteMemberSheet({
     setFieldErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return
 
-    if (!activeOrganizationId) {
+    if (!tenantOrganizationId) {
       setError(t('errors.noActiveOrg'))
       return
     }
@@ -128,7 +128,7 @@ export function InviteMemberSheet({
 
     setPending(true)
     try {
-      await api.invitations.create(activeOrganizationId, {
+      await api.invitations.create(tenantOrganizationId, {
         email: email.trim(),
         role,
       })
@@ -146,7 +146,7 @@ export function InviteMemberSheet({
   }
 
   const submitDisabled =
-    pending || orgsLoading || !activeOrganizationId || !canInviteMembers
+    pending || orgsLoading || !tenantOrganizationId || !canInviteMembers
 
   return (
     <Sheet

@@ -28,7 +28,7 @@ export function DashboardSidebarNav({
   const t = useTranslations('dashboard.nav')
   const pathname = usePathname()
   const router = useRouter()
-  const { canViewTeam } = useOrganizations()
+  const { canViewTeam, canViewContacts } = useOrganizations()
   const [teamOpen, setTeamOpen] = useState(
     () => pathname === '/dashboard/team' || pathname.startsWith('/dashboard/team/')
   )
@@ -38,6 +38,8 @@ export function DashboardSidebarNav({
       {DASHBOARD_NAV_KEYS.map((key) => {
         // Backend: GET /members requires team:view — hide Team for roles without it (e.g. viewer).
         if (key === 'team' && !canViewTeam) return null
+        // Backend: GET /contacts requires contacts:view
+        if (key === 'contacts' && !canViewContacts) return null
 
         const Icon = DASHBOARD_NAV_ICONS[key]
         const href = DASHBOARD_NAV_HREFS[key]

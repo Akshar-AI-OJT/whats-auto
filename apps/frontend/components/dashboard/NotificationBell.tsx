@@ -13,14 +13,15 @@ import {
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { formatConversationTimestamp } from './overview/ConversationRow'
-import type { MockNotification, MockNotificationType } from './mock-data'
+
+export type NotificationType = 'campaign' | 'message' | 'billing' | 'system'
 
 export type NotificationItem = {
   id: string
   title: string
   body: string
   timestamp: string | Date
-  type: MockNotificationType
+  type: NotificationType
   read: boolean
 }
 
@@ -33,7 +34,7 @@ export type NotificationBellProps = {
 }
 
 const TYPE_META: Record<
-  MockNotificationType,
+  NotificationType,
   { icon: LucideIcon; wrap: string; iconColor: string }
 > = {
   campaign: {

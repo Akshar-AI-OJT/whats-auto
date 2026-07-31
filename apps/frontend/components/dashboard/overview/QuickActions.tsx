@@ -2,12 +2,34 @@
 
 import { FileText, Megaphone, Send, UserPlus, type LucideIcon } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { MOCK_QUICK_ACTIONS } from '../mock-data'
 import { DashboardPanel } from '../ui/DashboardPanel'
 import { DashboardSectionHeader } from '../ui/DashboardSectionHeader'
 import { QuickActionCard } from './QuickActionCard'
 
-const ACTION_ICONS: Record<(typeof MOCK_QUICK_ACTIONS)[number]['titleKey'], LucideIcon> = {
+const QUICK_ACTIONS = [
+  {
+    id: 'new-campaign',
+    titleKey: 'newCampaign',
+    descriptionKey: 'newCampaignDesc',
+  },
+  {
+    id: 'add-contact',
+    titleKey: 'addContact',
+    descriptionKey: 'addContactDesc',
+  },
+  {
+    id: 'create-template',
+    titleKey: 'createTemplate',
+    descriptionKey: 'createTemplateDesc',
+  },
+  {
+    id: 'broadcast-message',
+    titleKey: 'broadcastMessage',
+    descriptionKey: 'broadcastMessageDesc',
+  },
+] as const
+
+const ACTION_ICONS: Record<(typeof QUICK_ACTIONS)[number]['titleKey'], LucideIcon> = {
   newCampaign: Megaphone,
   addContact: UserPlus,
   createTemplate: FileText,
@@ -22,7 +44,7 @@ export function QuickActions() {
       <DashboardSectionHeader title={t('title')} description={t('description')} />
 
       <div className="mt-5 grid auto-rows-fr grid-cols-1 gap-3 sm:grid-cols-2">
-        {MOCK_QUICK_ACTIONS.map((action) => {
+        {QUICK_ACTIONS.map((action) => {
           const Icon = ACTION_ICONS[action.titleKey]
           return (
             <QuickActionCard

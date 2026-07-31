@@ -177,6 +177,34 @@ export type AccessContext = {
   permissions: string[]
 }
 
+export type ContactSummary = {
+  id: string
+  organizationId: string
+  phone: string
+  phoneNormalized: string
+  name: string | null
+  email: string | null
+  company: string | null
+  customFields?: Record<string, unknown>
+  createdByUserId?: string | null
+  createdAt: string
+  updatedAt?: string | null
+}
+
+export type CreateContactBody = {
+  phone: string
+  name?: string
+  email?: string
+  company?: string
+}
+
+export type WhatsappConfigSummary = {
+  id: string
+  phoneNumberId: string
+  displayPhoneNumber?: string | null
+  status: string
+}
+
 export type CreateInvitationBody = {
   email: string
   role: string
@@ -332,6 +360,27 @@ export const api = {
       request<{ data?: AccessContext } & AccessContext>('/api/v1/access-context', {
         method: 'GET',
       }),
+  },
+
+  contacts: {
+    list: () =>
+      request<{ data?: ContactSummary[] } | ContactSummary[]>('/api/v1/contacts', {
+        method: 'GET',
+      }),
+
+    create: (body: CreateContactBody) =>
+      request<{ data?: ContactSummary } & ContactSummary>('/api/v1/contacts', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+  },
+
+  whatsapp: {
+    listConfigs: () =>
+      request<{ data?: WhatsappConfigSummary[] } | WhatsappConfigSummary[]>(
+        '/api/v1/whatsapp/configs',
+        { method: 'GET' }
+      ),
   },
 
   members: {

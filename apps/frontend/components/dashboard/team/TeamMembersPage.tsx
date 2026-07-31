@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useId, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Loader2, Mail, Trash2, UserPlus, Users, X } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
@@ -71,7 +71,7 @@ export function TeamMembersPage() {
   const cancelTitleId = useId()
   const cancelDescId = useId()
   const {
-    activeOrganizationId,
+    tenantOrganizationId,
     accessContext,
     canViewTeam,
     canInviteMembers,
@@ -96,38 +96,53 @@ export function TeamMembersPage() {
   const [cancelTarget, setCancelTarget] = useState<PendingInvitation | null>(null)
   const [cancelPending, setCancelPending] = useState(false)
   const [cancelError, setCancelError] = useState<string | null>(null)
+  const organizationIdRef = useRef(tenantOrganizationId)
+  organizationIdRef.current = tenantOrganizationId
 
-  const loadTeam = useCallback(async () => {
-    if (!activeOrganizationId || !canViewTeam) {
-      setMembers([])
-      setPendingInvites([])
-      setListLoading(false)
-      return
-    }
+  const loadTeam = useCallback(
+    async (organizationId: string) => {
+      if (!canViewTeam) {
+        setMembers([])
+        setPendingInvites([])
+        setListLoading(false)
+        return
+      }
 
-    setListLoading(true)
-    setListError(null)
-    try {
-      const [membersResult, invitesResult] = await Promise.all([
-        api.members.list(),
-        api.invitations.list().catch(() => ({ data: [] as PendingInvitation[] })),
-      ])
-      setMembers(unwrapList(membersResult.data))
-      setPendingInvites(unwrapList(invitesResult.data))
-    } catch (err) {
-      setMembers([])
-      setPendingInvites([])
-      const apiError = err as ApiError
-      setListError(apiError.message || t('errors.loadFailed'))
-    } finally {
-      setListLoading(false)
-    }
-  }, [activeOrganizationId, canViewTeam])
+      setListLoading(true)
+      setListError(null)
+      try {
+        const [membersResult, invitesResult] = await Promise.all([
+          api.members.list(),
+          api.invitations.list().catch(() => ({ data: [] as PendingInvitation[] })),
+        ])
+        if (organizationId !== organizationIdRef.current) return
+        setMembers(unwrapList(membersResult.data))
+        setPendingInvites(unwrapList(invitesResult.data))
+      } catch (err) {
+        if (organizationId !== organizationIdRef.current) return
+        setMembers([])
+        setPendingInvites([])
+        const apiError = err as ApiError
+        setListError(apiError.message || t('errors.loadFailed'))
+      } finally {
+        if (organizationId === organizationIdRef.current) {
+          setListLoading(false)
+        }
+      }
+    },
+    [canViewTeam, t]
+  )
 
   useEffect(() => {
     if (orgsLoading) return
-    void loadTeam()
-  }, [orgsLoading, loadTeam])
+    if (!tenantOrganizationId) {
+      setMembers([])
+      setPendingInvites([])
+      setListLoading(true)
+      return
+    }
+    void loadTeam(tenantOrganizationId)
+  }, [orgsLoading, tenantOrganizationId, loadTeam])
 
   useEffect(() => {
     if (orgsLoading || canInviteMembers || !inviteFromQuery) return
@@ -458,7 +473,7 @@ export function TeamMembersPage() {
           open={inviteOpen}
           onOpenChange={handleInviteOpenChange}
           onInvited={() => {
-            void loadTeam()
+            if (tenantOrganizationId) void loadTeam(tenantOrganizationId)
           }}
         />
       ) : null}

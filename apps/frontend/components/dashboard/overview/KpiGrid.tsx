@@ -1,43 +1,90 @@
 'use client'
 
+import { useEffect, useRef, useState } from 'react'
 import { Megaphone, MessageCircle, Send, Users } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { MOCK_KPIS } from '../mock-data'
+import { api } from '@/lib/api'
+import { useOrganizations } from '../OrganizationsProvider'
 import { KPIStatCard } from './KPIStatCard'
 
+function unwrapList<T>(data: { data?: T[] } | T[] | undefined): T[] {
+  if (!data) return []
+  if (Array.isArray(data)) return data
+  if (Array.isArray(data.data)) return data.data
+  return []
+}
+
+/**
+ * Overview KPIs — contacts come from GET /api/v1/contacts.
+ * Conversations / campaigns / delivery stay at 0 until those backends ship.
+ */
 export function KpiGrid() {
   const t = useTranslations('dashboard.home.kpis')
+  const { tenantOrganizationId, isLoading: orgsLoading } = useOrganizations()
+  const [contactsCount, setContactsCount] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const organizationIdRef = useRef(tenantOrganizationId)
+  organizationIdRef.current = tenantOrganizationId
+
+  useEffect(() => {
+    if (orgsLoading) return
+
+    let cancelled = false
+    const orgId = tenantOrganizationId
+
+    ;(async () => {
+      if (!orgId) {
+        if (!cancelled) {
+          setContactsCount(0)
+          setLoading(true)
+        }
+        return
+      }
+
+      setLoading(true)
+      try {
+        const { data } = await api.contacts.list()
+        if (cancelled || orgId !== organizationIdRef.current) return
+        const rows = unwrapList(data).filter((c) => c.organizationId === orgId)
+        setContactsCount(rows.length)
+      } catch {
+        if (!cancelled && orgId === organizationIdRef.current) setContactsCount(0)
+      } finally {
+        if (!cancelled && orgId === organizationIdRef.current) setLoading(false)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [tenantOrganizationId, orgsLoading])
 
   const items = [
     {
-      key: 'contacts',
+      key: 'contacts' as const,
       icon: Users,
-      value: MOCK_KPIS.totalContacts.value,
-      delta: MOCK_KPIS.totalContacts.delta,
-      trend: MOCK_KPIS.totalContacts.tone,
+      value: contactsCount,
+      format: 'number' as const,
     },
     {
-      key: 'conversations',
+      key: 'conversations' as const,
       icon: MessageCircle,
-      value: MOCK_KPIS.activeConversations.value,
-      delta: MOCK_KPIS.activeConversations.delta,
-      trend: MOCK_KPIS.activeConversations.tone,
+      value: 0,
+      format: 'number' as const,
     },
     {
-      key: 'campaigns',
+      key: 'campaigns' as const,
       icon: Megaphone,
-      value: MOCK_KPIS.campaignsSent.value,
-      delta: MOCK_KPIS.campaignsSent.delta,
-      trend: MOCK_KPIS.campaignsSent.tone,
+      value: 0,
+      format: 'number' as const,
     },
     {
-      key: 'delivery',
+      key: 'delivery' as const,
       icon: Send,
-      value: MOCK_KPIS.deliveryRate.value,
-      delta: MOCK_KPIS.deliveryRate.delta,
-      trend: MOCK_KPIS.deliveryRate.tone,
+      value: '—',
+      format: 'plain' as const,
     },
-  ] as const
+  ]
 
   return (
     <div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-4 xl:grid-cols-4 xl:gap-5">
@@ -46,10 +93,10 @@ export function KpiGrid() {
           key={item.key}
           label={t(`${item.key}.label`)}
           value={item.value}
-          delta={item.delta}
-          trend={item.trend}
+          format={item.format}
           hint={t(`${item.key}.hint`)}
           icon={item.icon}
+          loading={loading || orgsLoading}
           className="h-full"
         />
       ))}
