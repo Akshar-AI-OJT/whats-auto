@@ -252,11 +252,7 @@ export class OrganizationAdminUsersService {
    * Sets isDeleted + deletedAt + isActive=false per users table check constraint.
    * Does not hard-delete the user row. Already soft-deleted / other-org → null.
    */
-  async softDeleteUser(params: {
-    organizationId: string
-    userId: string
-    actorUserId: string
-  }) {
+  async softDeleteUser(params: { organizationId: string; userId: string; actorUserId: string }) {
     const { organizationId, userId, actorUserId } = params
 
     const existing = await this.getUserById({ organizationId, userId })
