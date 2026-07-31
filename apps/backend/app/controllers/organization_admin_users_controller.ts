@@ -14,7 +14,7 @@ export default class OrganizationAdminUsersController {
   /**
    * @index
    * @summary List users in the active organization (Organization Admin)
-   * @description Returns paginated users belonging to the authenticated Organization Admin's organization. Soft-deleted users are excluded. Requires admin or owner role.
+   * @description Returns paginated users belonging to the authenticated Organization Admin's organization. Soft-deleted memberships are excluded. Requires admin or owner role.
    * @tag Organization-Admin
    * @security BearerAuth
    * @paramQuery page - Page number (default 1) - @type(number)
@@ -47,7 +47,7 @@ export default class OrganizationAdminUsersController {
   /**
    * @show
    * @summary Get a user by id in the active organization (Organization Admin)
-   * @description Returns the user only when they belong to the authenticated Organization Admin's organization. Soft-deleted users and users from other organizations yield 404. Requires admin or owner role.
+   * @description Returns the user only when they belong to the authenticated Organization Admin's organization. Soft-deleted memberships and users from other organizations yield 404. Requires admin or owner role.
    * @tag Organization-Admin
    * @security BearerAuth
    * @paramPath id - User id - @type(string)
@@ -86,7 +86,7 @@ export default class OrganizationAdminUsersController {
   /**
    * @update
    * @summary Update a user in the active organization (Organization Admin)
-   * @description Partial update of profile fields for a user in the authenticated admin's organization. Soft-deleted users and users from other organizations yield 404. organization_id cannot be changed. Requires admin or owner role.
+   * @description Partial update of profile fields for a user in the authenticated admin's organization. Soft-deleted memberships and users from other organizations yield 404. organization_id cannot be changed. Requires admin or owner role.
    * @tag Organization-Admin
    * @security BearerAuth
    * @paramPath id - User id - @type(string)
@@ -140,8 +140,8 @@ export default class OrganizationAdminUsersController {
   /**
    * @softDelete
    * @operationId softDelete
-   * @summary Soft-delete a user in the active organization
-   * @description Soft-delete a user in the active organization.
+   * @summary Remove a user from the active organization
+   * @description Soft-deletes the organization_members row for the user in the active organization. Does not delete the user account.
    * @tag Organization-Admin
    * @security BearerAuth
    * @paramPath id - User id - @type(string)

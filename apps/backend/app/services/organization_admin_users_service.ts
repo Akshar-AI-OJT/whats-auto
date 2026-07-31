@@ -23,7 +23,7 @@ export type UpdateOrganizationAdminUserInput = {
 
 export class OrganizationAdminUsersService {
   /**
-   * Base query: members of one org, excluding soft-deleted users.
+   * Base query: live members of one org (excludes soft-deleted memberships).
    */
   protected organizationUsersQuery(organizationId: string) {
     return db
@@ -31,13 +31,12 @@ export class OrganizationAdminUsersService {
       .innerJoin('users as u', 'u.id', 'm.userId')
       .innerJoin('roles as r', 'r.id', 'm.roleId')
       .where('m.organizationId', organizationId)
-      .where('u.isDeleted', false)
-      .whereNull('u.deletedAt')
+      .where('m.isDeleted', false)
   }
 
   /**
    * Paginated users for a single organization (Organization Admin).
-   * Scoped via organization_members; excludes soft-deleted users.
+   * Scoped via organization_members; excludes soft-deleted memberships.
    */
   async listUsersPaginated(params: { organizationId: string; page: number; perPage: number }) {
     const { organizationId, page, perPage } = params
@@ -50,7 +49,7 @@ export class OrganizationAdminUsersService {
 
   /**
    * Fetch one user in the organization (Organization Admin).
-   * Returns null when missing, soft-deleted, or not a member of this org.
+   * Returns null when missing, soft-deleted membership, or not a member of this org.
    */
   async getUserById(params: { organizationId: string; userId: string }) {
     const { organizationId, userId } = params
@@ -65,7 +64,7 @@ export class OrganizationAdminUsersService {
 
   /**
    * Partial update of a user in the organization (Organization Admin).
-   * Scoped via getUserById — other-org and soft-deleted users are not found.
+   * Scoped via getUserById — other-org and soft-deleted memberships are not found.
    * organization_id cannot be changed (membership is not updated here).
    */
   async updateUser(params: {
@@ -143,9 +142,9 @@ export class OrganizationAdminUsersService {
   }
 
   /**
-   * Soft-delete a user in the organization (Organization Admin).
-   * Sets isDeleted + deletedAt + isActive=false per users table check constraint.
-   * Does not hard-delete the user row. Already soft-deleted / other-org → null.
+   * Soft-delete a membership in the organization (Organization Admin).
+   * Soft-deletes organization_members (isDeleted + deletedAt); does not touch users.
+   * Already soft-deleted / other-org → null.
    */
   async softDeleteUser(params: { organizationId: string; userId: string; actorUserId: string }) {
     const { organizationId, userId, actorUserId } = params
@@ -159,31 +158,29 @@ export class OrganizationAdminUsersService {
       throw new Error('Cannot remove the Owner. Transfer ownership first.')
     }
 
+    const memberId = existing.memberId as string
     const deletedAt = DateTime.utc().toSQL()
 
     await db.transaction(async (trx) => {
-      await trx.from('users').where('id', userId).update({
+      await trx.from('organization_members').where('id', memberId).update({
         isDeleted: true,
         deletedAt,
-        isActive: false,
-        updatedBy: actorUserId,
       })
 
       await trx.table('authorization_audits').insert({
         organizationId,
         actorUserId,
-        targetType: 'user',
-        targetId: userId,
-        eventType: 'user.soft_deleted',
+        targetType: 'member',
+        targetId: memberId,
+        eventType: 'member.removed',
         before: JSON.stringify({
-          isDeleted: false,
-          deletedAt: null,
-          isActive: existing.isActive,
+          memberId,
+          userId,
+          role: existing.role,
         }),
         after: JSON.stringify({
           isDeleted: true,
           deletedAt,
-          isActive: false,
         }),
       })
     })
