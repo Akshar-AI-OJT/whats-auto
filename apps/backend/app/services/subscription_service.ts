@@ -67,7 +67,12 @@ export class SubscriptionService {
   async listSubscriptionsPaginated(params: { page: number; perPage: number }) {
     const { page, perPage } = params
 
-    return this.subscriptionsQuery().orderBy('createdAt', 'desc').paginate(page, perPage)
+    // Query builder: DB columns are camelCase; Lucid orderBy would emit created_at.
+    return db
+      .from('organization_subscriptions')
+      .whereNot('status', SUBSCRIPTION_SOFT_DELETED_STATUS)
+      .orderBy('createdAt', 'desc')
+      .paginate(page, perPage)
   }
 
   /**
