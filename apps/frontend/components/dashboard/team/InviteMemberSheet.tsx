@@ -4,6 +4,8 @@ import { useId, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Loader2, Mail, Phone, UserPlus } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { api, type ApiError } from '@/lib/api'
+import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import {
   ASSIGNABLE_ROLES,
   isValidEmail,
@@ -30,6 +32,8 @@ import {
 type InviteMemberFormProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
+  /** Called after a successful invite — useful for refreshing lists later. */
+  onInvited?: () => void
 }
 
 type FieldErrors = {
@@ -39,11 +43,19 @@ type FieldErrors = {
 }
 
 /**
- * Invite Member sheet — UI ready for future invitation API.
+ * Invite Member sheet — creates a pending invitation via
+ * POST /api/v1/organizations/:id/invitations.
  * Owner is intentionally omitted from the role dropdown.
+ * Phone is collected for UX only; the API accepts email + role.
  */
-export function InviteMemberSheet({ open, onOpenChange }: InviteMemberFormProps) {
+export function InviteMemberSheet({
+  open,
+  onOpenChange,
+  onInvited,
+}: InviteMemberFormProps) {
   const t = useTranslations('dashboard.team.invite')
+  const { activeOrganizationId, canInviteMembers, isLoading: orgsLoading } =
+    useOrganizations()
   const emailId = useId()
   const phoneId = useId()
   const roleId = useId()
@@ -54,6 +66,7 @@ export function InviteMemberSheet({ open, onOpenChange }: InviteMemberFormProps)
   const [role, setRole] = useState<AssignableRole>('agent')
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
 
   function reset() {
@@ -62,6 +75,7 @@ export function InviteMemberSheet({ open, onOpenChange }: InviteMemberFormProps)
     setRole('agent')
     setFieldErrors({})
     setError(null)
+    setSuccess(null)
     setPending(false)
   }
 
@@ -81,22 +95,58 @@ export function InviteMemberSheet({ open, onOpenChange }: InviteMemberFormProps)
     return next
   }
 
+  function mapInviteError(apiError: ApiError): string {
+    if (apiError.status === 401) return t('errors.sessionExpired')
+    if (apiError.status === 403) {
+      if (apiError.code === 'ORG_ID_MISMATCH') return t('errors.orgMismatch')
+      return t('errors.permissionDenied')
+    }
+    if (apiError.code === 'E_INVITE_ALREADY_MEMBER') return t('errors.alreadyMember')
+    if (apiError.code === 'E_INVITE_ALREADY_PENDING') return t('errors.alreadyPending')
+    if (apiError.code === 'E_ROLE_MISSING') return t('errors.roleInvalid')
+    return apiError.message || t('errors.generic')
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
+    setSuccess(null)
+
     const nextErrors = validate()
     setFieldErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return
 
+    if (!activeOrganizationId) {
+      setError(t('errors.noActiveOrg'))
+      return
+    }
+
+    if (!canInviteMembers) {
+      setError(t('errors.permissionDenied'))
+      return
+    }
+
     setPending(true)
     try {
-      // Future: api.invitations.create({ email, phone?, role })
-      await new Promise((resolve) => window.setTimeout(resolve, 400))
-      setError(t('errors.comingSoon'))
+      await api.invitations.create(activeOrganizationId, {
+        email: email.trim(),
+        role,
+      })
+      setSuccess(t('success'))
+      onInvited?.()
+      window.setTimeout(() => {
+        reset()
+        onOpenChange(false)
+      }, 700)
+    } catch (err) {
+      setError(mapInviteError(err as ApiError))
     } finally {
       setPending(false)
     }
   }
+
+  const submitDisabled =
+    pending || orgsLoading || !activeOrganizationId || !canInviteMembers
 
   return (
     <Sheet
@@ -120,6 +170,7 @@ export function InviteMemberSheet({ open, onOpenChange }: InviteMemberFormProps)
           onSubmit={handleSubmit}
           noValidate
           aria-busy={pending}
+          aria-describedby={error ? formErrorId : undefined}
         >
           <FieldGroup className="gap-5">
             <Field data-invalid={fieldErrors.email ? true : undefined} className="gap-2">
@@ -199,13 +250,22 @@ export function InviteMemberSheet({ open, onOpenChange }: InviteMemberFormProps)
             <div
               id={formErrorId}
               role="alert"
-              className="rounded-xl border border-dash-border bg-dash-surface px-3.5 py-3 text-sm text-body"
+              className="rounded-xl border border-negative/25 bg-negative/5 px-3.5 py-3 text-sm text-negative"
             >
               {error}
             </div>
           ) : null}
 
-          <Button type="submit" disabled={pending} className="w-full gap-2">
+          {success ? (
+            <div
+              role="status"
+              className="rounded-xl border border-primary/30 bg-primary-pale/60 px-3.5 py-3 text-sm text-positive-deep"
+            >
+              {success}
+            </div>
+          ) : null}
+
+          <Button type="submit" disabled={submitDisabled} className="w-full gap-2">
             {pending ? (
               <Loader2 className="size-4 animate-spin" aria-hidden />
             ) : (

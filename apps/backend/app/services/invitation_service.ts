@@ -2,9 +2,21 @@ import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
 import env from '#start/env'
 import { resend } from '#lib/mail'
+import InvitationException from '#exceptions/invitation_exception'
 import { resolveAssignableRoleForOrg } from '#services/role_service'
 
 const INVITE_TTL_HOURS = 24
+
+/** Postgres unique_violation, including Knex/Lucid-wrapped errors. */
+function isUniqueViolation(error: unknown): boolean {
+  let current: unknown = error
+  for (let depth = 0; depth < 4 && current && typeof current === 'object'; depth++) {
+    const code = (current as { code?: string }).code
+    if (code === '23505') return true
+    current = (current as { cause?: unknown }).cause ?? (current as { original?: unknown }).original
+  }
+  return false
+}
 
 export class InvitationService {
   /**
@@ -33,6 +45,18 @@ export class InvitationService {
       throw new Error('User is already a member of this organization')
     }
 
+    const existingPending = await db
+      .from('organization_invitations')
+      .where('organizationId', organizationId)
+      .whereRaw('LOWER(email) = ?', [normalizedEmail])
+      .where('status', 'pending')
+      .select('id')
+      .first()
+
+    if (existingPending) {
+      throw InvitationException.alreadyPending()
+    }
+
     const org = await db
       .from('organizations')
       .where('id', organizationId)
@@ -44,32 +68,48 @@ export class InvitationService {
 
     const expiresAt = DateTime.utc().plus({ hours: INVITE_TTL_HOURS }).toSQL()!
 
-    const invitation = await db.transaction(async (trx) => {
-      const [row] = await trx
-        .table('organization_invitations')
-        .insert({
+    let invitation: {
+      id: string
+      email: string
+      status: string
+      expiresAt: string
+      createdAt: string
+    }
+
+    try {
+      invitation = await db.transaction(async (trx) => {
+        const [row] = await trx
+          .table('organization_invitations')
+          .insert({
+            organizationId,
+            roleId: roleRow.id,
+            inviterId,
+            email: normalizedEmail,
+            status: 'pending',
+            expiresAt,
+          })
+          .returning(['id', 'email', 'status', 'expiresAt', 'createdAt'])
+
+        await trx.table('authorization_audits').insert({
           organizationId,
-          roleId: roleRow.id,
-          inviterId,
-          email: normalizedEmail,
-          status: 'pending',
-          expiresAt,
+          actorUserId: inviterId,
+          targetType: 'invitation',
+          targetId: row.id,
+          eventType: 'invitation.created',
+          after: JSON.stringify({ email: normalizedEmail, role }),
         })
-        .returning(['id', 'email', 'status', 'expiresAt', 'createdAt'])
 
-      await trx.table('authorization_audits').insert({
-        organizationId,
-        actorUserId: inviterId,
-        targetType: 'invitation',
-        targetId: row.id,
-        eventType: 'invitation.created',
-        after: JSON.stringify({ email: normalizedEmail, role }),
+        return row
       })
+    } catch (error) {
+      // Race: another pending invite for the same email landed first.
+      if (isUniqueViolation(error)) {
+        throw InvitationException.alreadyPending()
+      }
+      throw error
+    }
 
-      return row
-    })
-
-    const inviteLink = `${env.get('APP_URL')}/accept-invitation/${invitation.id}`
+    const inviteLink = `${env.get('CORS_ORIGIN')}/accept-invitation/${invitation.id}`
     const { error } = await resend.emails.send({
       from: env.get('EMAIL_FROM'),
       to: normalizedEmail,
@@ -234,9 +274,11 @@ export class InvitationService {
   }
 
   /**
-   * Reject a pending invitation (invitee).
+   * Reject a pending invitation.
+   * Auth is optional: the invitation id is the secret (same model as preview).
+   * When authenticated, email must still match the invite.
    */
-  async rejectInvitation(params: { invitationId: string; userEmail: string }) {
+  async rejectInvitation(params: { invitationId: string; userEmail?: string }) {
     const { invitationId, userEmail } = params
 
     const invitation = await db
@@ -248,7 +290,10 @@ export class InvitationService {
       throw new Error('Invitation is no longer pending')
     }
 
-    if ((invitation.email as string).toLowerCase() !== userEmail.toLowerCase()) {
+    if (
+      userEmail &&
+      (invitation.email as string).toLowerCase() !== userEmail.toLowerCase()
+    ) {
       throw new Error('Invitation email does not match your account')
     }
 

@@ -12,6 +12,13 @@ export default class InvitationException extends Exception {
     })
   }
 
+  static alreadyPending() {
+    return new this('A pending invitation already exists for this email', {
+      status: 409,
+      code: 'E_INVITE_ALREADY_PENDING',
+    })
+  }
+
   handle(error: this, { response }: HttpContext) {
     return response.status(error.status).send({
       error: error.message,

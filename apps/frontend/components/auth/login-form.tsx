@@ -41,10 +41,27 @@ function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 }
 
+/** Only allow same-origin relative paths (blocks open redirects). */
+function safeCallbackPath(raw: string | null): string | null {
+  if (!raw) return null
+  if (!raw.startsWith('/') || raw.startsWith('//')) return null
+  return raw
+}
+
+function readCallbackFromWindow(): string | null {
+  if (typeof window === 'undefined') return null
+  try {
+    return safeCallbackPath(new URLSearchParams(window.location.search).get('callbackURL'))
+  } catch {
+    return null
+  }
+}
+
 export function LoginForm({ className, ...props }: React.ComponentProps<'form'>) {
   const t = useTranslations('auth.login')
   const locale = useLocale()
   const router = useRouter()
+  const [callbackPath, setCallbackPath] = useState<string | null>(null)
   const formErrorId = useId()
   const emailId = useId()
   const passwordId = useId()
@@ -60,6 +77,10 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState<'idle' | 'email' | 'google'>('idle')
   const isPending = pending !== 'idle'
+
+  useEffect(() => {
+    setCallbackPath(readCallbackFromWindow())
+  }, [])
 
   useEffect(() => {
     try {
@@ -110,7 +131,8 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
 
     try {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL
-      const { data } = await api.auth.google(`${appUrl}/${locale}/dashboard`)
+      const redirectPath = callbackPath ?? '/dashboard'
+      const { data } = await api.auth.google(`${appUrl}/${locale}${redirectPath}`)
       if (data.url) {
         window.location.href = data.url
         return
@@ -149,7 +171,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
       }
 
       await api.auth.login({ email: trimmedEmail, password })
-      router.push('/dashboard')
+      router.push(callbackPath ?? '/dashboard')
       router.refresh()
     } catch (err) {
       setError((err as ApiError).message || t('errors.generic'))
