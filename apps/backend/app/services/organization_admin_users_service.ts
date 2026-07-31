@@ -1,9 +1,5 @@
 import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
-import { hashPassword } from '#lib/pre_signup'
-import { AuthorizationService } from '#services/authorization_service'
-import { resolveAssignableRoleForOrg } from '#services/role_service'
-import type { Permission } from '#abilities/permissions'
 
 const ORGANIZATION_USER_SELECT = [
   'u.id',
@@ -17,17 +13,6 @@ const ORGANIZATION_USER_SELECT = [
   'm.id as memberId',
   'r.name as role',
 ] as const
-
-export type CreateOrganizationAdminUserInput = {
-  organizationId: string
-  actorUserId: string
-  managerPermissions: Set<Permission>
-  firstname: string
-  lastname: string
-  email: string
-  password: string
-  role: string
-}
 
 export type UpdateOrganizationAdminUserInput = {
   firstname?: string
@@ -76,96 +61,6 @@ export class OrganizationAdminUsersService {
       .first()
 
     return row ?? null
-  }
-
-  /**
-   * Create a user, credential account, and org membership (Organization Admin).
-   * organizationId always comes from the authenticated admin — never from the request body.
-   */
-  async createUser(params: CreateOrganizationAdminUserInput) {
-    const {
-      organizationId,
-      actorUserId,
-      managerPermissions,
-      firstname,
-      lastname,
-      email,
-      password,
-      role,
-    } = params
-
-    const normalizedEmail = email.toLowerCase()
-    const name = `${firstname} ${lastname}`.trim()
-
-    const existingUser = await db.from('users').where('email', normalizedEmail).select('id').first()
-
-    if (existingUser) {
-      throw new Error('An account with this email already exists.')
-    }
-
-    const roleRow = await resolveAssignableRoleForOrg(organizationId, role)
-
-    const authz = new AuthorizationService()
-    const rolePermissions = await authz.resolvePermissions(organizationId, roleRow.id)
-    if (!authz.canGrant(managerPermissions, [...rolePermissions])) {
-      throw new Error('Cannot assign a role with permissions you do not hold')
-    }
-
-    const passwordHash = await hashPassword(password)
-
-    const userId = await db.transaction(async (trx) => {
-      const [user] = await trx
-        .table('users')
-        .insert({
-          name,
-          firstname,
-          lastname,
-          email: normalizedEmail,
-          emailVerified: true,
-        })
-        .returning(['id'])
-
-      const createdUserId = user.id as string
-
-      await trx.table('accounts').insert({
-        userId: createdUserId,
-        accountId: createdUserId,
-        providerId: 'credential',
-        password: passwordHash,
-      })
-
-      const [member] = await trx
-        .table('organization_members')
-        .insert({
-          organizationId,
-          userId: createdUserId,
-          roleId: roleRow.id,
-        })
-        .returning(['id'])
-
-      await trx.table('user_roles').insert({
-        userId: createdUserId,
-        roleId: roleRow.id,
-        organizationId,
-      })
-
-      await trx.table('authorization_audits').insert({
-        organizationId,
-        actorUserId,
-        targetType: 'member',
-        targetId: member.id,
-        eventType: 'member.created',
-        after: JSON.stringify({ userId: createdUserId, email: normalizedEmail, role }),
-      })
-
-      return createdUserId
-    })
-
-    const created = await this.getUserById({ organizationId, userId })
-    if (!created) {
-      throw new Error('Failed to load created organization user')
-    }
-    return created
   }
 
   /**

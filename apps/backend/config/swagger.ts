@@ -54,10 +54,14 @@ const swaggerConfig = {
   // Keep auth token in Swagger UI across page refreshes
   persistAuthorization: true,
 
+<<<<<<< HEAD
   // The last entry is a suffix match, so it hides only the better-auth catch-all route
   // itself and leaves the explicitly declared /api/auth/... endpoints documented.
   // A '/api/auth/' prefix entry would match those too and hide them.
   ignore: ['/swagger', '/docs', '/', '*/auth/*'],
+=======
+  ignore: ['/swagger', '/docs', '/'],
+>>>>>>> feature/user-role
 }
 
 export default swaggerConfig

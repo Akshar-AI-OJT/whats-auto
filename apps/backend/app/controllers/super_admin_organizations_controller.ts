@@ -1,5 +1,8 @@
 import type { HttpContext } from '@adonisjs/core/http'
+<<<<<<< HEAD
 import { OrganizationService } from '#services/organization_service'
+=======
+>>>>>>> feature/user-role
 import { Exception } from '@adonisjs/core/exceptions'
 import {
   listSuperAdminOrganizationsValidator,
@@ -7,7 +10,10 @@ import {
   updateOrganizationValidator,
 } from '#validators/organization_crud'
 import { mapRbacError } from '#lib/map_rbac_error'
+<<<<<<< HEAD
 import { attachClearAccessToken } from '#lib/access_token_response'
+=======
+>>>>>>> feature/user-role
 import '#types/http'
 
 export default class SuperAdminOrganizationsController {

@@ -1,7 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { OrganizationAdminUsersService } from '#services/organization_admin_users_service'
 import {
-  createOrganizationAdminUserValidator,
   listOrganizationAdminUsersValidator,
   organizationAdminUserIdParamValidator,
   updateOrganizationAdminUserValidator,
@@ -85,52 +84,6 @@ export default class OrganizationAdminUsersController {
   }
 
   /**
-   * @store
-   * @summary Create a user in the active organization (Organization Admin)
-   * @description Provisions a credential account and membership for the authenticated admin's organization. organization_id is taken from the session — never from the request body. Requires admin or owner role.
-   * @tag Organization-Admin
-   * @security BearerAuth
-   * @requestBody { "firstname": "Ada", "lastname": "Agent", "email": "agent@example.com", "password": "secret1234", "role": "agent" }
-   * @responseBody 200 - { "data": { "id": "uuid", "name": "Ada Agent", "firstname": "Ada", "lastname": "Agent", "email": "agent@example.com", "isActive": true, "memberId": "uuid", "role": "agent" } }
-   * @responseBody 401 - { "error": "Missing or invalid session" }
-   * @responseBody 403 - { "error": "Only organization admins can create organization users.", "code": "NOT_ORGANIZATION_ADMIN" }
-   * @responseBody 422 - { "error": "An account with this email already exists.", "code": "EMAIL_ALREADY_EXISTS" }
-   */
-  async store({ request, response, serialize }: HttpContext) {
-    if (!ORGANIZATION_ADMIN_ROLES.has(request.activeMember!.role)) {
-      return response.forbidden({
-        error: 'Only organization admins can create organization users.',
-        code: 'NOT_ORGANIZATION_ADMIN',
-      })
-    }
-
-    const payload = await request.validateUsing(createOrganizationAdminUserValidator)
-
-    try {
-      const user = await new OrganizationAdminUsersService().createUser({
-        organizationId: request.activeMember!.organizationId,
-        actorUserId: request.authUser!.id,
-        managerPermissions: request.memberPermissions!,
-        firstname: payload.firstname,
-        lastname: payload.lastname,
-        email: payload.email,
-        password: payload.password,
-        role: payload.role,
-      })
-
-      return serialize(user)
-    } catch (error) {
-      if (error instanceof Error && error.message === 'An account with this email already exists.') {
-        return response.unprocessableEntity({
-          error: error.message,
-          code: 'EMAIL_ALREADY_EXISTS',
-        })
-      }
-      return mapRbacError(error, response)
-    }
-  }
-
-  /**
    * @update
    * @summary Update a user in the active organization (Organization Admin)
    * @description Partial update of profile fields for a user in the authenticated admin's organization. Soft-deleted users and users from other organizations yield 404. organization_id cannot be changed. Requires admin or owner role.
@@ -186,8 +139,9 @@ export default class OrganizationAdminUsersController {
 
   /**
    * @softDelete
-   * @summary Soft-delete a user in the active organization (Organization Admin)
-   * @description Marks the user as deleted (isDeleted + deletedAt + isActive=false) without removing the row. Soft-deleted users and users from other organizations yield 404. Cannot soft-delete the owner. Requires admin or owner role.
+   * @operationId softDelete
+   * @summary Soft-delete a user in the active organization
+   * @description Soft-delete a user in the active organization.
    * @tag Organization-Admin
    * @security BearerAuth
    * @paramPath id - User id - @type(string)
