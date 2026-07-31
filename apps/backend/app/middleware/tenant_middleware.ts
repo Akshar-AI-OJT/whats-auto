@@ -24,6 +24,7 @@ export default class TenantMiddleware {
       const memberRow = await db
         .from('organization_members')
         .where('id', claims.member_id)
+        .where('isDeleted', false)
         .select('id', 'userId', 'organizationId', 'permissionVersion')
         .first()
 
@@ -83,6 +84,7 @@ export default class TenantMiddleware {
       .innerJoin('roles as r', 'r.id', 'm.roleId')
       .where('m.organizationId', orgId)
       .where('m.userId', request.authUser!.id)
+      .where('m.isDeleted', false)
       .select('m.id', 'm.organizationId', 'm.userId', 'm.roleId', 'r.name as role')
       .first()
 
