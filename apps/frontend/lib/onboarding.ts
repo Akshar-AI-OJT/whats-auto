@@ -80,126 +80,23 @@ export function clearPendingOnboardingContact() {
 
 const CHECKLIST_KEY = 'wa-onboarding-checklist'
 const PREFERENCES_KEY = 'wa-workspace-preferences'
-const LOCAL_ORGS_KEY = 'wa-local-organizations'
-const LOCAL_ACTIVE_ORG_KEY = 'wa-local-active-organization'
-export const LOCAL_ORGS_CHANGE_EVENT = 'wa-local-organizations-change'
-
-/** Temporary frontend org shape until backend org APIs are wired. */
-export type LocalOrganization = {
-  id: string
-  name: string
-  slug: string
-  email: string
-  role: string
-  createdAt: string
-  phone?: string
-  industry?: string
-  country?: string
-  timezone?: string
-}
-
-function notifyLocalOrganizationsChange() {
-  if (typeof window === 'undefined') return
-  window.dispatchEvent(new Event(LOCAL_ORGS_CHANGE_EVENT))
-}
-
-export function readLocalOrganizations(): LocalOrganization[] {
-  if (typeof window === 'undefined') return []
-  try {
-    const raw = window.localStorage.getItem(LOCAL_ORGS_KEY)
-    if (!raw) return []
-    const parsed = JSON.parse(raw) as unknown
-    return Array.isArray(parsed) ? (parsed as LocalOrganization[]) : []
-  } catch {
-    return []
-  }
-}
-
-export function readLocalActiveOrganizationId(): string | null {
-  if (typeof window === 'undefined') return null
-  try {
-    return window.localStorage.getItem(LOCAL_ACTIVE_ORG_KEY)
-  } catch {
-    return null
-  }
-}
-
-function writeLocalOrganizations(orgs: LocalOrganization[]) {
-  if (typeof window === 'undefined') return
-  try {
-    window.localStorage.setItem(LOCAL_ORGS_KEY, JSON.stringify(orgs))
-  } catch {
-    /* ignore */
-  }
-}
-
-function writeLocalActiveOrganizationId(id: string | null) {
-  if (typeof window === 'undefined') return
-  try {
-    if (!id) {
-      window.localStorage.removeItem(LOCAL_ACTIVE_ORG_KEY)
-    } else {
-      window.localStorage.setItem(LOCAL_ACTIVE_ORG_KEY, id)
-    }
-  } catch {
-    /* ignore */
-  }
-}
-
 /**
- * Persists a wizard-created org in localStorage (temporary — replace with
- * POST /api/v1/organizations when auth/backend are ready).
+ * Organizations now come from the API, but earlier builds cached them in
+ * localStorage, which is shared across accounts on the same browser. Drop the
+ * old keys so testers don't keep another account's workspaces around.
  */
-export function createLocalOrganization(input: {
-  name: string
-  slug: string
-  email: string
-  phone?: string
-  industry?: string
-  country?: string
-  timezone?: string
-}): LocalOrganization {
-  const org: LocalOrganization = {
-    id:
-      typeof crypto !== 'undefined' && 'randomUUID' in crypto
-        ? crypto.randomUUID()
-        : `local-org-${Date.now()}`,
-    name: input.name.trim(),
-    slug: input.slug.trim(),
-    email: input.email.trim(),
-    phone: input.phone?.trim() || undefined,
-    industry: input.industry?.trim() || undefined,
-    country: input.country,
-    timezone: input.timezone,
-    role: 'owner',
-    createdAt: new Date().toISOString(),
+const LEGACY_ORG_CACHE_KEYS = [
+  'wa-local-organizations',
+  'wa-local-active-organization',
+]
+
+export function clearLegacyOrganizationCache() {
+  if (typeof window === 'undefined') return
+  try {
+    LEGACY_ORG_CACHE_KEYS.forEach((key) => window.localStorage.removeItem(key))
+  } catch {
+    /* ignore */
   }
-
-  const next = [...readLocalOrganizations().filter((item) => item.id !== org.id), org]
-  writeLocalOrganizations(next)
-  writeLocalActiveOrganizationId(org.id)
-  notifyLocalOrganizationsChange()
-  return org
-}
-
-export function setLocalActiveOrganizationId(organizationId: string) {
-  const orgs = readLocalOrganizations()
-  if (!orgs.some((org) => org.id === organizationId)) return
-  writeLocalActiveOrganizationId(organizationId)
-  notifyLocalOrganizationsChange()
-}
-
-export function readLocalOrganizationsState(): {
-  organizations: LocalOrganization[]
-  activeId: string | null
-} {
-  const organizations = readLocalOrganizations()
-  const storedActive = readLocalActiveOrganizationId()
-  const activeId =
-    storedActive && organizations.some((org) => org.id === storedActive)
-      ? storedActive
-      : (organizations[0]?.id ?? null)
-  return { organizations, activeId }
 }
 
 /** Sensible defaults so org create works without extra form fields. */
@@ -237,8 +134,7 @@ export function getTimezoneOptions(): string[] {
 }
 
 /**
- * Maps wizard state → future POST /api/v1/organizations body.
- * Not sent yet — kept ready for tomorrow's API wiring.
+ * Maps wizard state to the POST /api/v1/organizations request body.
  */
 export function buildCreateOrganizationPayload(input: {
   name: string

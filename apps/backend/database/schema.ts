@@ -460,7 +460,9 @@ export class OrganizationInvitationSchema extends BaseModel {
 export class OrganizationMemberSchema extends BaseModel {
   static $columns = [
     'createdAt',
+    'deletedAt',
     'id',
+    'isDeleted',
     'organizationId',
     'permissionVersion',
     'roleId',
@@ -469,8 +471,12 @@ export class OrganizationMemberSchema extends BaseModel {
   $columns = OrganizationMemberSchema.$columns
   @column.dateTime()
   declare createdAt: DateTime
+  @column.dateTime()
+  declare deletedAt: DateTime | null
   @column({ isPrimary: true })
   declare id: string
+  @column()
+  declare isDeleted: boolean
   @column()
   declare organizationId: string
   @column()
