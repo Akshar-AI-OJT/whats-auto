@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import { ChevronDown } from 'lucide-react'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
+import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import {
   DASHBOARD_NAV_CHILDREN,
   DASHBOARD_NAV_HREFS,
@@ -27,6 +28,7 @@ export function DashboardSidebarNav({
   const t = useTranslations('dashboard.nav')
   const pathname = usePathname()
   const router = useRouter()
+  const { canViewTeam } = useOrganizations()
   const [teamOpen, setTeamOpen] = useState(
     () => pathname === '/dashboard/team' || pathname.startsWith('/dashboard/team/')
   )
@@ -34,6 +36,9 @@ export function DashboardSidebarNav({
   return (
     <nav aria-label={t('ariaLabel')} className={cn('flex flex-col gap-0.5', className)}>
       {DASHBOARD_NAV_KEYS.map((key) => {
+        // Backend: GET /members requires team:view — hide Team for roles without it (e.g. viewer).
+        if (key === 'team' && !canViewTeam) return null
+
         const Icon = DASHBOARD_NAV_ICONS[key]
         const href = DASHBOARD_NAV_HREFS[key]
         const children = DASHBOARD_NAV_CHILDREN[key]

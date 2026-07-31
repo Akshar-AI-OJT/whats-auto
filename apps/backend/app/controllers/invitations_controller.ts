@@ -29,6 +29,7 @@ export default class InvitationsController {
    * @requestBody { "email": "agent@example.com", "role": "agent" }
    * @responseBody 200 - { "data": { "id": "uuid", "email": "agent@example.com", "role": "agent", "status": "pending" } }
    * @responseBody 403 - { "error": "Permission denied: team:invite", "code": "PERMISSION_DENIED" }
+   * @responseBody 409 - { "error": "A pending invitation already exists for this email", "code": "E_INVITE_ALREADY_PENDING" }
    */
   async store({ request, params, response, serialize }: HttpContext) {
     if (params.id !== request.activeMember!.organizationId) {
@@ -96,8 +97,8 @@ export default class InvitationsController {
   /**
    * @reject
    * @summary Reject an invitation
+   * @description Public — invitation id is the secret (same as preview). If authenticated, email must match.
    * @tag Invitations
-   * @security BearerAuth
    * @paramPath id - Invitation id - @type(string)
    * @responseBody 200 - { "data": { "ok": true } }
    */
@@ -105,7 +106,7 @@ export default class InvitationsController {
     try {
       await new InvitationService().rejectInvitation({
         invitationId: params.id,
-        userEmail: request.authUser!.email,
+        userEmail: request.authUser?.email,
       })
       return serialize({ ok: true })
     } catch (error) {

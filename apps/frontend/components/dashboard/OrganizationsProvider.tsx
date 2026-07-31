@@ -17,6 +17,10 @@ import {
 
 const PERM_SETTINGS_MANAGE = 'org:settings_manage'
 const PERM_DELETE = 'org:delete'
+const PERM_TEAM_VIEW = 'team:view'
+const PERM_TEAM_INVITE = 'team:invite'
+const PERM_TEAM_ROLE_ASSIGN = 'team:role_assign'
+const PERM_TEAM_REMOVE = 'team:remove'
 
 type OrganizationsContextValue = {
   organizations: OrganizationSummary[]
@@ -26,6 +30,10 @@ type OrganizationsContextValue = {
   hasOrganizations: boolean
   canManageSettings: boolean
   canDeleteOrganization: boolean
+  canViewTeam: boolean
+  canInviteMembers: boolean
+  canAssignRole: boolean
+  canRemoveMember: boolean
   isLoading: boolean
   error: string | null
   refresh: () => Promise<{
@@ -78,12 +86,25 @@ async function fetchOrganizationsState(): Promise<{
 
   const organizations = unwrapList(listResult.data)
   const activeFromSession = accessContext?.organizationId ?? null
-  const activeId =
+  let activeId =
     activeFromSession && organizations.some((org) => org.id === activeFromSession)
       ? activeFromSession
       : (organizations[0]?.id ?? null)
 
-  return { organizations, activeId, accessContext }
+  let nextContext = accessContext
+
+  // New logins often have memberships but no session activeOrganizationId.
+  // Persist the UI fallback so tenant APIs (members, invites, etc.) work.
+  if (activeId && activeId !== activeFromSession) {
+    try {
+      await api.organizations.setActive(activeId)
+      nextContext = await fetchAccessContext()
+    } catch {
+      // Keep the UI selection; tenant calls may still fail until manual switch.
+    }
+  }
+
+  return { organizations, activeId, accessContext: nextContext }
 }
 
 function hasPermission(context: AccessContext | null, permission: string) {
@@ -178,6 +199,10 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
       hasOrganizations: organizations.length > 0,
       canManageSettings: hasPermission(accessContext, PERM_SETTINGS_MANAGE),
       canDeleteOrganization: hasPermission(accessContext, PERM_DELETE),
+      canViewTeam: hasPermission(accessContext, PERM_TEAM_VIEW),
+      canInviteMembers: hasPermission(accessContext, PERM_TEAM_INVITE),
+      canAssignRole: hasPermission(accessContext, PERM_TEAM_ROLE_ASSIGN),
+      canRemoveMember: hasPermission(accessContext, PERM_TEAM_REMOVE),
       isLoading,
       error,
       refresh,

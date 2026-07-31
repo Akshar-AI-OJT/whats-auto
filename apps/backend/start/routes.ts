@@ -13,6 +13,7 @@ import router from '@adonisjs/core/services/router'
 import { controllers } from '#generated/controllers'
 import AutoSwagger from 'adonis-autoswagger'
 import swagger from '#config/swagger'
+import env from '#start/env'
 const AuthController = () => import('#controllers/auth_controller')
 const PreSignupController = () => import('#controllers/pre_signup_controller')
 const VerifySignupController = () => import('#controllers/verify_signup_controller')
@@ -46,6 +47,15 @@ router.get('/docs', async () => {
 
 router.get('/', () => {
   return { hello: 'world' }
+})
+
+/**
+ * Invite emails historically pointed at APP_URL (API). Redirect to the frontend
+ * accept page so old links keep working.
+ */
+router.get('/accept-invitation/:id', async ({ params, response }) => {
+  const frontend = env.get('CORS_ORIGIN').replace(/\/$/, '')
+  return response.redirect(`${frontend}/accept-invitation/${params.id}`)
 })
 
 // better-auth handles /api/auth/* (login, OAuth, forgot/reset password, session, etc.)
@@ -175,9 +185,8 @@ router.get('/api/v1/invitations/:id', [InvitationsController, 'show'])
 router
   .post('/api/v1/invitations/:id/accept', [InvitationsController, 'accept'])
   .use([middleware.jwtAuth()])
-router
-  .post('/api/v1/invitations/:id/reject', [InvitationsController, 'reject'])
-  .use([middleware.jwtAuth()])
+// Public decline — invitation id is the secret (same as preview)
+router.post('/api/v1/invitations/:id/reject', [InvitationsController, 'reject'])
 router
   .post('/api/v1/invitations/:id/cancel', [InvitationsController, 'cancel'])
   .use([

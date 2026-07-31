@@ -177,6 +177,45 @@ export type AccessContext = {
   permissions: string[]
 }
 
+export type CreateInvitationBody = {
+  email: string
+  role: string
+}
+
+export type CreatedInvitation = {
+  id: string
+  email: string
+  role?: string
+  status: string
+  expiresAt?: string
+}
+
+export type InvitationPreview = {
+  id: string
+  organizationName: string
+  role: string
+  inviterName: string
+  email: string
+  status: string
+}
+
+export type OrganizationMember = {
+  id: string
+  userId: string
+  role: string
+  email: string
+  name: string
+}
+
+export type PendingInvitation = {
+  id: string
+  email: string
+  role: string
+  inviterName: string
+  createdAt: string
+  expiresAt: string
+}
+
 export const api = {
   auth: {
     signup: (body: SignupBody) =>
@@ -237,6 +276,8 @@ export const api = {
     getSession: () =>
       request<{ user: ProfileUser | null; session: unknown } | null>('/api/auth/get-session', {
         method: 'GET',
+        // Keep invite/login UIs responsive if the auth service is slow.
+        signal: AbortSignal.timeout(4000),
       }),
   },
 
@@ -291,5 +332,74 @@ export const api = {
       request<{ data?: AccessContext } & AccessContext>('/api/v1/access-context', {
         method: 'GET',
       }),
+  },
+
+  members: {
+    list: () =>
+      request<{ data?: OrganizationMember[] } | OrganizationMember[]>(
+        '/api/v1/members',
+        { method: 'GET' }
+      ),
+
+    assignRole: (memberId: string, role: string) =>
+      request<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/members/${memberId}/role`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ role }),
+        }
+      ),
+
+    remove: (memberId: string) =>
+      request<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/members/${memberId}`,
+        { method: 'DELETE' }
+      ),
+  },
+
+  invitations: {
+    create: (organizationId: string, body: CreateInvitationBody) =>
+      request<{ data?: CreatedInvitation } & CreatedInvitation>(
+        `/api/v1/organizations/${organizationId}/invitations`,
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    list: () =>
+      request<{ data?: PendingInvitation[] } | PendingInvitation[]>(
+        '/api/v1/invitations',
+        { method: 'GET' }
+      ),
+
+    /** Public preview — invitation id is the secret. */
+    get: (invitationId: string) =>
+      request<{ data?: InvitationPreview } & InvitationPreview>(
+        `/api/v1/invitations/${invitationId}`,
+        { method: 'GET' }
+      ),
+
+    accept: (invitationId: string) =>
+      request<{ data?: { organizationId: string } } & { organizationId: string }>(
+        `/api/v1/invitations/${invitationId}/accept`,
+        { method: 'POST' }
+      ),
+
+    reject: (invitationId: string) =>
+      request<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/invitations/${invitationId}/reject`,
+        {
+          method: 'POST',
+          // Local DB can be slow on first hit; keep UI from hanging forever.
+          signal: AbortSignal.timeout(15000),
+        }
+      ),
+
+    cancel: (invitationId: string) =>
+      request<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/invitations/${invitationId}/cancel`,
+        { method: 'POST' }
+      ),
   },
 }

@@ -1245,6 +1245,41 @@
       }
     }
   },
+  "inviteAccept": {
+    "eyebrow": "Team invitation",
+    "title": "Join a workspace",
+    "subtitle": "Review this invitation, then accept or decline.",
+    "loading": "Loading invitation…",
+    "checkingSession": "Checking your session…",
+    "signInPrompt": "Sign in with the invited email to accept this invitation.",
+    "signIn": "Sign in",
+    "createAccount": "Create account",
+    "accept": "Accept invitation",
+    "accepting": "Accepting…",
+    "reject": "Decline invitation",
+    "rejecting": "Declining…",
+    "declined": "You declined this invitation. You can close this page.",
+    "backHome": "Back to home",
+    "status": "Status: {status}",
+    "fields": {
+      "organization": "Workspace",
+      "role": "Role",
+      "invitedBy": "Invited by",
+      "email": "Invited email"
+    },
+    "errors": {
+      "notFound": "This invitation was not found or is no longer valid.",
+      "loadFailed": "Couldn’t load this invitation. Please try again.",
+      "sessionExpired": "Your session expired. Please sign in again.",
+      "expired": "This invitation has expired.",
+      "notPending": "This invitation is no longer pending.",
+      "emailMismatch": "Sign in with the email address that received this invitation.",
+      "wrongAccount": "This invite was sent to {invited}, but you’re signed in as {signedIn}.",
+      "alreadyMember": "You’re already a member of this workspace.",
+      "slowNetwork": "That took too long. Please try again.",
+      "generic": "Something went wrong. Please try again."
+    }
+  },
   "onboarding": {
     "organization": {
       "eyebrow": "Step {step} of {total}",
@@ -1410,17 +1445,56 @@
       "membersDescription": "People with access to this WhatsApp workspace.",
       "emptyTitle": "No teammates yet",
       "emptyDescription": "Invite Admins, Agents, or Viewers to collaborate. Owner stays with the workspace creator.",
+      "loading": "Loading team…",
+      "pendingTitle": "Pending invitations",
+      "pendingDescription": "Invites that haven’t been accepted yet.",
+      "pendingInvitedBy": "Invited by {name}",
+      "you": "you",
+      "changeRoleAria": "Change role for {name}",
+      "removeAria": "Remove {name}",
+      "removeConfirmTitle": "Remove this member?",
+      "removeConfirmBody": "“{name}” will lose access to this workspace immediately.",
+      "removeConfirm": "Remove member",
+      "removeCancel": "Cancel",
+      "removing": "Removing…",
+      "cancelInviteAria": "Cancel invitation for {email}",
+      "cancelInviteConfirmTitle": "Cancel this invitation?",
+      "cancelInviteConfirmBody": "The invite link for “{email}” will stop working.",
+      "cancelInviteConfirm": "Cancel invitation",
+      "cancelInviteDismiss": "Keep invitation",
+      "cancelingInvite": "Canceling…",
+      "roles": {
+        "owner": "Owner",
+        "admin": "Admin",
+        "agent": "Agent",
+        "viewer": "Viewer"
+      },
+      "errors": {
+        "loadFailed": "Couldn’t load team members. Please try again.",
+        "permissionDenied": "You don’t have permission to view team members in this workspace.",
+        "sessionExpired": "Your session expired. Please sign in again.",
+        "actionPermissionDenied": "You don’t have permission to manage this member.",
+        "selfAssign": "You can’t change your own role.",
+        "changeOwner": "Owner role can’t be changed here. Use ownership transfer.",
+        "removeOwner": "Owner can’t be removed. Transfer ownership first.",
+        "permissionEscalation": "That role includes permissions you don’t hold.",
+        "roleInvalid": "That role isn’t available for this workspace.",
+        "inviteNotPending": "This invitation is no longer pending.",
+        "inviteNotFound": "This invitation was not found.",
+        "actionFailed": "Couldn’t update this member. Please try again."
+      },
       "invite": {
         "title": "Invite Member",
         "subtitle": "Send an invitation with a role. Owner is not available here.",
         "email": "Email",
         "phone": "Phone",
         "phoneOptional": "Optional",
-        "phoneHint": "Phone is optional for now.",
+        "phoneHint": "Optional for now — not sent with the invitation yet.",
         "role": "Role",
         "roleHint": "Choose Admin, Agent, or Viewer. Owner is reserved for the creator.",
         "submit": "Send Invite",
         "submitting": "Sending…",
+        "success": "Invitation sent.",
         "roles": {
           "admin": "Admin",
           "agent": "Agent",
@@ -1431,7 +1505,14 @@
           "emailInvalid": "Enter a valid email address.",
           "phoneInvalid": "Enter a valid phone number.",
           "roleRequired": "Select a role.",
-          "comingSoon": "Invites will connect to the API next. Form validation is ready."
+          "noActiveOrg": "Select or create a workspace before inviting teammates.",
+          "sessionExpired": "Your session expired. Please sign in again.",
+          "permissionDenied": "You don’t have permission to invite members.",
+          "orgMismatch": "Active workspace mismatch. Switch workspace and try again.",
+          "alreadyMember": "That email is already a member of this workspace.",
+          "alreadyPending": "An invitation is already pending for that email. Cancel it first or wait for a response.",
+          "roleInvalid": "That role isn’t available for this workspace.",
+          "generic": "Couldn’t send the invitation. Please try again."
         }
       }
     },

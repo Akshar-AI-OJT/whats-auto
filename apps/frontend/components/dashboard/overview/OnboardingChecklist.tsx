@@ -53,7 +53,7 @@ function getChecklistServerSnapshot() {
 
 export function OnboardingChecklist({ className }: { className?: string }) {
   const t = useTranslations('dashboard.home.checklist')
-  const { activeOrganization, hasOrganizations } = useOrganizations()
+  const { activeOrganization, hasOrganizations, canInviteMembers } = useOrganizations()
   const dismissed = !useSyncExternalStore(
     subscribeChecklist,
     getChecklistSnapshot,
@@ -63,6 +63,10 @@ export function OnboardingChecklist({ className }: { className?: string }) {
   // Same source of truth as the workspace switcher: never claim a workspace
   // exists unless the organizations API reports one.
   if (dismissed || !hasOrganizations) return null
+
+  const nextSteps = NEXT_STEPS.filter(
+    (step) => step.id !== 'invite' || canInviteMembers
+  )
 
   return (
     <DashboardPanel
@@ -121,7 +125,7 @@ export function OnboardingChecklist({ className }: { className?: string }) {
       <div className="relative mt-5">
         <p className="text-sm font-semibold text-ink">{t('nextStepsTitle')}</p>
         <ul className="mt-2.5 flex flex-col gap-2">
-          {NEXT_STEPS.map((step) => {
+          {nextSteps.map((step) => {
             const Icon = step.icon
             return (
               <li key={step.id}>
