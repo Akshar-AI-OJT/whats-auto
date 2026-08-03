@@ -1,16 +1,19 @@
+import { inject } from '@adonisjs/core'
 import logger from '@adonisjs/core/services/logger'
 import env from '#start/env'
 import WhatsappWebhookException from '#exceptions/whatsapp_webhook_exception'
 import { verifyMetaWebhookSignature } from '#lib/meta_whatsapp/webhook_signature'
 import type { MetaWebhookPayload } from '#lib/meta_whatsapp/types'
+import WhatsappWebhookIngestionService from '#services/whatsapp_webhook_ingestion_service'
 
 /**
  * Platform webhook orchestration for Meta Cloud API.
- *
- * Phase 1: verify subscription + HMAC, log payload summary, ack fast.
- * Phase 3+: resolve phone_number_id → whatsapp_configs → persist inbox events.
+ * Verifies HMAC, then dispatches every change value to ingestion.
  */
+@inject()
 export class WhatsappWebhookService {
+  constructor(private ingestion: WhatsappWebhookIngestionService) {}
+
   /**
    * Meta GET subscription handshake.
    * Returns the challenge string to echo when valid.
@@ -35,7 +38,7 @@ export class WhatsappWebhookService {
   }
 
   /**
-   * Verify Meta signature, then process payload (Phase 1: log only).
+   * Verify Meta signature, then process payload.
    */
   async handleInbound(params: {
     rawBody: string | null
@@ -57,8 +60,8 @@ export class WhatsappWebhookService {
   }
 
   /**
-   * Extension point for Phase 3+ event dispatch (messages, statuses, templates).
-   * Keep this method the single place webhook side-effects are added.
+   * Walk every entry[].changes[] and dispatch to ingestion.
+   * Unknown/malformed values are logged and skipped; DB errors propagate for Meta retry.
    */
   protected async processPayload(payload: MetaWebhookPayload): Promise<void> {
     const entryCount = payload.entry?.length ?? 0
@@ -74,5 +77,14 @@ export class WhatsappWebhookService {
       },
       'whatsapp.webhook.received'
     )
+
+    for (const entry of payload.entry ?? []) {
+      for (const change of entry.changes ?? []) {
+        await this.ingestion.processChangeValue({
+          field: change.field,
+          value: change.value,
+        })
+      }
+    }
   }
 }
