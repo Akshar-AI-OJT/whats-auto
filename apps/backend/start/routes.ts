@@ -471,6 +471,8 @@ router
 //members
 router
   .group(() => {
+    // Team UI lists members here; org-admin/users is the paginated Owner/Admin admin API.
+    router.get('/', [controllers.Members, 'index'])
     router
       .patch('/:memberId/role', [controllers.Members, 'assignRole'])
       .use(middleware.requirePermission({ permission: 'team:role_assign' }))

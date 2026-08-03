@@ -233,6 +233,39 @@ export type OrganizationMember = {
   role: string
   email: string
   name: string
+  createdAt?: string
+}
+
+/** Row from GET /api/v1/organization-admin/users (id = userId). */
+export type OrganizationAdminUser = {
+  id: string
+  name: string
+  firstname?: string | null
+  lastname?: string | null
+  email: string
+  isActive?: boolean
+  memberId: string
+  role: string
+  createdAt?: string
+  updatedAt?: string
+}
+
+export type PaginationMeta = {
+  total: number
+  perPage: number
+  currentPage: number
+  lastPage: number
+  firstPage?: number
+}
+
+export type Paginated<T> = {
+  data: T[]
+  meta: PaginationMeta
+}
+
+export type ListOrganizationAdminUsersParams = {
+  page?: number
+  perPage?: number
 }
 
 export type PendingInvitation = {
@@ -242,6 +275,40 @@ export type PendingInvitation = {
   inviterName: string
   createdAt: string
   expiresAt: string
+}
+
+export type OrganizationRole = {
+  role: string
+  isSystem: boolean
+  hasOverrides: boolean
+  permissions: string[]
+}
+
+export type CreateRoleBody = {
+  name: string
+  permissions: string[]
+}
+
+export type UpdateRoleBody = {
+  permissions: string[]
+  reason: string
+}
+
+export type DeleteRoleBody = {
+  replacementRole: string
+  reason: string
+}
+
+export type ResetRoleBody = {
+  reason: string
+}
+
+export type RoleUpdatePreview = {
+  role: string
+  isSystem: boolean
+  permissionsAdded: string[]
+  permissionsRemoved: string[]
+  affectedMembers: Array<{ id: string; userId: string }>
 }
 
 export const api = {
@@ -400,6 +467,25 @@ export const api = {
       ),
   },
 
+  organizationAdmin: {
+    /**
+     * Paginated org users — Owner/Admin only.
+     * Role changes still go through PATCH /api/v1/members/:memberId/role.
+     */
+    listUsers: (params: ListOrganizationAdminUsersParams = {}) => {
+      const qs = new URLSearchParams()
+      if (params.page != null) qs.set('page', String(params.page))
+      if (params.perPage != null) qs.set('perPage', String(params.perPage))
+      const query = qs.toString()
+      return request<
+        | Paginated<OrganizationAdminUser>
+        | { data?: OrganizationAdminUser[]; meta?: PaginationMeta }
+      >(`/api/v1/organization-admin/users${query ? `?${query}` : ''}`, {
+        method: 'GET',
+      })
+    },
+  },
+
   invitations: {
     create: (organizationId: string, body: CreateInvitationBody) =>
       request<{ data?: CreatedInvitation } & CreatedInvitation>(
@@ -443,6 +529,55 @@ export const api = {
       request<{ data?: { ok: boolean } } & { ok: boolean }>(
         `/api/v1/invitations/${invitationId}/cancel`,
         { method: 'POST' }
+      ),
+  },
+
+  roles: {
+    list: () =>
+      request<{ data?: OrganizationRole[] } | OrganizationRole[]>('/api/v1/roles', {
+        method: 'GET',
+      }),
+
+    create: (body: CreateRoleBody) =>
+      request<{ data?: { role: string } } & { role: string }>('/api/v1/roles', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+
+    preview: (roleKey: string, body: { permissions: string[] }) =>
+      request<{ data?: RoleUpdatePreview } & RoleUpdatePreview>(
+        `/api/v1/roles/${encodeURIComponent(roleKey)}/preview`,
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    update: (roleKey: string, body: UpdateRoleBody) =>
+      request<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/roles/${encodeURIComponent(roleKey)}`,
+        {
+          method: 'PUT',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    reset: (roleKey: string, body: ResetRoleBody) =>
+      request<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/roles/${encodeURIComponent(roleKey)}/reset`,
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    destroy: (roleKey: string, body: DeleteRoleBody) =>
+      request<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/roles/${encodeURIComponent(roleKey)}`,
+        {
+          method: 'DELETE',
+          body: JSON.stringify(body),
+        }
       ),
   },
 }
