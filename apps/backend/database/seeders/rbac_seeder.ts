@@ -36,14 +36,24 @@ export default class extends BaseSeeder {
     const roleNames = Object.keys(rolePermissions)
 
     await db.transaction(async (trx) => {
-      // 1. Roles — insert any missing, never overwrite an existing row.
-      await trx
-        .table('roles')
-        .multiInsert(roleNames.map((name) => ({ name })))
-        .onConflict('name')
-        .ignore()
+      // 1. Roles — insert any missing global roles (partial unique on name WHERE org IS NULL).
+      for (const name of roleNames) {
+        const existing = await trx
+          .from('roles')
+          .whereNull('organizationId')
+          .where('name', name)
+          .select('id')
+          .first()
+        if (!existing) {
+          await trx.table('roles').insert({ name })
+        }
+      }
 
-      const roleRows = await trx.from('roles').whereIn('name', roleNames).select('id', 'name')
+      const roleRows = await trx
+        .from('roles')
+        .whereNull('organizationId')
+        .whereIn('name', roleNames)
+        .select('id', 'name')
       const roleIdByName = new Map(roleRows.map((r) => [r.name as string, r.id as string]))
 
       // 2. Permissions — upsert so module/action stay in sync with permissions.ts.

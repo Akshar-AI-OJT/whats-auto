@@ -257,33 +257,7 @@ export class MessageTemplateSchema extends BaseModel {
 }
 
 export class MessageSchema extends BaseModel {
-  static $columns = [
-    'contentText',
-    'contentType',
-    'conversationId',
-    'createdAt',
-    'deliveredAt',
-    'errorMessage',
-    'failedAt',
-    'id',
-    'interactivePayload',
-    'interactiveReplyId',
-    'mediaAssetId',
-    'mediaUrl',
-    'messageTemplateId',
-    'metadata',
-    'occurredAt',
-    'organizationId',
-    'providerMessageId',
-    'providerStatusAt',
-    'readAt',
-    'replyToMessageId',
-    'senderId',
-    'senderType',
-    'sentAt',
-    'status',
-    'updatedAt',
-  ] as const
+  static $columns = ['contentText', 'contentType', 'conversationId', 'createdAt', 'deliveredAt', 'errorMessage', 'failedAt', 'id', 'interactivePayload', 'interactiveReplyId', 'mediaAssetId', 'mediaUrl', 'messageTemplateId', 'metadata', 'occurredAt', 'organizationId', 'providerMessageId', 'providerStatusAt', 'readAt', 'replyToMessageId', 'senderId', 'senderType', 'sentAt', 'status', 'updatedAt'] as const
   $columns = MessageSchema.$columns
   @column()
   declare contentText: string | null
@@ -395,17 +369,7 @@ export class OrganizationRolePermissionSchema extends BaseModel {
 }
 
 export class OrganizationSubscriptionSchema extends BaseModel {
-  static $columns = [
-    'cancelAt',
-    'createdAt',
-    'currentPeriodEnd',
-    'currentPeriodStart',
-    'id',
-    'organizationId',
-    'planId',
-    'status',
-    'updatedAt',
-  ] as const
+  static $columns = ['cancelAt', 'createdAt', 'currentPeriodEnd', 'currentPeriodStart', 'id', 'organizationId', 'planId', 'status', 'updatedAt'] as const
   $columns = OrganizationSubscriptionSchema.$columns
   @column.dateTime()
   declare cancelAt: DateTime | null
@@ -461,19 +425,7 @@ export class OrganizationSchema extends BaseModel {
 }
 
 export class PaymentTransactionSchema extends BaseModel {
-  static $columns = [
-    'amount',
-    'createdAt',
-    'currency',
-    'gateway',
-    'gatewayTransactionId',
-    'id',
-    'invoiceUrl',
-    'metadata',
-    'organizationId',
-    'status',
-    'subscriptionId',
-  ] as const
+  static $columns = ['amount', 'createdAt', 'currency', 'gateway', 'gatewayTransactionId', 'id', 'invoiceUrl', 'metadata', 'organizationId', 'status', 'subscriptionId'] as const
   $columns = PaymentTransactionSchema.$columns
   @column()
   declare amount: string
@@ -517,16 +469,7 @@ export class PermissionSchema extends BaseModel {
 }
 
 export class PlanSchema extends BaseModel {
-  static $columns = [
-    'billingInterval',
-    'createdAt',
-    'currency',
-    'id',
-    'limits',
-    'name',
-    'price',
-    'updatedAt',
-  ] as const
+  static $columns = ['billingInterval', 'createdAt', 'currency', 'id', 'limits', 'name', 'price', 'updatedAt'] as const
   $columns = PlanSchema.$columns
   @column()
   declare billingInterval: string
@@ -594,16 +537,7 @@ export class SessionSchema extends BaseModel {
 }
 
 export class UsageMeterSchema extends BaseModel {
-  static $columns = [
-    'id',
-    'limitCount',
-    'metric',
-    'organizationId',
-    'periodEnd',
-    'periodStart',
-    'updatedAt',
-    'usedCount',
-  ] as const
+  static $columns = ['id', 'limitCount', 'metric', 'organizationId', 'periodEnd', 'periodStart', 'updatedAt', 'usedCount'] as const
   $columns = UsageMeterSchema.$columns
   @column({ isPrimary: true })
   declare id: string

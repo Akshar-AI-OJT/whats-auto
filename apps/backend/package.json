@@ -14,6 +14,7 @@
     "postbuild": "node -e \"const fs = require('fs'); if (fs.existsSync('.env')) fs.copyFileSync('.env', 'build/.env')\"",
     "dev": "node ace serve --hmr",
     "test": "node ace test",
+    "db:seed:demo": "node ace db:seed --files=./database/seeders/demo_seeder.ts",
     "lint": "eslint .",
     "format": "prettier --write .",
     "typecheck": "tsc --noEmit"
