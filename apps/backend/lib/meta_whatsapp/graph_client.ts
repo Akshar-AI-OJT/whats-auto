@@ -1,8 +1,11 @@
 import env from '#start/env'
 import type {
+  MetaCreateMessageTemplateResult,
   MetaGraphErrorBody,
+  MetaListMessageTemplatesResult,
   MetaPhoneNumberDetails,
   MetaSendMessageResult,
+  MetaTemplateComponent,
   MetaTokenExchangeResult,
 } from '#lib/meta_whatsapp/types'
 
@@ -34,6 +37,25 @@ export interface MetaGraphClient {
     templateName: string
     languageCode: string
   }): Promise<MetaSendMessageResult>
+  listMessageTemplates?(params: {
+    wabaId: string
+    accessToken: string
+    limit?: number
+    after?: string
+  }): Promise<MetaListMessageTemplatesResult>
+  createMessageTemplate?(params: {
+    wabaId: string
+    accessToken: string
+    name: string
+    category: string
+    language: string
+    components: MetaTemplateComponent[]
+  }): Promise<MetaCreateMessageTemplateResult>
+  deleteMessageTemplate?(params: {
+    wabaId: string
+    accessToken: string
+    name: string
+  }): Promise<{ success: boolean }>
 }
 
 export class MetaGraphApiError extends Error {
@@ -186,6 +208,65 @@ export class HttpMetaGraphClient implements MetaGraphClient {
       messageId: messages?.[0]?.id,
       raw: json,
     }
+  }
+
+  async listMessageTemplates(params: {
+    wabaId: string
+    accessToken: string
+    limit?: number
+    after?: string
+  }): Promise<MetaListMessageTemplatesResult> {
+    const search = new URLSearchParams()
+    if (params.limit) search.set('limit', String(params.limit))
+    if (params.after) search.set('after', params.after)
+
+    const query = search.toString() ? `?${search.toString()}` : ''
+    const url = `${this.baseUrl}/${encodeURIComponent(params.wabaId)}/message_templates${query}`
+
+    return this.requestJson<MetaListMessageTemplatesResult>('listTemplates', url, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${params.accessToken}` },
+    })
+  }
+
+  async createMessageTemplate(params: {
+    wabaId: string
+    accessToken: string
+    name: string
+    category: string
+    language: string
+    components: MetaTemplateComponent[]
+  }): Promise<MetaCreateMessageTemplateResult> {
+    const url = `${this.baseUrl}/${encodeURIComponent(params.wabaId)}/message_templates`
+
+    return this.requestJson<MetaCreateMessageTemplateResult>('createTemplate', url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${params.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: params.name,
+        category: params.category,
+        language: params.language,
+        components: params.components,
+      }),
+    })
+  }
+
+  async deleteMessageTemplate(params: {
+    wabaId: string
+    accessToken: string
+    name: string
+  }): Promise<{ success: boolean }> {
+    const url = `${this.baseUrl}/${encodeURIComponent(params.wabaId)}/message_templates?name=${encodeURIComponent(params.name)}`
+
+    const json = await this.requestJson<Record<string, unknown>>('deleteTemplate', url, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${params.accessToken}` },
+    })
+
+    return { success: json.success === true }
   }
 
   protected async requestJson<T = Record<string, unknown>>(

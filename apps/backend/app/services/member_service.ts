@@ -7,7 +7,7 @@ import { DateTime } from 'luxon'
 
 export class MemberService {
   /**
-   * List live members of a tenant (excludes soft-deleted memberships).
+   * List members of one organization (excludes soft-deleted memberships).
    */
   async listMembers(organizationId: string) {
     const rows = await db
@@ -16,15 +16,16 @@ export class MemberService {
       .innerJoin('roles as r', 'r.id', 'm.roleId')
       .where('m.organizationId', organizationId)
       .where('m.isDeleted', false)
-      .select('m.id', 'm.userId', 'r.name as role', 'u.email', 'u.name')
-      .orderBy('r.name', 'asc')
+      .select('m.id', 'm.createdAt', 'u.id as userId', 'u.name', 'u.email', 'r.name as role')
+      .orderBy('u.name', 'asc')
 
     return rows.map((r) => ({
       id: r.id as string,
       userId: r.userId as string,
-      role: r.role as string,
-      email: r.email as string,
       name: r.name as string,
+      email: r.email as string,
+      role: r.role as string,
+      createdAt: r.createdAt as string,
     }))
   }
 
