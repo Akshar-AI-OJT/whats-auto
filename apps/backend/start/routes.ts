@@ -18,6 +18,7 @@ const AuthController = () => import('#controllers/auth_controller')
 const PreSignupController = () => import('#controllers/pre_signup_controller')
 const VerifySignupController = () => import('#controllers/verify_signup_controller')
 const ContactsController = () => import('#controllers/contacts_controller')
+const ConversationsController = () => import('#controllers/conversations_controller')
 const OrganizationsController = () => import('#controllers/organizations_controller')
 const InvitationsController = () => import('#controllers/invitations_controller')
 const OnboardingController = () => import('#controllers/onboarding_controller')
@@ -155,6 +156,20 @@ const requestBodySchemas: Record<string, JsonSchema> = {
   'post /api/v1/contacts': bodySchema({ phone: { type: 'string', example: '+919876543210' } }, [
     'phone',
   ]),
+  'post /api/v1/inbox/conversations': bodySchema(
+    {
+      contactId: { type: 'string', format: 'uuid' },
+      whatsappConfigId: { type: 'string', format: 'uuid' },
+    },
+    ['contactId', 'whatsappConfigId']
+  ),
+  'patch /api/v1/inbox/conversations/{id}': bodySchema({
+    status: { type: 'string', example: 'pending', enum: ['open', 'pending', 'closed'] },
+  }),
+  'post /api/v1/inbox/conversations/{id}/assign': bodySchema(
+    { assignedAgentId: { type: 'string', format: 'uuid' } },
+    ['assignedAgentId']
+  ),
   'patch /api/v1/members/{memberId}/role': bodySchema(
     { role: { type: 'string', example: 'agent' } },
     ['role']
@@ -512,4 +527,32 @@ router
       .use(middleware.requirePermission({ permission: 'contacts:create' }))
   })
   .prefix('/api/v1/contacts')
+  .use([middleware.jwtAuth(), middleware.tenant()])
+
+// inbox conversations — lifecycle APIs
+router
+  .group(() => {
+    router
+      .get('/', [ConversationsController, 'index'])
+      .use(middleware.requirePermission({ permission: 'inbox:view' }))
+    router
+      .post('/', [ConversationsController, 'store'])
+      .use(middleware.requirePermission({ permission: 'inbox:view' }))
+    router
+      .get('/:id', [ConversationsController, 'show'])
+      .use(middleware.requirePermission({ permission: 'inbox:view' }))
+    router
+      .patch('/:id', [ConversationsController, 'update'])
+      .use(middleware.requirePermission({ permission: 'inbox:view' }))
+    router
+      .post('/:id/assign', [ConversationsController, 'assign'])
+      .use(middleware.requirePermission({ permission: 'inbox:assign' }))
+    router
+      .post('/:id/close', [ConversationsController, 'close'])
+      .use(middleware.requirePermission({ permission: 'inbox:close' }))
+    router
+      .post('/:id/reopen', [ConversationsController, 'reopen'])
+      .use(middleware.requirePermission({ permission: 'inbox:close' }))
+  })
+  .prefix('/api/v1/inbox/conversations')
   .use([middleware.jwtAuth(), middleware.tenant()])
