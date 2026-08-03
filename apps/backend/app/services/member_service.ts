@@ -7,6 +7,28 @@ import { DateTime } from 'luxon'
 
 export class MemberService {
   /**
+   * List live members of a tenant (excludes soft-deleted memberships).
+   */
+  async listMembers(organizationId: string) {
+    const rows = await db
+      .from('organization_members as m')
+      .innerJoin('users as u', 'u.id', 'm.userId')
+      .innerJoin('roles as r', 'r.id', 'm.roleId')
+      .where('m.organizationId', organizationId)
+      .where('m.isDeleted', false)
+      .select('m.id', 'm.userId', 'r.name as role', 'u.email', 'u.name')
+      .orderBy('r.name', 'asc')
+
+    return rows.map((r) => ({
+      id: r.id as string,
+      userId: r.userId as string,
+      role: r.role as string,
+      email: r.email as string,
+      name: r.name as string,
+    }))
+  }
+
+  /**
    * Reassign a member's role.
    * Validates: manager holds all permissions of the new role.
    * Dual-writes organization_members + user_roles.
