@@ -3,10 +3,11 @@ import { AuthorizationService } from '#services/authorization_service'
 import type { Permission } from '#abilities/permissions'
 import RoleException from '#exceptions/role_exception'
 import { resolveAssignableRoleForOrg } from '#services/role_service'
+import { DateTime } from 'luxon'
 
 export class MemberService {
   /**
-   * List members of a tenant.
+   * List members of one organization (excludes soft-deleted memberships).
    */
   async listMembers(organizationId: string) {
     const rows = await db
@@ -14,15 +15,17 @@ export class MemberService {
       .innerJoin('users as u', 'u.id', 'm.userId')
       .innerJoin('roles as r', 'r.id', 'm.roleId')
       .where('m.organizationId', organizationId)
-      .select('m.id', 'm.userId', 'r.name as role', 'u.email', 'u.name')
-      .orderBy('r.name', 'asc')
+      .where('m.isDeleted', false)
+      .select('m.id', 'm.createdAt', 'u.id as userId', 'u.name', 'u.email', 'r.name as role')
+      .orderBy('u.name', 'asc')
 
     return rows.map((r) => ({
       id: r.id as string,
       userId: r.userId as string,
-      role: r.role as string,
-      email: r.email as string,
       name: r.name as string,
+      email: r.email as string,
+      role: r.role as string,
+      createdAt: r.createdAt as string,
     }))
   }
 
@@ -103,6 +106,7 @@ export class MemberService {
       .innerJoin('roles as r', 'r.id', 'm.roleId')
       .where('m.id', memberId)
       .where('m.organizationId', organizationId)
+      .where('m.isDeleted', false)
       .select('m.userId', 'r.name as role')
       .firstOrFail()
 
@@ -111,13 +115,10 @@ export class MemberService {
     }
 
     await db.transaction(async (trx) => {
-      await trx.from('organization_members').where('id', memberId).delete()
-
-      await trx
-        .from('user_roles')
-        .where('userId', member.userId)
-        .where('organizationId', organizationId)
-        .delete()
+      await trx.from('organization_members').where('id', memberId).update({
+        isDeleted: true,
+        deletedAt: DateTime.utc().toSQL(),
+      })
 
       await trx.table('authorization_audits').insert({
         organizationId,

@@ -177,6 +177,140 @@ export type AccessContext = {
   permissions: string[]
 }
 
+export type ContactSummary = {
+  id: string
+  organizationId: string
+  phone: string
+  phoneNormalized: string
+  name: string | null
+  email: string | null
+  company: string | null
+  customFields?: Record<string, unknown>
+  createdByUserId?: string | null
+  createdAt: string
+  updatedAt?: string | null
+}
+
+export type CreateContactBody = {
+  phone: string
+  name?: string
+  email?: string
+  company?: string
+}
+
+export type WhatsappConfigSummary = {
+  id: string
+  phoneNumberId: string
+  displayPhoneNumber?: string | null
+  status: string
+}
+
+export type CreateInvitationBody = {
+  email: string
+  role: string
+}
+
+export type CreatedInvitation = {
+  id: string
+  email: string
+  role?: string
+  status: string
+  expiresAt?: string
+}
+
+export type InvitationPreview = {
+  id: string
+  organizationName: string
+  role: string
+  inviterName: string
+  email: string
+  status: string
+}
+
+export type OrganizationMember = {
+  id: string
+  userId: string
+  role: string
+  email: string
+  name: string
+  createdAt?: string
+}
+
+/** Row from GET /api/v1/organization-admin/users (id = userId). */
+export type OrganizationAdminUser = {
+  id: string
+  name: string
+  firstname?: string | null
+  lastname?: string | null
+  email: string
+  isActive?: boolean
+  memberId: string
+  role: string
+  createdAt?: string
+  updatedAt?: string
+}
+
+export type PaginationMeta = {
+  total: number
+  perPage: number
+  currentPage: number
+  lastPage: number
+  firstPage?: number
+}
+
+export type Paginated<T> = {
+  data: T[]
+  meta: PaginationMeta
+}
+
+export type ListOrganizationAdminUsersParams = {
+  page?: number
+  perPage?: number
+}
+
+export type PendingInvitation = {
+  id: string
+  email: string
+  role: string
+  inviterName: string
+  createdAt: string
+  expiresAt: string
+}
+
+export type OrganizationRole = {
+  role: string
+  isSystem: boolean
+  hasOverrides: boolean
+  permissions: string[]
+}
+
+export type CreateRoleBody = {
+  name: string
+  permissions: string[]
+}
+
+export type UpdateRoleBody = {
+  permissions: string[]
+  reason: string
+}
+
+export type DeleteRoleBody = {
+  replacementRole: string
+  reason: string
+}
+
+export type ResetRoleBody = {
+  reason: string
+}
+
+export type RoleUpdatePreview = {
+  role: string
+  isSystem: boolean
+  permissionsAdded: string[]
+  permissionsRemoved: string[]
+  affectedMembers: Array<{ id: string; userId: string }>
+}
+
 export const api = {
   auth: {
     signup: (body: SignupBody) =>
@@ -235,6 +369,8 @@ export const api = {
     getSession: () =>
       request<{ user: ProfileUser | null; session: unknown } | null>('/api/auth/get-session', {
         method: 'GET',
+        // Keep invite/login UIs responsive if the auth service is slow.
+        signal: AbortSignal.timeout(4000),
       }),
   },
 
@@ -285,5 +421,163 @@ export const api = {
       request<{ data?: AccessContext } & AccessContext>('/api/v1/access-context', {
         method: 'GET',
       }),
+  },
+
+  contacts: {
+    list: () =>
+      request<{ data?: ContactSummary[] } | ContactSummary[]>('/api/v1/contacts', {
+        method: 'GET',
+      }),
+
+    create: (body: CreateContactBody) =>
+      request<{ data?: ContactSummary } & ContactSummary>('/api/v1/contacts', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+  },
+
+  whatsapp: {
+    listConfigs: () =>
+      request<{ data?: WhatsappConfigSummary[] } | WhatsappConfigSummary[]>(
+        '/api/v1/whatsapp/configs',
+        { method: 'GET' }
+      ),
+  },
+
+  members: {
+    list: () =>
+      request<{ data?: OrganizationMember[] } | OrganizationMember[]>(
+        '/api/v1/members',
+        { method: 'GET' }
+      ),
+
+    assignRole: (memberId: string, role: string) =>
+      request<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/members/${memberId}/role`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ role }),
+        }
+      ),
+
+    remove: (memberId: string) =>
+      request<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/members/${memberId}`,
+        { method: 'DELETE' }
+      ),
+  },
+
+  organizationAdmin: {
+    /**
+     * Paginated org users — Owner/Admin only.
+     * Role changes still go through PATCH /api/v1/members/:memberId/role.
+     */
+    listUsers: (params: ListOrganizationAdminUsersParams = {}) => {
+      const qs = new URLSearchParams()
+      if (params.page != null) qs.set('page', String(params.page))
+      if (params.perPage != null) qs.set('perPage', String(params.perPage))
+      const query = qs.toString()
+      return request<
+        | Paginated<OrganizationAdminUser>
+        | { data?: OrganizationAdminUser[]; meta?: PaginationMeta }
+      >(`/api/v1/organization-admin/users${query ? `?${query}` : ''}`, {
+        method: 'GET',
+      })
+    },
+  },
+
+  invitations: {
+    create: (organizationId: string, body: CreateInvitationBody) =>
+      request<{ data?: CreatedInvitation } & CreatedInvitation>(
+        `/api/v1/organizations/${organizationId}/invitations`,
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    list: () =>
+      request<{ data?: PendingInvitation[] } | PendingInvitation[]>(
+        '/api/v1/invitations',
+        { method: 'GET' }
+      ),
+
+    /** Public preview — invitation id is the secret. */
+    get: (invitationId: string) =>
+      request<{ data?: InvitationPreview } & InvitationPreview>(
+        `/api/v1/invitations/${invitationId}`,
+        { method: 'GET' }
+      ),
+
+    accept: (invitationId: string) =>
+      request<{ data?: { organizationId: string } } & { organizationId: string }>(
+        `/api/v1/invitations/${invitationId}/accept`,
+        { method: 'POST' }
+      ),
+
+    reject: (invitationId: string) =>
+      request<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/invitations/${invitationId}/reject`,
+        {
+          method: 'POST',
+          // Local DB can be slow on first hit; keep UI from hanging forever.
+          signal: AbortSignal.timeout(15000),
+        }
+      ),
+
+    cancel: (invitationId: string) =>
+      request<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/invitations/${invitationId}/cancel`,
+        { method: 'POST' }
+      ),
+  },
+
+  roles: {
+    list: () =>
+      request<{ data?: OrganizationRole[] } | OrganizationRole[]>('/api/v1/roles', {
+        method: 'GET',
+      }),
+
+    create: (body: CreateRoleBody) =>
+      request<{ data?: { role: string } } & { role: string }>('/api/v1/roles', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+
+    preview: (roleKey: string, body: { permissions: string[] }) =>
+      request<{ data?: RoleUpdatePreview } & RoleUpdatePreview>(
+        `/api/v1/roles/${encodeURIComponent(roleKey)}/preview`,
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    update: (roleKey: string, body: UpdateRoleBody) =>
+      request<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/roles/${encodeURIComponent(roleKey)}`,
+        {
+          method: 'PUT',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    reset: (roleKey: string, body: ResetRoleBody) =>
+      request<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/roles/${encodeURIComponent(roleKey)}/reset`,
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    destroy: (roleKey: string, body: DeleteRoleBody) =>
+      request<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/roles/${encodeURIComponent(roleKey)}`,
+        {
+          method: 'DELETE',
+          body: JSON.stringify(body),
+        }
+      ),
   },
 }

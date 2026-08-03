@@ -14,18 +14,33 @@ import {
   type ApiError,
   type OrganizationSummary,
 } from '@/lib/api'
-
-const PERM_SETTINGS_MANAGE = 'org:settings_manage'
-const PERM_DELETE = 'org:delete'
+import { hasPermission, PERMISSIONS } from '@/lib/rbac'
 
 type OrganizationsContextValue = {
   organizations: OrganizationSummary[]
   activeOrganization: OrganizationSummary | null
   activeOrganizationId: string | null
+  /**
+   * Session-backed org id that tenant APIs (contacts, members, …) will use.
+   * Null while the UI selection is ahead of set-active (avoids stale RLS reads).
+   */
+  tenantOrganizationId: string | null
   accessContext: AccessContext | null
+  /** Flat permission list from GET /api/v1/access-context. */
+  permissions: string[]
   hasOrganizations: boolean
+  /** Convenience flags — derived only from permission keys, never role names. */
   canManageSettings: boolean
   canDeleteOrganization: boolean
+  canViewOrg: boolean
+  canViewTeam: boolean
+  canInviteMembers: boolean
+  canAssignRole: boolean
+  canRemoveMember: boolean
+  canViewRoles: boolean
+  canManageRoles: boolean
+  canViewContacts: boolean
+  canCreateContacts: boolean
   isLoading: boolean
   error: string | null
   refresh: () => Promise<{
@@ -78,18 +93,25 @@ async function fetchOrganizationsState(): Promise<{
 
   const organizations = unwrapList(listResult.data)
   const activeFromSession = accessContext?.organizationId ?? null
-  const activeId =
+  let activeId =
     activeFromSession && organizations.some((org) => org.id === activeFromSession)
       ? activeFromSession
       : (organizations[0]?.id ?? null)
 
-  return { organizations, activeId, accessContext }
-}
+  let nextContext = accessContext
 
-function hasPermission(context: AccessContext | null, permission: string) {
-  if (!context) return false
-  if (context.isOwner) return true
-  return context.permissions.includes(permission)
+  // New logins often have memberships but no session activeOrganizationId.
+  // Persist the UI fallback so tenant APIs (members, invites, etc.) work.
+  if (activeId && activeId !== activeFromSession) {
+    try {
+      await api.organizations.setActive(activeId)
+      nextContext = await fetchAccessContext()
+    } catch {
+      // Keep the UI selection; tenant calls may still fail until manual switch.
+    }
+  }
+
+  return { organizations, activeId, accessContext: nextContext }
 }
 
 /**
@@ -153,31 +175,59 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
   const selectOrganization = useCallback(
     async (organizationId: string) => {
       const previousId = activeId
+      const previousContext = accessContext
+      // Optimistic UI + clear session context so tenant pages stop using the
+      // previous org while set-active is in flight.
       setActiveId(organizationId)
+      setAccessContext(null)
       try {
         await api.organizations.setActive(organizationId)
         const nextContext = await fetchAccessContext()
         setAccessContext(nextContext)
       } catch (err) {
         setActiveId(previousId)
+        setAccessContext(previousContext)
         setError((err as ApiError).message ?? 'Failed to switch workspace')
       }
     },
-    [activeId]
+    [activeId, accessContext]
   )
 
   const value = useMemo<OrganizationsContextValue>(() => {
     const activeOrganization =
       organizations.find((org) => org.id === activeId) ?? organizations[0] ?? null
 
+    const sessionOrgId = accessContext?.organizationId ?? null
+    // Only expose a tenant id when UI selection and session agree — prevents
+    // fetching contacts/members against the previous org during set-active.
+    const tenantOrganizationId =
+      sessionOrgId && sessionOrgId === activeOrganization?.id ? sessionOrgId : null
+
+    const permissions = accessContext?.permissions ?? []
+
     return {
       organizations,
       activeOrganization,
       activeOrganizationId: activeOrganization?.id ?? null,
+      tenantOrganizationId,
       accessContext,
+      permissions,
       hasOrganizations: organizations.length > 0,
-      canManageSettings: hasPermission(accessContext, PERM_SETTINGS_MANAGE),
-      canDeleteOrganization: hasPermission(accessContext, PERM_DELETE),
+      canViewOrg: hasPermission(permissions, PERMISSIONS.ORG_VIEW),
+      canManageSettings: hasPermission(permissions, PERMISSIONS.ORG_SETTINGS_MANAGE),
+      canDeleteOrganization: hasPermission(permissions, PERMISSIONS.ORG_DELETE),
+      canViewTeam: hasPermission(permissions, PERMISSIONS.TEAM_VIEW),
+      canInviteMembers: hasPermission(permissions, PERMISSIONS.TEAM_INVITE),
+      canAssignRole: hasPermission(permissions, PERMISSIONS.TEAM_ROLE_ASSIGN),
+      canRemoveMember: hasPermission(permissions, PERMISSIONS.TEAM_REMOVE),
+      // Roles list API is under the team:view group middleware; roles:view is the
+      // product catalog flag. Show Roles when either is present so custom grants work.
+      canViewRoles:
+        hasPermission(permissions, PERMISSIONS.ROLES_VIEW) ||
+        hasPermission(permissions, PERMISSIONS.TEAM_VIEW),
+      canManageRoles: hasPermission(permissions, PERMISSIONS.ROLES_MANAGE),
+      canViewContacts: hasPermission(permissions, PERMISSIONS.CONTACTS_VIEW),
+      canCreateContacts: hasPermission(permissions, PERMISSIONS.CONTACTS_CREATE),
       isLoading,
       error,
       refresh,

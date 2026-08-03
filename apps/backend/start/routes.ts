@@ -13,6 +13,7 @@ import router from '@adonisjs/core/services/router'
 import { controllers } from '#generated/controllers'
 import AutoSwagger from 'adonis-autoswagger'
 import swagger from '#config/swagger'
+import env from '#start/env'
 const AuthController = () => import('#controllers/auth_controller')
 const PreSignupController = () => import('#controllers/pre_signup_controller')
 const VerifySignupController = () => import('#controllers/verify_signup_controller')
@@ -24,10 +25,191 @@ const SuperAdminOrganizationsController = () =>
   import('#controllers/super_admin_organizations_controller')
 const SuperAdminSubscriptionsController = () =>
   import('#controllers/super_admin_subscriptions_controller')
+const OrganizationAdminUsersController = () =>
+  import('#controllers/organization_admin_users_controller')
 const WhatsappWebhookController = () => import('#controllers/whatsapp_webhook_controller')
 const WhatsappEmbeddedSignupController = () =>
   import('#controllers/whatsapp_embedded_signup_controller')
 const WhatsappConfigsController = () => import('#controllers/whatsapp_configs_controller')
+const MessageTemplatesController = () => import('#controllers/message_templates_controller')
+
+type JsonSchema = {
+  type: 'object'
+  properties: Record<string, Record<string, unknown>>
+  required?: string[]
+}
+
+const bodySchema = (properties: JsonSchema['properties'], required?: string[]): JsonSchema => ({
+  type: 'object',
+  properties,
+  ...(required ? { required } : {}),
+})
+
+// adonis-autoswagger currently emits empty application/json request bodies for
+// inline examples. Explicit schemas keep every body-based endpoint executable
+// from Swagger UI.
+const requestBodySchemas: Record<string, JsonSchema> = {
+  'post /api/auth/sign-in/email': bodySchema(
+    {
+      email: { type: 'string', format: 'email', example: 'krishna@example.com' },
+      password: { type: 'string', format: 'password', example: 'secret1234' },
+    },
+    ['email', 'password']
+  ),
+  'post /api/v1/auth/pre-signup': bodySchema(
+    {
+      firstname: { type: 'string', example: 'Krishna' },
+      lastname: { type: 'string', example: 'Patel' },
+      email: { type: 'string', format: 'email', example: 'krishna@example.com' },
+      password: { type: 'string', format: 'password', example: 'secret1234' },
+    },
+    ['firstname', 'lastname', 'email', 'password']
+  ),
+  'post /api/v1/auth/pre-signup/resend': bodySchema(
+    { email: { type: 'string', format: 'email', example: 'krishna@example.com' } },
+    ['email']
+  ),
+  'post /api/v1/auth/verify-signup': bodySchema(
+    {
+      email: { type: 'string', format: 'email', example: 'krishna@example.com' },
+      otp: { type: 'string', pattern: '^\\d{6}$', example: '123456' },
+      password: { type: 'string', format: 'password', example: 'secret1234' },
+    },
+    ['email', 'otp', 'password']
+  ),
+  'post /api/v1/organizations': bodySchema(
+    {
+      name: { type: 'string', example: 'Krishna Demo Company' },
+      slug: { type: 'string', example: 'krishna-demo-company' },
+      email: { type: 'string', format: 'email', example: 'ops@krishnademo.com' },
+      phone: { type: 'string', example: '+919876543210' },
+      website: { type: 'string', format: 'uri', example: 'https://krishnademo.com' },
+      industry: { type: 'string', example: 'Software' },
+      country: { type: 'string', example: 'IN' },
+      timezone: { type: 'string', example: 'Asia/Kolkata' },
+      currency: { type: 'string', example: 'INR' },
+    },
+    ['name', 'slug', 'email', 'country', 'timezone']
+  ),
+  'patch /api/v1/organizations/{id}': bodySchema({
+    name: { type: 'string', example: 'Krishna Demo Company Updated' },
+    phone: { type: 'string', example: '+919876543210' },
+    website: { type: 'string', format: 'uri', example: 'https://krishnademo.com' },
+    industry: { type: 'string', example: 'Software' },
+    timezone: { type: 'string', example: 'Asia/Kolkata' },
+    currency: { type: 'string', example: 'INR' },
+  }),
+  'post /api/v1/organizations/{id}/invitations': bodySchema(
+    {
+      email: { type: 'string', format: 'email', example: 'agent@example.com' },
+      role: { type: 'string', example: 'agent' },
+    },
+    ['email', 'role']
+  ),
+  'patch /api/v1/organization-admin/users/{id}': bodySchema({
+    firstname: { type: 'string', example: 'Ada' },
+    lastname: { type: 'string', example: 'Agent' },
+    email: { type: 'string', format: 'email', example: 'agent@example.com' },
+    isActive: { type: 'boolean', example: true },
+  }),
+  'patch /api/v1/super-admin/organizations/{id}': bodySchema({
+    name: { type: 'string', example: 'Acme Updated' },
+    phone: { type: 'string', example: '+15550100' },
+    website: { type: 'string', format: 'uri', example: 'https://acme.com' },
+    industry: { type: 'string', example: 'Software' },
+    timezone: { type: 'string', example: 'UTC' },
+    currency: { type: 'string', example: 'USD' },
+  }),
+  'post /api/v1/super-admin/subscriptions': bodySchema(
+    {
+      organizationId: { type: 'string', format: 'uuid' },
+      planId: { type: 'string', format: 'uuid' },
+      status: { type: 'string', example: 'active' },
+      currentPeriodStart: { type: 'string', format: 'date-time' },
+      currentPeriodEnd: { type: 'string', format: 'date-time' },
+    },
+    ['organizationId', 'planId', 'status', 'currentPeriodStart', 'currentPeriodEnd']
+  ),
+  'patch /api/v1/super-admin/subscriptions/{id}': bodySchema({
+    planId: { type: 'string', format: 'uuid' },
+    status: { type: 'string', example: 'past_due' },
+    currentPeriodStart: { type: 'string', format: 'date-time' },
+    currentPeriodEnd: { type: 'string', format: 'date-time' },
+  }),
+  'post /api/v1/whatsapp/embedded-signup/complete': bodySchema(
+    {
+      code: { type: 'string', example: 'AQB...' },
+      wabaId: { type: 'string', example: '123' },
+      phoneNumberId: { type: 'string', example: '456' },
+    },
+    ['code', 'wabaId', 'phoneNumberId']
+  ),
+  'post /api/v1/whatsapp/configs/{id}/test': bodySchema(
+    {
+      to: { type: 'string', example: '919876543210' },
+      templateName: { type: 'string', example: 'hello_world' },
+      languageCode: { type: 'string', example: 'en_US' },
+    },
+    ['to']
+  ),
+  'post /api/v1/contacts': bodySchema({ phone: { type: 'string', example: '+919876543210' } }, [
+    'phone',
+  ]),
+  'patch /api/v1/members/{memberId}/role': bodySchema(
+    { role: { type: 'string', example: 'agent' } },
+    ['role']
+  ),
+  'post /api/v1/ownership/transfer': bodySchema(
+    {
+      targetMemberId: { type: 'string', format: 'uuid' },
+      replacementRoleForCurrentOwner: { type: 'string', example: 'admin' },
+      reason: { type: 'string', example: 'Ownership transfer' },
+    },
+    ['targetMemberId', 'replacementRoleForCurrentOwner']
+  ),
+  'post /api/v1/roles': bodySchema(
+    {
+      name: { type: 'string', example: 'Support Lead' },
+      permissions: {
+        type: 'array',
+        items: { type: 'string' },
+        example: ['inbox:view', 'inbox:reply', 'team:view'],
+      },
+    },
+    ['name', 'permissions']
+  ),
+  'post /api/v1/roles/{roleKey}/preview': bodySchema(
+    {
+      permissions: {
+        type: 'array',
+        items: { type: 'string' },
+        example: ['inbox:view', 'contacts:view'],
+      },
+    },
+    ['permissions']
+  ),
+  'put /api/v1/roles/{roleKey}': bodySchema(
+    {
+      permissions: {
+        type: 'array',
+        items: { type: 'string' },
+        example: ['inbox:view', 'inbox:reply'],
+      },
+      reason: { type: 'string', example: 'Update role permissions' },
+    },
+    ['permissions']
+  ),
+  'post /api/v1/roles/{roleKey}/reset': bodySchema({
+    reason: { type: 'string', example: 'Restore default permissions' },
+  }),
+  'delete /api/v1/roles/{roleKey}': bodySchema(
+    {
+      replacementRole: { type: 'string', example: 'viewer' },
+      reason: { type: 'string', example: 'Consolidating roles' },
+    },
+    ['replacementRole']
+  ),
+}
 
 //  Swagger UI + JSON spec
 // Served only in non-production environments
@@ -38,6 +220,20 @@ router.get('/swagger', async ({ response }) => {
   const tags = spec.tags as { name: string }[]
   spec.tags = [...new Map(tags.map((tag) => [tag.name, tag])).values()]
 
+  for (const [operationKey, schema] of Object.entries(requestBodySchemas)) {
+    const separator = operationKey.indexOf(' ')
+    const method = operationKey.slice(0, separator)
+    const path = operationKey.slice(separator + 1)
+    const operation = spec.paths?.[path]?.[method]
+
+    if (operation) {
+      operation.requestBody = {
+        required: true,
+        content: { 'application/json': { schema } },
+      }
+    }
+  }
+
   return response.json(spec)
 })
 
@@ -47,6 +243,15 @@ router.get('/docs', async () => {
 
 router.get('/', () => {
   return { hello: 'world' }
+})
+
+/**
+ * Invite emails historically pointed at APP_URL (API). Redirect to the frontend
+ * accept page so old links keep working.
+ */
+router.get('/accept-invitation/:id', async ({ params, response }) => {
+  const frontend = env.get('CORS_ORIGIN').replace(/\/$/, '')
+  return response.redirect(`${frontend}/accept-invitation/${params.id}`)
 })
 
 // better-auth handles /api/auth/* (login, OAuth, forgot/reset password, session, etc.)
@@ -100,6 +305,22 @@ router
     router
       .post('/configs/:id/test', [WhatsappConfigsController, 'test'])
       .use(middleware.requirePermission({ permission: 'whatsapp:manage' }))
+
+    router
+      .get('/templates', [MessageTemplatesController, 'index'])
+      .use(middleware.requirePermission({ permission: 'whatsapp:view' }))
+    router
+      .get('/templates/:id', [MessageTemplatesController, 'show'])
+      .use(middleware.requirePermission({ permission: 'whatsapp:view' }))
+    router
+      .post('/templates', [MessageTemplatesController, 'store'])
+      .use(middleware.requirePermission({ permission: 'whatsapp:manage' }))
+    router
+      .post('/templates/sync', [MessageTemplatesController, 'sync'])
+      .use(middleware.requirePermission({ permission: 'whatsapp:manage' }))
+    router
+      .delete('/templates/:id', [MessageTemplatesController, 'destroy'])
+      .use(middleware.requirePermission({ permission: 'whatsapp:manage' }))
   })
   .prefix('/api/v1/whatsapp')
   .use([middleware.jwtAuth(), middleware.tenant()])
@@ -135,7 +356,7 @@ router
       .patch('/organizations/:id', [SuperAdminOrganizationsController, 'update'])
       .use(middleware.requirePermission({ permission: 'platform:tenants_update' }))
     router
-      .patch('/organizations/:id/soft-delete', [SuperAdminOrganizationsController, 'softDelete'])
+      .delete('/organizations/:id', [SuperAdminOrganizationsController, 'softDelete'])
       .use(middleware.requirePermission({ permission: 'platform:tenants_delete' }))
     router
       .get('/subscriptions', [SuperAdminSubscriptionsController, 'index'])
@@ -150,17 +371,22 @@ router
       .patch('/subscriptions/:id', [SuperAdminSubscriptionsController, 'update'])
       .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
     router
-      .patch('/subscriptions/:id/delete', [SuperAdminSubscriptionsController, 'softDelete'])
+      .delete('/subscriptions/:id', [SuperAdminSubscriptionsController, 'softDelete'])
       .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
-    router
-      .patch('/organizations/:id', [SuperAdminOrganizationsController, 'update'])
-      .use(middleware.requirePermission({ permission: 'platform:tenants_update' }))
-    router
-      .patch('/organizations/:id/soft-delete', [SuperAdminOrganizationsController, 'softDelete'])
-      .use(middleware.requirePermission({ permission: 'platform:tenants_delete' }))
   })
   .prefix('/api/v1/super-admin')
   .use([middleware.jwtAuth(), middleware.platform()])
+
+// organization admin — active-org scoped (admin/owner role enforced in controller)
+router
+  .group(() => {
+    router.get('/users', [OrganizationAdminUsersController, 'index'])
+    router.get('/users/:id', [OrganizationAdminUsersController, 'show'])
+    router.patch('/users/:id', [OrganizationAdminUsersController, 'update'])
+    router.delete('/users/:id', [OrganizationAdminUsersController, 'softDelete'])
+  })
+  .prefix('/api/v1/organization-admin')
+  .use([middleware.jwtAuth(), middleware.tenant()])
 
 // organizations — create/list/set-active do not require an active org yet
 router.post('/api/v1/organizations', [OrganizationsController, 'store']).use([middleware.jwtAuth()])
@@ -197,9 +423,8 @@ router.get('/api/v1/invitations/:id', [InvitationsController, 'show'])
 router
   .post('/api/v1/invitations/:id/accept', [InvitationsController, 'accept'])
   .use([middleware.jwtAuth()])
-router
-  .post('/api/v1/invitations/:id/reject', [InvitationsController, 'reject'])
-  .use([middleware.jwtAuth()])
+// Public decline — invitation id is the secret (same as preview)
+router.post('/api/v1/invitations/:id/reject', [InvitationsController, 'reject'])
 router
   .post('/api/v1/invitations/:id/cancel', [InvitationsController, 'cancel'])
   .use([
@@ -246,6 +471,7 @@ router
 //members
 router
   .group(() => {
+    // Team UI lists members here; org-admin/users is the paginated Owner/Admin admin API.
     router.get('/', [controllers.Members, 'index'])
     router
       .patch('/:memberId/role', [controllers.Members, 'assignRole'])

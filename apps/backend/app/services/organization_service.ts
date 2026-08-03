@@ -207,7 +207,9 @@ export class OrganizationService {
   async listOrganizationsPaginated(params: { page: number; perPage: number }) {
     const { page, perPage } = params
 
-    return Organization.query().orderBy('createdAt', 'desc').paginate(page, perPage)
+    // Use query builder (not Lucid model): DB columns are camelCase (`createdAt`),
+    // while Lucid's default naming strategy rewrites orderBy('createdAt') → created_at.
+    return db.from('organizations').orderBy('createdAt', 'desc').paginate(page, perPage)
   }
 
   /**

@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import InvitationException from '#exceptions/invitation_exception'
 import RoleException from '#exceptions/role_exception'
 
 const MESSAGE_CODES: Record<string, string> = {
@@ -21,10 +22,11 @@ const MESSAGE_CODES: Record<string, string> = {
 }
 
 /**
- * Map known service Errors to 422 JSON. Let RoleException bubble to the exception handler.
+ * Map known service Errors to 422 JSON. Let RoleException / InvitationException
+ * bubble to their handlers.
  */
 export function mapRbacError(error: unknown, response: HttpContext['response']) {
-  if (error instanceof RoleException) {
+  if (error instanceof RoleException || error instanceof InvitationException) {
     throw error
   }
 

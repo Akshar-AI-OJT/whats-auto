@@ -13,6 +13,7 @@ import {
   UsersRound,
   type LucideIcon,
 } from 'lucide-react'
+import { PERMISSIONS } from '@/lib/rbac'
 
 export const DASHBOARD_NAV_KEYS = [
   'dashboard',
@@ -50,17 +51,37 @@ export const DASHBOARD_NAV_ICONS: Record<DashboardNavKey, LucideIcon> = {
 export const DASHBOARD_NAV_HREFS: Partial<Record<DashboardNavKey, string>> = {
   dashboard: '/dashboard',
   team: '/dashboard/team',
+  contacts: '/dashboard/contacts',
   settings: '/dashboard/settings',
 }
 
 export type DashboardNavChild = {
-  key: 'teamMembers'
+  key: 'teamMembers' | 'teamRoles'
   href?: string
+  /** Permission required to show this child. */
+  permission: string
 }
 
 /** Nested items under Team Management. */
 export const DASHBOARD_NAV_CHILDREN: Partial<
   Record<DashboardNavKey, DashboardNavChild[]>
 > = {
-  team: [{ key: 'teamMembers', href: '/dashboard/team' }],
+  team: [
+    { key: 'teamMembers', href: '/dashboard/team', permission: PERMISSIONS.TEAM_VIEW },
+    {
+      key: 'teamRoles',
+      href: '/dashboard/team/roles',
+      // List middleware uses team:view; catalog also has roles:view — child shown if either.
+      permission: PERMISSIONS.ROLES_VIEW,
+    },
+  ],
+}
+
+/**
+ * Permission required to show a top-level nav item with a real route.
+ * Placeholders (no href) are left ungated — see RBAC report.
+ */
+export const DASHBOARD_NAV_PERMISSION: Partial<Record<DashboardNavKey, string>> = {
+  contacts: PERMISSIONS.CONTACTS_VIEW,
+  settings: PERMISSIONS.ORG_VIEW,
 }

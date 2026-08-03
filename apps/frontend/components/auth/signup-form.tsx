@@ -50,8 +50,31 @@ type FieldErrors = {
 
 const OTP_LENGTH = 6
 
+/** Only allow same-origin relative paths (blocks open redirects). */
+function safeCallbackPath(raw: string | null): string | null {
+  if (!raw) return null
+  if (!raw.startsWith('/') || raw.startsWith('//')) return null
+  return raw
+}
+
+function readSignupQuery(): { callbackPath: string | null; email: string } {
+  if (typeof window === 'undefined') {
+    return { callbackPath: null, email: '' }
+  }
+  try {
+    const params = new URLSearchParams(window.location.search)
+    return {
+      callbackPath: safeCallbackPath(params.get('callbackURL')),
+      email: (params.get('email') ?? '').trim(),
+    }
+  } catch {
+    return { callbackPath: null, email: '' }
+  }
+}
+
 const backToLoginClassName =
   'inline-flex items-center justify-center gap-1.5 rounded-sm text-sm leading-5 font-medium text-body transition-colors hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas'
+
 
 function formatCountdown(seconds: number) {
   const m = Math.floor(seconds / 60)
@@ -116,6 +139,8 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
   const [firstname, setFirstname] = useState('')
   const [lastname, setLastname] = useState('')
   const [email, setEmail] = useState('')
+  const [emailLocked, setEmailLocked] = useState(false)
+  const [callbackPath, setCallbackPath] = useState<string | null>(null)
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -127,6 +152,15 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
   const [pending, setPending] = useState<Pending>('idle')
   const [resendCooldown, setResendCooldown] = useState(0)
   const [cooldownUntil, setCooldownUntil] = useState<number | null>(null)
+
+  useEffect(() => {
+    const query = readSignupQuery()
+    setCallbackPath(query.callbackPath)
+    if (query.email) {
+      setEmail(query.email)
+      setEmailLocked(Boolean(query.callbackPath?.startsWith('/accept-invitation/')))
+    }
+  }, [])
   const otpInputRefs = useRef<Array<HTMLInputElement | null>>([])
 
   const isPending = pending !== 'idle'
@@ -214,7 +248,8 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
 
     try {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL
-      const { data } = await api.auth.google(`${appUrl}/${locale}${ORG_SETUP_PATH}`)
+      const redirectPath = callbackPath ?? ORG_SETUP_PATH
+      const { data } = await api.auth.google(`${appUrl}/${locale}${redirectPath}`)
       if (data.url) {
         window.location.href = data.url
         return
@@ -277,8 +312,13 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
 
     try {
       await api.auth.verifyOtp({ email, otp, password })
-      savePendingOnboardingContact({ email: email.trim(), phone: phone.trim() })
-      router.push(ORG_SETUP_PATH)
+      // Invitees return to accept page; normal signups continue to org setup.
+      if (callbackPath?.startsWith('/accept-invitation/')) {
+        router.push(callbackPath)
+      } else {
+        savePendingOnboardingContact({ email: email.trim(), phone: phone.trim() })
+        router.push(ORG_SETUP_PATH)
+      }
       router.refresh()
     } catch (err) {
       setError((err as ApiError).message || t('errors.generic'))
@@ -647,12 +687,14 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
               spellCheck={false}
               placeholder="johndoe@mail.com"
               required
-              disabled={isPending}
+              disabled={isPending || emailLocked}
+              readOnly={emailLocked}
               aria-invalid={Boolean(fieldErrors.email)}
               aria-describedby={fieldErrors.email ? emailErrorId : undefined}
               className={authInputWithIconClassName}
               value={email}
               onChange={(e) => {
+                if (emailLocked) return
                 setEmail(e.target.value)
                 clearFieldError('email')
               }}
