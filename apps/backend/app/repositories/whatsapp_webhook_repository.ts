@@ -298,6 +298,8 @@ export class WhatsappWebhookRepository {
       errorMessage: string | null
     }
   ): Promise<ApplyDeliveryReceiptResult> {
+    // Lock the row for the rest of this transaction so concurrent receipts
+    // cannot both decide against the same pre-update snapshot.
     const existing = await trx
       .from('messages')
       .where('organizationId', params.organizationId)
@@ -321,6 +323,7 @@ export class WhatsappWebhookRepository {
         'readAt',
         'failedAt'
       )
+      .forUpdate()
       .first()
 
     if (!existing) {
@@ -359,9 +362,16 @@ export class WhatsappWebhookRepository {
       patch.errorMessage = params.errorMessage
     }
 
+    // Defense in depth: refuse to move providerStatusAt backwards even if
+    // the in-memory check somehow raced (should not happen after FOR UPDATE).
     const [row] = await trx
       .from('messages')
       .where('id', current.id)
+      .where((query) => {
+        query
+          .whereNull('providerStatusAt')
+          .orWhere('providerStatusAt', '<=', params.providerStatusAt)
+      })
       .update(patch)
       .returning([
         'id',
@@ -381,6 +391,10 @@ export class WhatsappWebhookRepository {
         'readAt',
         'failedAt',
       ])
+
+    if (!row) {
+      return { updated: false, reason: 'stale' }
+    }
 
     return {
       updated: true,
