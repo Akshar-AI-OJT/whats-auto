@@ -7,6 +7,7 @@ import InboxMessageReceived from '#events/inbox_message_received'
 import InboxStatusUpdated from '#events/inbox_status_updated'
 import { encryptWhatsappAccessToken } from '#lib/meta_whatsapp/access_token_crypto'
 import { signMetaWebhookPayload } from '#lib/meta_whatsapp/webhook_signature'
+import { WhatsappWebhookRepository } from '#repositories/whatsapp_webhook_repository'
 import { runWithTenant } from '#services/tenant_context'
 
 type Fixture = {
@@ -758,6 +759,49 @@ test.group('WhatsApp webhook ingestion', (group) => {
         .select('*')
       assert.lengthOf(messages, 1)
       assert.equal(messages[0].providerMessageId, 'wamid.tenant.b')
+    })
+  })
+
+  test('concurrent receipts do not let delivered overwrite read', async ({ assert }) => {
+    const fixture = await createFixture()
+    const seeded = await seedOutboundMessage({
+      organizationId: fixture.organizationId,
+      whatsappConfigId: fixture.whatsappConfigId,
+      contactWaId: '15550000009',
+      providerMessageId: 'wamid.race.1',
+      status: 'sent',
+      providerStatusAt: new Date('2024-06-01T00:00:00.000Z'),
+    })
+
+    const repository = new WhatsappWebhookRepository()
+    const deliveredAt = new Date('2024-06-01T00:01:00.000Z')
+    const readAt = new Date('2024-06-01T00:02:00.000Z')
+
+    await runWithTenant(fixture.organizationId, async () => {
+      await Promise.all([
+        db.transaction((trx) =>
+          repository.applyDeliveryReceipt(trx, {
+            organizationId: fixture.organizationId,
+            providerMessageId: 'wamid.race.1',
+            status: 'delivered',
+            providerStatusAt: deliveredAt,
+            errorMessage: null,
+          })
+        ),
+        db.transaction((trx) =>
+          repository.applyDeliveryReceipt(trx, {
+            organizationId: fixture.organizationId,
+            providerMessageId: 'wamid.race.1',
+            status: 'read',
+            providerStatusAt: readAt,
+            errorMessage: null,
+          })
+        ),
+      ])
+
+      const message = await db.from('messages').where('id', seeded.messageId).first()
+      assert.equal(message.status, 'read')
+      assert.isNotNull(message.readAt)
     })
   })
 })
