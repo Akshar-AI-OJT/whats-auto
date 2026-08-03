@@ -5,12 +5,14 @@ import { useTranslations } from 'next-intl'
 import { ChevronDown } from 'lucide-react'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
-import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
+import { usePermissions } from '@/hooks/usePermissions'
+import { PERMISSIONS } from '@/lib/rbac'
 import {
   DASHBOARD_NAV_CHILDREN,
   DASHBOARD_NAV_HREFS,
   DASHBOARD_NAV_ICONS,
   DASHBOARD_NAV_KEYS,
+  DASHBOARD_NAV_PERMISSION,
   type DashboardNavKey,
 } from './dashboard-nav'
 
@@ -28,7 +30,7 @@ export function DashboardSidebarNav({
   const t = useTranslations('dashboard.nav')
   const pathname = usePathname()
   const router = useRouter()
-  const { canViewTeam, canViewContacts } = useOrganizations()
+  const { hasPermission, hasAnyPermission } = usePermissions()
   const [teamOpen, setTeamOpen] = useState(
     () => pathname === '/dashboard/team' || pathname.startsWith('/dashboard/team/')
   )
@@ -36,14 +38,21 @@ export function DashboardSidebarNav({
   return (
     <nav aria-label={t('ariaLabel')} className={cn('flex flex-col gap-0.5', className)}>
       {DASHBOARD_NAV_KEYS.map((key) => {
-        // Backend: GET /members requires team:view — hide Team for roles without it (e.g. viewer).
-        if (key === 'team' && !canViewTeam) return null
-        // Backend: GET /contacts requires contacts:view
-        if (key === 'contacts' && !canViewContacts) return null
+        const children = DASHBOARD_NAV_CHILDREN[key]
+        const href = DASHBOARD_NAV_HREFS[key]
+        const navPermission = DASHBOARD_NAV_PERMISSION[key]
+
+        // Team parent: show when any team child is allowed.
+        if (key === 'team') {
+          const canMembers = hasPermission(PERMISSIONS.TEAM_VIEW)
+          const canRoles =
+            hasPermission(PERMISSIONS.ROLES_VIEW) || hasPermission(PERMISSIONS.TEAM_VIEW)
+          if (!canMembers && !canRoles) return null
+        } else if (navPermission && !hasPermission(navPermission)) {
+          return null
+        }
 
         const Icon = DASHBOARD_NAV_ICONS[key]
-        const href = DASHBOARD_NAV_HREFS[key]
-        const children = DASHBOARD_NAV_CHILDREN[key]
         const label = t(key as DashboardNavKey)
 
         const active =
@@ -67,6 +76,18 @@ export function DashboardSidebarNav({
         )
 
         if (children && href) {
+          const visibleChildren = children.filter((child) => {
+            if (child.key === 'teamMembers') return hasPermission(PERMISSIONS.TEAM_VIEW)
+            if (child.key === 'teamRoles') {
+              return hasAnyPermission([PERMISSIONS.ROLES_VIEW, PERMISSIONS.TEAM_VIEW])
+            }
+            return hasPermission(child.permission)
+          })
+
+          if (visibleChildren.length === 0) return null
+
+          const primaryHref = visibleChildren[0]?.href ?? href
+
           return (
             <div key={key} className="flex flex-col gap-0.5">
               <button
@@ -77,7 +98,7 @@ export function DashboardSidebarNav({
                 className={itemClass}
                 onClick={() => {
                   if (collapsed) {
-                    router.push(href)
+                    router.push(primaryHref)
                     onNavigate?.()
                     return
                   }
@@ -103,17 +124,18 @@ export function DashboardSidebarNav({
 
               {!collapsed && teamOpen ? (
                 <div className="ml-4 flex flex-col gap-0.5 border-l border-dash-border pl-2">
-                  {children.map((child) => {
+                  {visibleChildren.map((child) => {
                     const childLabel = t(child.key)
+                    const childHref = child.href ?? href
                     const childActive =
-                      child.key === 'teamMembers' &&
-                      (pathname === '/dashboard/team' ||
-                        pathname.startsWith('/dashboard/team/'))
+                      child.key === 'teamMembers'
+                        ? pathname === '/dashboard/team'
+                        : pathname === childHref || pathname.startsWith(`${childHref}/`)
 
                     return (
                       <Link
                         key={child.key}
-                        href={child.href ?? href}
+                        href={childHref}
                         onClick={onNavigate}
                         aria-current={childActive ? 'page' : undefined}
                         className={cn(
@@ -152,6 +174,7 @@ export function DashboardSidebarNav({
           )
         }
 
+        // Placeholders — left visible (coming soon); no backend route to gate yet.
         return (
           <button
             key={key}

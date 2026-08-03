@@ -14,15 +14,7 @@ import {
   type ApiError,
   type OrganizationSummary,
 } from '@/lib/api'
-
-const PERM_SETTINGS_MANAGE = 'org:settings_manage'
-const PERM_DELETE = 'org:delete'
-const PERM_TEAM_VIEW = 'team:view'
-const PERM_TEAM_INVITE = 'team:invite'
-const PERM_TEAM_ROLE_ASSIGN = 'team:role_assign'
-const PERM_TEAM_REMOVE = 'team:remove'
-const PERM_CONTACTS_VIEW = 'contacts:view'
-const PERM_CONTACTS_CREATE = 'contacts:create'
+import { hasPermission, PERMISSIONS } from '@/lib/rbac'
 
 type OrganizationsContextValue = {
   organizations: OrganizationSummary[]
@@ -34,13 +26,19 @@ type OrganizationsContextValue = {
    */
   tenantOrganizationId: string | null
   accessContext: AccessContext | null
+  /** Flat permission list from GET /api/v1/access-context. */
+  permissions: string[]
   hasOrganizations: boolean
+  /** Convenience flags — derived only from permission keys, never role names. */
   canManageSettings: boolean
   canDeleteOrganization: boolean
+  canViewOrg: boolean
   canViewTeam: boolean
   canInviteMembers: boolean
   canAssignRole: boolean
   canRemoveMember: boolean
+  canViewRoles: boolean
+  canManageRoles: boolean
   canViewContacts: boolean
   canCreateContacts: boolean
   isLoading: boolean
@@ -114,12 +112,6 @@ async function fetchOrganizationsState(): Promise<{
   }
 
   return { organizations, activeId, accessContext: nextContext }
-}
-
-function hasPermission(context: AccessContext | null, permission: string) {
-  if (!context) return false
-  if (context.isOwner) return true
-  return context.permissions.includes(permission)
 }
 
 /**
@@ -211,21 +203,31 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
     const tenantOrganizationId =
       sessionOrgId && sessionOrgId === activeOrganization?.id ? sessionOrgId : null
 
+    const permissions = accessContext?.permissions ?? []
+
     return {
       organizations,
       activeOrganization,
       activeOrganizationId: activeOrganization?.id ?? null,
       tenantOrganizationId,
       accessContext,
+      permissions,
       hasOrganizations: organizations.length > 0,
-      canManageSettings: hasPermission(accessContext, PERM_SETTINGS_MANAGE),
-      canDeleteOrganization: hasPermission(accessContext, PERM_DELETE),
-      canViewTeam: hasPermission(accessContext, PERM_TEAM_VIEW),
-      canInviteMembers: hasPermission(accessContext, PERM_TEAM_INVITE),
-      canAssignRole: hasPermission(accessContext, PERM_TEAM_ROLE_ASSIGN),
-      canRemoveMember: hasPermission(accessContext, PERM_TEAM_REMOVE),
-      canViewContacts: hasPermission(accessContext, PERM_CONTACTS_VIEW),
-      canCreateContacts: hasPermission(accessContext, PERM_CONTACTS_CREATE),
+      canViewOrg: hasPermission(permissions, PERMISSIONS.ORG_VIEW),
+      canManageSettings: hasPermission(permissions, PERMISSIONS.ORG_SETTINGS_MANAGE),
+      canDeleteOrganization: hasPermission(permissions, PERMISSIONS.ORG_DELETE),
+      canViewTeam: hasPermission(permissions, PERMISSIONS.TEAM_VIEW),
+      canInviteMembers: hasPermission(permissions, PERMISSIONS.TEAM_INVITE),
+      canAssignRole: hasPermission(permissions, PERMISSIONS.TEAM_ROLE_ASSIGN),
+      canRemoveMember: hasPermission(permissions, PERMISSIONS.TEAM_REMOVE),
+      // Roles list API is under the team:view group middleware; roles:view is the
+      // product catalog flag. Show Roles when either is present so custom grants work.
+      canViewRoles:
+        hasPermission(permissions, PERMISSIONS.ROLES_VIEW) ||
+        hasPermission(permissions, PERMISSIONS.TEAM_VIEW),
+      canManageRoles: hasPermission(permissions, PERMISSIONS.ROLES_MANAGE),
+      canViewContacts: hasPermission(permissions, PERMISSIONS.CONTACTS_VIEW),
+      canCreateContacts: hasPermission(permissions, PERMISSIONS.CONTACTS_CREATE),
       isLoading,
       error,
       refresh,
