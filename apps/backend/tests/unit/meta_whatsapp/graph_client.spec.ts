@@ -79,4 +79,69 @@ test.group('HttpMetaGraphClient', () => {
     assert.equal(seenBody.type, 'template')
     assert.equal(result.messageId, 'wamid.1')
   })
+
+  test('sendTextMessage posts Cloud API shape', async ({ assert }) => {
+    let seenBody: Record<string, unknown> = {}
+
+    const fetchImpl: typeof fetch = async (_input, init) => {
+      seenBody = JSON.parse(String(init?.body)) as Record<string, unknown>
+      return new Response(JSON.stringify({ messages: [{ id: 'wamid.text' }] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const client = new HttpMetaGraphClient({
+      appId: 'app',
+      appSecret: 'secret',
+      graphVersion: 'v25.0',
+      fetchImpl,
+    })
+
+    const result = await client.sendTextMessage({
+      phoneNumberId: 'pn-1',
+      accessToken: 'tok',
+      to: '15551234567',
+      text: 'Hello!',
+    })
+
+    assert.equal(seenBody.type, 'text')
+    assert.deepEqual(seenBody.text, { preview_url: false, body: 'Hello!' })
+    assert.equal(result.messageId, 'wamid.text')
+  })
+
+  test('sendMediaMessage posts Cloud API shape', async ({ assert }) => {
+    let seenBody: Record<string, unknown> = {}
+
+    const fetchImpl: typeof fetch = async (_input, init) => {
+      seenBody = JSON.parse(String(init?.body)) as Record<string, unknown>
+      return new Response(JSON.stringify({ messages: [{ id: 'wamid.img' }] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const client = new HttpMetaGraphClient({
+      appId: 'app',
+      appSecret: 'secret',
+      graphVersion: 'v25.0',
+      fetchImpl,
+    })
+
+    const result = await client.sendMediaMessage({
+      phoneNumberId: 'pn-1',
+      accessToken: 'tok',
+      to: '15551234567',
+      type: 'image',
+      link: 'https://example.com/photo.jpg',
+      caption: 'Check this',
+    })
+
+    assert.equal(seenBody.type, 'image')
+    assert.deepEqual(seenBody.image, {
+      link: 'https://example.com/photo.jpg',
+      caption: 'Check this',
+    })
+    assert.equal(result.messageId, 'wamid.img')
+  })
 })
