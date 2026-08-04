@@ -19,6 +19,16 @@ export default class InvitationException extends Exception {
     })
   }
 
+  static emailSendFailed(detail?: string) {
+    return new this(
+      detail ? `Failed to send invite email: ${detail}` : 'Failed to send invite email',
+      {
+        status: 502,
+        code: 'E_INVITE_EMAIL_FAILED',
+      }
+    )
+  }
+
   handle(error: this, { response }: HttpContext) {
     return response.status(error.status).send({
       error: error.message,
