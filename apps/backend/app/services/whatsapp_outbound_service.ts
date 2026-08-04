@@ -200,6 +200,7 @@ export default class WhatsappOutboundService {
   /**
    * Claim → Meta send → persist success/failure. Emits InboxStatusUpdated only when
    * an early unmatched receipt actually updates the message after wamid save.
+   * Event emission failures are logged and must not reverse a durable sent state.
    */
   async executeDispatch(params: {
     organizationId: string
@@ -225,10 +226,12 @@ export default class WhatsappOutboundService {
 
       const dispatch = claim.dispatch
 
-      try {
-        const providerMessageId = await this.#sendToMeta(dispatch)
+      let providerMessageId: string
+      let reconcile: Awaited<ReturnType<WhatsappOutboundRepository['markSentAndReconcile']>>
 
-        const reconcile = await db.transaction(async (trx) => {
+      try {
+        providerMessageId = await this.#sendToMeta(dispatch)
+        reconcile = await db.transaction(async (trx) => {
           return this.outboundRepo.markSentAndReconcile(trx, {
             organizationId: params.organizationId,
             dispatchId: dispatch.id,
@@ -236,8 +239,17 @@ export default class WhatsappOutboundService {
             providerMessageId,
           })
         })
+      } catch (error) {
+        return this.#handleSendFailure({
+          organizationId: params.organizationId,
+          dispatch,
+          error,
+        })
+      }
 
-        if (reconcile.receipt?.updated) {
+      // Side effects after durable sent must never call markFailed / retry.
+      if (reconcile.receipt?.updated) {
+        try {
           await InboxStatusUpdated.dispatch({
             organizationId: params.organizationId,
             conversationId: reconcile.receipt.message.conversationId,
@@ -249,20 +261,24 @@ export default class WhatsappOutboundService {
               reconcile.receipt.message.providerStatusAt as string | Date
             ).toISOString(),
           })
+        } catch (error) {
+          logger.error(
+            {
+              dispatchId: dispatch.id,
+              organizationId: params.organizationId,
+              messageId: dispatch.messageId,
+              err: error instanceof Error ? error.message : 'unknown',
+            },
+            'whatsapp.outbound.inbox_status_event_failed'
+          )
         }
+      }
 
-        return {
-          outcome: 'sent',
-          dispatchId: dispatch.id,
-          messageId: dispatch.messageId,
-          providerMessageId,
-        }
-      } catch (error) {
-        return this.#handleSendFailure({
-          organizationId: params.organizationId,
-          dispatch,
-          error,
-        })
+      return {
+        outcome: 'sent',
+        dispatchId: dispatch.id,
+        messageId: dispatch.messageId,
+        providerMessageId,
       }
     })
   }

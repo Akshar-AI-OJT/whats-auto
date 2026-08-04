@@ -317,6 +317,7 @@ export class WhatsappOutboundRepository {
       .from('outbound_dispatches')
       .where('id', params.dispatchId)
       .where('organizationId', params.organizationId)
+      .whereIn('status', ['pending', 'processing', 'retry_scheduled'])
       .update({
         status: 'retry_scheduled',
         nextAttemptAt: params.nextAttemptAt,
@@ -342,10 +343,12 @@ export class WhatsappOutboundRepository {
   ): Promise<void> {
     const failedAt = params.failedAt ?? new Date()
 
+    // Never overwrite a durable success (sent/delivered/read) if a side effect fails later.
     await trx
       .from('messages')
       .where('id', params.messageId)
       .where('organizationId', params.organizationId)
+      .whereIn('status', ['queued'])
       .update({
         status: 'failed',
         failedAt,
@@ -357,6 +360,7 @@ export class WhatsappOutboundRepository {
       .from('outbound_dispatches')
       .where('id', params.dispatchId)
       .where('organizationId', params.organizationId)
+      .whereIn('status', ['pending', 'processing', 'retry_scheduled'])
       .update({
         status: 'failed',
         lockOwner: null,

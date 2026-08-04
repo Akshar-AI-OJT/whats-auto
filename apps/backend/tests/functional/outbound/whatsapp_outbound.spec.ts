@@ -2,6 +2,7 @@ import { test } from '@japa/runner'
 import { randomUUID } from 'node:crypto'
 import app from '@adonisjs/core/services/app'
 import db from '@adonisjs/lucid/services/db'
+import InboxStatusUpdated from '#events/inbox_status_updated'
 import WhatsappOutboundException from '#exceptions/whatsapp_outbound_exception'
 import { encryptWhatsappAccessToken } from '#lib/meta_whatsapp/access_token_crypto'
 import { MetaGraphApiError, type MetaGraphClient } from '#lib/meta_whatsapp/graph_client'
@@ -533,6 +534,65 @@ test.group('WhatsApp outbound service', (group) => {
       assert.isNotNull(message.deliveredAt)
       assert.lengthOf(unmatched, 0)
     })
+  })
+
+  test('InboxStatusUpdated failure after sent does not mark dispatch failed', async ({
+    assert,
+  }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const seeded = await seedConversation(organizationId)
+
+    await runWithTenant(organizationId, async () => {
+      await db.table('unmatched_provider_receipts').insert({
+        organizationId,
+        whatsappConfigId: seeded.whatsappConfigId,
+        providerMessageId: 'wamid.out.text',
+        status: 'delivered',
+        providerStatusAt: new Date('2024-06-01T00:02:00.000Z'),
+        errorMessage: null,
+        metadata: {},
+      })
+    })
+
+    const originalDispatch = InboxStatusUpdated.dispatch.bind(InboxStatusUpdated)
+    InboxStatusUpdated.dispatch = (async () => {
+      throw new Error('listener boom')
+    }) as typeof InboxStatusUpdated.dispatch
+
+    try {
+      const service = new WhatsappOutboundService(fakeGraph())
+      const queued = await service.queueText({
+        organizationId,
+        conversationId: seeded.conversationId,
+        text: 'Event fail after send',
+      })
+
+      const result = await service.executeDispatch({
+        organizationId,
+        dispatchId: queued.dispatchId,
+        lockOwner: 'test-worker-1',
+      })
+
+      assert.equal(result.outcome, 'sent')
+
+      await runWithTenant(organizationId, async () => {
+        const message = await db
+          .from('messages')
+          .where('organizationId', organizationId)
+          .where('id', queued.messageId)
+          .first()
+        const dispatch = await db
+          .from('outbound_dispatches')
+          .where('organizationId', organizationId)
+          .where('id', queued.dispatchId)
+          .first()
+        assert.equal(message.status, 'delivered')
+        assert.equal(dispatch.status, 'sent')
+      })
+    } finally {
+      InboxStatusUpdated.dispatch = originalDispatch
+    }
   })
 
   test('rejects missing conversation and disconnected config', async ({ assert }) => {
