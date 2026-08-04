@@ -13,11 +13,13 @@
     "build": "node ace build",
     "postbuild": "node -e \"const fs = require('fs'); if (fs.existsSync('.env')) fs.copyFileSync('.env', 'build/.env')\"",
     "dev": "node ace serve --watch",
+    "worker": "node --import=@poppinss/ts-exec bin/worker.ts",
     "test": "node ace test",
     "db:seed:demo": "node ace db:seed --files=./database/seeders/demo_seeder.ts",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "dev:all": "concurrently -n api,worker -c blue,magenta \"pnpm dev\" \"pnpm worker\""
   },
   "imports": {
     "#controllers/*": "./app/controllers/*.js",
@@ -25,6 +27,10 @@
     "#models/*": "./app/models/*.js",
     "#mails/*": "./app/mails/*.js",
     "#services/*": "./app/services/*.js",
+    "#services/job_queue/*": "./app/services/job_queue/*.js",
+    "#services/job_queue/contracts/*": "./app/services/job_queue/contracts/*.js",
+    "#services/job_queue/drivers/*": "./app/services/job_queue/drivers/*.js",
+    "#services/job_queue/handlers/*": "./app/services/job_queue/handlers/*.js",
     "#listeners/*": "./app/listeners/*.js",
     "#events/*": "./app/events/*.js",
     "#generated/*": "./.adonisjs/server/*.js",
@@ -79,6 +85,7 @@
     "jose": "^6.2.4",
     "luxon": "^3.7.2",
     "pg": "^8.22.0",
+    "pg-boss": "^12.26.4",
     "reflect-metadata": "^0.2.2",
     "resend": "^6.17.2"
   },

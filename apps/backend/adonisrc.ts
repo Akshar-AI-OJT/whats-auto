@@ -58,6 +58,7 @@ export default defineConfig({
     () => import('#providers/api_provider'),
     () => import('@adonisjs/bouncer/bouncer_provider'),
     () => import('#providers/tenant_rls_provider'),
+    () => import('#providers/job_queue_provider'),
   ],
 
   /*
