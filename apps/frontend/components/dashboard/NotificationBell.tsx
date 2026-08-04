@@ -13,6 +13,7 @@ import {
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { formatConversationTimestamp } from './overview/ConversationRow'
+import type { MockNotification } from './mock-data'
 
 export type NotificationType = 'campaign' | 'message' | 'billing' | 'system'
 

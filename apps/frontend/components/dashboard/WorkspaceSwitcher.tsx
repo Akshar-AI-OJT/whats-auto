@@ -17,10 +17,13 @@ export type WorkspaceSwitcherProps = {
   workspaces: WorkspaceSwitcherItem[]
   value?: string
   defaultValue?: string
-  onChange?: (workspaceId: string) => void
+  /** May be async — switcher stays open and disables items until it resolves. */
+  onChange?: (workspaceId: string) => void | Promise<void>
   onOpenChange?: (open: boolean) => void
   /** Close when parent requests (e.g. another menu opens). */
   open?: boolean
+  /** Shown under the list when a switch fails; keeps the menu open. */
+  error?: string | null
   labels?: {
     listLabel?: string
     active?: string
@@ -74,6 +77,7 @@ export function WorkspaceSwitcher({
   onChange,
   onOpenChange,
   open: openProp,
+  error = null,
   labels,
   className,
   onCreateWorkspace,
@@ -83,10 +87,13 @@ export function WorkspaceSwitcher({
     defaultValue ?? workspaces[0]?.id ?? ''
   )
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
+  const [pendingId, setPendingId] = useState<string | null>(null)
   const open = openProp ?? uncontrolledOpen
-  const workspaceId = isControlled ? value : internalId
+  const workspaceId = isControlled ? (value ?? '') : internalId
   const rootRef = useRef<HTMLDivElement>(null)
   const listId = useId()
+  const errorId = useId()
+  const isSwitching = Boolean(pendingId)
 
   const active =
     workspaces.find((w) => w.id === workspaceId) ?? workspaces[0] ?? null
@@ -97,20 +104,36 @@ export function WorkspaceSwitcher({
   const createLabel = labels?.create ?? 'Create workspace'
 
   function setOpen(next: boolean) {
+    if (isSwitching) return
     if (openProp === undefined) setUncontrolledOpen(next)
     onOpenChange?.(next)
   }
 
-  function selectWorkspace(id: string) {
-    if (!isControlled) setInternalId(id)
-    onChange?.(id)
-    setOpen(false)
+  function closeMenu() {
+    if (openProp === undefined) setUncontrolledOpen(false)
+    onOpenChange?.(false)
+  }
+
+  async function selectWorkspace(id: string) {
+    if (id === workspaceId || isSwitching) return
+
+    setPendingId(id)
+    try {
+      await onChange?.(id)
+      if (!isControlled) setInternalId(id)
+      closeMenu()
+    } catch {
+      // Parent surfaces error via `error` prop; keep menu open.
+    } finally {
+      setPendingId(null)
+    }
   }
 
   useEffect(() => {
     if (!open) return
 
     function close() {
+      if (pendingId) return
       if (openProp === undefined) setUncontrolledOpen(false)
       onOpenChange?.(false)
     }
@@ -131,7 +154,7 @@ export function WorkspaceSwitcher({
       document.removeEventListener('mousedown', onPointerDown)
       document.removeEventListener('keydown', onKeyDown)
     }
-  }, [open, openProp, onOpenChange])
+  }, [open, openProp, onOpenChange, pendingId])
 
   if (!active) return null
 
@@ -142,12 +165,15 @@ export function WorkspaceSwitcher({
         aria-expanded={open}
         aria-haspopup="listbox"
         aria-controls={listId}
+        aria-busy={isSwitching || undefined}
+        disabled={isSwitching}
         onClick={() => setOpen(!open)}
         className={cn(
           'inline-flex max-w-[9.5rem] items-center gap-2 rounded-xl border border-dash-border bg-canvas px-2 py-1.5 text-left sm:max-w-[16rem] sm:px-2.5',
           'transition-[background-color,border-color,box-shadow] duration-200',
           'hover:border-dash-border-strong hover:bg-dash-surface',
-          open && 'border-primary/45 shadow-[0_0_0_3px_rgb(159_232_112/0.14)]'
+          open && 'border-primary/45 shadow-[0_0_0_3px_rgb(159_232_112/0.14)]',
+          isSwitching && 'cursor-wait opacity-80'
         )}
       >
         <WorkspaceAvatar
@@ -187,21 +213,30 @@ export function WorkspaceSwitcher({
             </p>
           </div>
 
-          <ul id={listId} role="listbox" className="max-h-72 overflow-y-auto p-1.5">
+          <ul
+            id={listId}
+            role="listbox"
+            className="max-h-72 overflow-y-auto p-1.5"
+            aria-describedby={error ? errorId : undefined}
+          >
             {workspaces.map((ws) => {
               const selected = ws.id === active.id
+              const rowPending = pendingId === ws.id
               return (
                 <li key={ws.id} role="option" aria-selected={selected}>
                   <button
                     type="button"
+                    disabled={isSwitching}
+                    aria-busy={rowPending || undefined}
                     className={cn(
                       'flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left',
                       'transition-[background-color,box-shadow] duration-150',
                       selected
                         ? 'bg-primary-pale shadow-[0_0_0_1px_rgb(159_232_112/0.35)]'
-                        : 'hover:bg-dash-surface'
+                        : 'hover:bg-dash-surface',
+                      isSwitching && 'cursor-wait opacity-70'
                     )}
-                    onClick={() => selectWorkspace(ws.id)}
+                    onClick={() => void selectWorkspace(ws.id)}
                   >
                     <WorkspaceAvatar
                       initials={ws.initials}
@@ -248,13 +283,25 @@ export function WorkspaceSwitcher({
             })}
           </ul>
 
+          {error ? (
+            <p
+              id={errorId}
+              role="alert"
+              className="border-t border-dash-border px-3.5 py-2 text-xs text-negative"
+            >
+              {error}
+            </p>
+          ) : null}
+
           {onCreateWorkspace ? (
             <div className="border-t border-dash-border p-1.5">
               <button
                 type="button"
+                disabled={isSwitching}
                 className={cn(
                   'flex w-full items-center gap-2 rounded-xl px-2.5 py-2.5 text-sm font-semibold text-positive-deep',
-                  'transition-colors duration-150 hover:bg-primary-pale'
+                  'transition-colors duration-150 hover:bg-primary-pale',
+                  isSwitching && 'cursor-wait opacity-70'
                 )}
                 onClick={() => {
                   setOpen(false)

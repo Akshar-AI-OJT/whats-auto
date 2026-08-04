@@ -5,6 +5,7 @@ import {
   forceRemintAccessToken,
   getValidAccessToken,
 } from '@/lib/access-token'
+import { authClient } from '@/lib/auth-client'
 
 export type ApiError = {
   message: string
@@ -13,11 +14,17 @@ export type ApiError = {
   retryAfter?: number
 }
 
-export type RequestMode = 'public' | 'protected'
+export type AuthRequestMode = 'public' | 'protected'
 
-type RequestOptions = RequestInit & {
-  /** public = cookie only; protected = cookie + Bearer JWT */
-  mode: RequestMode
+/** @deprecated Use AuthRequestMode — kept so existing imports keep compiling. */
+export type RequestMode = AuthRequestMode
+
+type RequestOptions = Omit<RequestInit, 'mode'> & {
+  /**
+   * Auth transport mode (not Fetch CORS `RequestInit.mode`).
+   * public = cookie only; protected = cookie + Bearer JWT
+   */
+  authMode: AuthRequestMode
   /** Internal flag — do not set from call sites */
   _authRetried?: boolean
 }
@@ -88,14 +95,14 @@ async function parseError(response: Response): Promise<ApiError> {
   return { message, status: response.status, code, retryAfter }
 }
 
-/** Best-effort session probe so a remint failure can still seed set-auth-jwt. */
+/**
+ * After a failed remint, refresh the shared Better Auth session once.
+ * Prefer authClient over raw fetch so useSession subscribers update and
+ * fetchOptions.onSuccess can still capture set-auth-jwt.
+ */
 async function refreshSessionCookieBootstrap() {
   try {
-    const response = await fetch(`${getBaseUrl()}/api/auth/get-session`, {
-      method: 'GET',
-      credentials: 'include',
-    })
-    applyAuthTokenHeaders(response)
+    await authClient.getSession({ query: { disableCookieCache: true } })
   } catch {
     /* ignore — caller surfaces the original auth error */
   }
@@ -105,14 +112,14 @@ async function request<T>(
   path: string,
   init: RequestOptions
 ): Promise<{ data: T; response: Response }> {
-  const { mode, _authRetried, ...fetchInit } = init
+  const { authMode, _authRetried, ...fetchInit } = init
   const headers = new Headers(fetchInit.headers)
 
   if (fetchInit.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
   }
 
-  if (mode === 'protected') {
+  if (authMode === 'protected') {
     const token = await getValidAccessToken()
     headers.set('Authorization', `Bearer ${token}`)
   }
@@ -128,11 +135,7 @@ async function request<T>(
   if (!response.ok) {
     const error = await parseError(response)
 
-    if (
-      mode === 'protected' &&
-      !_authRetried &&
-      isTokenAuthError(error)
-    ) {
+    if (authMode === 'protected' && !_authRetried && isTokenAuthError(error)) {
       try {
         clearAccessToken()
         await forceRemintAccessToken()
@@ -158,11 +161,11 @@ async function request<T>(
 }
 
 function publicRequest<T>(path: string, init: RequestInit = {}) {
-  return request<T>(path, { ...init, mode: 'public' })
+  return request<T>(path, { ...init, authMode: 'public' })
 }
 
 function protectedRequest<T>(path: string, init: RequestInit = {}) {
-  return request<T>(path, { ...init, mode: 'protected' })
+  return request<T>(path, { ...init, authMode: 'protected' })
 }
 
 export type SignupBody = {
@@ -365,10 +368,7 @@ export type OnboardingPendingInvitation = {
 }
 
 export type OnboardingNextStep =
-  | 'accept_invitation'
-  | 'create_organization'
-  | 'select_organization'
-  | 'ready'
+  'accept_invitation' | 'create_organization' | 'select_organization' | 'ready'
 
 export type OnboardingState = {
   activeOrganizationId: string | null
@@ -439,11 +439,7 @@ export type UpdateSuperAdminOrganizationBody = {
   currency?: string
 }
 
-export type SuperAdminSubscriptionStatus =
-  | 'trialing'
-  | 'active'
-  | 'past_due'
-  | 'cancelled'
+export type SuperAdminSubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'cancelled'
 
 /** Row from GET /api/v1/super-admin/subscriptions */
 export type SuperAdminSubscription = {
@@ -531,11 +527,14 @@ export const api = {
       }),
 
     getSession: () =>
-      publicRequest<{ user: ProfileUser | null; session: unknown } | null>('/api/auth/get-session', {
-        method: 'GET',
-        // Keep invite/login UIs responsive if the auth service is slow.
-        signal: AbortSignal.timeout(4000),
-      }),
+      publicRequest<{ user: ProfileUser | null; session: unknown } | null>(
+        '/api/auth/get-session',
+        {
+          method: 'GET',
+          // Keep invite/login UIs responsive if the auth service is slow.
+          signal: AbortSignal.timeout(4000),
+        }
+      ),
   },
 
   account: {
@@ -624,10 +623,9 @@ export const api = {
 
   members: {
     list: () =>
-      protectedRequest<{ data?: OrganizationMember[] } | OrganizationMember[]>(
-        '/api/v1/members',
-        { method: 'GET' }
-      ),
+      protectedRequest<{ data?: OrganizationMember[] } | OrganizationMember[]>('/api/v1/members', {
+        method: 'GET',
+      }),
 
     assignRole: (memberId: string, role: string) =>
       protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
@@ -656,8 +654,7 @@ export const api = {
       if (params.perPage != null) qs.set('perPage', String(params.perPage))
       const query = qs.toString()
       return protectedRequest<
-        | Paginated<OrganizationAdminUser>
-        | { data?: OrganizationAdminUser[]; meta?: PaginationMeta }
+        Paginated<OrganizationAdminUser> | { data?: OrganizationAdminUser[]; meta?: PaginationMeta }
       >(`/api/v1/organization-admin/users${query ? `?${query}` : ''}`, {
         method: 'GET',
       })

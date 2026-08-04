@@ -5,6 +5,10 @@ import { useTranslations } from 'next-intl'
 import { ArrowLeft, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api, type ApiError } from '@/lib/api'
+import { authClient } from '@/lib/auth-client'
+import { getValidAccessToken } from '@/lib/access-token'
+import { organizationQueryKeys } from '@/components/dashboard/OrganizationsProvider'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   buildCreateOrganizationPayload,
   clearLegacyOrganizationCache,
@@ -80,6 +84,7 @@ export function OrganizationRegistrationForm({
 }: React.ComponentProps<'form'>) {
   const t = useTranslations('onboarding.organization')
   const router = useRouter()
+  const queryClient = useQueryClient()
   const formErrorId = useId()
 
   const [step, setStep] = useState<OrgWizardStep>(1)
@@ -226,6 +231,12 @@ export function OrganizationRegistrationForm({
       })
 
       await api.organizations.create(payload)
+
+      // Backend sets the new org active and remints JWT; align shared session before dashboard.
+      await authClient.getSession({ query: { disableCookieCache: true } })
+      await getValidAccessToken()
+      await queryClient.invalidateQueries({ queryKey: organizationQueryKeys.all })
+
       clearLegacyOrganizationCache()
 
       savePendingWorkspacePreferences({
