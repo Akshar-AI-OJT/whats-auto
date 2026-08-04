@@ -17,10 +17,12 @@ export default class TenantRlsProvider {
   constructor(protected app: ApplicationService) {}
 
   async start() {
-    // Do not patch the pool for Ace/console — migration advisory locks
-    // and one-shot CLI connections break if acquire/release is wrapped.
+    // Do not patch the pool for Ace/console migrations — advisory locks break.
+    // Worker entry sets JOB_QUEUE_WORKER=1 and boots as web; also allow that flag
+    // if a console-based worker is used later.
     const environment = this.app.getEnvironment()
-    if (environment !== 'web' && environment !== 'test') {
+    const isWorker = process.env.JOB_QUEUE_WORKER === '1'
+    if (environment !== 'web' && environment !== 'test' && !isWorker) {
       return
     }
 
