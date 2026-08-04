@@ -66,6 +66,7 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
     activeOrganizationId,
     hasOrganizations,
     isLoading: orgsLoading,
+    error: organizationsError,
     selectOrganization,
   } = useOrganizations()
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -211,11 +212,11 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
         </button>
       ) : null}
 
-      {hasOrganizations ? (
+      {hasOrganizations && activeOrganizationId ? (
         <WorkspaceSwitcher
           className="order-1 min-w-0 max-w-[11rem] sm:max-w-[13rem] lg:max-w-[15rem]"
           workspaces={workspaces}
-          value={activeOrganizationId ?? workspaces[0]?.id}
+          value={activeOrganizationId}
           open={workspaceOpen}
           onOpenChange={(next) => {
             setWorkspaceOpen(next)
@@ -225,6 +226,7 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
             }
           }}
           onChange={handleWorkspaceChange}
+          error={organizationsError}
           labels={{
             listLabel: t('workspace.listLabel'),
             active: t('workspace.active'),

@@ -4,12 +4,11 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { Check, Loader2, LogIn, UserPlus, X } from 'lucide-react'
 import { api, type ApiError, type InvitationPreview, type ProfileUser } from '@/lib/api'
+import { authClient } from '@/lib/auth-client'
+import { getValidAccessToken } from '@/lib/access-token'
 import { Link, useRouter } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
-import {
-  clearPendingInvitationId,
-  savePendingInvitationId,
-} from '@/lib/post-auth-redirect'
+import { clearPendingInvitationId, savePendingInvitationId } from '@/lib/post-auth-redirect'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { AuthLayout } from '@/components/auth/auth-layout'
 import { AuthBranding } from '@/components/auth/auth-branding'
@@ -24,9 +23,37 @@ type AcceptInvitationPageProps = {
   initialErrorKey: 'notFound' | 'loadFailed' | null
 }
 
-function sessionUserFromPayload(data: unknown): ProfileUser | null {
-  if (!data || typeof data !== 'object' || !('user' in data)) return null
-  return (data as { user: ProfileUser | null }).user ?? null
+function profileUserFromSession(
+  user:
+    | {
+        id: string
+        name: string
+        email: string
+        firstname?: string | null
+        lastname?: string | null
+        createdAt?: Date | string
+        updatedAt?: Date | string
+      }
+    | null
+    | undefined
+): ProfileUser | null {
+  if (!user) return null
+  const source = user.name.trim() || user.email.trim() || 'WA'
+  const initials = source
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('')
+  return {
+    id: user.id,
+    name: user.name,
+    firstname: user.firstname ?? '',
+    lastname: user.lastname ?? '',
+    email: user.email,
+    initials,
+    createdAt: user.createdAt ? new Date(user.createdAt).toISOString() : null,
+    updatedAt: user.updatedAt ? new Date(user.updatedAt).toISOString() : null,
+  }
 }
 
 export function AcceptInvitationPage({
@@ -62,8 +89,8 @@ export function AcceptInvitationPage({
     let cancelled = false
     ;(async () => {
       try {
-        const { data } = await api.auth.getSession()
-        if (!cancelled) setUser(sessionUserFromPayload(data))
+        const { data } = await authClient.getSession()
+        if (!cancelled) setUser(profileUserFromSession(data?.user))
       } catch {
         if (!cancelled) setUser(null)
       } finally {
@@ -111,6 +138,8 @@ export function AcceptInvitationPage({
       if (organizationId) {
         try {
           await api.organizations.setActive(organizationId)
+          await authClient.getSession({ query: { disableCookieCache: true } })
+          await getValidAccessToken()
         } catch {
           // Membership was created; dashboard refresh still picks up the org list.
         }
@@ -159,8 +188,7 @@ export function AcceptInvitationPage({
     invitedEmail ? `&email=${encodeURIComponent(invitedEmail)}` : ''
   }`
 
-  const showAcceptUi =
-    preview?.status === 'pending' && Boolean(user) && emailMatches && !declined
+  const showAcceptUi = preview?.status === 'pending' && Boolean(user) && emailMatches && !declined
 
   return (
     <AuthLayout branding={<AuthBranding variant="login" />}>
@@ -254,7 +282,7 @@ export function AcceptInvitationPage({
               </div>
             ) : showAcceptUi ? (
               <div className="flex flex-col gap-2.5">
-                {pending === 'accept' || (sessionReady && autoAcceptStarted.current) ? (
+                {pending === 'accept' ? (
                   <div className="flex items-center justify-center gap-2 rounded-xl border border-dash-border bg-dash-surface/50 px-4 py-3 text-sm text-body">
                     <Loader2 className="size-4 animate-spin" aria-hidden />
                     {t('accepting')}

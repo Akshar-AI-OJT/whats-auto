@@ -5,6 +5,7 @@ import { notFound } from 'next/navigation'
 import { ConditionalChrome } from '@/components/layout/ConditionalChrome'
 import { Footer } from '@/components/layout/Footer'
 import { Navbar } from '@/components/layout/Navbar'
+import { AppProviders } from '@/components/providers/AppProviders'
 import { ThemeProvider } from '@/components/theme/ThemeProvider'
 import { routing } from '@/i18n/routing'
 
@@ -36,13 +37,15 @@ export default async function LocaleLayout({
   return (
     <ThemeProvider>
       <NextIntlClientProvider messages={messages}>
-        <ConditionalChrome>
-          <Navbar />
-        </ConditionalChrome>
-        {children}
-        <ConditionalChrome>
-          <Footer />
-        </ConditionalChrome>
+        <AppProviders>
+          <ConditionalChrome>
+            <Navbar />
+          </ConditionalChrome>
+          {children}
+          <ConditionalChrome>
+            <Footer />
+          </ConditionalChrome>
+        </AppProviders>
       </NextIntlClientProvider>
     </ThemeProvider>
   )
