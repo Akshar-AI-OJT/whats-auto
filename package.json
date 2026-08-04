@@ -15,7 +15,8 @@
     "test": "turbo test",
     "lint": "turbo lint",
     "format": "turbo format",
-    "typecheck": "turbo typecheck"
+    "typecheck": "turbo typecheck",
+    "db:seed:demo": "pnpm --filter backend db:seed:demo"
   },
   "devDependencies": {
     "@adonisjs/prettier-config": "^1.5.0",
