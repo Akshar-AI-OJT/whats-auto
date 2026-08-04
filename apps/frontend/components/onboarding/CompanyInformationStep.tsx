@@ -12,9 +12,11 @@ import {
   FieldLabel,
 } from '@/components/ui/field'
 import { authInputClassName } from '@/components/auth/auth-field-styles'
+import { RequiredAsterisk } from './required-asterisk'
 import {
   COMPANY_SIZE_OPTIONS,
   COUNTRY_OPTIONS,
+  CURRENCY_OPTIONS,
   INDUSTRY_OPTIONS,
   type OrganizationWizardCompanyErrors,
   type OrganizationWizardState,
@@ -47,10 +49,12 @@ export function CompanyInformationStep({
   const sizeId = useId()
   const countryId = useId()
   const timezoneId = useId()
+  const currencyId = useId()
   const industryErrorId = useId()
   const sizeErrorId = useId()
   const countryErrorId = useId()
   const timezoneErrorId = useId()
+  const currencyErrorId = useId()
   const timezones = getTimezoneOptions()
 
   function handleLogoChange(file: File | null) {
@@ -140,6 +144,7 @@ export function CompanyInformationStep({
       <Field data-invalid={errors.industry ? true : undefined} className="gap-2">
         <FieldLabel htmlFor={industryId} className="text-sm font-medium leading-5 text-ink">
           {t('step2.industry')}
+          <RequiredAsterisk />
         </FieldLabel>
         <select
           id={industryId}
@@ -173,6 +178,7 @@ export function CompanyInformationStep({
       <Field data-invalid={errors.companySize ? true : undefined} className="gap-2">
         <FieldLabel htmlFor={sizeId} className="text-sm font-medium leading-5 text-ink">
           {t('step2.companySize')}
+          <RequiredAsterisk />
         </FieldLabel>
         <select
           id={sizeId}
@@ -207,10 +213,12 @@ export function CompanyInformationStep({
         <Field data-invalid={errors.country ? true : undefined} className="gap-2">
           <FieldLabel htmlFor={countryId} className="text-sm font-medium leading-5 text-ink">
             {t('step2.country')}
+            <RequiredAsterisk />
           </FieldLabel>
           <select
             id={countryId}
             name="country"
+            required
             disabled={pending}
             value={state.country}
             aria-invalid={Boolean(errors.country)}
@@ -238,10 +246,12 @@ export function CompanyInformationStep({
         <Field data-invalid={errors.timezone ? true : undefined} className="gap-2">
           <FieldLabel htmlFor={timezoneId} className="text-sm font-medium leading-5 text-ink">
             {t('step2.timezone')}
+            <RequiredAsterisk />
           </FieldLabel>
           <select
             id={timezoneId}
             name="timezone"
+            required
             disabled={pending}
             value={state.timezone}
             aria-invalid={Boolean(errors.timezone)}
@@ -252,6 +262,7 @@ export function CompanyInformationStep({
               onClearError('timezone')
             }}
           >
+            <option value="">{t('step2.timezonePlaceholder')}</option>
             {timezones.map((zone) => (
               <option key={zone} value={zone}>
                 {zone.replace(/_/g, ' ')}
@@ -265,6 +276,42 @@ export function CompanyInformationStep({
           ) : null}
         </Field>
       </div>
+
+      <Field data-invalid={errors.currency ? true : undefined} className="gap-2">
+        <FieldLabel htmlFor={currencyId} className="text-sm font-medium leading-5 text-ink">
+          {t('step2.currency')}
+        </FieldLabel>
+        <select
+          id={currencyId}
+          name="currency"
+          disabled={pending}
+          value={state.currency}
+          aria-invalid={Boolean(errors.currency)}
+          aria-describedby={errors.currency ? currencyErrorId : undefined}
+          className={selectClassName}
+          onChange={(e) => {
+            onChange({
+              currency: e.target.value as OrganizationWizardState['currency'],
+            })
+            onClearError('currency')
+          }}
+        >
+          <option value="">{t('step2.currencyPlaceholder')}</option>
+          {CURRENCY_OPTIONS.map((value) => (
+            <option key={value} value={value}>
+              {t(`step2.currencies.${value}`)}
+            </option>
+          ))}
+        </select>
+        <FieldDescription className="text-xs leading-4 text-mute">
+          {t('optionalHint')}
+        </FieldDescription>
+        {errors.currency ? (
+          <FieldError id={currencyErrorId} className="text-xs leading-4 text-negative">
+            {errors.currency}
+          </FieldError>
+        ) : null}
+      </Field>
     </div>
   )
 }

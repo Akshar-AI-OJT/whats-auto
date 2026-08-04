@@ -27,17 +27,21 @@ export const createMessageTemplateValidator = vine.create(
       .regex(/^[a-z0-9_]+$/)
       .minLength(1)
       .maxLength(512),
+    // The issue: Passing 'as const' arrays directly to .in() causes a type error because vine expects a mutable array (string[]), but 'as const' makes the array readonly.
+    // Solution: Spread the readonly array to create a mutable copy when passing to .in().
     category: vine
       .string()
       .trim()
-      .transform((val) => val.toUpperCase()),
+      .toUpperCase()
+      .in([...TEMPLATE_CATEGORIES]),
     language: vine.string().trim().minLength(2).maxLength(10),
     headerType: vine
       .string()
       .trim()
-      .transform((val) => val.toUpperCase())
+      .toUpperCase()
+      .in([...TEMPLATE_HEADER_TYPES])
       .optional(),
-    headerContent: vine.string().trim().optional(),
+    headerContent: vine.string().trim().maxLength(60).optional(),
     bodyText: vine.string().trim().minLength(1).maxLength(1024),
     footerText: vine.string().trim().maxLength(60).optional(),
     buttons: vine.array(vine.any()).optional(),

@@ -51,7 +51,7 @@ export function AuthBrandingShell({
         className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#F8FAFC]/90 to-transparent"
       />
 
-      <div className="relative z-10 flex flex-col gap-8 px-6 py-8 sm:px-8 sm:py-10 md:gap-10 md:px-10 md:py-12 lg:px-12">
+      <div className="relative z-10 flex flex-col gap-6 px-6 py-7 sm:px-8 sm:py-9 md:gap-8 md:px-10 md:py-10 lg:px-12">
         {children}
       </div>
 

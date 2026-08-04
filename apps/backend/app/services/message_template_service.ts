@@ -2,7 +2,8 @@ import db from '@adonisjs/lucid/services/db'
 import MessageTemplateException from '#exceptions/message_template_exception'
 import { decryptWhatsappAccessToken } from '#lib/meta_whatsapp/access_token_crypto'
 import { createMetaGraphClient, type MetaGraphClient } from '#lib/meta_whatsapp/graph_client'
-import type { MetaTemplateComponent } from '#lib/meta_whatsapp/types'
+import { deriveParameterSchema, parseParameterSchema } from '#lib/meta_whatsapp/template_parameters'
+import type { MetaTemplateComponent, TemplateParameterSchema } from '#lib/meta_whatsapp/types'
 
 export type MessageTemplateDto = {
   id: string
@@ -19,6 +20,7 @@ export type MessageTemplateDto = {
   footerText: string | null
   buttons: unknown
   sampleValues: unknown
+  parameterSchema: TemplateParameterSchema
   status: string
   metaTemplateId: string | null
   rejectionReason: string | null
@@ -65,6 +67,7 @@ export class MessageTemplateService {
         typeof row.sampleValues === 'string'
           ? JSON.parse(row.sampleValues)
           : (row.sampleValues ?? null),
+      parameterSchema: parseParameterSchema(this.#jsonField(row.parameterSchema)),
       status: row.status,
       metaTemplateId: row.metaTemplateId ?? null,
       rejectionReason: row.rejectionReason ?? null,
@@ -74,6 +77,26 @@ export class MessageTemplateService {
       createdAt: new Date(row.createdAt).toISOString(),
       updatedAt: row.updatedAt ? new Date(row.updatedAt).toISOString() : null,
     }
+  }
+
+  #jsonField(value: unknown): unknown {
+    if (typeof value === 'string') {
+      try {
+        return JSON.parse(value)
+      } catch {
+        return value
+      }
+    }
+    return value
+  }
+
+  #parameterSchemaJson(params: {
+    headerType?: string | null
+    headerContent?: string | null
+    bodyText: string
+    buttons?: unknown
+  }): string {
+    return JSON.stringify(deriveParameterSchema(params))
   }
 
   /**
@@ -197,6 +220,12 @@ export class MessageTemplateService {
         bodyText,
         footerText,
         buttons: buttons ? JSON.stringify(buttons) : null,
+        parameterSchema: this.#parameterSchemaJson({
+          headerType,
+          headerContent,
+          bodyText,
+          buttons,
+        }),
         status: metaTpl.status.toLowerCase(),
         metaTemplateId: metaTpl.id ?? null,
         rejectionReason: metaTpl.rejected_reason ?? null,
@@ -312,6 +341,10 @@ export class MessageTemplateService {
       status = 'draft'
     }
 
+    const headerType = payload.headerType?.toLowerCase() ?? null
+    const headerContent = payload.headerContent ?? null
+    const buttons = payload.buttons ?? null
+
     const [row] = await db
       .table('message_templates')
       .insert({
@@ -321,12 +354,18 @@ export class MessageTemplateService {
         name,
         category,
         language,
-        headerType: payload.headerType?.toLowerCase() ?? null,
-        headerContent: payload.headerContent ?? null,
+        headerType,
+        headerContent,
         bodyText: payload.bodyText,
         footerText: payload.footerText ?? null,
-        buttons: payload.buttons ? JSON.stringify(payload.buttons) : null,
+        buttons: buttons ? JSON.stringify(buttons) : null,
         sampleValues: payload.sampleValues ? JSON.stringify(payload.sampleValues) : null,
+        parameterSchema: this.#parameterSchemaJson({
+          headerType,
+          headerContent,
+          bodyText: payload.bodyText,
+          buttons,
+        }),
         status,
         metaTemplateId,
         submissionError,

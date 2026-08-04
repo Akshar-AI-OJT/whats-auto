@@ -13,6 +13,14 @@ import {
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { Button } from '@/components/ui/button'
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
   Field,
   FieldDescription,
   FieldError,
@@ -20,14 +28,6 @@ import {
   FieldLabel,
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from '@/components/ui/sheet'
 
 const BADGE_PREVIEW_COUNT = 6
 
@@ -250,26 +250,22 @@ export function RoleEditorSheet({
   const saveDisabled = pending || !canManageRoles || !dirty
 
   return (
-    <Sheet open={open} onOpenChange={requestClose}>
-      <SheetContent
-        side="right"
-        className="flex w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-lg"
+    <Dialog open={open} onOpenChange={requestClose}>
+      <DialogContent
+        size="fullscreen"
+        className="gap-0 overflow-hidden p-0"
+        showCloseButton
       >
-        <SheetHeader className="shrink-0 border-b border-dash-border px-4 pt-4 pb-4 text-left sm:px-5">
-          <SheetTitle className="font-display text-xl tracking-tight text-ink">
-            {title}
-          </SheetTitle>
-          <SheetDescription className="text-sm text-body">{subtitle}</SheetDescription>
-        </SheetHeader>
+        <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
+          <DialogHeader className="shrink-0 border-b border-dash-border pr-12">
+            <DialogTitle>{title}</DialogTitle>
+            <DialogDescription>{subtitle}</DialogDescription>
+          </DialogHeader>
 
-        <form
-          className="flex min-h-0 flex-1 flex-col"
-          onSubmit={handleSubmit}
-        >
-          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-4 py-5 sm:px-5">
-            <FieldGroup>
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-5">
+            <FieldGroup className="gap-4">
               {mode === 'create' ? (
-                <Field data-invalid={Boolean(nameError)}>
+                <Field data-invalid={Boolean(nameError)} className="max-w-md">
                   <FieldLabel htmlFor={nameId}>{t('name')}</FieldLabel>
                   <Input
                     id={nameId}
@@ -290,7 +286,7 @@ export function RoleEditorSheet({
                   {nameError ? <FieldError>{nameError}</FieldError> : null}
                 </Field>
               ) : (
-                <div className="rounded-xl border border-dash-border bg-dash-surface/60 px-3 py-2.5">
+                <div className="max-w-md rounded-xl border border-dash-border bg-dash-surface/60 px-3 py-2.5">
                   <p className="text-xs font-semibold tracking-wide text-mute uppercase">
                     {t('roleKey')}
                   </p>
@@ -309,7 +305,7 @@ export function RoleEditorSheet({
               ) : null}
 
               <Field data-invalid={Boolean(permsError)}>
-                <div className="flex items-end justify-between gap-3">
+                <div className="flex flex-wrap items-end justify-between gap-3">
                   <div>
                     <FieldLabel>{t('permissions')}</FieldLabel>
                     <FieldDescription>{t('permissionsHint')}</FieldDescription>
@@ -322,7 +318,7 @@ export function RoleEditorSheet({
                   </p>
                 </div>
 
-                <div className="relative mt-3">
+                <div className="relative mt-3 max-w-md">
                   <Search
                     className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-mute"
                     aria-hidden
@@ -337,13 +333,13 @@ export function RoleEditorSheet({
                   />
                 </div>
 
-                <div className="mt-3 flex flex-col gap-2.5">
+                <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {groups.length === 0 ? (
-                    <p className="rounded-xl border border-dashed border-dash-border px-3 py-6 text-center text-sm text-body">
+                    <p className="rounded-xl border border-dashed border-dash-border px-3 py-6 text-center text-sm text-body sm:col-span-2 xl:col-span-3">
                       {t('noGrantable')}
                     </p>
                   ) : filteredGroups.length === 0 ? (
-                    <p className="rounded-xl border border-dashed border-dash-border px-3 py-6 text-center text-sm text-body">
+                    <p className="rounded-xl border border-dashed border-dash-border px-3 py-6 text-center text-sm text-body sm:col-span-2 xl:col-span-3">
                       {t('searchNoMatches')}
                     </p>
                   ) : (
@@ -358,9 +354,9 @@ export function RoleEditorSheet({
                       return (
                         <div
                           key={group.resource}
-                          className="overflow-hidden rounded-xl border border-dash-border bg-canvas"
+                          className="flex flex-col overflow-hidden rounded-xl border border-dash-border bg-canvas"
                         >
-                          <div className="flex items-center gap-2 border-b border-dash-border bg-dash-surface/50 px-3 py-2.5">
+                          <div className="flex items-center gap-2 border-b border-dash-border bg-dash-surface/50 px-3 py-2">
                             <input
                               type="checkbox"
                               className="size-4 rounded border-dash-border"
@@ -401,7 +397,7 @@ export function RoleEditorSheet({
                           </div>
 
                           {!isCollapsed ? (
-                            <div className="grid gap-1.5 p-3 sm:grid-cols-2">
+                            <div className="grid gap-1 p-2.5">
                               {group.permissions.map((permission) => (
                                 <label
                                   key={permission}
@@ -409,11 +405,11 @@ export function RoleEditorSheet({
                                 >
                                   <input
                                     type="checkbox"
-                                    className="size-3.5 rounded border-dash-border"
+                                    className="size-3.5 shrink-0 rounded border-dash-border"
                                     checked={selected.has(permission)}
                                     onChange={() => togglePermission(permission)}
                                   />
-                                  <span className="font-mono">{permission}</span>
+                                  <span className="break-all font-mono">{permission}</span>
                                 </label>
                               ))}
                             </div>
@@ -426,55 +422,57 @@ export function RoleEditorSheet({
                 {permsError ? <FieldError>{permsError}</FieldError> : null}
               </Field>
 
-              {mode === 'edit' ? (
-                <Field data-invalid={Boolean(reasonError)}>
-                  <FieldLabel htmlFor={reasonId}>{t('reason')}</FieldLabel>
-                  <Input
-                    id={reasonId}
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                    placeholder={t('reasonPlaceholder')}
-                    aria-invalid={Boolean(reasonError)}
-                  />
-                  <FieldDescription>{t('reasonHint')}</FieldDescription>
-                  {reasonError ? <FieldError>{reasonError}</FieldError> : null}
-                </Field>
+              {error ? (
+                <p id={formErrorId} role="alert" className="text-sm text-negative">
+                  {error}
+                </p>
               ) : null}
             </FieldGroup>
-
-            {error ? (
-              <p id={formErrorId} role="alert" className="text-sm text-negative">
-                {error}
-              </p>
-            ) : null}
           </div>
 
-          <SheetFooter className="shrink-0 border-t border-dash-border bg-canvas px-4 py-4 sm:flex-row sm:justify-end sm:px-5">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={pending}
-              onClick={() => requestClose(false)}
-            >
-              {t('cancel')}
-            </Button>
-            <Button type="submit" disabled={saveDisabled} className="gap-2">
-              {pending ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
-                  {t('saving')}
-                </>
-              ) : (
-                <>
-                  <Shield className="size-4" aria-hidden />
-                  {mode === 'create' ? t('createSubmit') : t('editSubmit')}
-                </>
-              )}
-            </Button>
-          </SheetFooter>
+          <DialogFooter className="shrink-0 border-t border-dash-border bg-canvas sm:flex-col sm:items-stretch">
+            {mode === 'edit' ? (
+              <Field data-invalid={Boolean(reasonError)} className="gap-1.5">
+                <FieldLabel htmlFor={reasonId}>{t('reason')}</FieldLabel>
+                <Input
+                  id={reasonId}
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder={t('reasonPlaceholder')}
+                  aria-invalid={Boolean(reasonError)}
+                />
+                <FieldDescription>{t('reasonHint')}</FieldDescription>
+                {reasonError ? <FieldError>{reasonError}</FieldError> : null}
+              </Field>
+            ) : null}
+
+            <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={pending}
+                onClick={() => requestClose(false)}
+              >
+                {t('cancel')}
+              </Button>
+              <Button type="submit" disabled={saveDisabled} className="gap-2">
+                {pending ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                    {t('saving')}
+                  </>
+                ) : (
+                  <>
+                    <Shield className="size-4" aria-hidden />
+                    {mode === 'create' ? t('createSubmit') : t('editSubmit')}
+                  </>
+                )}
+              </Button>
+            </div>
+          </DialogFooter>
         </form>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   )
 }
 

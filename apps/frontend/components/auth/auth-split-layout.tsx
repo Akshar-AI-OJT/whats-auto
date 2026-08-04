@@ -9,15 +9,22 @@ export function AuthSplitLayout({
   branding,
   children,
   className,
+  showBrandLink = true,
+  compact = false,
 }: {
   branding: React.ReactNode
   children: React.ReactNode
   className?: string
+  /** When false, hides the Whats-Auto home link above the card (e.g. register). */
+  showBrandLink?: boolean
+  /** Tighter padding for tall forms (register) so primary CTAs fit without scroll. */
+  compact?: boolean
 }) {
   return (
     <div
       className={cn(
-        'relative flex min-h-svh w-full items-center justify-center overflow-x-clip px-4 py-6 sm:px-6 sm:py-8 md:px-8 md:py-10',
+        'relative flex min-h-svh w-full items-center justify-center overflow-x-clip px-4 sm:px-6 md:px-8',
+        compact ? 'py-4 sm:py-5 md:py-6' : 'py-6 sm:py-8 md:py-10',
         className
       )}
     >
@@ -35,27 +42,41 @@ export function AuthSplitLayout({
         className="pointer-events-none absolute bottom-1/4 left-0 size-[18rem] rounded-full bg-primary/[0.06] blur-[90px]"
       />
 
-      <div className="relative z-10 flex w-full max-w-[1200px] flex-col gap-5 sm:gap-6">
-        <Link
-          href="/"
-          className="w-fit font-display text-xl leading-none text-ink transition-opacity hover:opacity-80 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F8FAFC] sm:text-[1.35rem]"
-        >
-          Whats-Auto
-        </Link>
+      <div
+        className={cn(
+          'relative z-10 flex w-full max-w-[1200px] flex-col',
+          compact ? 'gap-3 sm:gap-4' : 'gap-5 sm:gap-6'
+        )}
+      >
+        {showBrandLink ? (
+          <Link
+            href="/"
+            className="w-fit font-display text-xl leading-none text-ink transition-opacity hover:opacity-80 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F8FAFC] sm:text-[1.35rem]"
+          >
+            Whats-Auto
+          </Link>
+        ) : null}
 
         <div
           className={cn(
             'flex w-full flex-col overflow-hidden',
             'rounded-[28px] border border-[#E2E8F0] bg-canvas',
             'shadow-[0_1px_2px_rgb(15_23_42/0.04),0_20px_50px_rgb(15_23_42/0.08)]',
-            'md:min-h-[700px] md:flex-row'
+            compact ? 'md:min-h-0 md:flex-row' : 'md:min-h-[700px] md:flex-row'
           )}
         >
           {branding}
 
           <div className="flex w-full min-w-0 flex-1 flex-col bg-canvas md:w-[60%]">
-            <div className="flex flex-1 flex-col justify-center overflow-x-clip px-5 py-10 sm:px-8 sm:py-12 md:px-10 md:py-14 lg:px-14">
-              <div className="mx-auto w-full min-w-0 max-w-[400px]">{children}</div>
+            <div
+              className={cn(
+                'flex flex-1 flex-col overflow-x-clip',
+                compact
+                  ? 'justify-start px-5 py-5 sm:px-7 sm:py-6 md:justify-center md:px-8 md:py-6 lg:px-10'
+                  : 'justify-center px-5 py-10 sm:px-8 sm:py-12 md:px-10 md:py-14 lg:px-14'
+              )}
+            >
+              <div className="mx-auto w-full min-w-0 max-w-[432px]">{children}</div>
             </div>
           </div>
         </div>

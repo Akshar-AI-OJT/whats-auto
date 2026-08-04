@@ -1,9 +1,14 @@
 import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { normalizeContactPhone } from '#services/contact_service'
-import { shouldApplyProviderStatus } from '#lib/meta_whatsapp/message_status'
 import type { MessageMetadata } from '#lib/meta_whatsapp/types'
 import type { MetaWebhookStatusName } from '#lib/meta_whatsapp/types'
+import {
+  mapReceiptMessageRow,
+  MessageReceiptRepository,
+  type ApplyDeliveryReceiptResult,
+  type ReceiptMessageRow,
+} from '#repositories/message_receipt_repository'
 
 export type ResolvedWhatsappConfig = {
   id: string
@@ -29,24 +34,7 @@ export type WebhookConversationRow = {
   closedAt: Date | string | null
 }
 
-export type WebhookMessageRow = {
-  id: string
-  organizationId: string
-  conversationId: string
-  senderType: string
-  contentType: string
-  contentText: string | null
-  providerMessageId: string | null
-  status: string
-  errorMessage: string | null
-  metadata: MessageMetadata
-  occurredAt: Date | string | null
-  providerStatusAt: Date | string | null
-  sentAt: Date | string | null
-  deliveredAt: Date | string | null
-  readAt: Date | string | null
-  failedAt: Date | string | null
-}
+export type WebhookMessageRow = ReceiptMessageRow
 
 export type InsertInboundMessageResult =
   | { inserted: false }
@@ -56,26 +44,16 @@ export type InsertInboundMessageResult =
       conversationId: string
     }
 
-export type ApplyDeliveryReceiptResult =
-  | { updated: false; reason: 'not_found' | 'stale' }
-  | {
-      updated: true
-      message: WebhookMessageRow
-      previousStatus: string
-    }
-
-function toDate(value: Date | string | null | undefined): Date | null {
-  if (value === null || value === undefined) return null
-  if (value instanceof Date) return value
-  const parsed = new Date(value)
-  return Number.isNaN(parsed.getTime()) ? null : parsed
-}
+export type { ApplyDeliveryReceiptResult }
 
 /**
  * Persistence for WhatsApp webhook ingestion.
  * CRM/Inbox queries only — orchestration and events stay in the service layer.
+ * Delivery receipts delegate to MessageReceiptRepository.
  */
 export class WhatsappWebhookRepository {
+  constructor(private receipts: MessageReceiptRepository = new MessageReceiptRepository()) {}
+
   /**
    * Resolve a connected config for a Meta phone_number_id using the
    * transaction-local webhook RLS GUC (set after HMAC verification).
@@ -283,7 +261,7 @@ export class WhatsappWebhookRepository {
 
     return {
       inserted: true,
-      message: this.mapMessageRow(row),
+      message: mapReceiptMessageRow(row),
       conversationId: params.conversationId,
     }
   }
@@ -298,109 +276,22 @@ export class WhatsappWebhookRepository {
       errorMessage: string | null
     }
   ): Promise<ApplyDeliveryReceiptResult> {
-    // Lock the row for the rest of this transaction so concurrent receipts
-    // cannot both decide against the same pre-update snapshot.
-    const existing = await trx
-      .from('messages')
-      .where('organizationId', params.organizationId)
-      .where('providerMessageId', params.providerMessageId)
-      .whereNot('senderType', 'contact')
-      .select(
-        'id',
-        'organizationId',
-        'conversationId',
-        'senderType',
-        'contentType',
-        'contentText',
-        'providerMessageId',
-        'status',
-        'errorMessage',
-        'metadata',
-        'occurredAt',
-        'providerStatusAt',
-        'sentAt',
-        'deliveredAt',
-        'readAt',
-        'failedAt'
-      )
-      .forUpdate()
-      .first()
+    return this.receipts.applyDeliveryReceipt(trx, params)
+  }
 
-    if (!existing) {
-      return { updated: false, reason: 'not_found' }
+  async upsertUnmatchedProviderReceipt(
+    trx: TransactionClientContract,
+    params: {
+      organizationId: string
+      whatsappConfigId: string
+      providerMessageId: string
+      status: MetaWebhookStatusName
+      providerStatusAt: Date
+      errorMessage: string | null
+      metadata?: Record<string, unknown>
     }
-
-    const current = this.mapMessageRow(existing)
-    const apply = shouldApplyProviderStatus({
-      currentStatus: current.status,
-      incomingStatus: params.status,
-      currentProviderStatusAt: toDate(current.providerStatusAt),
-      incomingProviderStatusAt: params.providerStatusAt,
-    })
-
-    if (!apply) {
-      return { updated: false, reason: 'stale' }
-    }
-
-    const patch: Record<string, unknown> = {
-      status: params.status,
-      providerStatusAt: params.providerStatusAt,
-      updatedAt: new Date(),
-    }
-
-    if (params.status === 'sent') {
-      patch.sentAt = params.providerStatusAt
-    } else if (params.status === 'delivered') {
-      patch.deliveredAt = params.providerStatusAt
-      if (!current.sentAt) patch.sentAt = params.providerStatusAt
-    } else if (params.status === 'read') {
-      patch.readAt = params.providerStatusAt
-      if (!current.deliveredAt) patch.deliveredAt = params.providerStatusAt
-      if (!current.sentAt) patch.sentAt = params.providerStatusAt
-    } else if (params.status === 'failed') {
-      patch.failedAt = params.providerStatusAt
-      patch.errorMessage = params.errorMessage
-    }
-
-    // Defense in depth: refuse to move providerStatusAt backwards even if
-    // the in-memory check somehow raced (should not happen after FOR UPDATE).
-    const [row] = await trx
-      .from('messages')
-      .where('id', current.id)
-      .where((query) => {
-        query
-          .whereNull('providerStatusAt')
-          .orWhere('providerStatusAt', '<=', params.providerStatusAt)
-      })
-      .update(patch)
-      .returning([
-        'id',
-        'organizationId',
-        'conversationId',
-        'senderType',
-        'contentType',
-        'contentText',
-        'providerMessageId',
-        'status',
-        'errorMessage',
-        'metadata',
-        'occurredAt',
-        'providerStatusAt',
-        'sentAt',
-        'deliveredAt',
-        'readAt',
-        'failedAt',
-      ])
-
-    if (!row) {
-      return { updated: false, reason: 'stale' }
-    }
-
-    return {
-      updated: true,
-      message: this.mapMessageRow(row),
-      previousStatus: current.status,
-    }
+  ) {
+    return this.receipts.upsertUnmatchedProviderReceipt(trx, params)
   }
 
   private async touchConversationAfterInbound(
@@ -436,38 +327,5 @@ export class WhatsappWebhookRepository {
         params.conversationId,
       ]
     )
-  }
-
-  private mapMessageRow(row: Record<string, unknown>): WebhookMessageRow {
-    let metadata: MessageMetadata = {}
-    const rawMetadata = row.metadata
-    if (typeof rawMetadata === 'string') {
-      try {
-        metadata = JSON.parse(rawMetadata) as MessageMetadata
-      } catch {
-        metadata = {}
-      }
-    } else if (rawMetadata && typeof rawMetadata === 'object' && !Array.isArray(rawMetadata)) {
-      metadata = rawMetadata as MessageMetadata
-    }
-
-    return {
-      id: row.id as string,
-      organizationId: row.organizationId as string,
-      conversationId: row.conversationId as string,
-      senderType: row.senderType as string,
-      contentType: row.contentType as string,
-      contentText: (row.contentText as string | null) ?? null,
-      providerMessageId: (row.providerMessageId as string | null) ?? null,
-      status: row.status as string,
-      errorMessage: (row.errorMessage as string | null) ?? null,
-      metadata,
-      occurredAt: (row.occurredAt as Date | string | null) ?? null,
-      providerStatusAt: (row.providerStatusAt as Date | string | null) ?? null,
-      sentAt: (row.sentAt as Date | string | null) ?? null,
-      deliveredAt: (row.deliveredAt as Date | string | null) ?? null,
-      readAt: (row.readAt as Date | string | null) ?? null,
-      failedAt: (row.failedAt as Date | string | null) ?? null,
-    }
   }
 }

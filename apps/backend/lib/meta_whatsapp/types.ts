@@ -168,6 +168,29 @@ export type MetaSendMessageResult = {
   raw: Record<string, unknown>
 }
 
+/** Cloud API send-time template component (header/body parameters). */
+export type MetaSendTemplateParameter = {
+  type: 'text'
+  text: string
+  parameter_name?: string
+}
+
+export type MetaSendTemplateComponent = {
+  type: 'header' | 'body'
+  parameters: MetaSendTemplateParameter[]
+}
+
+/**
+ * Normalized named-variable contract stored on message_templates.parameterSchema.
+ * V1: body + text-header names only; sendable=false when unsupported.
+ */
+export type TemplateParameterSchema = {
+  headerNames: string[]
+  bodyNames: string[]
+  sendable: boolean
+  unsupportedReason?: string
+}
+
 export type MetaGraphErrorBody = {
   error?: {
     message?: string

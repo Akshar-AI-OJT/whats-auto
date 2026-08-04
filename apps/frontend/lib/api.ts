@@ -277,6 +277,29 @@ export type PendingInvitation = {
   expiresAt: string
 }
 
+/** Row from GET /api/v1/onboarding/state pendingInvitations. */
+export type OnboardingPendingInvitation = {
+  id: string
+  organizationId?: string
+  organizationName: string
+  role: string
+  inviterName: string
+  expiresAt: string
+}
+
+export type OnboardingNextStep =
+  | 'accept_invitation'
+  | 'create_organization'
+  | 'select_organization'
+  | 'ready'
+
+export type OnboardingState = {
+  activeOrganizationId: string | null
+  organizations: Array<{ id: string; name: string; role?: string }>
+  pendingInvitations: OnboardingPendingInvitation[]
+  nextStep: OnboardingNextStep
+}
+
 export type OrganizationRole = {
   role: string
   isSystem: boolean
@@ -377,6 +400,14 @@ export const api = {
   account: {
     profile: () =>
       request<{ data?: ProfileUser } & ProfileUser>('/api/v1/account/profile', {
+        method: 'GET',
+      }),
+  },
+
+  /** Post-auth routing — no active organization required. */
+  onboarding: {
+    state: () =>
+      request<{ data?: OnboardingState } & OnboardingState>('/api/v1/onboarding/state', {
         method: 'GET',
       }),
   },
