@@ -110,16 +110,23 @@ export class InvitationService {
     }
 
     const inviteLink = `${env.get('CORS_ORIGIN')}/accept-invitation/${invitation.id}`
-    const { error } = await resend.emails.send({
-      from: env.get('EMAIL_FROM'),
-      to: normalizedEmail,
-      subject: `You've been invited to ${org.name}`,
-      html: `
+    try {
+      const { error } = await resend.emails.send({
+        from: env.get('EMAIL_FROM'),
+        to: normalizedEmail,
+        subject: `You've been invited to ${org.name}`,
+        html: `
         <p>${inviter.name} invited you to join <strong>${org.name}</strong> as <strong>${role}</strong>.</p>
         <p><a href="${inviteLink}">Accept Invitation</a> — link expires in ${INVITE_TTL_HOURS} hours.</p>
       `,
-    })
-    if (error) throw new Error(`Failed to send invite email: ${error.message}`)
+      })
+      if (error) throw InvitationException.emailSendFailed(error.message)
+    } catch (error) {
+      // Do not leave a pending invite that the recipient never received.
+      await db.from('organization_invitations').where('id', invitation.id).delete()
+      if (error instanceof InvitationException) throw error
+      throw InvitationException.emailSendFailed(error instanceof Error ? error.message : undefined)
+    }
 
     return {
       id: invitation.id as string,
@@ -290,10 +297,7 @@ export class InvitationService {
       throw new Error('Invitation is no longer pending')
     }
 
-    if (
-      userEmail &&
-      (invitation.email as string).toLowerCase() !== userEmail.toLowerCase()
-    ) {
+    if (userEmail && (invitation.email as string).toLowerCase() !== userEmail.toLowerCase()) {
       throw new Error('Invitation email does not match your account')
     }
 
