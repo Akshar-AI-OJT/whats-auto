@@ -1,0 +1,131 @@
+import {
+  api,
+  type ApiError,
+  type CreateSuperAdminSubscriptionBody,
+  type PaginationMeta,
+  type SuperAdminSubscription,
+  type SuperAdminSubscriptionStatus,
+  type UpdateSuperAdminSubscriptionBody,
+} from '@/lib/api'
+
+/** Demo-seeded plan UUIDs (stableUuid) — used only when no plans catalog API exists. */
+export const DEMO_PLAN_OPTIONS: Array<{ id: string; label: string }> = [
+  { id: '55c5e165-97f1-45b0-b3d1-801b79f4ff98', label: 'Starter' },
+  { id: '4854c623-f7d6-45a1-a4cd-a262e652f57a', label: 'Growth' },
+  { id: 'b1aaef4d-7933-4965-9cff-69217166513d', label: 'Scale' },
+]
+
+export const SUBSCRIPTION_STATUSES: SuperAdminSubscriptionStatus[] = [
+  'trialing',
+  'active',
+  'past_due',
+  'cancelled',
+]
+
+function unwrapPaginated(
+  data: unknown
+): { items: SuperAdminSubscription[]; meta: PaginationMeta | null } {
+  if (!data) return { items: [], meta: null }
+  if (Array.isArray(data)) return { items: data, meta: null }
+
+  const root = data as {
+    data?: SuperAdminSubscription[] | { data?: SuperAdminSubscription[]; meta?: PaginationMeta }
+    meta?: PaginationMeta
+  }
+
+  if (Array.isArray(root.data)) {
+    return { items: root.data, meta: root.meta ?? null }
+  }
+
+  if (root.data && typeof root.data === 'object' && Array.isArray(root.data.data)) {
+    return { items: root.data.data, meta: root.data.meta ?? root.meta ?? null }
+  }
+
+  return { items: [], meta: null }
+}
+
+function unwrapSubscription(data: unknown): SuperAdminSubscription {
+  if (!data || typeof data !== 'object') {
+    throw new Error('Invalid subscription response')
+  }
+  const root = data as { data?: SuperAdminSubscription } & SuperAdminSubscription
+  if (root.data && typeof root.data === 'object' && 'id' in root.data) {
+    return root.data
+  }
+  return root as SuperAdminSubscription
+}
+
+export function planLabel(planId: string): string {
+  return DEMO_PLAN_OPTIONS.find((plan) => plan.id === planId)?.label ?? planId.slice(0, 8)
+}
+
+export async function listSuperAdminSubscriptions(params: {
+  page?: number
+  perPage?: number
+}): Promise<{ items: SuperAdminSubscription[]; meta: PaginationMeta | null }> {
+  const { data } = await api.superAdmin.subscriptions.list(params)
+  return unwrapPaginated(data)
+}
+
+export async function getSuperAdminSubscription(
+  subscriptionId: string
+): Promise<SuperAdminSubscription> {
+  const { data } = await api.superAdmin.subscriptions.get(subscriptionId)
+  return unwrapSubscription(data)
+}
+
+export async function createSuperAdminSubscription(
+  body: CreateSuperAdminSubscriptionBody
+): Promise<SuperAdminSubscription> {
+  const { data } = await api.superAdmin.subscriptions.create(body)
+  return unwrapSubscription(data)
+}
+
+export async function updateSuperAdminSubscription(
+  subscriptionId: string,
+  body: UpdateSuperAdminSubscriptionBody
+): Promise<SuperAdminSubscription> {
+  const { data } = await api.superAdmin.subscriptions.update(subscriptionId, body)
+  return unwrapSubscription(data)
+}
+
+export async function deleteSuperAdminSubscription(subscriptionId: string): Promise<void> {
+  await api.superAdmin.subscriptions.destroy(subscriptionId)
+}
+
+/**
+ * Convert `<input type="date">` (YYYY-MM-DD) for Vine `vine.date()`.
+ * Default Vine accepts `YYYY-MM-DD` or `YYYY-MM-DD HH:mm:ss` — not ISO-8601 with `T`/`Z`.
+ */
+export function dateInputToIso(value: string, endOfDay = false): string {
+  const trimmed = value.trim()
+  if (!trimmed) return trimmed
+  const day = trimmed.includes('T') ? trimmed.slice(0, 10) : trimmed.slice(0, 10)
+  return endOfDay ? `${day} 23:59:59` : `${day} 00:00:00`
+}
+
+/** Prefer YYYY-MM-DD for date inputs. */
+export function isoToDateInput(value: string | null | undefined): string {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return value.slice(0, 10)
+  }
+  return date.toISOString().slice(0, 10)
+}
+
+export function mapSubscriptionApiError(error: unknown, fallback: string): string {
+  const apiError = error as ApiError
+  if (apiError.status === 401) return 'Your session expired. Please sign in again.'
+  if (apiError.status === 403) return 'You do not have permission for this action.'
+  if (apiError.code === 'E_SUBSCRIPTION_NOT_FOUND') return 'Subscription not found.'
+  if (apiError.code === 'E_ORGANIZATION_NOT_FOUND') return 'Organization not found.'
+  if (apiError.code === 'E_PLAN_NOT_FOUND') return 'Plan not found.'
+  if (apiError.code === 'E_SUBSCRIPTION_INVALID_PERIOD') {
+    return 'End date must be after start date.'
+  }
+  if (apiError.code === 'E_SUBSCRIPTION_ALREADY_DELETED') {
+    return 'Subscription is already cancelled.'
+  }
+  return apiError.message || fallback
+}

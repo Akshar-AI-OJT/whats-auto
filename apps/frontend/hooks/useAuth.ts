@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { api, type ApiError, type ProfileUser } from '@/lib/api'
+import { clearAccessToken } from '@/lib/access-token'
 import { clearLegacyOrganizationCache } from '@/lib/onboarding'
 
 type AuthState = {
@@ -73,6 +74,7 @@ export function useAuth(): AuthState {
     try {
       await api.auth.logout()
     } finally {
+      clearAccessToken()
       clearLegacyOrganizationCache()
       setUser(null)
     }

@@ -5,18 +5,20 @@ import {
   Eye,
   MoreHorizontal,
   PauseCircle,
+  Pencil,
   PlayCircle,
   Trash2,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
-import type { MockOrganization, OrganizationStatus } from '../mock-data'
+import type { OrganizationStatus } from '../mock-data'
+import type { AdminOrganizationListItem } from './organization-api'
 
-export type OrganizationActionId = 'view' | 'suspend' | 'activate' | 'delete'
+export type OrganizationActionId = 'view' | 'edit' | 'suspend' | 'activate' | 'delete'
 
 type OrganizationActionsMenuProps = {
-  organization: MockOrganization
-  onAction: (action: OrganizationActionId, organization: MockOrganization) => void
+  organization: AdminOrganizationListItem
+  onAction: (action: OrganizationActionId, organization: AdminOrganizationListItem) => void
 }
 
 export function OrganizationActionsMenu({
@@ -62,16 +64,21 @@ export function OrganizationActionsMenu({
       icon: <Eye />,
     },
     {
+      id: 'edit',
+      label: t('edit'),
+      icon: <Pencil />,
+    },
+    {
       id: 'suspend',
       label: t('suspend'),
       icon: <PauseCircle />,
-      hidden: organization.status === 'suspended',
+      hidden: organization.uiStatus === 'suspended',
     },
     {
       id: 'activate',
       label: t('activate'),
       icon: <PlayCircle />,
-      hidden: organization.status !== 'suspended',
+      hidden: organization.uiStatus !== 'suspended',
     },
     {
       id: 'delete',

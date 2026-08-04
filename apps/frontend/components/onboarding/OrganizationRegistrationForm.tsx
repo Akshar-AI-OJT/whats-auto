@@ -17,8 +17,10 @@ import {
   readPendingOnboardingContact,
   savePendingWorkspacePreferences,
 } from '@/lib/onboarding'
+import { ORG_SETUP_PATH } from '@/lib/onboarding'
 import {
   acceptInvitationPath,
+  normalizeAppPath,
   readPendingInvitationId,
   resolvePostAuthPath,
 } from '@/lib/post-auth-redirect'
@@ -85,17 +87,17 @@ export function OrganizationRegistrationForm({
   const [basicsErrors, setBasicsErrors] = useState<OrganizationWizardBasicsErrors>({})
   const [guardingInvite, setGuardingInvite] = useState(true)
 
-  // Invitees must never see create-org — bounce to accept flow when pending invites exist.
+  // Invitees / platform superadmins must never stay on create-org.
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       try {
         const nextPath = await resolvePostAuthPath({
           preferredCallback: null,
-          fallback: '/onboarding/organization',
+          fallback: ORG_SETUP_PATH,
         })
         if (cancelled) return
-        if (nextPath.startsWith('/accept-invitation/')) {
+        if (normalizeAppPath(nextPath) !== ORG_SETUP_PATH) {
           router.replace(nextPath)
           return
         }

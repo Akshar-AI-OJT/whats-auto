@@ -1984,6 +1984,33 @@
       "statusFilterLabel": "Filter by status",
       "planFilterLabel": "Filter by plan",
       "empty": "No organizations match your filters.",
+      "loading": "Loading organizations…",
+      "retry": "Retry",
+      "prevPage": "Previous",
+      "nextPage": "Next",
+      "pagination": "Page {page} of {lastPage} · {total} total",
+      "editTitle": "Edit organization",
+      "editSubtitle": "Update details for “{name}”.",
+      "editCancel": "Cancel",
+      "editSave": "Save changes",
+      "saving": "Saving…",
+      "deleteConfirmTitle": "Delete this organization?",
+      "deleteConfirmBody": "“{name}” will be soft-deleted. Members will lose access.",
+      "deleteCancel": "Cancel",
+      "deleteConfirm": "Delete organization",
+      "deleting": "Deleting…",
+      "editFields": {
+        "name": "Name",
+        "phone": "Phone",
+        "website": "Website",
+        "industry": "Industry",
+        "timezone": "Timezone",
+        "currency": "Currency"
+      },
+      "toast": {
+        "updated": "Updated “{name}”.",
+        "deleted": "Deleted “{name}”."
+      },
       "columns": {
         "organization": "Organization",
         "owner": "Owner",
@@ -2005,21 +2032,30 @@
           "starter": "Starter",
           "growth": "Growth",
           "pro": "Pro",
-          "enterprise": "Enterprise"
+          "enterprise": "Enterprise",
+          "unavailable": "—"
         }
       },
       "actions": {
         "menuLabel": "Actions for {name}",
         "view": "View",
+        "edit": "Edit",
         "suspend": "Suspend",
         "activate": "Activate",
         "delete": "Delete"
+      },
+      "errors": {
+        "loadFailed": "Couldn’t load organizations. Please try again.",
+        "updateFailed": "Couldn’t update this organization.",
+        "deleteFailed": "Couldn’t delete this organization.",
+        "nameRequired": "Name must be at least 2 characters.",
+        "actionUnavailable": "This action isn’t available from the API yet."
       },
       "detail": {
         "eyebrow": "Organization",
         "back": "Back to organizations",
         "notFoundTitle": "Organization not found",
-        "notFoundDescription": "This organization is missing from the mock catalog.",
+        "notFoundDescription": "This organization could not be found on the platform.",
         "general": {
           "title": "General Information",
           "description": "Core tenant profile and contact details.",
@@ -2039,6 +2075,7 @@
         "subscription": {
           "title": "Subscription",
           "description": "Current plan, billing, and renewal details.",
+          "unavailable": "Subscription details aren’t available from the API yet.",
           "fields": {
             "plan": "Plan",
             "billingCycle": "Billing cycle",
@@ -2090,6 +2127,7 @@
         "members": {
           "title": "Workspace Members",
           "description": "{count, plural, one {Showing # member} other {Showing # members}}",
+          "unavailable": "Member roster isn’t available from the API yet.",
           "columns": {
             "member": "Member",
             "role": "Role",
@@ -2103,14 +2141,76 @@
         },
         "activity": {
           "title": "Recent Activity",
-          "description": "Latest events inside this workspace."
+          "description": "Latest events inside this workspace.",
+          "unavailable": "Activity isn’t available from the API yet."
         }
       }
     },
     "subscriptions": {
       "eyebrow": "Billing catalog",
       "title": "Subscriptions",
-      "subtitle": "Review platform plans, limits, and included features. Mock catalog only — no payments.",
+      "subtitle": "Manage organization subscriptions and review platform plans.",
+      "tableTitle": "All subscriptions",
+      "tableDescription": "{count, plural, =0 {No subscriptions} one {# subscription} other {# subscriptions}}",
+      "create": "Create subscription",
+      "loading": "Loading subscriptions…",
+      "retry": "Retry",
+      "empty": "No subscriptions yet.",
+      "prevPage": "Previous",
+      "nextPage": "Next",
+      "pagination": "Page {page} of {lastPage} · {total} total",
+      "createTitle": "Create subscription",
+      "createSubtitle": "Assign a plan and billing period to an organization.",
+      "createSave": "Create subscription",
+      "editTitle": "Edit subscription",
+      "editSubtitle": "Update the plan or period for “{name}”.",
+      "editSave": "Save changes",
+      "cancel": "Cancel",
+      "saving": "Saving…",
+      "deleting": "Deleting…",
+      "deleteConfirmTitle": "Cancel this subscription?",
+      "deleteConfirmBody": "“{name}” will be soft-deleted (status set to cancelled).",
+      "deleteConfirm": "Delete subscription",
+      "columns": {
+        "organization": "Organization",
+        "plan": "Plan",
+        "status": "Status",
+        "period": "Period",
+        "actions": "Actions"
+      },
+      "actions": {
+        "edit": "Edit",
+        "delete": "Delete"
+      },
+      "fields": {
+        "organizationId": "Organization",
+        "organizationPlaceholder": "Select an organization",
+        "planId": "Plan",
+        "status": "Status",
+        "startDate": "Start date",
+        "endDate": "End date"
+      },
+      "statuses": {
+        "trialing": "Trialing",
+        "active": "Active",
+        "past_due": "Past due",
+        "cancelled": "Cancelled"
+      },
+      "toast": {
+        "created": "Subscription created.",
+        "updated": "Subscription updated.",
+        "deleted": "Subscription deleted."
+      },
+      "errors": {
+        "loadFailed": "Failed to load subscriptions. Please try again.",
+        "createFailed": "Failed to create subscription.",
+        "updateFailed": "Failed to update subscription.",
+        "deleteFailed": "Failed to delete subscription.",
+        "organizationRequired": "Select a valid organization.",
+        "planRequired": "Select a valid plan.",
+        "datesRequired": "Start and end dates are required.",
+        "periodInvalid": "End date must be after start date."
+      },
       "plansTitle": "Platform plans",
       "plansDescription": "Limits and features available to tenant organizations.",
       "perMonth": "/ month",

@@ -112,14 +112,20 @@ export class SubscriptionService {
     }
 
     return runWithTenant(data.organizationId, async () => {
-      return OrganizationSubscription.create({
-        organizationId: data.organizationId,
-        planId: data.planId,
-        status: data.status,
-        currentPeriodStart: start,
-        currentPeriodEnd: end,
-        cancelAt: data.cancelAt ? toDateTime(data.cancelAt) : null,
-      })
+      // Knex (not Lucid .create) — DB columns are camelCase; Lucid emits snake_case.
+      const [created] = await db
+        .table('organization_subscriptions')
+        .insert({
+          organizationId: data.organizationId,
+          planId: data.planId,
+          status: data.status,
+          currentPeriodStart: start.toJSDate(),
+          currentPeriodEnd: end.toJSDate(),
+          cancelAt: data.cancelAt ? toDateTime(data.cancelAt).toJSDate() : null,
+        })
+        .returning('*')
+
+      return created
     })
   }
 
@@ -151,32 +157,32 @@ export class SubscriptionService {
       throw SubscriptionException.invalidPeriod()
     }
 
-    const hasUpdates =
-      patch.planId !== undefined ||
-      patch.status !== undefined ||
-      patch.currentPeriodStart !== undefined ||
-      patch.currentPeriodEnd !== undefined ||
-      patch.cancelAt !== undefined
+    const updates: Record<string, unknown> = {}
+    if (patch.planId !== undefined) updates.planId = patch.planId
+    if (patch.status !== undefined) updates.status = patch.status
+    if (patch.currentPeriodStart !== undefined) {
+      updates.currentPeriodStart = periodStart.toJSDate()
+    }
+    if (patch.currentPeriodEnd !== undefined) {
+      updates.currentPeriodEnd = periodEnd.toJSDate()
+    }
+    if (patch.cancelAt !== undefined) {
+      updates.cancelAt = patch.cancelAt ? toDateTime(patch.cancelAt).toJSDate() : null
+    }
 
-    if (!hasUpdates) {
+    if (Object.keys(updates).length === 0) {
       return existing
     }
 
     return runWithTenant(existing.organizationId, async () => {
-      if (patch.planId !== undefined) existing.planId = patch.planId
-      if (patch.status !== undefined) existing.status = patch.status
-      if (patch.currentPeriodStart !== undefined) {
-        existing.currentPeriodStart = periodStart
-      }
-      if (patch.currentPeriodEnd !== undefined) {
-        existing.currentPeriodEnd = periodEnd
-      }
-      if (patch.cancelAt !== undefined) {
-        existing.cancelAt = patch.cancelAt ? toDateTime(patch.cancelAt) : null
-      }
+      // Knex update — Lucid .save() maps planId → plan_id and breaks camelCase columns.
+      const [updated] = await db
+        .from('organization_subscriptions')
+        .where('id', subscriptionId)
+        .update(updates)
+        .returning('*')
 
-      await existing.save()
-      return existing
+      return updated
     })
   }
 
@@ -192,9 +198,13 @@ export class SubscriptionService {
     }
 
     return runWithTenant(subscription.organizationId, async () => {
-      subscription.status = SUBSCRIPTION_SOFT_DELETED_STATUS
-      subscription.cancelAt = DateTime.utc()
-      await subscription.save()
+      await db
+        .from('organization_subscriptions')
+        .where('id', subscriptionId)
+        .update({
+          status: SUBSCRIPTION_SOFT_DELETED_STATUS,
+          cancelAt: DateTime.utc().toJSDate(),
+        })
     })
   }
 }

@@ -1,5 +1,9 @@
+import { peekAccessTokenRole } from '@/lib/access-token'
 import { api, type ApiError } from '@/lib/api'
 import { ORG_SETUP_PATH } from '@/lib/onboarding'
+
+/** Platform console home for global superadmin (no tenant org required). */
+export const SUPER_ADMIN_HOME_PATH = '/admin/dashboard'
 
 const PENDING_INVITE_KEY = 'wa-pending-invitation-id'
 
@@ -132,11 +136,22 @@ export async function resolvePostAuthPath(options: {
       }
 
       if (state.nextStep === 'create_organization') {
+        // Platform superadmins have no tenant membership — don't send them to create-org.
+        if (peekAccessTokenRole() === 'superadmin') {
+          clearPendingInvitationId()
+          if (preferred?.startsWith('/admin')) return preferred
+          return SUPER_ADMIN_HOME_PATH
+        }
         // Stale invite id from a previous attempt should not block create-org.
         if (state.pendingInvitations.length === 0) {
           clearPendingInvitationId()
         }
         return ORG_SETUP_PATH
+      }
+
+      if (peekAccessTokenRole() === 'superadmin' && state.organizations.length === 0) {
+        if (preferred?.startsWith('/admin')) return preferred
+        return SUPER_ADMIN_HOME_PATH
       }
 
       return '/dashboard'
