@@ -110,7 +110,10 @@ async function seedOutboundMessage(params: {
 }
 
 async function cleanupOrg(organizationId: string) {
-  await db.from('organizations').where('id', organizationId).delete()
+  // Cascade-delete via the org row; run with tenant so FORCE RLS policies allow it.
+  await runWithTenant(organizationId, async () => {
+    await db.from('organizations').where('id', organizationId).delete()
+  })
 }
 
 function signedPayload(payload: Record<string, unknown>) {
@@ -205,9 +208,18 @@ test.group('WhatsApp webhook ingestion', (group) => {
       response.assertStatus(200)
 
       await runWithTenant(fixture.organizationId, async () => {
-        const contacts = await db.from('contacts').select('*')
-        const conversations = await db.from('conversations').select('*')
-        const messages = await db.from('messages').select('*')
+        const contacts = await db
+          .from('contacts')
+          .where('organizationId', fixture.organizationId)
+          .select('*')
+        const conversations = await db
+          .from('conversations')
+          .where('organizationId', fixture.organizationId)
+          .select('*')
+        const messages = await db
+          .from('messages')
+          .where('organizationId', fixture.organizationId)
+          .select('*')
 
         assert.lengthOf(contacts, 1)
         assert.equal(contacts[0].name, 'Ada Lovelace')
@@ -290,7 +302,11 @@ test.group('WhatsApp webhook ingestion', (group) => {
     response.assertStatus(200)
 
     await runWithTenant(fixture.organizationId, async () => {
-      const messages = await db.from('messages').orderBy('occurredAt', 'asc').select('*')
+      const messages = await db
+        .from('messages')
+        .where('organizationId', fixture.organizationId)
+        .orderBy('occurredAt', 'asc')
+        .select('*')
       assert.lengthOf(messages, 3)
 
       for (const message of messages) {
@@ -302,7 +318,10 @@ test.group('WhatsApp webhook ingestion', (group) => {
       assert.equal(messages[1].metadata.location.name, 'Office')
       assert.equal(messages[2].metadata.interactive.buttonReply.title, 'Confirm')
 
-      const conversations = await db.from('conversations').select('*')
+      const conversations = await db
+        .from('conversations')
+        .where('organizationId', fixture.organizationId)
+        .select('*')
       assert.lengthOf(conversations, 1)
       assert.equal(conversations[0].unreadCount, 3)
     })
@@ -361,8 +380,14 @@ test.group('WhatsApp webhook ingestion', (group) => {
     response.assertStatus(200)
 
     await runWithTenant(fixture.organizationId, async () => {
-      const messages = await db.from('messages').select('*')
-      const conversations = await db.from('conversations').select('*')
+      const messages = await db
+        .from('messages')
+        .where('organizationId', fixture.organizationId)
+        .select('*')
+      const conversations = await db
+        .from('conversations')
+        .where('organizationId', fixture.organizationId)
+        .select('*')
       assert.lengthOf(messages, 2)
       assert.lengthOf(conversations, 1)
       assert.equal(conversations[0].unreadCount, 2)
@@ -406,8 +431,14 @@ test.group('WhatsApp webhook ingestion', (group) => {
     response.assertStatus(200)
 
     await runWithTenant(fixture.organizationId, async () => {
-      assert.lengthOf(await db.from('messages').select('id'), 0)
-      assert.lengthOf(await db.from('contacts').select('id'), 0)
+      assert.lengthOf(
+        await db.from('messages').where('organizationId', fixture.organizationId).select('id'),
+        0
+      )
+      assert.lengthOf(
+        await db.from('contacts').where('organizationId', fixture.organizationId).select('id'),
+        0
+      )
     })
   })
 
@@ -452,7 +483,10 @@ test.group('WhatsApp webhook ingestion', (group) => {
     response.assertStatus(200)
 
     await runWithTenant(organizationId, async () => {
-      assert.lengthOf(await db.from('messages').select('id'), 0)
+      assert.lengthOf(
+        await db.from('messages').where('organizationId', organizationId).select('id'),
+        0
+      )
     })
   })
 
@@ -495,8 +529,14 @@ test.group('WhatsApp webhook ingestion', (group) => {
     }
 
     await runWithTenant(fixture.organizationId, async () => {
-      const messages = await db.from('messages').select('*')
-      const conversations = await db.from('conversations').select('*')
+      const messages = await db
+        .from('messages')
+        .where('organizationId', fixture.organizationId)
+        .select('*')
+      const conversations = await db
+        .from('conversations')
+        .where('organizationId', fixture.organizationId)
+        .select('*')
       assert.lengthOf(messages, 1)
       assert.equal(conversations[0].unreadCount, 1)
     })
@@ -564,7 +604,10 @@ test.group('WhatsApp webhook ingestion', (group) => {
     response.assertStatus(200)
 
     await runWithTenant(fixture.organizationId, async () => {
-      const conversations = await db.from('conversations').select('*')
+      const conversations = await db
+        .from('conversations')
+        .where('organizationId', fixture.organizationId)
+        .select('*')
       assert.lengthOf(conversations, 1)
       assert.equal(conversations[0].status, 'open')
       assert.isNull(conversations[0].closedAt)
@@ -802,6 +845,122 @@ test.group('WhatsApp webhook ingestion', (group) => {
       const message = await db.from('messages').where('id', seeded.messageId).first()
       assert.equal(message.status, 'read')
       assert.isNotNull(message.readAt)
+    })
+  })
+
+  test('buffers unknown wamid receipts into unmatched_provider_receipts', async ({
+    client,
+    assert,
+  }) => {
+    const fixture = await createFixture()
+    const statusEvents: InboxStatusUpdated[] = []
+    const onStatus = (event: InboxStatusUpdated) => statusEvents.push(event)
+    emitter.on(InboxStatusUpdated, onStatus)
+
+    try {
+      const { payload, signature } = signedPayload({
+        object: 'whatsapp_business_account',
+        entry: [
+          {
+            id: 'waba',
+            changes: [
+              {
+                field: 'messages',
+                value: messagesValue({
+                  phoneNumberId: fixture.phoneNumberId,
+                  statuses: [
+                    {
+                      id: 'wamid.early.1',
+                      status: 'delivered',
+                      timestamp: '1717200000',
+                      recipient_id: '15550000010',
+                    },
+                  ],
+                }),
+              },
+            ],
+          },
+        ],
+      })
+
+      const response = await client
+        .post('/api/v1/webhooks/whatsapp')
+        .header('X-Hub-Signature-256', signature)
+        .json(payload)
+      response.assertStatus(200)
+
+      await runWithTenant(fixture.organizationId, async () => {
+        const rows = await db
+          .from('unmatched_provider_receipts')
+          .where('organizationId', fixture.organizationId)
+          .select('*')
+        assert.lengthOf(rows, 1)
+        assert.equal(rows[0].providerMessageId, 'wamid.early.1')
+        assert.equal(rows[0].status, 'delivered')
+        assert.equal(rows[0].whatsappConfigId, fixture.whatsappConfigId)
+      })
+
+      assert.lengthOf(statusEvents, 0)
+    } finally {
+      emitter.off(InboxStatusUpdated, onStatus)
+    }
+  })
+
+  test('unmatched receipt upserts keep latest status by rank and timestamp', async ({
+    client,
+    assert,
+  }) => {
+    const fixture = await createFixture()
+
+    const postStatus = async (status: string, timestamp: string, id = 'wamid.early.2') => {
+      const { payload, signature } = signedPayload({
+        object: 'whatsapp_business_account',
+        entry: [
+          {
+            id: 'waba',
+            changes: [
+              {
+                field: 'messages',
+                value: messagesValue({
+                  phoneNumberId: fixture.phoneNumberId,
+                  statuses: [
+                    {
+                      id,
+                      status,
+                      timestamp,
+                      recipient_id: '15550000011',
+                    },
+                  ],
+                }),
+              },
+            ],
+          },
+        ],
+      })
+
+      const response = await client
+        .post('/api/v1/webhooks/whatsapp')
+        .header('X-Hub-Signature-256', signature)
+        .json(payload)
+      response.assertStatus(200)
+    }
+
+    await postStatus('delivered', '1717200000')
+    await postStatus('sent', '1717190000') // stale / lower rank
+    await postStatus('read', '1717210000')
+
+    await runWithTenant(fixture.organizationId, async () => {
+      const rows = await db
+        .from('unmatched_provider_receipts')
+        .where('organizationId', fixture.organizationId)
+        .select('*')
+      assert.lengthOf(rows, 1)
+      assert.equal(rows[0].providerMessageId, 'wamid.early.2')
+      assert.equal(rows[0].status, 'read')
+      assert.equal(
+        new Date(rows[0].providerStatusAt).toISOString(),
+        new Date(1717210000 * 1000).toISOString()
+      )
     })
   })
 })
