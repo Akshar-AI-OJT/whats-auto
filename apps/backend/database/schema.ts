@@ -208,7 +208,7 @@ export class MediaAssetSchema extends BaseModel {
 }
 
 export class MessageTemplateSchema extends BaseModel {
-  static $columns = ['bodyText', 'buttons', 'category', 'createdAt', 'createdByUserId', 'footerText', 'headerContent', 'headerMediaUrl', 'headerType', 'id', 'language', 'lastSubmittedAt', 'metaTemplateId', 'name', 'organizationId', 'qualityScore', 'rejectionReason', 'sampleValues', 'status', 'submissionError', 'updatedAt', 'whatsappConfigId'] as const
+  static $columns = ['bodyText', 'buttons', 'category', 'createdAt', 'createdByUserId', 'footerText', 'headerContent', 'headerMediaUrl', 'headerType', 'id', 'language', 'lastSubmittedAt', 'metaTemplateId', 'name', 'organizationId', 'parameterSchema', 'qualityScore', 'rejectionReason', 'sampleValues', 'status', 'submissionError', 'updatedAt', 'whatsappConfigId'] as const
   $columns = MessageTemplateSchema.$columns
   @column()
   declare bodyText: string
@@ -240,6 +240,8 @@ export class MessageTemplateSchema extends BaseModel {
   declare name: string
   @column()
   declare organizationId: string
+  @column()
+  declare parameterSchema: any
   @column()
   declare qualityScore: string | null
   @column()
@@ -424,6 +426,43 @@ export class OrganizationSchema extends BaseModel {
   declare website: string | null
 }
 
+export class OutboundDispatchSchema extends BaseModel {
+  static $columns = ['attempts', 'completedAt', 'createdAt', 'errorCode', 'errorMessage', 'id', 'lockedAt', 'lockExpiresAt', 'lockOwner', 'messageId', 'nextAttemptAt', 'organizationId', 'payload', 'status', 'updatedAt', 'whatsappConfigId'] as const
+  $columns = OutboundDispatchSchema.$columns
+  @column()
+  declare attempts: number
+  @column.dateTime()
+  declare completedAt: DateTime | null
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare errorCode: string | null
+  @column()
+  declare errorMessage: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column.dateTime()
+  declare lockedAt: DateTime | null
+  @column.dateTime()
+  declare lockExpiresAt: DateTime | null
+  @column()
+  declare lockOwner: string | null
+  @column()
+  declare messageId: string
+  @column.dateTime()
+  declare nextAttemptAt: DateTime | null
+  @column()
+  declare organizationId: string
+  @column()
+  declare payload: any
+  @column()
+  declare status: string
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+  @column()
+  declare whatsappConfigId: string
+}
+
 export class PaymentTransactionSchema extends BaseModel {
   static $columns = ['amount', 'createdAt', 'currency', 'gateway', 'gatewayTransactionId', 'id', 'invoiceUrl', 'metadata', 'organizationId', 'status', 'subscriptionId'] as const
   $columns = PaymentTransactionSchema.$columns
@@ -534,6 +573,35 @@ export class SessionSchema extends BaseModel {
   declare userAgent: string | null
   @column()
   declare userId: string
+}
+
+export class UnmatchedProviderReceiptSchema extends BaseModel {
+  static $columns = ['createdAt', 'errorMessage', 'expiresAt', 'id', 'metadata', 'organizationId', 'providerMessageId', 'providerStatusAt', 'receivedAt', 'status', 'updatedAt', 'whatsappConfigId'] as const
+  $columns = UnmatchedProviderReceiptSchema.$columns
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare errorMessage: string | null
+  @column.dateTime()
+  declare expiresAt: DateTime
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare metadata: any
+  @column()
+  declare organizationId: string
+  @column()
+  declare providerMessageId: string
+  @column.dateTime()
+  declare providerStatusAt: DateTime
+  @column.dateTime()
+  declare receivedAt: DateTime
+  @column()
+  declare status: string
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+  @column()
+  declare whatsappConfigId: string
 }
 
 export class UsageMeterSchema extends BaseModel {
