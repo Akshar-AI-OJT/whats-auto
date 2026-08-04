@@ -77,7 +77,80 @@ test.group('HttpMetaGraphClient', () => {
     assert.include(seenUrl, '/v25.0/pn-1/messages')
     assert.equal(seenBody.messaging_product, 'whatsapp')
     assert.equal(seenBody.type, 'template')
+    const template = seenBody.template as Record<string, unknown>
+    assert.isUndefined(template.components)
     assert.equal(result.messageId, 'wamid.1')
+  })
+
+  test('sendTemplateMessage includes components when provided', async ({ assert }) => {
+    let seenBody: Record<string, unknown> = {}
+
+    const fetchImpl: typeof fetch = async (_input, init) => {
+      seenBody = JSON.parse(String(init?.body)) as Record<string, unknown>
+      return new Response(JSON.stringify({ messages: [{ id: 'wamid.2' }] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const client = new HttpMetaGraphClient({
+      appId: 'app',
+      appSecret: 'secret',
+      graphVersion: 'v25.0',
+      fetchImpl,
+    })
+
+    await client.sendTemplateMessage({
+      phoneNumberId: 'pn-1',
+      accessToken: 'tok',
+      to: '15551234567',
+      templateName: 'order_update',
+      languageCode: 'en',
+      components: [
+        {
+          type: 'body',
+          parameters: [{ type: 'text', parameter_name: 'name', text: 'Ada' }],
+        },
+      ],
+    })
+
+    const template = seenBody.template as Record<string, unknown>
+    assert.deepEqual(template.components, [
+      {
+        type: 'body',
+        parameters: [{ type: 'text', parameter_name: 'name', text: 'Ada' }],
+      },
+    ])
+  })
+
+  test('sendTextMessage posts Cloud API text shape', async ({ assert }) => {
+    let seenBody: Record<string, unknown> = {}
+
+    const fetchImpl: typeof fetch = async (_input, init) => {
+      seenBody = JSON.parse(String(init?.body)) as Record<string, unknown>
+      return new Response(JSON.stringify({ messages: [{ id: 'wamid.text' }] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const client = new HttpMetaGraphClient({
+      appId: 'app',
+      appSecret: 'secret',
+      graphVersion: 'v25.0',
+      fetchImpl,
+    })
+
+    const result = await client.sendTextMessage({
+      phoneNumberId: 'pn-1',
+      accessToken: 'tok',
+      to: '15551234567',
+      text: 'Hello there',
+    })
+
+    assert.equal(seenBody.type, 'text')
+    assert.deepEqual(seenBody.text, { preview_url: false, body: 'Hello there' })
+    assert.equal(result.messageId, 'wamid.text')
   })
 
   test('sendTextMessage posts Cloud API shape', async ({ assert }) => {

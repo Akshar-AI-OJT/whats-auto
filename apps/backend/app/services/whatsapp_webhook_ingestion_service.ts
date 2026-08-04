@@ -117,15 +117,40 @@ export default class WhatsappWebhookIngestionService {
           })
 
           if (!result.updated) {
-            logger.info(
-              {
-                outcome: result.reason === 'stale' ? 'receipt_ignored_stale' : 'receipt_not_found',
-                providerMessageId: receipt.providerMessageId,
+            if (result.reason === 'not_found') {
+              const unmatched = await this.repository.upsertUnmatchedProviderReceipt(trx, {
                 organizationId: config.organizationId,
+                whatsappConfigId: config.id,
+                providerMessageId: receipt.providerMessageId,
                 status: receipt.status,
-              },
-              'whatsapp.webhook.receipt'
-            )
+                providerStatusAt: receipt.providerStatusAt,
+                errorMessage: receipt.errorMessage,
+              })
+
+              logger.info(
+                {
+                  outcome: unmatched.upserted
+                    ? unmatched.reason === 'inserted'
+                      ? 'receipt_unmatched_buffered'
+                      : 'receipt_unmatched_updated'
+                    : 'receipt_unmatched_stale',
+                  providerMessageId: receipt.providerMessageId,
+                  organizationId: config.organizationId,
+                  status: receipt.status,
+                },
+                'whatsapp.webhook.receipt'
+              )
+            } else {
+              logger.info(
+                {
+                  outcome: 'receipt_ignored_stale',
+                  providerMessageId: receipt.providerMessageId,
+                  organizationId: config.organizationId,
+                  status: receipt.status,
+                },
+                'whatsapp.webhook.receipt'
+              )
+            }
             continue
           }
 

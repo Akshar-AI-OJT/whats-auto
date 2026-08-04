@@ -9,6 +9,7 @@ function fakeGraph(overrides: Partial<MetaGraphClient> = {}): MetaGraphClient {
     subscribeAppToWaba: async () => {},
     registerPhoneNumber: async () => {},
     getPhoneNumber: async ({ phoneNumberId }) => ({ id: phoneNumberId }),
+    sendTextMessage: async () => ({ raw: {} }),
     sendTemplateMessage: async () => ({ raw: {} }),
     sendTextMessage: async () => ({ raw: {} }),
     sendMediaMessage: async () => ({ raw: {} }),

@@ -5,6 +5,7 @@ import type {
   MetaListMessageTemplatesResult,
   MetaPhoneNumberDetails,
   MetaSendMessageResult,
+  MetaSendTemplateComponent,
   MetaTemplateComponent,
   MetaTokenExchangeResult,
 } from '#lib/meta_whatsapp/types'
@@ -25,10 +26,19 @@ export interface MetaGraphClient {
     accessToken: string
   }): Promise<MetaPhoneNumberDetails>
   /**
-   * Low-level Cloud API template send. Callers that send product templates should
-   * load name/language (and later components) from `message_templates`, then pass
-   * them here — and set `messages.messageTemplateId` when persisting the outbound row.
-   * Current `configs/:id/test` path hardcodes hello_world and does not use that table yet.
+   * Low-level Cloud API text send (session/free-form within the customer care window).
+   */
+  sendTextMessage(params: {
+    phoneNumberId: string
+    accessToken: string
+    to: string
+    text: string
+  }): Promise<MetaSendMessageResult>
+  /**
+   * Low-level Cloud API template send. Product sends resolve name/language/components
+   * from `message_templates` and persist `messages.messageTemplateId`.
+   * Optional `components` carry named header/body parameters; omit for parameterless
+   * templates (e.g. `configs/:id/test` hello_world smoke send).
    */
   sendTemplateMessage(params: {
     phoneNumberId: string
@@ -36,6 +46,7 @@ export interface MetaGraphClient {
     to: string
     templateName: string
     languageCode: string
+    components?: MetaSendTemplateComponent[]
   }): Promise<MetaSendMessageResult>
   sendTextMessage(params: {
     phoneNumberId: string
@@ -188,10 +199,39 @@ export class HttpMetaGraphClient implements MetaGraphClient {
   }
 
   /**
+   * POST /{phone-number-id}/messages (type=text).
+   */
+  async sendTextMessage(params: {
+    phoneNumberId: string
+    accessToken: string
+    to: string
+    text: string
+  }): Promise<MetaSendMessageResult> {
+    const url = `${this.baseUrl}/${encodeURIComponent(params.phoneNumberId)}/messages`
+    const json = await this.requestJson<Record<string, unknown>>('sendText', url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${params.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: params.to,
+        type: 'text',
+        text: {
+          preview_url: false,
+          body: params.text,
+        },
+      }),
+    })
+
+    return this.#parseSendResult(json)
+  }
+
+  /**
    * POST /{phone-number-id}/messages (type=template).
-   * NOTE: Product sends should resolve templateName/languageCode from `message_templates`
-   * (and later body/header components) before calling this; persist `messages.messageTemplateId`.
-   * Smoke-test path may still pass a hardcoded Meta sample like hello_world.
+   * Optional `components` for named header/body parameters; omit for parameterless templates.
    */
   async sendTemplateMessage(params: {
     phoneNumberId: string
@@ -199,8 +239,17 @@ export class HttpMetaGraphClient implements MetaGraphClient {
     to: string
     templateName: string
     languageCode: string
+    components?: MetaSendTemplateComponent[]
   }): Promise<MetaSendMessageResult> {
     const url = `${this.baseUrl}/${encodeURIComponent(params.phoneNumberId)}/messages`
+    const template: Record<string, unknown> = {
+      name: params.templateName,
+      language: { code: params.languageCode },
+    }
+    if (params.components && params.components.length > 0) {
+      template.components = params.components
+    }
+
     const json = await this.requestJson<Record<string, unknown>>('sendTemplate', url, {
       method: 'POST',
       headers: {
@@ -211,13 +260,14 @@ export class HttpMetaGraphClient implements MetaGraphClient {
         messaging_product: 'whatsapp',
         to: params.to,
         type: 'template',
-        template: {
-          name: params.templateName,
-          language: { code: params.languageCode },
-        },
+        template,
       }),
     })
 
+    return this.#parseSendResult(json)
+  }
+
+  #parseSendResult(json: Record<string, unknown>): MetaSendMessageResult {
     const messages = json.messages as Array<{ id?: string }> | undefined
     return {
       messageId: messages?.[0]?.id,
