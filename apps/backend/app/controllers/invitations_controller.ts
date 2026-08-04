@@ -31,6 +31,7 @@ export default class InvitationsController {
    * @responseBody 200 - { "data": { "id": "uuid", "email": "agent@example.com", "role": "agent", "status": "pending" } }
    * @responseBody 403 - { "error": "Permission denied: team:invite", "code": "PERMISSION_DENIED" }
    * @responseBody 409 - { "error": "A pending invitation already exists for this email", "code": "E_INVITE_ALREADY_PENDING" }
+   * @responseBody 502 - { "error": "Failed to send invite email", "code": "E_INVITE_EMAIL_FAILED" }
    */
   async store({ request, params, response, serialize }: HttpContext) {
     if (params.id !== request.activeMember!.organizationId) {
