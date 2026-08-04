@@ -39,6 +39,19 @@ export const COUNTRY_OPTIONS = [
   { code: 'NL', labelKey: 'NL' },
 ] as const
 
+/** ISO 4217 codes accepted by createOrganization (currency maxLength 10). */
+export const CURRENCY_OPTIONS = [
+  'INR',
+  'USD',
+  'EUR',
+  'GBP',
+  'AED',
+  'SGD',
+  'AUD',
+  'CAD',
+] as const
+export type CurrencyOption = (typeof CURRENCY_OPTIONS)[number]
+
 export const LANGUAGE_OPTIONS = ['en', 'hi'] as const
 export type LanguageOption = (typeof LANGUAGE_OPTIONS)[number]
 
@@ -63,20 +76,23 @@ export const NOTIFICATION_OPTIONS = [
 export type NotificationOption = (typeof NOTIFICATION_OPTIONS)[number]
 
 export type OrganizationWizardState = {
-  // Step 1 — basics
+  // Step 1 — basics (API: name, slug, email required; phone, website optional)
   name: string
   slug: string
   email: string
   phone: string
+  website: string
   slugTouched: boolean
-  // Step 2 — company
+  // Step 2 — company (API: country, timezone required; industry, currency optional)
+  // logo + companySize are UX-only (session), not sent to create-org
   logoFileName: string
   logoPreviewUrl: string | null
   industry: IndustryOption | ''
   companySize: CompanySizeOption | ''
   country: string
   timezone: string
-  // Step 3 — preferences
+  currency: CurrencyOption | ''
+  // Step 3 — preferences (session-only; not sent to create-org)
   defaultLanguage: LanguageOption
   dateFormat: DateFormatOption
   timeFormat: TimeFormatOption
@@ -89,6 +105,7 @@ export type OrganizationWizardBasicsErrors = {
   slug?: string
   email?: string
   phone?: string
+  website?: string
 }
 
 export type OrganizationWizardCompanyErrors = {
@@ -96,6 +113,7 @@ export type OrganizationWizardCompanyErrors = {
   companySize?: string
   country?: string
   timezone?: string
+  currency?: string
 }
 
 export type OrganizationWizardPreferencesErrors = {

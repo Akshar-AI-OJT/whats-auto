@@ -12,6 +12,13 @@ import {
   ORG_SETUP_PATH,
   savePendingOnboardingContact,
 } from '@/lib/onboarding'
+import {
+  authHandoffHref,
+  invitationIdFromPath,
+  isAcceptInvitationPath,
+  resolvePostAuthPath,
+  savePendingInvitationId,
+} from '@/lib/post-auth-redirect'
 import { Button } from '@/components/ui/button'
 import {
   Field,
@@ -19,12 +26,10 @@ import {
   FieldError,
   FieldGroup,
   FieldLabel,
-  FieldSeparator,
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { AuthPasswordToggle } from '@/components/auth/auth-password-toggle'
 import {
-  authDividerClassName,
   authInputClassName,
   authInputWithIconClassName,
   authOutlineButtonClassName,
@@ -33,6 +38,9 @@ import {
 import { AuthLayout } from '@/components/auth/auth-layout'
 import { AuthBranding } from '@/components/auth/auth-branding'
 import { Link, useRouter } from '@/i18n/navigation'
+
+/** Slightly shorter inputs so register + Google fit a 1366×768 viewport. */
+const compactAuthInputClassName = cn(authInputWithIconClassName, 'h-10 py-2 text-sm')
 
 type Step = 'register' | 'otp'
 type Pending = 'idle' | 'register' | 'google' | 'otp' | 'resend'
@@ -110,6 +118,14 @@ const strengthText: Record<Strength, string> = {
   strong: 'text-positive-deep',
 }
 
+function RequiredAsterisk() {
+  return (
+    <span className="ml-0.5 inline-block align-top text-negative/90" aria-hidden>
+      *
+    </span>
+  )
+}
+
 export function SignupForm({ className, ...props }: React.ComponentProps<'form'>) {
   const t = useTranslations('auth.register')
   const locale = useLocale()
@@ -147,6 +163,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
   const [otp, setOtp] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [passwordFocused, setPasswordFocused] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState<Pending>('idle')
@@ -156,9 +173,11 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
   useEffect(() => {
     const query = readSignupQuery()
     setCallbackPath(query.callbackPath)
+    const inviteId = invitationIdFromPath(query.callbackPath)
+    if (inviteId) savePendingInvitationId(inviteId)
     if (query.email) {
       setEmail(query.email)
-      setEmailLocked(Boolean(query.callbackPath?.startsWith('/accept-invitation/')))
+      setEmailLocked(isAcceptInvitationPath(query.callbackPath))
     }
   }, [])
   const otpInputRefs = useRef<Array<HTMLInputElement | null>>([])
@@ -248,6 +267,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
 
     try {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL
+      // Pre-auth: only invite callbackURL (or create-org default) can be used.
       const redirectPath = callbackPath ?? ORG_SETUP_PATH
       const { data } = await api.auth.google(`${appUrl}/${locale}${redirectPath}`)
       if (data.url) {
@@ -312,13 +332,14 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
 
     try {
       await api.auth.verifyOtp({ email, otp, password })
-      // Invitees return to accept page; normal signups continue to org setup.
-      if (callbackPath?.startsWith('/accept-invitation/')) {
-        router.push(callbackPath)
-      } else {
+      const nextPath = await resolvePostAuthPath({
+        preferredCallback: callbackPath,
+        fallback: ORG_SETUP_PATH,
+      })
+      if (nextPath === ORG_SETUP_PATH) {
         savePendingOnboardingContact({ email: email.trim(), phone: phone.trim() })
-        router.push(ORG_SETUP_PATH)
       }
+      router.push(nextPath)
       router.refresh()
     } catch (err) {
       setError((err as ApiError).message || t('errors.generic'))
@@ -413,7 +434,11 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
     }
 
     return (
-      <AuthLayout branding={<AuthBranding variant="otp" />}>
+      <AuthLayout
+        branding={<AuthBranding variant="otp" />}
+        showBrandLink={false}
+        compact
+      >
         <form
           className={cn('flex w-full min-w-0 flex-col', className)}
           onSubmit={handleVerifyOtp}
@@ -422,12 +447,12 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
           aria-describedby={error ? formErrorId : undefined}
           {...props}
         >
-          <FieldGroup className="gap-8">
-            <div className="flex flex-col gap-3 text-left">
-              <h1 className="font-display text-[1.75rem] leading-8 tracking-tight text-ink sm:text-2xl">
+          <FieldGroup className="gap-4">
+            <div className="flex flex-col gap-1.5 text-left">
+              <h1 className="font-display text-[1.5rem] leading-7 tracking-tight text-ink sm:text-[1.65rem]">
                 {t('otpTitle')}
               </h1>
-              <p className="text-sm leading-6 text-pretty break-words text-body">
+              <p className="text-sm leading-5 text-pretty break-words text-body">
                 {email ? t('otpSubtitleWithEmail', { email }) : t('otpSubtitle')}
               </p>
               <button
@@ -556,7 +581,10 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
             </Field>
 
             <FieldDescription className="text-center">
-              <Link href="/login" className={backToLoginClassName}>
+              <Link
+                href={authHandoffHref('/login', { callbackPath })}
+                className={backToLoginClassName}
+              >
                 <ArrowLeft className="size-3.5" aria-hidden />
                 {t('backToLogin')}
               </Link>
@@ -568,7 +596,11 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
   }
 
   return (
-    <AuthLayout branding={<AuthBranding variant="register" />}>
+    <AuthLayout
+      branding={<AuthBranding variant="register" />}
+      showBrandLink={false}
+      compact
+    >
     <form
       className={cn('flex w-full min-w-0 flex-col', className)}
       onSubmit={handleRegister}
@@ -577,24 +609,25 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
       aria-describedby={error ? formErrorId : undefined}
       {...props}
     >
-      <FieldGroup className="gap-8">
-        <div className="flex flex-col gap-3 text-left">
-          <h1 className="font-display text-[1.75rem] leading-8 tracking-tight text-ink sm:text-2xl">
+      <FieldGroup className="gap-3.5">
+        <div className="flex flex-col gap-2 text-left">
+          <h1 className="font-display text-[1.5rem] leading-7 tracking-tight text-ink sm:text-[1.65rem]">
             {t('title')}
           </h1>
-          <p className="text-sm leading-6 text-pretty text-body">{t('subtitle')}</p>
+          <p className="text-sm leading-5 text-body">{t('subtitle')}</p>
         </div>
 
-        <div className="grid min-w-0 grid-cols-1 gap-8 min-[375px]:grid-cols-2 min-[375px]:gap-4">
+        <div className="mt-0.5 grid min-w-0 grid-cols-1 gap-3.5 min-[375px]:grid-cols-2 min-[375px]:gap-3">
           <Field
             data-invalid={fieldErrors.firstname ? true : undefined}
-            className="min-w-0 gap-2"
+            className="min-w-0 gap-1.5"
           >
             <FieldLabel
               htmlFor={firstnameId}
               className="text-sm font-medium leading-5 text-ink"
             >
               {t('firstname')}
+              <RequiredAsterisk />
             </FieldLabel>
             <div className="relative">
               <User
@@ -611,7 +644,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
                 disabled={isPending}
                 aria-invalid={Boolean(fieldErrors.firstname)}
                 aria-describedby={fieldErrors.firstname ? firstnameErrorId : undefined}
-                className={authInputWithIconClassName}
+                className={compactAuthInputClassName}
                 value={firstname}
                 onChange={(e) => {
                   setFirstname(e.target.value)
@@ -628,13 +661,14 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
 
           <Field
             data-invalid={fieldErrors.lastname ? true : undefined}
-            className="min-w-0 gap-2"
+            className="min-w-0 gap-1.5"
           >
             <FieldLabel
               htmlFor={lastnameId}
               className="text-sm font-medium leading-5 text-ink"
             >
               {t('lastname')}
+              <RequiredAsterisk />
             </FieldLabel>
             <div className="relative">
               <User
@@ -651,7 +685,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
                 disabled={isPending}
                 aria-invalid={Boolean(fieldErrors.lastname)}
                 aria-describedby={fieldErrors.lastname ? lastnameErrorId : undefined}
-                className={authInputWithIconClassName}
+                className={compactAuthInputClassName}
                 value={lastname}
                 onChange={(e) => {
                   setLastname(e.target.value)
@@ -667,9 +701,10 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
           </Field>
         </div>
 
-        <Field data-invalid={fieldErrors.email ? true : undefined} className="gap-2">
+        <Field data-invalid={fieldErrors.email ? true : undefined} className="gap-1.5">
           <FieldLabel htmlFor={emailId} className="text-sm font-medium leading-5 text-ink">
             {t('email')}
+            <RequiredAsterisk />
           </FieldLabel>
           <div className="relative">
             <Mail
@@ -691,7 +726,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
               readOnly={emailLocked}
               aria-invalid={Boolean(fieldErrors.email)}
               aria-describedby={fieldErrors.email ? emailErrorId : undefined}
-              className={authInputWithIconClassName}
+              className={compactAuthInputClassName}
               value={email}
               onChange={(e) => {
                 if (emailLocked) return
@@ -707,9 +742,10 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
           ) : null}
         </Field>
 
-        <Field data-invalid={fieldErrors.phone ? true : undefined} className="gap-2">
+        <Field data-invalid={fieldErrors.phone ? true : undefined} className="gap-1.5">
           <FieldLabel htmlFor={phoneId} className="text-sm font-medium leading-5 text-ink">
             {t('phone')}
+            <RequiredAsterisk />
           </FieldLabel>
           <div className="relative">
             <Phone
@@ -727,7 +763,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
               disabled={isPending}
               aria-invalid={Boolean(fieldErrors.phone)}
               aria-describedby={fieldErrors.phone ? phoneErrorId : undefined}
-              className={authInputWithIconClassName}
+              className={compactAuthInputClassName}
               value={phone}
               onChange={(e) => {
                 setPhone(e.target.value)
@@ -742,9 +778,10 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
           ) : null}
         </Field>
 
-        <Field data-invalid={fieldErrors.password ? true : undefined} className="gap-2">
+        <Field data-invalid={fieldErrors.password ? true : undefined} className="gap-1.5">
           <FieldLabel htmlFor={passwordId} className="text-sm font-medium leading-5 text-ink">
             {t('password')}
+            <RequiredAsterisk />
           </FieldLabel>
           <div className="relative">
             <Lock
@@ -764,13 +801,15 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
                 [
                   fieldErrors.password ? passwordErrorId : null,
                   password ? strengthId : null,
-                  passwordHintId,
+                  passwordFocused ? passwordHintId : null,
                 ]
                   .filter(Boolean)
                   .join(' ') || undefined
               }
-              className={cn(authInputWithIconClassName, 'pr-12')}
+              className={cn(compactAuthInputClassName, 'pr-12')}
               value={password}
+              onFocus={() => setPasswordFocused(true)}
+              onBlur={() => setPasswordFocused(false)}
               onChange={(e) => {
                 setPassword(e.target.value)
                 clearFieldError('password')
@@ -790,7 +829,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
           </div>
 
           {password ? (
-            <div id={strengthId} className="flex flex-col gap-2" aria-live="polite">
+            <div id={strengthId} className="flex flex-col gap-1.5" aria-live="polite">
               <div
                 className="grid grid-cols-3 gap-1"
                 role="meter"
@@ -817,9 +856,11 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
             </div>
           ) : null}
 
-          <FieldDescription id={passwordHintId} className="text-xs leading-4 text-mute">
-            {t('passwordHint')}
-          </FieldDescription>
+          {passwordFocused ? (
+            <FieldDescription id={passwordHintId} className="text-[11px] leading-4 text-mute/80">
+              {t('passwordHint')}
+            </FieldDescription>
+          ) : null}
 
           {fieldErrors.password ? (
             <FieldError id={passwordErrorId} className="text-xs leading-4 text-negative">
@@ -830,13 +871,14 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
 
         <Field
           data-invalid={fieldErrors.confirmPassword ? true : undefined}
-          className="gap-2"
+          className="gap-1.5"
         >
           <FieldLabel
             htmlFor={confirmPasswordId}
             className="text-sm font-medium leading-5 text-ink"
           >
             {t('confirmPassword')}
+            <RequiredAsterisk />
           </FieldLabel>
           <div className="relative">
             <Lock
@@ -854,7 +896,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
               aria-describedby={
                 fieldErrors.confirmPassword ? confirmPasswordErrorId : undefined
               }
-              className={cn(authInputWithIconClassName, 'pr-12')}
+              className={cn(compactAuthInputClassName, 'pr-12')}
               value={confirmPassword}
               onChange={(e) => {
                 setConfirmPassword(e.target.value)
@@ -890,9 +932,10 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
           </div>
         ) : null}
 
-        <Field className="gap-0">
+        <Field className="gap-0 pt-1.5">
           <Button
             type="submit"
+            size="sm"
             disabled={isPending}
             aria-busy={pending === 'register'}
             className={authPrimaryButtonClassName}
@@ -908,15 +951,25 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
           </Button>
         </Field>
 
-        <FieldSeparator className={authDividerClassName}>{t('orContinue')}</FieldSeparator>
+        <div className="my-1.5 flex items-center gap-3" aria-hidden>
+          <span className="h-px flex-1 bg-[#E5E7EB]" />
+          <span className="text-[11px] font-medium tracking-wide text-mute">
+            {t('orContinue')}
+          </span>
+          <span className="h-px flex-1 bg-[#E5E7EB]" />
+        </div>
 
-        <Field className="gap-5">
+        <Field className="gap-3">
           <Button
             variant="outline"
             type="button"
+            size="sm"
             disabled={isPending}
             aria-busy={pending === 'google'}
-            className={authOutlineButtonClassName}
+            className={cn(
+              authOutlineButtonClassName,
+              'h-9 border-[#E5E7EB] text-body hover:border-[#D1D5DB] hover:bg-[#FAFAFB]'
+            )}
             onClick={() => void handleGoogle()}
           >
             {pending === 'google' ? (
@@ -926,10 +979,10 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
             )}
             <span>{t('google')}</span>
           </Button>
-          <FieldDescription className="text-center text-sm leading-5 text-body">
+          <FieldDescription className="pt-0.5 text-center text-sm leading-5 text-body">
             {t('haveAccount')}{' '}
             <Link
-              href="/login"
+              href={authHandoffHref('/login', { callbackPath })}
               className="rounded-sm font-medium text-ink underline underline-offset-4 transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
             >
               {t('signIn')}

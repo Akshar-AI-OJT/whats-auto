@@ -2,8 +2,7 @@
 
 import { useId } from 'react'
 import { useTranslations } from 'next-intl'
-import { Building2, Link2, Mail, Phone } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { Building2, Globe, Link2, Mail, Phone } from 'lucide-react'
 import { slugifyOrganizationName } from '@/lib/onboarding'
 import {
   Field,
@@ -12,10 +11,8 @@ import {
   FieldLabel,
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import {
-  authInputClassName,
-  authInputWithIconClassName,
-} from '@/components/auth/auth-field-styles'
+import { authInputWithIconClassName } from '@/components/auth/auth-field-styles'
+import { RequiredAsterisk } from './required-asterisk'
 import type {
   OrganizationWizardBasicsErrors,
   OrganizationWizardState,
@@ -42,11 +39,13 @@ export function OrganizationBasicsStep({
   const slugId = useId()
   const emailId = useId()
   const phoneId = useId()
+  const websiteId = useId()
   const slugHintId = useId()
   const nameErrorId = useId()
   const slugErrorId = useId()
   const emailErrorId = useId()
   const phoneErrorId = useId()
+  const websiteErrorId = useId()
 
   return (
     <div className="flex flex-col gap-5">
@@ -63,6 +62,7 @@ export function OrganizationBasicsStep({
       <Field data-invalid={errors.name ? true : undefined} className="gap-2">
         <FieldLabel htmlFor={nameId} className="text-sm font-medium leading-5 text-ink">
           {t('name')}
+          <RequiredAsterisk />
         </FieldLabel>
         <div className="relative">
           <Building2
@@ -76,6 +76,7 @@ export function OrganizationBasicsStep({
             autoComplete="organization"
             placeholder={t('namePlaceholder')}
             required
+            maxLength={200}
             disabled={pending}
             aria-invalid={Boolean(errors.name)}
             aria-describedby={errors.name ? nameErrorId : undefined}
@@ -106,6 +107,7 @@ export function OrganizationBasicsStep({
       <Field data-invalid={errors.slug ? true : undefined} className="gap-2">
         <FieldLabel htmlFor={slugId} className="text-sm font-medium leading-5 text-ink">
           {t('slug')}
+          <RequiredAsterisk />
         </FieldLabel>
         <div className="relative">
           <Link2
@@ -121,6 +123,7 @@ export function OrganizationBasicsStep({
             spellCheck={false}
             placeholder={t('slugPlaceholder')}
             required
+            maxLength={100}
             disabled={pending}
             aria-invalid={Boolean(errors.slug)}
             aria-describedby={
@@ -151,6 +154,7 @@ export function OrganizationBasicsStep({
       <Field data-invalid={errors.email ? true : undefined} className="gap-2">
         <FieldLabel htmlFor={emailId} className="text-sm font-medium leading-5 text-ink">
           {t('email')}
+          <RequiredAsterisk />
         </FieldLabel>
         <div className="relative">
           <Mail
@@ -199,11 +203,10 @@ export function OrganizationBasicsStep({
             inputMode="tel"
             autoComplete="tel"
             placeholder={t('phonePlaceholder')}
-            required
             disabled={pending}
             aria-invalid={Boolean(errors.phone)}
             aria-describedby={errors.phone ? phoneErrorId : undefined}
-            className={cn(authInputClassName, authInputWithIconClassName)}
+            className={authInputWithIconClassName}
             value={state.phone}
             onChange={(e) => {
               onChange({ phone: e.target.value })
@@ -211,9 +214,49 @@ export function OrganizationBasicsStep({
             }}
           />
         </div>
+        <FieldDescription className="text-xs leading-4 text-mute">
+          {t('optionalHint')}
+        </FieldDescription>
         {errors.phone ? (
           <FieldError id={phoneErrorId} className="text-xs leading-4 text-negative">
             {errors.phone}
+          </FieldError>
+        ) : null}
+      </Field>
+
+      <Field data-invalid={errors.website ? true : undefined} className="gap-2">
+        <FieldLabel htmlFor={websiteId} className="text-sm font-medium leading-5 text-ink">
+          {t('website')}
+        </FieldLabel>
+        <div className="relative">
+          <Globe
+            className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-mute"
+            aria-hidden
+          />
+          <Input
+            id={websiteId}
+            name="website"
+            type="url"
+            inputMode="url"
+            autoComplete="url"
+            placeholder={t('websitePlaceholder')}
+            disabled={pending}
+            aria-invalid={Boolean(errors.website)}
+            aria-describedby={errors.website ? websiteErrorId : undefined}
+            className={authInputWithIconClassName}
+            value={state.website}
+            onChange={(e) => {
+              onChange({ website: e.target.value })
+              onClearError('website')
+            }}
+          />
+        </div>
+        <FieldDescription className="text-xs leading-4 text-mute">
+          {t('optionalHint')}
+        </FieldDescription>
+        {errors.website ? (
+          <FieldError id={websiteErrorId} className="text-xs leading-4 text-negative">
+            {errors.website}
           </FieldError>
         ) : null}
       </Field>

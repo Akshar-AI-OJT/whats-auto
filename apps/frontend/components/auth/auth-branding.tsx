@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils'
 export type { AuthBrandingVariant }
 
 const sceneFrameClassName =
-  'relative mx-auto h-[280px] w-full max-w-[300px] sm:h-[300px] md:mx-0 md:max-w-none md:h-[320px]'
+  'relative mx-auto h-[250px] w-full max-w-[280px] sm:h-[270px] md:mx-0 md:max-w-none md:h-[285px]'
 
 function ChecklistRows({
   items,

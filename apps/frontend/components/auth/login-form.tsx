@@ -29,6 +29,12 @@ import {
   authPrimaryButtonClassName,
 } from '@/components/auth/auth-field-styles'
 import { Link, useRouter } from '@/i18n/navigation'
+import {
+  authHandoffHref,
+  invitationIdFromPath,
+  resolvePostAuthPath,
+  savePendingInvitationId,
+} from '@/lib/post-auth-redirect'
 
 const REMEMBER_EMAIL_KEY = 'whats-auto-remember-email'
 
@@ -79,7 +85,10 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
   const isPending = pending !== 'idle'
 
   useEffect(() => {
-    setCallbackPath(readCallbackFromWindow())
+    const path = readCallbackFromWindow()
+    setCallbackPath(path)
+    const inviteId = invitationIdFromPath(path)
+    if (inviteId) savePendingInvitationId(inviteId)
   }, [])
 
   useEffect(() => {
@@ -171,7 +180,11 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
       }
 
       await api.auth.login({ email: trimmedEmail, password })
-      router.push(callbackPath ?? '/dashboard')
+      const nextPath = await resolvePostAuthPath({
+        preferredCallback: callbackPath,
+        fallback: '/dashboard',
+      })
+      router.push(nextPath)
       router.refresh()
     } catch (err) {
       setError((err as ApiError).message || t('errors.generic'))
@@ -360,7 +373,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
           <FieldDescription className="text-center text-sm leading-5 text-body">
             {t('noAccount')}{' '}
             <Link
-              href="/register"
+              href={authHandoffHref('/register', { callbackPath })}
               className="rounded-sm font-medium text-ink underline underline-offset-4 transition-colors hover:text-brand focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas"
             >
               {t('signUp')}

@@ -40,6 +40,18 @@ function subscribeNoop() {
   return () => {}
 }
 
+function subscribeLg(onStoreChange: () => void) {
+  if (typeof window === 'undefined') return () => {}
+  const media = window.matchMedia('(min-width: 1024px)')
+  media.addEventListener('change', onStoreChange)
+  return () => media.removeEventListener('change', onStoreChange)
+}
+
+function getIsLg() {
+  if (typeof window === 'undefined') return false
+  return window.matchMedia('(min-width: 1024px)').matches
+}
+
 function formatRoleLabel(role: string): string {
   if (!role) return ''
   return role.charAt(0).toUpperCase() + role.slice(1)
@@ -62,8 +74,10 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
   const [profileOpen, setProfileOpen] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const searchId = useId()
+  const [searchQuery, setSearchQuery] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
   const isMac = useSyncExternalStore(subscribeNoop, detectMac, () => false)
+  const isLg = useSyncExternalStore(subscribeLg, getIsLg, () => false)
 
   const workspaces = useMemo<WorkspaceSwitcherItem[]>(
     () =>
@@ -77,11 +91,13 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
     [organizations]
   )
 
+  const email = user?.email ?? ''
+  const emailHandle = email.split('@')[0]?.trim() ?? ''
   const displayName =
     user?.name?.trim() ||
     [user?.firstname, user?.lastname].filter(Boolean).join(' ').trim() ||
+    emailHandle ||
     t('topbar.guestName')
-  const email = user?.email ?? ''
   const initials =
     user?.initials?.trim() ||
     displayName
@@ -136,10 +152,11 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
   return (
     <header
       className={cn(
-        'sticky top-0 z-30 flex shrink-0 flex-wrap items-center gap-x-2 gap-y-2.5 border-b border-dash-border bg-canvas/90 px-3 py-2.5 backdrop-blur-md',
-        'sm:gap-x-3 sm:px-5 sm:py-3',
-        'lg:h-16 lg:flex-nowrap lg:gap-4 lg:py-0',
-        'dash-soft-shadow',
+        'sticky top-0 z-30 flex shrink-0 flex-wrap items-center gap-x-2 gap-y-2 border-b border-dash-border/90 bg-canvas/90 px-3 py-2 backdrop-blur-md',
+        'sm:min-h-16 sm:flex-nowrap sm:gap-x-3 sm:px-5 sm:py-2.5',
+        'md:gap-x-3',
+        'lg:h-[68px] lg:gap-x-3.5 lg:py-0',
+        'dash-soft-shadow shadow-[0_1px_0_rgb(15_23_42/0.06)]',
         className
       )}
     >
@@ -196,7 +213,7 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
 
       {hasOrganizations ? (
         <WorkspaceSwitcher
-          className="min-w-0"
+          className="order-1 min-w-0 max-w-[11rem] sm:max-w-[13rem] lg:max-w-[15rem]"
           workspaces={workspaces}
           value={activeOrganizationId ?? workspaces[0]?.id}
           open={workspaceOpen}
@@ -218,8 +235,14 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
         />
       ) : null}
 
-      {/* Global search — full width on mobile, flexes on tablet+ */}
-      <div className="group/search relative order-last min-w-0 basis-full sm:order-none sm:flex-1 sm:basis-auto">
+      {/* Global search — own row until lg, then flexes in the header */}
+      <div
+        className={cn(
+          'group/search relative order-last min-w-0 basis-full',
+          'sm:order-2 sm:mx-1 sm:flex-1 sm:basis-auto sm:min-w-[13rem]',
+          'lg:mx-2 lg:max-w-[42rem]'
+        )}
+      >
         <label htmlFor={searchId} className="sr-only">
           {t('topbar.searchLabel')}
         </label>
@@ -237,25 +260,29 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
           ref={searchInputRef}
           id={searchId}
           type="search"
-          placeholder={t('topbar.searchPlaceholder')}
+          value={searchQuery}
+          placeholder={
+            isLg ? t('topbar.searchPlaceholder') : t('topbar.searchPlaceholderShort')
+          }
           autoComplete="off"
-          readOnly
           aria-describedby={`${searchId}-hint`}
+          onChange={(event) => setSearchQuery(event.target.value)}
           onFocus={() => setSearchFocused(true)}
           onBlur={() => setSearchFocused(false)}
           className={cn(
-            'h-10 w-full rounded-xl border border-dash-border bg-dash-surface/90 py-2 pr-3 pl-9 text-sm text-ink outline-none sm:pr-[4.5rem]',
-            'placeholder:text-mute',
+            'h-9 w-full min-w-0 rounded-xl border border-dash-border bg-dash-surface/90 py-1.5 pl-9 text-sm text-ink outline-none',
+            'pr-3 lg:pr-[4.5rem]',
+            'placeholder:truncate placeholder:text-mute',
             'transition-[border-color,box-shadow,background-color] duration-200',
             'hover:border-dash-border-strong',
             'focus-visible:border-primary/55 focus-visible:bg-canvas focus-visible:ring-2 focus-visible:ring-primary/30',
-            'cursor-text read-only:cursor-text'
+            'cursor-text'
           )}
         />
         <kbd
           id={`${searchId}-hint`}
           className={cn(
-            'pointer-events-none absolute top-1/2 right-2.5 hidden -translate-y-1/2 items-center gap-0.5 sm:inline-flex',
+            'pointer-events-none absolute top-1/2 right-2.5 hidden -translate-y-1/2 items-center gap-0.5 lg:inline-flex',
             'rounded-md border border-dash-border bg-canvas px-1.5 py-0.5',
             'text-[10px] font-semibold tracking-wide text-mute',
             'shadow-[0_1px_0_rgb(15_23_42/0.04)]',
@@ -272,7 +299,7 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
         </kbd>
       </div>
 
-      <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2 lg:ml-0">
+      <div className="order-3 ml-auto flex shrink-0 items-center gap-2 sm:gap-2.5">
         <ThemeToggle />
 
         <NotificationBell
@@ -286,33 +313,35 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
           }}
         />
 
-        <UserProfileMenu
-          open={profileOpen}
-          onOpenChange={(next) => {
-            setProfileOpen(next)
-            if (next) {
-              setWorkspaceOpen(false)
-              setNotificationsOpen(false)
-            }
-          }}
-          displayName={displayName}
-          email={email}
-          initials={initials}
-          labels={{
-            myProfile: t('topbar.myProfile'),
-            workspace: t('topbar.workspace'),
-            billing: t('topbar.billing'),
-            settings: t('topbar.settings'),
-            signOut: t('signOut'),
-            openMenu: t('topbar.profileMenu'),
-          }}
-          onSignOut={handleSignOut}
-          onSelectItem={(id) => {
-            if (id === 'workspace' || id === 'settings') {
-              router.push('/dashboard/settings')
-            }
-          }}
-        />
+        <div className="pl-1 sm:pl-1.5">
+          <UserProfileMenu
+            open={profileOpen}
+            onOpenChange={(next) => {
+              setProfileOpen(next)
+              if (next) {
+                setWorkspaceOpen(false)
+                setNotificationsOpen(false)
+              }
+            }}
+            displayName={displayName}
+            email={email}
+            initials={initials}
+            labels={{
+              myProfile: t('topbar.myProfile'),
+              workspace: t('topbar.workspace'),
+              billing: t('topbar.billing'),
+              settings: t('topbar.settings'),
+              signOut: t('signOut'),
+              openMenu: t('topbar.profileMenu'),
+            }}
+            onSignOut={handleSignOut}
+            onSelectItem={(id) => {
+              if (id === 'workspace' || id === 'settings') {
+                router.push('/dashboard/settings')
+              }
+            }}
+          />
+        </div>
       </div>
     </header>
   )
