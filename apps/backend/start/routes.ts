@@ -33,6 +33,8 @@ const WhatsappEmbeddedSignupController = () =>
   import('#controllers/whatsapp_embedded_signup_controller')
 const WhatsappConfigsController = () => import('#controllers/whatsapp_configs_controller')
 const MessageTemplatesController = () => import('#controllers/message_templates_controller')
+const MessagesController = () => import('#controllers/messages_controller')
+const ConversationNotesController = () => import('#controllers/conversation_notes_controller')
 
 type JsonSchema = {
   type: 'object'
@@ -169,6 +171,22 @@ const requestBodySchemas: Record<string, JsonSchema> = {
   'post /api/v1/inbox/conversations/{id}/assign': bodySchema(
     { assignedAgentId: { type: 'string', format: 'uuid' } },
     ['assignedAgentId']
+  ),
+  'post /api/v1/inbox/conversations/{id}/messages': bodySchema(
+    {
+      contentType: {
+        type: 'string',
+        example: 'text',
+        enum: ['text', 'image', 'video', 'audio', 'document'],
+      },
+      contentText: { type: 'string', example: 'Hello!' },
+      mediaAssetId: { type: 'string', format: 'uuid' },
+    },
+    ['contentType']
+  ),
+  'post /api/v1/inbox/conversations/{id}/notes': bodySchema(
+    { noteText: { type: 'string', example: 'Customer called about order #104' } },
+    ['noteText']
   ),
   'patch /api/v1/members/{memberId}/role': bodySchema(
     { role: { type: 'string', example: 'agent' } },
@@ -551,6 +569,18 @@ router
     router
       .post('/:id/reopen', [ConversationsController, 'reopen'])
       .use(middleware.requirePermission({ permission: 'inbox:close' }))
+    router
+      .get('/:id/messages', [MessagesController, 'index'])
+      .use(middleware.requirePermission({ permission: 'inbox:view' }))
+    router
+      .post('/:id/messages', [MessagesController, 'store'])
+      .use(middleware.requirePermission({ permission: 'inbox:reply' }))
+    router
+      .get('/:id/notes', [ConversationNotesController, 'index'])
+      .use(middleware.requirePermission({ permission: 'inbox:view' }))
+    router
+      .post('/:id/notes', [ConversationNotesController, 'store'])
+      .use(middleware.requirePermission({ permission: 'inbox:reply' }))
   })
   .prefix('/api/v1/inbox/conversations')
   .use([middleware.jwtAuth(), middleware.tenant()])

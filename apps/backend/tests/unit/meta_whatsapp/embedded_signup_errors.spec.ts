@@ -10,6 +10,8 @@ function fakeGraph(overrides: Partial<MetaGraphClient> = {}): MetaGraphClient {
     registerPhoneNumber: async () => {},
     getPhoneNumber: async ({ phoneNumberId }) => ({ id: phoneNumberId }),
     sendTemplateMessage: async () => ({ raw: {} }),
+    sendTextMessage: async () => ({ raw: {} }),
+    sendMediaMessage: async () => ({ raw: {} }),
     ...overrides,
   }
 }

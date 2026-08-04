@@ -37,6 +37,21 @@ export interface MetaGraphClient {
     templateName: string
     languageCode: string
   }): Promise<MetaSendMessageResult>
+  sendTextMessage(params: {
+    phoneNumberId: string
+    accessToken: string
+    to: string
+    text: string
+  }): Promise<MetaSendMessageResult>
+  sendMediaMessage(params: {
+    phoneNumberId: string
+    accessToken: string
+    to: string
+    type: 'image' | 'video' | 'audio' | 'document'
+    link: string
+    caption?: string
+    filename?: string
+  }): Promise<MetaSendMessageResult>
   listMessageTemplates?(params: {
     wabaId: string
     accessToken: string
@@ -200,6 +215,82 @@ export class HttpMetaGraphClient implements MetaGraphClient {
           name: params.templateName,
           language: { code: params.languageCode },
         },
+      }),
+    })
+
+    const messages = json.messages as Array<{ id?: string }> | undefined
+    return {
+      messageId: messages?.[0]?.id,
+      raw: json,
+    }
+  }
+
+  /**
+   * POST /{phone-number-id}/messages (type=text).
+   */
+  async sendTextMessage(params: {
+    phoneNumberId: string
+    accessToken: string
+    to: string
+    text: string
+  }): Promise<MetaSendMessageResult> {
+    const url = `${this.baseUrl}/${encodeURIComponent(params.phoneNumberId)}/messages`
+    const json = await this.requestJson<Record<string, unknown>>('sendText', url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${params.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: params.to,
+        type: 'text',
+        text: { preview_url: false, body: params.text },
+      }),
+    })
+
+    const messages = json.messages as Array<{ id?: string }> | undefined
+    return {
+      messageId: messages?.[0]?.id,
+      raw: json,
+    }
+  }
+
+  /**
+   * POST /{phone-number-id}/messages (type=image|video|audio|document) via public link.
+   */
+  async sendMediaMessage(params: {
+    phoneNumberId: string
+    accessToken: string
+    to: string
+    type: 'image' | 'video' | 'audio' | 'document'
+    link: string
+    caption?: string
+    filename?: string
+  }): Promise<MetaSendMessageResult> {
+    const url = `${this.baseUrl}/${encodeURIComponent(params.phoneNumberId)}/messages`
+
+    const mediaPayload: Record<string, unknown> = { link: params.link }
+    if (params.caption && params.type !== 'audio') {
+      mediaPayload.caption = params.caption
+    }
+    if (params.type === 'document' && params.filename) {
+      mediaPayload.filename = params.filename
+    }
+
+    const json = await this.requestJson<Record<string, unknown>>('sendMedia', url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${params.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: params.to,
+        type: params.type,
+        [params.type]: mediaPayload,
       }),
     })
 
