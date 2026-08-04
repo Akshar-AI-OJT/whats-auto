@@ -37,6 +37,7 @@ export class InvitationService {
       .from('organization_members as m')
       .innerJoin('users as u', 'u.id', 'm.userId')
       .where('m.organizationId', organizationId)
+      .where('m.isDeleted', false)
       .whereRaw('LOWER(u.email) = ?', [normalizedEmail])
       .select('m.id')
       .first()
@@ -206,8 +207,8 @@ export class InvitationService {
   }
 
   /**
-   * Accept a pending invitation. Creates organization_members + user_roles and
-   * makes the joined organization active on the caller's session.
+   * Accept a pending invitation. Creates or revives organization_members +
+   * user_roles and makes the joined organization active on the caller's session.
    */
   async acceptInvitation(params: {
     invitationId: string
@@ -234,29 +235,56 @@ export class InvitationService {
       throw new Error('Invitation email does not match your account')
     }
 
-    const alreadyMember = await db
+    const existingMembership = await db
       .from('organization_members')
       .where('organizationId', invitation.organizationId)
       .where('userId', userId)
-      .select('id')
+      .select('id', 'isDeleted')
       .first()
 
-    if (alreadyMember) {
+    if (existingMembership && !existingMembership.isDeleted) {
       throw new Error('You are already a member of this organization')
     }
 
     await db.transaction(async (trx) => {
-      await trx.table('organization_members').insert({
-        organizationId: invitation.organizationId,
-        userId,
-        roleId: invitation.roleId,
-      })
+      if (existingMembership?.isDeleted) {
+        // Re-join: revive the soft-deleted membership rather than inserting a second row.
+        await trx.rawQuery(
+          `UPDATE "organization_members"
+           SET "isDeleted" = false,
+               "deletedAt" = NULL,
+               "roleId" = ?,
+               "permissionVersion" = "permissionVersion" + 1
+           WHERE "id" = ?`,
+          [invitation.roleId, existingMembership.id]
+        )
+      } else {
+        await trx.table('organization_members').insert({
+          organizationId: invitation.organizationId,
+          userId,
+          roleId: invitation.roleId,
+        })
+      }
 
-      await trx.table('user_roles').insert({
-        userId,
-        roleId: invitation.roleId,
-        organizationId: invitation.organizationId,
-      })
+      // removeMember may leave user_roles behind today; upsert so re-invite always works.
+      const existingRole = await trx
+        .from('user_roles')
+        .where('userId', userId)
+        .where('organizationId', invitation.organizationId)
+        .select('id')
+        .first()
+
+      if (existingRole) {
+        await trx.from('user_roles').where('id', existingRole.id).update({
+          roleId: invitation.roleId,
+        })
+      } else {
+        await trx.table('user_roles').insert({
+          userId,
+          roleId: invitation.roleId,
+          organizationId: invitation.organizationId,
+        })
+      }
 
       await trx
         .from('organization_invitations')
@@ -273,7 +301,7 @@ export class InvitationService {
         targetType: 'invitation',
         targetId: invitationId,
         eventType: 'invitation.accepted',
-        after: JSON.stringify({ userId }),
+        after: JSON.stringify({ userId, revived: Boolean(existingMembership?.isDeleted) }),
       })
     })
 
