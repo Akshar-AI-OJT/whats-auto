@@ -17,8 +17,8 @@ type RequirePermissionProps = {
   allOf?: readonly string[]
   children: ReactNode
   /**
-   * When true (default), wraps with DashboardShell so OrganizationsProvider is available.
-   * Set false only when already inside a DashboardShell.
+   * When true, wraps with DashboardShell. Dashboard routes already get a shell
+   * from `app/[locale]/dashboard/layout.tsx`, so leave this false there.
    */
   withShell?: boolean
 }
@@ -79,7 +79,7 @@ function RequirePermissionInner({
  * Shell wraps first so permission checks run inside OrganizationsProvider.
  */
 export function RequirePermission({
-  withShell = true,
+  withShell = false,
   ...props
 }: RequirePermissionProps) {
   const inner = <RequirePermissionInner {...props} />

@@ -2,6 +2,7 @@
 
 const PENDING_PHONE_KEY = 'wa-onboarding-phone'
 const PENDING_EMAIL_KEY = 'wa-onboarding-email'
+const CHECKLIST_KEY = 'wa-onboarding-checklist'
 
 export const ORG_SETUP_PATH = '/onboarding/organization'
 export const TEAM_MEMBERS_PATH = '/dashboard/team'
@@ -25,7 +26,7 @@ export function isValidOrganizationSlug(slug: string): boolean {
   return /^[a-z0-9-]+$/.test(slug) && slug.length >= 2 && slug.length <= 100
 }
 
-/** Practical international phone check (7–20 digits after stripping formatting). */
+/** Practical international phone check (7–15 digits after stripping formatting). */
 export function isValidPhone(value: string): boolean {
   const trimmed = value.trim()
   if (!trimmed) return false
@@ -36,6 +37,18 @@ export function isValidPhone(value: string): boolean {
 
 export function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
+}
+
+/** Matches backend vine.string().url() expectations for optional website. */
+export function isValidWebsiteUrl(value: string): boolean {
+  const trimmed = value.trim()
+  if (!trimmed) return false
+  try {
+    const url = new URL(trimmed)
+    return url.protocol === 'http:' || url.protocol === 'https:'
+  } catch {
+    return false
+  }
 }
 
 export function savePendingOnboardingContact(input: {
@@ -78,8 +91,6 @@ export function clearPendingOnboardingContact() {
   }
 }
 
-const CHECKLIST_KEY = 'wa-onboarding-checklist'
-const PREFERENCES_KEY = 'wa-workspace-preferences'
 /**
  * Organizations now come from the API, but earlier builds cached them in
  * localStorage, which is shared across accounts on the same browser. Drop the
@@ -96,18 +107,6 @@ export function clearLegacyOrganizationCache() {
     LEGACY_ORG_CACHE_KEYS.forEach((key) => window.localStorage.removeItem(key))
   } catch {
     /* ignore */
-  }
-}
-
-/** Sensible defaults so org create works without extra form fields. */
-export function getDefaultOrgLocaleDefaults() {
-  const timezone =
-    typeof Intl !== 'undefined'
-      ? Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
-      : 'UTC'
-  return {
-    country: 'IN',
-    timezone,
   }
 }
 
@@ -128,33 +127,64 @@ export const COMMON_TIMEZONES = [
   'UTC',
 ] as const
 
+/** Browser IANA zone first, then common zones — user must still pick one in the form. */
 export function getTimezoneOptions(): string[] {
-  const defaults = getDefaultOrgLocaleDefaults()
-  return Array.from(new Set([defaults.timezone, ...COMMON_TIMEZONES]))
+  const browserZone =
+    typeof Intl !== 'undefined'
+      ? Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+      : 'UTC'
+  return Array.from(new Set([browserZone, ...COMMON_TIMEZONES]))
 }
 
 /**
  * Maps wizard state to the POST /api/v1/organizations request body.
+ * Only includes optional keys when the user provided a value.
  */
 export function buildCreateOrganizationPayload(input: {
   name: string
   slug: string
   email: string
-  phone: string
+  phone?: string
+  website?: string
   industry?: string
   country: string
   timezone: string
+  currency?: string
 }) {
-  return {
+  const payload: {
+    name: string
+    slug: string
+    email: string
+    country: string
+    timezone: string
+    phone?: string
+    website?: string
+    industry?: string
+    currency?: string
+  } = {
     name: input.name.trim(),
     slug: input.slug.trim(),
     email: input.email.trim(),
-    phone: input.phone.trim() || undefined,
-    industry: input.industry?.trim() || undefined,
-    country: input.country,
-    timezone: input.timezone,
+    country: input.country.trim(),
+    timezone: input.timezone.trim(),
   }
+
+  const phone = input.phone?.trim()
+  if (phone) payload.phone = phone
+
+  const website = input.website?.trim()
+  if (website) payload.website = website
+
+  const industry = input.industry?.trim()
+  if (industry) payload.industry = industry
+
+  const currency = input.currency?.trim()
+  if (currency) payload.currency = currency
+
+  return payload
 }
+
+const PREFERENCES_KEY = 'wa-workspace-preferences'
 
 export type PendingWorkspacePreferences = {
   companySize: string

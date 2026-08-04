@@ -16,8 +16,8 @@ import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
 import {
   PermissionBadges,
-  RoleEditorSheet,
 } from '@/components/dashboard/team/RoleEditorSheet'
+import { useRouter } from '@/i18n/navigation'
 
 function unwrapList<T>(data: { data?: T[] } | T[] | undefined): T[] {
   if (!data) return []
@@ -28,6 +28,7 @@ function unwrapList<T>(data: { data?: T[] } | T[] | undefined): T[] {
 
 export function RolesPage() {
   const t = useTranslations('dashboard.roles')
+  const router = useRouter()
   const deleteTitleId = useId()
   const deleteDescId = useId()
   const resetTitleId = useId()
@@ -43,10 +44,6 @@ export function RolesPage() {
   const [listLoading, setListLoading] = useState(true)
   const [listError, setListError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
-
-  const [editorOpen, setEditorOpen] = useState(false)
-  const [editorMode, setEditorMode] = useState<'create' | 'edit'>('create')
-  const [editingRole, setEditingRole] = useState<OrganizationRole | null>(null)
 
   const [deleteTarget, setDeleteTarget] = useState<OrganizationRole | null>(null)
   const [replacementRole, setReplacementRole] = useState('viewer')
@@ -111,18 +108,6 @@ export function RolesPage() {
     if (apiError.code === 'E_ROLE_RESET_CUSTOM') return t('errors.resetCustom')
     if (apiError.code === 'E_ROLE_REPLACEMENT_MISSING') return t('errors.replacementMissing')
     return apiError.message || t('errors.actionFailed')
-  }
-
-  function openCreate() {
-    setEditorMode('create')
-    setEditingRole(null)
-    setEditorOpen(true)
-  }
-
-  function openEdit(role: OrganizationRole) {
-    setEditorMode('edit')
-    setEditingRole(role)
-    setEditorOpen(true)
   }
 
   async function handleDeleteConfirm() {
@@ -220,7 +205,11 @@ export function RolesPage() {
             </p>
           </div>
           {canManageRoles ? (
-            <Button type="button" className="shrink-0 gap-2" onClick={openCreate}>
+            <Button
+              type="button"
+              className="shrink-0 gap-2"
+              onClick={() => router.push('/dashboard/team/roles/create')}
+            >
               <Plus className="size-4" aria-hidden />
               {t('createCta')}
             </Button>
@@ -299,7 +288,9 @@ export function RolesPage() {
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() => openEdit(role)}
+                        onClick={() =>
+                          router.push(`/dashboard/team/roles/edit/${role.role}`)
+                        }
                       >
                         {t('editCta')}
                       </Button>
@@ -348,18 +339,6 @@ export function RolesPage() {
           </ul>
         )}
       </DashboardPanel>
-
-      {canManageRoles ? (
-        <RoleEditorSheet
-          open={editorOpen}
-          onOpenChange={setEditorOpen}
-          mode={editorMode}
-          role={editingRole}
-          onSaved={() => {
-            if (tenantOrganizationId) void loadRoles(tenantOrganizationId)
-          }}
-        />
-      ) : null}
 
       {deleteTarget ? (
         <div

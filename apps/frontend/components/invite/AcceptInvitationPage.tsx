@@ -1,11 +1,15 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { Check, Loader2, LogIn, UserPlus, X } from 'lucide-react'
 import { api, type ApiError, type InvitationPreview, type ProfileUser } from '@/lib/api'
 import { Link, useRouter } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
+import {
+  clearPendingInvitationId,
+  savePendingInvitationId,
+} from '@/lib/post-auth-redirect'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { AuthLayout } from '@/components/auth/auth-layout'
 import { AuthBranding } from '@/components/auth/auth-branding'
@@ -39,6 +43,8 @@ export function AcceptInvitationPage({
   const [pending, setPending] = useState<'accept' | 'reject' | null>(null)
   const [declined, setDeclined] = useState(false)
   const [user, setUser] = useState<ProfileUser | null>(null)
+  const [sessionReady, setSessionReady] = useState(false)
+  const autoAcceptStarted = useRef(false)
 
   const loadError =
     initialErrorKey === 'notFound'
@@ -46,6 +52,10 @@ export function AcceptInvitationPage({
       : initialErrorKey === 'loadFailed'
         ? t('errors.loadFailed')
         : null
+
+  useEffect(() => {
+    savePendingInvitationId(invitationId)
+  }, [invitationId])
 
   // Soft session probe — never blocks UI. Fail open as logged-out.
   useEffect(() => {
@@ -56,6 +66,8 @@ export function AcceptInvitationPage({
         if (!cancelled) setUser(sessionUserFromPayload(data))
       } catch {
         if (!cancelled) setUser(null)
+      } finally {
+        if (!cancelled) setSessionReady(true)
       }
     })()
     return () => {
@@ -68,8 +80,7 @@ export function AcceptInvitationPage({
     Boolean(preview?.email) &&
     user!.email.toLowerCase() === preview!.email.toLowerCase()
 
-  const canAccept =
-    emailMatches && preview?.status === 'pending' && !pending
+  const canAccept = emailMatches && preview?.status === 'pending' && pending === null
 
   function mapActionError(err: unknown): string {
     const apiError = err as ApiError
@@ -97,8 +108,6 @@ export function AcceptInvitationPage({
             ? data.organizationId
             : null
 
-      // Persist active workspace on this session (backend also writes it; this covers
-      // cookie/session edge cases so the invitee lands in the invited org).
       if (organizationId) {
         try {
           await api.organizations.setActive(organizationId)
@@ -107,20 +116,33 @@ export function AcceptInvitationPage({
         }
       }
 
+      clearPendingInvitationId()
       router.push('/dashboard')
       router.refresh()
     } catch (err) {
       setActionError(mapActionError(err))
+      autoAcceptStarted.current = false
     } finally {
       setPending(null)
     }
   }
+
+  // After signup/login, invitees land here authenticated — join without an extra click.
+  useEffect(() => {
+    if (!sessionReady) return
+    if (!emailMatches || preview?.status !== 'pending') return
+    if (autoAcceptStarted.current || pending !== null) return
+    autoAcceptStarted.current = true
+    void handleAccept()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionReady, emailMatches, preview?.status])
 
   async function handleDecline() {
     setActionError(null)
     setPending('reject')
     try {
       await api.invitations.reject(invitationId)
+      clearPendingInvitationId()
       setDeclined(true)
       setPreview((prev) => (prev ? { ...prev, status: 'rejected' } : prev))
     } catch (err) {
@@ -136,6 +158,9 @@ export function AcceptInvitationPage({
   const registerHref = `/${locale}/register?callbackURL=${encodeURIComponent(callbackPath)}${
     invitedEmail ? `&email=${encodeURIComponent(invitedEmail)}` : ''
   }`
+
+  const showAcceptUi =
+    preview?.status === 'pending' && Boolean(user) && emailMatches && !declined
 
   return (
     <AuthLayout branding={<AuthBranding variant="login" />}>
@@ -227,98 +252,101 @@ export function AcceptInvitationPage({
                   {pending === 'reject' ? t('rejecting') : t('reject')}
                 </Button>
               </div>
-            ) : canAccept ? (
-              <div className="flex flex-col gap-2.5 sm:flex-row-reverse">
-                <Button
-                  type="button"
-                  disabled={!canAccept}
-                  className={cn(authPrimaryButtonClassName, 'sm:flex-1')}
-                  onClick={handleAccept}
-                >
-                  {pending === 'accept' ? (
+            ) : showAcceptUi ? (
+              <div className="flex flex-col gap-2.5">
+                {pending === 'accept' || (sessionReady && autoAcceptStarted.current) ? (
+                  <div className="flex items-center justify-center gap-2 rounded-xl border border-dash-border bg-dash-surface/50 px-4 py-3 text-sm text-body">
                     <Loader2 className="size-4 animate-spin" aria-hidden />
-                  ) : (
-                    <Check className="size-4" aria-hidden />
-                  )}
-                  {pending === 'accept' ? t('accepting') : t('accept')}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={Boolean(pending)}
-                  className={cn(authOutlineButtonClassName, 'sm:flex-1')}
-                  onClick={handleDecline}
-                >
-                  {pending === 'reject' ? (
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
-                  ) : (
-                    <X className="size-4" aria-hidden />
-                  )}
-                  {pending === 'reject' ? t('rejecting') : t('reject')}
-                </Button>
+                    {t('accepting')}
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2.5 sm:flex-row-reverse">
+                    <Button
+                      type="button"
+                      disabled={!canAccept}
+                      className={cn(authPrimaryButtonClassName, 'sm:flex-1')}
+                      onClick={() => void handleAccept()}
+                    >
+                      <Check className="size-4" aria-hidden />
+                      {t('accept')}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={Boolean(pending)}
+                      className={cn(authOutlineButtonClassName, 'sm:flex-1')}
+                      onClick={handleDecline}
+                    >
+                      {pending === 'reject' ? (
+                        <Loader2 className="size-4 animate-spin" aria-hidden />
+                      ) : (
+                        <X className="size-4" aria-hidden />
+                      )}
+                      {pending === 'reject' ? t('rejecting') : t('reject')}
+                    </Button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="flex flex-col gap-2.5">
-                <p className="text-sm text-body">{t('signInPrompt')}</p>
-                {/* Hard navigation avoids Next soft-nav getting stuck on "Loading…" */}
-                <a
-                  href={loginHref}
-                  className={cn(
-                    buttonVariants({ variant: 'default' }),
-                    authPrimaryButtonClassName
-                  )}
-                >
-                  <LogIn className="size-4" aria-hidden />
-                  {t('signIn')}
-                </a>
-                <a
-                  href={registerHref}
-                  className={cn(
-                    buttonVariants({ variant: 'outline' }),
-                    authOutlineButtonClassName
-                  )}
-                >
-                  <UserPlus className="size-4" aria-hidden />
-                  {t('createAccount')}
-                </a>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={Boolean(pending)}
-                  className={cn(authOutlineButtonClassName)}
-                  onClick={handleDecline}
-                >
-                  {pending === 'reject' ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin" aria-hidden />
-                      {t('rejecting')}
-                    </>
-                  ) : (
-                    <>
-                      <X className="size-4" aria-hidden />
-                      {t('reject')}
-                    </>
-                  )}
-                </Button>
+                {!sessionReady ? (
+                  <div className="flex items-center justify-center gap-2 rounded-xl border border-dash-border bg-dash-surface/50 px-4 py-3 text-sm text-body">
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                    {t('accepting')}
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-sm text-body">{t('signInPrompt')}</p>
+                    <a
+                      href={loginHref}
+                      className={cn(
+                        buttonVariants({ variant: 'default' }),
+                        authPrimaryButtonClassName
+                      )}
+                    >
+                      <LogIn className="size-4" aria-hidden />
+                      {t('signIn')}
+                    </a>
+                    <a
+                      href={registerHref}
+                      className={cn(
+                        buttonVariants({ variant: 'outline' }),
+                        authOutlineButtonClassName
+                      )}
+                    >
+                      <UserPlus className="size-4" aria-hidden />
+                      {t('createAccount')}
+                    </a>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={Boolean(pending)}
+                      className={cn(authOutlineButtonClassName)}
+                      onClick={handleDecline}
+                    >
+                      {pending === 'reject' ? (
+                        <>
+                          <Loader2 className="size-4 animate-spin" aria-hidden />
+                          {t('rejecting')}
+                        </>
+                      ) : (
+                        <>
+                          <X className="size-4" aria-hidden />
+                          {t('reject')}
+                        </>
+                      )}
+                    </Button>
+                  </>
+                )}
               </div>
             )}
-          </>
-        ) : (
-          <div
-            role="alert"
-            className="rounded-xl border border-negative/25 bg-negative/5 px-4 py-3 text-sm text-negative"
-          >
-            {t('errors.notFound')}
-          </div>
-        )}
 
-        {actionError ? (
-          <div
-            role="alert"
-            className="rounded-xl border border-negative/25 bg-negative/5 px-4 py-3 text-sm text-negative"
-          >
-            {actionError}
-          </div>
+            {actionError ? (
+              <p role="alert" className="text-sm text-negative">
+                {actionError}
+              </p>
+            ) : null}
+          </>
         ) : null}
       </div>
     </AuthLayout>
