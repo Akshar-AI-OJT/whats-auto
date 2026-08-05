@@ -1689,6 +1689,154 @@
         }
       }
     },
+    "inbox": {
+      "eyebrow": "Messaging",
+      "title": "Inbox",
+      "subtitle": "Manage customer conversations across your workspace.",
+      "listTitle": "Conversations",
+      "listDescription": "{count, plural, =0 {No conversations} one {# conversation} other {# conversations}}",
+      "loading": "Loading conversations…",
+      "retry": "Retry",
+      "refresh": "Refresh conversations",
+      "newConversationCta": "New Conversation",
+      "searchLabel": "Search conversations",
+      "searchPlaceholder": "Search by contact name or phone…",
+      "statusFilterLabel": "Filter by status",
+      "agentFilterLabel": "Filter by assigned agent",
+      "showingCount": "Showing {count, plural, =0 {0 conversations} one {# conversation} other {# conversations}}",
+      "rowsPerPage": "Rows per page",
+      "emptyTitle": "📥 Inbox is empty",
+      "emptyDescription": "Customer conversations will appear here once your WhatsApp number starts receiving messages.",
+      "emptyConnectCta": "Connect WhatsApp",
+      "kpis": {
+        "open": "Open",
+        "assigned": "Assigned",
+        "waiting": "Waiting",
+        "closedToday": "Closed today"
+      },
+      "noPreview": "No messages yet",
+      "unassigned": "Unassigned",
+      "prevPage": "Previous",
+      "nextPage": "Next",
+      "pagination": "Page {page} of {lastPage} · {total} total",
+      "columns": {
+        "contact": "Contact",
+        "preview": "Last message",
+        "status": "Status",
+        "agent": "Assigned to",
+        "channel": "Channel",
+        "updated": "Updated"
+      },
+      "filters": {
+        "status": {
+          "all": "All statuses",
+          "open": "Open",
+          "pending": "Pending",
+          "closed": "Closed"
+        },
+        "agent": {
+          "all": "All agents"
+        }
+      },
+      "channel": {
+        "whatsapp": "WhatsApp"
+      },
+      "errors": {
+        "loadFailed": "Couldn’t load conversations. Please try again.",
+        "permissionDenied": "You don’t have permission to view the inbox in this workspace."
+      },
+      "newConversation": {
+        "title": "New Conversation",
+        "description": "Start a new customer conversation by selecting a contact and a connected WhatsApp number.",
+        "contactLabel": "Contact",
+        "contactSearchPlaceholder": "Search contacts by name or phone…",
+        "loadingContacts": "Loading contacts…",
+        "emptyContacts": "No contacts found.",
+        "whatsappLabel": "WhatsApp number",
+        "emptyWhatsappConfigs": "Connect a WhatsApp number to start conversations.",
+        "createCta": "Create conversation",
+        "errors": {
+          "loadFailed": "Couldn’t load contacts or WhatsApp numbers. Please try again.",
+          "createFailed": "Couldn’t create the conversation. Please try again.",
+          "permissionDenied": "You don’t have permission to start a conversation in this workspace.",
+          "sessionExpired": "Your session expired. Please sign in again."
+        }
+      },
+      "sidebarDescription": "Recent conversations in this workspace.",
+      "thread": {
+        "back": "Back to inbox",
+        "agentSender": "Agent",
+        "noContent": "No message content",
+        "emptyTitle": "📭 No messages yet",
+        "emptyDescription": "Messages will appear here once the conversation starts.",
+        "selectTitle": "Select a conversation",
+        "selectDescription": "Choose a conversation from the list to view the message thread.",
+        "retry": "Retry",
+        "errors": {
+          "loadFailed": "Couldn’t load this conversation. Please try again.",
+          "notFound": "Conversation not found.",
+          "permissionDenied": "You don’t have permission to view this conversation."
+        },
+        "composer": {
+          "label": "Reply to customer",
+          "placeholder": "Write a reply…",
+          "hint": "Enter to send · Shift+Enter for a new line",
+          "send": "Send reply",
+          "readOnly": "You don’t have permission to reply in this workspace.",
+          "closedHint": "This conversation is closed. Reopen it to send a reply.",
+          "errors": {
+            "sendFailed": "Couldn’t send your reply. Please try again.",
+            "sessionExpired": "Your session expired. Please sign in again.",
+            "permissionDenied": "You don’t have permission to send replies.",
+            "conversationClosed": "Cannot reply to a closed conversation.",
+            "notFound": "Conversation not found."
+          }
+        },
+        "actions": {
+          "assignLabel": "Assign agent",
+          "assignPlaceholder": "Assign to…",
+          "noAgents": "No agents available",
+          "statusLabel": "Conversation status",
+          "close": "Close",
+          "reopen": "Reopen",
+          "errors": {
+            "actionFailed": "Couldn’t update this conversation. Please try again.",
+            "sessionExpired": "Your session expired. Please sign in again.",
+            "permissionDenied": "You don’t have permission to change this conversation.",
+            "notFound": "Conversation not found.",
+            "agentNotFound": "That agent is not a member of this workspace."
+          }
+        },
+        "panelsLabel": "Conversation panels",
+        "panels": {
+          "messages": "Messages",
+          "notes": "Internal notes"
+        },
+        "notes": {
+          "loading": "Loading notes…",
+          "emptyTitle": "No internal notes yet",
+          "emptyDescription": "Add private notes for your team. Customers never see these.",
+          "label": "Internal note",
+          "placeholder": "Write an internal note…",
+          "hint": "Notes stay inside your workspace and are never sent on WhatsApp.",
+          "save": "Add note",
+          "readOnly": "You don’t have permission to add notes in this workspace.",
+          "unknownAuthor": "Team member",
+          "errors": {
+            "saveFailed": "Couldn’t save this note. Please try again.",
+            "sessionExpired": "Your session expired. Please sign in again.",
+            "permissionDenied": "You don’t have permission to manage notes.",
+            "notFound": "Conversation not found."
+          }
+        }
+      },
+      "detail": {
+        "back": "Back to inbox",
+        "title": "Conversation",
+        "comingSoon": "Thread and replies will be available in the next step.",
+        "idLabel": "Conversation ID: {id}"
+      }
+    },
     "settings": {
       "eyebrow": "Workspace",
       "title": "Workspace Settings",

@@ -531,33 +531,66 @@ export class OrganizationRolePermissionSchema extends BaseModel {
 
 export class OrganizationSubscriptionSchema extends BaseModel {
   static $columns = [
+    'activatedAt',
     'cancelAt',
+    'cancelAtPeriodEnd',
+    'cancelledAt',
+    'checkoutUrl',
     'createdAt',
     'currentPeriodEnd',
     'currentPeriodStart',
+    'endedAt',
+    'gateway',
+    'gatewaySubscriptionId',
     'id',
+    'lastPaymentAt',
+    'lastPaymentStatus',
+    'metadata',
     'organizationId',
     'planId',
     'status',
+    'trialEndsAt',
     'updatedAt',
   ] as const
   $columns = OrganizationSubscriptionSchema.$columns
   @column.dateTime()
+  declare activatedAt: DateTime | null
+  @column.dateTime()
   declare cancelAt: DateTime | null
+  @column()
+  declare cancelAtPeriodEnd: boolean
+  @column.dateTime()
+  declare cancelledAt: DateTime | null
+  @column()
+  declare checkoutUrl: string | null
   @column.dateTime()
   declare createdAt: DateTime
   @column.dateTime()
   declare currentPeriodEnd: DateTime
   @column.dateTime()
   declare currentPeriodStart: DateTime
+  @column.dateTime()
+  declare endedAt: DateTime | null
+  @column()
+  declare gateway: string | null
+  @column()
+  declare gatewaySubscriptionId: string | null
   @column({ isPrimary: true })
   declare id: string
+  @column.dateTime()
+  declare lastPaymentAt: DateTime | null
+  @column()
+  declare lastPaymentStatus: string | null
+  @column()
+  declare metadata: any
   @column()
   declare organizationId: string
   @column()
   declare planId: string
   @column()
   declare status: string
+  @column.dateTime()
+  declare trialEndsAt: DateTime | null
   @column.dateTime()
   declare updatedAt: DateTime | null
 }
@@ -569,6 +602,8 @@ export class OrganizationSchema extends BaseModel {
     'currency',
     'deletedAt',
     'email',
+    'gateway',
+    'gatewayCustomerId',
     'id',
     'industry',
     'name',
@@ -590,6 +625,10 @@ export class OrganizationSchema extends BaseModel {
   declare deletedAt: DateTime | null
   @column()
   declare email: string
+  @column()
+  declare gateway: string | null
+  @column()
+  declare gatewayCustomerId: string | null
   @column({ isPrimary: true })
   declare id: string
   @column()
@@ -669,14 +708,23 @@ export class PaymentTransactionSchema extends BaseModel {
     'amount',
     'createdAt',
     'currency',
+    'failureCode',
+    'failureReason',
     'gateway',
-    'gatewayTransactionId',
+    'gatewayInvoiceId',
+    'gatewayOrderId',
+    'gatewayPaymentId',
     'id',
     'invoiceUrl',
     'metadata',
     'organizationId',
+    'paidAt',
+    'paymentMethod',
+    'receiptNumber',
+    'refundedAmount',
     'status',
     'subscriptionId',
+    'updatedAt',
   ] as const
   $columns = PaymentTransactionSchema.$columns
   @column()
@@ -686,9 +734,17 @@ export class PaymentTransactionSchema extends BaseModel {
   @column()
   declare currency: string
   @column()
+  declare failureCode: string | null
+  @column()
+  declare failureReason: string | null
+  @column()
   declare gateway: string
   @column()
-  declare gatewayTransactionId: string
+  declare gatewayInvoiceId: string | null
+  @column()
+  declare gatewayOrderId: string | null
+  @column()
+  declare gatewayPaymentId: string | null
   @column({ isPrimary: true })
   declare id: string
   @column()
@@ -697,10 +753,68 @@ export class PaymentTransactionSchema extends BaseModel {
   declare metadata: any
   @column()
   declare organizationId: string
+  @column.dateTime()
+  declare paidAt: DateTime | null
+  @column()
+  declare paymentMethod: string | null
+  @column()
+  declare receiptNumber: string | null
+  @column()
+  declare refundedAmount: string
   @column()
   declare status: string
   @column()
-  declare subscriptionId: string
+  declare subscriptionId: string | null
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+}
+
+export class PaymentWebhookEventSchema extends BaseModel {
+  static $columns = [
+    'createdAt',
+    'eventId',
+    'eventType',
+    'id',
+    'lockedAt',
+    'lockExpiresAt',
+    'nextAttemptAt',
+    'organizationId',
+    'payload',
+    'processedAt',
+    'processingError',
+    'provider',
+    'retryCount',
+    'status',
+  ] as const
+  $columns = PaymentWebhookEventSchema.$columns
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare eventId: string
+  @column()
+  declare eventType: string
+  @column({ isPrimary: true })
+  declare id: string
+  @column.dateTime()
+  declare lockedAt: DateTime | null
+  @column.dateTime()
+  declare lockExpiresAt: DateTime | null
+  @column.dateTime()
+  declare nextAttemptAt: DateTime
+  @column()
+  declare organizationId: string | null
+  @column()
+  declare payload: any
+  @column.dateTime()
+  declare processedAt: DateTime | null
+  @column()
+  declare processingError: string | null
+  @column()
+  declare provider: string
+  @column()
+  declare retryCount: number
+  @column()
+  declare status: string
 }
 
 export class PermissionSchema extends BaseModel {
@@ -723,29 +837,56 @@ export class PermissionSchema extends BaseModel {
 export class PlanSchema extends BaseModel {
   static $columns = [
     'billingInterval',
+    'billingIntervalCount',
+    'code',
     'createdAt',
     'currency',
+    'description',
+    'gateway',
+    'gatewayPlanId',
     'id',
+    'isActive',
     'limits',
+    'metadata',
     'name',
     'price',
+    'sortOrder',
+    'trialDays',
     'updatedAt',
   ] as const
   $columns = PlanSchema.$columns
   @column()
   declare billingInterval: string
+  @column()
+  declare billingIntervalCount: number
+  @column()
+  declare code: string
   @column.dateTime()
   declare createdAt: DateTime
   @column()
   declare currency: string
+  @column()
+  declare description: string | null
+  @column()
+  declare gateway: string | null
+  @column()
+  declare gatewayPlanId: string | null
   @column({ isPrimary: true })
   declare id: string
   @column()
+  declare isActive: boolean
+  @column()
   declare limits: any
+  @column()
+  declare metadata: any
   @column()
   declare name: string
   @column()
   declare price: string
+  @column()
+  declare sortOrder: number
+  @column()
+  declare trialDays: number
   @column.dateTime()
   declare updatedAt: DateTime | null
 }

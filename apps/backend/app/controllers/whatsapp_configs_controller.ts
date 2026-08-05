@@ -7,13 +7,15 @@ export default class WhatsappConfigsController {
   /**
    * @index
    * @summary List WhatsApp configs for the active organization
-   * @description Never returns accessToken. RLS-scoped.
+   * @description Never returns accessToken. Scoped to active org (app filter + RLS).
    * @tag WhatsApp
    * @security BearerAuth
    * @responseBody 200 - { "data": [{ "id": "uuid", "phoneNumberId": "456", "status": "connected" }] }
    */
-  async index({ serialize }: HttpContext) {
-    const configs = await new WhatsappConfigService().listConfigs()
+  async index({ request, serialize }: HttpContext) {
+    const configs = await new WhatsappConfigService().listConfigs(
+      request.activeMember!.organizationId
+    )
     return serialize(configs)
   }
 
@@ -26,8 +28,11 @@ export default class WhatsappConfigsController {
    * @responseBody 200 - { "data": { "id": "uuid", "phoneNumberId": "456", "status": "connected" } }
    * @responseBody 404 - { "error": "WhatsApp config not found", "code": "E_WA_CONFIG_NOT_FOUND" }
    */
-  async show({ params, serialize }: HttpContext) {
-    const config = await new WhatsappConfigService().getConfig(params.id)
+  async show({ params, request, serialize }: HttpContext) {
+    const config = await new WhatsappConfigService().getConfig(
+      params.id,
+      request.activeMember!.organizationId
+    )
     return serialize(config)
   }
 
@@ -40,8 +45,11 @@ export default class WhatsappConfigsController {
    * @paramPath id - Config id - @type(string)
    * @responseBody 200 - { "data": { "id": "uuid", "status": "disconnected" } }
    */
-  async destroy({ params, serialize }: HttpContext) {
-    const config = await new WhatsappConfigService().disconnect(params.id)
+  async destroy({ params, request, serialize }: HttpContext) {
+    const config = await new WhatsappConfigService().disconnect(
+      params.id,
+      request.activeMember!.organizationId
+    )
     return serialize(config)
   }
 
@@ -60,6 +68,7 @@ export default class WhatsappConfigsController {
     const payload = await request.validateUsing(testWhatsappConfigValidator)
     const result = await new WhatsappConfigService().sendTestTemplate({
       configId: params.id,
+      organizationId: request.activeMember!.organizationId,
       to: payload.to,
       templateName: payload.templateName,
       languageCode: payload.languageCode,
