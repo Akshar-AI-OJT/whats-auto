@@ -191,14 +191,28 @@ export function TeamMembersPage() {
   const [roleFilter, setRoleFilter] = useState<'all' | AssignableRole | 'owner'>('all')
   const [paginatedSource, setPaginatedSource] = useState(false)
 
-  const organizationIdRef = useRef(tenantOrganizationId)
-  organizationIdRef.current = tenantOrganizationId
-  const pageRef = useRef(page)
-  pageRef.current = page
+  // Bumped when a newer load starts so stale responses are ignored.
+  const loadGenerationRef = useRef(0)
+
+  // Reset list/filter state when workspace changes (render-time — avoids setState-in-effect).
+  const [listWorkspaceId, setListWorkspaceId] = useState(tenantOrganizationId)
+  if (tenantOrganizationId !== listWorkspaceId) {
+    setListWorkspaceId(tenantOrganizationId)
+    setPage(1)
+    setSearchQuery('')
+    setRoleFilter('all')
+    setMembers([])
+    setPendingInvites([])
+    setMeta(null)
+    setPaginatedSource(false)
+    setListError(null)
+    setListLoading(true)
+  }
 
   const loadTeam = useCallback(
-    async (organizationId: string, pageToLoad: number) => {
+    async (organizationId: string, pageToLoad: number, generation: number) => {
       if (!canViewTeam) {
+        if (generation !== loadGenerationRef.current) return
         setMembers([])
         setPendingInvites([])
         setMeta(null)
@@ -222,8 +236,7 @@ export function TeamMembersPage() {
             api.organizationAdmin.listUsers({ page: pageToLoad, perPage }),
             invitesPromise,
           ])
-          if (organizationId !== organizationIdRef.current) return
-          if (pageToLoad !== pageRef.current) return
+          if (generation !== loadGenerationRef.current) return
 
           const { users, meta: nextMeta } = unwrapPaginatedUsers(usersResult.data)
           setMembers(users.map(fromAdminUser))
@@ -254,7 +267,7 @@ export function TeamMembersPage() {
             api.members.list(),
             invitesPromise,
           ])
-          if (organizationId !== organizationIdRef.current) return
+          if (generation !== loadGenerationRef.current) return
 
           setMembers(unwrapList(membersResult.data).map(fromMember))
           setMeta(null)
@@ -262,14 +275,14 @@ export function TeamMembersPage() {
           setPendingInvites(unwrapList(invitesResult.data))
         }
       } catch (err) {
-        if (organizationId !== organizationIdRef.current) return
+        if (generation !== loadGenerationRef.current) return
         setMembers([])
         setPendingInvites([])
         setMeta(null)
         const apiError = err as ApiError
         setListError(apiError.message || t('errors.loadFailed'))
       } finally {
-        if (organizationId === organizationIdRef.current) {
+        if (generation === loadGenerationRef.current) {
           setListLoading(false)
         }
       }
@@ -277,25 +290,11 @@ export function TeamMembersPage() {
     [canViewTeam, perPage, t]
   )
 
-  // Reset page when workspace changes.
   useEffect(() => {
-    setPage(1)
-    setSearchQuery('')
-    setRoleFilter('all')
-  }, [tenantOrganizationId])
-
-  useEffect(() => {
-    if (orgsLoading) return
-    if (!tenantOrganizationId) {
-      setMembers([])
-      setPendingInvites([])
-      setMeta(null)
-      setListLoading(true)
-      return
-    }
-    void loadTeam(tenantOrganizationId, page)
+    if (orgsLoading || !tenantOrganizationId) return
+    const generation = ++loadGenerationRef.current
+    void loadTeam(tenantOrganizationId, page, generation)
   }, [orgsLoading, tenantOrganizationId, page, loadTeam])
-
   useEffect(() => {
     if (orgsLoading || canInviteMembers || !inviteFromQuery) return
     router.replace(pathname)
@@ -369,7 +368,8 @@ export function TeamMembersPage() {
       setRemoveTarget(null)
       setActionError(null)
       if (tenantOrganizationId && paginatedSource) {
-        void loadTeam(tenantOrganizationId, page)
+        const generation = ++loadGenerationRef.current
+        void loadTeam(tenantOrganizationId, page, generation)
       }
     } catch (err) {
       setRemoveError(mapMemberActionError(err))
@@ -743,7 +743,9 @@ export function TeamMembersPage() {
           open={inviteOpen}
           onOpenChange={handleInviteOpenChange}
           onInvited={() => {
-            if (tenantOrganizationId) void loadTeam(tenantOrganizationId, page)
+            if (!tenantOrganizationId) return
+            const generation = ++loadGenerationRef.current
+            void loadTeam(tenantOrganizationId, page, generation)
           }}
         />
       ) : null}

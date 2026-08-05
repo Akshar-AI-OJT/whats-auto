@@ -79,3 +79,26 @@ test.group('WhatsappOutboundDispatchHandler', () => {
     })
   })
 })
+
+test.group('WhatsappOutboundRecoveryHandler', () => {
+  test('calls recoverStuckDispatches with optional org and limit', async ({ assert }) => {
+    const calls: unknown[] = []
+    const { createWhatsappOutboundRecoveryHandler } = await import(
+      '#services/job_queue/handlers/whatsapp_outbound_recovery_handler'
+    )
+    const handler = createWhatsappOutboundRecoveryHandler({
+      recoverStuckDispatches: async (params: unknown) => {
+        calls.push(params)
+        return { woken: 2, scannedOrganizations: 1 }
+      },
+    } as any)
+
+    await handler({
+      id: 'job-recovery',
+      name: JOB_NAMES.WHATSAPP_OUTBOUND_RECOVERY,
+      data: { organizationId: 'org-1', limit: 10 },
+    })
+
+    assert.deepEqual(calls[0], { organizationId: 'org-1', limit: 10 })
+  })
+})

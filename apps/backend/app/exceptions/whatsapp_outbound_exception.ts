@@ -68,6 +68,13 @@ export default class WhatsappOutboundException extends Exception {
     })
   }
 
+  static idempotencyKeyConflict() {
+    return new this('Idempotency-Key was reused with a different payload', {
+      status: 422,
+      code: 'E_IDEMPOTENCY_KEY_CONFLICT',
+    })
+  }
+
   handle(error: this, { response }: HttpContext) {
     return response.status(error.status).send({
       error: error.message,
