@@ -5,7 +5,9 @@ import { useLocale, useTranslations } from 'next-intl'
 import { Loader2, Lock, Mail } from 'lucide-react'
 import { FcGoogle } from 'react-icons/fc'
 import { cn } from '@/lib/utils'
-import { api, type ApiError } from '@/lib/api'
+import type { ApiError } from '@/lib/api'
+import { authClient, formatBetterAuthError } from '@/lib/auth-client'
+import { getValidAccessToken } from '@/lib/access-token'
 import {
   DEV_SUPER_ADMIN_DASHBOARD_PATH,
   markDevSuperAdminSession,
@@ -67,7 +69,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
   const t = useTranslations('auth.login')
   const locale = useLocale()
   const router = useRouter()
-  const [callbackPath, setCallbackPath] = useState<string | null>(null)
+  const [callbackPath] = useState<string | null>(() => readCallbackFromWindow())
   const formErrorId = useId()
   const emailId = useId()
   const passwordId = useId()
@@ -85,11 +87,9 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
   const isPending = pending !== 'idle'
 
   useEffect(() => {
-    const path = readCallbackFromWindow()
-    setCallbackPath(path)
-    const inviteId = invitationIdFromPath(path)
+    const inviteId = invitationIdFromPath(callbackPath)
     if (inviteId) savePendingInvitationId(inviteId)
-  }, [])
+  }, [callbackPath])
 
   useEffect(() => {
     try {
@@ -141,12 +141,13 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
     try {
       const appUrl = process.env.NEXT_PUBLIC_APP_URL
       const redirectPath = callbackPath ?? '/dashboard'
-      const { data } = await api.auth.google(`${appUrl}/${locale}${redirectPath}`)
-      if (data.url) {
-        window.location.href = data.url
-        return
-      }
-      setError(t('errors.generic'))
+      const callbackURL = `${appUrl}/${locale}${redirectPath}`
+      const { error: authErr } = await authClient.signIn.social({
+        provider: 'google',
+        callbackURL,
+      })
+      if (authErr) throw formatBetterAuthError(authErr)
+      // Successful social auth redirects the browser; keep pending if we somehow stay.
     } catch (err) {
       const apiError = err as ApiError
       if (apiError.code === 'EMAIL_ALREADY_EXISTS') {
@@ -154,7 +155,6 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
       } else {
         setError(apiError.message || t('errors.generic'))
       }
-    } finally {
       setPending('idle')
     }
   }
@@ -179,7 +179,16 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
         return
       }
 
-      await api.auth.login({ email: trimmedEmail, password })
+      const { error: authErr } = await authClient.signIn.email({
+        email: trimmedEmail,
+        password,
+      })
+      if (authErr) throw formatBetterAuthError(authErr)
+
+      // JWT plugin seeds on get-session; mint before first protected call.
+      await authClient.getSession({ query: { disableCookieCache: true } })
+      await getValidAccessToken()
+
       const nextPath = await resolvePostAuthPath({
         preferredCallback: callbackPath,
         fallback: '/dashboard',
@@ -350,9 +359,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
           </Button>
         </Field>
 
-        <FieldSeparator className={authDividerClassName}>
-          {t('orContinue')}
-        </FieldSeparator>
+        <FieldSeparator className={authDividerClassName}>{t('orContinue')}</FieldSeparator>
 
         <Field className="gap-5">
           <Button

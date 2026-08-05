@@ -1,8 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
-import { api, type ApiError, type ProfileUser } from '@/lib/api'
+import { useCallback } from 'react'
+import { authClient } from '@/lib/auth-client'
+import { clearAccessToken } from '@/lib/access-token'
 import { clearLegacyOrganizationCache } from '@/lib/onboarding'
+import type { ProfileUser } from '@/lib/api'
 
 type AuthState = {
   user: ProfileUser | null
@@ -13,106 +15,56 @@ type AuthState = {
   signOut: () => Promise<void>
 }
 
-function sessionUserFromPayload(data: unknown): ProfileUser | null {
-  if (!data || typeof data !== 'object' || !('user' in data)) {
-    return null
-  }
-
-  return (data as { user: ProfileUser | null }).user ?? null
+function initialsFrom(name: string, email: string): string {
+  const source = name.trim() || email.trim() || 'WA'
+  return source
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('')
 }
 
-function profileUserFromPayload(data: unknown): ProfileUser | null {
-  if (!data || typeof data !== 'object') return null
-  const payload = data as { data?: ProfileUser } & Partial<ProfileUser>
-  const user = payload.data ?? (payload.id ? (payload as ProfileUser) : null)
-  return user?.id ? user : null
-}
-
-function isAuthFailure(error: ApiError): boolean {
-  return error.status === 401
+function toIso(value: Date | string | undefined | null): string | null {
+  if (!value) return null
+  return value instanceof Date ? value.toISOString() : new Date(value).toISOString()
 }
 
 export function useAuth(): AuthState {
-  const [user, setUser] = useState<ProfileUser | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data, isPending, error, refetch } = authClient.useSession()
 
-  const loadUser = useCallback(async (): Promise<ProfileUser | null> => {
-    try {
-      const { data } = await api.auth.getSession()
-      const sessionUser = sessionUserFromPayload(data)
-      if (sessionUser) return sessionUser
-    } catch {
-      // Ignore here; we fallback to account.profile below.
-    }
-
-    // Fallback endpoint is often more stable than auth get-session under load.
-    const { data } = await api.account.profile()
-    return profileUserFromPayload(data)
-  }, [])
+  const rawUser = data?.user
+  const user: ProfileUser | null = rawUser
+    ? {
+        id: rawUser.id,
+        name: rawUser.name,
+        firstname: rawUser.firstname ?? '',
+        lastname: rawUser.lastname ?? '',
+        email: rawUser.email,
+        initials: initialsFrom(rawUser.name, rawUser.email),
+        createdAt: toIso(rawUser.createdAt),
+        updatedAt: toIso(rawUser.updatedAt),
+      }
+    : null
 
   const refresh = useCallback(async () => {
-    setError(null)
-
-    try {
-      const nextUser = await loadUser()
-      setUser(nextUser)
-    } catch (err) {
-      const apiError = err as ApiError
-      if (isAuthFailure(apiError)) {
-        setUser(null)
-      }
-      // Keep existing user for transient errors so topbar name doesn't flicker to "Account".
-      setError(apiError.message ?? 'Failed to load session')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [loadUser])
+    await refetch()
+  }, [refetch])
 
   const signOut = useCallback(async () => {
     try {
-      await api.auth.logout()
+      await authClient.signOut()
     } finally {
+      // Session cookie is gone; in-memory JWT would otherwise stay valid until exp.
+      clearAccessToken()
       clearLegacyOrganizationCache()
-      setUser(null)
     }
   }, [])
 
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      try {
-        const nextUser = await loadUser()
-        if (!cancelled) {
-          setUser(nextUser)
-          setError(null)
-        }
-      } catch (err) {
-        if (!cancelled) {
-          const apiError = err as ApiError
-          if (isAuthFailure(apiError)) {
-            setUser(null)
-          }
-          // Preserve prior user on temporary network/timeouts.
-          setError(apiError.message ?? 'Failed to load session')
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false)
-        }
-      }
-    })()
-
-    return () => {
-      cancelled = true
-    }
-  }, [loadUser])
-
   return {
     user,
-    isLoading,
+    isLoading: isPending,
     isAuthenticated: Boolean(user),
-    error,
+    error: error?.message ?? null,
     refresh,
     signOut,
   }

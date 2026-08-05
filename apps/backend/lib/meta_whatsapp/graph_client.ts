@@ -48,6 +48,21 @@ export interface MetaGraphClient {
     languageCode: string
     components?: MetaSendTemplateComponent[]
   }): Promise<MetaSendMessageResult>
+  sendTextMessage(params: {
+    phoneNumberId: string
+    accessToken: string
+    to: string
+    text: string
+  }): Promise<MetaSendMessageResult>
+  sendMediaMessage(params: {
+    phoneNumberId: string
+    accessToken: string
+    to: string
+    type: 'image' | 'video' | 'audio' | 'document'
+    link: string
+    caption?: string
+    filename?: string
+  }): Promise<MetaSendMessageResult>
   listMessageTemplates?(params: {
     wabaId: string
     accessToken: string
@@ -253,6 +268,50 @@ export class HttpMetaGraphClient implements MetaGraphClient {
   }
 
   #parseSendResult(json: Record<string, unknown>): MetaSendMessageResult {
+    const messages = json.messages as Array<{ id?: string }> | undefined
+    return {
+      messageId: messages?.[0]?.id,
+      raw: json,
+    }
+  }
+
+  /**
+   * POST /{phone-number-id}/messages (type=image|video|audio|document) via public link.
+   */
+  async sendMediaMessage(params: {
+    phoneNumberId: string
+    accessToken: string
+    to: string
+    type: 'image' | 'video' | 'audio' | 'document'
+    link: string
+    caption?: string
+    filename?: string
+  }): Promise<MetaSendMessageResult> {
+    const url = `${this.baseUrl}/${encodeURIComponent(params.phoneNumberId)}/messages`
+
+    const mediaPayload: Record<string, unknown> = { link: params.link }
+    if (params.caption && params.type !== 'audio') {
+      mediaPayload.caption = params.caption
+    }
+    if (params.type === 'document' && params.filename) {
+      mediaPayload.filename = params.filename
+    }
+
+    const json = await this.requestJson<Record<string, unknown>>('sendMedia', url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${params.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: params.to,
+        type: params.type,
+        [params.type]: mediaPayload,
+      }),
+    })
+
     const messages = json.messages as Array<{ id?: string }> | undefined
     return {
       messageId: messages?.[0]?.id,

@@ -372,6 +372,7 @@ export class MessageTemplateSchema extends BaseModel {
 
 export class MessageSchema extends BaseModel {
   static $columns = [
+    'clientIdempotencyKey',
     'contentText',
     'contentType',
     'conversationId',
@@ -399,6 +400,8 @@ export class MessageSchema extends BaseModel {
     'updatedAt',
   ] as const
   $columns = MessageSchema.$columns
+  @column()
+  declare clientIdempotencyKey: string | null
   @column()
   declare contentText: string | null
   @column()

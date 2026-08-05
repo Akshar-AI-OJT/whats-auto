@@ -1984,6 +1984,33 @@
       "statusFilterLabel": "स्थिति से फ़िल्टर करें",
       "planFilterLabel": "प्लान से फ़िल्टर करें",
       "empty": "आपके फ़िल्टर से कोई संगठन मेल नहीं खाता।",
+      "loading": "संगठन लोड हो रहे हैं…",
+      "retry": "फिर कोशिश करें",
+      "prevPage": "पिछला",
+      "nextPage": "अगला",
+      "pagination": "पृष्ठ {page} / {lastPage} · कुल {total}",
+      "editTitle": "संगठन संपादित करें",
+      "editSubtitle": "“{name}” का विवरण अपडेट करें।",
+      "editCancel": "रद्द करें",
+      "editSave": "बदलाव सहेजें",
+      "saving": "सहेजा जा रहा है…",
+      "deleteConfirmTitle": "यह संगठन हटाएँ?",
+      "deleteConfirmBody": "“{name}” सॉफ्ट-डिलीट हो जाएगा। सदस्यों की पहुँच समाप्त हो जाएगी।",
+      "deleteCancel": "रद्द करें",
+      "deleteConfirm": "संगठन हटाएँ",
+      "deleting": "हटाया जा रहा है…",
+      "editFields": {
+        "name": "नाम",
+        "phone": "फ़ोन",
+        "website": "वेबसाइट",
+        "industry": "उद्योग",
+        "timezone": "समय क्षेत्र",
+        "currency": "मुद्रा"
+      },
+      "toast": {
+        "updated": "“{name}” अपडेट हो गया।",
+        "deleted": "“{name}” हटा दिया गया।"
+      },
       "columns": {
         "organization": "संगठन",
         "owner": "मालिक",
@@ -2005,21 +2032,30 @@
           "starter": "स्टार्टर",
           "growth": "ग्रोथ",
           "pro": "प्रो",
-          "enterprise": "एंटरप्राइज़"
+          "enterprise": "एंटरप्राइज़",
+          "unavailable": "—"
         }
       },
       "actions": {
         "menuLabel": "{name} के लिए क्रियाएँ",
         "view": "देखें",
+        "edit": "संपादित करें",
         "suspend": "निलंबित करें",
         "activate": "सक्रिय करें",
         "delete": "हटाएँ"
+      },
+      "errors": {
+        "loadFailed": "संगठन लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+        "updateFailed": "संगठन अपडेट नहीं हो सका।",
+        "deleteFailed": "संगठन हटाया नहीं जा सका।",
+        "nameRequired": "नाम कम से कम 2 अक्षरों का होना चाहिए।",
+        "actionUnavailable": "यह क्रिया अभी API से उपलब्ध नहीं है।"
       },
       "detail": {
         "eyebrow": "संगठन",
         "back": "संगठनों पर वापस जाएँ",
         "notFoundTitle": "संगठन नहीं मिला",
-        "notFoundDescription": "यह संगठन मॉक कैटलॉग में मौजूद नहीं है।",
+        "notFoundDescription": "यह संगठन प्लेटफ़ॉर्म पर नहीं मिला।",
         "general": {
           "title": "सामान्य जानकारी",
           "description": "मुख्य टेनेंट प्रोफ़ाइल और संपर्क विवरण।",
@@ -2039,6 +2075,7 @@
         "subscription": {
           "title": "सब्सक्रिप्शन",
           "description": "वर्तमान प्लान, बिलिंग और नवीनीकरण विवरण।",
+          "unavailable": "सब्सक्रिप्शन विवरण अभी API से उपलब्ध नहीं है।",
           "fields": {
             "plan": "प्लान",
             "billingCycle": "बिलिंग चक्र",
@@ -2090,6 +2127,7 @@
         "members": {
           "title": "वर्कस्पेस सदस्य",
           "description": "{count, plural, one {# सदस्य दिखाया जा रहा है} other {# सदस्य दिखाए जा रहे हैं}}",
+          "unavailable": "सदस्य सूची अभी API से उपलब्ध नहीं है।",
           "columns": {
             "member": "सदस्य",
             "role": "भूमिका",
@@ -2103,14 +2141,76 @@
         },
         "activity": {
           "title": "हाल की गतिविधि",
-          "description": "इस वर्कस्पेस में नवीनतम इवेंट्स।"
+          "description": "इस वर्कस्पेस में नवीनतम इवेंट्स।",
+          "unavailable": "गतिविधि अभी API से उपलब्ध नहीं है।"
         }
       }
     },
     "subscriptions": {
       "eyebrow": "बिलिंग कैटलॉग",
       "title": "सब्सक्रिप्शन",
-      "subtitle": "प्लेटफ़ॉर्म प्लान, सीमाएँ और सुविधाएँ देखें। केवल मॉक — कोई भुगतान नहीं।",
+      "subtitle": "संगठन सब्सक्रिप्शन प्रबंधित करें और प्लेटफ़ॉर्म प्लान देखें।",
+      "tableTitle": "सभी सब्सक्रिप्शन",
+      "tableDescription": "{count, plural, =0 {कोई सब्सक्रिप्शन नहीं} one {# सब्सक्रिप्शन} other {# सब्सक्रिप्शन}}",
+      "create": "सब्सक्रिप्शन बनाएँ",
+      "loading": "सब्सक्रिप्शन लोड हो रहे हैं…",
+      "retry": "फिर कोशिश करें",
+      "empty": "अभी कोई सब्सक्रिप्शन नहीं है।",
+      "prevPage": "पिछला",
+      "nextPage": "अगला",
+      "pagination": "पृष्ठ {page} / {lastPage} · कुल {total}",
+      "createTitle": "सब्सक्रिप्शन बनाएँ",
+      "createSubtitle": "किसी संगठन को प्लान और बिलिंग अवधि असाइन करें।",
+      "createSave": "सब्सक्रिप्शन बनाएँ",
+      "editTitle": "सब्सक्रिप्शन संपादित करें",
+      "editSubtitle": "“{name}” का प्लान या अवधि अपडेट करें।",
+      "editSave": "बदलाव सहेजें",
+      "cancel": "रद्द करें",
+      "saving": "सहेजा जा रहा है…",
+      "deleting": "हटाया जा रहा है…",
+      "deleteConfirmTitle": "यह सब्सक्रिप्शन रद्द करें?",
+      "deleteConfirmBody": "“{name}” सॉफ्ट-डिलीट हो जाएगा (स्थिति cancelled)।",
+      "deleteConfirm": "सब्सक्रिप्शन हटाएँ",
+      "columns": {
+        "organization": "संगठन",
+        "plan": "प्लान",
+        "status": "स्थिति",
+        "period": "अवधि",
+        "actions": "क्रियाएँ"
+      },
+      "actions": {
+        "edit": "संपादित करें",
+        "delete": "हटाएँ"
+      },
+      "fields": {
+        "organizationId": "संगठन",
+        "organizationPlaceholder": "संगठन चुनें",
+        "planId": "प्लान",
+        "status": "स्थिति",
+        "startDate": "प्रारंभ तिथि",
+        "endDate": "समाप्ति तिथि"
+      },
+      "statuses": {
+        "trialing": "ट्रायल",
+        "active": "सक्रिय",
+        "past_due": "बकाया",
+        "cancelled": "रद्द"
+      },
+      "toast": {
+        "created": "सब्सक्रिप्शन बन गया।",
+        "updated": "सब्सक्रिप्शन अपडेट हो गया।",
+        "deleted": "सब्सक्रिप्शन हटा दिया गया।"
+      },
+      "errors": {
+        "loadFailed": "सब्सक्रिप्शन लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+        "createFailed": "सब्सक्रिप्शन बनाया नहीं जा सका।",
+        "updateFailed": "सब्सक्रिप्शन अपडेट नहीं हो सका।",
+        "deleteFailed": "सब्सक्रिप्शन हटाया नहीं जा सका।",
+        "organizationRequired": "मान्य संगठन चुनें।",
+        "planRequired": "मान्य प्लान चुनें।",
+        "datesRequired": "प्रारंभ और समाप्ति तिथियाँ आवश्यक हैं।",
+        "periodInvalid": "समाप्ति तिथि प्रारंभ के बाद होनी चाहिए।"
+      },
       "plansTitle": "प्लेटफ़ॉर्म प्लान",
       "plansDescription": "टेनेंट संगठनों के लिए उपलब्ध सीमाएँ और सुविधाएँ।",
       "perMonth": "/ माह",

@@ -2,65 +2,39 @@
 
 import {
   ArrowLeft,
-  Building2,
-  CreditCard,
   FileText,
+  Loader2,
   Megaphone,
   MessageCircle,
   Phone,
   Send,
   Users,
-  type LucideIcon,
 } from 'lucide-react'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
-import { ActivityItem } from '@/components/dashboard/overview/ActivityItem'
 import { KPIStatCard } from '@/components/dashboard/overview/KPIStatCard'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
 import {
-  getMockOrganizationDetail,
-  type AdminActivityKind,
-  type MockOrganizationDetail,
-  type OrganizationMemberRole,
-} from '../mock-data'
+  findSuperAdminOrganization,
+  mapOrgApiError,
+  type AdminOrganizationListItem,
+} from './organization-api'
 import {
   OrganizationPlanBadge,
   OrganizationStatusBadge,
 } from './OrganizationActionsMenu'
 
-const ACTIVITY_ICONS: Record<AdminActivityKind, LucideIcon> = {
-  organization: Building2,
-  subscription: CreditCard,
-  user: Users,
-  support: MessageCircle,
-  billing: CreditCard,
-}
-
-const ROLE_STYLES: Record<OrganizationMemberRole, string> = {
-  owner: 'bg-primary-pale text-positive-deep ring-1 ring-primary/30',
-  admin: 'bg-dash-info-soft text-dash-info ring-1 ring-accent-cyan/35',
-  member: 'bg-dash-surface text-mute ring-1 ring-dash-border',
-}
-
 function formatDate(value: string) {
-  const date = new Date(`${value}T00:00:00`)
+  const date = new Date(value.includes('T') ? value : `${value}T00:00:00`)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleDateString(undefined, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
   })
-}
-
-function formatMoney(amount: number) {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(amount)
 }
 
 function getInitials(name: string) {
@@ -83,7 +57,7 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   )
 }
 
-function OrganizationHeader({ org }: { org: MockOrganizationDetail }) {
+function OrganizationHeader({ org }: { org: AdminOrganizationListItem }) {
   const t = useTranslations('admin.organizations')
   const td = useTranslations('admin.organizations.detail')
 
@@ -126,10 +100,10 @@ function OrganizationHeader({ org }: { org: MockOrganizationDetail }) {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <OrganizationPlanBadge label={t(`filters.plan.${org.plan}`)} />
+            <OrganizationPlanBadge label={t('filters.plan.unavailable')} />
             <OrganizationStatusBadge
-              status={org.status}
-              label={t(`filters.status.${org.status}`)}
+              status={org.uiStatus}
+              label={t(`filters.status.${org.uiStatus}`)}
             />
           </div>
         </div>
@@ -138,7 +112,7 @@ function OrganizationHeader({ org }: { org: MockOrganizationDetail }) {
   )
 }
 
-function GeneralInformation({ org }: { org: MockOrganizationDetail }) {
+function GeneralInformation({ org }: { org: AdminOrganizationListItem }) {
   const t = useTranslations('admin.organizations.detail.general')
 
   return (
@@ -147,254 +121,99 @@ function GeneralInformation({ org }: { org: MockOrganizationDetail }) {
       <dl className="mt-2">
         <InfoRow label={t('fields.name')} value={org.name} />
         <InfoRow label={t('fields.slug')} value={org.slug} />
-        <InfoRow label={t('fields.owner')} value={org.ownerName} />
-        <InfoRow label={t('fields.ownerEmail')} value={org.ownerEmail} />
-        <InfoRow label={t('fields.industry')} value={org.industry} />
+        <InfoRow label={t('fields.owner')} value="—" />
+        <InfoRow label={t('fields.ownerEmail')} value={org.email} />
+        <InfoRow label={t('fields.industry')} value={org.industry || '—'} />
         <InfoRow
           label={t('fields.website')}
           value={
-            <a
-              href={org.website}
-              className="text-positive-deep underline-offset-2 hover:underline"
-              target="_blank"
-              rel="noreferrer"
-            >
-              {org.website.replace(/^https?:\/\//, '')}
-            </a>
+            org.website ? (
+              <a
+                href={org.website}
+                className="text-positive-deep underline-offset-2 hover:underline"
+                target="_blank"
+                rel="noreferrer"
+              >
+                {org.website.replace(/^https?:\/\//, '')}
+              </a>
+            ) : (
+              '—'
+            )
           }
         />
-        <InfoRow label={t('fields.country')} value={org.country} />
-        <InfoRow label={t('fields.timezone')} value={org.timezone} />
-        <InfoRow label={t('fields.phone')} value={org.phone} />
+        <InfoRow label={t('fields.country')} value={org.country || '—'} />
+        <InfoRow label={t('fields.timezone')} value={org.timezone || '—'} />
+        <InfoRow label={t('fields.phone')} value={org.phone || '—'} />
         <InfoRow label={t('fields.created')} value={formatDate(org.createdAt)} />
       </dl>
     </DashboardPanel>
   )
 }
 
-function SubscriptionSection({ org }: { org: MockOrganizationDetail }) {
+function SubscriptionSection() {
   const t = useTranslations('admin.organizations.detail.subscription')
-  const tp = useTranslations('admin.organizations.filters.plan')
-  const { subscription } = org
 
   return (
     <DashboardPanel as="section" className="flex h-full flex-col p-4 sm:p-5 md:p-6">
       <DashboardSectionHeader title={t('title')} description={t('description')} />
-      <dl className="mt-2">
-        <InfoRow label={t('fields.plan')} value={tp(subscription.plan)} />
-        <InfoRow
-          label={t('fields.billingCycle')}
-          value={t(`billingCycle.${subscription.billingCycle}`)}
-        />
-        <InfoRow
-          label={t('fields.amount')}
-          value={`${formatMoney(subscription.amount)} / ${t(`billingCycle.short.${subscription.billingCycle}`)}`}
-        />
-        <InfoRow label={t('fields.seats')} value={subscription.seats} />
-        <InfoRow label={t('fields.renewsOn')} value={formatDate(subscription.renewsOn)} />
-        <InfoRow label={t('fields.paymentMethod')} value={subscription.paymentMethod} />
-        <InfoRow label={t('fields.invoiceEmail')} value={subscription.invoiceEmail} />
-      </dl>
+      <p className="mt-6 text-sm text-mute">{t('unavailable')}</p>
     </DashboardPanel>
   )
 }
 
-function WorkspaceStatistics({ org }: { org: MockOrganizationDetail }) {
+function WorkspaceStatistics() {
   const t = useTranslations('admin.organizations.detail.stats')
-  const { stats } = org
 
   const items = useMemo(
     () =>
       [
-        {
-          key: 'contacts',
-          icon: Users,
-          value: stats.contacts,
-        },
-        {
-          key: 'conversations',
-          icon: MessageCircle,
-          value: stats.conversations,
-        },
-        {
-          key: 'campaignsSent',
-          icon: Megaphone,
-          value: stats.campaignsSent,
-        },
-        {
-          key: 'messagesSent',
-          icon: Send,
-          value: stats.messagesSent,
-        },
-        {
-          key: 'whatsappNumbers',
-          icon: Phone,
-          value: stats.whatsappNumbers,
-        },
-        {
-          key: 'templates',
-          icon: FileText,
-          value: stats.templates,
-        },
-      ] as const,
-    [stats]
-  )
-
-  return (
-    <section className="flex flex-col gap-4">
-      <DashboardSectionHeader title={t('title')} description={t('description')} />
-      <div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {items.map((item) => (
-          <KPIStatCard
-            key={item.key}
-            label={t(`cards.${item.key}.label`)}
-            value={item.value}
-            hint={t(`cards.${item.key}.hint`)}
-            icon={item.icon}
-            animate={false}
-            className="h-full"
-          />
-        ))}
-      </div>
-    </section>
-  )
-}
-
-function WorkspaceMembers({ org }: { org: MockOrganizationDetail }) {
-  const t = useTranslations('admin.organizations.detail.members')
-  const members = useMemo(
-    () =>
-      org.memberList.map((member) => ({
-        ...member,
-        initials: getInitials(member.name),
-        lastActiveLabel: formatDate(member.lastActiveOn),
-      })),
-    [org.memberList]
+        { key: 'contacts' as const, icon: Users },
+        { key: 'conversations' as const, icon: MessageCircle },
+        { key: 'campaignsSent' as const, icon: Megaphone },
+        { key: 'messagesSent' as const, icon: Send },
+        { key: 'whatsappNumbers' as const, icon: Phone },
+        { key: 'templates' as const, icon: FileText },
+      ],
+    []
   )
 
   return (
     <DashboardPanel as="section" className="p-4 sm:p-5 md:p-6">
-      <DashboardSectionHeader
-        title={t('title')}
-        description={t('description', { count: org.memberList.length })}
-      />
-
-      <div className="mt-5 hidden overflow-hidden rounded-2xl border border-dash-border md:block">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] border-collapse text-left">
-            <thead>
-              <tr className="border-b border-dash-border bg-dash-surface">
-                <th className="px-4 py-3.5 text-sm font-semibold text-ink sm:px-5">
-                  {t('columns.member')}
-                </th>
-                <th className="px-4 py-3.5 text-sm font-semibold text-ink">
-                  {t('columns.role')}
-                </th>
-                <th className="px-4 py-3.5 text-sm font-semibold text-ink sm:px-5">
-                  {t('columns.lastActive')}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {members.map((member, index) => (
-                <tr
-                  key={member.id}
-                  className={cn(
-                    'border-b border-dash-border last:border-b-0',
-                    index % 2 === 1 && 'bg-dash-surface/60'
-                  )}
-                >
-                  <td className="px-4 py-3.5 sm:px-5">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-xs font-bold text-on-primary">
-                        {member.initials}
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-semibold text-ink">
-                          {member.name}
-                        </span>
-                        <span className="block truncate text-xs text-mute">
-                          {member.email}
-                        </span>
-                      </span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <span
-                      className={cn(
-                        'inline-flex rounded-lg px-2 py-0.5 text-[11px] font-semibold',
-                        ROLE_STYLES[member.role]
-                      )}
-                    >
-                      {t(`roles.${member.role}`)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5 text-sm tabular-nums text-body sm:px-5">
-                    {member.lastActiveLabel}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <ul className="mt-5 flex flex-col gap-3 md:hidden">
-        {members.map((member) => (
-          <li
-            key={member.id}
-            className="rounded-2xl border border-dash-border bg-dash-surface/60 p-4"
-          >
-            <div className="flex items-start gap-3">
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-xs font-bold text-on-primary">
-                {member.initials}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-ink">{member.name}</p>
-                <p className="truncate text-xs text-mute">{member.email}</p>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <span
-                    className={cn(
-                      'inline-flex rounded-lg px-2 py-0.5 text-[11px] font-semibold',
-                      ROLE_STYLES[member.role]
-                    )}
-                  >
-                    {t(`roles.${member.role}`)}
-                  </span>
-                  <span className="text-xs text-mute">
-                    {t('columns.lastActive')}: {member.lastActiveLabel}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </li>
+      <DashboardSectionHeader title={t('title')} description={t('description')} />
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {items.map((item) => (
+          <KPIStatCard
+            key={item.key}
+            label={t(`cards.${item.key}.label`)}
+            hint={t(`cards.${item.key}.hint`)}
+            value="—"
+            format="plain"
+            icon={item.icon}
+          />
         ))}
-      </ul>
+      </div>
     </DashboardPanel>
   )
 }
 
-function OrganizationActivity({ org }: { org: MockOrganizationDetail }) {
+function TeamMembersSection() {
+  const t = useTranslations('admin.organizations.detail.members')
+
+  return (
+    <DashboardPanel as="section" className="p-4 sm:p-5 md:p-6">
+      <DashboardSectionHeader title={t('title')} description={t('description', { count: 0 })} />
+      <p className="mt-6 text-sm text-mute">{t('unavailable')}</p>
+    </DashboardPanel>
+  )
+}
+
+function RecentActivitySection() {
   const t = useTranslations('admin.organizations.detail.activity')
 
   return (
-    <DashboardPanel as="section" className="flex h-full flex-col p-4 sm:p-5 md:p-6">
+    <DashboardPanel as="section" className="p-4 sm:p-5 md:p-6">
       <DashboardSectionHeader title={t('title')} description={t('description')} />
-      <ol className="mt-6 flex flex-1 flex-col">
-        {org.activity.map((item, index) => (
-          <li key={item.id}>
-            <ActivityItem
-              id={item.id}
-              title={item.title}
-              detail={item.detail}
-              timestamp={item.timestamp}
-              tone={item.tone}
-              icon={ACTIVITY_ICONS[item.kind]}
-              isLast={index === org.activity.length - 1}
-            />
-          </li>
-        ))}
-      </ol>
+      <p className="mt-6 text-sm text-mute">{t('unavailable')}</p>
     </DashboardPanel>
   )
 }
@@ -423,7 +242,62 @@ function OrganizationNotFound() {
 }
 
 export function OrganizationDetailsPage({ orgId }: { orgId: string }) {
-  const org = useMemo(() => getMockOrganizationDetail(orgId), [orgId])
+  const t = useTranslations('admin.organizations')
+  const [org, setOrg] = useState<AdminOrganizationListItem | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+    void findSuperAdminOrganization(orgId)
+      .then((found) => {
+        if (cancelled) return
+        setOrg(found)
+      })
+      .catch((err) => {
+        if (cancelled) return
+        setOrg(null)
+        setError(mapOrgApiError(err, t('errors.loadFailed')))
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [orgId, t])
+
+  if (loading) {
+    return (
+      <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5">
+        <DashboardPanel className="flex items-center justify-center gap-2 px-5 py-16 text-sm text-body">
+          <Loader2 className="size-4 animate-spin" aria-hidden />
+          {t('loading')}
+        </DashboardPanel>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5">
+        <DashboardPanel className="px-5 py-10 text-center sm:px-8">
+          <p role="alert" className="text-sm text-negative">
+            {error}
+          </p>
+          <Link
+            href="/admin/organizations"
+            className="mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-positive-deep hover:underline"
+          >
+            <ArrowLeft className="size-4" aria-hidden />
+            {t('detail.back')}
+          </Link>
+        </DashboardPanel>
+      </div>
+    )
+  }
 
   if (!org) {
     return <OrganizationNotFound />
@@ -438,20 +312,13 @@ export function OrganizationDetailsPage({ orgId }: { orgId: string }) {
           <GeneralInformation org={org} />
         </div>
         <div className="min-w-0 xl:col-span-5">
-          <SubscriptionSection org={org} />
+          <SubscriptionSection />
         </div>
       </div>
 
-      <WorkspaceStatistics org={org} />
-
-      <div className="grid grid-cols-1 gap-5 sm:gap-6 xl:grid-cols-12 xl:gap-6">
-        <div className="min-w-0 xl:col-span-7">
-          <WorkspaceMembers org={org} />
-        </div>
-        <div className="min-w-0 xl:col-span-5">
-          <OrganizationActivity org={org} />
-        </div>
-      </div>
+      <WorkspaceStatistics />
+      <TeamMembersSection />
+      <RecentActivitySection />
     </div>
   )
 }
