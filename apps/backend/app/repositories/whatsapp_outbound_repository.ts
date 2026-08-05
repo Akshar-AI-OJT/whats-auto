@@ -13,6 +13,16 @@ export type OutboundTextPayload = {
   text: string
 }
 
+export type OutboundMediaPayload = {
+  kind: 'media'
+  to: string
+  mediaType: 'image' | 'video' | 'audio' | 'document'
+  mediaAssetId: string
+  mediaUrl: string
+  caption?: string
+  filename?: string
+}
+
 export type OutboundTemplatePayload = {
   kind: 'template'
   to: string
@@ -22,7 +32,8 @@ export type OutboundTemplatePayload = {
   components: MetaSendTemplateComponent[]
 }
 
-export type OutboundDispatchPayload = OutboundTextPayload | OutboundTemplatePayload
+export type OutboundDispatchPayload =
+  OutboundTextPayload | OutboundTemplatePayload | OutboundMediaPayload
 
 export type OutboundDispatchRow = {
   id: string
