@@ -39,8 +39,8 @@ type WhatsappConfigRow = {
 }
 
 /**
- * Tenant WhatsApp number configs. Relies on Postgres RLS for org isolation
- * (same pattern as ContactService). Token decrypt is internal-only for Graph calls.
+ * Tenant WhatsApp number configs. Filters by organizationId in app code
+ * (defense in depth) + Postgres RLS. Token decrypt is internal-only for Graph calls.
  */
 export class WhatsappConfigService {
   constructor(protected graphClient: MetaGraphClient = createMetaGraphClient()) {}
@@ -61,9 +61,13 @@ export class WhatsappConfigService {
     }
   }
 
-  async listConfigs(): Promise<WhatsappConfigDto[]> {
+  /**
+   * Filters by organizationId in app code (defense in depth) + RLS.
+   */
+  async listConfigs(organizationId: string): Promise<WhatsappConfigDto[]> {
     const rows = await db
       .from('whatsapp_configs')
+      .where('organizationId', organizationId)
       .select(
         'id',
         'organizationId',
@@ -87,19 +91,23 @@ export class WhatsappConfigService {
     )
   }
 
-  async getConfig(configId: string): Promise<WhatsappConfigDto> {
-    const row = await this.findRowOrFail(configId)
+  async getConfig(configId: string, organizationId: string): Promise<WhatsappConfigDto> {
+    const row = await this.findRowOrFail(configId, organizationId)
     return this.toDto({ ...row, accessToken: '' })
   }
 
   /**
    * Internal: decrypt token for outbound Graph calls (send, media, templates).
+   * Call under runWithTenant / RLS; optional organizationId for defense in depth.
    */
-  async getDecryptedAccessToken(configId: string): Promise<{
+  async getDecryptedAccessToken(
+    configId: string,
+    organizationId?: string
+  ): Promise<{
     config: WhatsappConfigDto
     accessToken: string
   }> {
-    const row = await this.findRowOrFail(configId)
+    const row = await this.findRowOrFail(configId, organizationId)
     return {
       config: this.toDto(row),
       accessToken: decryptWhatsappAccessToken(row.accessToken),
@@ -198,11 +206,12 @@ export class WhatsappConfigService {
    * Mark disconnected. Keeps encrypted token so a future reconnect/retry can
    * re-subscribe without forcing a full Embedded Signup (product can clear later).
    */
-  async disconnect(configId: string): Promise<WhatsappConfigDto> {
-    const existing = await this.findRowOrFail(configId)
+  async disconnect(configId: string, organizationId: string): Promise<WhatsappConfigDto> {
+    const existing = await this.findRowOrFail(configId, organizationId)
     const [row] = await db
       .from('whatsapp_configs')
       .where('id', existing.id)
+      .where('organizationId', organizationId)
       .update({ status: 'disconnected' })
       .returning([
         'id',
@@ -226,11 +235,15 @@ export class WhatsappConfigService {
    */
   async sendTestTemplate(params: {
     configId: string
+    organizationId: string
     to: string
     templateName?: string
     languageCode?: string
   }): Promise<{ messageId?: string }> {
-    const { config, accessToken } = await this.getDecryptedAccessToken(params.configId)
+    const { config, accessToken } = await this.getDecryptedAccessToken(
+      params.configId,
+      params.organizationId
+    )
     if (config.status !== 'connected') {
       throw WhatsappConfigException.notConnected()
     }
@@ -246,8 +259,15 @@ export class WhatsappConfigService {
     return { messageId: result.messageId }
   }
 
-  protected async findRowOrFail(configId: string): Promise<WhatsappConfigRow> {
-    const row = await db.from('whatsapp_configs').where('id', configId).first()
+  protected async findRowOrFail(
+    configId: string,
+    organizationId?: string
+  ): Promise<WhatsappConfigRow> {
+    const query = db.from('whatsapp_configs').where('id', configId)
+    if (organizationId) {
+      query.where('organizationId', organizationId)
+    }
+    const row = await query.first()
     if (!row) {
       throw WhatsappConfigException.notFound()
     }

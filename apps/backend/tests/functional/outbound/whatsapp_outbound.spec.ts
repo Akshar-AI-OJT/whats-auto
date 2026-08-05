@@ -124,8 +124,9 @@ function fakeGraph(overrides: Partial<MetaGraphClient> = {}): MetaGraphClient {
     getPhoneNumber: async () => ({ id: '1' }),
     sendTextMessage: async () => ({ messageId: 'wamid.out.text', raw: {} }),
     sendTemplateMessage: async () => ({ messageId: 'wamid.out.tpl', raw: {} }),
+    sendMediaMessage: async () => ({ messageId: 'wamid.out.media', raw: {} }),
     ...overrides,
-  }
+  } as MetaGraphClient
 }
 
 async function nullQueueDriver(): Promise<NullJobQueueDriver> {
@@ -747,6 +748,7 @@ test.group('WhatsApp outbound service', (group) => {
     const result = await runWithTenant(organizationId, async () => {
       return configs.sendTestTemplate({
         configId: seeded.whatsappConfigId,
+        organizationId,
         to: '15551234999',
       })
     })
