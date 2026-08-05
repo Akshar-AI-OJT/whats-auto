@@ -276,38 +276,6 @@ export class HttpMetaGraphClient implements MetaGraphClient {
   }
 
   /**
-   * POST /{phone-number-id}/messages (type=text).
-   */
-  async sendTextMessage(params: {
-    phoneNumberId: string
-    accessToken: string
-    to: string
-    text: string
-  }): Promise<MetaSendMessageResult> {
-    const url = `${this.baseUrl}/${encodeURIComponent(params.phoneNumberId)}/messages`
-    const json = await this.requestJson<Record<string, unknown>>('sendText', url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${params.accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        recipient_type: 'individual',
-        to: params.to,
-        type: 'text',
-        text: { preview_url: false, body: params.text },
-      }),
-    })
-
-    const messages = json.messages as Array<{ id?: string }> | undefined
-    return {
-      messageId: messages?.[0]?.id,
-      raw: json,
-    }
-  }
-
-  /**
    * POST /{phone-number-id}/messages (type=image|video|audio|document) via public link.
    */
   async sendMediaMessage(params: {

@@ -1,6 +1,7 @@
 import logger from '@adonisjs/core/services/logger'
 import app from '@adonisjs/core/services/app'
 import db from '@adonisjs/lucid/services/db'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import InboxStatusUpdated from '#events/inbox_status_updated'
 import WhatsappOutboundException from '#exceptions/whatsapp_outbound_exception'
 import {
@@ -31,6 +32,39 @@ import { WhatsappConfigService } from '#services/whatsapp_config_service'
 export type QueueOutboundResult = {
   messageId: string
   dispatchId: string
+}
+
+type OutboundMediaType = 'image' | 'video' | 'audio' | 'document'
+
+type ConversationContext = {
+  conversationId: string
+  whatsappConfigId: string
+  to: string
+  lastInboundMessageAt: Date | null
+}
+
+function isPublicHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value)
+    return url.protocol === 'http:' || url.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
+
+function isMimeTypeAllowedForMediaType(mediaType: OutboundMediaType, mimeType: string): boolean {
+  const normalizedMimeType = mimeType.toLowerCase()
+
+  switch (mediaType) {
+    case 'image':
+      return normalizedMimeType.startsWith('image/')
+    case 'video':
+      return normalizedMimeType.startsWith('video/')
+    case 'audio':
+      return normalizedMimeType.startsWith('audio/')
+    case 'document':
+      return normalizedMimeType.startsWith('application/') || normalizedMimeType.startsWith('text/')
+  }
 }
 
 export type ExecuteDispatchResult =
@@ -83,6 +117,7 @@ export default class WhatsappOutboundService {
 
     return runWithTenant(params.organizationId, async () => {
       const ctx = await this.#loadConversationContext(params.organizationId, params.conversationId)
+      this.#assertSessionWindow(ctx.lastInboundMessageAt)
 
       const payload: OutboundDispatchPayload = {
         kind: 'text',
@@ -91,16 +126,74 @@ export default class WhatsappOutboundService {
       }
 
       const queued = await db.transaction(async (trx) => {
-        return this.outboundRepo.queueOutbound(trx, {
+        return this.#queueOutbound(trx, {
           organizationId: params.organizationId,
-          whatsappConfigId: ctx.whatsappConfigId,
           conversationId: params.conversationId,
-          senderType: params.actorUserId ? 'agent' : 'system',
-          senderId: params.actorUserId ?? null,
+          whatsappConfigId: ctx.whatsappConfigId,
+          actorUserId: params.actorUserId,
           contentType: 'text',
           contentText: text,
           messageTemplateId: null,
           payload,
+          previewText: text,
+        })
+      })
+
+      await this.#enqueueDispatchWake({
+        organizationId: params.organizationId,
+        dispatchId: queued.dispatchId,
+      })
+
+      return queued
+    })
+  }
+
+  /**
+   * Queue a free-form media send after validating the organization-owned public asset.
+   */
+  async queueMedia(params: {
+    organizationId: string
+    conversationId: string
+    mediaType: OutboundMediaType
+    mediaAssetId: string
+    caption?: string | null
+    actorUserId?: string | null
+  }): Promise<QueueOutboundResult> {
+    return runWithTenant(params.organizationId, async () => {
+      const ctx = await this.#loadConversationContext(params.organizationId, params.conversationId)
+      this.#assertSessionWindow(ctx.lastInboundMessageAt)
+
+      const mediaAsset = await this.#loadMediaAsset({
+        organizationId: params.organizationId,
+        mediaAssetId: params.mediaAssetId,
+      })
+      this.#assertMediaAsset({ mediaType: params.mediaType, mediaAsset })
+
+      const caption = params.caption?.trim() || undefined
+      const payload: OutboundDispatchPayload = {
+        kind: 'media',
+        to: ctx.to,
+        mediaType: params.mediaType,
+        mediaAssetId: mediaAsset.id,
+        mediaUrl: mediaAsset.filePath,
+        caption,
+        filename: mediaAsset.fileName,
+      }
+      const previewText = caption || `[${params.mediaType}] ${mediaAsset.fileName}`
+
+      const queued = await db.transaction(async (trx) => {
+        return this.#queueOutbound(trx, {
+          organizationId: params.organizationId,
+          conversationId: params.conversationId,
+          whatsappConfigId: ctx.whatsappConfigId,
+          actorUserId: params.actorUserId,
+          contentType: params.mediaType,
+          contentText: caption ?? null,
+          messageTemplateId: null,
+          payload,
+          previewText,
+          mediaAssetId: mediaAsset.id,
+          mediaUrl: mediaAsset.filePath,
         })
       })
 
@@ -175,16 +268,16 @@ export default class WhatsappOutboundService {
       }
 
       const queued = await db.transaction(async (trx) => {
-        return this.outboundRepo.queueOutbound(trx, {
+        return this.#queueOutbound(trx, {
           organizationId: params.organizationId,
-          whatsappConfigId: ctx.whatsappConfigId,
           conversationId: params.conversationId,
-          senderType: params.actorUserId ? 'agent' : 'system',
-          senderId: params.actorUserId ?? null,
+          whatsappConfigId: ctx.whatsappConfigId,
+          actorUserId: params.actorUserId,
           contentType: 'template',
           contentText: template.bodyText ?? null,
           messageTemplateId: template.id,
           payload,
+          previewText: template.bodyText ?? template.name,
         })
       })
 
@@ -307,6 +400,22 @@ export default class WhatsappOutboundService {
       })
       if (!result.messageId) {
         throw new MetaGraphApiError('Meta sendText returned no message id', 502, null, 'sendText')
+      }
+      return result.messageId
+    }
+
+    if (payload.kind === 'media') {
+      const result = await this.graphClient.sendMediaMessage({
+        phoneNumberId: config.phoneNumberId,
+        accessToken,
+        to: payload.to,
+        type: payload.mediaType,
+        link: payload.mediaUrl,
+        caption: payload.caption,
+        filename: payload.filename,
+      })
+      if (!result.messageId) {
+        throw new MetaGraphApiError('Meta sendMedia returned no message id', 502, null, 'sendMedia')
       }
       return result.messageId
     }
@@ -434,7 +543,10 @@ export default class WhatsappOutboundService {
     }
   }
 
-  async #loadConversationContext(organizationId: string, conversationId: string) {
+  async #loadConversationContext(
+    organizationId: string,
+    conversationId: string
+  ): Promise<ConversationContext> {
     const conversation = await db
       .from('conversations as c')
       .join('contacts as ct', 'ct.id', 'c.contactId')
@@ -446,6 +558,7 @@ export default class WhatsappOutboundService {
       .select(
         'c.id as conversationId',
         'c.whatsappConfigId',
+        'c.status as conversationStatus',
         'ct.phone as contactPhone',
         'wc.status as configStatus',
         'wc.phoneNumberId'
@@ -460,16 +573,154 @@ export default class WhatsappOutboundService {
       throw WhatsappOutboundException.configNotConnected()
     }
 
+    if (conversation.conversationStatus === 'closed') {
+      throw new WhatsappOutboundException('Cannot reply to a closed conversation', {
+        status: 422,
+        code: 'E_OUTBOUND_CONVERSATION_CLOSED',
+      })
+    }
+
     const to = String(conversation.contactPhone ?? '').replace(/\D/g, '')
     if (!to) {
       throw WhatsappOutboundException.conversationNotFound()
     }
 
+    const lastInboundMessage = await db
+      .from('messages')
+      .where('organizationId', organizationId)
+      .where('conversationId', conversationId)
+      .where('senderType', 'contact')
+      .orderBy('createdAt', 'desc')
+      .select('createdAt')
+      .first()
+
     return {
       conversationId: conversation.conversationId as string,
       whatsappConfigId: conversation.whatsappConfigId as string,
       to,
+      lastInboundMessageAt: lastInboundMessage?.createdAt
+        ? new Date(lastInboundMessage.createdAt as string | Date)
+        : null,
     }
+  }
+
+  #assertSessionWindow(lastInboundMessageAt: Date | null): void {
+    const sessionWindowMs = 24 * 60 * 60 * 1000
+    if (!lastInboundMessageAt || Date.now() - lastInboundMessageAt.getTime() > sessionWindowMs) {
+      throw new WhatsappOutboundException(
+        'The 24-hour customer service window has expired. Send an approved WhatsApp template to re-engage this contact.',
+        {
+          status: 422,
+          code: 'E_OUTBOUND_SESSION_WINDOW_EXPIRED',
+        }
+      )
+    }
+  }
+
+  async #loadMediaAsset(params: { organizationId: string; mediaAssetId: string }): Promise<{
+    id: string
+    fileName: string
+    mimeType: string
+    filePath: string
+  }> {
+    const mediaAsset = await db
+      .from('media_assets')
+      .where('id', params.mediaAssetId)
+      .where('organizationId', params.organizationId)
+      .select('id', 'fileName', 'mimeType', 'filePath')
+      .first()
+
+    if (!mediaAsset) {
+      throw new WhatsappOutboundException('Media asset not found', {
+        status: 404,
+        code: 'E_OUTBOUND_MEDIA_NOT_FOUND',
+      })
+    }
+
+    return {
+      id: mediaAsset.id as string,
+      fileName: mediaAsset.fileName as string,
+      mimeType: mediaAsset.mimeType as string,
+      filePath: mediaAsset.filePath as string,
+    }
+  }
+
+  #assertMediaAsset(params: {
+    mediaType: OutboundMediaType
+    mediaAsset: { mimeType: string; filePath: string }
+  }): void {
+    if (!isMimeTypeAllowedForMediaType(params.mediaType, params.mediaAsset.mimeType)) {
+      throw new WhatsappOutboundException('Media asset MIME type does not match the message type', {
+        status: 422,
+        code: 'E_OUTBOUND_MEDIA_MIME_TYPE',
+      })
+    }
+
+    if (!isPublicHttpUrl(params.mediaAsset.filePath)) {
+      throw new WhatsappOutboundException(
+        'Media asset does not have a publicly accessible URL for WhatsApp delivery',
+        {
+          status: 422,
+          code: 'E_OUTBOUND_MEDIA_LINK_UNAVAILABLE',
+        }
+      )
+    }
+  }
+
+  async #queueOutbound(
+    trx: TransactionClientContract,
+    params: {
+      organizationId: string
+      conversationId: string
+      whatsappConfigId: string
+      actorUserId?: string | null
+      contentType: string
+      contentText: string | null
+      messageTemplateId: string | null
+      payload: OutboundDispatchPayload
+      previewText: string
+      mediaAssetId?: string
+      mediaUrl?: string
+    }
+  ): Promise<QueueOutboundResult> {
+    const queued = await this.outboundRepo.queueOutbound(trx, {
+      organizationId: params.organizationId,
+      whatsappConfigId: params.whatsappConfigId,
+      conversationId: params.conversationId,
+      senderType: params.actorUserId ? 'agent' : 'system',
+      senderId: params.actorUserId ?? null,
+      contentType: params.contentType,
+      contentText: params.contentText,
+      messageTemplateId: params.messageTemplateId,
+      payload: params.payload,
+    })
+
+    const now = new Date()
+    if (params.mediaAssetId && params.mediaUrl) {
+      await trx
+        .from('messages')
+        .where('id', queued.messageId)
+        .where('organizationId', params.organizationId)
+        .update({
+          mediaAssetId: params.mediaAssetId,
+          mediaUrl: params.mediaUrl,
+          updatedAt: now,
+        })
+    }
+
+    await trx.rawQuery(
+      `UPDATE "conversations"
+       SET
+         "lastMessageText" = ?,
+         "lastMessageAt" = ?,
+         "firstResponseAt" = COALESCE("firstResponseAt", ?),
+         "unreadCount" = 0,
+         "updatedAt" = ?
+       WHERE "id" = ? AND "organizationId" = ?`,
+      [params.previewText, now, now, now, params.conversationId, params.organizationId]
+    )
+
+    return queued
   }
 }
 

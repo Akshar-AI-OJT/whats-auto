@@ -259,8 +259,38 @@ export class MessageTemplateSchema extends BaseModel {
 }
 
 export class MessageSchema extends BaseModel {
+  static $columns = [
+    'clientIdempotencyKey',
+    'contentText',
+    'contentType',
+    'conversationId',
+    'createdAt',
+    'deliveredAt',
+    'errorMessage',
+    'failedAt',
+    'id',
+    'interactivePayload',
+    'interactiveReplyId',
+    'mediaAssetId',
+    'mediaUrl',
+    'messageTemplateId',
+    'metadata',
+    'occurredAt',
+    'organizationId',
+    'providerMessageId',
+    'providerStatusAt',
+    'readAt',
+    'replyToMessageId',
+    'senderId',
+    'senderType',
+    'sentAt',
+    'status',
+    'updatedAt',
+  ] as const
   static $columns = ['contentText', 'contentType', 'conversationId', 'createdAt', 'deliveredAt', 'errorMessage', 'failedAt', 'id', 'interactivePayload', 'interactiveReplyId', 'mediaAssetId', 'mediaUrl', 'messageTemplateId', 'metadata', 'occurredAt', 'organizationId', 'providerMessageId', 'providerStatusAt', 'readAt', 'replyToMessageId', 'senderId', 'senderType', 'sentAt', 'status', 'updatedAt'] as const
   $columns = MessageSchema.$columns
+  @column()
+  declare clientIdempotencyKey: string | null
   @column()
   declare contentText: string | null
   @column()
