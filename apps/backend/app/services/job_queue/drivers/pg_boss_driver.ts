@@ -92,5 +92,9 @@ export default class PgBossJobQueueDriver implements JobQueueDriver {
 }
 
 export function defaultPgBossQueues(): string[] {
-  return [JOB_NAMES.WHATSAPP_OUTBOUND_DISPATCH, JOB_NAMES.WHATSAPP_UNMATCHED_RECEIPTS_CLEANUP]
+  return [
+    JOB_NAMES.WHATSAPP_OUTBOUND_DISPATCH,
+    JOB_NAMES.WHATSAPP_UNMATCHED_RECEIPTS_CLEANUP,
+    JOB_NAMES.BILLING_PAYMENT_WEBHOOK_PROCESS,
+  ]
 }

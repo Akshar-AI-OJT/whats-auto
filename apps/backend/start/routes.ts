@@ -35,6 +35,9 @@ const WhatsappConfigsController = () => import('#controllers/whatsapp_configs_co
 const MessageTemplatesController = () => import('#controllers/message_templates_controller')
 const MessagesController = () => import('#controllers/messages_controller')
 const ConversationNotesController = () => import('#controllers/conversation_notes_controller')
+const BillingController = () => import('#controllers/billing_controller')
+const BillingRazorpayWebhookController = () =>
+  import('#controllers/billing_razorpay_webhook_controller')
 
 type JsonSchema = {
   type: 'object'
@@ -308,6 +311,7 @@ router
   .group(() => {
     router.get('/whatsapp', [WhatsappWebhookController, 'verify'])
     router.post('/whatsapp', [WhatsappWebhookController, 'receive'])
+    router.post('/billing/razorpay', [BillingRazorpayWebhookController, 'receive'])
   })
   .prefix('/api/v1/webhooks')
 
@@ -585,4 +589,17 @@ router
       .use(middleware.requirePermission({ permission: 'inbox:reply' }))
   })
   .prefix('/api/v1/inbox/conversations')
+  .use([middleware.jwtAuth(), middleware.tenant()])
+
+// Platform billing (tenant) — Razorpay SaaS checkout + subscription read
+router
+  .group(() => {
+    router
+      .get('/subscription', [BillingController, 'showSubscription'])
+      .use(middleware.requirePermission({ permission: 'billing:view' }))
+    router
+      .post('/checkout', [BillingController, 'checkout'])
+      .use(middleware.requirePermission({ permission: 'billing:manage' }))
+  })
+  .prefix('/api/v1/billing')
   .use([middleware.jwtAuth(), middleware.tenant()])
