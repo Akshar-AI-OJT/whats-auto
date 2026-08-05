@@ -12,7 +12,12 @@ const jobQueueConfig = {
     null: {},
     pgboss: {
       schema: env.get('JOB_QUEUE_PGBOSS_SCHEMA') ?? 'pgboss',
-      queues: [JOB_NAMES.WHATSAPP_OUTBOUND_DISPATCH, JOB_NAMES.WHATSAPP_UNMATCHED_RECEIPTS_CLEANUP],
+      queues: [
+        JOB_NAMES.WHATSAPP_OUTBOUND_DISPATCH,
+        JOB_NAMES.WHATSAPP_OUTBOUND_RECOVERY,
+        JOB_NAMES.WHATSAPP_UNMATCHED_RECEIPTS_CLEANUP,
+        JOB_NAMES.BILLING_PAYMENT_WEBHOOK_PROCESS,
+      ],
     },
   },
 }

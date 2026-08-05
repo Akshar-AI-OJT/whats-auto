@@ -4,6 +4,7 @@ import type {
   JobEnqueueOptions,
   JobHandler,
   JobQueueDriver,
+  JobScheduleOptions,
 } from '#services/job_queue/contracts/job_queue_driver'
 import { JOB_NAMES } from '#services/job_queue/job_names'
 
@@ -83,6 +84,19 @@ export default class PgBossJobQueueDriver implements JobQueueDriver {
     })
   }
 
+  async schedule(
+    name: string,
+    cron: string,
+    data?: Record<string, unknown>,
+    options?: JobScheduleOptions
+  ): Promise<void> {
+    const boss = this.#requireBoss()
+    await boss.schedule(name, cron, data ?? {}, {
+      key: options?.key,
+      retryLimit: 0,
+    })
+  }
+
   #requireBoss(): PgBoss {
     if (!this.#boss) {
       throw new Error('PgBossJobQueueDriver has not been started')
@@ -92,5 +106,10 @@ export default class PgBossJobQueueDriver implements JobQueueDriver {
 }
 
 export function defaultPgBossQueues(): string[] {
-  return [JOB_NAMES.WHATSAPP_OUTBOUND_DISPATCH, JOB_NAMES.WHATSAPP_UNMATCHED_RECEIPTS_CLEANUP]
+  return [
+    JOB_NAMES.WHATSAPP_OUTBOUND_DISPATCH,
+    JOB_NAMES.WHATSAPP_OUTBOUND_RECOVERY,
+    JOB_NAMES.WHATSAPP_UNMATCHED_RECEIPTS_CLEANUP,
+    JOB_NAMES.BILLING_PAYMENT_WEBHOOK_PROCESS,
+  ]
 }
