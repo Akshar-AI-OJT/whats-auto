@@ -278,6 +278,115 @@ export type CreateContactBody = {
   company?: string
 }
 
+export type InboxConversationStatus = 'open' | 'pending' | 'closed'
+
+export type InboxConversationContact = {
+  id: string
+  name: string | null
+  phone: string
+  phoneNormalized?: string
+  email?: string | null
+  company?: string | null
+}
+
+/** Row from GET /api/v1/inbox/conversations */
+export type InboxConversation = {
+  id: string
+  organizationId: string
+  whatsappConfigId: string
+  contactId: string
+  status: InboxConversationStatus | string
+  assignedAgentId: string | null
+  lastMessageText: string | null
+  lastMessageAt: string | null
+  firstResponseAt?: string | null
+  closedAt?: string | null
+  unreadCount: number
+  createdAt: string
+  updatedAt?: string | null
+  contact: InboxConversationContact
+}
+
+export type CreateInboxConversationBody = {
+  contactId: string
+  whatsappConfigId: string
+}
+
+export type ListInboxConversationsParams = {
+  status?: InboxConversationStatus
+  assignedAgentId?: string
+  search?: string
+  page?: number
+  limit?: number
+}
+
+export type InboxMessageDirection = 'inbound' | 'outbound'
+
+export type InboxMessageSender = {
+  type: string
+  id: string | null
+  name: string | null
+}
+
+/** Row from GET /api/v1/inbox/conversations/:id/messages */
+export type InboxMessage = {
+  id: string
+  organizationId: string
+  conversationId: string
+  senderType: string
+  senderId: string | null
+  direction: InboxMessageDirection
+  contentType: string
+  contentText: string | null
+  mediaUrl: string | null
+  mediaAssetId: string | null
+  status: string
+  providerMessageId: string | null
+  errorMessage: string | null
+  createdAt: string
+  updatedAt: string | null
+  sender: InboxMessageSender
+}
+
+export type ListInboxMessagesParams = {
+  page?: number
+  limit?: number
+}
+
+export type SendInboxMessageBody = {
+  contentType: 'text'
+  contentText: string
+}
+
+export type AssignInboxConversationBody = {
+  assignedAgentId: string
+}
+
+export type UpdateInboxConversationBody = {
+  status: InboxConversationStatus
+}
+
+export type InboxConversationNoteAuthor = {
+  id: string
+  name: string | null
+  email: string | null
+}
+
+/** Row from GET/POST /api/v1/inbox/conversations/:id/notes */
+export type InboxConversationNote = {
+  id: string
+  conversationId: string
+  organizationId: string
+  noteText: string
+  createdBy: InboxConversationNoteAuthor
+  createdAt: string
+  updatedAt: string | null
+}
+
+export type CreateInboxConversationNoteBody = {
+  noteText: string
+}
+
 export type WhatsappConfigSummary = {
   id: string
   phoneNumberId: string
@@ -611,6 +720,107 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(body),
       }),
+  },
+
+  inbox: {
+    listConversations: (params: ListInboxConversationsParams = {}) => {
+      const qs = new URLSearchParams()
+      if (params.status) qs.set('status', params.status)
+      if (params.assignedAgentId) qs.set('assignedAgentId', params.assignedAgentId)
+      if (params.search?.trim()) qs.set('search', params.search.trim())
+      if (params.page != null) qs.set('page', String(params.page))
+      if (params.limit != null) qs.set('limit', String(params.limit))
+      const query = qs.toString()
+      return protectedRequest<
+        | Paginated<InboxConversation>
+        | { data?: InboxConversation[]; meta?: PaginationMeta }
+      >(`/api/v1/inbox/conversations${query ? `?${query}` : ''}`, {
+        method: 'GET',
+      })
+    },
+
+    createConversation: (body: CreateInboxConversationBody) =>
+      protectedRequest<{ data?: InboxConversation } & InboxConversation>(
+        '/api/v1/inbox/conversations',
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    getConversation: (conversationId: string) =>
+      protectedRequest<{ data?: InboxConversation } & InboxConversation>(
+        `/api/v1/inbox/conversations/${conversationId}`,
+        { method: 'GET' }
+      ),
+
+    listMessages: (conversationId: string, params: ListInboxMessagesParams = {}) => {
+      const qs = new URLSearchParams()
+      if (params.page != null) qs.set('page', String(params.page))
+      if (params.limit != null) qs.set('limit', String(params.limit))
+      const query = qs.toString()
+      return protectedRequest<
+        | Paginated<InboxMessage>
+        | { data?: InboxMessage[]; meta?: PaginationMeta }
+      >(
+        `/api/v1/inbox/conversations/${conversationId}/messages${query ? `?${query}` : ''}`,
+        { method: 'GET' }
+      )
+    },
+
+    sendMessage: (conversationId: string, body: SendInboxMessageBody) =>
+      protectedRequest<{ data?: InboxMessage } & InboxMessage>(
+        `/api/v1/inbox/conversations/${conversationId}/messages`,
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    assignConversation: (conversationId: string, body: AssignInboxConversationBody) =>
+      protectedRequest<{ data?: InboxConversation } & InboxConversation>(
+        `/api/v1/inbox/conversations/${conversationId}/assign`,
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    closeConversation: (conversationId: string) =>
+      protectedRequest<{ data?: InboxConversation } & InboxConversation>(
+        `/api/v1/inbox/conversations/${conversationId}/close`,
+        { method: 'POST' }
+      ),
+
+    reopenConversation: (conversationId: string) =>
+      protectedRequest<{ data?: InboxConversation } & InboxConversation>(
+        `/api/v1/inbox/conversations/${conversationId}/reopen`,
+        { method: 'POST' }
+      ),
+
+    updateConversation: (conversationId: string, body: UpdateInboxConversationBody) =>
+      protectedRequest<{ data?: InboxConversation } & InboxConversation>(
+        `/api/v1/inbox/conversations/${conversationId}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    listNotes: (conversationId: string) =>
+      protectedRequest<{ data?: InboxConversationNote[] } | InboxConversationNote[]>(
+        `/api/v1/inbox/conversations/${conversationId}/notes`,
+        { method: 'GET' }
+      ),
+
+    createNote: (conversationId: string, body: CreateInboxConversationNoteBody) =>
+      protectedRequest<{ data?: InboxConversationNote } & InboxConversationNote>(
+        `/api/v1/inbox/conversations/${conversationId}/notes`,
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
   },
 
   whatsapp: {
