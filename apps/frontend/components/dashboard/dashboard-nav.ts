@@ -52,6 +52,7 @@ export const DASHBOARD_NAV_HREFS: Partial<Record<DashboardNavKey, string>> = {
   dashboard: '/dashboard',
   team: '/dashboard/team',
   contacts: '/dashboard/contacts',
+  inbox: '/dashboard/inbox',
   settings: '/dashboard/settings',
 }
 
@@ -83,5 +84,6 @@ export const DASHBOARD_NAV_CHILDREN: Partial<
  */
 export const DASHBOARD_NAV_PERMISSION: Partial<Record<DashboardNavKey, string>> = {
   contacts: PERMISSIONS.CONTACTS_VIEW,
+  inbox: PERMISSIONS.INBOX_VIEW,
   settings: PERMISSIONS.ORG_VIEW,
 }

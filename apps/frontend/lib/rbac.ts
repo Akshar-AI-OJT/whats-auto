@@ -5,6 +5,9 @@
 
 export const PERMISSIONS = {
   INBOX_VIEW: 'inbox:view',
+  INBOX_REPLY: 'inbox:reply',
+  INBOX_ASSIGN: 'inbox:assign',
+  INBOX_CLOSE: 'inbox:close',
   CONTACTS_VIEW: 'contacts:view',
   CONTACTS_CREATE: 'contacts:create',
   CONTACTS_EDIT: 'contacts:edit',
