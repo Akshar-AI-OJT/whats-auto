@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import { inject } from '@adonisjs/core'
 import { SubscriptionService } from '#services/subscription_service'
 import {
   createSuperAdminSubscriptionValidator,
@@ -20,17 +21,18 @@ export default class SuperAdminSubscriptionsController {
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 403 - { "error": "Permission denied: platform:tenants_billing", "code": "PERMISSION_DENIED" }
    */
-  async index({ request, serialize }: HttpContext) {
+  @inject()
+  async index({ request, serialize }: HttpContext, subscriptions: SubscriptionService) {
     const { page, perPage } = await request.validateUsing(listSuperAdminSubscriptionsValidator, {
       data: request.qs(),
     })
 
-    const subscriptions = await new SubscriptionService().listSubscriptionsPaginated({
+    const result = await subscriptions.listSubscriptionsPaginated({
       page: page ?? 1,
       perPage: perPage ?? 20,
     })
 
-    return serialize(subscriptions)
+    return serialize(result)
   }
 
   /**
@@ -45,10 +47,11 @@ export default class SuperAdminSubscriptionsController {
    * @responseBody 404 - { "error": "Organization Not Found", "code": "E_ORGANIZATION_NOT_FOUND" }
    * @responseBody 422 - { "error": "currentPeriodEnd must be after currentPeriodStart", "code": "E_SUBSCRIPTION_INVALID_PERIOD" }
    */
-  async store({ request, serialize }: HttpContext) {
+  @inject()
+  async store({ request, serialize }: HttpContext, subscriptions: SubscriptionService) {
     const payload = await request.validateUsing(createSuperAdminSubscriptionValidator)
 
-    const subscription = await new SubscriptionService().createSubscription(payload)
+    const subscription = await subscriptions.createSubscription(payload)
 
     return serialize(subscription)
   }
@@ -64,12 +67,13 @@ export default class SuperAdminSubscriptionsController {
    * @responseBody 403 - { "error": "Permission denied: platform:tenants_billing", "code": "PERMISSION_DENIED" }
    * @responseBody 404 - { "error": "Subscription Not Found", "code": "E_SUBSCRIPTION_NOT_FOUND" }
    */
-  async show({ request, params, serialize }: HttpContext) {
+  @inject()
+  async show({ request, params, serialize }: HttpContext, subscriptions: SubscriptionService) {
     const { id } = await request.validateUsing(subscriptionIdParamValidator, {
       data: params,
     })
 
-    const subscription = await new SubscriptionService().getSubscriptionById(id)
+    const subscription = await subscriptions.getSubscriptionById(id)
 
     return serialize(subscription)
   }
@@ -87,13 +91,14 @@ export default class SuperAdminSubscriptionsController {
    * @responseBody 404 - { "error": "Subscription Not Found", "code": "E_SUBSCRIPTION_NOT_FOUND" }
    * @responseBody 422 - { "error": "currentPeriodEnd must be after currentPeriodStart", "code": "E_SUBSCRIPTION_INVALID_PERIOD" }
    */
-  async update({ request, params, serialize }: HttpContext) {
+  @inject()
+  async update({ request, params, serialize }: HttpContext, subscriptions: SubscriptionService) {
     const { id } = await request.validateUsing(subscriptionIdParamValidator, {
       data: params,
     })
     const payload = await request.validateUsing(updateSuperAdminSubscriptionValidator)
 
-    const subscription = await new SubscriptionService().updateSubscription(id, payload)
+    const subscription = await subscriptions.updateSubscription(id, payload)
 
     return serialize(subscription)
   }
@@ -110,12 +115,16 @@ export default class SuperAdminSubscriptionsController {
    * @responseBody 404 - { "error": "Subscription Not Found", "code": "E_SUBSCRIPTION_NOT_FOUND" }
    * @responseBody 409 - { "error": "Subscription is already deleted", "code": "E_SUBSCRIPTION_ALREADY_DELETED" }
    */
-  async softDelete({ request, params, serialize }: HttpContext) {
+  @inject()
+  async softDelete(
+    { request, params, serialize }: HttpContext,
+    subscriptions: SubscriptionService
+  ) {
     const { id } = await request.validateUsing(subscriptionIdParamValidator, {
       data: params,
     })
 
-    await new SubscriptionService().softDeleteSubscription(id)
+    await subscriptions.softDeleteSubscription(id)
 
     return serialize({ ok: true })
   }
