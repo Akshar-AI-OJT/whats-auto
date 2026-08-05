@@ -5,18 +5,29 @@ import { useTranslations } from 'next-intl'
 import { ArrowLeft, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api, type ApiError } from '@/lib/api'
+import { authClient } from '@/lib/auth-client'
+import { getValidAccessToken } from '@/lib/access-token'
+import { organizationQueryKeys } from '@/components/dashboard/OrganizationsProvider'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   buildCreateOrganizationPayload,
   clearLegacyOrganizationCache,
   clearPendingOnboardingContact,
-  getDefaultOrgLocaleDefaults,
   isValidEmail,
   isValidOrganizationSlug,
   isValidPhone,
+  isValidWebsiteUrl,
   markOnboardingChecklistVisible,
   readPendingOnboardingContact,
   savePendingWorkspacePreferences,
 } from '@/lib/onboarding'
+import { ORG_SETUP_PATH } from '@/lib/onboarding'
+import {
+  acceptInvitationPath,
+  normalizeAppPath,
+  readPendingInvitationId,
+  resolvePostAuthPath,
+} from '@/lib/post-auth-redirect'
 import { Button } from '@/components/ui/button'
 import { Field, FieldGroup } from '@/components/ui/field'
 import {
@@ -40,19 +51,20 @@ import type {
 
 function createInitialState(): OrganizationWizardState {
   const contact = readPendingOnboardingContact()
-  const defaults = getDefaultOrgLocaleDefaults()
   return {
     name: '',
     slug: '',
     email: contact.email,
     phone: contact.phone,
+    website: '',
     slugTouched: false,
     logoFileName: '',
     logoPreviewUrl: null,
     industry: '',
     companySize: '',
-    country: defaults.country,
-    timezone: defaults.timezone,
+    country: '',
+    timezone: '',
+    currency: '',
     defaultLanguage: 'en',
     dateFormat: 'DD/MM/YYYY',
     timeFormat: '12h',
@@ -63,7 +75,8 @@ function createInitialState(): OrganizationWizardState {
 
 /**
  * Organization onboarding wizard (3 steps).
- * Final submit creates the organization, then redirects to the dashboard.
+ * Final submit creates the organization via POST /api/v1/organizations.
+ * Non-API fields (logo, company size, preferences) are kept in session for later settings.
  */
 export function OrganizationRegistrationForm({
   className,
@@ -71,11 +84,43 @@ export function OrganizationRegistrationForm({
 }: React.ComponentProps<'form'>) {
   const t = useTranslations('onboarding.organization')
   const router = useRouter()
+  const queryClient = useQueryClient()
   const formErrorId = useId()
 
   const [step, setStep] = useState<OrgWizardStep>(1)
   const [state, setState] = useState<OrganizationWizardState>(createInitialState)
   const [basicsErrors, setBasicsErrors] = useState<OrganizationWizardBasicsErrors>({})
+  const [guardingInvite, setGuardingInvite] = useState(true)
+
+  // Invitees / platform superadmins must never stay on create-org.
+  useEffect(() => {
+    let cancelled = false
+    ;(async () => {
+      try {
+        const nextPath = await resolvePostAuthPath({
+          preferredCallback: null,
+          fallback: ORG_SETUP_PATH,
+        })
+        if (cancelled) return
+        if (normalizeAppPath(nextPath) !== ORG_SETUP_PATH) {
+          router.replace(nextPath)
+          return
+        }
+      } catch {
+        const stored = readPendingInvitationId()
+        if (!cancelled && stored) {
+          router.replace(acceptInvitationPath(stored))
+          return
+        }
+      } finally {
+        if (!cancelled) setGuardingInvite(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [router])
+
   const [companyErrors, setCompanyErrors] = useState<OrganizationWizardCompanyErrors>({})
   const [preferencesErrors, setPreferencesErrors] =
     useState<OrganizationWizardPreferencesErrors>({})
@@ -96,9 +141,12 @@ export function OrganizationRegistrationForm({
 
   function validateBasics(): OrganizationWizardBasicsErrors {
     const next: OrganizationWizardBasicsErrors = {}
+    const trimmedName = state.name.trim()
 
-    if (!state.name.trim() || state.name.trim().length < 2) {
+    if (!trimmedName || trimmedName.length < 2) {
       next.name = t('errors.nameRequired')
+    } else if (trimmedName.length > 200) {
+      next.name = t('errors.nameTooLong')
     }
 
     const normalizedSlug = state.slug.trim()
@@ -114,10 +162,13 @@ export function OrganizationRegistrationForm({
       next.email = t('errors.emailInvalid')
     }
 
-    if (!state.phone.trim()) {
-      next.phone = t('errors.phoneRequired')
-    } else if (!isValidPhone(state.phone)) {
+    // Phone is optional in the API; validate format only when provided.
+    if (state.phone.trim() && !isValidPhone(state.phone)) {
       next.phone = t('errors.phoneInvalid')
+    }
+
+    if (state.website.trim() && !isValidWebsiteUrl(state.website)) {
+      next.website = t('errors.websiteInvalid')
     }
 
     return next
@@ -127,8 +178,10 @@ export function OrganizationRegistrationForm({
     const next: OrganizationWizardCompanyErrors = {}
     if (!state.industry) next.industry = t('errors.industryRequired')
     if (!state.companySize) next.companySize = t('errors.companySizeRequired')
-    if (!state.country) next.country = t('errors.countryRequired')
-    if (!state.timezone) next.timezone = t('errors.timezoneRequired')
+    if (!state.country.trim() || state.country.trim().length < 2) {
+      next.country = t('errors.countryRequired')
+    }
+    if (!state.timezone.trim()) next.timezone = t('errors.timezoneRequired')
     return next
   }
 
@@ -147,21 +200,43 @@ export function OrganizationRegistrationForm({
     setPreferencesErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return
 
+    const basics = validateBasics()
+    if (Object.keys(basics).length > 0) {
+      setBasicsErrors(basics)
+      setStep(1)
+      return
+    }
+
+    const company = validateCompany()
+    if (Object.keys(company).length > 0) {
+      setCompanyErrors(company)
+      setStep(2)
+      return
+    }
+
     setPending(true)
 
     try {
+      // Only API-contract fields — logo / companySize / preferences stay in session.
       const payload = buildCreateOrganizationPayload({
         name: state.name,
         slug: state.slug,
         email: state.email,
         phone: state.phone,
+        website: state.website,
         industry: state.industry || undefined,
         country: state.country,
         timezone: state.timezone,
+        currency: state.currency || undefined,
       })
 
-      // Creator becomes owner and the org becomes the session's active organization.
       await api.organizations.create(payload)
+
+      // Backend sets the new org active and remints JWT; align shared session before dashboard.
+      await authClient.getSession({ query: { disableCookieCache: true } })
+      await getValidAccessToken()
+      await queryClient.invalidateQueries({ queryKey: organizationQueryKeys.all })
+
       clearLegacyOrganizationCache()
 
       savePendingWorkspacePreferences({
@@ -194,6 +269,15 @@ export function OrganizationRegistrationForm({
       } else if (/email/i.test(message)) {
         setBasicsErrors((prev) => ({ ...prev, email: message }))
         setStep(1)
+      } else if (/website/i.test(message)) {
+        setBasicsErrors((prev) => ({ ...prev, website: message }))
+        setStep(1)
+      } else if (/country/i.test(message)) {
+        setCompanyErrors((prev) => ({ ...prev, country: message }))
+        setStep(2)
+      } else if (/timezone/i.test(message)) {
+        setCompanyErrors((prev) => ({ ...prev, timezone: message }))
+        setStep(2)
       }
       setError(message)
     } finally {
@@ -229,6 +313,17 @@ export function OrganizationRegistrationForm({
     { id: 2 as const, label: t('steps.company') },
     { id: 3 as const, label: t('steps.preferences') },
   ]
+
+  if (guardingInvite) {
+    return (
+      <AuthLayout branding={<AuthBranding variant="organization" />}>
+        <div className="flex items-center justify-center gap-2 py-16 text-sm text-body">
+          <Loader2 className="size-4 animate-spin" aria-hidden />
+          Loading…
+        </div>
+      </AuthLayout>
+    )
+  }
 
   return (
     <AuthLayout branding={<AuthBranding variant="organization" />}>

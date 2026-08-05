@@ -10,6 +10,7 @@ import {
   FieldLabel,
 } from '@/components/ui/field'
 import { authInputClassName } from '@/components/auth/auth-field-styles'
+import { RequiredAsterisk } from './required-asterisk'
 import {
   DATE_FORMAT_OPTIONS,
   LANGUAGE_OPTIONS,
@@ -74,6 +75,7 @@ export function WorkspacePreferencesStep({
       <Field data-invalid={errors.defaultLanguage ? true : undefined} className="gap-2">
         <FieldLabel htmlFor={languageId} className="text-sm font-medium leading-5 text-ink">
           {t('step3.defaultLanguage')}
+          <RequiredAsterisk />
         </FieldLabel>
         <select
           id={languageId}
@@ -108,6 +110,7 @@ export function WorkspacePreferencesStep({
         <Field data-invalid={errors.dateFormat ? true : undefined} className="gap-2">
           <FieldLabel htmlFor={dateFormatId} className="text-sm font-medium leading-5 text-ink">
             {t('step3.dateFormat')}
+            <RequiredAsterisk />
           </FieldLabel>
           <select
             id={dateFormatId}
@@ -140,6 +143,7 @@ export function WorkspacePreferencesStep({
         <Field data-invalid={errors.timeFormat ? true : undefined} className="gap-2">
           <FieldLabel htmlFor={timeFormatId} className="text-sm font-medium leading-5 text-ink">
             {t('step3.timeFormat')}
+            <RequiredAsterisk />
           </FieldLabel>
           <select
             id={timeFormatId}
@@ -173,6 +177,7 @@ export function WorkspacePreferencesStep({
       <Field data-invalid={errors.themePreference ? true : undefined} className="gap-2">
         <FieldLabel className="text-sm font-medium leading-5 text-ink">
           {t('step3.themePreference')}
+          <RequiredAsterisk />
         </FieldLabel>
         <div
           id={themeId}

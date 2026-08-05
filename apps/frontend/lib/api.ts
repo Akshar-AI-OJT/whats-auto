@@ -1,16 +1,47 @@
-function getBaseUrl() {
-  const base = process.env.NEXT_PUBLIC_API_URL
-  if (!base) {
-    throw new Error('NEXT_PUBLIC_API_URL is not set')
-  }
-  return base
-}
+import { getBaseUrl } from '@/lib/api-base'
+import {
+  applyAuthTokenHeaders,
+  clearAccessToken,
+  forceRemintAccessToken,
+  getValidAccessToken,
+} from '@/lib/access-token'
+import { authClient } from '@/lib/auth-client'
 
 export type ApiError = {
   message: string
   status: number
   code?: string
   retryAfter?: number
+}
+
+export type AuthRequestMode = 'public' | 'protected'
+
+/** @deprecated Use AuthRequestMode — kept so existing imports keep compiling. */
+export type RequestMode = AuthRequestMode
+
+type RequestOptions = Omit<RequestInit, 'mode'> & {
+  /**
+   * Auth transport mode (not Fetch CORS `RequestInit.mode`).
+   * public = cookie only; protected = cookie + Bearer JWT
+   */
+  authMode: AuthRequestMode
+  /** Internal flag — do not set from call sites */
+  _authRetried?: boolean
+}
+
+const TOKEN_AUTH_ERROR_CODES = new Set([
+  'MISSING_BEARER',
+  'INVALID_TOKEN',
+  'INVALID_CLAIMS',
+  'UNKNOWN_SCOPE',
+  'TOKEN_PERMISSIONS_STALE',
+])
+
+function isTokenAuthError(error: ApiError): boolean {
+  if (error.status !== 401) return false
+  if (error.code && TOKEN_AUTH_ERROR_CODES.has(error.code)) return true
+  // Some middleware paths return 401 without a stable code.
+  return !error.code || /token|bearer|unauthorized|jwt/i.test(error.message)
 }
 
 async function parseError(response: Response): Promise<ApiError> {
@@ -24,6 +55,7 @@ async function parseError(response: Response): Promise<ApiError> {
       error?: string | { message?: string; code?: string }
       code?: string
       retryAfter?: number
+      errors?: Array<{ message?: string; field?: string }>
     }
 
     if (typeof data.message === 'string') {
@@ -32,6 +64,11 @@ async function parseError(response: Response): Promise<ApiError> {
       message = data.error
     } else if (data.error && typeof data.error === 'object' && data.error.message) {
       message = data.error.message
+    } else if (Array.isArray(data.errors) && data.errors.length > 0) {
+      message = data.errors
+        .map((item) => item.message)
+        .filter((item): item is string => Boolean(item))
+        .join(' ')
     }
 
     code =
@@ -58,24 +95,59 @@ async function parseError(response: Response): Promise<ApiError> {
   return { message, status: response.status, code, retryAfter }
 }
 
+/**
+ * After a failed remint, refresh the shared Better Auth session once.
+ * Prefer authClient over raw fetch so useSession subscribers update and
+ * fetchOptions.onSuccess can still capture set-auth-jwt.
+ */
+async function refreshSessionCookieBootstrap() {
+  try {
+    await authClient.getSession({ query: { disableCookieCache: true } })
+  } catch {
+    /* ignore — caller surfaces the original auth error */
+  }
+}
+
 async function request<T>(
   path: string,
-  init: RequestInit = {}
+  init: RequestOptions
 ): Promise<{ data: T; response: Response }> {
-  const headers = new Headers(init.headers)
+  const { authMode, _authRetried, ...fetchInit } = init
+  const headers = new Headers(fetchInit.headers)
 
-  if (init.body && !headers.has('Content-Type')) {
+  if (fetchInit.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
   }
 
+  if (authMode === 'protected') {
+    const token = await getValidAccessToken()
+    headers.set('Authorization', `Bearer ${token}`)
+  }
+
   const response = await fetch(`${getBaseUrl()}${path}`, {
-    ...init,
+    ...fetchInit,
     headers,
     credentials: 'include',
   })
 
+  applyAuthTokenHeaders(response)
+
   if (!response.ok) {
-    throw await parseError(response)
+    const error = await parseError(response)
+
+    if (authMode === 'protected' && !_authRetried && isTokenAuthError(error)) {
+      try {
+        clearAccessToken()
+        await forceRemintAccessToken()
+        return request<T>(path, { ...init, _authRetried: true })
+      } catch {
+        clearAccessToken()
+        await refreshSessionCookieBootstrap()
+        throw error
+      }
+    }
+
+    throw error
   }
 
   if (response.status === 204) {
@@ -86,6 +158,14 @@ async function request<T>(
   const data = (text ? JSON.parse(text) : undefined) as T
 
   return { data, response }
+}
+
+function publicRequest<T>(path: string, init: RequestInit = {}) {
+  return request<T>(path, { ...init, authMode: 'public' })
+}
+
+function protectedRequest<T>(path: string, init: RequestInit = {}) {
+  return request<T>(path, { ...init, authMode: 'protected' })
 }
 
 export type SignupBody = {
@@ -277,6 +357,26 @@ export type PendingInvitation = {
   expiresAt: string
 }
 
+/** Row from GET /api/v1/onboarding/state pendingInvitations. */
+export type OnboardingPendingInvitation = {
+  id: string
+  organizationId?: string
+  organizationName: string
+  role: string
+  inviterName: string
+  expiresAt: string
+}
+
+export type OnboardingNextStep =
+  'accept_invitation' | 'create_organization' | 'select_organization' | 'ready'
+
+export type OnboardingState = {
+  activeOrganizationId: string | null
+  organizations: Array<{ id: string; name: string; role?: string }>
+  pendingInvitations: OnboardingPendingInvitation[]
+  nextStep: OnboardingNextStep
+}
+
 export type OrganizationRole = {
   role: string
   isSystem: boolean
@@ -311,34 +411,94 @@ export type RoleUpdatePreview = {
   affectedMembers: Array<{ id: string; userId: string }>
 }
 
+/** Row from GET /api/v1/super-admin/organizations */
+export type SuperAdminOrganization = {
+  id: string
+  name: string
+  slug: string
+  email: string
+  phone?: string | null
+  website?: string | null
+  industry?: string | null
+  country: string
+  timezone: string
+  currency?: string | null
+  /** Backend boolean: true = active, false = inactive */
+  status: boolean
+  createdAt: string
+  updatedAt?: string | null
+  deletedAt?: string | null
+}
+
+export type UpdateSuperAdminOrganizationBody = {
+  name?: string
+  phone?: string
+  website?: string
+  industry?: string
+  timezone?: string
+  currency?: string
+}
+
+export type SuperAdminSubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'cancelled'
+
+/** Row from GET /api/v1/super-admin/subscriptions */
+export type SuperAdminSubscription = {
+  id: string
+  organizationId: string
+  planId: string
+  status: SuperAdminSubscriptionStatus | string
+  currentPeriodStart: string
+  currentPeriodEnd: string
+  cancelAt?: string | null
+  createdAt?: string
+  updatedAt?: string | null
+}
+
+export type CreateSuperAdminSubscriptionBody = {
+  organizationId: string
+  planId: string
+  status: SuperAdminSubscriptionStatus
+  currentPeriodStart: string
+  currentPeriodEnd: string
+  cancelAt?: string
+}
+
+export type UpdateSuperAdminSubscriptionBody = {
+  planId?: string
+  status?: SuperAdminSubscriptionStatus
+  currentPeriodStart?: string
+  currentPeriodEnd?: string
+  cancelAt?: string | null
+}
+
 export const api = {
   auth: {
     signup: (body: SignupBody) =>
-      request<{ status: string }>('/api/v1/auth/pre-signup', {
+      publicRequest<{ status: string }>('/api/v1/auth/pre-signup', {
         method: 'POST',
         body: JSON.stringify(body),
       }),
 
     login: (body: LoginBody) =>
-      request('/api/auth/sign-in/email', {
+      publicRequest('/api/auth/sign-in/email', {
         method: 'POST',
         body: JSON.stringify(body),
       }),
 
     verifyOtp: (body: { email: string; otp: string; password: string }) =>
-      request('/api/v1/auth/verify-signup', {
+      publicRequest('/api/v1/auth/verify-signup', {
         method: 'POST',
         body: JSON.stringify(body),
       }),
 
     resendOtp: (body: { email: string }) =>
-      request<{ status: string }>('/api/v1/auth/pre-signup/resend', {
+      publicRequest<{ status: string }>('/api/v1/auth/pre-signup/resend', {
         method: 'POST',
         body: JSON.stringify(body),
       }),
 
     forgotPassword: (body: { email: string; redirectTo?: string }) =>
-      request('/api/auth/request-password-reset', {
+      publicRequest('/api/auth/request-password-reset', {
         method: 'POST',
         body: JSON.stringify({
           email: body.email,
@@ -347,13 +507,13 @@ export const api = {
       }),
 
     resetPassword: (body: { token: string; newPassword: string }) =>
-      request('/api/auth/reset-password', {
+      publicRequest('/api/auth/reset-password', {
         method: 'POST',
         body: JSON.stringify(body),
       }),
 
     google: (callbackURL?: string) =>
-      request<{ url?: string; redirect?: boolean }>('/api/auth/sign-in/social', {
+      publicRequest<{ url?: string; redirect?: boolean }>('/api/auth/sign-in/social', {
         method: 'POST',
         body: JSON.stringify({
           provider: 'google',
@@ -362,45 +522,62 @@ export const api = {
       }),
 
     logout: () =>
-      request('/api/auth/sign-out', {
+      publicRequest('/api/auth/sign-out', {
         method: 'POST',
       }),
 
     getSession: () =>
-      request<{ user: ProfileUser | null; session: unknown } | null>('/api/auth/get-session', {
-        method: 'GET',
-        // Keep invite/login UIs responsive if the auth service is slow.
-        signal: AbortSignal.timeout(4000),
-      }),
+      publicRequest<{ user: ProfileUser | null; session: unknown } | null>(
+        '/api/auth/get-session',
+        {
+          method: 'GET',
+          // Keep invite/login UIs responsive if the auth service is slow.
+          signal: AbortSignal.timeout(4000),
+        }
+      ),
   },
 
   account: {
     profile: () =>
-      request<{ data?: ProfileUser } & ProfileUser>('/api/v1/account/profile', {
+      protectedRequest<{ data?: ProfileUser } & ProfileUser>('/api/v1/account/profile', {
+        method: 'GET',
+      }),
+  },
+
+  /** Post-auth routing — no active organization required. */
+  onboarding: {
+    state: () =>
+      protectedRequest<{ data?: OnboardingState } & OnboardingState>('/api/v1/onboarding/state', {
         method: 'GET',
       }),
   },
 
   organizations: {
     create: (body: CreateOrganizationBody) =>
-      request<{ data?: CreatedOrganization } & CreatedOrganization>('/api/v1/organizations', {
-        method: 'POST',
-        body: JSON.stringify(body),
-      }),
+      protectedRequest<{ data?: CreatedOrganization } & CreatedOrganization>(
+        '/api/v1/organizations',
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
 
     list: () =>
-      request<{ data?: OrganizationSummary[] } | OrganizationSummary[]>('/api/v1/organizations', {
-        method: 'GET',
-      }),
+      protectedRequest<{ data?: OrganizationSummary[] } | OrganizationSummary[]>(
+        '/api/v1/organizations',
+        {
+          method: 'GET',
+        }
+      ),
 
     setActive: (organizationId: string) =>
-      request<{ data?: { organizationId: string } } & { organizationId: string }>(
+      protectedRequest<{ data?: { organizationId: string } } & { organizationId: string }>(
         `/api/v1/organizations/${organizationId}/set-active`,
         { method: 'POST' }
       ),
 
     update: (organizationId: string, body: UpdateOrganizationBody) =>
-      request<{ data?: OrganizationDetails } & OrganizationDetails>(
+      protectedRequest<{ data?: OrganizationDetails } & OrganizationDetails>(
         `/api/v1/organizations/${organizationId}`,
         {
           method: 'PATCH',
@@ -409,7 +586,7 @@ export const api = {
       ),
 
     destroy: (organizationId: string) =>
-      request<{ data?: { ok: boolean } } & { ok: boolean }>(
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
         `/api/v1/organizations/${organizationId}`,
         { method: 'DELETE' }
       ),
@@ -418,19 +595,19 @@ export const api = {
   access: {
     /** Active organization + permissions for the current session. */
     context: () =>
-      request<{ data?: AccessContext } & AccessContext>('/api/v1/access-context', {
+      protectedRequest<{ data?: AccessContext } & AccessContext>('/api/v1/access-context', {
         method: 'GET',
       }),
   },
 
   contacts: {
     list: () =>
-      request<{ data?: ContactSummary[] } | ContactSummary[]>('/api/v1/contacts', {
+      protectedRequest<{ data?: ContactSummary[] } | ContactSummary[]>('/api/v1/contacts', {
         method: 'GET',
       }),
 
     create: (body: CreateContactBody) =>
-      request<{ data?: ContactSummary } & ContactSummary>('/api/v1/contacts', {
+      protectedRequest<{ data?: ContactSummary } & ContactSummary>('/api/v1/contacts', {
         method: 'POST',
         body: JSON.stringify(body),
       }),
@@ -438,7 +615,7 @@ export const api = {
 
   whatsapp: {
     listConfigs: () =>
-      request<{ data?: WhatsappConfigSummary[] } | WhatsappConfigSummary[]>(
+      protectedRequest<{ data?: WhatsappConfigSummary[] } | WhatsappConfigSummary[]>(
         '/api/v1/whatsapp/configs',
         { method: 'GET' }
       ),
@@ -446,13 +623,12 @@ export const api = {
 
   members: {
     list: () =>
-      request<{ data?: OrganizationMember[] } | OrganizationMember[]>(
-        '/api/v1/members',
-        { method: 'GET' }
-      ),
+      protectedRequest<{ data?: OrganizationMember[] } | OrganizationMember[]>('/api/v1/members', {
+        method: 'GET',
+      }),
 
     assignRole: (memberId: string, role: string) =>
-      request<{ data?: { ok: boolean } } & { ok: boolean }>(
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
         `/api/v1/members/${memberId}/role`,
         {
           method: 'PATCH',
@@ -461,7 +637,7 @@ export const api = {
       ),
 
     remove: (memberId: string) =>
-      request<{ data?: { ok: boolean } } & { ok: boolean }>(
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
         `/api/v1/members/${memberId}`,
         { method: 'DELETE' }
       ),
@@ -477,9 +653,8 @@ export const api = {
       if (params.page != null) qs.set('page', String(params.page))
       if (params.perPage != null) qs.set('perPage', String(params.perPage))
       const query = qs.toString()
-      return request<
-        | Paginated<OrganizationAdminUser>
-        | { data?: OrganizationAdminUser[]; meta?: PaginationMeta }
+      return protectedRequest<
+        Paginated<OrganizationAdminUser> | { data?: OrganizationAdminUser[]; meta?: PaginationMeta }
       >(`/api/v1/organization-admin/users${query ? `?${query}` : ''}`, {
         method: 'GET',
       })
@@ -488,7 +663,7 @@ export const api = {
 
   invitations: {
     create: (organizationId: string, body: CreateInvitationBody) =>
-      request<{ data?: CreatedInvitation } & CreatedInvitation>(
+      protectedRequest<{ data?: CreatedInvitation } & CreatedInvitation>(
         `/api/v1/organizations/${organizationId}/invitations`,
         {
           method: 'POST',
@@ -497,26 +672,26 @@ export const api = {
       ),
 
     list: () =>
-      request<{ data?: PendingInvitation[] } | PendingInvitation[]>(
+      protectedRequest<{ data?: PendingInvitation[] } | PendingInvitation[]>(
         '/api/v1/invitations',
         { method: 'GET' }
       ),
 
     /** Public preview — invitation id is the secret. */
     get: (invitationId: string) =>
-      request<{ data?: InvitationPreview } & InvitationPreview>(
+      publicRequest<{ data?: InvitationPreview } & InvitationPreview>(
         `/api/v1/invitations/${invitationId}`,
         { method: 'GET' }
       ),
 
     accept: (invitationId: string) =>
-      request<{ data?: { organizationId: string } } & { organizationId: string }>(
+      protectedRequest<{ data?: { organizationId: string } } & { organizationId: string }>(
         `/api/v1/invitations/${invitationId}/accept`,
         { method: 'POST' }
       ),
 
     reject: (invitationId: string) =>
-      request<{ data?: { ok: boolean } } & { ok: boolean }>(
+      publicRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
         `/api/v1/invitations/${invitationId}/reject`,
         {
           method: 'POST',
@@ -526,7 +701,7 @@ export const api = {
       ),
 
     cancel: (invitationId: string) =>
-      request<{ data?: { ok: boolean } } & { ok: boolean }>(
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
         `/api/v1/invitations/${invitationId}/cancel`,
         { method: 'POST' }
       ),
@@ -534,18 +709,18 @@ export const api = {
 
   roles: {
     list: () =>
-      request<{ data?: OrganizationRole[] } | OrganizationRole[]>('/api/v1/roles', {
+      protectedRequest<{ data?: OrganizationRole[] } | OrganizationRole[]>('/api/v1/roles', {
         method: 'GET',
       }),
 
     create: (body: CreateRoleBody) =>
-      request<{ data?: { role: string } } & { role: string }>('/api/v1/roles', {
+      protectedRequest<{ data?: { role: string } } & { role: string }>('/api/v1/roles', {
         method: 'POST',
         body: JSON.stringify(body),
       }),
 
     preview: (roleKey: string, body: { permissions: string[] }) =>
-      request<{ data?: RoleUpdatePreview } & RoleUpdatePreview>(
+      protectedRequest<{ data?: RoleUpdatePreview } & RoleUpdatePreview>(
         `/api/v1/roles/${encodeURIComponent(roleKey)}/preview`,
         {
           method: 'POST',
@@ -554,7 +729,7 @@ export const api = {
       ),
 
     update: (roleKey: string, body: UpdateRoleBody) =>
-      request<{ data?: { ok: boolean } } & { ok: boolean }>(
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
         `/api/v1/roles/${encodeURIComponent(roleKey)}`,
         {
           method: 'PUT',
@@ -563,7 +738,7 @@ export const api = {
       ),
 
     reset: (roleKey: string, body: ResetRoleBody) =>
-      request<{ data?: { ok: boolean } } & { ok: boolean }>(
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
         `/api/v1/roles/${encodeURIComponent(roleKey)}/reset`,
         {
           method: 'POST',
@@ -572,12 +747,89 @@ export const api = {
       ),
 
     destroy: (roleKey: string, body: DeleteRoleBody) =>
-      request<{ data?: { ok: boolean } } & { ok: boolean }>(
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
         `/api/v1/roles/${encodeURIComponent(roleKey)}`,
         {
           method: 'DELETE',
           body: JSON.stringify(body),
         }
       ),
+  },
+
+  superAdmin: {
+    organizations: {
+      list: (params: { page?: number; perPage?: number } = {}) => {
+        const qs = new URLSearchParams()
+        if (params.page != null) qs.set('page', String(params.page))
+        if (params.perPage != null) qs.set('perPage', String(params.perPage))
+        const query = qs.toString()
+        return protectedRequest<
+          | Paginated<SuperAdminOrganization>
+          | { data?: SuperAdminOrganization[]; meta?: PaginationMeta }
+        >(`/api/v1/super-admin/organizations${query ? `?${query}` : ''}`, {
+          method: 'GET',
+        })
+      },
+
+      update: (organizationId: string, body: UpdateSuperAdminOrganizationBody) =>
+        protectedRequest<{ data?: SuperAdminOrganization } & SuperAdminOrganization>(
+          `/api/v1/super-admin/organizations/${organizationId}`,
+          {
+            method: 'PATCH',
+            body: JSON.stringify(body),
+          }
+        ),
+
+      destroy: (organizationId: string) =>
+        protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+          `/api/v1/super-admin/organizations/${organizationId}`,
+          { method: 'DELETE' }
+        ),
+    },
+
+    subscriptions: {
+      list: (params: { page?: number; perPage?: number } = {}) => {
+        const qs = new URLSearchParams()
+        if (params.page != null) qs.set('page', String(params.page))
+        if (params.perPage != null) qs.set('perPage', String(params.perPage))
+        const query = qs.toString()
+        return protectedRequest<
+          | Paginated<SuperAdminSubscription>
+          | { data?: SuperAdminSubscription[]; meta?: PaginationMeta }
+        >(`/api/v1/super-admin/subscriptions${query ? `?${query}` : ''}`, {
+          method: 'GET',
+        })
+      },
+
+      get: (subscriptionId: string) =>
+        protectedRequest<{ data?: SuperAdminSubscription } & SuperAdminSubscription>(
+          `/api/v1/super-admin/subscriptions/${subscriptionId}`,
+          { method: 'GET' }
+        ),
+
+      create: (body: CreateSuperAdminSubscriptionBody) =>
+        protectedRequest<{ data?: SuperAdminSubscription } & SuperAdminSubscription>(
+          '/api/v1/super-admin/subscriptions',
+          {
+            method: 'POST',
+            body: JSON.stringify(body),
+          }
+        ),
+
+      update: (subscriptionId: string, body: UpdateSuperAdminSubscriptionBody) =>
+        protectedRequest<{ data?: SuperAdminSubscription } & SuperAdminSubscription>(
+          `/api/v1/super-admin/subscriptions/${subscriptionId}`,
+          {
+            method: 'PATCH',
+            body: JSON.stringify(body),
+          }
+        ),
+
+      destroy: (subscriptionId: string) =>
+        protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+          `/api/v1/super-admin/subscriptions/${subscriptionId}`,
+          { method: 'DELETE' }
+        ),
+    },
   },
 }

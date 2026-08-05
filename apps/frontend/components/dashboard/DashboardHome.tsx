@@ -2,7 +2,6 @@
 
 import { useTranslations } from 'next-intl'
 import { useAuth } from '@/hooks/useAuth'
-import { DashboardShell } from './DashboardShell'
 import { OnboardingChecklist } from './overview/OnboardingChecklist'
 import { WelcomeSection } from './overview/WelcomeSection'
 import { KpiGrid } from './overview/KpiGrid'
@@ -16,39 +15,33 @@ export function DashboardHome() {
   const { isLoading } = useAuth()
 
   if (isLoading) {
-    return (
-      <DashboardShell>
-        <p className="text-sm text-mute">{t('loading')}</p>
-      </DashboardShell>
-    )
+    return <p className="text-sm text-mute">{t('loading')}</p>
   }
 
   return (
-    <DashboardShell>
-      <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 sm:gap-6 xl:gap-7">
-        <WelcomeSection />
-        <OnboardingChecklist />
-        <KpiGrid />
+    <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 sm:gap-6 xl:gap-7">
+      <WelcomeSection />
+      <OnboardingChecklist />
+      <KpiGrid />
 
-        {/* Stack on mobile + tablet; side-by-side from xl (desktop) */}
-        <div className="grid grid-cols-1 gap-5 sm:gap-6 xl:grid-cols-12 xl:gap-6">
-          <div className="min-w-0 xl:col-span-7">
-            <RecentConversations />
-          </div>
-          <div className="min-w-0 xl:col-span-5">
-            <RecentCampaigns />
-          </div>
+      {/* Stack on mobile + tablet; side-by-side from xl (desktop) */}
+      <div className="grid grid-cols-1 gap-5 sm:gap-6 xl:grid-cols-12 xl:gap-6">
+        <div className="min-w-0 xl:col-span-7">
+          <RecentConversations />
         </div>
-
-        <div className="grid grid-cols-1 gap-5 sm:gap-6 xl:grid-cols-12 xl:gap-6">
-          <div className="min-w-0 xl:col-span-7">
-            <QuickActions />
-          </div>
-          <div className="min-w-0 xl:col-span-5">
-            <RecentActivity />
-          </div>
+        <div className="min-w-0 xl:col-span-5">
+          <RecentCampaigns />
         </div>
       </div>
-    </DashboardShell>
+
+      <div className="grid grid-cols-1 gap-5 sm:gap-6 xl:grid-cols-12 xl:gap-6">
+        <div className="min-w-0 xl:col-span-7">
+          <QuickActions />
+        </div>
+        <div className="min-w-0 xl:col-span-5">
+          <RecentActivity />
+        </div>
+      </div>
+    </div>
   )
 }

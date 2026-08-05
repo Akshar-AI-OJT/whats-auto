@@ -1,8 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
-import { api, type ApiError, type ProfileUser } from '@/lib/api'
+import { useCallback } from 'react'
+import { authClient } from '@/lib/auth-client'
+import { clearAccessToken } from '@/lib/access-token'
 import { clearLegacyOrganizationCache } from '@/lib/onboarding'
+import type { ProfileUser } from '@/lib/api'
 
 type AuthState = {
   user: ProfileUser | null
@@ -13,75 +15,56 @@ type AuthState = {
   signOut: () => Promise<void>
 }
 
-function sessionUserFromPayload(data: unknown): ProfileUser | null {
-  if (!data || typeof data !== 'object' || !('user' in data)) {
-    return null
-  }
+function initialsFrom(name: string, email: string): string {
+  const source = name.trim() || email.trim() || 'WA'
+  return source
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('')
+}
 
-  return (data as { user: ProfileUser | null }).user ?? null
+function toIso(value: Date | string | undefined | null): string | null {
+  if (!value) return null
+  return value instanceof Date ? value.toISOString() : new Date(value).toISOString()
 }
 
 export function useAuth(): AuthState {
-  const [user, setUser] = useState<ProfileUser | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { data, isPending, error, refetch } = authClient.useSession()
+
+  const rawUser = data?.user
+  const user: ProfileUser | null = rawUser
+    ? {
+        id: rawUser.id,
+        name: rawUser.name,
+        firstname: rawUser.firstname ?? '',
+        lastname: rawUser.lastname ?? '',
+        email: rawUser.email,
+        initials: initialsFrom(rawUser.name, rawUser.email),
+        createdAt: toIso(rawUser.createdAt),
+        updatedAt: toIso(rawUser.updatedAt),
+      }
+    : null
 
   const refresh = useCallback(async () => {
-    setError(null)
-
-    try {
-      const { data } = await api.auth.getSession()
-      setUser(sessionUserFromPayload(data))
-    } catch (err) {
-      const apiError = err as ApiError
-      setUser(null)
-      setError(apiError.message ?? 'Failed to load session')
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
+    await refetch()
+  }, [refetch])
 
   const signOut = useCallback(async () => {
     try {
-      await api.auth.logout()
+      await authClient.signOut()
     } finally {
+      // Session cookie is gone; in-memory JWT would otherwise stay valid until exp.
+      clearAccessToken()
       clearLegacyOrganizationCache()
-      setUser(null)
-    }
-  }, [])
-
-  useEffect(() => {
-    let cancelled = false
-    ;(async () => {
-      try {
-        const { data } = await api.auth.getSession()
-        if (!cancelled) {
-          setUser(sessionUserFromPayload(data))
-          setError(null)
-        }
-      } catch (err) {
-        if (!cancelled) {
-          const apiError = err as ApiError
-          setUser(null)
-          setError(apiError.message ?? 'Failed to load session')
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false)
-        }
-      }
-    })()
-
-    return () => {
-      cancelled = true
     }
   }, [])
 
   return {
     user,
-    isLoading,
+    isLoading: isPending,
     isAuthenticated: Boolean(user),
-    error,
+    error: error?.message ?? null,
     refresh,
     signOut,
   }

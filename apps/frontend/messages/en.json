@@ -1298,6 +1298,9 @@
       "emailPlaceholder": "ops@acme.com",
       "phone": "Organization Phone Number",
       "phonePlaceholder": "+91 98765 43210",
+      "website": "Website",
+      "websitePlaceholder": "https://acme.com",
+      "optionalHint": "Optional",
       "continue": "Continue",
       "back": "Back",
       "createWorkspace": "Create Workspace",
@@ -1321,6 +1324,9 @@
         "country": "Country",
         "countryPlaceholder": "Select country",
         "timezone": "Timezone",
+        "timezonePlaceholder": "Select timezone",
+        "currency": "Currency",
+        "currencyPlaceholder": "Select currency",
         "industries": {
           "retail": "Retail",
           "ecommerce": "E-commerce",
@@ -1351,6 +1357,16 @@
           "DE": "Germany",
           "FR": "France",
           "NL": "Netherlands"
+        },
+        "currencies": {
+          "INR": "INR — Indian Rupee",
+          "USD": "USD — US Dollar",
+          "EUR": "EUR — Euro",
+          "GBP": "GBP — British Pound",
+          "AED": "AED — UAE Dirham",
+          "SGD": "SGD — Singapore Dollar",
+          "AUD": "AUD — Australian Dollar",
+          "CAD": "CAD — Canadian Dollar"
         }
       },
       "step3": {
@@ -1394,12 +1410,13 @@
         "generic": "Something went wrong. Please try again.",
         "sessionExpired": "Your session expired. Please sign in again.",
         "nameRequired": "Organization name is required (min 2 characters).",
+        "nameTooLong": "Organization name must be 200 characters or fewer.",
         "slugRequired": "Organization slug is required.",
         "slugInvalid": "Use lowercase letters, numbers, and hyphens only (2–100 characters).",
         "emailRequired": "Organization email is required.",
         "emailInvalid": "Enter a valid email address.",
-        "phoneRequired": "Organization phone number is required.",
         "phoneInvalid": "Enter a valid phone number.",
+        "websiteInvalid": "Enter a valid website URL (https://…).",
         "industryRequired": "Select an industry.",
         "companySizeRequired": "Select a company size.",
         "countryRequired": "Select a country.",
@@ -1601,6 +1618,7 @@
         "permissions": "Permissions",
         "permissionsHint": "You can only grant permissions you already hold. Expand a category to fine-tune actions.",
         "enabledTotal": "{enabled}/{total} enabled",
+        "groupEnabledSummary": "{enabled} of {total} enabled",
         "searchPlaceholder": "Search permissions…",
         "searchNoMatches": "No permissions match your search.",
         "selectGroup": "Select all {resource} permissions",
@@ -1608,6 +1626,7 @@
         "reason": "Audit reason",
         "reasonPlaceholder": "e.g. Narrow agent inbox access for support season",
         "reasonHint": "Saved to the authorization audit log so teammates know why this change was made (minimum 5 characters).",
+        "unsavedChanges": "Unsaved changes",
         "unsavedConfirm": "You have unsaved changes. Close without saving?",
         "cancel": "Cancel",
         "createSubmit": "Create role",
@@ -1731,6 +1750,7 @@
       "openMenu": "Open navigation",
       "searchLabel": "Search workspace",
       "searchPlaceholder": "Find contacts, conversations, campaigns, or templates…",
+      "searchPlaceholderShort": "Search workspace…",
       "searchShortcutLabel": "Focus search ({shortcut})",
       "notifications": "Notifications",
       "profile": "Profile",
@@ -1964,6 +1984,33 @@
       "statusFilterLabel": "Filter by status",
       "planFilterLabel": "Filter by plan",
       "empty": "No organizations match your filters.",
+      "loading": "Loading organizations…",
+      "retry": "Retry",
+      "prevPage": "Previous",
+      "nextPage": "Next",
+      "pagination": "Page {page} of {lastPage} · {total} total",
+      "editTitle": "Edit organization",
+      "editSubtitle": "Update details for “{name}”.",
+      "editCancel": "Cancel",
+      "editSave": "Save changes",
+      "saving": "Saving…",
+      "deleteConfirmTitle": "Delete this organization?",
+      "deleteConfirmBody": "“{name}” will be soft-deleted. Members will lose access.",
+      "deleteCancel": "Cancel",
+      "deleteConfirm": "Delete organization",
+      "deleting": "Deleting…",
+      "editFields": {
+        "name": "Name",
+        "phone": "Phone",
+        "website": "Website",
+        "industry": "Industry",
+        "timezone": "Timezone",
+        "currency": "Currency"
+      },
+      "toast": {
+        "updated": "Updated “{name}”.",
+        "deleted": "Deleted “{name}”."
+      },
       "columns": {
         "organization": "Organization",
         "owner": "Owner",
@@ -1985,21 +2032,30 @@
           "starter": "Starter",
           "growth": "Growth",
           "pro": "Pro",
-          "enterprise": "Enterprise"
+          "enterprise": "Enterprise",
+          "unavailable": "—"
         }
       },
       "actions": {
         "menuLabel": "Actions for {name}",
         "view": "View",
+        "edit": "Edit",
         "suspend": "Suspend",
         "activate": "Activate",
         "delete": "Delete"
+      },
+      "errors": {
+        "loadFailed": "Couldn’t load organizations. Please try again.",
+        "updateFailed": "Couldn’t update this organization.",
+        "deleteFailed": "Couldn’t delete this organization.",
+        "nameRequired": "Name must be at least 2 characters.",
+        "actionUnavailable": "This action isn’t available from the API yet."
       },
       "detail": {
         "eyebrow": "Organization",
         "back": "Back to organizations",
         "notFoundTitle": "Organization not found",
-        "notFoundDescription": "This organization is missing from the mock catalog.",
+        "notFoundDescription": "This organization could not be found on the platform.",
         "general": {
           "title": "General Information",
           "description": "Core tenant profile and contact details.",
@@ -2019,6 +2075,7 @@
         "subscription": {
           "title": "Subscription",
           "description": "Current plan, billing, and renewal details.",
+          "unavailable": "Subscription details aren’t available from the API yet.",
           "fields": {
             "plan": "Plan",
             "billingCycle": "Billing cycle",
@@ -2070,6 +2127,7 @@
         "members": {
           "title": "Workspace Members",
           "description": "{count, plural, one {Showing # member} other {Showing # members}}",
+          "unavailable": "Member roster isn’t available from the API yet.",
           "columns": {
             "member": "Member",
             "role": "Role",
@@ -2083,14 +2141,76 @@
         },
         "activity": {
           "title": "Recent Activity",
-          "description": "Latest events inside this workspace."
+          "description": "Latest events inside this workspace.",
+          "unavailable": "Activity isn’t available from the API yet."
         }
       }
     },
     "subscriptions": {
       "eyebrow": "Billing catalog",
       "title": "Subscriptions",
-      "subtitle": "Review platform plans, limits, and included features. Mock catalog only — no payments.",
+      "subtitle": "Manage organization subscriptions and review platform plans.",
+      "tableTitle": "All subscriptions",
+      "tableDescription": "{count, plural, =0 {No subscriptions} one {# subscription} other {# subscriptions}}",
+      "create": "Create subscription",
+      "loading": "Loading subscriptions…",
+      "retry": "Retry",
+      "empty": "No subscriptions yet.",
+      "prevPage": "Previous",
+      "nextPage": "Next",
+      "pagination": "Page {page} of {lastPage} · {total} total",
+      "createTitle": "Create subscription",
+      "createSubtitle": "Assign a plan and billing period to an organization.",
+      "createSave": "Create subscription",
+      "editTitle": "Edit subscription",
+      "editSubtitle": "Update the plan or period for “{name}”.",
+      "editSave": "Save changes",
+      "cancel": "Cancel",
+      "saving": "Saving…",
+      "deleting": "Deleting…",
+      "deleteConfirmTitle": "Cancel this subscription?",
+      "deleteConfirmBody": "“{name}” will be soft-deleted (status set to cancelled).",
+      "deleteConfirm": "Delete subscription",
+      "columns": {
+        "organization": "Organization",
+        "plan": "Plan",
+        "status": "Status",
+        "period": "Period",
+        "actions": "Actions"
+      },
+      "actions": {
+        "edit": "Edit",
+        "delete": "Delete"
+      },
+      "fields": {
+        "organizationId": "Organization",
+        "organizationPlaceholder": "Select an organization",
+        "planId": "Plan",
+        "status": "Status",
+        "startDate": "Start date",
+        "endDate": "End date"
+      },
+      "statuses": {
+        "trialing": "Trialing",
+        "active": "Active",
+        "past_due": "Past due",
+        "cancelled": "Cancelled"
+      },
+      "toast": {
+        "created": "Subscription created.",
+        "updated": "Subscription updated.",
+        "deleted": "Subscription deleted."
+      },
+      "errors": {
+        "loadFailed": "Failed to load subscriptions. Please try again.",
+        "createFailed": "Failed to create subscription.",
+        "updateFailed": "Failed to update subscription.",
+        "deleteFailed": "Failed to delete subscription.",
+        "organizationRequired": "Select a valid organization.",
+        "planRequired": "Select a valid plan.",
+        "datesRequired": "Start and end dates are required.",
+        "periodInvalid": "End date must be after start date."
+      },
       "plansTitle": "Platform plans",
       "plansDescription": "Limits and features available to tenant organizations.",
       "perMonth": "/ month",
