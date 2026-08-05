@@ -61,4 +61,11 @@ export default await Env.create(new URL('../', import.meta.url), {
   META_APP_ID: Env.schema.string(),
 
   META_GRAPH_API_VERSION: Env.schema.string(),
+
+  // Job queue (pgboss | null; redis reserved for a future driver)
+  JOB_QUEUE_DRIVER: Env.schema.enum.optional(['pgboss', 'null'] as const),
+  JOB_QUEUE_PGBOSS_SCHEMA: Env.schema.string.optional(),
+
+  // Comma-separated hostnames allowed for outbound media public URLs (optional)
+  OUTBOUND_MEDIA_ALLOWED_HOSTS: Env.schema.string.optional(),
 })
