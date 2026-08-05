@@ -65,4 +65,8 @@ export default await Env.create(new URL('../', import.meta.url), {
   // Job queue (pgboss | null; redis reserved for a future driver)
   JOB_QUEUE_DRIVER: Env.schema.enum.optional(['pgboss', 'null'] as const),
   JOB_QUEUE_PGBOSS_SCHEMA: Env.schema.string.optional(),
+
+  RAZORPAY_KEY_ID: Env.schema.string(),
+  RAZORPAY_KEY_SECRET: Env.schema.secret(),
+  RAZORPAY_WEBHOOK_SECRET: Env.schema.secret(),
 })

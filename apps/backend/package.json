@@ -47,6 +47,8 @@
     "#config/*": "./config/*.js",
     "#lib/*": "./lib/*.js",
     "#lib/meta_whatsapp/*": "./lib/meta_whatsapp/*.js",
+    "#lib/razorpay/*": "./lib/razorpay/*.js",
+    "#services/billing/*": "./app/services/billing/*.js",
     "#types/*": "./types/*.js"
   },
   "devDependencies": {
