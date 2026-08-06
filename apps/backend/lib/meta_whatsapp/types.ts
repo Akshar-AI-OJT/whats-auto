@@ -68,7 +68,7 @@ export type MetaWebhookError = {
 }
 
 export type MetaWebhookMessageType =
-  'text' | 'image' | 'video' | 'document' | 'audio' | 'location' | 'interactive' | string
+  'text' | 'image' | 'video' | 'document' | 'location' | 'interactive' | string
 
 export type MetaWebhookMessage = {
   from: string
@@ -77,7 +77,6 @@ export type MetaWebhookMessage = {
   type: MetaWebhookMessageType
   text?: MetaWebhookText
   image?: MetaWebhookMedia
-  audio?: MetaWebhookMedia
   video?: MetaWebhookMedia
   document?: MetaWebhookMedia
   location?: MetaWebhookLocation
@@ -148,7 +147,6 @@ export type MessageMetadata = {
   location?: MessageMetadataLocation
   interactive?: MessageMetadataInteractive
   errors?: MessageMetadataError[]
-  [key: string]: unknown
 }
 
 export type MetaTokenExchangeResult = {
