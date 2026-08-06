@@ -1606,7 +1606,7 @@
       "editor": {
         "createTitle": "Create Role",
         "createSubtitle": "Name is slugified into an immutable role key (max 20 characters).",
-        "editTitle": "Edit “{role}”",
+        "editTitle": "Edit {role}",
         "editSubtitle": "Update permissions for this role. System roles store overrides for this workspace only.",
         "name": "Role name",
         "namePlaceholder": "Support Lead",
@@ -1617,8 +1617,11 @@
         "systemOverrideBanner": "You’re editing a system role (admin, agent, or viewer). Saving creates organization-specific permission overrides for this workspace only — the global seed is unchanged.",
         "permissions": "Permissions",
         "permissionsHint": "You can only grant permissions you already hold. Expand a category to fine-tune actions.",
+        "selectAllGlobal": "Grant all permissions",
         "enabledTotal": "{enabled}/{total} enabled",
         "groupEnabledSummary": "{enabled} of {total} enabled",
+        "modules": "Modules",
+        "selectAllInModule": "Select all",
         "searchPlaceholder": "Search permissions…",
         "searchNoMatches": "No permissions match your search.",
         "selectGroup": "Select all {resource} permissions",
@@ -1752,9 +1755,21 @@
         "contactSearchPlaceholder": "Search contacts by name or phone…",
         "loadingContacts": "Loading contacts…",
         "emptyContacts": "No contacts found.",
+        "selected": "Selected",
         "whatsappLabel": "WhatsApp number",
+        "whatsappSearchPlaceholder": "Search WhatsApp numbers…",
+        "emptyWhatsappSearch": "No WhatsApp numbers match your search.",
         "emptyWhatsappConfigs": "Connect a WhatsApp number to start conversations.",
+        "emptyWhatsappTitle": "No WhatsApp number connected",
+        "emptyWhatsappDescription": "Connect your WhatsApp Business account before creating conversations.",
+        "connectWhatsappCta": "Connect WhatsApp",
         "createCta": "Create conversation",
+        "createDisabledHint": "Connect a WhatsApp Business account first.",
+        "status": {
+          "connected": "Connected",
+          "disconnected": "Disconnected",
+          "error": "Error"
+        },
         "errors": {
           "loadFailed": "Couldn’t load contacts or WhatsApp numbers. Please try again.",
           "createFailed": "Couldn’t create the conversation. Please try again.",
@@ -1835,6 +1850,47 @@
         "title": "Conversation",
         "comingSoon": "Thread and replies will be available in the next step.",
         "idLabel": "Conversation ID: {id}"
+      }
+    },
+    "whatsapp": {
+      "eyebrow": "Channel",
+      "title": "WhatsApp Connection",
+      "subtitle": "Connect WhatsApp Business numbers to receive and send customer conversations from Inbox.",
+      "connectCta": "Connect WhatsApp",
+      "refresh": "Refresh",
+      "loading": "Loading WhatsApp numbers…",
+      "listTitle": "Connected numbers",
+      "listDescription": "WhatsApp Business numbers linked to this workspace.",
+      "emptyTitle": "No WhatsApp number connected",
+      "emptyDescription": "Connect your WhatsApp Business account to start receiving conversations in Inbox.",
+      "disconnect": "Disconnect",
+      "testLabel": "Send test template to",
+      "testPlaceholder": "15551234567",
+      "testCta": "Send test",
+      "phoneNumberId": "Phone number ID: {id}",
+      "wabaId": "WABA ID: {id}",
+      "connectedAt": "Connected {date}",
+      "status": {
+        "connected": "Connected",
+        "disconnected": "Disconnected",
+        "error": "Error"
+      },
+      "toasts": {
+        "connected": "WhatsApp number connected successfully.",
+        "disconnected": "WhatsApp number disconnected.",
+        "testSent": "Test message sent."
+      },
+      "errors": {
+        "generic": "Something went wrong. Please try again.",
+        "sessionExpired": "Your session expired. Please sign in again.",
+        "permissionDenied": "You don’t have permission to manage WhatsApp in this workspace.",
+        "sessionMissing": "WhatsApp signup session is not configured. Check Meta app settings.",
+        "signupCancelled": "WhatsApp connection was cancelled.",
+        "sessionInfoMissing": "Couldn’t read WhatsApp account details from Meta. Please try again.",
+        "phoneOwned": "This WhatsApp phone number is already connected to another organization.",
+        "notConnected": "This WhatsApp number is not connected.",
+        "metaGraph": "Meta Graph API error. Please try again.",
+        "testToRequired": "Enter a recipient phone number to send a test."
       }
     },
     "settings": {
@@ -1940,6 +1996,12 @@
           "invite": "Invite Team Members",
           "campaign": "Create First Campaign"
         }
+      },
+      "connectWhatsapp": {
+        "title": "Connect WhatsApp",
+        "description": "Connect your WhatsApp Business account to start receiving customer conversations and manage them from the Inbox.",
+        "cta": "Connect WhatsApp",
+        "secondary": "You can connect multiple WhatsApp Business numbers later."
       },
       "kpis": {
         "contacts": {

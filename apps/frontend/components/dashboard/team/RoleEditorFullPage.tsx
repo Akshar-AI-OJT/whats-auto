@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { ChevronDown, Info, Loader2, Search, Shield } from 'lucide-react'
+import { Check, Loader2, Search, Shield } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api, type ApiError, type OrganizationRole } from '@/lib/api'
 import {
@@ -21,6 +21,104 @@ import {
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
+
+const RESOURCE_LABELS: Record<string, string> = {
+  inbox: 'Conversations',
+  contacts: 'Contacts',
+  campaigns: 'Campaigns',
+  templates: 'Templates',
+  analytics: 'Reports',
+  history: 'Reports',
+  org: 'Organization',
+  team: 'Users',
+  ai: 'AI',
+  automations: 'Automations',
+  notifications: 'Notifications',
+  roles: 'Roles',
+  billing: 'Billing',
+  whatsapp: 'WhatsApp',
+  integrations: 'Integrations',
+  audit: 'Audit',
+}
+
+const RESOURCE_ORDER = [
+  'inbox',
+  'contacts',
+  'campaigns',
+  'templates',
+  'reports',
+  'org',
+  'team',
+  'ai',
+  'automations',
+  'notifications',
+  'roles',
+  'billing',
+  'whatsapp',
+  'integrations',
+  'audit',
+] as const
+
+const PERMISSION_LABELS: Record<string, string> = {
+  'inbox:view': 'View',
+  'inbox:reply': 'Reply',
+  'inbox:assign': 'Assign',
+  'inbox:close': 'Close',
+  'contacts:view': 'View',
+  'contacts:create': 'Create',
+  'contacts:edit': 'Edit',
+  'contacts:delete': 'Delete',
+  'contacts:import': 'Import',
+  'contacts:export': 'Export',
+  'campaigns:view': 'View',
+  'campaigns:create': 'Create',
+  'campaigns:edit': 'Edit',
+  'campaigns:pause': 'Pause',
+  'campaigns:launch': 'Schedule',
+  'campaigns:delete': 'Delete',
+  'templates:view': 'View',
+  'templates:create': 'Create',
+  'templates:edit': 'Edit',
+  'templates:sync': 'Submit to Meta',
+  'templates:delete': 'Delete',
+  'analytics:view': 'Dashboard',
+  'analytics:export': 'Export',
+  'history:export': 'Campaign Reports',
+  'org:view': 'View Settings',
+  'org:settings_manage': 'Edit Settings',
+  'org:delete': 'Delete Organization',
+  'team:view': 'View',
+  'team:invite': 'Invite',
+  'team:remove': 'Remove',
+  'team:role_assign': 'Edit',
+  'ai:draft': 'Generate Replies',
+  'ai:kb_view': 'View Knowledge Base',
+  'ai:kb_manage': 'Manage Knowledge Base',
+  'ai:agent_manage': 'Generate Templates',
+}
+
+const ACTION_ORDER = [
+  'view',
+  'create',
+  'edit',
+  'reply',
+  'assign',
+  'close',
+  'schedule',
+  'pause',
+  'launch',
+  'sync',
+  'import',
+  'export',
+  'invite',
+  'remove',
+  'role_assign',
+  'draft',
+  'kb_view',
+  'kb_manage',
+  'agent_manage',
+  'delete',
+] as const
 
 function unwrapList<T>(data: { data?: T[] } | T[] | undefined): T[] {
   if (!data) return []
@@ -55,6 +153,23 @@ function slugPreview(name: string) {
     .slice(0, 20)
 }
 
+function startCase(value: string) {
+  return value
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b\w/g, (m) => m.toUpperCase())
+}
+
+function resourceLabel(resource: string) {
+  if (resource === 'reports') return 'Reports'
+  return RESOURCE_LABELS[resource] ?? startCase(resource)
+}
+
+function actionLabel(permission: string) {
+  return PERMISSION_LABELS[permission] ?? startCase(permission.split(':')[1] ?? permission)
+}
+
 function setsEqual(a: Set<string>, b: Set<string>) {
   if (a.size !== b.size) return false
   for (const value of a) {
@@ -72,9 +187,9 @@ export function RoleEditorFullPage({
   const t = useTranslations('dashboard.roles.editor')
   const tRoles = useTranslations('dashboard.roles')
   const { accessContext, canManageRoles, tenantOrganizationId } = useOrganizations()
+  const TEMP_ROLE_EDIT_REASON = 'Permissions updated from role editor'
 
   const nameId = useId()
-  const reasonId = useId()
   const searchId = useId()
   const formErrorId = useId()
 
@@ -96,12 +211,10 @@ export function RoleEditorFullPage({
   const [name, setName] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [initialSelected, setInitialSelected] = useState<Set<string>>(new Set())
-  const [reason, setReason] = useState('')
   const [permSearch, setPermSearch] = useState('')
   const [openResource, setOpenResource] = useState<string | null>(null)
   const [nameError, setNameError] = useState<string | null>(null)
   const [permsError, setPermsError] = useState<string | null>(null)
-  const [reasonError, setReasonError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
 
@@ -109,23 +222,61 @@ export function RoleEditorFullPage({
     if (mode === 'create') {
       return name.trim().length > 0 || selected.size > 0
     }
-    return !setsEqual(selected, initialSelected) || reason.trim().length > 0
-  }, [mode, name, selected, initialSelected, reason])
+    return !setsEqual(selected, initialSelected)
+  }, [mode, name, selected, initialSelected])
 
   const filteredGroups = useMemo(() => {
     const q = permSearch.trim().toLowerCase()
-    if (!q) return groups
+    const visible = q
+      ? groups
+          .map((group) => ({
+            ...group,
+            permissions: group.permissions.filter(
+              (permission) =>
+                permission.toLowerCase().includes(q) ||
+                group.resource.toLowerCase().includes(q) ||
+                resourceLabel(group.resource).toLowerCase().includes(q)
+            ),
+          }))
+          .filter((group) => group.permissions.length > 0)
+      : groups
 
-    return groups
-      .map((group) => ({
-        ...group,
-        permissions: group.permissions.filter(
-          (permission) =>
-            permission.toLowerCase().includes(q) ||
-            group.resource.toLowerCase().includes(q)
-        ),
-      }))
-      .filter((group) => group.permissions.length > 0)
+    const merged = new Map<string, { resource: string; permissions: string[] }>()
+    for (const group of visible) {
+      const key =
+        group.resource === 'analytics' || group.resource === 'history'
+          ? 'reports'
+          : group.resource
+      const existing = merged.get(key)
+      if (!existing) {
+        merged.set(key, { resource: key, permissions: [...group.permissions] })
+      } else {
+        existing.permissions.push(...group.permissions)
+      }
+    }
+
+    const normalized = [...merged.values()].map((group) => {
+      const sortedPermissions = [...new Set(group.permissions)].sort((a, b) => {
+        const actionA = a.split(':')[1] ?? ''
+        const actionB = b.split(':')[1] ?? ''
+        const idxA = ACTION_ORDER.indexOf(actionA as (typeof ACTION_ORDER)[number])
+        const idxB = ACTION_ORDER.indexOf(actionB as (typeof ACTION_ORDER)[number])
+        if (idxA === -1 && idxB === -1) return a.localeCompare(b)
+        if (idxA === -1) return 1
+        if (idxB === -1) return -1
+        return idxA - idxB
+      })
+      return { resource: group.resource, permissions: sortedPermissions }
+    })
+
+    return normalized.sort((a, b) => {
+      const idxA = RESOURCE_ORDER.indexOf(a.resource as (typeof RESOURCE_ORDER)[number])
+      const idxB = RESOURCE_ORDER.indexOf(b.resource as (typeof RESOURCE_ORDER)[number])
+      if (idxA === -1 && idxB === -1) return a.resource.localeCompare(b.resource)
+      if (idxA === -1) return 1
+      if (idxB === -1) return -1
+      return idxA - idxB
+    })
   }, [groups, permSearch])
 
   function togglePermission(permission: string) {
@@ -141,6 +292,17 @@ export function RoleEditorFullPage({
     setSelected((prev) => {
       const next = new Set(prev)
       for (const permission of permissions) {
+        if (checked) next.add(permission)
+        else next.delete(permission)
+      }
+      return next
+    })
+  }
+
+  function toggleAllPermissions(checked: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev)
+      for (const permission of grantable) {
         if (checked) next.add(permission)
         else next.delete(permission)
       }
@@ -175,7 +337,6 @@ export function RoleEditorFullPage({
     setError(null)
     setNameError(null)
     setPermsError(null)
-    setReasonError(null)
 
     if (!canManageRoles || !tenantOrganizationId) {
       setError(t('errors.permissionDenied'))
@@ -206,10 +367,6 @@ export function RoleEditorFullPage({
         return
       }
     } else {
-      if (reason.trim().length < 5) {
-        setReasonError(t('errors.reasonRequired'))
-        return
-      }
       if (!role) {
         setError(t('errors.generic'))
         return
@@ -223,7 +380,8 @@ export function RoleEditorFullPage({
       } else if (role) {
         await api.roles.update(role.role, {
           permissions,
-          reason: reason.trim(),
+          // Audit reason UI is temporarily disabled; keep API contract satisfied.
+          reason: TEMP_ROLE_EDIT_REASON,
         })
       }
 
@@ -241,9 +399,7 @@ export function RoleEditorFullPage({
     setError(null)
     setNameError(null)
     setPermsError(null)
-    setReasonError(null)
     setPending(false)
-    setReason('')
     setPermSearch('')
     setOpenResource(null)
 
@@ -305,10 +461,11 @@ export function RoleEditorFullPage({
     }
   }, [filteredGroups, openResource])
 
-  const title = mode === 'create' ? t('createTitle') : t('editTitle', { role: role?.role ?? '' })
-  const subtitle = mode === 'create' ? t('createSubtitle') : t('editSubtitle')
+  const title =
+    mode === 'create'
+      ? t('createTitle')
+      : t('editTitle', { role: (role?.role ?? '').toUpperCase() })
   const keyHint = mode === 'create' ? slugPreview(name) : role?.role
-  const showSystemBanner = mode === 'edit' && Boolean(role?.isSystem)
   const saveDisabled = pending || !canManageRoles || !dirty
 
   if (mode === 'edit' && roleLoading) {
@@ -356,12 +513,6 @@ export function RoleEditorFullPage({
         aria-describedby={error ? formErrorId : undefined}
       >
         <div className="space-y-2">
-          <p className="text-xs font-medium tracking-wide text-mute">
-            {tRoles('title')} <span className="px-1 text-mute/70">→</span>{' '}
-            <span className="text-ink">
-              {mode === 'create' ? t('createTitle') : t('editTitle', { role: role?.role ?? '' })}
-            </span>
-          </p>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
             <h1 className="font-display text-[1.7rem] tracking-tight text-ink sm:text-[1.95rem]">
               {title}
@@ -376,7 +527,6 @@ export function RoleEditorFullPage({
               </span>
             ) : null}
           </div>
-          <p className="text-xs leading-5 text-mute sm:text-sm">{subtitle}</p>
         </div>
 
         <div className="space-y-4 pb-20">
@@ -405,19 +555,11 @@ export function RoleEditorFullPage({
             ) : (
               <div className="max-w-2xl rounded-xl border border-dash-border bg-dash-surface/60 px-3 py-2">
                 <p className="text-xs font-semibold tracking-wide text-mute uppercase">{t('roleKey')}</p>
-                <p className="mt-1 font-mono text-sm text-ink">{role?.role}</p>
+                <p className="mt-1 font-mono text-sm text-ink">
+                  {(role?.role ?? '').toUpperCase()}
+                </p>
               </div>
             )}
-
-            {showSystemBanner ? (
-              <div
-                role="status"
-                className="flex items-start gap-2 rounded-lg border border-[#BFDBFE] bg-[#EFF6FF] px-2.5 py-2 text-xs leading-5 text-[#1E3A8A]"
-              >
-                <Info className="mt-0.5 size-3.5 shrink-0 text-[#1D4ED8]" aria-hidden />
-                <p>{t('systemOverrideBanner')}</p>
-              </div>
-            ) : null}
 
             <Field data-invalid={Boolean(permsError)}>
               <div className="flex flex-col gap-2.5">
@@ -430,6 +572,23 @@ export function RoleEditorFullPage({
                     {t('enabledTotal', { enabled: selected.size, total: grantable.length })}
                   </p>
                 </div>
+
+                <label className="inline-flex w-fit items-center gap-2 rounded-lg border border-dash-border bg-dash-surface/50 px-3 py-2 text-sm text-ink">
+                  <input
+                    type="checkbox"
+                    className="size-4 rounded border-dash-border"
+                    checked={grantable.length > 0 && grantable.every((p) => selected.has(p))}
+                    ref={(el) => {
+                      if (!el) return
+                      const someEnabled = grantable.some((p) => selected.has(p))
+                      el.indeterminate =
+                        someEnabled && !grantable.every((p) => selected.has(p))
+                    }}
+                    onChange={(e) => toggleAllPermissions(e.target.checked)}
+                    aria-label={t('selectAllGlobal')}
+                  />
+                  <span className="font-medium">{t('selectAllGlobal')}</span>
+                </label>
 
                 <div className="relative w-full max-w-[390px]">
                   <Search
@@ -447,114 +606,141 @@ export function RoleEditorFullPage({
                 </div>
               </div>
 
-              <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
+              <div className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-[280px_minmax(0,1fr)]">
                 {groups.length === 0 ? (
-                  <p className="rounded-xl border border-dashed border-dash-border px-3 py-6 text-center text-sm text-body lg:col-span-2">
+                  <p className="rounded-xl border border-dashed border-dash-border px-3 py-6 text-center text-sm text-body xl:col-span-2">
                     {t('noGrantable')}
                   </p>
                 ) : filteredGroups.length === 0 ? (
-                  <p className="rounded-xl border border-dashed border-dash-border px-3 py-6 text-center text-sm text-body lg:col-span-2">
+                  <p className="rounded-xl border border-dashed border-dash-border px-3 py-6 text-center text-sm text-body xl:col-span-2">
                     {t('searchNoMatches')}
                   </p>
                 ) : (
-                  filteredGroups.map((group) => {
-                    const isOpen = openResource === group.resource
-                    const allChecked = group.permissions.every((p) => selected.has(p))
-                    const someChecked = group.permissions.some((p) => selected.has(p))
-                    const enabledInGroup = group.permissions.filter((p) => selected.has(p)).length
-
-                    return (
-                      <div
-                        key={group.resource}
-                        className="flex h-fit flex-col overflow-hidden rounded-xl border border-[#E5E7EB] bg-canvas shadow-[0_1px_2px_rgb(15_23_42/0.05)]"
-                      >
-                        <div
-                          className={cn(
-                            'flex items-center gap-2 bg-dash-surface/35 px-3 py-2.5',
-                            isOpen && 'border-b border-[#ECEFF3]'
-                          )}
-                        >
-                          <input
-                            type="checkbox"
-                            className="size-4 rounded border-dash-border"
-                            checked={allChecked}
-                            ref={(el) => {
-                              if (el) el.indeterminate = !allChecked && someChecked
-                            }}
-                            onChange={(e) => toggleGroup(group.permissions, e.target.checked)}
-                            aria-label={t('selectGroup', { resource: group.resource })}
-                          />
-                          <button
-                            type="button"
-                            className="flex min-w-0 flex-1 items-center gap-2 text-left"
-                            onClick={() =>
-                              setOpenResource((prev) =>
-                                prev === group.resource ? null : group.resource
-                              )
-                            }
-                            aria-expanded={isOpen}
-                          >
-                            <span className="min-w-0 flex-1 text-sm font-semibold capitalize text-ink">
-                              {group.resource}
-                            </span>
-                            <span className="text-[11px] font-medium tabular-nums text-mute">
-                              {t('groupEnabledSummary', {
-                                enabled: enabledInGroup,
-                                total: group.permissions.length,
-                              })}
-                            </span>
-                            <ChevronDown
+                  <>
+                    <div className="rounded-xl border border-dash-border bg-canvas p-2">
+                      <p className="px-2 pb-1.5 text-xs font-semibold tracking-wide text-mute uppercase">
+                        {t('modules')}
+                      </p>
+                      <div className="space-y-1">
+                        {filteredGroups.map((group) => {
+                          const enabledInGroup = group.permissions.filter((p) =>
+                            selected.has(p)
+                          ).length
+                          const active = group.resource === openResource
+                          return (
+                            <button
+                              key={group.resource}
+                              type="button"
+                              onClick={() => setOpenResource(group.resource)}
                               className={cn(
-                                'size-4 shrink-0 text-mute transition-transform duration-200 ease-out',
-                                isOpen && 'rotate-180'
+                                'flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-sm',
+                                'transition-colors hover:bg-dash-surface/60',
+                                active && 'bg-primary text-white hover:bg-primary'
                               )}
-                              aria-hidden
-                            />
-                          </button>
-                        </div>
+                            >
+                              <span className="min-w-0 truncate font-medium">
+                                {resourceLabel(group.resource)}
+                              </span>
+                              <span
+                                className={cn(
+                                  'rounded-md px-1.5 py-0.5 text-[11px] tabular-nums',
+                                  active
+                                    ? 'bg-white/20 text-white'
+                                    : 'bg-dash-surface text-body'
+                                )}
+                              >
+                                {enabledInGroup}/{group.permissions.length}
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
 
-                        <div
-                          className={cn(
-                            'grid transition-[grid-template-rows] duration-200 ease-out',
-                            isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
-                          )}
-                        >
-                          <div className="overflow-hidden">
-                            <div className="divide-y divide-[#F1F5F9] px-1 py-1">
-                              {group.permissions.map((permission) => {
-                                const checked = selected.has(permission)
-                                return (
-                                  <button
-                                    key={permission}
-                                    type="button"
-                                    className={cn(
-                                      'flex w-full items-center gap-2.5 px-2.5 py-2.5 text-left text-xs',
-                                      'transition-colors duration-150',
-                                      'hover:bg-dash-surface/70',
-                                      'focus-visible:bg-dash-surface/80 focus-visible:outline-none',
-                                      checked && 'bg-primary-pale/25'
-                                    )}
-                                    onClick={() => togglePermission(permission)}
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      tabIndex={-1}
-                                      className="pointer-events-none size-3.5 shrink-0 rounded border-dash-border"
-                                      checked={checked}
-                                      readOnly
-                                    />
-                                    <span className="min-w-0 flex-1 break-all font-mono text-ink/90">
-                                      {permission}
-                                    </span>
-                                  </button>
-                                )
-                              })}
+                    {(() => {
+                      const activeGroup =
+                        filteredGroups.find((group) => group.resource === openResource) ??
+                        filteredGroups[0]
+                      if (!activeGroup) return null
+
+                      const allChecked = activeGroup.permissions.every((p) => selected.has(p))
+                      const someChecked = activeGroup.permissions.some((p) => selected.has(p))
+                      const enabledInGroup = activeGroup.permissions.filter((p) =>
+                        selected.has(p)
+                      ).length
+
+                      return (
+                        <div className="overflow-hidden rounded-xl border border-dash-border bg-canvas">
+                          <div className="border-b border-dash-border bg-dash-surface/40 px-3 py-2.5">
+                            <div className="flex items-center justify-between gap-3">
+                              <div>
+                                <p className="text-base font-semibold text-ink">
+                                  {resourceLabel(activeGroup.resource)}
+                                </p>
+                                <p className="text-xs text-mute">
+                                  {t('groupEnabledSummary', {
+                                    enabled: enabledInGroup,
+                                    total: activeGroup.permissions.length,
+                                  })}
+                                </p>
+                              </div>
+                              <label className="inline-flex items-center gap-2 text-xs font-medium text-ink">
+                                <input
+                                  type="checkbox"
+                                  className="size-4 rounded border-dash-border"
+                                  checked={allChecked}
+                                  ref={(el) => {
+                                    if (el) el.indeterminate = !allChecked && someChecked
+                                  }}
+                                  onChange={(e) =>
+                                    toggleGroup(activeGroup.permissions, e.target.checked)
+                                  }
+                                  aria-label={t('selectGroup', { resource: activeGroup.resource })}
+                                />
+                                {t('selectAllInModule')}
+                              </label>
                             </div>
                           </div>
+
+                          <div className="divide-y divide-[#F1F5F9]">
+                            {activeGroup.permissions.map((permission) => {
+                              const checked = selected.has(permission)
+                              return (
+                                <button
+                                  key={permission}
+                                  type="button"
+                                  className={cn(
+                                    'flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm',
+                                    'transition-colors hover:bg-dash-surface/70',
+                                    'focus-visible:bg-dash-surface/80 focus-visible:outline-none',
+                                    checked && 'bg-primary-pale/30'
+                                  )}
+                                  onClick={() => togglePermission(permission)}
+                                >
+                                  <span
+                                    className={cn(
+                                      'inline-flex size-4 shrink-0 items-center justify-center rounded border',
+                                      checked
+                                        ? 'border-primary bg-primary text-white'
+                                        : 'border-dash-border bg-canvas'
+                                    )}
+                                  >
+                                    {checked ? <Check className="size-3" aria-hidden /> : null}
+                                  </span>
+                                  <span className="min-w-0 flex-1 font-medium text-ink">
+                                    {actionLabel(permission)}
+                                  </span>
+                                  <span className="font-mono text-[11px] text-mute">
+                                    {permission}
+                                  </span>
+                                </button>
+                              )
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    )
-                  })
+                      )
+                    })()}
+                  </>
                 )}
               </div>
 
@@ -577,22 +763,7 @@ export function RoleEditorFullPage({
           )}
         >
           <div className="flex flex-col gap-3">
-            {mode === 'edit' ? (
-              <Field data-invalid={Boolean(reasonError)} className="gap-1.5 sm:max-w-xl">
-                <FieldLabel htmlFor={reasonId} className="text-sm font-semibold text-ink">
-                  {t('reason')}
-                </FieldLabel>
-                <Input
-                  id={reasonId}
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  placeholder={t('reasonPlaceholder')}
-                  aria-invalid={Boolean(reasonError)}
-                />
-                <FieldDescription className="text-xs text-mute">{t('reasonHint')}</FieldDescription>
-                {reasonError ? <FieldError>{reasonError}</FieldError> : null}
-              </Field>
-            ) : null}
+            {/* Audit reason input is temporarily disabled. */}
 
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
               <div className="min-h-5">
