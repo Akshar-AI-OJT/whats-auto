@@ -71,4 +71,10 @@ export default await Env.create(new URL('../', import.meta.url), {
   RAZORPAY_KEY_ID: Env.schema.string(),
   RAZORPAY_KEY_SECRET: Env.schema.secret(),
   RAZORPAY_WEBHOOK_SECRET: Env.schema.secret(),
+
+  AWS_ACCESS_KEY_ID: Env.schema.string(),
+  AWS_SECRET_ACCESS_KEY: Env.schema.secret(),
+  AWS_REGION: Env.schema.string(),
+  S3_BUCKET: Env.schema.string(),
+  DRIVE_DISK: Env.schema.enum(['s3'] as const),
 })
