@@ -45,9 +45,13 @@
     "#start/*": "./start/*.js",
     "#config/*": "./config/*.js",
     "#lib/*": "./lib/*.js",
+    "#lib/media/*": "./lib/media/*.js",
     "#lib/meta_whatsapp/*": "./lib/meta_whatsapp/*.js",
     "#lib/razorpay/*": "./lib/razorpay/*.js",
     "#services/billing/*": "./app/services/billing/*.js",
+    "#services/object_storage/*": "./app/services/object_storage/*.js",
+    "#services/object_storage/contracts/*": "./app/services/object_storage/contracts/*.js",
+    "#services/object_storage/drivers/*": "./app/services/object_storage/drivers/*.js",
     "#types/*": "./types/*.js"
   },
   "devDependencies": {
