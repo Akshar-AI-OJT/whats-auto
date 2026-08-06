@@ -1,13 +1,24 @@
-import type { MetaSendTemplateComponent, TemplateParameterSchema } from '#lib/meta_whatsapp/types'
+import type {
+  MetaSendTemplateComponent,
+  TemplateHeaderMediaType,
+  TemplateParameterSchema,
+} from '#lib/meta_whatsapp/types'
 
 const NAMED_PLACEHOLDER = /\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/g
 const NUMBERED_PLACEHOLDER = /\{\{\s*\d+\s*\}\}/
+
+const HEADER_MEDIA_TYPES = new Set<TemplateHeaderMediaType>(['image', 'document'])
 
 export class TemplateParameterError extends Error {
   constructor(message: string) {
     super(message)
     this.name = 'TemplateParameterError'
   }
+}
+
+export type HeaderMediaInput = {
+  link: string
+  filename?: string
 }
 
 function extractNamedPlaceholders(text: string | null | undefined): string[] {
@@ -39,9 +50,18 @@ function buttonsLookDynamic(buttons: unknown): boolean {
   return hasNumberedPlaceholders(raw) || hasNamedPlaceholders(raw)
 }
 
+function nonSendable(reason: string): TemplateParameterSchema {
+  return {
+    headerNames: [],
+    bodyNames: [],
+    sendable: false,
+    unsupportedReason: reason,
+  }
+}
+
 /**
  * Derive the stored parameterSchema from local template fields.
- * Marks non-sendable when numbered vars, media headers, or dynamic buttons appear.
+ * Media headers are sendable with headerMediaType; numbered vars and dynamic buttons stay blocked.
  */
 export function deriveParameterSchema(params: {
   headerType?: string | null
@@ -51,31 +71,24 @@ export function deriveParameterSchema(params: {
 }): TemplateParameterSchema {
   const headerType = (params.headerType ?? 'none').toLowerCase()
 
-  if (headerType === 'image' || headerType === 'video' || headerType === 'document') {
-    return {
-      headerNames: [],
-      bodyNames: [],
-      sendable: false,
-      unsupportedReason: `Media header type "${headerType}" is not supported for outbound V1`,
-    }
-  }
-
   if (buttonsLookDynamic(params.buttons)) {
-    return {
-      headerNames: [],
-      bodyNames: [],
-      sendable: false,
-      unsupportedReason:
-        'Templates with dynamic button variables are not supported for outbound V1',
-    }
+    return nonSendable('Templates with dynamic button variables are not supported for outbound V1')
   }
 
   if (hasNumberedPlaceholders(params.headerContent) || hasNumberedPlaceholders(params.bodyText)) {
+    return nonSendable('Numbered placeholders like {{1}} are not supported; use named variables')
+  }
+
+  if (headerType === 'video') {
+    return nonSendable('Video header templates are not supported')
+  }
+
+  if (HEADER_MEDIA_TYPES.has(headerType as TemplateHeaderMediaType)) {
     return {
       headerNames: [],
-      bodyNames: [],
-      sendable: false,
-      unsupportedReason: 'Numbered placeholders like {{1}} are not supported; use named variables',
+      bodyNames: extractNamedPlaceholders(params.bodyText),
+      sendable: true,
+      headerMediaType: headerType as TemplateHeaderMediaType,
     }
   }
 
@@ -111,23 +124,39 @@ export function parseParameterSchema(raw: unknown): TemplateParameterSchema {
   const unsupportedReason =
     typeof record.unsupportedReason === 'string' ? record.unsupportedReason : undefined
 
-  return { headerNames, bodyNames, sendable, unsupportedReason }
+  const headerMediaRaw =
+    typeof record.headerMediaType === 'string' ? record.headerMediaType.toLowerCase() : null
+  const headerMediaType = HEADER_MEDIA_TYPES.has(headerMediaRaw as TemplateHeaderMediaType)
+    ? (headerMediaRaw as TemplateHeaderMediaType)
+    : undefined
+
+  return { headerNames, bodyNames, sendable, unsupportedReason, headerMediaType }
 }
 
 /**
- * Map named parameter values into Meta Cloud API template components (header/body).
- * Rejects missing, unexpected, or empty values with actionable errors.
+ * Map named parameter values (and optional header media) into Meta Cloud API components.
  */
 export function mapNamedParametersToMetaComponents(params: {
   schema: TemplateParameterSchema
   values: Record<string, string>
+  headerMedia?: HeaderMediaInput
 }): MetaSendTemplateComponent[] {
-  const { schema, values } = params
+  const { schema, values, headerMedia } = params
 
   if (!schema.sendable) {
     throw new TemplateParameterError(
       schema.unsupportedReason ?? 'Template is not sendable with the current parameter schema'
     )
+  }
+
+  if (schema.headerMediaType) {
+    if (!headerMedia?.link?.trim()) {
+      throw new TemplateParameterError(
+        `Header media is required for ${schema.headerMediaType} header templates`
+      )
+    }
+  } else if (headerMedia) {
+    throw new TemplateParameterError('Header media is not allowed for this template')
   }
 
   const required = [...schema.headerNames, ...schema.bodyNames]
@@ -152,7 +181,23 @@ export function mapNamedParametersToMetaComponents(params: {
 
   const components: MetaSendTemplateComponent[] = []
 
-  if (schema.headerNames.length > 0) {
+  if (schema.headerMediaType && headerMedia) {
+    const link = headerMedia.link.trim()
+    if (schema.headerMediaType === 'image') {
+      components.push({
+        type: 'header',
+        parameters: [{ type: 'image', image: { link } }],
+      })
+    } else {
+      const document: { link: string; filename?: string } = { link }
+      const filename = headerMedia.filename?.trim()
+      if (filename) document.filename = filename
+      components.push({
+        type: 'header',
+        parameters: [{ type: 'document', document }],
+      })
+    }
+  } else if (schema.headerNames.length > 0) {
     components.push({
       type: 'header',
       parameters: schema.headerNames.map((name) => ({

@@ -17,8 +17,10 @@ import {
   isApprovedOutboundMediaUrl,
   isMimeTypeAllowedForMediaType,
   isOutboundMediaSizeAllowed,
+  isTenantOutboundMediaType,
   OUTBOUND_MEDIA_MAX_BYTES,
   parseOutboundMediaAllowedHosts,
+  SYSTEM_OUTBOUND_MEDIA_TYPES,
   type OutboundMediaType,
 } from '#lib/meta_whatsapp/outbound_media'
 import {
@@ -150,6 +152,7 @@ export default class WhatsappOutboundService {
 
   /**
    * Queue a free-form media send after validating the organization-owned public asset.
+   * Tenant channel: images only. System/integration channel: image | document.
    */
   async queueMedia(params: {
     organizationId: string
@@ -159,8 +162,13 @@ export default class WhatsappOutboundService {
     caption?: string | null
     actorUserId?: string | null
     idempotencyKey?: string | null
+    /** Defaults to tenant (agent inbox). Integrations pass `system`. */
+    channel?: 'tenant' | 'system'
   }): Promise<QueueOutboundResult> {
     return runWithTenant(params.organizationId, async () => {
+      const channel = params.channel ?? 'tenant'
+      this.#assertMediaTypeAllowedForChannel(params.mediaType, channel)
+
       const ctx = await this.#loadConversationContext(params.organizationId, params.conversationId)
       this.#assertSessionWindow(ctx.lastInboundMessageAt)
 
@@ -223,10 +231,14 @@ export default class WhatsappOutboundService {
     conversationId: string
     templateId: string
     parameters?: Record<string, string>
+    headerMediaAssetId?: string | null
     actorUserId?: string | null
     idempotencyKey?: string | null
+    /** Defaults to tenant (agent inbox). Integrations pass `system`. */
+    channel?: 'tenant' | 'system'
   }): Promise<QueueOutboundResult> {
     return runWithTenant(params.organizationId, async () => {
+      const channel = params.channel ?? 'tenant'
       const ctx = await this.#loadConversationContext(params.organizationId, params.conversationId)
 
       const template = await db
@@ -255,11 +267,48 @@ export default class WhatsappOutboundService {
         )
       }
 
+      if (schema.headerMediaType) {
+        this.#assertMediaTypeAllowedForChannel(schema.headerMediaType, channel)
+      }
+
+      let mediaAssetId: string | undefined
+      let mediaUrl: string | undefined
+      let headerMedia: { link: string; filename?: string } | undefined
+
+      if (schema.headerMediaType) {
+        if (!params.headerMediaAssetId) {
+          throw WhatsappOutboundException.invalidTemplateParameters(
+            `Header media asset is required for ${schema.headerMediaType} header templates`
+          )
+        }
+
+        const mediaAsset = await this.#loadMediaAsset({
+          organizationId: params.organizationId,
+          mediaAssetId: params.headerMediaAssetId,
+        })
+        this.#assertMediaAsset({
+          mediaType: schema.headerMediaType,
+          mediaAsset,
+        })
+
+        headerMedia = {
+          link: mediaAsset.filePath,
+          filename: schema.headerMediaType === 'document' ? mediaAsset.fileName : undefined,
+        }
+        mediaAssetId = mediaAsset.id
+        mediaUrl = mediaAsset.filePath
+      } else if (params.headerMediaAssetId) {
+        throw WhatsappOutboundException.invalidTemplateParameters(
+          'Header media asset is not allowed for this template'
+        )
+      }
+
       let components
       try {
         components = mapNamedParametersToMetaComponents({
           schema,
           values: params.parameters ?? {},
+          headerMedia,
         })
       } catch (error) {
         if (error instanceof TemplateParameterError) {
@@ -288,6 +337,8 @@ export default class WhatsappOutboundService {
           messageTemplateId: template.id,
           payload,
           previewText: template.bodyText ?? template.name,
+          mediaAssetId,
+          mediaUrl,
           clientIdempotencyKey: params.idempotencyKey,
         })
       })
@@ -361,11 +412,12 @@ export default class WhatsappOutboundService {
 
       // Side effects after durable sent must never call markFailed / retry.
       const conversationId =
-        (reconcile.receipt?.message?.conversationId as string | undefined) ??
-        (await this.#loadMessageConversationId({
-          organizationId: params.organizationId,
-          messageId: dispatch.messageId,
-        }))
+        reconcile.receipt?.updated === true
+          ? reconcile.receipt.message.conversationId
+          : await this.#loadMessageConversationId({
+              organizationId: params.organizationId,
+              messageId: dispatch.messageId,
+            })
 
       if (conversationId) {
         await this.#emitInboxMessageSent({
@@ -569,9 +621,10 @@ export default class WhatsappOutboundService {
     const limit = params?.limit ?? 100
     const organizationIds = params?.organizationId
       ? [params.organizationId]
-      : (
-          await db.from('organizations').select('id')
-        ).map((row) => row.id as string)
+      : await db
+          .from('organizations')
+          .select('id')
+          .then((rows) => rows.map((row) => row.id as string))
 
     let woken = 0
     let remaining = limit
@@ -799,6 +852,22 @@ export default class WhatsappOutboundService {
     }
   }
 
+  #assertMediaTypeAllowedForChannel(
+    mediaType: OutboundMediaType,
+    channel: 'tenant' | 'system'
+  ): void {
+    if (channel === 'tenant') {
+      if (!isTenantOutboundMediaType(mediaType)) {
+        throw WhatsappOutboundException.mediaTypeNotAllowedForChannel(mediaType, 'tenant')
+      }
+      return
+    }
+
+    if (!(SYSTEM_OUTBOUND_MEDIA_TYPES as readonly string[]).includes(mediaType)) {
+      throw WhatsappOutboundException.mediaTypeNotAllowedForChannel(mediaType, 'system')
+    }
+  }
+
   #assertSessionWindow(lastInboundMessageAt: Date | null): void {
     const sessionWindowMs = 24 * 60 * 60 * 1000
     if (!lastInboundMessageAt || Date.now() - lastInboundMessageAt.getTime() > sessionWindowMs) {
@@ -823,7 +892,8 @@ export default class WhatsappOutboundService {
       .from('media_assets')
       .where('id', params.mediaAssetId)
       .where('organizationId', params.organizationId)
-      .select('id', 'fileName', 'mimeType', 'filePath', 'fileSize')
+      .where('state', 'ready')
+      .select('id', 'fileName', 'mimeType', 'filePath', 'deliveryUrl', 'fileSize')
       .first()
 
     if (!mediaAsset) {
@@ -833,11 +903,13 @@ export default class WhatsappOutboundService {
       })
     }
 
+    const deliveryUrl = (mediaAsset.deliveryUrl as string | null) || (mediaAsset.filePath as string)
+
     return {
       id: mediaAsset.id as string,
       fileName: mediaAsset.fileName as string,
       mimeType: mediaAsset.mimeType as string,
-      filePath: mediaAsset.filePath as string,
+      filePath: deliveryUrl,
       fileSize: Number(mediaAsset.fileSize ?? 0),
     }
   }

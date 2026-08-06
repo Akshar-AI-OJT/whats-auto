@@ -68,6 +68,13 @@ export default class WhatsappOutboundException extends Exception {
     })
   }
 
+  static mediaTypeNotAllowedForChannel(mediaType: string, channel: string) {
+    return new this(`Media type "${mediaType}" is not allowed for ${channel} sends`, {
+      status: 422,
+      code: 'E_OUTBOUND_MEDIA_CHANNEL_DENIED',
+    })
+  }
+
   static idempotencyKeyConflict() {
     return new this('Idempotency-Key was reused with a different payload', {
       status: 422,

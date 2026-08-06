@@ -285,7 +285,7 @@ export class MessageTemplateService {
           format: 'TEXT',
           text: payload.headerContent,
         })
-      } else if (['IMAGE', 'VIDEO', 'DOCUMENT'].includes(format)) {
+      } else if (['IMAGE', 'DOCUMENT'].includes(format)) {
         metaComponents.push({
           type: 'HEADER',
           format,
