@@ -528,7 +528,7 @@ export class MessageSchema extends BaseModel {
   @column()
   declare metadata: any
   @column.dateTime()
-  declare occurredAt: DateTime | null
+  declare occurredAt: DateTime
   @column()
   declare organizationId: string
   @column()

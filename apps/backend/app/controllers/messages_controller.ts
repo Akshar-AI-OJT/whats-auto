@@ -15,6 +15,7 @@ export default class MessagesController {
    * @paramPath id - Conversation id - @type(string)
    * @paramQuery page - Page number (default 1) - @type(number)
    * @paramQuery limit - Items per page (1-100, default 20) - @type(number)
+   * @paramQuery after - ISO timestamp; only messages created after this time - @type(string)
    * @responseBody 200 - { "data": [{ "id": "uuid", "direction": "outbound", "contentType": "text", "contentText": "Hello!", "status": "sent", "sender": { "type": "agent", "id": "uuid", "name": "Ada" }, "createdAt": "2026-08-04T12:00:00.000Z" }], "meta": { "total": 1, "perPage": 20, "currentPage": 1, "lastPage": 1 } }
    * @responseBody 404 - { "error": "Conversation not found", "code": "E_CONVERSATION_NOT_FOUND" }
    * @responseBody 403 - { "error": "Permission denied: inbox:view", "code": "PERMISSION_DENIED" }
@@ -32,6 +33,7 @@ export default class MessagesController {
       conversationId: id,
       page: qs.page,
       limit: qs.limit,
+      after: qs.after,
     })
 
     return serialize(result)
