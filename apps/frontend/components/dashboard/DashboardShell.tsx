@@ -15,7 +15,7 @@ function DashboardShellFrame({ children, className }: DashboardShellProps) {
   const { sidebarWidthPx, collapsed } = useDashboardChrome()
 
   return (
-    <div className={cn('flex min-h-dvh bg-dash-bg', className)}>
+    <div className={cn('app-shell flex min-h-dvh bg-dash-bg', className)}>
       <div
         className="fixed inset-y-0 left-0 z-40 hidden transition-[width] duration-300 ease-out lg:block"
         style={{ width: sidebarWidthPx }}
