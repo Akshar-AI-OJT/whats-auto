@@ -2,7 +2,6 @@
 
 import { useEffect, useId, useState, startTransition } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
-import { useSearchParams } from 'next/navigation'
 import { Loader2, Lock, Mail } from 'lucide-react'
 import { FcGoogle } from 'react-icons/fc'
 import { cn } from '@/lib/utils'
@@ -57,12 +56,20 @@ function safeCallbackPath(raw: string | null): string | null {
   return raw
 }
 
+function readCallbackFromWindow(): string | null {
+  if (typeof window === 'undefined') return null
+  try {
+    return safeCallbackPath(new URLSearchParams(window.location.search).get('callbackURL'))
+  } catch {
+    return null
+  }
+}
+
 export function LoginForm({ className, ...props }: React.ComponentProps<'form'>) {
   const t = useTranslations('auth.login')
   const locale = useLocale()
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const callbackPath = safeCallbackPath(searchParams.get('callbackURL'))
+  const [callbackPath] = useState<string | null>(() => readCallbackFromWindow())
   const formErrorId = useId()
   const emailId = useId()
   const passwordId = useId()
