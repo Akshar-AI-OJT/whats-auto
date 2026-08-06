@@ -172,13 +172,10 @@
 }
 
 /**
- * Auth pages only — WhatsApp green as accent, not surface color.
- * Neutrals dominate; green reserved for CTAs, icons, badges, progress.
- * Force light tokens even when html.dark is active (OS/theme dark mode),
- * otherwise ink/body become light-on-white and native inputs look broken.
+ * Auth pages — WhatsApp green accent on top of the light lock.
+ * Neutrals come from .light-locked; green reserved for CTAs / accents.
  */
 .auth-palette {
-  color-scheme: light;
   --primary: #25d366;
   --primary-foreground: #ffffff;
   --on-primary: #ffffff;
@@ -193,29 +190,14 @@
   --accent-foreground: #0e0f0c;
   --canvas: #ffffff;
   --canvas-soft: #f8fafc;
-  --canvas-light: #ffffff;
-  --canvas-paper: #f8fafc;
   --background: #f8fafc;
-  --foreground: #0e0f0c;
-  --card: #ffffff;
-  --card-foreground: #0e0f0c;
-  --popover: #ffffff;
-  --popover-foreground: #0e0f0c;
-  --secondary: #f1f5f9;
-  --secondary-foreground: #0e0f0c;
-  --muted: #f1f5f9;
-  --muted-foreground: #64748b;
-  --destructive: #d03238;
   --border: #e2e8f0;
-  --input: #0e0f0c;
-  --ink: #0e0f0c;
-  --ink-deep: #163300;
-  --ink-soft: #454745;
-  --body: #454745;
-  --mute: #868685;
 }
 
-/* Light brand lock — Wise marketing is sage/white; dark stays readable but keeps lime CTA */
+/**
+ * Dark tokens apply only while html.dark is set.
+ * ThemeProvider / theme-script enable html.dark on dashboard & admin only.
+ */
 .dark {
   --background: #0e0f0c;
   --foreground: #e8ebe6;
@@ -279,6 +261,65 @@
   --dash-warn-soft: rgb(255 209 26 / 14%);
   --dash-elevated: #1a1b18;
   --dash-shadow: 0 12px 32px rgb(0 0 0 / 0.35), 0 2px 8px rgb(0 0 0 / 0.2);
+}
+
+/**
+ * Permanent light lock for marketing / auth / onboarding.
+ * Declared AFTER .dark and with html.light-locked so it always wins on public
+ * routes (including body), even if html.dark leaks.
+ */
+.light-locked,
+html.light-locked {
+  color-scheme: light;
+  --background: #e8ebe6;
+  --foreground: #0e0f0c;
+  --card: #ffffff;
+  --card-foreground: #0e0f0c;
+  --popover: #ffffff;
+  --popover-foreground: #0e0f0c;
+  --primary: #9fe870;
+  --primary-foreground: #0e0f0c;
+  --on-primary: #0e0f0c;
+  --primary-active: #cdffad;
+  --primary-neutral: #c5edab;
+  --primary-pale: #e2f6d5;
+  --secondary: #e8ebe6;
+  --secondary-foreground: #0e0f0c;
+  --muted: #e8ebe6;
+  --muted-foreground: #868685;
+  --accent: #e2f6d5;
+  --accent-foreground: #0e0f0c;
+  --destructive: #d03238;
+  --border: #d5d8d2;
+  --input: #0e0f0c;
+  --ring: #9fe870;
+  --canvas: #ffffff;
+  --canvas-soft: #e8ebe6;
+  --canvas-light: #ffffff;
+  --canvas-paper: #e8ebe6;
+  --ink: #0e0f0c;
+  --ink-deep: #163300;
+  --ink-soft: #454745;
+  --body: #454745;
+  --mute: #868685;
+  --brand: #163300;
+  --positive: #2ead4b;
+  --positive-deep: #054d28;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #0e0f0c;
+  --sidebar-primary: #9fe870;
+  --sidebar-primary-foreground: #0e0f0c;
+  --sidebar-accent: #e2f6d5;
+  --sidebar-accent-foreground: #0e0f0c;
+  --sidebar-border: #d5d8d2;
+  --sidebar-ring: #9fe870;
+  --dash-bg: #f8fafc;
+  --dash-border: #e2e8f0;
+  --dash-border-strong: #cbd5e1;
+  --dash-surface: #f8fafc;
+  --dash-hover: #f1f5f9;
+  --dash-elevated: #ffffff;
+  --dash-shadow: 0 8px 24px rgb(15 23 42 / 0.04), 0 1px 2px rgb(15 23 42 / 0.03);
 }
 
 @layer base {

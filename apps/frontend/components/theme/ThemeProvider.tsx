@@ -9,6 +9,8 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
+import { usePathname } from 'next/navigation'
+import { pathAllowsDarkTheme } from '@/components/theme/theme-scope'
 
 export type ThemeMode = 'light' | 'dark' | 'system'
 
@@ -27,10 +29,13 @@ function getSystemDark() {
   return window.matchMedia('(prefers-color-scheme: dark)').matches
 }
 
-function applyThemeClass(resolved: 'light' | 'dark') {
+function applyThemeClass(resolved: 'light' | 'dark', scope: 'app' | 'public') {
   const root = document.documentElement
-  root.classList.toggle('dark', resolved === 'dark')
-  root.style.colorScheme = resolved
+  const allowDark = scope === 'app'
+  root.classList.toggle('dark', allowDark && resolved === 'dark')
+  root.classList.toggle('light-locked', !allowDark)
+  root.style.colorScheme = allowDark && resolved === 'dark' ? 'dark' : 'light'
+  root.dataset.themeScope = scope
 }
 
 function readStoredTheme(): ThemeMode {
@@ -50,6 +55,7 @@ function subscribeSystemTheme(onStoreChange: () => void) {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname() ?? '/'
   const [theme, setThemeState] = useState<ThemeMode>(() => {
     if (typeof window === 'undefined') return 'system'
     return readStoredTheme()
@@ -63,9 +69,12 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const resolvedTheme: 'light' | 'dark' =
     theme === 'system' ? (systemDark ? 'dark' : 'light') : theme
 
+  const allowDark = pathAllowsDarkTheme(pathname)
+  const appearance: 'light' | 'dark' = allowDark ? resolvedTheme : 'light'
+
   useEffect(() => {
-    applyThemeClass(resolvedTheme)
-  }, [resolvedTheme])
+    applyThemeClass(appearance, allowDark ? 'app' : 'public')
+  }, [appearance, allowDark])
 
   const setTheme = useCallback((next: ThemeMode) => {
     setThemeState(next)
