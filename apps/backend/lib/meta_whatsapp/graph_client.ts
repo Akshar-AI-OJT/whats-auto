@@ -58,7 +58,7 @@ export interface MetaGraphClient {
     phoneNumberId: string
     accessToken: string
     to: string
-    type: 'image' | 'video' | 'audio' | 'document'
+    type: 'image' | 'video' | 'document'
     link: string
     caption?: string
     filename?: string
@@ -276,13 +276,13 @@ export class HttpMetaGraphClient implements MetaGraphClient {
   }
 
   /**
-   * POST /{phone-number-id}/messages (type=image|video|audio|document) via public link.
+   * POST /{phone-number-id}/messages (type=image|video|document) via public link.
    */
   async sendMediaMessage(params: {
     phoneNumberId: string
     accessToken: string
     to: string
-    type: 'image' | 'video' | 'audio' | 'document'
+    type: 'image' | 'video' | 'document'
     link: string
     caption?: string
     filename?: string
@@ -290,9 +290,6 @@ export class HttpMetaGraphClient implements MetaGraphClient {
     const url = `${this.baseUrl}/${encodeURIComponent(params.phoneNumberId)}/messages`
 
     const mediaPayload: Record<string, unknown> = { link: params.link }
-    if (params.caption && params.type !== 'audio') {
-      mediaPayload.caption = params.caption
-    }
     if (params.type === 'document' && params.filename) {
       mediaPayload.filename = params.filename
     }

@@ -3,20 +3,18 @@
  * Host allowlist is optional via OUTBOUND_MEDIA_ALLOWED_HOSTS (comma-separated).
  */
 
-export type OutboundMediaType = 'image' | 'video' | 'audio' | 'document'
+export type OutboundMediaType = 'image' | 'video' | 'document'
 
 /** Meta Cloud API free-form media size limits (bytes). */
 export const OUTBOUND_MEDIA_MAX_BYTES: Record<OutboundMediaType, number> = {
   image: 5 * 1024 * 1024,
   video: 16 * 1024 * 1024,
-  audio: 16 * 1024 * 1024,
   document: 100 * 1024 * 1024,
 }
 
 const ALLOWED_MIME_TYPES: Record<OutboundMediaType, ReadonlySet<string>> = {
   image: new Set(['image/jpeg', 'image/png']),
   video: new Set(['video/mp4', 'video/3gpp']),
-  audio: new Set(['audio/aac', 'audio/mp4', 'audio/mpeg', 'audio/amr', 'audio/ogg']),
   document: new Set([
     'application/pdf',
     'application/msword',
@@ -50,10 +48,7 @@ export function isPublicHttpUrl(value: string): boolean {
  * Approved public storage URLs: must be http(s). When an allowlist is configured,
  * the hostname must match (exact or subdomain of an allowlisted host).
  */
-export function isApprovedOutboundMediaUrl(
-  value: string,
-  allowedHosts: string[] = []
-): boolean {
+export function isApprovedOutboundMediaUrl(value: string, allowedHosts: string[] = []): boolean {
   if (!isPublicHttpUrl(value)) return false
 
   let hostname: string
@@ -67,9 +62,7 @@ export function isApprovedOutboundMediaUrl(
     return true
   }
 
-  return allowedHosts.some(
-    (allowed) => hostname === allowed || hostname.endsWith(`.${allowed}`)
-  )
+  return allowedHosts.some((allowed) => hostname === allowed || hostname.endsWith(`.${allowed}`))
 }
 
 export function isMimeTypeAllowedForMediaType(

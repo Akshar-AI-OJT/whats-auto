@@ -180,7 +180,7 @@ const requestBodySchemas: Record<string, JsonSchema> = {
       contentType: {
         type: 'string',
         example: 'text',
-        enum: ['text', 'image', 'video', 'audio', 'document'],
+        enum: ['text', 'image', 'video', 'document'],
       },
       contentText: { type: 'string', example: 'Hello!' },
       mediaAssetId: { type: 'string', format: 'uuid' },
