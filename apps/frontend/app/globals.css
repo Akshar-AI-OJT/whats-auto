@@ -174,8 +174,11 @@
 /**
  * Auth pages only — WhatsApp green as accent, not surface color.
  * Neutrals dominate; green reserved for CTAs, icons, badges, progress.
+ * Force light tokens even when html.dark is active (OS/theme dark mode),
+ * otherwise ink/body become light-on-white and native inputs look broken.
  */
 .auth-palette {
+  color-scheme: light;
   --primary: #25d366;
   --primary-foreground: #ffffff;
   --on-primary: #ffffff;
@@ -190,8 +193,26 @@
   --accent-foreground: #0e0f0c;
   --canvas: #ffffff;
   --canvas-soft: #f8fafc;
+  --canvas-light: #ffffff;
+  --canvas-paper: #f8fafc;
   --background: #f8fafc;
+  --foreground: #0e0f0c;
+  --card: #ffffff;
+  --card-foreground: #0e0f0c;
+  --popover: #ffffff;
+  --popover-foreground: #0e0f0c;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0e0f0c;
+  --muted: #f1f5f9;
+  --muted-foreground: #64748b;
+  --destructive: #d03238;
   --border: #e2e8f0;
+  --input: #0e0f0c;
+  --ink: #0e0f0c;
+  --ink-deep: #163300;
+  --ink-soft: #454745;
+  --body: #454745;
+  --mute: #868685;
 }
 
 /* Light brand lock — Wise marketing is sage/white; dark stays readable but keeps lime CTA */

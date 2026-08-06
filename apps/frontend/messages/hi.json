@@ -1893,6 +1893,185 @@
         "testToRequired": "टेस्ट भेजने के लिए प्राप्तकर्ता फ़ोन नंबर दर्ज करें।"
       }
     },
+    "templates": {
+      "eyebrow": "संदेश",
+      "title": "टेम्पलेट सूची",
+      "subtitle": "इस वर्कस्पेस के लिए WhatsApp संदेश टेम्पलेट बनाएँ, समीक्षा करें और सिंक करें।",
+      "createCta": "टेम्पलेट बनाएँ",
+      "syncCta": "Meta से सिंक करें",
+      "browseCta": "टेम्पलेट ब्राउज़ करें",
+      "browseComingSoon": {
+        "title": "जल्द आ रहा है",
+        "body": "टेम्पलेट ब्राउज़ सुविधा भविष्य के अपडेट में उपलब्ध होगी।",
+        "dismiss": "ठीक है"
+      },
+      "loading": "टेम्पलेट लोड हो रहे हैं…",
+      "listTitle": "सभी टेम्पलेट",
+      "listDescription": "श्रेणी, स्थिति या भाषा के अनुसार टेम्पलेट खोजें और फ़िल्टर करें।",
+      "searchPlaceholder": "नाम, श्रेणी या भाषा से खोजें…",
+      "emptyTitle": "अभी कोई टेम्पलेट नहीं",
+      "emptyDescription": "पहला टेम्पलेट बनाएँ या Meta से स्वीकृत टेम्पलेट सिंक करें।",
+      "pagination": "{total} में से {from} से {to} टेम्पलेट दिखाए जा रहे हैं",
+      "prev": "पिछला",
+      "next": "अगला",
+      "createTitle": "टेम्पलेट बनाएँ",
+      "createFromTitle": "टेम्पलेट डुप्लिकेट करें",
+      "createSubtitle": "WhatsApp टेम्पलेट बनाएँ और Meta समीक्षा के लिए सबमिट करें।",
+      "backToList": "टेम्पलेट सूची पर वापस जाएँ",
+      "tabs": {
+        "all": "सभी टेम्पलेट",
+        "approved": "स्वीकृत",
+        "pending": "लंबित",
+        "rejected": "अस्वीकृत"
+      },
+      "filters": {
+        "category": "श्रेणी",
+        "status": "स्थिति",
+        "language": "भाषा",
+        "allCategories": "सभी श्रेणियाँ",
+        "allStatuses": "सभी स्थितियाँ",
+        "allLanguages": "सभी भाषाएँ"
+      },
+      "categories": {
+        "MARKETING": "मार्केटिंग",
+        "UTILITY": "यूटिलिटी",
+        "AUTHENTICATION": "प्रमाणीकरण"
+      },
+      "status": {
+        "approved": "स्वीकृत",
+        "pending": "लंबित",
+        "rejected": "अस्वीकृत",
+        "draft": "ड्राफ्ट"
+      },
+      "table": {
+        "template": "टेम्पलेट",
+        "category": "श्रेणी",
+        "language": "भाषा",
+        "status": "स्थिति",
+        "updated": "अंतिम अपडेट",
+        "actions": "क्रियाएँ"
+      },
+      "actions": {
+        "menuAria": "टेम्पलेट क्रियाएँ",
+        "view": "विवरण देखें",
+        "edit": "टेम्पलेट संपादित करें",
+        "delete": "हटाएँ"
+      },
+      "preview": {
+        "title": "WhatsApp पूर्वावलोकन",
+        "businessFallback": "व्यवसाय",
+        "emptyBody": "आपके संदेश का पूर्वावलोकन यहाँ दिखेगा।",
+        "buttonFallback": "बटन"
+      },
+      "form": {
+        "name": "टेम्पलेट नाम",
+        "namePlaceholder": "welcome_message",
+        "nameHint": "केवल छोटे अक्षर, संख्याएँ और अंडरस्कोर।",
+        "category": "श्रेणी",
+        "language": "भाषा",
+        "headerType": "हेडर",
+        "headerContent": "हेडर टेक्स्ट",
+        "headerPlaceholder": "ऑर्डर अपडेट",
+        "body": "टेम्पलेट बॉडी",
+        "bodyPlaceholder": "नमस्ते '{{1}}', आपका ऑर्डर '{{2}}' कन्फर्म हो गया है।",
+        "footer": "फुटर",
+        "footerPlaceholder": "हमारे साथ खरीदारी के लिए धन्यवाद",
+        "variables": "वेरिएबल",
+        "variablesHint": "सबमिट करने से पहले हर नंबर वाले प्लेसहोल्डर के लिए वास्तविक नमूना मान दें।",
+        "samplePlaceholder": "{n} के लिए उदाहरण",
+        "buttons": "बटन",
+        "buttonsHint": "वैकल्पिक। अधिकतम 3 बटन।",
+        "addButton": "बटन जोड़ें",
+        "removeButton": "हटाएँ",
+        "buttonTextPlaceholder": "बटन लेबल",
+        "buttonUrlPlaceholder": "https://example.com",
+        "buttonPhonePlaceholder": "+15551234567",
+        "insertVariable": "वेरिएबल",
+        "formatBold": "बोल्ड",
+        "formatItalic": "इटैलिक",
+        "formatStrike": "स्ट्राइकथ्रू",
+        "cancel": "रद्द करें",
+        "saveDraft": "ड्राफ्ट सहेजें",
+        "submitReview": "समीक्षा के लिए सबमिट करें",
+        "previewNameFallback": "template_name",
+        "categories": {
+          "MARKETING": "मार्केटिंग",
+          "UTILITY": "यूटिलिटी",
+          "AUTHENTICATION": "प्रमाणीकरण"
+        },
+        "headerTypes": {
+          "NONE": "कोई नहीं",
+          "TEXT": "टेक्स्ट",
+          "IMAGE": "इमेज",
+          "VIDEO": "वीडियो",
+          "DOCUMENT": "दस्तावेज़"
+        },
+        "buttonTypes": {
+          "QUICK_REPLY": "त्वरित उत्तर",
+          "URL": "वेबसाइट देखें",
+          "PHONE_NUMBER": "फ़ोन कॉल"
+        },
+        "errors": {
+          "nameInvalid": "केवल छोटे अक्षर, संख्याएँ और अंडरस्कोर उपयोग करें।",
+          "bodyRequired": "बॉडी टेक्स्ट आवश्यक है।",
+          "bodyTooLong": "बॉडी टेक्स्ट 1024 अक्षर या उससे कम होना चाहिए।",
+          "headerRequired": "टेक्स्ट हेडर के लिए हेडर टेक्स्ट दर्ज करें।",
+          "sampleRequired": "वेरिएबल {n} के लिए नमूना मान दर्ज करें।",
+          "samplesRequired": "सबमिट करने से पहले सभी वेरिएबल के नमूना मान भरें।"
+        }
+      },
+      "details": {
+        "content": "टेम्पलेट सामग्री",
+        "header": "हेडर",
+        "body": "बॉडी",
+        "footer": "फुटर",
+        "variables": "वेरिएबल",
+        "noVariables": "इस टेम्पलेट में कोई वेरिएबल नहीं है।",
+        "buttons": "बटन",
+        "noButtons": "कोई बटन कॉन्फ़िगर नहीं है।",
+        "history": "सबमिशन इतिहास",
+        "statusCard": "टेम्पलेट स्थिति",
+        "templateId": "टेम्पलेट ID",
+        "historyEvents": {
+          "created": "बनाया गया",
+          "submitted": "सबमिट किया गया",
+          "approved": "स्वीकृत",
+          "rejected": "अस्वीकृत",
+          "pendingReview": "समीक्षा लंबित"
+        }
+      },
+      "delete": {
+        "title": "यह टेम्पलेट हटाएँ?",
+        "body": "“{name}” इस वर्कस्पेस और कनेक्टेड होने पर Meta से हटा दिया जाएगा।",
+        "cancel": "रद्द करें",
+        "confirm": "टेम्पलेट हटाएँ",
+        "deleting": "हटाया जा रहा है…"
+      },
+      "sync": {
+        "syncingTitle": "टेम्पलेट सिंक हो रहे हैं…",
+        "syncingDescription": "आपके Meta WABA अकाउंट से टेम्पलेट लाए जा रहे हैं।",
+        "doneTitle": "सिंक पूरा",
+        "doneDescription": "{count} टेम्पलेट सिंक हुए।",
+        "failedTitle": "सिंक विफल",
+        "importedLabel": "आयातित टेम्पलेट",
+        "statusLabel": "रिफ्रेश स्थिति",
+        "statusRunning": "प्रगति में",
+        "statusDone": "पूर्ण",
+        "statusFailed": "विफल",
+        "dontClose": "कृपया यह विंडो बंद न करें।",
+        "retry": "फिर सिंक करें",
+        "close": "बंद करें"
+      },
+      "errors": {
+        "loadFailed": "टेम्पलेट लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+        "permissionDenied": "आपको इस वर्कस्पेस में टेम्पलेट देखने की अनुमति नहीं है।",
+        "manageDenied": "आपको टेम्पलेट प्रबंधित करने की अनुमति नहीं है।",
+        "createFailed": "टेम्पलेट नहीं बन सका। कृपया फिर कोशिश करें।",
+        "deleteFailed": "टेम्पलेट नहीं हटाया जा सका। कृपया फिर कोशिश करें।",
+        "syncFailed": "Meta से टेम्पलेट सिंक नहीं हो सके। कृपया फिर कोशिश करें।",
+        "duplicate": "इस नाम और भाषा वाला टेम्पलेट पहले से मौजूद है।"
+      }
+    },
     "settings": {
       "eyebrow": "वर्कस्पेस",
       "title": "वर्कस्पेस सेटिंग्स",
