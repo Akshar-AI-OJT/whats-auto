@@ -389,9 +389,40 @@ export type CreateInboxConversationNoteBody = {
 
 export type WhatsappConfigSummary = {
   id: string
+  organizationId?: string
   phoneNumberId: string
   displayPhoneNumber?: string | null
-  status: string
+  wabaId?: string | null
+  status: 'connected' | 'disconnected' | 'error' | string
+  connectedAt?: string | null
+  registeredAt?: string | null
+  subscribedAppsAt?: string | null
+  createdByUserId?: string | null
+  createdAt?: string
+  updatedAt?: string | null
+}
+
+export type WhatsappEmbeddedSignupSession = {
+  appId: string
+  configId: string
+  graphVersion: string
+}
+
+export type CompleteWhatsappEmbeddedSignupBody = {
+  code: string
+  wabaId: string
+  phoneNumberId: string
+  businessId?: string
+}
+
+export type TestWhatsappConfigBody = {
+  to: string
+  templateName?: string
+  languageCode?: string
+}
+
+export type TestWhatsappConfigResult = {
+  messageId?: string | null
 }
 
 export type CreateInvitationBody = {
@@ -832,6 +863,42 @@ export const api = {
       protectedRequest<{ data?: WhatsappConfigSummary[] } | WhatsappConfigSummary[]>(
         '/api/v1/whatsapp/configs',
         { method: 'GET' }
+      ),
+
+    getConfig: (configId: string) =>
+      protectedRequest<{ data?: WhatsappConfigSummary } & WhatsappConfigSummary>(
+        `/api/v1/whatsapp/configs/${configId}`,
+        { method: 'GET' }
+      ),
+
+    disconnectConfig: (configId: string) =>
+      protectedRequest<{ data?: WhatsappConfigSummary } & WhatsappConfigSummary>(
+        `/api/v1/whatsapp/configs/${configId}`,
+        { method: 'DELETE' }
+      ),
+
+    testConfig: (configId: string, body: TestWhatsappConfigBody) =>
+      protectedRequest<{ data?: TestWhatsappConfigResult } & TestWhatsappConfigResult>(
+        `/api/v1/whatsapp/configs/${configId}/test`,
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    getEmbeddedSignupSession: () =>
+      protectedRequest<{ data?: WhatsappEmbeddedSignupSession } & WhatsappEmbeddedSignupSession>(
+        '/api/v1/whatsapp/embedded-signup/session',
+        { method: 'GET' }
+      ),
+
+    completeEmbeddedSignup: (body: CompleteWhatsappEmbeddedSignupBody) =>
+      protectedRequest<{ data?: WhatsappConfigSummary } & WhatsappConfigSummary>(
+        '/api/v1/whatsapp/embedded-signup/complete',
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
       ),
   },
 

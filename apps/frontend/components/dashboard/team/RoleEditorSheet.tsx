@@ -64,8 +64,8 @@ export function RoleEditorSheet({
 }: RoleEditorSheetProps) {
   const t = useTranslations('dashboard.roles.editor')
   const { accessContext, canManageRoles, tenantOrganizationId } = useOrganizations()
+  const TEMP_ROLE_EDIT_REASON = 'Permissions updated from role editor'
   const nameId = useId()
-  const reasonId = useId()
   const searchId = useId()
   const formErrorId = useId()
 
@@ -81,12 +81,10 @@ export function RoleEditorSheet({
   const [name, setName] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [initialSelected, setInitialSelected] = useState<Set<string>>(new Set())
-  const [reason, setReason] = useState('')
   const [permSearch, setPermSearch] = useState('')
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [nameError, setNameError] = useState<string | null>(null)
   const [permsError, setPermsError] = useState<string | null>(null)
-  const [reasonError, setReasonError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
 
@@ -95,9 +93,7 @@ export function RoleEditorSheet({
     setError(null)
     setNameError(null)
     setPermsError(null)
-    setReasonError(null)
     setPending(false)
-    setReason('')
     setPermSearch('')
     setCollapsed({})
     if (mode === 'edit' && role) {
@@ -118,8 +114,8 @@ export function RoleEditorSheet({
     if (mode === 'create') {
       return name.trim().length > 0 || selected.size > 0
     }
-    return !setsEqual(selected, initialSelected) || reason.trim().length > 0
-  }, [mode, name, selected, initialSelected, reason])
+    return !setsEqual(selected, initialSelected)
+  }, [mode, name, selected, initialSelected])
 
   const filteredGroups = useMemo(() => {
     const q = permSearch.trim().toLowerCase()
@@ -187,7 +183,6 @@ export function RoleEditorSheet({
     setError(null)
     setNameError(null)
     setPermsError(null)
-    setReasonError(null)
 
     if (!canManageRoles || !tenantOrganizationId) {
       setError(t('errors.permissionDenied'))
@@ -218,10 +213,6 @@ export function RoleEditorSheet({
         return
       }
     } else {
-      if (reason.trim().length < 5) {
-        setReasonError(t('errors.reasonRequired'))
-        return
-      }
     }
 
     setPending(true)
@@ -231,7 +222,8 @@ export function RoleEditorSheet({
       } else if (role) {
         await api.roles.update(role.role, {
           permissions,
-          reason: reason.trim(),
+          // Audit reason UI is temporarily disabled; keep API contract satisfied.
+          reason: TEMP_ROLE_EDIT_REASON,
         })
       }
       onSaved?.()
@@ -243,7 +235,10 @@ export function RoleEditorSheet({
     }
   }
 
-  const title = mode === 'create' ? t('createTitle') : t('editTitle', { role: role?.role ?? '' })
+  const title =
+    mode === 'create'
+      ? t('createTitle')
+      : t('editTitle', { role: (role?.role ?? '').toUpperCase() })
   const subtitle = mode === 'create' ? t('createSubtitle') : t('editSubtitle')
   const keyHint = mode === 'create' ? slugPreview(name) : role?.role
   const showSystemBanner = mode === 'edit' && Boolean(role?.isSystem)
@@ -290,7 +285,9 @@ export function RoleEditorSheet({
                   <p className="text-xs font-semibold tracking-wide text-mute uppercase">
                     {t('roleKey')}
                   </p>
-                  <p className="mt-1 font-mono text-sm text-ink">{role?.role}</p>
+                  <p className="mt-1 font-mono text-sm text-ink">
+                    {(role?.role ?? '').toUpperCase()}
+                  </p>
                 </div>
               )}
 
@@ -431,20 +428,7 @@ export function RoleEditorSheet({
           </div>
 
           <DialogFooter className="shrink-0 border-t border-dash-border bg-canvas sm:flex-col sm:items-stretch">
-            {mode === 'edit' ? (
-              <Field data-invalid={Boolean(reasonError)} className="gap-1.5">
-                <FieldLabel htmlFor={reasonId}>{t('reason')}</FieldLabel>
-                <Input
-                  id={reasonId}
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  placeholder={t('reasonPlaceholder')}
-                  aria-invalid={Boolean(reasonError)}
-                />
-                <FieldDescription>{t('reasonHint')}</FieldDescription>
-                {reasonError ? <FieldError>{reasonError}</FieldError> : null}
-              </Field>
-            ) : null}
+            {/* Audit reason input is temporarily disabled. */}
 
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Button

@@ -17,12 +17,12 @@ import {
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from '@/components/ui/sheet'
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog'
 
 type AddContactSheetProps = {
   open: boolean
@@ -132,24 +132,21 @@ export function AddContactSheet({ open, onOpenChange, onCreated }: AddContactShe
   const submitDisabled = pending || orgsLoading || !canCreateContacts
 
   return (
-    <Sheet
+    <Dialog
       open={open}
       onOpenChange={(next) => {
         if (!next) reset()
         onOpenChange(next)
       }}
     >
-      <SheetContent
-        side="right"
-        className="w-[min(100vw,24rem)] border-dash-border bg-canvas p-0 sm:max-w-md"
-      >
-        <SheetHeader className="border-b border-dash-border px-5 py-4 text-left">
-          <SheetTitle className="font-display text-lg text-ink">{t('title')}</SheetTitle>
-          <SheetDescription className="text-sm text-body">{t('subtitle')}</SheetDescription>
-        </SheetHeader>
+      <DialogContent className="max-h-[min(90vh,42rem)] gap-0 overflow-hidden p-0 sm:max-w-lg" showCloseButton>
+        <DialogHeader className="border-b border-dash-border px-5 py-4 text-left sm:px-6">
+          <DialogTitle className="font-display text-lg text-ink">{t('title')}</DialogTitle>
+          <DialogDescription className="text-sm text-body">{t('subtitle')}</DialogDescription>
+        </DialogHeader>
 
         <form
-          className="flex flex-col gap-5 px-5 py-5"
+          className="flex min-h-0 flex-col gap-5 overflow-y-auto px-5 py-5 sm:px-6"
           onSubmit={handleSubmit}
           noValidate
           aria-busy={pending}
@@ -282,7 +279,7 @@ export function AddContactSheet({ open, onOpenChange, onCreated }: AddContactShe
             )}
           </Button>
         </form>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   )
 }
