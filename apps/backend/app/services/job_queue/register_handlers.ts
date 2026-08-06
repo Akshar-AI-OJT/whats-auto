@@ -3,6 +3,7 @@ import { JOB_NAMES } from '#services/job_queue/job_names'
 import { createWhatsappOutboundDispatchHandler } from '#services/job_queue/handlers/whatsapp_outbound_dispatch_handler'
 import { createWhatsappOutboundRecoveryHandler } from '#services/job_queue/handlers/whatsapp_outbound_recovery_handler'
 import { createBillingPaymentWebhookHandler } from '#services/job_queue/handlers/billing_payment_webhook_handler'
+import { createMediaPendingUploadCleanupHandler } from '#services/job_queue/handlers/media_pending_upload_cleanup_handler'
 
 /**
  * Register all worker handlers. Add new jobs here as the product grows.
@@ -11,4 +12,8 @@ export async function registerJobHandlers(driver: JobQueueDriver): Promise<void>
   await driver.work(JOB_NAMES.WHATSAPP_OUTBOUND_DISPATCH, createWhatsappOutboundDispatchHandler())
   await driver.work(JOB_NAMES.WHATSAPP_OUTBOUND_RECOVERY, createWhatsappOutboundRecoveryHandler())
   await driver.work(JOB_NAMES.BILLING_PAYMENT_WEBHOOK_PROCESS, createBillingPaymentWebhookHandler())
+  await driver.work(
+    JOB_NAMES.MEDIA_PENDING_UPLOAD_CLEANUP,
+    createMediaPendingUploadCleanupHandler()
+  )
 }

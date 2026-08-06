@@ -52,16 +52,28 @@ try {
   const driver = await manager.start()
   await registerJobHandlers(driver)
 
-  const { JOB_NAMES, WHATSAPP_OUTBOUND_RECOVERY_CRON } = await import(
-    '#services/job_queue/job_names'
-  )
+  const { JOB_NAMES, WHATSAPP_OUTBOUND_RECOVERY_CRON, MEDIA_PENDING_UPLOAD_CLEANUP_CRON } =
+    await import('#services/job_queue/job_names')
   if (typeof driver.schedule === 'function') {
-    await driver.schedule(JOB_NAMES.WHATSAPP_OUTBOUND_RECOVERY, WHATSAPP_OUTBOUND_RECOVERY_CRON, {}, {
-      key: 'outbound-recovery',
-    })
+    await driver.schedule(
+      JOB_NAMES.WHATSAPP_OUTBOUND_RECOVERY,
+      WHATSAPP_OUTBOUND_RECOVERY_CRON,
+      {},
+      {
+        key: 'outbound-recovery',
+      }
+    )
+    logger.info({ cron: WHATSAPP_OUTBOUND_RECOVERY_CRON }, 'job_queue.outbound_recovery.scheduled')
+
+    await driver.schedule(
+      JOB_NAMES.MEDIA_PENDING_UPLOAD_CLEANUP,
+      MEDIA_PENDING_UPLOAD_CLEANUP_CRON,
+      {},
+      { key: 'media-pending-upload-cleanup' }
+    )
     logger.info(
-      { cron: WHATSAPP_OUTBOUND_RECOVERY_CRON },
-      'job_queue.outbound_recovery.scheduled'
+      { cron: MEDIA_PENDING_UPLOAD_CLEANUP_CRON },
+      'job_queue.media_pending_upload_cleanup.scheduled'
     )
   }
 

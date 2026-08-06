@@ -4,9 +4,13 @@ export const JOB_NAMES = {
   WHATSAPP_OUTBOUND_RECOVERY: 'whatsapp.outbound.recovery',
   WHATSAPP_UNMATCHED_RECEIPTS_CLEANUP: 'whatsapp.unmatched_receipts.cleanup',
   BILLING_PAYMENT_WEBHOOK_PROCESS: 'billing.payment_webhook.process',
+  MEDIA_PENDING_UPLOAD_CLEANUP: 'media.pending_upload.cleanup',
 } as const
 
 export type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES]
 
 /** Cron for sweeping stuck outbound_dispatches and re-enqueueing wake jobs. */
 export const WHATSAPP_OUTBOUND_RECOVERY_CRON = '*/1 * * * *'
+
+/** Cron for expiring abandoned pending media uploads (every 5 minutes). */
+export const MEDIA_PENDING_UPLOAD_CLEANUP_CRON = '*/5 * * * *'
