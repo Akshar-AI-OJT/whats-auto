@@ -39,6 +39,7 @@
                       "#config/*":  "./config/*.js",
                       "#lib/*":  "./lib/*.js",
                       "#lib/meta_whatsapp/*":  "./lib/meta_whatsapp/*.js",
+                      "#repositories/*":  "./app/repositories/*.js",
                       "#types/*":  "./types/*.js"
                   },
       "devDependencies":  {

@@ -18,6 +18,110 @@ export type MetaWebhookPayload = {
   entry?: MetaWebhookEntry[]
 }
 
+export type MetaWebhookStatusName = 'sent' | 'delivered' | 'read' | 'failed'
+
+export type MetaWebhookError = {
+  code?: number
+  title?: string
+  message?: string
+  error_data?: { details?: string }
+}
+
+export type MetaWebhookMedia = {
+  id?: string
+  mime_type?: string
+  caption?: string
+  filename?: string
+  sha256?: string
+}
+
+export type MetaWebhookLocation = {
+  latitude?: number
+  longitude?: number
+  name?: string
+  address?: string
+  url?: string
+}
+
+export type MetaWebhookInteractive = {
+  type?: string
+  button_reply?: { id?: string; title?: string }
+  list_reply?: { id?: string; title?: string; description?: string }
+}
+
+export type MetaWebhookContact = {
+  wa_id: string
+  profile?: { name?: string }
+}
+
+export type MetaWebhookMessage = {
+  from: string
+  id: string
+  timestamp: string
+  type: string
+  text?: { body?: string }
+  image?: MetaWebhookMedia
+  audio?: MetaWebhookMedia
+  video?: MetaWebhookMedia
+  document?: MetaWebhookMedia
+  location?: MetaWebhookLocation
+  interactive?: MetaWebhookInteractive
+  errors?: MetaWebhookError[]
+}
+
+export type MetaWebhookStatus = {
+  id: string
+  status: MetaWebhookStatusName
+  timestamp: string
+  recipient_id?: string
+  errors?: MetaWebhookError[]
+}
+
+export type MessageMetadataError = {
+  code?: number
+  title?: string
+  message?: string
+  details?: string
+}
+
+export type MessageMetadataMedia = {
+  id?: string
+  mimeType?: string
+  caption?: string
+  filename?: string
+  sha256?: string
+}
+
+export type MessageMetadataLocation = {
+  latitude?: number
+  longitude?: number
+  name?: string
+  address?: string
+  url?: string
+}
+
+export type MessageMetadataInteractive = {
+  type?: string
+  buttonReply?: { id?: string; title?: string }
+  listReply?: { id?: string; title?: string; description?: string }
+}
+
+export type MessageMetadata = {
+  media?: MessageMetadataMedia
+  location?: MessageMetadataLocation
+  interactive?: MessageMetadataInteractive
+  errors?: MessageMetadataError[]
+  [key: string]: unknown
+}
+
+/** Graph API template components for outbound sends. */
+export type MetaSendTemplateComponent = {
+  type: string
+  parameters?: Array<Record<string, unknown>>
+  sub_type?: string
+  index?: string | number
+}
+
 export type MetaTokenExchangeResult = {
   accessToken: string
   tokenType?: string

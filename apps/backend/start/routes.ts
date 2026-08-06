@@ -35,6 +35,7 @@ const WhatsappConfigsController = () => import('#controllers/whatsapp_configs_co
 const MessageTemplatesController = () => import('#controllers/message_templates_controller')
 const MessagesController = () => import('#controllers/messages_controller')
 const ConversationNotesController = () => import('#controllers/conversation_notes_controller')
+const InboxEventsController = () => import('#controllers/inbox_events_controller')
 
 type JsonSchema = {
   type: 'object'
@@ -544,6 +545,15 @@ router
   })
   .prefix('/api/v1/contacts')
   .use([middleware.jwtAuth(), middleware.tenant()])
+
+// inbox realtime — SSE stream (must be registered before /conversations/:id)
+router
+  .get('/api/v1/inbox/events', [InboxEventsController, 'stream'])
+  .use([
+    middleware.jwtAuth(),
+    middleware.tenant(),
+    middleware.requirePermission({ permission: 'inbox:view' }),
+  ])
 
 // inbox conversations — lifecycle APIs
 router

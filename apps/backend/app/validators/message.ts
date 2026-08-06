@@ -15,6 +15,10 @@ export const listMessagesValidator = vine.create(
   vine.object({
     page: vine.number().withoutDecimals().min(1).optional(),
     limit: vine.number().withoutDecimals().min(1).max(100).optional(),
+    /**
+     * Return only messages created after this ISO timestamp (incremental history / polling).
+     */
+    after: vine.string().trim().optional(),
   })
 )
 
