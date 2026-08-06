@@ -97,6 +97,223 @@ export class AuthorizationAuditSchema extends BaseModel {
   declare targetType: string
 }
 
+export class BroadcastRecipientSchema extends BaseModel {
+  static $columns = [
+    'broadcastId',
+    'contactId',
+    'createdAt',
+    'deliveredAt',
+    'errorMessage',
+    'id',
+    'messageId',
+    'organizationId',
+    'readAt',
+    'repliedAt',
+    'sentAt',
+    'status',
+    'variables',
+  ] as const
+  $columns = BroadcastRecipientSchema.$columns
+  @column()
+  declare broadcastId: string
+  @column()
+  declare contactId: string
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare deliveredAt: DateTime | null
+  @column()
+  declare errorMessage: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare messageId: string | null
+  @column()
+  declare organizationId: string
+  @column.dateTime()
+  declare readAt: DateTime | null
+  @column.dateTime()
+  declare repliedAt: DateTime | null
+  @column.dateTime()
+  declare sentAt: DateTime | null
+  @column()
+  declare status: string
+  @column()
+  declare variables: any | null
+}
+
+export class BroadcastSchema extends BaseModel {
+  static $columns = [
+    'createdAt',
+    'createdByUserId',
+    'deliveredCount',
+    'failedCount',
+    'id',
+    'messageTemplateId',
+    'name',
+    'organizationId',
+    'readCount',
+    'repliedCount',
+    'scheduledAt',
+    'sentCount',
+    'status',
+    'totalRecipients',
+    'updatedAt',
+    'whatsappConfigId',
+  ] as const
+  $columns = BroadcastSchema.$columns
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare createdByUserId: string | null
+  @column()
+  declare deliveredCount: number
+  @column()
+  declare failedCount: number
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare messageTemplateId: string | null
+  @column()
+  declare name: string
+  @column()
+  declare organizationId: string
+  @column()
+  declare readCount: number
+  @column()
+  declare repliedCount: number
+  @column.dateTime()
+  declare scheduledAt: DateTime | null
+  @column()
+  declare sentCount: number
+  @column()
+  declare status: string
+  @column()
+  declare totalRecipients: number
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+  @column()
+  declare whatsappConfigId: string | null
+}
+
+export class ContactConsentEventSchema extends BaseModel {
+  static $columns = [
+    'contactId',
+    'createdAt',
+    'eventType',
+    'id',
+    'organizationId',
+    'source',
+  ] as const
+  $columns = ContactConsentEventSchema.$columns
+  @column()
+  declare contactId: string
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare eventType: string
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare organizationId: string
+  @column()
+  declare source: string
+}
+
+export class ContactImportRowSchema extends BaseModel {
+  static $columns = [
+    'action',
+    'contactId',
+    'createdAt',
+    'errorMessage',
+    'id',
+    'importId',
+    'organizationId',
+    'rawData',
+    'rowNumber',
+    'status',
+  ] as const
+  $columns = ContactImportRowSchema.$columns
+  @column()
+  declare action: string | null
+  @column()
+  declare contactId: string | null
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare errorMessage: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare importId: string
+  @column()
+  declare organizationId: string
+  @column()
+  declare rawData: any | null
+  @column()
+  declare rowNumber: number
+  @column()
+  declare status: string
+}
+
+export class ContactImportSchema extends BaseModel {
+  static $columns = [
+    'columnMapping',
+    'completedAt',
+    'createdAt',
+    'createdByUserId',
+    'errorCount',
+    'fileName',
+    'id',
+    'organizationId',
+    'processedRows',
+    'status',
+    'successCount',
+    'totalRows',
+    'updatedAt',
+  ] as const
+  $columns = ContactImportSchema.$columns
+  @column()
+  declare columnMapping: any | null
+  @column.dateTime()
+  declare completedAt: DateTime | null
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare createdByUserId: string | null
+  @column()
+  declare errorCount: number
+  @column()
+  declare fileName: string
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare organizationId: string
+  @column()
+  declare processedRows: number
+  @column()
+  declare status: string
+  @column()
+  declare successCount: number
+  @column()
+  declare totalRows: number
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+}
+
+export class ContactTagSchema extends BaseModel {
+  static $columns = ['contactId', 'id', 'organizationId', 'tagId'] as const
+  $columns = ContactTagSchema.$columns
+  @column()
+  declare contactId: string
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare organizationId: string
+  @column()
+  declare tagId: string
+}
+
 export class ContactSchema extends BaseModel {
   static $columns = [
     'company',
@@ -106,7 +323,9 @@ export class ContactSchema extends BaseModel {
     'deletedAt',
     'email',
     'id',
+    'marketingOptIn',
     'name',
+    'optedOutAt',
     'organizationId',
     'phone',
     'phoneNormalized',
@@ -128,7 +347,11 @@ export class ContactSchema extends BaseModel {
   @column({ isPrimary: true })
   declare id: string
   @column()
+  declare marketingOptIn: boolean
+  @column()
   declare name: string | null
+  @column.dateTime()
+  declare optedOutAt: DateTime | null
   @column()
   declare organizationId: string
   @column()
@@ -946,6 +1169,30 @@ export class SessionSchema extends BaseModel {
   declare userAgent: string | null
   @column()
   declare userId: string
+}
+
+export class TagSchema extends BaseModel {
+  static $columns = [
+    'color',
+    'createdAt',
+    'createdByUserId',
+    'id',
+    'name',
+    'organizationId',
+  ] as const
+  $columns = TagSchema.$columns
+  @column()
+  declare color: string | null
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare createdByUserId: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare name: string
+  @column()
+  declare organizationId: string
 }
 
 export class UnmatchedProviderReceiptSchema extends BaseModel {
