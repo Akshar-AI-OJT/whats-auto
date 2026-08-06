@@ -842,8 +842,7 @@ export const api = {
       if (params.limit != null) qs.set('limit', String(params.limit))
       const query = qs.toString()
       return protectedRequest<
-        | Paginated<InboxConversation>
-        | { data?: InboxConversation[]; meta?: PaginationMeta }
+        Paginated<InboxConversation> | { data?: InboxConversation[]; meta?: PaginationMeta }
       >(`/api/v1/inbox/conversations${query ? `?${query}` : ''}`, {
         method: 'GET',
       })
@@ -870,20 +869,25 @@ export const api = {
       if (params.limit != null) qs.set('limit', String(params.limit))
       const query = qs.toString()
       return protectedRequest<
-        | Paginated<InboxMessage>
-        | { data?: InboxMessage[]; meta?: PaginationMeta }
-      >(
-        `/api/v1/inbox/conversations/${conversationId}/messages${query ? `?${query}` : ''}`,
-        { method: 'GET' }
-      )
+        Paginated<InboxMessage> | { data?: InboxMessage[]; meta?: PaginationMeta }
+      >(`/api/v1/inbox/conversations/${conversationId}/messages${query ? `?${query}` : ''}`, {
+        method: 'GET',
+      })
     },
 
-    sendMessage: (conversationId: string, body: SendInboxMessageBody) =>
+    sendMessage: (
+      conversationId: string,
+      body: SendInboxMessageBody,
+      idempotencyKey: string
+    ) =>
       protectedRequest<{ data?: InboxMessage } & InboxMessage>(
         `/api/v1/inbox/conversations/${conversationId}/messages`,
         {
           method: 'POST',
           body: JSON.stringify(body),
+          headers: {
+            'Idempotency-Key': idempotencyKey,
+          },
         }
       ),
 

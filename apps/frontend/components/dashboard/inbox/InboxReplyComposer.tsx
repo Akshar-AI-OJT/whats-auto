@@ -50,13 +50,20 @@ export function InboxReplyComposer({
   const handleSend = useCallback(async () => {
     if (!canSend) return
 
+    // One key per user submit attempt. Reuse this same key if/when this attempt is retried.
+    const idempotencyKey = crypto.randomUUID()
+
     setSending(true)
     clearToast()
     try {
-      await api.inbox.sendMessage(conversationId, {
-        contentType: 'text',
-        contentText: trimmed,
-      })
+      await api.inbox.sendMessage(
+        conversationId,
+        {
+          contentType: 'text',
+          contentText: trimmed,
+        },
+        idempotencyKey
+      )
       setDraft('')
       await onSent()
     } catch (err) {

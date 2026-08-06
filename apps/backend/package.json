@@ -18,8 +18,7 @@
     "db:seed:demo": "node ace db:seed --files=./database/seeders/demo_seeder.ts",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "typecheck": "tsc --noEmit",
-    "dev:all": "concurrently -n api,worker -c blue,magenta \"pnpm dev\" \"pnpm worker\""
+    "typecheck": "tsc --noEmit"
   },
   "imports": {
     "#controllers/*": "./app/controllers/*.js",
@@ -74,9 +73,12 @@
     "@adonisjs/bouncer": "^4.0.0",
     "@adonisjs/core": "^7.3.3",
     "@adonisjs/cors": "^3.0.0",
+    "@adonisjs/drive": "^4.0.0",
     "@adonisjs/lucid": "^22.4.2",
     "@adonisjs/session": "^8.1.0",
     "@adonisjs/shield": "^9.0.0",
+    "@aws-sdk/client-s3": "^3.1103.0",
+    "@aws-sdk/s3-request-presigner": "^3.1103.0",
     "@japa/api-client": "^3.2.1",
     "@tuyau/core": "^1.2.2",
     "@types/pg": "^8.20.0",

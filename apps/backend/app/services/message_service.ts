@@ -4,14 +4,8 @@ import WhatsappOutboundService, {
   type QueueOutboundResult,
 } from '#services/whatsapp_outbound_service'
 
-export type MessageContentType =
-  | 'text'
-  | 'image'
-  | 'video'
-  | 'audio'
-  | 'document'
-  | 'template'
-export type MediaContentType = 'image' | 'video' | 'audio' | 'document'
+export type MessageContentType = 'text' | 'image' | 'video' | 'document' | 'template'
+export type MediaContentType = 'image' | 'video' | 'document'
 
 export type MessageSender = {
   type: string
@@ -226,7 +220,6 @@ export class MessageService {
       }
       case 'image':
       case 'video':
-      case 'audio':
       case 'document': {
         const queueParams = {
           organizationId,
@@ -286,10 +279,7 @@ export class MessageService {
     return mapMessageRow(enriched ?? row)
   }
 
-  private async findConversationOrFail(params: {
-    organizationId: string
-    conversationId: string
-  }) {
+  private async findConversationOrFail(params: { organizationId: string; conversationId: string }) {
     const row = await db
       .from('conversations')
       .where('id', params.conversationId)
