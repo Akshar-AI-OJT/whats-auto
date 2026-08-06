@@ -16,6 +16,12 @@ export default class NullJobQueueDriver implements JobQueueDriver {
     data: Record<string, unknown>
     options?: JobEnqueueOptions
   }> = []
+  readonly scheduled: Array<{
+    name: string
+    cron: string
+    data?: Record<string, unknown>
+    options?: { key?: string }
+  }> = []
 
   async start(): Promise<void> {
     this.#started = true
@@ -39,6 +45,15 @@ export default class NullJobQueueDriver implements JobQueueDriver {
     this.handlers.set(name, handler)
   }
 
+  async schedule(
+    name: string,
+    cron: string,
+    data?: Record<string, unknown>,
+    options?: { key?: string }
+  ): Promise<void> {
+    this.scheduled.push({ name, cron, data, options })
+  }
+
   get started() {
     return this.#started
   }
@@ -46,5 +61,9 @@ export default class NullJobQueueDriver implements JobQueueDriver {
   /** Test helper: drop recorded enqueues between cases. */
   clearEnqueued(): void {
     this.enqueued.length = 0
+  }
+
+  clearScheduled(): void {
+    this.scheduled.length = 0
   }
 }

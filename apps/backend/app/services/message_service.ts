@@ -1,12 +1,11 @@
 import db from '@adonisjs/lucid/services/db'
-import { Exception } from '@adonisjs/core/exceptions'
 import ConversationException from '#exceptions/conversation_exception'
-import MessageException from '#exceptions/message_exception'
-import { createMetaGraphClient, MetaGraphApiError, type MetaGraphClient } from '#lib/meta_whatsapp/graph_client'
-import { WhatsappConfigService } from '#services/whatsapp_config_service'
+import WhatsappOutboundService, {
+  type QueueOutboundResult,
+} from '#services/whatsapp_outbound_service'
 
-export type MessageContentType = 'text' | 'image' | 'video' | 'audio' | 'document'
-export type MediaContentType = 'image' | 'video' | 'audio' | 'document'
+export type MessageContentType = 'text' | 'image' | 'template'
+export type MediaContentType = 'image'
 
 export type MessageSender = {
   type: string
@@ -43,25 +42,21 @@ export type MessageRecord = {
   media: MessageMedia
 }
 
-const MESSAGE_COLUMNS = [
-  'id',
-  'organizationId',
-  'conversationId',
-  'senderType',
-  'senderId',
-  'contentType',
-  'contentText',
-  'mediaUrl',
-  'mediaAssetId',
-  'status',
-  'providerMessageId',
-  'errorMessage',
-  'createdAt',
-  'updatedAt',
-] as const
+export type SendAgentReplyParams = {
+  organizationId: string
+  conversationId: string
+  senderId: string
+  contentType: MessageContentType
+  contentText?: string
+  mediaAssetId?: string
+  templateId?: string
+  templateParameters?: Record<string, string>
+  headerMediaAssetId?: string
+  idempotencyKey: string
+}
 
 function toIso(value: unknown): string | null {
-  if (value == null) return null
+  if (value === null) return null
   if (value instanceof Date) return value.toISOString()
   return String(value)
 }
@@ -124,8 +119,7 @@ function mapMessageRow(r: Record<string, unknown>): MessageRecord {
 
 export class MessageService {
   constructor(
-    protected graphClient: MetaGraphClient = createMetaGraphClient(),
-    protected whatsappConfigService: WhatsappConfigService = new WhatsappConfigService()
+    protected whatsappOutbound: WhatsappOutboundService = new WhatsappOutboundService()
   ) {}
 
   /**
@@ -193,143 +187,64 @@ export class MessageService {
   }
 
   /**
-   * Create an outbound agent reply and dispatch via Meta Cloud API.
+   * Queue an outbound agent reply via WhatsappOutboundService (async Meta delivery).
+   * Session window, closed-conversation, and media/template rules live in the outbound service.
    */
-  async sendAgentReply(params: {
-    organizationId: string
-    conversationId: string
-    senderId: string
-    contentType: MessageContentType
-    contentText?: string
-    mediaAssetId?: string
-  }): Promise<MessageRecord> {
+  async sendAgentReply(params: SendAgentReplyParams): Promise<MessageRecord> {
     const { organizationId, conversationId, senderId, contentType } = params
-    const contentText = params.contentText?.trim() || null
+    const queued = await this.queueOutboundByContentType(params)
 
-    const conversation = await this.findConversationForReplyOrFail({
+    return this.hydrateMessage({
+      id: queued.messageId,
       organizationId,
       conversationId,
+      senderId,
+      contentType,
     })
+  }
 
-    if (conversation.status === 'closed') {
-      throw MessageException.conversationClosed()
-    }
+  private async queueOutboundByContentType(
+    params: SendAgentReplyParams
+  ): Promise<QueueOutboundResult> {
+    const { organizationId, conversationId, senderId, contentType, idempotencyKey } = params
 
-    let mediaAsset: {
-      id: string
-      fileName: string
-      mimeType: string
-      fileSize: number
-      filePath: string
-    } | null = null
-    let mediaUrl: string | null = null
-
-    if (contentType !== 'text') {
-      mediaAsset = await this.findMediaAssetOrFail({
-        organizationId,
-        mediaAssetId: params.mediaAssetId!,
-      })
-      mediaUrl = isPublicHttpUrl(mediaAsset.filePath) ? mediaAsset.filePath : null
-      if (!mediaUrl) {
-        throw MessageException.mediaLinkUnavailable()
+    switch (contentType) {
+      case 'text': {
+        const queueParams = {
+          organizationId,
+          conversationId,
+          text: params.contentText ?? '',
+          actorUserId: senderId,
+          idempotencyKey,
+        }
+        return this.whatsappOutbound.queueText(queueParams)
       }
-    }
-
-    const [inserted] = await db
-      .table('messages')
-      .insert({
-        organizationId,
-        conversationId,
-        senderType: 'agent',
-        senderId,
-        contentType,
-        contentText,
-        mediaUrl,
-        mediaAssetId: mediaAsset?.id ?? null,
-        status: 'queued',
-      })
-      .returning([...MESSAGE_COLUMNS])
-
-    const previewText =
-      contentType === 'text'
-        ? contentText
-        : contentText || `[${contentType}] ${mediaAsset?.fileName ?? ''}`.trim()
-
-    try {
-      const { config, accessToken } = await this.whatsappConfigService.getDecryptedAccessToken(
-        conversation.whatsappConfigId
-      )
-
-      if (config.status !== 'connected') {
-        throw MessageException.whatsappNotConnected()
+      case 'image': {
+        const queueParams = {
+          organizationId,
+          conversationId,
+          mediaType: 'image' as const,
+          mediaAssetId: params.mediaAssetId!,
+          caption: params.contentText,
+          actorUserId: senderId,
+          idempotencyKey,
+          channel: 'tenant' as const,
+        }
+        return this.whatsappOutbound.queueMedia(queueParams)
       }
-
-      const to = conversation.contactPhoneNormalized as string
-
-      const sendResult =
-        contentType === 'text'
-          ? await this.graphClient.sendTextMessage({
-              phoneNumberId: config.phoneNumberId,
-              accessToken,
-              to,
-              text: contentText!,
-            })
-          : await this.graphClient.sendMediaMessage({
-              phoneNumberId: config.phoneNumberId,
-              accessToken,
-              to,
-              type: contentType as MediaContentType,
-              link: mediaUrl!,
-              caption: contentText ?? undefined,
-              filename: mediaAsset?.fileName,
-            })
-
-      const [updated] = await db
-        .from('messages')
-        .where('id', inserted.id)
-        .where('organizationId', organizationId)
-        .update({
-          status: 'sent',
-          providerMessageId: sendResult.messageId ?? null,
-          updatedAt: new Date(),
-        })
-        .returning([...MESSAGE_COLUMNS])
-
-      await this.touchConversationAfterOutbound({
-        organizationId,
-        conversationId,
-        lastMessageText: previewText,
-        firstResponseAt: conversation.firstResponseAt,
-      })
-
-      return this.hydrateMessage(updated)
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Failed to send message'
-
-      await db
-        .from('messages')
-        .where('id', inserted.id)
-        .where('organizationId', organizationId)
-        .update({
-          status: 'failed',
-          errorMessage,
-          updatedAt: new Date(),
-        })
-
-      if (error instanceof MessageException) {
-        throw error
+      case 'template': {
+        const queueParams = {
+          organizationId,
+          conversationId,
+          templateId: params.templateId!,
+          parameters: params.templateParameters,
+          headerMediaAssetId: params.headerMediaAssetId,
+          actorUserId: senderId,
+          idempotencyKey,
+          channel: 'tenant' as const,
+        }
+        return this.whatsappOutbound.queueTemplate(queueParams)
       }
-
-      if (error instanceof Exception && error.status < 500) {
-        throw error
-      }
-
-      if (error instanceof MetaGraphApiError) {
-        throw MessageException.metaGraphFailed(error.message)
-      }
-
-      throw MessageException.metaGraphFailed(errorMessage)
     }
   }
 
@@ -366,33 +281,7 @@ export class MessageService {
     return mapMessageRow(enriched ?? row)
   }
 
-  private async touchConversationAfterOutbound(params: {
-    organizationId: string
-    conversationId: string
-    lastMessageText: string | null
-    firstResponseAt: unknown
-  }) {
-    const patch: Record<string, unknown> = {
-      lastMessageText: params.lastMessageText,
-      lastMessageAt: new Date(),
-      updatedAt: new Date(),
-    }
-
-    if (!params.firstResponseAt) {
-      patch.firstResponseAt = new Date()
-    }
-
-    await db
-      .from('conversations')
-      .where('id', params.conversationId)
-      .where('organizationId', params.organizationId)
-      .update(patch)
-  }
-
-  private async findConversationOrFail(params: {
-    organizationId: string
-    conversationId: string
-  }) {
+  private async findConversationOrFail(params: { organizationId: string; conversationId: string }) {
     const row = await db
       .from('conversations')
       .where('id', params.conversationId)
@@ -405,55 +294,5 @@ export class MessageService {
     }
 
     return row
-  }
-
-  private async findConversationForReplyOrFail(params: {
-    organizationId: string
-    conversationId: string
-  }) {
-    const row = await db
-      .from('conversations as c')
-      .innerJoin('contacts as ct', 'ct.id', 'c.contactId')
-      .where('c.id', params.conversationId)
-      .where('c.organizationId', params.organizationId)
-      .whereNull('ct.deletedAt')
-      .select(
-        'c.id',
-        'c.status',
-        'c.whatsappConfigId',
-        'c.firstResponseAt',
-        'ct.phoneNormalized as contactPhoneNormalized'
-      )
-      .first()
-
-    if (!row) {
-      throw ConversationException.notFound()
-    }
-
-    return row
-  }
-
-  private async findMediaAssetOrFail(params: {
-    organizationId: string
-    mediaAssetId: string
-  }) {
-    const row = await db
-      .from('media_assets')
-      .where('id', params.mediaAssetId)
-      .where('organizationId', params.organizationId)
-      .select('id', 'fileName', 'mimeType', 'fileSize', 'filePath')
-      .first()
-
-    if (!row) {
-      throw MessageException.mediaNotFound()
-    }
-
-    return {
-      id: row.id as string,
-      fileName: row.fileName as string,
-      mimeType: row.mimeType as string,
-      fileSize: Number(row.fileSize ?? 0),
-      filePath: row.filePath as string,
-    }
   }
 }

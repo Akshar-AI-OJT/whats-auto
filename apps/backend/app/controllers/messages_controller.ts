@@ -1,3 +1,4 @@
+import { Exception } from '@adonisjs/core/exceptions'
 import type { HttpContext } from '@adonisjs/core/http'
 import { MessageService } from '#services/message_service'
 import { conversationIdParamValidator } from '#validators/conversation'
@@ -39,32 +40,68 @@ export default class MessagesController {
   /**
    * @store
    * @summary Send an agent reply
-   * @description Creates an outbound agent message and dispatches it via the Meta WhatsApp Cloud API.
+   * @description Queues an outbound agent message (text, media, or template) for async WhatsApp delivery. Requires the Idempotency-Key header.
    * @tag Inbox Messages
    * @security BearerAuth
    * @paramPath id - Conversation id - @type(string)
+   * @paramHeader Idempotency-Key - Client idempotency key (required, non-empty) - @type(string)
    * @requestBody { "contentType": "text", "contentText": "Hello!" }
-   * @responseBody 200 - { "data": { "id": "uuid", "direction": "outbound", "senderType": "agent", "contentType": "text", "contentText": "Hello!", "status": "sent" } }
+   * @responseBody 200 - { "data": { "id": "uuid", "direction": "outbound", "senderType": "agent", "contentType": "text", "contentText": "Hello!", "status": "queued" } }
    * @responseBody 404 - { "error": "Conversation not found", "code": "E_CONVERSATION_NOT_FOUND" }
-   * @responseBody 422 - { "error": "Cannot reply to a closed conversation", "code": "E_CONVERSATION_CLOSED" }
-   * @responseBody 502 - { "error": "Meta Graph send failed", "code": "E_MESSAGE_META_GRAPH_FAILED" }
+   * @responseBody 422 - { "error": "Customer service window has expired", "code": "E_OUTBOUND_SESSION_WINDOW_EXPIRED" }
+   * @responseBody 422 - { "error": "Cannot reply to a closed conversation", "code": "E_OUTBOUND_CONVERSATION_CLOSED" }
+   * @responseBody 422 - { "error": "Media asset MIME type is not supported for WhatsApp delivery", "code": "E_OUTBOUND_MEDIA_MIME_TYPE" }
+   * @responseBody 422 - { "error": "Media asset does not have a publicly accessible URL for WhatsApp delivery", "code": "E_OUTBOUND_MEDIA_LINK_UNAVAILABLE" }
+   * @responseBody 422 - { "error": "Idempotency-Key was reused with a different payload", "code": "E_IDEMPOTENCY_KEY_CONFLICT" }
+   * @responseBody 422 - { "error": "Idempotency-Key header is required", "code": "E_IDEMPOTENCY_KEY_REQUIRED" }
    * @responseBody 403 - { "error": "Permission denied: inbox:reply", "code": "PERMISSION_DENIED" }
    */
-  async store({ request, params, serialize }: HttpContext) {
+  async store({ request, response, params, serialize }: HttpContext) {
+    const agent = request.authUser
+    const activeMember = request.activeMember
+    if (!agent || !activeMember) {
+      return response.unauthorized({ error: 'Unauthorized', code: 'UNAUTHORIZED' })
+    }
+
+    if (!request.memberPermissions?.has('inbox:reply')) {
+      return response.forbidden({
+        error: 'Permission denied: inbox:reply',
+        code: 'PERMISSION_DENIED',
+        required: 'inbox:reply',
+        role: activeMember.role,
+      })
+    }
+
     const { id } = await request.validateUsing(conversationIdParamValidator, {
       data: params,
     })
     const payload = await request.validateUsing(createMessageValidator)
+    const idempotencyKey = this.requireIdempotencyKey(request)
 
     const message = await new MessageService().sendAgentReply({
-      organizationId: request.activeMember!.organizationId,
+      organizationId: activeMember.organizationId,
       conversationId: id,
-      senderId: request.authUser!.id,
+      senderId: agent.id,
       contentType: payload.contentType,
       contentText: payload.contentText,
       mediaAssetId: payload.mediaAssetId,
-    })
+      templateId: payload.templateId,
+      templateParameters: payload.templateParameters,
+      headerMediaAssetId: payload.headerMediaAssetId,
+      idempotencyKey,
+    } as Parameters<MessageService['sendAgentReply']>[0])
 
     return serialize(message)
+  }
+
+  private requireIdempotencyKey(request: HttpContext['request']): string {
+    const key = request.header('Idempotency-Key')?.trim()
+    if (!key) {
+      throw new Exception('Idempotency-Key header is required', {
+        status: 422,
+        code: 'E_IDEMPOTENCY_KEY_REQUIRED',
+      })
+    }
+    return key
   }
 }

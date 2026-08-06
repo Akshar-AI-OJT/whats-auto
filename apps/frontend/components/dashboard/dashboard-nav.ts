@@ -2,13 +2,11 @@ import {
   LayoutDashboard,
   Users,
   Inbox,
-  MessageSquare,
   Megaphone,
   FileText,
   Bell,
   BarChart3,
   CreditCard,
-  ScrollText,
   Settings,
   UsersRound,
   type LucideIcon,
@@ -20,13 +18,13 @@ export const DASHBOARD_NAV_KEYS = [
   'team',
   'contacts',
   'inbox',
-  'messages',
+  // 'messages', // hidden for now (no clear product flow/page)
   'campaigns',
   'templates',
   'notifications',
   'analytics',
   'billing',
-  'auditLogs',
+  // 'auditLogs', // hidden for now (tenant audit page not wired)
   'settings',
 ] as const
 
@@ -37,13 +35,13 @@ export const DASHBOARD_NAV_ICONS: Record<DashboardNavKey, LucideIcon> = {
   team: UsersRound,
   contacts: Users,
   inbox: Inbox,
-  messages: MessageSquare,
+  // messages: MessageSquare,
   campaigns: Megaphone,
   templates: FileText,
   notifications: Bell,
   analytics: BarChart3,
   billing: CreditCard,
-  auditLogs: ScrollText,
+  // auditLogs: ScrollText,
   settings: Settings,
 }
 
@@ -52,6 +50,8 @@ export const DASHBOARD_NAV_HREFS: Partial<Record<DashboardNavKey, string>> = {
   dashboard: '/dashboard',
   team: '/dashboard/team',
   contacts: '/dashboard/contacts',
+  inbox: '/dashboard/inbox',
+  templates: '/dashboard/templates',
   settings: '/dashboard/settings',
 }
 
@@ -83,5 +83,7 @@ export const DASHBOARD_NAV_CHILDREN: Partial<
  */
 export const DASHBOARD_NAV_PERMISSION: Partial<Record<DashboardNavKey, string>> = {
   contacts: PERMISSIONS.CONTACTS_VIEW,
+  inbox: PERMISSIONS.INBOX_VIEW,
+  templates: PERMISSIONS.WHATSAPP_VIEW,
   settings: PERMISSIONS.ORG_VIEW,
 }

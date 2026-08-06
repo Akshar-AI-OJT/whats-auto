@@ -45,6 +45,10 @@ type OrganizationsContextValue = {
   canManageRoles: boolean
   canViewContacts: boolean
   canCreateContacts: boolean
+  canViewInbox: boolean
+  canViewWhatsapp: boolean
+  canConnectWhatsapp: boolean
+  canManageWhatsapp: boolean
   isLoading: boolean
   error: string | null
   refresh: () => Promise<{
@@ -318,6 +322,10 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
     canManageRoles: hasPermission(permissions, PERMISSIONS.ROLES_MANAGE),
     canViewContacts: hasPermission(permissions, PERMISSIONS.CONTACTS_VIEW),
     canCreateContacts: hasPermission(permissions, PERMISSIONS.CONTACTS_CREATE),
+    canViewInbox: hasPermission(permissions, PERMISSIONS.INBOX_VIEW),
+    canViewWhatsapp: hasPermission(permissions, PERMISSIONS.WHATSAPP_VIEW),
+    canConnectWhatsapp: hasPermission(permissions, PERMISSIONS.WHATSAPP_CONNECT),
+    canManageWhatsapp: hasPermission(permissions, PERMISSIONS.WHATSAPP_MANAGE),
     // Do not treat workspace switch / access refetch as full-shell loading.
     isLoading: sessionPending || orgsQuery.isLoading || liveBootstrapping,
     error: liveSwitchError ?? listError,

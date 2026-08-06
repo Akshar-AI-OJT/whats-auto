@@ -17,7 +17,7 @@ import { DashboardPanel } from '../ui/DashboardPanel'
 const NEXT_STEPS = [
   {
     id: 'whatsapp',
-    href: '/dashboard',
+    href: '/dashboard/whatsapp',
     icon: MessageCircle,
   },
   {

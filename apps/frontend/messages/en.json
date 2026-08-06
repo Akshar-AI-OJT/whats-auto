@@ -1606,7 +1606,7 @@
       "editor": {
         "createTitle": "Create Role",
         "createSubtitle": "Name is slugified into an immutable role key (max 20 characters).",
-        "editTitle": "Edit “{role}”",
+        "editTitle": "Edit {role}",
         "editSubtitle": "Update permissions for this role. System roles store overrides for this workspace only.",
         "name": "Role name",
         "namePlaceholder": "Support Lead",
@@ -1617,8 +1617,11 @@
         "systemOverrideBanner": "You’re editing a system role (admin, agent, or viewer). Saving creates organization-specific permission overrides for this workspace only — the global seed is unchanged.",
         "permissions": "Permissions",
         "permissionsHint": "You can only grant permissions you already hold. Expand a category to fine-tune actions.",
+        "selectAllGlobal": "Grant all permissions",
         "enabledTotal": "{enabled}/{total} enabled",
         "groupEnabledSummary": "{enabled} of {total} enabled",
+        "modules": "Modules",
+        "selectAllInModule": "Select all",
         "searchPlaceholder": "Search permissions…",
         "searchNoMatches": "No permissions match your search.",
         "selectGroup": "Select all {resource} permissions",
@@ -1687,6 +1690,386 @@
           "permissionDenied": "You don’t have permission to add contacts.",
           "generic": "Couldn’t save this contact. Please try again."
         }
+      }
+    },
+    "inbox": {
+      "eyebrow": "Messaging",
+      "title": "Inbox",
+      "subtitle": "Manage customer conversations across your workspace.",
+      "listTitle": "Conversations",
+      "listDescription": "{count, plural, =0 {No conversations} one {# conversation} other {# conversations}}",
+      "loading": "Loading conversations…",
+      "retry": "Retry",
+      "refresh": "Refresh conversations",
+      "newConversationCta": "New Conversation",
+      "searchLabel": "Search conversations",
+      "searchPlaceholder": "Search by contact name or phone…",
+      "statusFilterLabel": "Filter by status",
+      "agentFilterLabel": "Filter by assigned agent",
+      "showingCount": "Showing {count, plural, =0 {0 conversations} one {# conversation} other {# conversations}}",
+      "rowsPerPage": "Rows per page",
+      "emptyTitle": "📥 Inbox is empty",
+      "emptyDescription": "Customer conversations will appear here once your WhatsApp number starts receiving messages.",
+      "emptyConnectCta": "Connect WhatsApp",
+      "kpis": {
+        "open": "Open",
+        "assigned": "Assigned",
+        "waiting": "Waiting",
+        "closedToday": "Closed today"
+      },
+      "noPreview": "No messages yet",
+      "unassigned": "Unassigned",
+      "prevPage": "Previous",
+      "nextPage": "Next",
+      "pagination": "Page {page} of {lastPage} · {total} total",
+      "columns": {
+        "contact": "Contact",
+        "preview": "Last message",
+        "status": "Status",
+        "agent": "Assigned to",
+        "channel": "Channel",
+        "updated": "Updated"
+      },
+      "filters": {
+        "status": {
+          "all": "All statuses",
+          "open": "Open",
+          "pending": "Pending",
+          "closed": "Closed"
+        },
+        "agent": {
+          "all": "All agents"
+        }
+      },
+      "channel": {
+        "whatsapp": "WhatsApp"
+      },
+      "errors": {
+        "loadFailed": "Couldn’t load conversations. Please try again.",
+        "permissionDenied": "You don’t have permission to view the inbox in this workspace."
+      },
+      "newConversation": {
+        "title": "New Conversation",
+        "description": "Start a new customer conversation by selecting a contact and a connected WhatsApp number.",
+        "contactLabel": "Contact",
+        "contactSearchPlaceholder": "Search contacts by name or phone…",
+        "loadingContacts": "Loading contacts…",
+        "emptyContacts": "No contacts found.",
+        "selected": "Selected",
+        "whatsappLabel": "WhatsApp number",
+        "whatsappSearchPlaceholder": "Search WhatsApp numbers…",
+        "emptyWhatsappSearch": "No WhatsApp numbers match your search.",
+        "emptyWhatsappConfigs": "Connect a WhatsApp number to start conversations.",
+        "emptyWhatsappTitle": "No WhatsApp number connected",
+        "emptyWhatsappDescription": "Connect your WhatsApp Business account before creating conversations.",
+        "connectWhatsappCta": "Connect WhatsApp",
+        "createCta": "Create conversation",
+        "createDisabledHint": "Connect a WhatsApp Business account first.",
+        "status": {
+          "connected": "Connected",
+          "disconnected": "Disconnected",
+          "error": "Error"
+        },
+        "errors": {
+          "loadFailed": "Couldn’t load contacts or WhatsApp numbers. Please try again.",
+          "createFailed": "Couldn’t create the conversation. Please try again.",
+          "permissionDenied": "You don’t have permission to start a conversation in this workspace.",
+          "sessionExpired": "Your session expired. Please sign in again."
+        }
+      },
+      "sidebarDescription": "Recent conversations in this workspace.",
+      "thread": {
+        "back": "Back to inbox",
+        "agentSender": "Agent",
+        "noContent": "No message content",
+        "emptyTitle": "📭 No messages yet",
+        "emptyDescription": "Messages will appear here once the conversation starts.",
+        "selectTitle": "Select a conversation",
+        "selectDescription": "Choose a conversation from the list to view the message thread.",
+        "retry": "Retry",
+        "errors": {
+          "loadFailed": "Couldn’t load this conversation. Please try again.",
+          "notFound": "Conversation not found.",
+          "permissionDenied": "You don’t have permission to view this conversation."
+        },
+        "composer": {
+          "label": "Reply to customer",
+          "placeholder": "Write a reply…",
+          "hint": "Enter to send · Shift+Enter for a new line",
+          "send": "Send reply",
+          "readOnly": "You don’t have permission to reply in this workspace.",
+          "closedHint": "This conversation is closed. Reopen it to send a reply.",
+          "errors": {
+            "sendFailed": "Couldn’t send your reply. Please try again.",
+            "sessionExpired": "Your session expired. Please sign in again.",
+            "permissionDenied": "You don’t have permission to send replies.",
+            "conversationClosed": "Cannot reply to a closed conversation.",
+            "notFound": "Conversation not found."
+          }
+        },
+        "actions": {
+          "assignLabel": "Assign agent",
+          "assignPlaceholder": "Assign to…",
+          "noAgents": "No agents available",
+          "statusLabel": "Conversation status",
+          "close": "Close",
+          "reopen": "Reopen",
+          "errors": {
+            "actionFailed": "Couldn’t update this conversation. Please try again.",
+            "sessionExpired": "Your session expired. Please sign in again.",
+            "permissionDenied": "You don’t have permission to change this conversation.",
+            "notFound": "Conversation not found.",
+            "agentNotFound": "That agent is not a member of this workspace."
+          }
+        },
+        "panelsLabel": "Conversation panels",
+        "panels": {
+          "messages": "Messages",
+          "notes": "Internal notes"
+        },
+        "notes": {
+          "loading": "Loading notes…",
+          "emptyTitle": "No internal notes yet",
+          "emptyDescription": "Add private notes for your team. Customers never see these.",
+          "label": "Internal note",
+          "placeholder": "Write an internal note…",
+          "hint": "Notes stay inside your workspace and are never sent on WhatsApp.",
+          "save": "Add note",
+          "readOnly": "You don’t have permission to add notes in this workspace.",
+          "unknownAuthor": "Team member",
+          "errors": {
+            "saveFailed": "Couldn’t save this note. Please try again.",
+            "sessionExpired": "Your session expired. Please sign in again.",
+            "permissionDenied": "You don’t have permission to manage notes.",
+            "notFound": "Conversation not found."
+          }
+        }
+      },
+      "detail": {
+        "back": "Back to inbox",
+        "title": "Conversation",
+        "comingSoon": "Thread and replies will be available in the next step.",
+        "idLabel": "Conversation ID: {id}"
+      }
+    },
+    "whatsapp": {
+      "eyebrow": "Channel",
+      "title": "WhatsApp Connection",
+      "subtitle": "Connect WhatsApp Business numbers to receive and send customer conversations from Inbox.",
+      "connectCta": "Connect WhatsApp",
+      "refresh": "Refresh",
+      "loading": "Loading WhatsApp numbers…",
+      "listTitle": "Connected numbers",
+      "listDescription": "WhatsApp Business numbers linked to this workspace.",
+      "emptyTitle": "No WhatsApp number connected",
+      "emptyDescription": "Connect your WhatsApp Business account to start receiving conversations in Inbox.",
+      "disconnect": "Disconnect",
+      "testLabel": "Send test template to",
+      "testPlaceholder": "15551234567",
+      "testCta": "Send test",
+      "phoneNumberId": "Phone number ID: {id}",
+      "wabaId": "WABA ID: {id}",
+      "connectedAt": "Connected {date}",
+      "status": {
+        "connected": "Connected",
+        "disconnected": "Disconnected",
+        "error": "Error"
+      },
+      "toasts": {
+        "connected": "WhatsApp number connected successfully.",
+        "disconnected": "WhatsApp number disconnected.",
+        "testSent": "Test message sent."
+      },
+      "errors": {
+        "generic": "Something went wrong. Please try again.",
+        "sessionExpired": "Your session expired. Please sign in again.",
+        "permissionDenied": "You don’t have permission to manage WhatsApp in this workspace.",
+        "sessionMissing": "WhatsApp signup session is not configured. Check Meta app settings.",
+        "signupCancelled": "WhatsApp connection was cancelled.",
+        "sessionInfoMissing": "Couldn’t read WhatsApp account details from Meta. Please try again.",
+        "phoneOwned": "This WhatsApp phone number is already connected to another organization.",
+        "notConnected": "This WhatsApp number is not connected.",
+        "metaGraph": "Meta Graph API error. Please try again.",
+        "testToRequired": "Enter a recipient phone number to send a test."
+      }
+    },
+    "templates": {
+      "eyebrow": "Messaging",
+      "title": "Templates List",
+      "subtitle": "Create, review, and sync WhatsApp message templates for this workspace.",
+      "createCta": "Create Template",
+      "syncCta": "Sync from Meta",
+      "browseCta": "Browse Templates",
+      "browseComingSoon": {
+        "title": "Coming Soon",
+        "body": "Browse Templates will be available in a future update.",
+        "dismiss": "Got it"
+      },
+      "loading": "Loading templates…",
+      "listTitle": "All templates",
+      "listDescription": "Search and filter templates by category, status, or language.",
+      "searchPlaceholder": "Search templates by name, category or language…",
+      "emptyTitle": "No templates yet",
+      "emptyDescription": "Create your first template or sync approved templates from Meta.",
+      "pagination": "Showing {from} to {to} of {total} templates",
+      "prev": "Previous",
+      "next": "Next",
+      "createTitle": "Create Template",
+      "createFromTitle": "Duplicate Template",
+      "createSubtitle": "Build a WhatsApp template and submit it for Meta review.",
+      "backToList": "Back to templates",
+      "tabs": {
+        "all": "All Templates",
+        "approved": "Approved",
+        "pending": "Pending",
+        "rejected": "Rejected"
+      },
+      "filters": {
+        "category": "Category",
+        "status": "Status",
+        "language": "Language",
+        "allCategories": "All Categories",
+        "allStatuses": "All Status",
+        "allLanguages": "All Languages"
+      },
+      "categories": {
+        "MARKETING": "Marketing",
+        "UTILITY": "Utility",
+        "AUTHENTICATION": "Authentication"
+      },
+      "status": {
+        "approved": "Approved",
+        "pending": "Pending",
+        "rejected": "Rejected",
+        "draft": "Draft"
+      },
+      "table": {
+        "template": "Template",
+        "category": "Category",
+        "language": "Language",
+        "status": "Status",
+        "updated": "Last Updated",
+        "actions": "Actions"
+      },
+      "actions": {
+        "menuAria": "Template actions",
+        "view": "View details",
+        "edit": "Edit template",
+        "delete": "Delete"
+      },
+      "preview": {
+        "title": "WhatsApp Preview",
+        "businessFallback": "Business",
+        "emptyBody": "Your message preview will appear here.",
+        "buttonFallback": "Button"
+      },
+      "form": {
+        "name": "Template Name",
+        "namePlaceholder": "welcome_message",
+        "nameHint": "Lowercase letters, numbers, and underscores only.",
+        "category": "Category",
+        "language": "Language",
+        "headerType": "Header",
+        "headerContent": "Header text",
+        "headerPlaceholder": "Order update",
+        "body": "Template Body",
+        "bodyPlaceholder": "Hi '{{1}}', your order '{{2}}' is confirmed.",
+        "footer": "Footer",
+        "footerPlaceholder": "Thank you for shopping with us",
+        "variables": "Variables",
+        "variablesHint": "Provide a real sample value for every numbered placeholder before submitting.",
+        "samplePlaceholder": "Example for {n}",
+        "buttons": "Buttons",
+        "buttonsHint": "Optional. Up to 3 buttons.",
+        "addButton": "Add Button",
+        "removeButton": "Remove",
+        "buttonTextPlaceholder": "Button label",
+        "buttonUrlPlaceholder": "https://example.com",
+        "buttonPhonePlaceholder": "+15551234567",
+        "insertVariable": "Variable",
+        "formatBold": "Bold",
+        "formatItalic": "Italic",
+        "formatStrike": "Strikethrough",
+        "cancel": "Cancel",
+        "saveDraft": "Save as Draft",
+        "submitReview": "Submit for Review",
+        "previewNameFallback": "template_name",
+        "categories": {
+          "MARKETING": "Marketing",
+          "UTILITY": "Utility",
+          "AUTHENTICATION": "Authentication"
+        },
+        "headerTypes": {
+          "NONE": "None",
+          "TEXT": "Text",
+          "IMAGE": "Image",
+          "VIDEO": "Video",
+          "DOCUMENT": "Document"
+        },
+        "buttonTypes": {
+          "QUICK_REPLY": "Quick Reply",
+          "URL": "Visit Website",
+          "PHONE_NUMBER": "Call Phone"
+        },
+        "errors": {
+          "nameInvalid": "Use lowercase letters, numbers, and underscores only.",
+          "bodyRequired": "Body text is required.",
+          "bodyTooLong": "Body text must be 1024 characters or fewer.",
+          "headerRequired": "Enter header text for TEXT headers.",
+          "sampleRequired": "Enter a sample value for variable {n}.",
+          "samplesRequired": "Fill every variable sample value before submitting."
+        }
+      },
+      "details": {
+        "content": "Template Content",
+        "header": "Header",
+        "body": "Body",
+        "footer": "Footer",
+        "variables": "Variables",
+        "noVariables": "No variables in this template.",
+        "buttons": "Buttons",
+        "noButtons": "No buttons configured.",
+        "history": "Submission History",
+        "statusCard": "Template Status",
+        "templateId": "Template ID",
+        "historyEvents": {
+          "created": "Created",
+          "submitted": "Submitted",
+          "approved": "Approved",
+          "rejected": "Rejected",
+          "pendingReview": "Pending review"
+        }
+      },
+      "delete": {
+        "title": "Delete this template?",
+        "body": "“{name}” will be removed from this workspace and Meta if connected.",
+        "cancel": "Cancel",
+        "confirm": "Delete template",
+        "deleting": "Deleting…"
+      },
+      "sync": {
+        "syncingTitle": "Syncing Templates…",
+        "syncingDescription": "Fetching templates from your Meta WABA account.",
+        "doneTitle": "Sync complete",
+        "doneDescription": "{count, plural, one {# template synced} other {# templates synced}}.",
+        "failedTitle": "Sync failed",
+        "importedLabel": "Templates imported",
+        "statusLabel": "Refresh status",
+        "statusRunning": "In progress",
+        "statusDone": "Complete",
+        "statusFailed": "Failed",
+        "dontClose": "Please don’t close this window.",
+        "retry": "Retry sync",
+        "close": "Close"
+      },
+      "errors": {
+        "loadFailed": "Couldn’t load templates. Please try again.",
+        "permissionDenied": "You don’t have permission to view templates in this workspace.",
+        "manageDenied": "You don’t have permission to manage templates.",
+        "createFailed": "Couldn’t create this template. Please try again.",
+        "deleteFailed": "Couldn’t delete this template. Please try again.",
+        "syncFailed": "Couldn’t sync templates from Meta. Please try again.",
+        "duplicate": "A template with this name and language already exists."
       }
     },
     "settings": {
@@ -1792,6 +2175,12 @@
           "invite": "Invite Team Members",
           "campaign": "Create First Campaign"
         }
+      },
+      "connectWhatsapp": {
+        "title": "Connect WhatsApp",
+        "description": "Connect your WhatsApp Business account to start receiving customer conversations and manage them from the Inbox.",
+        "cta": "Connect WhatsApp",
+        "secondary": "You can connect multiple WhatsApp Business numbers later."
       },
       "kpis": {
         "contacts": {

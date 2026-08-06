@@ -278,11 +278,230 @@ export type CreateContactBody = {
   company?: string
 }
 
+export type InboxConversationStatus = 'open' | 'pending' | 'closed'
+
+export type InboxConversationContact = {
+  id: string
+  name: string | null
+  phone: string
+  phoneNormalized?: string
+  email?: string | null
+  company?: string | null
+}
+
+/** Row from GET /api/v1/inbox/conversations */
+export type InboxConversation = {
+  id: string
+  organizationId: string
+  whatsappConfigId: string
+  contactId: string
+  status: InboxConversationStatus | string
+  assignedAgentId: string | null
+  lastMessageText: string | null
+  lastMessageAt: string | null
+  firstResponseAt?: string | null
+  closedAt?: string | null
+  unreadCount: number
+  createdAt: string
+  updatedAt?: string | null
+  contact: InboxConversationContact
+}
+
+export type CreateInboxConversationBody = {
+  contactId: string
+  whatsappConfigId: string
+}
+
+export type ListInboxConversationsParams = {
+  status?: InboxConversationStatus
+  assignedAgentId?: string
+  search?: string
+  page?: number
+  limit?: number
+}
+
+export type InboxMessageDirection = 'inbound' | 'outbound'
+
+export type InboxMessageSender = {
+  type: string
+  id: string | null
+  name: string | null
+}
+
+/** Row from GET /api/v1/inbox/conversations/:id/messages */
+export type InboxMessage = {
+  id: string
+  organizationId: string
+  conversationId: string
+  senderType: string
+  senderId: string | null
+  direction: InboxMessageDirection
+  contentType: string
+  contentText: string | null
+  mediaUrl: string | null
+  mediaAssetId: string | null
+  status: string
+  providerMessageId: string | null
+  errorMessage: string | null
+  createdAt: string
+  updatedAt: string | null
+  sender: InboxMessageSender
+}
+
+export type ListInboxMessagesParams = {
+  page?: number
+  limit?: number
+}
+
+export type SendInboxMessageBody = {
+  contentType: 'text'
+  contentText: string
+}
+
+export type AssignInboxConversationBody = {
+  assignedAgentId: string
+}
+
+export type UpdateInboxConversationBody = {
+  status: InboxConversationStatus
+}
+
+export type InboxConversationNoteAuthor = {
+  id: string
+  name: string | null
+  email: string | null
+}
+
+/** Row from GET/POST /api/v1/inbox/conversations/:id/notes */
+export type InboxConversationNote = {
+  id: string
+  conversationId: string
+  organizationId: string
+  noteText: string
+  createdBy: InboxConversationNoteAuthor
+  createdAt: string
+  updatedAt: string | null
+}
+
+export type CreateInboxConversationNoteBody = {
+  noteText: string
+}
+
 export type WhatsappConfigSummary = {
   id: string
+  organizationId?: string
   phoneNumberId: string
   displayPhoneNumber?: string | null
-  status: string
+  wabaId?: string | null
+  status: 'connected' | 'disconnected' | 'error' | string
+  connectedAt?: string | null
+  registeredAt?: string | null
+  subscribedAppsAt?: string | null
+  createdByUserId?: string | null
+  createdAt?: string
+  updatedAt?: string | null
+}
+
+export type WhatsappEmbeddedSignupSession = {
+  appId: string
+  configId: string
+  graphVersion: string
+}
+
+export type CompleteWhatsappEmbeddedSignupBody = {
+  code: string
+  wabaId: string
+  phoneNumberId: string
+  businessId?: string
+}
+
+export type TestWhatsappConfigBody = {
+  to: string
+  templateName?: string
+  languageCode?: string
+}
+
+export type TestWhatsappConfigResult = {
+  messageId?: string | null
+}
+
+export type WhatsappTemplateCategory = 'MARKETING' | 'UTILITY' | 'AUTHENTICATION'
+
+export type WhatsappTemplateHeaderType = 'NONE' | 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT'
+
+export type WhatsappTemplateStatus =
+  | 'draft'
+  | 'pending'
+  | 'approved'
+  | 'rejected'
+  | 'deleted'
+  | 'paused'
+  | 'disabled'
+  | string
+
+export type WhatsappTemplateParameterSchema = {
+  headerNames?: string[]
+  bodyNames?: string[]
+  sendable?: boolean
+  unsupportedReason?: string | null
+}
+
+export type WhatsappTemplateButton = {
+  type?: string
+  text?: string
+  url?: string
+  phone_number?: string
+  [key: string]: unknown
+}
+
+export type WhatsappMessageTemplate = {
+  id: string
+  organizationId?: string
+  whatsappConfigId?: string | null
+  createdByUserId?: string | null
+  name: string
+  category: WhatsappTemplateCategory | string
+  language: string | null
+  headerType?: WhatsappTemplateHeaderType | string | null
+  headerContent?: string | null
+  headerMediaUrl?: string | null
+  bodyText: string
+  footerText?: string | null
+  buttons?: WhatsappTemplateButton[] | null
+  sampleValues?: Record<string, unknown> | unknown
+  parameterSchema?: WhatsappTemplateParameterSchema | null
+  status: WhatsappTemplateStatus
+  metaTemplateId?: string | null
+  rejectionReason?: string | null
+  qualityScore?: string | null
+  submissionError?: string | null
+  lastSubmittedAt?: string | null
+  createdAt?: string
+  updatedAt?: string | null
+}
+
+export type ListWhatsappTemplatesParams = {
+  page?: number
+  perPage?: number
+  status?: string
+  category?: string
+  search?: string
+}
+
+export type CreateWhatsappTemplateBody = {
+  name: string
+  category: WhatsappTemplateCategory | string
+  language: string
+  headerType?: WhatsappTemplateHeaderType | string
+  headerContent?: string
+  bodyText: string
+  footerText?: string
+  buttons?: WhatsappTemplateButton[]
+  sampleValues?: Record<string, unknown> | unknown
+}
+
+export type SyncWhatsappTemplatesResult = {
+  syncedCount: number
 }
 
 export type CreateInvitationBody = {
@@ -613,11 +832,196 @@ export const api = {
       }),
   },
 
+  inbox: {
+    listConversations: (params: ListInboxConversationsParams = {}) => {
+      const qs = new URLSearchParams()
+      if (params.status) qs.set('status', params.status)
+      if (params.assignedAgentId) qs.set('assignedAgentId', params.assignedAgentId)
+      if (params.search?.trim()) qs.set('search', params.search.trim())
+      if (params.page != null) qs.set('page', String(params.page))
+      if (params.limit != null) qs.set('limit', String(params.limit))
+      const query = qs.toString()
+      return protectedRequest<
+        Paginated<InboxConversation> | { data?: InboxConversation[]; meta?: PaginationMeta }
+      >(`/api/v1/inbox/conversations${query ? `?${query}` : ''}`, {
+        method: 'GET',
+      })
+    },
+
+    createConversation: (body: CreateInboxConversationBody) =>
+      protectedRequest<{ data?: InboxConversation } & InboxConversation>(
+        '/api/v1/inbox/conversations',
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    getConversation: (conversationId: string) =>
+      protectedRequest<{ data?: InboxConversation } & InboxConversation>(
+        `/api/v1/inbox/conversations/${conversationId}`,
+        { method: 'GET' }
+      ),
+
+    listMessages: (conversationId: string, params: ListInboxMessagesParams = {}) => {
+      const qs = new URLSearchParams()
+      if (params.page != null) qs.set('page', String(params.page))
+      if (params.limit != null) qs.set('limit', String(params.limit))
+      const query = qs.toString()
+      return protectedRequest<
+        Paginated<InboxMessage> | { data?: InboxMessage[]; meta?: PaginationMeta }
+      >(`/api/v1/inbox/conversations/${conversationId}/messages${query ? `?${query}` : ''}`, {
+        method: 'GET',
+      })
+    },
+
+    sendMessage: (
+      conversationId: string,
+      body: SendInboxMessageBody,
+      idempotencyKey: string
+    ) =>
+      protectedRequest<{ data?: InboxMessage } & InboxMessage>(
+        `/api/v1/inbox/conversations/${conversationId}/messages`,
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+          headers: {
+            'Idempotency-Key': idempotencyKey,
+          },
+        }
+      ),
+
+    assignConversation: (conversationId: string, body: AssignInboxConversationBody) =>
+      protectedRequest<{ data?: InboxConversation } & InboxConversation>(
+        `/api/v1/inbox/conversations/${conversationId}/assign`,
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    closeConversation: (conversationId: string) =>
+      protectedRequest<{ data?: InboxConversation } & InboxConversation>(
+        `/api/v1/inbox/conversations/${conversationId}/close`,
+        { method: 'POST' }
+      ),
+
+    reopenConversation: (conversationId: string) =>
+      protectedRequest<{ data?: InboxConversation } & InboxConversation>(
+        `/api/v1/inbox/conversations/${conversationId}/reopen`,
+        { method: 'POST' }
+      ),
+
+    updateConversation: (conversationId: string, body: UpdateInboxConversationBody) =>
+      protectedRequest<{ data?: InboxConversation } & InboxConversation>(
+        `/api/v1/inbox/conversations/${conversationId}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    listNotes: (conversationId: string) =>
+      protectedRequest<{ data?: InboxConversationNote[] } | InboxConversationNote[]>(
+        `/api/v1/inbox/conversations/${conversationId}/notes`,
+        { method: 'GET' }
+      ),
+
+    createNote: (conversationId: string, body: CreateInboxConversationNoteBody) =>
+      protectedRequest<{ data?: InboxConversationNote } & InboxConversationNote>(
+        `/api/v1/inbox/conversations/${conversationId}/notes`,
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+  },
+
   whatsapp: {
     listConfigs: () =>
       protectedRequest<{ data?: WhatsappConfigSummary[] } | WhatsappConfigSummary[]>(
         '/api/v1/whatsapp/configs',
         { method: 'GET' }
+      ),
+
+    getConfig: (configId: string) =>
+      protectedRequest<{ data?: WhatsappConfigSummary } & WhatsappConfigSummary>(
+        `/api/v1/whatsapp/configs/${configId}`,
+        { method: 'GET' }
+      ),
+
+    disconnectConfig: (configId: string) =>
+      protectedRequest<{ data?: WhatsappConfigSummary } & WhatsappConfigSummary>(
+        `/api/v1/whatsapp/configs/${configId}`,
+        { method: 'DELETE' }
+      ),
+
+    testConfig: (configId: string, body: TestWhatsappConfigBody) =>
+      protectedRequest<{ data?: TestWhatsappConfigResult } & TestWhatsappConfigResult>(
+        `/api/v1/whatsapp/configs/${configId}/test`,
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    getEmbeddedSignupSession: () =>
+      protectedRequest<{ data?: WhatsappEmbeddedSignupSession } & WhatsappEmbeddedSignupSession>(
+        '/api/v1/whatsapp/embedded-signup/session',
+        { method: 'GET' }
+      ),
+
+    completeEmbeddedSignup: (body: CompleteWhatsappEmbeddedSignupBody) =>
+      protectedRequest<{ data?: WhatsappConfigSummary } & WhatsappConfigSummary>(
+        '/api/v1/whatsapp/embedded-signup/complete',
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    listTemplates: (params: ListWhatsappTemplatesParams = {}) => {
+      const qs = new URLSearchParams()
+      if (params.page != null) qs.set('page', String(params.page))
+      if (params.perPage != null) qs.set('perPage', String(params.perPage))
+      if (params.status) qs.set('status', params.status)
+      if (params.category) qs.set('category', params.category)
+      if (params.search?.trim()) qs.set('search', params.search.trim())
+      const query = qs.toString()
+      return protectedRequest<
+        | Paginated<WhatsappMessageTemplate>
+        | { data?: WhatsappMessageTemplate[]; meta?: PaginationMeta }
+        | { data?: { data?: WhatsappMessageTemplate[]; meta?: PaginationMeta } }
+      >(`/api/v1/whatsapp/templates${query ? `?${query}` : ''}`, {
+        method: 'GET',
+      })
+    },
+
+    getTemplate: (templateId: string) =>
+      protectedRequest<{ data?: WhatsappMessageTemplate } & WhatsappMessageTemplate>(
+        `/api/v1/whatsapp/templates/${templateId}`,
+        { method: 'GET' }
+      ),
+
+    createTemplate: (body: CreateWhatsappTemplateBody) =>
+      protectedRequest<{ data?: WhatsappMessageTemplate } & WhatsappMessageTemplate>(
+        '/api/v1/whatsapp/templates',
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    syncTemplates: () =>
+      protectedRequest<{ data?: SyncWhatsappTemplatesResult } & SyncWhatsappTemplatesResult>(
+        '/api/v1/whatsapp/templates/sync',
+        { method: 'POST' }
+      ),
+
+    deleteTemplate: (templateId: string) =>
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/whatsapp/templates/${templateId}`,
+        { method: 'DELETE' }
       ),
   },
 

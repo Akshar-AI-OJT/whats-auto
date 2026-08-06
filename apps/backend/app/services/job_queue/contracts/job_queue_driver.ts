@@ -10,6 +10,11 @@ export type JobEnqueueOptions = {
   singletonKey?: string
 }
 
+export type JobScheduleOptions = {
+  /** Optional schedule key for pg-boss multi-schedule support. */
+  key?: string
+}
+
 export type JobMessage = {
   id: string
   name: string
@@ -31,4 +36,14 @@ export interface JobQueueDriver {
     options?: JobEnqueueOptions
   ): Promise<string | void>
   work(name: string, handler: JobHandler): Promise<void>
+  /**
+   * Register a recurring cron wake (pg-boss schedule). Optional on drivers that
+   * only support one-shot enqueue; NullJobQueueDriver records for tests.
+   */
+  schedule?(
+    name: string,
+    cron: string,
+    data?: Record<string, unknown>,
+    options?: JobScheduleOptions
+  ): Promise<void>
 }

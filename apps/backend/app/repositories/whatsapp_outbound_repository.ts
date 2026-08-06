@@ -1,4 +1,6 @@
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import db from '@adonisjs/lucid/services/db'
+import WhatsappOutboundException from '#exceptions/whatsapp_outbound_exception'
 import {
   MessageReceiptRepository,
   type ApplyDeliveryReceiptResult,
@@ -6,6 +8,54 @@ import {
 import type { MetaSendTemplateComponent, MetaWebhookStatusName } from '#lib/meta_whatsapp/types'
 
 export const OUTBOUND_LEASE_MINUTES = 5
+
+const IDEMPOTENCY_FINGERPRINT_META_KEY = 'idempotencyFingerprint'
+const CLIENT_IDEMPOTENCY_SAVEPOINT = 'outbound_client_idempotency'
+
+/** Postgres unique_violation, including Knex/Lucid-wrapped errors. */
+function isUniqueViolation(error: unknown): boolean {
+  let current: unknown = error
+  for (let depth = 0; depth < 4 && current && typeof current === 'object'; depth++) {
+    const code = (current as { code?: string }).code
+    if (code === '23505') return true
+    current = (current as { cause?: unknown }).cause ?? (current as { original?: unknown }).original
+  }
+  return false
+}
+
+function parseMetadata(raw: unknown): Record<string, unknown> {
+  if (raw === null) return {}
+  if (typeof raw === 'string') {
+    try {
+      return JSON.parse(raw) as Record<string, unknown>
+    } catch {
+      return {}
+    }
+  }
+  if (typeof raw === 'object') {
+    return raw as Record<string, unknown>
+  }
+  return {}
+}
+
+function buildIdempotencyFingerprint(params: {
+  contentType: string
+  contentText: string | null
+  messageTemplateId: string | null
+  payload: OutboundDispatchPayload
+}): string {
+  return JSON.stringify({
+    contentType: params.contentType,
+    contentText: params.contentText,
+    messageTemplateId: params.messageTemplateId,
+    payload: params.payload,
+  })
+}
+
+function readIdempotencyFingerprint(metadata: unknown): string | null {
+  const value = parseMetadata(metadata)[IDEMPOTENCY_FINGERPRINT_META_KEY]
+  return typeof value === 'string' ? value : null
+}
 
 export type OutboundTextPayload = {
   kind: 'text'
@@ -16,7 +66,7 @@ export type OutboundTextPayload = {
 export type OutboundMediaPayload = {
   kind: 'media'
   to: string
-  mediaType: 'image' | 'video' | 'audio' | 'document'
+  mediaType: 'image' | 'document'
   mediaAssetId: string
   mediaUrl: string
   caption?: string
@@ -71,6 +121,9 @@ export class WhatsappOutboundRepository {
 
   /**
    * Insert queued message + pending dispatch atomically.
+   * When clientIdempotencyKey is set for an agent sender, retries reuse the existing
+   * message/dispatch; a different payload for the same key conflicts.
+   * Does not touch providerMessageId (Meta wamid reconciliation stays elsewhere).
    */
   async queueOutbound(
     trx: TransactionClientContract,
@@ -85,46 +138,210 @@ export class WhatsappOutboundRepository {
       messageTemplateId: string | null
       payload: OutboundDispatchPayload
       metadata?: Record<string, unknown>
+      clientIdempotencyKey?: string | null
     }
   ): Promise<{ messageId: string; dispatchId: string }> {
     const now = new Date()
+    const clientIdempotencyKey = params.clientIdempotencyKey?.trim() || null
+    const fingerprint = buildIdempotencyFingerprint({
+      contentType: params.contentType,
+      contentText: params.contentText,
+      messageTemplateId: params.messageTemplateId,
+      payload: params.payload,
+    })
 
-    const [message] = await trx
-      .table('messages')
-      .insert({
+    if (clientIdempotencyKey && params.senderId) {
+      const existing = await this.findMessageByClientIdempotencyKey(trx, {
         organizationId: params.organizationId,
-        conversationId: params.conversationId,
-        senderType: params.senderType,
         senderId: params.senderId,
-        contentType: params.contentType,
-        contentText: params.contentText,
-        messageTemplateId: params.messageTemplateId,
-        status: 'queued',
-        occurredAt: now,
-        metadata: params.metadata ?? {},
-        createdAt: now,
-        updatedAt: now,
+        clientIdempotencyKey,
       })
-      .returning(['id'])
+      if (existing) {
+        return this.resolveClientIdempotentReplay(trx, {
+          organizationId: params.organizationId,
+          existing,
+          fingerprint,
+        })
+      }
+    }
 
-    const [dispatch] = await trx
-      .table('outbound_dispatches')
-      .insert({
-        organizationId: params.organizationId,
-        whatsappConfigId: params.whatsappConfigId,
-        messageId: message.id,
-        status: 'pending',
-        attempts: 0,
-        payload: params.payload,
-        createdAt: now,
-        updatedAt: now,
+    const metadata: Record<string, unknown> = {
+      ...(params.metadata ?? {}),
+    }
+    if (clientIdempotencyKey) {
+      metadata[IDEMPOTENCY_FINGERPRINT_META_KEY] = fingerprint
+    }
+
+    await trx.rawQuery(`SAVEPOINT ${CLIENT_IDEMPOTENCY_SAVEPOINT}`)
+
+    try {
+      const [message] = await trx
+        .table('messages')
+        .insert({
+          organizationId: params.organizationId,
+          conversationId: params.conversationId,
+          senderType: params.senderType,
+          senderId: params.senderId,
+          contentType: params.contentType,
+          contentText: params.contentText,
+          messageTemplateId: params.messageTemplateId,
+          clientIdempotencyKey,
+          status: 'queued',
+          occurredAt: now,
+          metadata,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .returning(['id'])
+
+      const [dispatch] = await trx
+        .table('outbound_dispatches')
+        .insert({
+          organizationId: params.organizationId,
+          whatsappConfigId: params.whatsappConfigId,
+          messageId: message.id,
+          status: 'pending',
+          attempts: 0,
+          payload: params.payload,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .returning(['id'])
+
+      await trx.rawQuery(`RELEASE SAVEPOINT ${CLIENT_IDEMPOTENCY_SAVEPOINT}`)
+
+      return {
+        messageId: message.id as string,
+        dispatchId: dispatch.id as string,
+      }
+    } catch (error) {
+      if (clientIdempotencyKey && params.senderId && isUniqueViolation(error)) {
+        await trx.rawQuery(`ROLLBACK TO SAVEPOINT ${CLIENT_IDEMPOTENCY_SAVEPOINT}`)
+
+        const existing = await this.findMessageByClientIdempotencyKey(trx, {
+          organizationId: params.organizationId,
+          senderId: params.senderId,
+          clientIdempotencyKey,
+        })
+        if (!existing) {
+          await trx.rawQuery(`RELEASE SAVEPOINT ${CLIENT_IDEMPOTENCY_SAVEPOINT}`).catch(() => {})
+          throw error
+        }
+
+        const replayed = await this.resolveClientIdempotentReplay(trx, {
+          organizationId: params.organizationId,
+          existing,
+          fingerprint,
+        })
+        await trx.rawQuery(`RELEASE SAVEPOINT ${CLIENT_IDEMPOTENCY_SAVEPOINT}`)
+        return replayed
+      }
+
+      await trx.rawQuery(`ROLLBACK TO SAVEPOINT ${CLIENT_IDEMPOTENCY_SAVEPOINT}`).catch(() => {})
+      throw error
+    }
+  }
+
+  private async findMessageByClientIdempotencyKey(
+    trx: TransactionClientContract,
+    params: {
+      organizationId: string
+      senderId: string
+      clientIdempotencyKey: string
+    }
+  ) {
+    return trx
+      .from('messages')
+      .where('organizationId', params.organizationId)
+      .where('senderId', params.senderId)
+      .where('clientIdempotencyKey', params.clientIdempotencyKey)
+      .select('id', 'contentType', 'contentText', 'messageTemplateId', 'metadata')
+      .first()
+  }
+
+  private async resolveClientIdempotentReplay(
+    trx: TransactionClientContract,
+    params: {
+      organizationId: string
+      existing: Record<string, unknown>
+      fingerprint: string
+    }
+  ): Promise<{ messageId: string; dispatchId: string }> {
+    const dispatch = await trx
+      .from('outbound_dispatches')
+      .where('organizationId', params.organizationId)
+      .where('messageId', params.existing.id as string)
+      .orderBy('createdAt', 'asc')
+      .select('id', 'payload')
+      .first()
+
+    if (!dispatch) {
+      throw WhatsappOutboundException.dispatchNotFound()
+    }
+
+    let existingFingerprint = readIdempotencyFingerprint(params.existing.metadata)
+    if (!existingFingerprint) {
+      let payload = dispatch.payload as OutboundDispatchPayload
+      if (typeof payload === 'string') {
+        payload = JSON.parse(payload) as OutboundDispatchPayload
+      }
+      existingFingerprint = buildIdempotencyFingerprint({
+        contentType: params.existing.contentType as string,
+        contentText: (params.existing.contentText as string | null) ?? null,
+        messageTemplateId: (params.existing.messageTemplateId as string | null) ?? null,
+        payload,
       })
-      .returning(['id'])
+    }
+
+    if (existingFingerprint !== params.fingerprint) {
+      throw WhatsappOutboundException.idempotencyKeyConflict()
+    }
 
     return {
-      messageId: message.id as string,
+      messageId: params.existing.id as string,
       dispatchId: dispatch.id as string,
     }
+  }
+
+  /**
+   * List dispatches that should be re-woken: pending, due retries, and expired leases.
+   * Must run inside runWithTenant(organizationId) so RLS can see the rows.
+   */
+  async listRecoverableDispatches(params: {
+    organizationId: string
+    limit?: number
+    now?: Date
+  }): Promise<Array<{ id: string; organizationId: string; status: string }>> {
+    const now = params.now ?? new Date()
+    const limit = params.limit ?? 100
+
+    const rows = await db
+      .from('outbound_dispatches')
+      .where('organizationId', params.organizationId)
+      .where((query) => {
+        query
+          .where('status', 'pending')
+          .orWhere((retry) => {
+            retry.where('status', 'retry_scheduled').where((due) => {
+              due.whereNull('nextAttemptAt').orWhere('nextAttemptAt', '<=', now)
+            })
+          })
+          .orWhere((expired) => {
+            expired
+              .where('status', 'processing')
+              .whereNotNull('lockExpiresAt')
+              .where('lockExpiresAt', '<', now)
+          })
+      })
+      .orderBy('updatedAt', 'asc')
+      .limit(limit)
+      .select('id', 'organizationId', 'status')
+
+    return rows.map((row) => ({
+      id: row.id as string,
+      organizationId: row.organizationId as string,
+      status: row.status as string,
+    }))
   }
 
   /**
