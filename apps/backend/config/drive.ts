@@ -1,13 +1,14 @@
 import env from '#start/env'
 import { defineConfig, services } from '@adonisjs/drive'
+import type { InferDriveDisks } from '@adonisjs/drive/types'
 
+/**
+ * Private S3 only. WhatsApp/public fetch uses MEDIA_PUBLIC_BASE_URL (CloudFront),
+ * not bucket ACLs.
+ */
 const driveConfig = defineConfig({
   default: env.get('DRIVE_DISK'),
 
-  /**
-   * The services object can be used to configure multiple file system
-   * services each using the same or a different driver.
-   */
   services: {
     s3: services.s3({
       credentials: {
@@ -16,7 +17,7 @@ const driveConfig = defineConfig({
       },
       region: env.get('AWS_REGION'),
       bucket: env.get('S3_BUCKET'),
-      visibility: 'public',
+      visibility: 'private',
     }),
   },
 })

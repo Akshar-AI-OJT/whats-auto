@@ -72,9 +72,11 @@ export default await Env.create(new URL('../', import.meta.url), {
   RAZORPAY_KEY_SECRET: Env.schema.secret(),
   RAZORPAY_WEBHOOK_SECRET: Env.schema.secret(),
 
+  // Media object storage (private S3 + public CDN base for WhatsApp link delivery)
   AWS_ACCESS_KEY_ID: Env.schema.string(),
   AWS_SECRET_ACCESS_KEY: Env.schema.secret(),
   AWS_REGION: Env.schema.string(),
   S3_BUCKET: Env.schema.string(),
   DRIVE_DISK: Env.schema.enum(['s3'] as const),
+  MEDIA_PUBLIC_BASE_URL: Env.schema.string({ format: 'url', tld: false }),
 })

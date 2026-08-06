@@ -35,6 +35,7 @@ const WhatsappConfigsController = () => import('#controllers/whatsapp_configs_co
 const MessageTemplatesController = () => import('#controllers/message_templates_controller')
 const MessagesController = () => import('#controllers/messages_controller')
 const ConversationNotesController = () => import('#controllers/conversation_notes_controller')
+const MediaUploadsController = () => import('#controllers/media_uploads_controller')
 const BillingController = () => import('#controllers/billing_controller')
 const BillingRazorpayWebhookController = () =>
   import('#controllers/billing_razorpay_webhook_controller')
@@ -180,7 +181,7 @@ const requestBodySchemas: Record<string, JsonSchema> = {
       contentType: {
         type: 'string',
         example: 'text',
-        enum: ['text', 'image', 'video', 'document'],
+        enum: ['text', 'image', 'template'],
       },
       contentText: { type: 'string', example: 'Hello!' },
       mediaAssetId: { type: 'string', format: 'uuid' },
@@ -549,6 +550,19 @@ router
       .use(middleware.requirePermission({ permission: 'contacts:create' }))
   })
   .prefix('/api/v1/contacts')
+  .use([middleware.jwtAuth(), middleware.tenant()])
+
+// media uploads — direct-to-S3 pending → ready lifecycle
+router
+  .group(() => {
+    router
+      .post('/uploads', [MediaUploadsController, 'store'])
+      .use(middleware.requirePermission({ permission: 'media:upload' }))
+    router
+      .post('/uploads/:id/complete', [MediaUploadsController, 'complete'])
+      .use(middleware.requirePermission({ permission: 'media:upload' }))
+  })
+  .prefix('/api/v1/media')
   .use([middleware.jwtAuth(), middleware.tenant()])
 
 // inbox conversations — lifecycle APIs

@@ -4,8 +4,8 @@ import WhatsappOutboundService, {
   type QueueOutboundResult,
 } from '#services/whatsapp_outbound_service'
 
-export type MessageContentType = 'text' | 'image' | 'video' | 'document' | 'template'
-export type MediaContentType = 'image' | 'video' | 'document'
+export type MessageContentType = 'text' | 'image' | 'template'
+export type MediaContentType = 'image'
 
 export type MessageSender = {
   type: string
@@ -51,11 +51,12 @@ export type SendAgentReplyParams = {
   mediaAssetId?: string
   templateId?: string
   templateParameters?: Record<string, string>
+  headerMediaAssetId?: string
   idempotencyKey: string
 }
 
 function toIso(value: unknown): string | null {
-  if (value == null) return null
+  if (value === null) return null
   if (value instanceof Date) return value.toISOString()
   return String(value)
 }
@@ -218,17 +219,16 @@ export class MessageService {
         }
         return this.whatsappOutbound.queueText(queueParams)
       }
-      case 'image':
-      case 'video':
-      case 'document': {
+      case 'image': {
         const queueParams = {
           organizationId,
           conversationId,
-          mediaType: contentType,
+          mediaType: 'image' as const,
           mediaAssetId: params.mediaAssetId!,
           caption: params.contentText,
           actorUserId: senderId,
           idempotencyKey,
+          channel: 'tenant' as const,
         }
         return this.whatsappOutbound.queueMedia(queueParams)
       }
@@ -238,8 +238,10 @@ export class MessageService {
           conversationId,
           templateId: params.templateId!,
           parameters: params.templateParameters,
+          headerMediaAssetId: params.headerMediaAssetId,
           actorUserId: senderId,
           idempotencyKey,
+          channel: 'tenant' as const,
         }
         return this.whatsappOutbound.queueTemplate(queueParams)
       }

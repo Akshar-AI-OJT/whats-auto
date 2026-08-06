@@ -26,6 +26,7 @@ test.group('MessageTemplateService parameterSchema', () => {
       bodyNames: ['name'],
       sendable: true,
       unsupportedReason: undefined,
+      headerMediaType: undefined,
     })
   })
 

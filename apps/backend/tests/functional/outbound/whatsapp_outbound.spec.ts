@@ -113,18 +113,27 @@ async function seedMediaAsset(
     mimeType: string
     fileSize: number
     fileName: string
+    state: string
   }>
 ) {
   return runWithTenant(organizationId, async () => {
+    const filePath = params?.filePath ?? 'https://media.test.local/media/photo.jpg'
     const [row] = await db
       .table('media_assets')
       .insert({
         organizationId,
         fileName: params?.fileName ?? 'photo.jpg',
-        filePath: params?.filePath ?? 'https://cdn.example.com/media/photo.jpg',
+        filePath,
+        deliveryUrl: filePath,
+        storageKey: `${organizationId}/upload/images/test/${crypto.randomUUID()}.jpg`,
+        storageDisk: 's3',
+        state: params?.state ?? 'ready',
+        source: 'upload',
         mimeType: params?.mimeType ?? 'image/jpeg',
         fileSize: params?.fileSize ?? 1024,
         uploadedAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
       })
       .returning(['id'])
     return row.id as string
@@ -137,6 +146,7 @@ async function seedApprovedTemplate(
   overrides?: Partial<{
     status: string
     bodyText: string
+    headerType: string
     parameterSchema: Record<string, unknown>
     name: string
   }>
@@ -150,7 +160,7 @@ async function seedApprovedTemplate(
         name: overrides?.name ?? `tpl_${randomUUID().slice(0, 8)}`,
         category: 'UTILITY',
         language: 'en_US',
-        headerType: 'none',
+        headerType: overrides?.headerType ?? 'none',
         bodyText: overrides?.bodyText ?? 'Hello {{name}}',
         parameterSchema: overrides?.parameterSchema ?? {
           headerNames: [],
@@ -755,6 +765,115 @@ test.group('WhatsApp outbound service', (group) => {
     })
   })
 
+  test('queueTemplate sends media-header templates with READY assets', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const seeded = await seedConversation(organizationId)
+    const service = new WhatsappOutboundService(fakeGraph())
+
+    const mediaAssetId = await seedMediaAsset(organizationId, {
+      filePath: 'https://media.test.local/media/banner.jpg',
+      mimeType: 'image/jpeg',
+      fileSize: 2048,
+      fileName: 'banner.jpg',
+    })
+
+    const template = await seedApprovedTemplate(organizationId, seeded.whatsappConfigId, {
+      name: 'promo_image',
+      headerType: 'image',
+      bodyText: 'Deal on {{sku}}',
+      parameterSchema: {
+        headerNames: [],
+        bodyNames: ['sku'],
+        sendable: true,
+        headerMediaType: 'image',
+      },
+    })
+
+    try {
+      await service.queueTemplate({
+        organizationId,
+        conversationId: seeded.conversationId,
+        templateId: template.id,
+        parameters: { sku: 'A1' },
+      })
+      assert.fail('expected missing header media')
+    } catch (error) {
+      assert.equal((error as WhatsappOutboundException).code, 'E_OUTBOUND_TEMPLATE_PARAMS')
+    }
+
+    const wrongMime = await seedMediaAsset(organizationId, {
+      filePath: 'https://media.test.local/media/clip.mp4',
+      mimeType: 'video/mp4',
+      fileSize: 2048,
+      fileName: 'clip.mp4',
+    })
+    try {
+      await service.queueTemplate({
+        organizationId,
+        conversationId: seeded.conversationId,
+        templateId: template.id,
+        parameters: { sku: 'A1' },
+        headerMediaAssetId: wrongMime,
+      })
+      assert.fail('expected mime mismatch')
+    } catch (error) {
+      assert.equal((error as WhatsappOutboundException).code, 'E_OUTBOUND_MEDIA_MIME_TYPE')
+    }
+
+    const textOnly = await seedApprovedTemplate(organizationId, seeded.whatsappConfigId, {
+      name: 'text_only_tpl',
+      bodyText: 'Hi {{name}}',
+    })
+    try {
+      await service.queueTemplate({
+        organizationId,
+        conversationId: seeded.conversationId,
+        templateId: textOnly.id,
+        parameters: { name: 'Ada' },
+        headerMediaAssetId: mediaAssetId,
+      })
+      assert.fail('expected header media rejected')
+    } catch (error) {
+      assert.equal((error as WhatsappOutboundException).code, 'E_OUTBOUND_TEMPLATE_PARAMS')
+    }
+
+    const queued = await service.queueTemplate({
+      organizationId,
+      conversationId: seeded.conversationId,
+      templateId: template.id,
+      parameters: { sku: 'A1' },
+      headerMediaAssetId: mediaAssetId,
+    })
+
+    await runWithTenant(organizationId, async () => {
+      const dispatch = await db
+        .from('outbound_dispatches')
+        .where('organizationId', organizationId)
+        .where('id', queued.dispatchId)
+        .first()
+      const payload =
+        typeof dispatch?.payload === 'string'
+          ? JSON.parse(dispatch.payload as string)
+          : dispatch?.payload
+      assert.equal(payload.kind, 'template')
+      assert.deepEqual(payload.components[0], {
+        type: 'header',
+        parameters: [
+          { type: 'image', image: { link: 'https://media.test.local/media/banner.jpg' } },
+        ],
+      })
+
+      const message = await db
+        .from('messages')
+        .where('id', queued.messageId)
+        .where('organizationId', organizationId)
+        .first()
+      assert.equal(message?.mediaAssetId, mediaAssetId)
+      assert.equal(message?.mediaUrl, 'https://media.test.local/media/banner.jpg')
+    })
+  })
+
   test('isolates tenants — cannot queue against another org conversation', async ({ assert }) => {
     const orgA = await createOrg()
     const orgB = await createOrg()
@@ -829,7 +948,7 @@ test.group('WhatsApp outbound service', (group) => {
 
     const badMime = await seedMediaAsset(organizationId, {
       mimeType: 'image/gif',
-      filePath: 'https://cdn.example.com/a.gif',
+      filePath: 'https://media.test.local/a.gif',
     })
     try {
       await service.queueMedia({
@@ -861,7 +980,7 @@ test.group('WhatsApp outbound service', (group) => {
 
     const tooLarge = await seedMediaAsset(organizationId, {
       mimeType: 'image/jpeg',
-      filePath: 'https://cdn.example.com/big.jpg',
+      filePath: 'https://media.test.local/big.jpg',
       fileSize: 6 * 1024 * 1024,
     })
     try {
@@ -893,6 +1012,219 @@ test.group('WhatsApp outbound service', (group) => {
       assert.equal(dispatch.payload.kind, 'media')
       assert.isNull(message.providerMessageId)
     })
+  })
+
+  test('queueMedia denies document for tenant channel and allows it for system', async ({
+    assert,
+  }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const seeded = await seedConversation(organizationId)
+    const service = new WhatsappOutboundService(fakeGraph())
+    const pdf = await seedMediaAsset(organizationId, {
+      mimeType: 'application/pdf',
+      filePath: 'https://media.test.local/invoice.pdf',
+      fileName: 'invoice.pdf',
+      fileSize: 2048,
+    })
+
+    try {
+      await service.queueMedia({
+        organizationId,
+        conversationId: seeded.conversationId,
+        mediaType: 'document',
+        mediaAssetId: pdf,
+        channel: 'tenant',
+      })
+      assert.fail('expected tenant document denial')
+    } catch (error) {
+      assert.equal((error as WhatsappOutboundException).code, 'E_OUTBOUND_MEDIA_CHANNEL_DENIED')
+    }
+
+    const queued = await service.queueMedia({
+      organizationId,
+      conversationId: seeded.conversationId,
+      mediaType: 'document',
+      mediaAssetId: pdf,
+      channel: 'system',
+    })
+
+    await runWithTenant(organizationId, async () => {
+      const message = await db.from('messages').where('id', queued.messageId).first()
+      assert.equal(message.contentType, 'document')
+      assert.equal(message.status, 'queued')
+    })
+  })
+
+  test('rejects non-ready and cross-tenant media assets on queueMedia', async ({ assert }) => {
+    const orgA = await createOrg()
+    const orgB = await createOrg()
+    orgIds.push(orgA, orgB)
+    const seeded = await seedConversation(orgA)
+    const service = new WhatsappOutboundService(fakeGraph())
+
+    const pending = await seedMediaAsset(orgA, {
+      state: 'pending_upload',
+      filePath: 'https://media.test.local/pending.jpg',
+    })
+    try {
+      await service.queueMedia({
+        organizationId: orgA,
+        conversationId: seeded.conversationId,
+        mediaType: 'image',
+        mediaAssetId: pending,
+      })
+      assert.fail('expected non-ready rejection')
+    } catch (error) {
+      assert.equal((error as WhatsappOutboundException).code, 'E_OUTBOUND_MEDIA_NOT_FOUND')
+    }
+
+    const foreign = await seedMediaAsset(orgB, {
+      filePath: 'https://media.test.local/foreign.jpg',
+    })
+    try {
+      await service.queueMedia({
+        organizationId: orgA,
+        conversationId: seeded.conversationId,
+        mediaType: 'image',
+        mediaAssetId: foreign,
+      })
+      assert.fail('expected cross-tenant media rejection')
+    } catch (error) {
+      assert.equal((error as WhatsappOutboundException).code, 'E_OUTBOUND_MEDIA_NOT_FOUND')
+    }
+  })
+
+  test('queueTemplate document header is system-only', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const seeded = await seedConversation(organizationId)
+    const service = new WhatsappOutboundService(fakeGraph())
+
+    const pdf = await seedMediaAsset(organizationId, {
+      mimeType: 'application/pdf',
+      filePath: 'https://media.test.local/docs/invoice.pdf',
+      fileName: 'invoice.pdf',
+      fileSize: 4096,
+    })
+
+    const template = await seedApprovedTemplate(organizationId, seeded.whatsappConfigId, {
+      name: 'invoice_doc',
+      headerType: 'document',
+      bodyText: 'Invoice {{id}}',
+      parameterSchema: {
+        headerNames: [],
+        bodyNames: ['id'],
+        sendable: true,
+        headerMediaType: 'document',
+      },
+    })
+
+    try {
+      await service.queueTemplate({
+        organizationId,
+        conversationId: seeded.conversationId,
+        templateId: template.id,
+        parameters: { id: '42' },
+        headerMediaAssetId: pdf,
+        channel: 'tenant',
+      })
+      assert.fail('expected tenant document header denial')
+    } catch (error) {
+      assert.equal((error as WhatsappOutboundException).code, 'E_OUTBOUND_MEDIA_CHANNEL_DENIED')
+    }
+
+    const queued = await service.queueTemplate({
+      organizationId,
+      conversationId: seeded.conversationId,
+      templateId: template.id,
+      parameters: { id: '42' },
+      headerMediaAssetId: pdf,
+      channel: 'system',
+    })
+
+    await runWithTenant(organizationId, async () => {
+      const dispatch = await db.from('outbound_dispatches').where('id', queued.dispatchId).first()
+      const payload =
+        typeof dispatch?.payload === 'string'
+          ? JSON.parse(dispatch.payload as string)
+          : dispatch?.payload
+      assert.equal(payload.kind, 'template')
+      assert.deepEqual(payload.components[0], {
+        type: 'header',
+        parameters: [
+          {
+            type: 'document',
+            document: {
+              link: 'https://media.test.local/docs/invoice.pdf',
+              filename: 'invoice.pdf',
+            },
+          },
+        ],
+      })
+
+      const message = await db.from('messages').where('id', queued.messageId).first()
+      assert.equal(message?.mediaAssetId, pdf)
+      assert.equal(message?.mediaUrl, 'https://media.test.local/docs/invoice.pdf')
+    })
+  })
+
+  test('queueMedia idempotency replays same message and conflicts on change', async ({
+    assert,
+  }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const seeded = await seedConversation(organizationId)
+    const agentId = randomUUID()
+    await db.table('users').insert({
+      id: agentId,
+      name: 'Agent',
+      firstname: 'Agent',
+      lastname: 'User',
+      email: `agent-${agentId.slice(0, 8)}@example.com`,
+      emailVerified: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    const service = new WhatsappOutboundService(fakeGraph())
+    const mediaAssetId = await seedMediaAsset(organizationId)
+    const key = `media-idem-${randomUUID()}`
+
+    const first = await service.queueMedia({
+      organizationId,
+      conversationId: seeded.conversationId,
+      mediaType: 'image',
+      mediaAssetId,
+      caption: 'once',
+      actorUserId: agentId,
+      idempotencyKey: key,
+    })
+    const second = await service.queueMedia({
+      organizationId,
+      conversationId: seeded.conversationId,
+      mediaType: 'image',
+      mediaAssetId,
+      caption: 'once',
+      actorUserId: agentId,
+      idempotencyKey: key,
+    })
+    assert.equal(second.messageId, first.messageId)
+    assert.equal(second.dispatchId, first.dispatchId)
+
+    try {
+      await service.queueMedia({
+        organizationId,
+        conversationId: seeded.conversationId,
+        mediaType: 'image',
+        mediaAssetId,
+        caption: 'changed',
+        actorUserId: agentId,
+        idempotencyKey: key,
+      })
+      assert.fail('expected idempotency conflict')
+    } catch (error) {
+      assert.equal((error as WhatsappOutboundException).code, 'E_IDEMPOTENCY_KEY_CONFLICT')
+    }
   })
 
   test('rejects text/media outside session window; templates still queue', async ({ assert }) => {
@@ -1052,7 +1384,10 @@ test.group('WhatsApp outbound service', (group) => {
       })
       assert.equal(sent.outcome, 'sent')
       assert.lengthOf(sentEvents, 1)
-      assert.equal((sentEvents[0] as { providerMessageId: string }).providerMessageId, 'wamid.out.text')
+      assert.equal(
+        (sentEvents[0] as { providerMessageId: string }).providerMessageId,
+        'wamid.out.text'
+      )
 
       const failOrg = await createOrg()
       orgIds.push(failOrg)
@@ -1133,9 +1468,8 @@ test.group('WhatsApp outbound service', (group) => {
     })
 
     queue.clearEnqueued()
-    const { createWhatsappOutboundRecoveryHandler } = await import(
-      '#services/job_queue/handlers/whatsapp_outbound_recovery_handler'
-    )
+    const { createWhatsappOutboundRecoveryHandler } =
+      await import('#services/job_queue/handlers/whatsapp_outbound_recovery_handler')
     const handler = createWhatsappOutboundRecoveryHandler(service)
     await handler({
       id: 'recovery-1',

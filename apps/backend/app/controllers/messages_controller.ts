@@ -87,6 +87,7 @@ export default class MessagesController {
       mediaAssetId: payload.mediaAssetId,
       templateId: payload.templateId,
       templateParameters: payload.templateParameters,
+      headerMediaAssetId: payload.headerMediaAssetId,
       idempotencyKey,
     } as Parameters<MessageService['sendAgentReply']>[0])
 
