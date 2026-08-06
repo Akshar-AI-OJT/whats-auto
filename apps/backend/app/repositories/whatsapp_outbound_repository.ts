@@ -66,7 +66,7 @@ export type OutboundTextPayload = {
 export type OutboundMediaPayload = {
   kind: 'media'
   to: string
-  mediaType: 'image' | 'video' | 'audio' | 'document'
+  mediaType: 'image' | 'video' | 'document'
   mediaAssetId: string
   mediaUrl: string
   caption?: string
@@ -307,13 +307,11 @@ export class WhatsappOutboundRepository {
    * List dispatches that should be re-woken: pending, due retries, and expired leases.
    * Must run inside runWithTenant(organizationId) so RLS can see the rows.
    */
-  async listRecoverableDispatches(
-    params: {
-      organizationId: string
-      limit?: number
-      now?: Date
-    }
-  ): Promise<Array<{ id: string; organizationId: string; status: string }>> {
+  async listRecoverableDispatches(params: {
+    organizationId: string
+    limit?: number
+    now?: Date
+  }): Promise<Array<{ id: string; organizationId: string; status: string }>> {
     const now = params.now ?? new Date()
     const limit = params.limit ?? 100
 
@@ -324,11 +322,9 @@ export class WhatsappOutboundRepository {
         query
           .where('status', 'pending')
           .orWhere((retry) => {
-            retry
-              .where('status', 'retry_scheduled')
-              .where((due) => {
-                due.whereNull('nextAttemptAt').orWhere('nextAttemptAt', '<=', now)
-              })
+            retry.where('status', 'retry_scheduled').where((due) => {
+              due.whereNull('nextAttemptAt').orWhere('nextAttemptAt', '<=', now)
+            })
           })
           .orWhere((expired) => {
             expired
