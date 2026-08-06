@@ -38,6 +38,7 @@ const ConversationNotesController = () => import('#controllers/conversation_note
 const BillingController = () => import('#controllers/billing_controller')
 const BillingRazorpayWebhookController = () =>
   import('#controllers/billing_razorpay_webhook_controller')
+const InboxEventsController = () => import('#controllers/inbox_events_controller')
 
 type JsonSchema = {
   type: 'object'
@@ -550,6 +551,15 @@ router
   })
   .prefix('/api/v1/contacts')
   .use([middleware.jwtAuth(), middleware.tenant()])
+
+// inbox realtime — SSE stream (must be registered before /conversations/:id)
+router
+  .get('/api/v1/inbox/events', [InboxEventsController, 'stream'])
+  .use([
+    middleware.jwtAuth(),
+    middleware.tenant(),
+    middleware.requirePermission({ permission: 'inbox:view' }),
+  ])
 
 // inbox conversations — lifecycle APIs
 router
