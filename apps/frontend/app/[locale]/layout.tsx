@@ -7,6 +7,7 @@ import { Footer } from '@/components/layout/Footer'
 import { Navbar } from '@/components/layout/Navbar'
 import { AppProviders } from '@/components/providers/AppProviders'
 import { ThemeProvider } from '@/components/theme/ThemeProvider'
+import { ThemeSurface } from '@/components/theme/ThemeSurface'
 import { routing } from '@/i18n/routing'
 
 export const metadata: Metadata = {
@@ -38,13 +39,15 @@ export default async function LocaleLayout({
     <ThemeProvider>
       <NextIntlClientProvider messages={messages}>
         <AppProviders>
-          <ConditionalChrome>
-            <Navbar />
-          </ConditionalChrome>
-          {children}
-          <ConditionalChrome>
-            <Footer />
-          </ConditionalChrome>
+          <ThemeSurface>
+            <ConditionalChrome>
+              <Navbar />
+            </ConditionalChrome>
+            {children}
+            <ConditionalChrome>
+              <Footer />
+            </ConditionalChrome>
+          </ThemeSurface>
         </AppProviders>
       </NextIntlClientProvider>
     </ThemeProvider>
