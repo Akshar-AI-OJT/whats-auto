@@ -360,7 +360,6 @@ export type SendInboxMessageBody = {
   templateId?: string
   templateParameters?: Record<string, string>
   headerMediaAssetId?: string
-  scheduledAt?: string
 }
 
 export type MediaAssetKind = 'image' | 'document'

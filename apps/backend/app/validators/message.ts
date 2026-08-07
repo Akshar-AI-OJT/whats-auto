@@ -1,9 +1,9 @@
 import vine from '@vinejs/vine'
 
-/** Agent inbox send content types (tenants cannot send video/document). */
-export const MESSAGE_CONTENT_TYPES = ['text', 'image', 'template'] as const
+/** Agent inbox send content types (image + document + template). */
+export const MESSAGE_CONTENT_TYPES = ['text', 'image', 'document', 'template'] as const
 
-export const MEDIA_CONTENT_TYPES = ['image'] as const
+export const MEDIA_CONTENT_TYPES = ['image', 'document'] as const
 
 export const listMessagesValidator = vine.create(
   vine.object({

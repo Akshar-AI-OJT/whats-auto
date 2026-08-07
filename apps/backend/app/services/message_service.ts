@@ -4,8 +4,8 @@ import WhatsappOutboundService, {
   type QueueOutboundResult,
 } from '#services/whatsapp_outbound_service'
 
-export type MessageContentType = 'text' | 'image' | 'template'
-export type MediaContentType = 'image'
+export type MessageContentType = 'text' | 'image' | 'document' | 'template'
+export type MediaContentType = 'image' | 'document'
 
 export type MessageSender = {
   type: string
@@ -56,7 +56,7 @@ export type SendAgentReplyParams = {
 }
 
 function toIso(value: unknown): string | null {
-  if (value === null) return null
+  if (value === null || value === undefined) return null
   if (value instanceof Date) return value.toISOString()
   return String(value)
 }
@@ -117,6 +117,28 @@ function mapMessageRow(r: Record<string, unknown>): MessageRecord {
   }
 }
 
+const MESSAGE_SELECT = [
+  'm.id',
+  'm.organizationId',
+  'm.conversationId',
+  'm.senderType',
+  'm.senderId',
+  'm.contentType',
+  'm.contentText',
+  'm.mediaUrl',
+  'm.mediaAssetId',
+  'm.status',
+  'm.providerMessageId',
+  'm.errorMessage',
+  'm.createdAt',
+  'm.updatedAt',
+  'u.name as senderName',
+  'ma.fileName as mediaFileName',
+  'ma.mimeType as mediaMimeType',
+  'ma.fileSize as mediaFileSize',
+  'ma.filePath as mediaFilePath',
+] as const
+
 export class MessageService {
   constructor(
     protected whatsappOutbound: WhatsappOutboundService = new WhatsappOutboundService()
@@ -155,27 +177,7 @@ export class MessageService {
       .clone()
       .leftJoin('users as u', 'u.id', 'm.senderId')
       .leftJoin('media_assets as ma', 'ma.id', 'm.mediaAssetId')
-      .select(
-        'm.id',
-        'm.organizationId',
-        'm.conversationId',
-        'm.senderType',
-        'm.senderId',
-        'm.contentType',
-        'm.contentText',
-        'm.mediaUrl',
-        'm.mediaAssetId',
-        'm.status',
-        'm.providerMessageId',
-        'm.errorMessage',
-        'm.createdAt',
-        'm.updatedAt',
-        'u.name as senderName',
-        'ma.fileName as mediaFileName',
-        'ma.mimeType as mediaMimeType',
-        'ma.fileSize as mediaFileSize',
-        'ma.filePath as mediaFilePath'
-      )
+      .select([...MESSAGE_SELECT])
       .orderBy('m.createdAt', 'asc')
       .offset((page - 1) * limit)
       .limit(limit)
@@ -217,30 +219,29 @@ export class MessageService {
 
     switch (contentType) {
       case 'text': {
-        const queueParams = {
+        return this.whatsappOutbound.queueText({
           organizationId,
           conversationId,
           text: params.contentText ?? '',
           actorUserId: senderId,
           idempotencyKey,
-        }
-        return this.whatsappOutbound.queueText(queueParams)
+        })
       }
-      case 'image': {
-        const queueParams = {
+      case 'image':
+      case 'document': {
+        return this.whatsappOutbound.queueMedia({
           organizationId,
           conversationId,
-          mediaType: 'image' as const,
+          mediaType: contentType,
           mediaAssetId: params.mediaAssetId!,
           caption: params.contentText,
           actorUserId: senderId,
           idempotencyKey,
-          channel: 'tenant' as const,
-        }
-        return this.whatsappOutbound.queueMedia(queueParams)
+          channel: 'tenant',
+        })
       }
       case 'template': {
-        const queueParams = {
+        return this.whatsappOutbound.queueTemplate({
           organizationId,
           conversationId,
           templateId: params.templateId!,
@@ -248,9 +249,8 @@ export class MessageService {
           headerMediaAssetId: params.headerMediaAssetId,
           actorUserId: senderId,
           idempotencyKey,
-          channel: 'tenant' as const,
-        }
-        return this.whatsappOutbound.queueTemplate(queueParams)
+          channel: 'tenant',
+        })
       }
     }
   }
@@ -262,27 +262,7 @@ export class MessageService {
       .leftJoin('media_assets as ma', 'ma.id', 'm.mediaAssetId')
       .where('m.id', row.id as string)
       .where('m.organizationId', row.organizationId as string)
-      .select(
-        'm.id',
-        'm.organizationId',
-        'm.conversationId',
-        'm.senderType',
-        'm.senderId',
-        'm.contentType',
-        'm.contentText',
-        'm.mediaUrl',
-        'm.mediaAssetId',
-        'm.status',
-        'm.providerMessageId',
-        'm.errorMessage',
-        'm.createdAt',
-        'm.updatedAt',
-        'u.name as senderName',
-        'ma.fileName as mediaFileName',
-        'ma.mimeType as mediaMimeType',
-        'ma.fileSize as mediaFileSize',
-        'ma.filePath as mediaFilePath'
-      )
+      .select([...MESSAGE_SELECT])
       .first()
 
     return mapMessageRow(enriched ?? row)

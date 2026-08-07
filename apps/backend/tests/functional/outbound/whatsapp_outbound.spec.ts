@@ -1050,47 +1050,34 @@ test.group('WhatsApp outbound service', (group) => {
     })
   })
 
-  test('queueMedia schedules future delivery and registers protected media reference', async ({
-    assert,
-  }) => {
+  test('queueMedia registers protected media reference on send', async ({ assert }) => {
     const organizationId = await createOrg()
     orgIds.push(organizationId)
     const seeded = await seedConversation(organizationId)
     const service = new WhatsappOutboundService(fakeGraph())
     const assetId = await seedMediaAsset(organizationId, {
       mimeType: 'image/jpeg',
-      filePath: 'https://media.test.local/scheduled.jpg',
-      fileName: 'scheduled.jpg',
+      filePath: 'https://media.test.local/attached.jpg',
+      fileName: 'attached.jpg',
     })
 
-    const runAt = new Date(Date.now() + 60 * 60 * 1000)
     const queued = await service.queueMedia({
       organizationId,
       conversationId: seeded.conversationId,
       mediaType: 'image',
       mediaAssetId: assetId,
-      scheduledAt: runAt,
     })
-
-    assert.isNotNull(queued.scheduledAt)
 
     await runWithTenant(organizationId, async () => {
       const message = await db.from('messages').where('id', queued.messageId).first()
-      const dispatch = await db.from('outbound_dispatches').where('id', queued.dispatchId).first()
       const ref = await db
         .from('media_asset_references')
         .where('mediaAssetId', assetId)
         .where('ownerId', queued.messageId)
         .first()
 
-      assert.equal(message.status, 'scheduled')
-      assert.isNotNull(message.scheduledAt)
-      assert.equal(dispatch.status, 'pending')
-      assert.isNotNull(dispatch.nextAttemptAt)
-      assert.equal(ref.ownerType, 'scheduled_message')
-
-      const recoverable = await service.recoverStuckDispatches({ organizationId, limit: 50 })
-      assert.equal(recoverable.woken, 0)
+      assert.equal(message.status, 'queued')
+      assert.equal(ref.ownerType, 'message')
     })
   })
 

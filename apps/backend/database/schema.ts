@@ -682,7 +682,6 @@ export class MessageSchema extends BaseModel {
     'providerStatusAt',
     'readAt',
     'replyToMessageId',
-    'scheduledAt',
     'senderId',
     'senderType',
     'sentAt',
@@ -732,8 +731,6 @@ export class MessageSchema extends BaseModel {
   declare readAt: DateTime | null
   @column()
   declare replyToMessageId: string | null
-  @column.dateTime()
-  declare scheduledAt: DateTime | null
   @column()
   declare senderId: string | null
   @column()
