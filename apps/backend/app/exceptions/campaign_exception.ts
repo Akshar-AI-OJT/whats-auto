@@ -33,6 +33,48 @@ export default class CampaignException extends Exception {
     })
   }
 
+  static templateNotConfigured() {
+    return new this('Campaign has no message template configured', {
+      status: 422,
+      code: 'E_CAMPAIGN_TEMPLATE_NOT_CONFIGURED',
+    })
+  }
+
+  static whatsappConfigNotConfigured() {
+    return new this('Campaign has no WhatsApp configuration configured', {
+      status: 422,
+      code: 'E_CAMPAIGN_WA_CONFIG_NOT_CONFIGURED',
+    })
+  }
+
+  static notEligibleToSend(status: string) {
+    return new this(`Campaign with status "${status}" is not eligible to send`, {
+      status: 422,
+      code: 'E_CAMPAIGN_NOT_ELIGIBLE_TO_SEND',
+    })
+  }
+
+  static notEligibleToSchedule(status: string) {
+    return new this(`Campaign with status "${status}" is not eligible to schedule`, {
+      status: 422,
+      code: 'E_CAMPAIGN_NOT_ELIGIBLE_TO_SCHEDULE',
+    })
+  }
+
+  static notEligibleToCancel(status: string) {
+    return new this(`Campaign with status "${status}" is not eligible to cancel schedule`, {
+      status: 422,
+      code: 'E_CAMPAIGN_NOT_ELIGIBLE_TO_CANCEL',
+    })
+  }
+
+  static scheduledAtMustBeFuture() {
+    return new this('scheduledAt must be in the future', {
+      status: 422,
+      code: 'E_CAMPAIGN_SCHEDULED_AT_MUST_BE_FUTURE',
+    })
+  }
+
   static invalidReference() {
     return new this('One or more campaign references are invalid', {
       status: 422,
