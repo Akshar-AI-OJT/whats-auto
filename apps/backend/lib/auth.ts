@@ -14,11 +14,39 @@ const hasGoogle = Boolean(googleClientId) && Boolean(googleClientSecret)
 
 const accessTokenClaimsService = new AccessTokenClaimsService()
 
+/**
+ * Better Auth compares Origin strictly. Local Swagger/docs often hit
+ * `http://127.0.0.1:3333` while BETTER_AUTH_URL is `http://localhost:3333`
+ * (or the reverse) — treat them as equivalent in development.
+ */
+function withLocalhostAlias(origin: string): string[] {
+  const normalized = origin.replace(/\/$/, '')
+  const aliases = new Set<string>([normalized])
+
+  try {
+    const url = new URL(normalized)
+    if (url.hostname === 'localhost') {
+      url.hostname = '127.0.0.1'
+      aliases.add(url.origin)
+    } else if (url.hostname === '127.0.0.1') {
+      url.hostname = 'localhost'
+      aliases.add(url.origin)
+    }
+  } catch {
+    // Keep the raw origin if URL parsing fails.
+  }
+
+  return [...aliases]
+}
+
 export const auth = betterAuth({
   database: pool,
   baseURL: env.get('BETTER_AUTH_URL'),
   secret: env.get('BETTER_AUTH_SECRET').release(),
-  trustedOrigins: [env.get('CORS_ORIGIN'), env.get('BETTER_AUTH_URL')],
+  trustedOrigins: [
+    ...withLocalhostAlias(env.get('CORS_ORIGIN')),
+    ...withLocalhostAlias(env.get('BETTER_AUTH_URL')),
+  ],
 
   // DB columns are Postgres `uuid`. better-auth's default nanoid IDs are not valid UUIDs.
   advanced: {
