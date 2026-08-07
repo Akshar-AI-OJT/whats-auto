@@ -619,7 +619,8 @@ router
     middleware.tenant(),
     middleware.requirePermission({ permission: 'inbox:view' }),
   ])
-// inbox conversations â€” lifecycle APIs
+
+// inbox conversations — lifecycle APIs
 router
   .group(() => {
     router
