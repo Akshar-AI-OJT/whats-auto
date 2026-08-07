@@ -2,13 +2,14 @@
 
 import { useEffect, useId, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Building2, Globe, Loader2, Phone, Trash2 } from 'lucide-react'
+import { Building2, Globe, Loader2, Mail, MapPin, Phone, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
   api,
   type ApiError,
   type OrganizationDetails,
   type OrganizationSummary,
+  type UpdateOrganizationBody,
 } from '@/lib/api'
 import {
   getTimezoneOptions,
@@ -37,12 +38,18 @@ import {
 } from '@/components/auth/auth-field-styles'
 import { useRouter } from '@/i18n/navigation'
 
+/** Matches PATCH /api/v1/organizations/:id body (updateOrganizationValidator). */
 const CURRENCY_OPTIONS = ['INR', 'USD', 'EUR', 'GBP', 'AED', 'SGD', 'AUD'] as const
+const NAME_MIN = 2
+const NAME_MAX = 200
+const CURRENCY_MAX = 10
 
 const selectClassName = cn(
   authInputClassName,
   'h-11 w-full appearance-none rounded-xl px-3.5 text-sm text-ink outline-none'
 )
+
+const readOnlyInputClassName = cn(authInputWithIconClassName, 'bg-dash-surface/70 text-body')
 
 type FormState = {
   name: string
@@ -84,11 +91,34 @@ function isValidWebsite(value: string): boolean {
   }
 }
 
+/** Vine `.url()` requires a scheme — normalize before send. */
 function normalizeWebsite(value: string): string | undefined {
   const trimmed = value.trim()
   if (!trimmed) return undefined
   if (/^https?:\/\//i.test(trimmed)) return trimmed
   return `https://${trimmed}`
+}
+
+function buildUpdateBody(form: FormState): UpdateOrganizationBody {
+  return {
+    name: form.name.trim(),
+    phone: form.phone.trim() || undefined,
+    website: normalizeWebsite(form.website),
+    industry: form.industry.trim() || undefined,
+    timezone: form.timezone.trim(),
+    currency: form.currency.trim().slice(0, CURRENCY_MAX) || undefined,
+  }
+}
+
+function RequiredMark({ label }: { label: string }) {
+  return (
+    <>
+      {label}{' '}
+      <span className="text-negative" aria-hidden>
+        *
+      </span>
+    </>
+  )
 }
 
 export function WorkspaceSettingsPage() {
@@ -120,6 +150,9 @@ export function WorkspaceSettingsPage() {
   const industryId = useId()
   const timezoneId = useId()
   const currencyId = useId()
+  const slugId = useId()
+  const emailId = useId()
+  const countryId = useId()
   const formErrorId = useId()
   const successId = useId()
   const timezones = Array.from(
@@ -142,8 +175,11 @@ export function WorkspaceSettingsPage() {
 
   function validate(): FieldErrors {
     const next: FieldErrors = {}
-    if (!form.name.trim() || form.name.trim().length < 2) {
+    const name = form.name.trim()
+    if (!name || name.length < NAME_MIN) {
       next.name = t('errors.nameRequired')
+    } else if (name.length > NAME_MAX) {
+      next.name = t('errors.nameTooLong')
     }
     if (form.phone.trim() && !isValidPhone(form.phone)) {
       next.phone = t('errors.phoneInvalid')
@@ -153,6 +189,9 @@ export function WorkspaceSettingsPage() {
     }
     if (!form.timezone.trim()) {
       next.timezone = t('errors.timezoneRequired')
+    }
+    if (form.currency.trim().length > CURRENCY_MAX) {
+      next.currency = t('errors.currencyInvalid')
     }
     return next
   }
@@ -177,14 +216,10 @@ export function WorkspaceSettingsPage() {
 
     setPending(true)
     try {
-      const { data } = await api.organizations.update(activeOrganizationId, {
-        name: form.name.trim(),
-        phone: form.phone.trim() || undefined,
-        website: normalizeWebsite(form.website),
-        industry: form.industry.trim() || undefined,
-        timezone: form.timezone,
-        currency: form.currency.trim() || undefined,
-      })
+      const { data } = await api.organizations.update(
+        activeOrganizationId,
+        buildUpdateBody(form)
+      )
 
       const updated = unwrapDetails(data)
       if (updated) {
@@ -289,6 +324,7 @@ export function WorkspaceSettingsPage() {
   }
 
   const readOnly = !canManageSettings
+  const org = activeOrganization
 
   return (
     <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 sm:gap-6">
@@ -309,6 +345,83 @@ export function WorkspaceSettingsPage() {
         </div>
       </DashboardPanel>
 
+      {/* Immutable identity — returned by GET list / PATCH response; not in update body */}
+      <DashboardPanel as="section" className="p-4 sm:p-5 md:p-6">
+        <DashboardSectionHeader
+          title={t('identityTitle')}
+          description={t('identityDescription')}
+        />
+        <FieldGroup className="mt-5 gap-5">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <Field className="gap-2">
+              <FieldLabel htmlFor={slugId} className="text-sm font-medium text-ink">
+                {t('fields.slug')}
+              </FieldLabel>
+              <Input
+                id={slugId}
+                name="slug"
+                type="text"
+                readOnly
+                disabled
+                value={org.slug}
+                className={cn(authInputClassName, 'bg-dash-surface/70 text-body')}
+              />
+              <FieldDescription className="text-xs text-mute">
+                {t('fields.slugHint')}
+              </FieldDescription>
+            </Field>
+
+            <Field className="gap-2">
+              <FieldLabel htmlFor={emailId} className="text-sm font-medium text-ink">
+                {t('fields.email')}
+              </FieldLabel>
+              <div className="relative">
+                <Mail
+                  className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-mute"
+                  aria-hidden
+                />
+                <Input
+                  id={emailId}
+                  name="email"
+                  type="email"
+                  readOnly
+                  disabled
+                  value={org.email}
+                  className={readOnlyInputClassName}
+                />
+              </div>
+              <FieldDescription className="text-xs text-mute">
+                {t('fields.emailHint')}
+              </FieldDescription>
+            </Field>
+          </div>
+
+          <Field className="gap-2 sm:max-w-md">
+            <FieldLabel htmlFor={countryId} className="text-sm font-medium text-ink">
+              {t('fields.country')}
+            </FieldLabel>
+            <div className="relative">
+              <MapPin
+                className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-mute"
+                aria-hidden
+              />
+              <Input
+                id={countryId}
+                name="country"
+                type="text"
+                readOnly
+                disabled
+                value={org.country ?? ''}
+                className={readOnlyInputClassName}
+              />
+            </div>
+            <FieldDescription className="text-xs text-mute">
+              {t('fields.countryHint')}
+            </FieldDescription>
+          </Field>
+        </FieldGroup>
+      </DashboardPanel>
+
       <DashboardPanel as="section" className="p-4 sm:p-5 md:p-6">
         <DashboardSectionHeader
           title={t('detailsTitle')}
@@ -325,7 +438,7 @@ export function WorkspaceSettingsPage() {
           <FieldGroup className="gap-5">
             <Field data-invalid={fieldErrors.name ? true : undefined} className="gap-2">
               <FieldLabel htmlFor={nameId} className="text-sm font-medium text-ink">
-                {t('fields.name')}
+                <RequiredMark label={t('fields.name')} />
               </FieldLabel>
               <div className="relative">
                 <Building2
@@ -337,9 +450,12 @@ export function WorkspaceSettingsPage() {
                   name="name"
                   type="text"
                   autoComplete="organization"
+                  required
+                  maxLength={NAME_MAX}
                   disabled={pending || readOnly}
                   value={form.name}
                   aria-invalid={Boolean(fieldErrors.name)}
+                  aria-required
                   className={authInputWithIconClassName}
                   onChange={(e) => {
                     patchForm({ name: e.target.value })
@@ -348,6 +464,9 @@ export function WorkspaceSettingsPage() {
                   }}
                 />
               </div>
+              <FieldDescription className="text-xs text-mute">
+                {t('fields.nameHint')}
+              </FieldDescription>
               {fieldErrors.name ? (
                 <FieldError className="text-xs text-negative">{fieldErrors.name}</FieldError>
               ) : null}
@@ -413,6 +532,9 @@ export function WorkspaceSettingsPage() {
                     }}
                   />
                 </div>
+                <FieldDescription className="text-xs text-mute">
+                  {t('fields.websiteHint')}
+                </FieldDescription>
                 {fieldErrors.website ? (
                   <FieldError className="text-xs text-negative">{fieldErrors.website}</FieldError>
                 ) : null}
@@ -446,6 +568,9 @@ export function WorkspaceSettingsPage() {
                     </option>
                   ))}
                 </select>
+                <FieldDescription className="text-xs text-mute">
+                  {t('fields.industryHint')}
+                </FieldDescription>
               </Field>
 
               <Field
@@ -453,14 +578,16 @@ export function WorkspaceSettingsPage() {
                 className="gap-2"
               >
                 <FieldLabel htmlFor={timezoneId} className="text-sm font-medium text-ink">
-                  {t('fields.timezone')}
+                  <RequiredMark label={t('fields.timezone')} />
                 </FieldLabel>
                 <select
                   id={timezoneId}
                   name="timezone"
+                  required
                   disabled={pending || readOnly}
                   value={form.timezone}
                   aria-invalid={Boolean(fieldErrors.timezone)}
+                  aria-required
                   className={selectClassName}
                   onChange={(e) => {
                     patchForm({ timezone: e.target.value })
@@ -482,7 +609,10 @@ export function WorkspaceSettingsPage() {
               </Field>
             </div>
 
-            <Field className="gap-2 sm:max-w-xs">
+            <Field
+              data-invalid={fieldErrors.currency ? true : undefined}
+              className="gap-2 sm:max-w-xs"
+            >
               <FieldLabel htmlFor={currencyId} className="text-sm font-medium text-ink">
                 {t('fields.currency')}
               </FieldLabel>
@@ -491,9 +621,11 @@ export function WorkspaceSettingsPage() {
                 name="currency"
                 disabled={pending || readOnly}
                 value={form.currency}
+                aria-invalid={Boolean(fieldErrors.currency)}
                 className={selectClassName}
                 onChange={(e) => {
                   patchForm({ currency: e.target.value })
+                  setFieldErrors((prev) => ({ ...prev, currency: undefined }))
                   setSuccess(null)
                 }}
               >
@@ -503,6 +635,12 @@ export function WorkspaceSettingsPage() {
                   </option>
                 ))}
               </select>
+              <FieldDescription className="text-xs text-mute">
+                {t('fields.currencyHint')}
+              </FieldDescription>
+              {fieldErrors.currency ? (
+                <FieldError className="text-xs text-negative">{fieldErrors.currency}</FieldError>
+              ) : null}
             </Field>
           </FieldGroup>
 

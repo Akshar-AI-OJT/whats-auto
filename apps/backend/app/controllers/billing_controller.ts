@@ -42,7 +42,7 @@ export default class BillingController {
    * @description Returns the entitlement-relevant subscription for the active org, if any. Requires billing:view.
    * @tag Billing
    * @security BearerAuth
-   * @responseBody 200 - { "data": { "id": "uuid", "planId": "uuid", "status": "active", "checkoutUrl": null } }
+   * @responseBody 200 - { "data": { "id": "uuid", "planId": "uuid", "status": "active" } }
    * @responseBody 404 - { "error": "Subscription not found", "code": "E_BILLING_SUBSCRIPTION_NOT_FOUND" }
    * @responseBody 403 - { "error": "Permission denied: billing:view", "code": "PERMISSION_DENIED" }
    */

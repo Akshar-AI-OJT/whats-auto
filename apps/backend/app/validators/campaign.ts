@@ -6,6 +6,29 @@ export const CAMPAIGN_SOFT_DELETED_STATUS = 'deleted' as const
 /** Statuses allowed when creating a campaign (matches broadcasts.status comment). */
 export const CAMPAIGN_CREATE_STATUSES = ['draft', 'scheduled'] as const
 
+/**
+ * Statuses eligible for POST /campaigns/:id/send.
+ * `sending` is the in-progress / "running" status on `broadcasts`.
+ */
+export const CAMPAIGN_SENDABLE_STATUSES = ['draft', 'scheduled'] as const
+
+/** In-progress status after a successful send kickoff (product "Running"). */
+export const CAMPAIGN_SENDING_STATUS = 'sending' as const
+
+/**
+ * Statuses eligible for POST /campaigns/:id/schedule (includes reschedule).
+ */
+export const CAMPAIGN_SCHEDULABLE_STATUSES = ['draft', 'scheduled'] as const
+
+/** Status after a successful schedule kickoff. */
+export const CAMPAIGN_SCHEDULED_STATUS = 'scheduled' as const
+
+/**
+ * Status after canceling a scheduled campaign.
+ * `broadcasts` has no "cancelled" status — cancel returns the campaign to draft.
+ */
+export const CAMPAIGN_DRAFT_STATUS = 'draft' as const
+
 /** Active lifecycle statuses returned by list/get (excludes soft-deleted). */
 export const CAMPAIGN_STATUSES = [
   'draft',
@@ -54,6 +77,30 @@ export const listCampaignsValidator = vine.create(
 export const campaignIdParamValidator = vine.create(
   vine.object({
     id: vine.string().trim().uuid(),
+  })
+)
+
+/**
+ * Optional variable overrides for campaign preview.
+ * When omitted, the linked template's `sampleValues` are used.
+ */
+export const previewCampaignValidator = vine.create(
+  vine.object({
+    variables: vine.record(vine.string()).optional(),
+  })
+)
+
+/** Required future schedule datetime for POST /campaigns/:id/schedule. */
+export const scheduleCampaignValidator = vine.create(
+  vine.object({
+    scheduledAt: vine.date(),
+  })
+)
+
+/** Required status for PATCH /campaigns/:id/status — active lifecycle values only (excludes soft-delete). */
+export const changeCampaignStatusValidator = vine.create(
+  vine.object({
+    status: vine.enum(CAMPAIGN_STATUSES),
   })
 )
 

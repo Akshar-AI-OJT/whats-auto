@@ -2131,23 +2131,35 @@
     "settings": {
       "eyebrow": "Workspace",
       "title": "Workspace Settings",
-      "subtitle": "Update organization details for the active workspace.",
+      "subtitle": "View and update organization details for the active workspace.",
       "loading": "Loading workspace…",
       "emptyDescription": "Create a workspace before managing settings.",
       "emptyAction": "Create workspace",
-      "detailsTitle": "Organization details",
-      "detailsDescription": "These fields sync with your active organization. Slug and email cannot be changed here.",
+      "identityTitle": "Workspace identity",
+      "identityDescription": "Set when the workspace was created. Slug, email, and country cannot be changed here.",
+      "detailsTitle": "Editable details",
+      "detailsDescription": "Update the fields your workspace API allows: name, phone, website, industry, timezone, and currency.",
       "readOnlyNotice": "You can view this workspace, but you need permission to edit organization settings.",
       "fields": {
+        "slug": "Slug",
+        "slugHint": "URL-safe workspace id. Not editable after creation.",
+        "email": "Organization email",
+        "emailHint": "Set at creation. Not editable from settings.",
+        "country": "Country",
+        "countryHint": "Set at creation. Not included in the update endpoint.",
         "name": "Organization name",
+        "nameHint": "Required. 2–200 characters.",
         "phone": "Phone",
         "phoneHint": "Optional business phone number.",
         "website": "Website",
         "websitePlaceholder": "https://example.com",
+        "websiteHint": "Optional. Must be a valid URL (https:// is added if missing).",
         "industry": "Industry",
         "industryPlaceholder": "Select industry",
+        "industryHint": "Optional.",
         "timezone": "Timezone",
-        "currency": "Currency"
+        "currency": "Currency",
+        "currencyHint": "Optional. Up to 10 characters (ISO codes recommended)."
       },
       "save": "Save changes",
       "saving": "Saving…",
@@ -2162,9 +2174,11 @@
       "deleting": "Deleting…",
       "errors": {
         "nameRequired": "Enter an organization name (at least 2 characters).",
+        "nameTooLong": "Organization name must be at most 200 characters.",
         "phoneInvalid": "Enter a valid phone number.",
         "websiteInvalid": "Enter a valid website URL.",
         "timezoneRequired": "Select a timezone.",
+        "currencyInvalid": "Currency must be at most 10 characters.",
         "noWorkspace": "No active workspace selected.",
         "permissionDenied": "You do not have permission to perform this action.",
         "sessionExpired": "Your session expired. Please sign in again.",
@@ -2310,6 +2324,143 @@
         "description": "A live trail of workspace events.",
         "emptyTitle": "No activity yet",
         "emptyDescription": "Workspace events will show up here as your team starts using Whats-Auto."
+      }
+    },
+    "campaigns": {
+      "eyebrow": "Outreach",
+      "title": "Campaigns",
+      "subtitle": "Create and track WhatsApp broadcast campaigns for this workspace.",
+      "createCta": "Create Campaign",
+      "loading": "Loading campaigns…",
+      "searchPlaceholder": "Search campaigns by name...",
+      "emptyTitle": "No campaigns yet",
+      "emptyDescription": "Create your first campaign to start reaching customers with WhatsApp templates.",
+      "pagination": "Showing {from} to {to} of {total} campaigns",
+      "prev": "Previous",
+      "next": "Next",
+      "createTitle": "Create Campaign",
+      "editTitle": "Edit Campaign",
+      "formSubtitle": "Configure campaign details and review before confirming.",
+      "backToList": "Back to campaigns",
+      "backToDetails": "Back to campaign details",
+      "noTemplate": "No template",
+      "views": {
+        "cards": "Cards",
+        "list": "List"
+      },
+      "filters": {
+        "search": "Search",
+        "startDate": "Start date",
+        "endDate": "End date",
+        "searchCta": "Search",
+        "clear": "Clear"
+      },
+      "type": {
+        "broadcast": "Broadcast"
+      },
+      "card": {
+        "template": "Template",
+        "deliveryRate": "Delivery Rate",
+        "readRate": "Read Rate"
+      },
+      "table": {
+        "campaign": "Campaign",
+        "type": "Type",
+        "template": "Template",
+        "status": "Status",
+        "recipients": "Recipients",
+        "sent": "Sent",
+        "delivered": "Delivered",
+        "read": "Read",
+        "created": "Created On",
+        "actions": "Actions"
+      },
+      "status": {
+        "draft": "Draft",
+        "scheduled": "Scheduled",
+        "processing": "Processing",
+        "completed": "Completed",
+        "failed": "Failed",
+        "sending": "Sending",
+        "sent": "Completed"
+      },
+      "actions": {
+        "menuAria": "Campaign actions",
+        "view": "View Details",
+        "edit": "Edit Campaign",
+        "duplicate": "Duplicate Campaign",
+        "pause": "Pause Campaign",
+        "delete": "Delete Campaign"
+      },
+      "delete": {
+        "title": "Delete this campaign?",
+        "body": "“{name}” will be soft-deleted and removed from the campaigns list.",
+        "cancel": "Cancel",
+        "confirm": "Delete campaign",
+        "deleting": "Deleting…"
+      },
+      "pauseComingSoon": {
+        "title": "Coming Soon",
+        "body": "Pause Campaign will be available in a future update.",
+        "dismiss": "Got it"
+      },
+      "form": {
+        "name": "Campaign Name",
+        "namePlaceholder": "Enter campaign name",
+        "type": "Campaign Type",
+        "typeHint": "Only Broadcast campaigns are supported currently.",
+        "template": "Template",
+        "templatePlaceholder": "Select an approved template",
+        "audience": "Target Audience",
+        "audiencePlaceholder": "Select audience",
+        "audienceAll": "All contacts ({count})",
+        "audienceHint": "Audience selection is shown for planning. Recipient attachment is not available on the API yet.",
+        "schedule": "Schedule",
+        "sendNow": "Send Now",
+        "scheduleLater": "Schedule for Later",
+        "scheduleHint": "Send Now saves as a draft. Schedule for Later requires a date and time.",
+        "cancel": "Cancel",
+        "reviewConfirm": "Review & Confirm",
+        "saving": "Saving…",
+        "errors": {
+          "nameRequired": "Campaign name is required.",
+          "nameTooLong": "Campaign name must be 100 characters or fewer.",
+          "scheduledAtRequired": "Choose a schedule date and time."
+        }
+      },
+      "summary": {
+        "title": "Campaign Summary",
+        "name": "Name",
+        "type": "Type",
+        "template": "Template",
+        "audience": "Audience",
+        "schedule": "Schedule"
+      },
+      "details": {
+        "createdMeta": "Template {template} · Created on {date}",
+        "timeline": "Campaign Timeline",
+        "performance": "Performance Overview"
+      },
+      "timeline": {
+        "created": "Created",
+        "scheduled": "Scheduled",
+        "processing": "Processing",
+        "completed": "Completed"
+      },
+      "metrics": {
+        "recipients": "Recipients",
+        "sent": "Sent",
+        "delivered": "Delivered",
+        "read": "Read",
+        "failed": "Failed",
+        "pending": "Pending"
+      },
+      "errors": {
+        "permissionDenied": "You do not have permission to manage campaigns in this workspace.",
+        "loadFailed": "Could not load campaigns. Please try again.",
+        "deleteFailed": "Could not delete this campaign.",
+        "saveFailed": "Could not save this campaign.",
+        "notEditable": "Only draft or scheduled campaigns can be edited."
       }
     }
   },
