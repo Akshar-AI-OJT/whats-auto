@@ -56,15 +56,20 @@ function subscribeSystemTheme(onStoreChange: () => void) {
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? '/'
-  const [theme, setThemeState] = useState<ThemeMode>(() => {
-    if (typeof window === 'undefined') return 'system'
-    return readStoredTheme()
-  })
+  // Always start as system on both server and client to avoid hydration mismatch;
+  // localStorage is applied after mount.
+  const [theme, setThemeState] = useState<ThemeMode>('system')
+  const [themeReady, setThemeReady] = useState(false)
   const systemDark = useSyncExternalStore(
     subscribeSystemTheme,
     getSystemDark,
     () => false
   )
+
+  useEffect(() => {
+    setThemeState(readStoredTheme())
+    setThemeReady(true)
+  }, [])
 
   const resolvedTheme: 'light' | 'dark' =
     theme === 'system' ? (systemDark ? 'dark' : 'light') : theme
@@ -73,8 +78,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const appearance: 'light' | 'dark' = allowDark ? resolvedTheme : 'light'
 
   useEffect(() => {
+    if (!themeReady) return
     applyThemeClass(appearance, allowDark ? 'app' : 'public')
-  }, [appearance, allowDark])
+  }, [appearance, allowDark, themeReady])
 
   const setTheme = useCallback((next: ThemeMode) => {
     setThemeState(next)
