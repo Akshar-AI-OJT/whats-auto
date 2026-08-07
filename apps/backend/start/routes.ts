@@ -174,6 +174,33 @@ const requestBodySchemas: Record<string, JsonSchema> = {
     },
     ['name']
   ),
+  'post /api/v1/campaigns/{id}/preview': bodySchema({
+    variables: {
+      type: 'object',
+      additionalProperties: { type: 'string' },
+      example: { customer_name: 'Priya' },
+    },
+  }),
+  'post /api/v1/campaigns/{id}/schedule': bodySchema(
+    {
+      scheduledAt: {
+        type: 'string',
+        format: 'date-time',
+        example: '2026-08-07T10:00:00.000Z',
+      },
+    },
+    ['scheduledAt']
+  ),
+  'patch /api/v1/campaigns/{id}/status': bodySchema(
+    {
+      status: {
+        type: 'string',
+        example: 'sent',
+        enum: ['draft', 'scheduled', 'sending', 'sent', 'failed'],
+      },
+    },
+    ['status']
+  ),
   'patch /api/v1/campaigns/{id}': bodySchema({
     name: { type: 'string', example: 'July Product Launch v2' },
     whatsappConfigId: { type: 'string', format: 'uuid', nullable: true },
@@ -595,6 +622,24 @@ router
     router
       .get('/', [CampaignsController, 'index'])
       .use(middleware.requirePermission({ permission: 'campaigns:view' }))
+    router
+      .post('/:id/preview', [CampaignsController, 'preview'])
+      .use(middleware.requirePermission({ permission: 'campaigns:view' }))
+    router
+      .post('/:id/send', [CampaignsController, 'send'])
+      .use(middleware.requirePermission({ permission: 'campaigns:launch' }))
+    router
+      .post('/:id/schedule', [CampaignsController, 'schedule'])
+      .use(middleware.requirePermission({ permission: 'campaigns:edit' }))
+    router
+      .patch('/:id/cancel', [CampaignsController, 'cancel'])
+      .use(middleware.requirePermission({ permission: 'campaigns:pause' }))
+    router
+      .post('/:id/duplicate', [CampaignsController, 'duplicate'])
+      .use(middleware.requirePermission({ permission: 'campaigns:create' }))
+    router
+      .patch('/:id/status', [CampaignsController, 'changeStatus'])
+      .use(middleware.requirePermission({ permission: 'campaigns:edit' }))
     router
       .get('/:id', [CampaignsController, 'show'])
       .use(middleware.requirePermission({ permission: 'campaigns:view' }))

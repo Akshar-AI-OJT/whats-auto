@@ -2,8 +2,11 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { CampaignService } from '#services/campaign_service'
 import {
   campaignIdParamValidator,
+  changeCampaignStatusValidator,
   createCampaignValidator,
   listCampaignsValidator,
+  previewCampaignValidator,
+  scheduleCampaignValidator,
   updateCampaignValidator,
 } from '#validators/campaign'
 import '#types/http'
@@ -58,6 +61,171 @@ export default class CampaignsController {
     const campaign = await new CampaignService().getCampaignById({
       campaignId: id,
       organizationId: request.activeMember!.organizationId,
+    })
+
+    return serialize(campaign)
+  }
+
+  /**
+   * @preview
+   * @summary Preview a campaign message
+   * @description Read-only preview of the campaign's linked WhatsApp template with placeholders replaced by sampleValues (or optional request overrides). Does not send messages or change campaign status.
+   * @tag Campaigns
+   * @security BearerAuth
+   * @paramPath id - Campaign id - @type(string)
+   * @requestBody { "variables": { "customer_name": "Priya" } }
+   * @responseBody 200 - { "data": { "campaignId": "uuid", "campaignName": "July Product Launch", "bodyPreview": "Hello Priya, your Northstar order is on the way.", "variables": { "customer_name": "Priya" } } }
+   * @responseBody 401 - { "error": "Missing or invalid session" }
+   * @responseBody 403 - { "error": "Permission denied: campaigns:view", "code": "PERMISSION_DENIED" }
+   * @responseBody 404 - { "error": "Campaign not found", "code": "E_CAMPAIGN_NOT_FOUND" }
+   * @responseBody 422 - { "error": "Campaign has no message template configured", "code": "E_CAMPAIGN_TEMPLATE_NOT_CONFIGURED" }
+   */
+  async preview({ request, params, serialize }: HttpContext) {
+    const { id } = await request.validateUsing(campaignIdParamValidator, {
+      data: params,
+    })
+    const payload = await request.validateUsing(previewCampaignValidator)
+
+    const preview = await new CampaignService().previewCampaign({
+      campaignId: id,
+      organizationId: request.activeMember!.organizationId,
+      variables: payload.variables,
+    })
+
+    return serialize(preview)
+  }
+
+  /**
+   * @send
+   * @summary Send a campaign
+   * @description Marks an eligible draft/scheduled campaign as sending (running). Does not deliver messages yet — broadcast queue fan-out is a future integration. Soft-deleted campaigns return 404.
+   * @tag Campaigns
+   * @security BearerAuth
+   * @paramPath id - Campaign id - @type(string)
+   * @responseBody 200 - { "data": { "id": "uuid", "name": "July Product Launch", "status": "sending" } }
+   * @responseBody 401 - { "error": "Missing or invalid session" }
+   * @responseBody 403 - { "error": "Permission denied: campaigns:launch", "code": "PERMISSION_DENIED" }
+   * @responseBody 404 - { "error": "Campaign not found", "code": "E_CAMPAIGN_NOT_FOUND" }
+   * @responseBody 422 - { "error": "Campaign with status \"sending\" is not eligible to send", "code": "E_CAMPAIGN_NOT_ELIGIBLE_TO_SEND" }
+   */
+  async send({ request, params, serialize }: HttpContext) {
+    const { id } = await request.validateUsing(campaignIdParamValidator, {
+      data: params,
+    })
+
+    const campaign = await new CampaignService().sendCampaign({
+      campaignId: id,
+      organizationId: request.activeMember!.organizationId,
+    })
+
+    return serialize(campaign)
+  }
+
+  /**
+   * @schedule
+   * @summary Schedule a campaign
+   * @description Sets scheduledAt to a future datetime and status to scheduled. Soft-deleted campaigns return 404. Scheduler job registration is a future integration.
+   * @tag Campaigns
+   * @security BearerAuth
+   * @paramPath id - Campaign id - @type(string)
+   * @requestBody { "scheduledAt": "2026-08-07T10:00:00.000Z" }
+   * @responseBody 200 - { "data": { "id": "uuid", "name": "July Product Launch", "status": "scheduled", "scheduledAt": "2026-08-07T10:00:00.000Z" } }
+   * @responseBody 401 - { "error": "Missing or invalid session" }
+   * @responseBody 403 - { "error": "Permission denied: campaigns:edit", "code": "PERMISSION_DENIED" }
+   * @responseBody 404 - { "error": "Campaign not found", "code": "E_CAMPAIGN_NOT_FOUND" }
+   * @responseBody 422 - { "error": "scheduledAt must be in the future", "code": "E_CAMPAIGN_SCHEDULED_AT_MUST_BE_FUTURE" }
+   */
+  async schedule({ request, params, serialize }: HttpContext) {
+    const { id } = await request.validateUsing(campaignIdParamValidator, {
+      data: params,
+    })
+    const payload = await request.validateUsing(scheduleCampaignValidator)
+
+    const campaign = await new CampaignService().scheduleCampaign({
+      campaignId: id,
+      organizationId: request.activeMember!.organizationId,
+      scheduledAt: payload.scheduledAt,
+    })
+
+    return serialize(campaign)
+  }
+
+  /**
+   * @cancel
+   * @summary Cancel a scheduled campaign
+   * @description Reverts a scheduled campaign to draft and clears scheduledAt. Soft-deleted campaigns return 404. Scheduler job removal is a future integration.
+   * @tag Campaigns
+   * @security BearerAuth
+   * @paramPath id - Campaign id - @type(string)
+   * @responseBody 200 - { "data": { "id": "uuid", "name": "July Product Launch", "status": "draft" } }
+   * @responseBody 401 - { "error": "Missing or invalid session" }
+   * @responseBody 403 - { "error": "Permission denied: campaigns:pause", "code": "PERMISSION_DENIED" }
+   * @responseBody 404 - { "error": "Campaign not found", "code": "E_CAMPAIGN_NOT_FOUND" }
+   * @responseBody 422 - { "error": "Campaign with status \"draft\" is not eligible to cancel schedule", "code": "E_CAMPAIGN_NOT_ELIGIBLE_TO_CANCEL" }
+   */
+  async cancel({ request, params, serialize }: HttpContext) {
+    const { id } = await request.validateUsing(campaignIdParamValidator, {
+      data: params,
+    })
+
+    const campaign = await new CampaignService().cancelScheduledCampaign({
+      campaignId: id,
+      organizationId: request.activeMember!.organizationId,
+    })
+
+    return serialize(campaign)
+  }
+
+  /**
+   * @duplicate
+   * @summary Duplicate a campaign
+   * @description Creates a new draft campaign from an existing one. Does not copy id, timestamps, schedule, delivery counters, or soft-delete state. Soft-deleted sources return 404.
+   * @tag Campaigns
+   * @security BearerAuth
+   * @paramPath id - Campaign id to duplicate - @type(string)
+   * @responseBody 200 - { "data": { "id": "uuid", "name": "July Product Launch", "status": "draft", "totalRecipients": 0 } }
+   * @responseBody 401 - { "error": "Missing or invalid session" }
+   * @responseBody 403 - { "error": "Permission denied: campaigns:create", "code": "PERMISSION_DENIED" }
+   * @responseBody 404 - { "error": "Campaign not found", "code": "E_CAMPAIGN_NOT_FOUND" }
+   */
+  async duplicate({ request, params, serialize }: HttpContext) {
+    const { id } = await request.validateUsing(campaignIdParamValidator, {
+      data: params,
+    })
+
+    const campaign = await new CampaignService().duplicateCampaign({
+      campaignId: id,
+      organizationId: request.activeMember!.organizationId,
+      actorUserId: request.authUser!.id,
+    })
+
+    return serialize(campaign)
+  }
+
+  /**
+   * @changeStatus
+   * @summary Change campaign status
+   * @description Updates only the campaign status to an active lifecycle value (draft, scheduled, sending, sent, failed). Soft-deleted campaigns return 404. Does not change other fields.
+   * @tag Campaigns
+   * @security BearerAuth
+   * @paramPath id - Campaign id - @type(string)
+   * @requestBody { "status": "sent" }
+   * @responseBody 200 - { "data": { "id": "uuid", "name": "July Product Launch", "status": "sent" } }
+   * @responseBody 401 - { "error": "Missing or invalid session" }
+   * @responseBody 403 - { "error": "Permission denied: campaigns:edit", "code": "PERMISSION_DENIED" }
+   * @responseBody 404 - { "error": "Campaign not found", "code": "E_CAMPAIGN_NOT_FOUND" }
+   * @responseBody 422 - { "error": "Validation failed", "code": "E_VALIDATION_ERROR" }
+   */
+  async changeStatus({ request, params, serialize }: HttpContext) {
+    const { id } = await request.validateUsing(campaignIdParamValidator, {
+      data: params,
+    })
+    const payload = await request.validateUsing(changeCampaignStatusValidator)
+
+    const campaign = await new CampaignService().changeCampaignStatus({
+      campaignId: id,
+      organizationId: request.activeMember!.organizationId,
+      status: payload.status,
     })
 
     return serialize(campaign)
