@@ -130,16 +130,23 @@ export class MessageService {
     conversationId: string
     page?: number
     limit?: number
+    after?: string
   }) {
     await this.findConversationOrFail(params)
 
     const page = params.page ?? 1
     const limit = params.limit ?? 20
+    const afterAt = params.after ? new Date(params.after) : null
+    const afterValid = afterAt && !Number.isNaN(afterAt.getTime()) ? afterAt : null
 
-    const base = db
+    let base = db
       .from('messages as m')
       .where('m.organizationId', params.organizationId)
       .where('m.conversationId', params.conversationId)
+
+    if (afterValid) {
+      base = base.where('m.createdAt', '>', afterValid)
+    }
 
     const countResult = await base.clone().count('* as total').first()
     const total = Number(countResult?.total ?? 0)
