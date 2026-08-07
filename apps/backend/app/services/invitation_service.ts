@@ -121,12 +121,33 @@ export class InvitationService {
         <p><a href="${inviteLink}">Accept Invitation</a> — link expires in ${INVITE_TTL_HOURS} hours.</p>
       `,
       })
-      if (error) throw InvitationException.emailSendFailed(error.message)
+      if (error) {
+        // Resend test domain (onboarding@resend.dev) only delivers to the account email.
+        // Mirror pre_signup OTP: keep invites usable in development by logging the link.
+        if (env.get('NODE_ENV') === 'development') {
+          console.warn(`[DEV] Resend failed for invite ${normalizedEmail}: ${error.message}`)
+          console.warn(`[DEV] Invitation link: ${inviteLink}`)
+        } else {
+          throw InvitationException.emailSendFailed(error.message)
+        }
+      } else if (env.get('NODE_ENV') === 'development') {
+        console.info(`[DEV] Invite email sent to ${normalizedEmail}. Link: ${inviteLink}`)
+      }
     } catch (error) {
-      // Do not leave a pending invite that the recipient never received.
-      await db.from('organization_invitations').where('id', invitation.id).delete()
-      if (error instanceof InvitationException) throw error
-      throw InvitationException.emailSendFailed(error instanceof Error ? error.message : undefined)
+      if (error instanceof InvitationException) {
+        // Do not leave a pending invite that the recipient never received.
+        await db.from('organization_invitations').where('id', invitation.id).delete()
+        throw error
+      }
+      if (env.get('NODE_ENV') === 'development') {
+        console.warn(
+          `[DEV] Invite email threw for ${normalizedEmail}: ${error instanceof Error ? error.message : error}`
+        )
+        console.warn(`[DEV] Invitation link: ${inviteLink}`)
+      } else {
+        await db.from('organization_invitations').where('id', invitation.id).delete()
+        throw InvitationException.emailSendFailed(error instanceof Error ? error.message : undefined)
+      }
     }
 
     return {

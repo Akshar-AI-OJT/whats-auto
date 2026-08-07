@@ -104,6 +104,8 @@ export function InviteMemberSheet({
     if (apiError.code === 'E_INVITE_ALREADY_MEMBER') return t('errors.alreadyMember')
     if (apiError.code === 'E_INVITE_ALREADY_PENDING') return t('errors.alreadyPending')
     if (apiError.code === 'E_ROLE_MISSING') return t('errors.roleInvalid')
+    if (apiError.code === 'E_INVITE_EMAIL_FAILED') return t('errors.emailFailed')
+    if (apiError.status >= 500) return t('errors.generic')
     return apiError.message || t('errors.generic')
   }
 

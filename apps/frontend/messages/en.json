@@ -1546,6 +1546,7 @@
           "alreadyMember": "That email is already a member of this workspace.",
           "alreadyPending": "An invitation is already pending for that email. Cancel it first or wait for a response.",
           "roleInvalid": "That role isn’t available for this workspace.",
+          "emailFailed": "Couldn’t send the invitation email. Check email delivery settings and try again.",
           "generic": "Couldn’t send the invitation. Please try again."
         }
       }

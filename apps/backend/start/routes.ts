@@ -328,7 +328,7 @@ router.any('/api/auth/*', async (ctx) => {
 
 /*
 |--------------------------------------------------------------------------
-| Platform inbound webhooks (public — Meta / future providers)
+| Platform inbound webhooks (public â€” Meta / future providers)
 | No jwtAuth / tenant. Auth = verify token (GET) + HMAC signature (POST).
 |--------------------------------------------------------------------------
 */
@@ -343,7 +343,7 @@ router
 /*
 |--------------------------------------------------------------------------
 | Tenant WhatsApp product APIs (Phase 2+)
-| Embedded Signup + whatsapp_configs — jwtAuth + tenant + whatsapp:* perms
+| Embedded Signup + whatsapp_configs â€” jwtAuth + tenant + whatsapp:* perms
 |--------------------------------------------------------------------------
 */
 router
@@ -408,7 +408,7 @@ router
   .prefix('/api/v1/account')
   .use(middleware.jwtAuth())
 
-// super admin — platform scope (no active organization required)
+// super admin â€” platform scope (no active organization required)
 router
   .group(() => {
     router
@@ -439,7 +439,7 @@ router
   .prefix('/api/v1/super-admin')
   .use([middleware.jwtAuth(), middleware.platform()])
 
-// organization admin — active-org scoped (admin/owner role enforced in controller)
+// organization admin â€” active-org scoped (admin/owner role enforced in controller)
 router
   .group(() => {
     router.get('/users', [OrganizationAdminUsersController, 'index'])
@@ -450,7 +450,7 @@ router
   .prefix('/api/v1/organization-admin')
   .use([middleware.jwtAuth(), middleware.tenant()])
 
-// organizations — create/list/set-active do not require an active org yet
+// organizations â€” create/list/set-active do not require an active org yet
 router.post('/api/v1/organizations', [OrganizationsController, 'store']).use([middleware.jwtAuth()])
 router.get('/api/v1/organizations', [OrganizationsController, 'index']).use([middleware.jwtAuth()])
 router
@@ -472,7 +472,7 @@ router
   .prefix('/api/v1/organizations')
   .use([middleware.jwtAuth(), middleware.tenant()])
 
-// invitations — list stays active-org scoped; accept/reject/cancel use invitation :id
+// invitations â€” list stays active-org scoped; accept/reject/cancel use invitation :id
 router
   .get('/api/v1/invitations', [InvitationsController, 'index'])
   .use([
@@ -485,7 +485,7 @@ router.get('/api/v1/invitations/:id', [InvitationsController, 'show'])
 router
   .post('/api/v1/invitations/:id/accept', [InvitationsController, 'accept'])
   .use([middleware.jwtAuth()])
-// Public decline — invitation id is the secret (same as preview)
+// Public decline â€” invitation id is the secret (same as preview)
 router.post('/api/v1/invitations/:id/reject', [InvitationsController, 'reject'])
 router
   .post('/api/v1/invitations/:id/cancel', [InvitationsController, 'cancel'])
@@ -500,7 +500,7 @@ router
   .get('/api/v1/access-context', [controllers.AccessContext, 'show'])
   .use([middleware.jwtAuth(), middleware.tenant()])
 
-// Onboarding state — no active org required; tells the client which screen comes next
+// Onboarding state â€” no active org required; tells the client which screen comes next
 router.get('/api/v1/onboarding/state', [OnboardingController, 'show']).use([middleware.jwtAuth()])
 
 // roles
@@ -563,7 +563,7 @@ router
     middleware.requirePermission({ permission: 'team:view' }),
   ])
 
-// contacts — sample RLS business table (tenant isolation demo)
+// contacts â€” sample RLS business table (tenant isolation demo)
 router
   .group(() => {
     router
@@ -660,7 +660,7 @@ router
   .prefix('/api/v1/inbox/conversations')
   .use([middleware.jwtAuth(), middleware.tenant()])
 
-// Platform billing (tenant) — Razorpay SaaS checkout + subscription read
+// Platform billing (tenant) â€” Razorpay SaaS checkout + subscription read
 router
   .group(() => {
     router
