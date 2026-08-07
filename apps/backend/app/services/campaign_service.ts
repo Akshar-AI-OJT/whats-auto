@@ -1,16 +1,21 @@
 import db from '@adonisjs/lucid/services/db'
+import app from '@adonisjs/core/services/app'
+import logger from '@adonisjs/core/services/logger'
 import CampaignException from '#exceptions/campaign_exception'
+import { MediaAssetReferenceRepository } from '#repositories/media_asset_reference_repository'
 import { parseParameterSchema } from '#lib/meta_whatsapp/template_parameters'
 import type { TemplateParameterSchema } from '#lib/meta_whatsapp/types'
+import JobQueueManager from '#services/job_queue/job_queue_manager'
+import { JOB_NAMES } from '#services/job_queue/job_names'
+import type { CAMPAIGN_STATUSES } from '#validators/campaign'
 import {
-  CAMPAIGN_DRAFT_STATUS,
-  CAMPAIGN_SCHEDULABLE_STATUSES,
-  CAMPAIGN_SCHEDULED_STATUS,
-  CAMPAIGN_SENDABLE_STATUSES,
-  CAMPAIGN_SENDING_STATUS,
-  CAMPAIGN_SOFT_DELETED_STATUS,
   CAMPAIGN_SORT_FIELDS,
-  CAMPAIGN_STATUSES,
+  CAMPAIGN_SOFT_DELETED_STATUS,
+  CAMPAIGN_SCHEDULABLE_STATUSES,
+  CAMPAIGN_SENDABLE_STATUSES,
+  CAMPAIGN_DRAFT_STATUS,
+  CAMPAIGN_SCHEDULED_STATUS,
+  CAMPAIGN_SENDING_STATUS,
 } from '#validators/campaign'
 import type { DateTime } from 'luxon'
 
@@ -45,7 +50,10 @@ export type CampaignDto = {
   name: string
   whatsappConfigId: string | null
   messageTemplateId: string | null
+  headerMediaAssetId: string | null
   scheduledAt: string | null
+  finalizedAt: string | null
+  cancelledAt: string | null
   status: string
   totalRecipients: number
   sentCount: number
@@ -63,6 +71,7 @@ export type CreateCampaignInput = {
   name: string
   whatsappConfigId?: string
   messageTemplateId?: string
+  headerMediaAssetId?: string
   scheduledAt?: DateTime | Date
   status?: 'draft' | 'scheduled'
 }
@@ -84,6 +93,7 @@ export type UpdateCampaignInput = {
   name?: string
   whatsappConfigId?: string | null
   messageTemplateId?: string | null
+  headerMediaAssetId?: string | null
   scheduledAt?: DateTime | Date | null
   status?: 'draft' | 'scheduled'
 }
@@ -146,7 +156,10 @@ function mapCampaignRow(row: Record<string, unknown>): CampaignDto {
     name: row.name as string,
     whatsappConfigId: (row.whatsappConfigId as string | null) ?? null,
     messageTemplateId: (row.messageTemplateId as string | null) ?? null,
+    headerMediaAssetId: (row.headerMediaAssetId as string | null) ?? null,
     scheduledAt: toIso(row.scheduledAt as DateTime | Date | string | null),
+    finalizedAt: toIso(row.finalizedAt as DateTime | Date | string | null),
+    cancelledAt: toIso(row.cancelledAt as DateTime | Date | string | null),
     status: row.status as string,
     totalRecipients: Number(row.totalRecipients ?? 0),
     sentCount: Number(row.sentCount ?? 0),
@@ -193,13 +206,18 @@ function applyTemplateVariables(
   text: string | null | undefined,
   variables: Record<string, string>
 ): string | null {
-  if (text == null) return null
-  return text.replace(TEMPLATE_PLACEHOLDER, (match, key: string) => {
-    if (Object.prototype.hasOwnProperty.call(variables, key)) {
-      return variables[key]
+  if (text === null) return null
+  // The issue is that 'text' is possibly 'undefined' (see linter; if text is undefined, calling .replace will throw).
+  // To fix, ensure 'text' is a string before calling .replace.
+  return (typeof text === 'string' ? text : '').replace(
+    TEMPLATE_PLACEHOLDER,
+    (match, key: string) => {
+      if (Object.prototype.hasOwnProperty.call(variables, key)) {
+        return variables[key]
+      }
+      return match
     }
-    return match
-  })
+  )
 }
 
 const BROADCAST_COLUMNS = [
@@ -209,7 +227,10 @@ const BROADCAST_COLUMNS = [
   'name',
   'whatsappConfigId',
   'messageTemplateId',
+  'headerMediaAssetId',
   'scheduledAt',
+  'finalizedAt',
+  'cancelledAt',
   'status',
   'totalRecipients',
   'sentCount',
@@ -222,6 +243,10 @@ const BROADCAST_COLUMNS = [
 ] as const
 
 export class CampaignService {
+  constructor(
+    protected mediaReferences: MediaAssetReferenceRepository = new MediaAssetReferenceRepository()
+  ) {}
+
   /**
    * Load an active campaign row for the active org or throw not found.
    * Soft-deleted campaigns (status = deleted) are excluded.
@@ -290,6 +315,20 @@ export class CampaignService {
 
     if (!template) {
       throw CampaignException.messageTemplateNotFound()
+    }
+  }
+
+  protected async assertMediaAssetInOrg(organizationId: string, mediaAssetId: string) {
+    const asset = await db
+      .from('media_assets')
+      .where('id', mediaAssetId)
+      .where('organizationId', organizationId)
+      .where('state', 'ready')
+      .select('id')
+      .first()
+
+    if (!asset) {
+      throw CampaignException.invalidReference()
     }
   }
 
@@ -378,6 +417,11 @@ export class CampaignService {
       organizationId: input.organizationId,
     })
 
+    const existingStatus = existing.status as string
+    if (existingStatus !== 'draft' && existingStatus !== 'scheduled') {
+      throw CampaignException.notEditable(existingStatus)
+    }
+
     const updates: Record<string, unknown> = {}
 
     if (input.name !== undefined) {
@@ -396,6 +440,13 @@ export class CampaignService {
         await this.assertMessageTemplateInOrg(input.organizationId, input.messageTemplateId)
       }
       updates.messageTemplateId = input.messageTemplateId
+    }
+
+    if (input.headerMediaAssetId !== undefined) {
+      if (input.headerMediaAssetId) {
+        await this.assertMediaAssetInOrg(input.organizationId, input.headerMediaAssetId)
+      }
+      updates.headerMediaAssetId = input.headerMediaAssetId
     }
 
     if (input.scheduledAt !== undefined) {
@@ -520,6 +571,10 @@ export class CampaignService {
       await this.assertMessageTemplateInOrg(input.organizationId, input.messageTemplateId)
     }
 
+    if (input.headerMediaAssetId) {
+      await this.assertMediaAssetInOrg(input.organizationId, input.headerMediaAssetId)
+    }
+
     try {
       // Knex (not Lucid .create) — DB columns are camelCase; Lucid emits snake_case.
       const [row] = await db
@@ -530,6 +585,7 @@ export class CampaignService {
           name,
           whatsappConfigId: input.whatsappConfigId ?? null,
           messageTemplateId: input.messageTemplateId ?? null,
+          headerMediaAssetId: input.headerMediaAssetId ?? null,
           scheduledAt,
           status,
           totalRecipients: 0,
@@ -567,12 +623,16 @@ export class CampaignService {
 
     const whatsappConfigId = (source.whatsappConfigId as string | null) ?? null
     const messageTemplateId = (source.messageTemplateId as string | null) ?? null
+    const headerMediaAssetId = (source.headerMediaAssetId as string | null) ?? null
 
     if (whatsappConfigId) {
       await this.assertWhatsappConfigInOrg(params.organizationId, whatsappConfigId)
     }
     if (messageTemplateId) {
       await this.assertMessageTemplateInOrg(params.organizationId, messageTemplateId)
+    }
+    if (headerMediaAssetId) {
+      await this.assertMediaAssetInOrg(params.organizationId, headerMediaAssetId)
     }
 
     try {
@@ -586,6 +646,7 @@ export class CampaignService {
           name: source.name as string,
           whatsappConfigId,
           messageTemplateId,
+          headerMediaAssetId,
           scheduledAt: null,
           status: CAMPAIGN_DRAFT_STATUS,
           totalRecipients: 0,
@@ -626,6 +687,18 @@ export class CampaignService {
       throw CampaignException.notEligibleToSchedule(currentStatus)
     }
 
+    if (Number(existing.totalRecipients ?? 0) < 1) {
+      throw CampaignException.recipientsRequired()
+    }
+
+    if (!existing.messageTemplateId) {
+      throw CampaignException.templateNotConfigured()
+    }
+
+    if (!existing.whatsappConfigId) {
+      throw CampaignException.whatsappConfigNotConfigured()
+    }
+
     const scheduledAt = toJsDate(params.scheduledAt)
     if (scheduledAt.getTime() <= Date.now()) {
       throw CampaignException.scheduledAtMustBeFuture()
@@ -657,26 +730,34 @@ export class CampaignService {
       scheduledAt,
     })
 
+    await this.#protectHeaderMedia({
+      organizationId: params.organizationId,
+      campaignId: params.campaignId,
+      headerMediaAssetId: (row.headerMediaAssetId as string | null) ?? null,
+    })
+
     return mapCampaignRow(row)
   }
 
   /**
-   * Placeholder for future campaign scheduler integration.
-   * Job queue (pg-boss) exists for WhatsApp outbound / billing, but there is no
-   * campaign schedule job yet. Hook registration here when `JOB_NAMES` gains one.
+   * Enqueue delayed campaign execute job for a future schedule.
    */
-  protected async registerCampaignSchedule(_params: {
+  protected async registerCampaignSchedule(params: {
     organizationId: string
     campaignId: string
     scheduledAt: Date
   }): Promise<void> {
-    // Future: register a delayed job to call sendCampaign (or fan-out) at scheduledAt.
+    await this.#enqueueCampaignWake({
+      organizationId: params.organizationId,
+      campaignId: params.campaignId,
+      runAt: params.scheduledAt,
+    })
   }
 
   /**
    * Cancel a scheduled campaign: revert to draft and clear `scheduledAt`.
-   * There is no "cancelled" status on `broadcasts` — draft is the lifecycle equivalent.
    * Soft-deleted campaigns are treated as not found (404).
+   * In-progress (`sending`) campaigns use cancelInProgressCampaign instead.
    */
   async cancelScheduledCampaign(params: {
     campaignId: string
@@ -698,6 +779,7 @@ export class CampaignService {
       .update({
         status: CAMPAIGN_DRAFT_STATUS,
         scheduledAt: null,
+        cancelledAt: null,
       })
       .returning([...BROADCAST_COLUMNS])
 
@@ -716,24 +798,21 @@ export class CampaignService {
 
   /**
    * Placeholder for removing a future campaign schedule job.
-   * No campaign schedule job exists yet — hook unschedule/cancel here when wired.
+   * pg-boss singletonKey = campaignId means a later enqueue replaces; cancel relies on
+   * status checks in executeCampaign to no-op if reverted to draft.
    */
   protected async unregisterCampaignSchedule(_params: {
     organizationId: string
     campaignId: string
   }): Promise<void> {
-    // Future: cancel/remove the delayed job registered by registerCampaignSchedule.
+    // No explicit job cancel API required — executeCampaign ignores non-due draft rows.
   }
 
   /**
-   * Kick off campaign send: mark as `sending` ("running") when eligible.
-   * Does not deliver WhatsApp messages yet — broadcast fan-out is a future queue job.
+   * Kick off campaign send: mark as `sending` ("running") when eligible, then enqueue fan-out.
    * Soft-deleted campaigns are treated as not found (404).
    */
-  async sendCampaign(params: {
-    campaignId: string
-    organizationId: string
-  }): Promise<CampaignDto> {
+  async sendCampaign(params: { campaignId: string; organizationId: string }): Promise<CampaignDto> {
     const existing = await this.findCampaignRowOrFail(params)
     const currentStatus = existing.status as string
 
@@ -749,14 +828,15 @@ export class CampaignService {
       throw CampaignException.whatsappConfigNotConfigured()
     }
 
+    if (Number(existing.totalRecipients ?? 0) < 1) {
+      throw CampaignException.recipientsRequired()
+    }
+
     await this.assertMessageTemplateInOrg(
       params.organizationId,
       existing.messageTemplateId as string
     )
-    await this.assertWhatsappConfigInOrg(
-      params.organizationId,
-      existing.whatsappConfigId as string
-    )
+    await this.assertWhatsappConfigInOrg(params.organizationId, existing.whatsappConfigId as string)
 
     // Conditional update prevents racing a second send into `sending`.
     const [row] = await db
@@ -777,20 +857,72 @@ export class CampaignService {
       campaignId: params.campaignId,
     })
 
+    await this.#protectHeaderMedia({
+      organizationId: params.organizationId,
+      campaignId: params.campaignId,
+      headerMediaAssetId: (row.headerMediaAssetId as string | null) ?? null,
+    })
+
     return mapCampaignRow(row)
   }
 
   /**
-   * Placeholder for future campaign broadcast queue integration.
-   * Per-conversation outbound (`WhatsappOutboundService` + pg-boss) exists, but there is
-   * no campaign/broadcast fan-out job yet. Hook enqueue here when `JOB_NAMES` gains one.
+   * Enqueue immediate campaign execute fan-out via WhatsappOutboundService per recipient.
    */
-  protected async enqueueCampaignSend(_params: {
+  protected async enqueueCampaignSend(params: {
     organizationId: string
     campaignId: string
   }): Promise<void> {
-    // Future: enqueue campaign broadcast worker to process `broadcast_recipients`
-    // via WhatsappOutboundService.queueTemplate (or equivalent) per recipient.
+    await this.#enqueueCampaignWake({
+      organizationId: params.organizationId,
+      campaignId: params.campaignId,
+    })
+  }
+
+  async #protectHeaderMedia(params: {
+    organizationId: string
+    campaignId: string
+    headerMediaAssetId: string | null
+  }): Promise<void> {
+    if (!params.headerMediaAssetId) return
+    await this.mediaReferences.upsert({
+      organizationId: params.organizationId,
+      mediaAssetId: params.headerMediaAssetId,
+      ownerType: 'campaign',
+      ownerId: params.campaignId,
+      protectedUntil: null,
+    })
+  }
+
+  async #enqueueCampaignWake(params: {
+    organizationId: string
+    campaignId: string
+    runAt?: Date
+  }): Promise<void> {
+    try {
+      const manager = await app.container.make(JobQueueManager)
+      const queue = await manager.ensureStarted()
+      await queue.enqueue(
+        JOB_NAMES.CAMPAIGN_EXECUTE,
+        {
+          organizationId: params.organizationId,
+          campaignId: params.campaignId,
+        },
+        {
+          runAt: params.runAt,
+          singletonKey: params.campaignId,
+        }
+      )
+    } catch (error) {
+      logger.error(
+        {
+          campaignId: params.campaignId,
+          organizationId: params.organizationId,
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'campaigns.enqueue_failed'
+      )
+    }
   }
 
   /**

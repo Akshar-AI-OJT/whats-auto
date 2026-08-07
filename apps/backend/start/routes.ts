@@ -669,6 +669,9 @@ router
       .patch('/:id', [CampaignsController, 'update'])
       .use(middleware.requirePermission({ permission: 'campaigns:edit' }))
     router
+      .put('/:id/recipients', [CampaignsController, 'replaceRecipients'])
+      .use(middleware.requirePermission({ permission: 'campaigns:edit' }))
+    router
       .delete('/:id', [CampaignsController, 'softDelete'])
       .use(middleware.requirePermission({ permission: 'campaigns:delete' }))
   })

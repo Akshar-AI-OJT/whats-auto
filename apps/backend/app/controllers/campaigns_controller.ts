@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import { CampaignExecutionService } from '#services/campaign_execution_service'
 import { CampaignService } from '#services/campaign_service'
 import {
   campaignIdParamValidator,
@@ -6,6 +7,7 @@ import {
   createCampaignValidator,
   listCampaignsValidator,
   previewCampaignValidator,
+  replaceCampaignRecipientsValidator,
   scheduleCampaignValidator,
   updateCampaignValidator,
 } from '#validators/campaign'
@@ -98,7 +100,7 @@ export default class CampaignsController {
   /**
    * @send
    * @summary Send a campaign
-   * @description Marks an eligible draft/scheduled campaign as sending (running). Does not deliver messages yet — broadcast queue fan-out is a future integration. Soft-deleted campaigns return 404.
+   * @description Marks an eligible draft/scheduled campaign as sending and enqueues recipient fan-out. Soft-deleted campaigns return 404.
    * @tag Campaigns
    * @security BearerAuth
    * @paramPath id - Campaign id - @type(string)
@@ -124,7 +126,7 @@ export default class CampaignsController {
   /**
    * @schedule
    * @summary Schedule a campaign
-   * @description Sets scheduledAt to a future datetime and status to scheduled. Soft-deleted campaigns return 404. Scheduler job registration is a future integration.
+   * @description Sets scheduledAt to a future datetime, status to scheduled, and enqueues a delayed execute job. Soft-deleted campaigns return 404.
    * @tag Campaigns
    * @security BearerAuth
    * @paramPath id - Campaign id - @type(string)
@@ -152,8 +154,8 @@ export default class CampaignsController {
 
   /**
    * @cancel
-   * @summary Cancel a scheduled campaign
-   * @description Reverts a scheduled campaign to draft and clears scheduledAt. Soft-deleted campaigns return 404. Scheduler job removal is a future integration.
+   * @summary Cancel a scheduled or in-progress campaign
+   * @description Scheduled campaigns revert to draft. In-progress (sending) campaigns are marked cancelled. Soft-deleted campaigns return 404.
    * @tag Campaigns
    * @security BearerAuth
    * @paramPath id - Campaign id - @type(string)
@@ -167,10 +169,48 @@ export default class CampaignsController {
     const { id } = await request.validateUsing(campaignIdParamValidator, {
       data: params,
     })
+    const organizationId = request.activeMember!.organizationId
 
-    const campaign = await new CampaignService().cancelScheduledCampaign({
+    const existing = await new CampaignService().getCampaignById({
       campaignId: id,
+      organizationId,
+    })
+
+    const campaign =
+      existing.status === 'sending'
+        ? await new CampaignExecutionService().cancelCampaign({
+            organizationId,
+            campaignId: id,
+          })
+        : await new CampaignService().cancelScheduledCampaign({
+            campaignId: id,
+            organizationId,
+          })
+
+    return serialize(campaign)
+  }
+
+  /**
+   * @replaceRecipients
+   * @summary Replace campaign recipients
+   * @description Replaces the recipient snapshot for a draft or scheduled campaign.
+   * @tag Campaigns
+   * @security BearerAuth
+   * @paramPath id - Campaign id - @type(string)
+   * @requestBody { "contactIds": ["uuid"], "variables": { "name": "Ada" } }
+   * @responseBody 200 - { "data": { "id": "uuid", "totalRecipients": 1 } }
+   */
+  async replaceRecipients({ request, params, serialize }: HttpContext) {
+    const { id } = await request.validateUsing(campaignIdParamValidator, {
+      data: params,
+    })
+    const payload = await request.validateUsing(replaceCampaignRecipientsValidator)
+
+    const campaign = await new CampaignExecutionService().replaceRecipients({
       organizationId: request.activeMember!.organizationId,
+      campaignId: id,
+      contactIds: payload.contactIds,
+      variables: payload.variables,
     })
 
     return serialize(campaign)
@@ -252,6 +292,7 @@ export default class CampaignsController {
       name: payload.name,
       whatsappConfigId: payload.whatsappConfigId,
       messageTemplateId: payload.messageTemplateId,
+      headerMediaAssetId: payload.headerMediaAssetId,
       scheduledAt: payload.scheduledAt,
       status: payload.status,
     })

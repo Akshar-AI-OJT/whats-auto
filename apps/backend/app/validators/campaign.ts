@@ -36,6 +36,7 @@ export const CAMPAIGN_STATUSES = [
   'sending',
   'sent',
   'failed',
+  'cancelled',
 ] as const
 
 /** Whitelisted sort columns on `broadcasts` (camelCase DB columns). */
@@ -55,6 +56,7 @@ export const createCampaignValidator = vine.create(
     name: vine.string().trim().minLength(1).maxLength(200),
     whatsappConfigId: vine.string().trim().uuid().optional(),
     messageTemplateId: vine.string().trim().uuid().optional(),
+    headerMediaAssetId: vine.string().trim().uuid().optional(),
     scheduledAt: vine.date().optional(),
     status: vine.enum(CAMPAIGN_CREATE_STATUSES).optional(),
   })
@@ -110,7 +112,17 @@ export const updateCampaignValidator = vine.create(
     name: vine.string().trim().minLength(1).maxLength(200).optional(),
     whatsappConfigId: vine.string().trim().uuid().nullable().optional(),
     messageTemplateId: vine.string().trim().uuid().nullable().optional(),
+    headerMediaAssetId: vine.string().trim().uuid().nullable().optional(),
     scheduledAt: vine.date().nullable().optional(),
     status: vine.enum(CAMPAIGN_CREATE_STATUSES).optional(),
+  })
+)
+
+/** Replace recipient snapshot before schedule/send. */
+export const replaceCampaignRecipientsValidator = vine.create(
+  vine.object({
+    contactIds: vine.array(vine.string().trim().uuid()).minLength(1).maxLength(5000),
+    /** Optional shared template variables applied to every recipient. */
+    variables: vine.record(vine.string()).optional(),
   })
 )

@@ -561,6 +561,7 @@ export type CampaignStatus =
   | 'sending'
   | 'sent'
   | 'failed'
+  | 'cancelled'
   | string
 
 export type Campaign = {
@@ -570,7 +571,10 @@ export type Campaign = {
   name: string
   whatsappConfigId?: string | null
   messageTemplateId?: string | null
+  headerMediaAssetId?: string | null
   scheduledAt?: string | null
+  finalizedAt?: string | null
+  cancelledAt?: string | null
   status: CampaignStatus
   totalRecipients: number
   sentCount: number
@@ -596,6 +600,7 @@ export type CreateCampaignBody = {
   name: string
   whatsappConfigId?: string
   messageTemplateId?: string
+  headerMediaAssetId?: string
   scheduledAt?: string
   status?: 'draft' | 'scheduled'
 }
@@ -604,8 +609,14 @@ export type UpdateCampaignBody = {
   name?: string
   whatsappConfigId?: string | null
   messageTemplateId?: string | null
+  headerMediaAssetId?: string | null
   scheduledAt?: string | null
   status?: 'draft' | 'scheduled'
+}
+
+export type ReplaceCampaignRecipientsBody = {
+  contactIds: string[]
+  variables?: Record<string, string>
 }
 
 export type CreateInvitationBody = {
@@ -1230,6 +1241,28 @@ export const api = {
         `/api/v1/campaigns/${campaignId}`,
         { method: 'DELETE' }
       ),
+
+    replaceRecipients: (campaignId: string, body: ReplaceCampaignRecipientsBody) =>
+      protectedRequest<{ data?: Campaign } & Campaign>(`/api/v1/campaigns/${campaignId}/recipients`, {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      }),
+
+    schedule: (campaignId: string, body: { scheduledAt: string }) =>
+      protectedRequest<{ data?: Campaign } & Campaign>(`/api/v1/campaigns/${campaignId}/schedule`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+
+    send: (campaignId: string) =>
+      protectedRequest<{ data?: Campaign } & Campaign>(`/api/v1/campaigns/${campaignId}/send`, {
+        method: 'POST',
+      }),
+
+    cancel: (campaignId: string) =>
+      protectedRequest<{ data?: Campaign } & Campaign>(`/api/v1/campaigns/${campaignId}/cancel`, {
+        method: 'PATCH',
+      }),
   },
 
   members: {
