@@ -17,34 +17,10 @@ export default class extends BaseSchema {
     })
 
     // Backfill unique codes from existing names before enforcing NOT NULL + UNIQUE.
-    // Duplicate names (e.g. two "Starter" rows) must get distinct codes.
     this.schema.raw(`
-      WITH ranked AS (
-        SELECT
-          id,
-          NULLIF(
-            trim(both '_' from lower(regexp_replace(trim("name"), '[^a-zA-Z0-9]+', '_', 'g'))),
-            ''
-          ) AS base_code,
-          ROW_NUMBER() OVER (
-            PARTITION BY
-              NULLIF(
-                trim(both '_' from lower(regexp_replace(trim("name"), '[^a-zA-Z0-9]+', '_', 'g'))),
-                ''
-              )
-            ORDER BY "createdAt" ASC NULLS LAST, id ASC
-          ) AS rn
-        FROM "plans"
-        WHERE "code" IS NULL
-      )
-      UPDATE "plans" AS p
-      SET "code" = CASE
-        WHEN r.base_code IS NULL THEN 'plan_' || substr(replace(r.id::text, '-', ''), 1, 8)
-        WHEN r.rn = 1 THEN r.base_code
-        ELSE r.base_code || '_' || substr(replace(r.id::text, '-', ''), 1, 8)
-      END
-      FROM ranked AS r
-      WHERE p.id = r.id
+      UPDATE "plans"
+      SET "code" = lower(regexp_replace(trim("name"), '[^a-zA-Z0-9]+', '_', 'g'))
+      WHERE "code" IS NULL
     `)
 
     this.schema.raw(`
@@ -61,7 +37,7 @@ export default class extends BaseSchema {
     `)
 
     this.schema.raw(`
-      CREATE UNIQUE INDEX IF NOT EXISTS "plans_code_unique"
+      CREATE UNIQUE INDEX "plans_code_unique"
         ON "plans" ("code")
     `)
 
