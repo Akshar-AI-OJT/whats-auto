@@ -354,8 +354,59 @@ export type ListInboxMessagesParams = {
 }
 
 export type SendInboxMessageBody = {
-  contentType: 'text'
-  contentText: string
+  contentType: 'text' | 'image' | 'document' | 'template'
+  contentText?: string
+  mediaAssetId?: string
+  templateId?: string
+  templateParameters?: Record<string, string>
+  headerMediaAssetId?: string
+}
+
+export type MediaAssetKind = 'image' | 'document'
+
+export type MediaAsset = {
+  id: string
+  fileName: string
+  mimeType: string
+  fileSize: number
+  state: string
+  source: string
+  deliveryUrl: string
+  uploadedAt: string
+  createdAt: string
+  kind: MediaAssetKind
+  referenceCount?: number
+}
+
+export type MediaQuota = {
+  readyBytes: number
+  reservedBytes: number
+  usedBytes: number
+  limitBytes: number
+}
+
+export type ListMediaParams = {
+  page?: number
+  perPage?: number
+  kind?: MediaAssetKind
+  state?: 'ready' | 'deleted'
+  search?: string
+}
+
+export type InitiateMediaUploadBody = {
+  fileName: string
+  mimeType: string
+  fileSize: number
+}
+
+export type InitiateMediaUploadResult = {
+  asset: MediaAsset
+  upload: {
+    method: 'PUT'
+    url: string
+    headers: Record<string, string>
+    expiresInSeconds: number
+  }
 }
 
 export type AssignInboxConversationBody = {
@@ -1075,6 +1126,65 @@ export const api = {
       protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
         `/api/v1/whatsapp/templates/${templateId}`,
         { method: 'DELETE' }
+      ),
+  },
+
+  media: {
+    list: (params: ListMediaParams = {}) => {
+      const qs = new URLSearchParams()
+      if (params.page != null) qs.set('page', String(params.page))
+      if (params.perPage != null) qs.set('perPage', String(params.perPage))
+      if (params.kind) qs.set('kind', params.kind)
+      if (params.state) qs.set('state', params.state)
+      if (params.search?.trim()) qs.set('search', params.search.trim())
+      const query = qs.toString()
+      return protectedRequest<
+        | Paginated<MediaAsset>
+        | { data?: MediaAsset[]; meta?: PaginationMeta }
+        | { data?: { data?: MediaAsset[]; meta?: PaginationMeta } }
+      >(`/api/v1/media${query ? `?${query}` : ''}`, { method: 'GET' })
+    },
+
+    quota: () =>
+      protectedRequest<{ data?: MediaQuota } & MediaQuota>('/api/v1/media/quota', {
+        method: 'GET',
+      }),
+
+    get: (mediaAssetId: string) =>
+      protectedRequest<{ data?: MediaAsset } & MediaAsset>(`/api/v1/media/${mediaAssetId}`, {
+        method: 'GET',
+      }),
+
+    initiateUpload: (body: InitiateMediaUploadBody) =>
+      protectedRequest<{ data?: InitiateMediaUploadResult } & InitiateMediaUploadResult>(
+        '/api/v1/media/uploads',
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    completeUpload: (mediaAssetId: string) =>
+      protectedRequest<{ data?: MediaAsset } & MediaAsset>(
+        `/api/v1/media/uploads/${mediaAssetId}/complete`,
+        { method: 'POST' }
+      ),
+
+    softDelete: (mediaAssetId: string) =>
+      protectedRequest<{ data?: MediaAsset } & MediaAsset>(`/api/v1/media/${mediaAssetId}`, {
+        method: 'DELETE',
+      }),
+
+    restore: (mediaAssetId: string) =>
+      protectedRequest<{ data?: MediaAsset } & MediaAsset>(
+        `/api/v1/media/${mediaAssetId}/restore`,
+        { method: 'POST' }
+      ),
+
+    purge: (mediaAssetId: string) =>
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/media/${mediaAssetId}/purge`,
+        { method: 'POST' }
       ),
   },
 

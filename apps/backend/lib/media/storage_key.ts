@@ -5,6 +5,15 @@ const MIME_TO_EXT: Record<string, string> = {
   'image/jpeg': '.jpg',
   'image/png': '.png',
   'application/pdf': '.pdf',
+  'text/csv': '.csv',
+  'application/csv': '.csv',
+  'text/plain': '.txt',
+  'application/msword': '.doc',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+  'application/vnd.ms-excel': '.xls',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+  'application/vnd.ms-powerpoint': '.ppt',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx',
 }
 
 const MEDIA_TYPE_TO_FOLDER: Record<OutboundMediaType, MediaStorageFolder> = {

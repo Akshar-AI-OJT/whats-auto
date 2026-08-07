@@ -79,4 +79,9 @@ export default await Env.create(new URL('../', import.meta.url), {
   S3_BUCKET: Env.schema.string(),
   DRIVE_DISK: Env.schema.enum(['s3'] as const),
   MEDIA_PUBLIC_BASE_URL: Env.schema.string({ format: 'url', tld: false }),
+  /**
+   * @deprecated New uploads always use v2 organization keys.
+   * Kept optional so existing .env files do not fail validation.
+   */
+  MEDIA_STORAGE_NAMESPACE_V2: Env.schema.boolean.optional(),
 })

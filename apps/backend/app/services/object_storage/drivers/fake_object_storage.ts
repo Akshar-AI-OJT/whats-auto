@@ -61,6 +61,12 @@ export default class FakeObjectStorage extends ObjectStorage {
     }
   }
 
+  async getObjectPrefix(params: { key: string; maxBytes: number }): Promise<Uint8Array | null> {
+    const object = this.objects.get(params.key)
+    if (!object) return null
+    return new Uint8Array(object.body.subarray(0, params.maxBytes))
+  }
+
   async deleteObject(key: string): Promise<void> {
     this.objects.delete(key)
     this.deletedKeys.push(key)

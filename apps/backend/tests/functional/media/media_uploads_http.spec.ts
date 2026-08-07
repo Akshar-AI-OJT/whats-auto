@@ -18,6 +18,14 @@ const ACTIVE_ORG_BY_EMAIL: Record<string, string> = {
   [DEMO_USERS.harborAgent]: FIXTURE_IDS.orgs.harbor,
 }
 
+function jpegBytes(size: number): Buffer {
+  const buf = Buffer.alloc(Math.max(size, 3))
+  buf[0] = 0xff
+  buf[1] = 0xd8
+  buf[2] = 0xff
+  return buf.subarray(0, size)
+}
+
 function errorBody(response: { body: () => unknown }): { code?: string; error?: string } {
   return response.body() as { code?: string; error?: string }
 }
@@ -151,7 +159,7 @@ test.group('Media uploads HTTP', (group) => {
     assert.lengthOf(storage.presigned, 1)
 
     const key = storage.presigned[0]!.key
-    storage.putObject(key, Buffer.alloc(fileSize), 'image/jpeg')
+    storage.putObject(key, jpegBytes(fileSize), 'image/jpeg')
 
     const complete = await client
       .post(`/api/v1/media/uploads/${initiated.asset.id}/complete`)
@@ -207,7 +215,7 @@ test.group('Media uploads HTTP', (group) => {
 
     initiate.assertStatus(200)
     const assetId = initiate.body().data.asset.id as string
-    storage.putObject(storage.presigned.at(-1)!.key, Buffer.alloc(4), 'image/jpeg')
+    storage.putObject(storage.presigned.at(-1)!.key, jpegBytes(4), 'image/jpeg')
 
     const complete = await client
       .post(`/api/v1/media/uploads/${assetId}/complete`)

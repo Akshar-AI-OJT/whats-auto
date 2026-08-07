@@ -101,8 +101,30 @@ export class BroadcastRecipientSchema extends BaseModel {
 }
 
 export class BroadcastSchema extends BaseModel {
-  static $columns = ['createdAt', 'createdByUserId', 'deliveredCount', 'failedCount', 'id', 'messageTemplateId', 'name', 'organizationId', 'readCount', 'repliedCount', 'scheduledAt', 'sentCount', 'status', 'totalRecipients', 'updatedAt', 'whatsappConfigId'] as const
+  static $columns = [
+    'cancelledAt',
+    'createdAt',
+    'createdByUserId',
+    'deliveredCount',
+    'failedCount',
+    'finalizedAt',
+    'headerMediaAssetId',
+    'id',
+    'messageTemplateId',
+    'name',
+    'organizationId',
+    'readCount',
+    'repliedCount',
+    'scheduledAt',
+    'sentCount',
+    'status',
+    'totalRecipients',
+    'updatedAt',
+    'whatsappConfigId',
+  ] as const
   $columns = BroadcastSchema.$columns
+  @column.dateTime()
+  declare cancelledAt: DateTime | null
   @column.dateTime()
   declare createdAt: DateTime
   @column()
@@ -111,6 +133,10 @@ export class BroadcastSchema extends BaseModel {
   declare deliveredCount: number
   @column()
   declare failedCount: number
+  @column.dateTime()
+  declare finalizedAt: DateTime | null
+  @column()
+  declare headerMediaAssetId: string | null
   @column({ isPrimary: true })
   declare id: string
   @column()
@@ -344,8 +370,56 @@ export class JwkSchema extends BaseModel {
   declare publicKey: string
 }
 
+export class MediaAssetReferenceSchema extends BaseModel {
+  static $columns = [
+    'createdAt',
+    'id',
+    'mediaAssetId',
+    'organizationId',
+    'ownerId',
+    'ownerType',
+    'protectedUntil',
+    'updatedAt',
+  ] as const
+  $columns = MediaAssetReferenceSchema.$columns
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare mediaAssetId: string
+  @column()
+  declare organizationId: string
+  @column()
+  declare ownerId: string
+  @column()
+  declare ownerType: string
+  @column.dateTime()
+  declare protectedUntil: DateTime | null
+  @column.dateTime()
+  declare updatedAt: DateTime
+}
+
 export class MediaAssetSchema extends BaseModel {
-  static $columns = ['checksum', 'createdAt', 'deliveryUrl', 'fileName', 'filePath', 'fileSize', 'id', 'mimeType', 'organizationId', 'source', 'state', 'storageDisk', 'storageKey', 'updatedAt', 'uploadedAt', 'uploadedBy'] as const
+  static $columns = [
+    'checksum',
+    'createdAt',
+    'deliveryUrl',
+    'fileName',
+    'filePath',
+    'fileSize',
+    'id',
+    'mimeType',
+    'organizationId',
+    'source',
+    'state',
+    'storageDisk',
+    'storageKey',
+    'storageObjectId',
+    'updatedAt',
+    'uploadedAt',
+    'uploadedBy',
+  ] as const
   $columns = MediaAssetSchema.$columns
   @column()
   declare checksum: string | null
@@ -373,6 +447,8 @@ export class MediaAssetSchema extends BaseModel {
   declare storageDisk: string
   @column()
   declare storageKey: string
+  @column()
+  declare storageObjectId: string | null
   @column.dateTime()
   declare updatedAt: DateTime
   @column.dateTime()
@@ -544,6 +620,99 @@ export class OrganizationRolePermissionSchema extends BaseModel {
   declare permissionId: string
   @column()
   declare roleId: string
+}
+
+export class OrganizationStorageObjectSchema extends BaseModel {
+  static $columns = [
+    'checksum',
+    'createdAt',
+    'deleteAttempts',
+    'deletedAt',
+    'id',
+    'keyVersion',
+    'lastDeleteError',
+    'lastDeleteErrorAt',
+    'mimeType',
+    'namespace',
+    'organizationId',
+    'ownerId',
+    'ownerType',
+    'provenance',
+    'purgeAfter',
+    'purgedAt',
+    'retentionPolicy',
+    'sizeBytes',
+    'state',
+    'storageDisk',
+    'storageKey',
+    'updatedAt',
+  ] as const
+  $columns = OrganizationStorageObjectSchema.$columns
+  @column()
+  declare checksum: string | null
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare deleteAttempts: number
+  @column.dateTime()
+  declare deletedAt: DateTime | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare keyVersion: number
+  @column()
+  declare lastDeleteError: string | null
+  @column.dateTime()
+  declare lastDeleteErrorAt: DateTime | null
+  @column()
+  declare mimeType: string
+  @column()
+  declare namespace: string
+  @column()
+  declare organizationId: string
+  @column()
+  declare ownerId: string | null
+  @column()
+  declare ownerType: string
+  @column()
+  declare provenance: string
+  @column.dateTime()
+  declare purgeAfter: DateTime | null
+  @column.dateTime()
+  declare purgedAt: DateTime | null
+  @column()
+  declare retentionPolicy: string
+  @column()
+  declare sizeBytes: bigint | number
+  @column()
+  declare state: string
+  @column()
+  declare storageDisk: string
+  @column()
+  declare storageKey: string
+  @column.dateTime()
+  declare updatedAt: DateTime
+}
+
+export class OrganizationStorageUsageSchema extends BaseModel {
+  static $columns = [
+    'createdAt',
+    'organizationId',
+    'readyBytes',
+    'reservedBytes',
+    'updatedAt',
+  ] as const
+  $columns = OrganizationStorageUsageSchema.$columns
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare organizationId: string
+  @column()
+  declare readyBytes: bigint | number
+  @column()
+  declare reservedBytes: bigint | number
+  @column.dateTime()
+  declare updatedAt: DateTime
 }
 
 export class OrganizationSubscriptionSchema extends BaseModel {

@@ -320,7 +320,11 @@ export class WhatsappOutboundRepository {
       .where('organizationId', params.organizationId)
       .where((query) => {
         query
-          .where('status', 'pending')
+          .where((pending) => {
+            pending.where('status', 'pending').where((due) => {
+              due.whereNull('nextAttemptAt').orWhere('nextAttemptAt', '<=', now)
+            })
+          })
           .orWhere((retry) => {
             retry.where('status', 'retry_scheduled').where((due) => {
               due.whereNull('nextAttemptAt').orWhere('nextAttemptAt', '<=', now)
@@ -366,7 +370,10 @@ export class WhatsappOutboundRepository {
          WHERE "id" = ?
            AND "organizationId" = ?
            AND (
-             "status" = 'pending'
+             (
+               "status" = 'pending'
+               AND ("nextAttemptAt" IS NULL OR "nextAttemptAt" <= ?)
+             )
              OR (
                "status" = 'retry_scheduled'
                AND ("nextAttemptAt" IS NULL OR "nextAttemptAt" <= ?)
@@ -410,6 +417,7 @@ export class WhatsappOutboundRepository {
       [
         params.dispatchId,
         params.organizationId,
+        now,
         now,
         now,
         params.lockOwner,

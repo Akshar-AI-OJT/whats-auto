@@ -1442,6 +1442,8 @@
       "team": "टीम प्रबंधन",
       "teamMembers": "टीम सदस्य",
       "teamRoles": "भूमिकाएँ",
+      "templatesList": "टेम्पलेट्स",
+      "templatesMedia": "मीडिया लाइब्रेरी",
       "inviteMember": "सदस्य आमंत्रित करें",
       "contacts": "संपर्क",
       "inbox": "इनबॉक्स",
@@ -1453,6 +1455,51 @@
       "billing": "बिलिंग",
       "auditLogs": "ऑडिट लॉग्स",
       "settings": "सेटिंग्स"
+    },
+    "media": {
+      "eyebrow": "मैसेजिंग",
+      "title": "मीडिया लाइब्रेरी",
+      "subtitle": "टेम्पलेट्स, इनबॉक्स और कैंपेन के लिए इमेज और दस्तावेज़ अपलोड और प्रबंधित करें।",
+      "uploadCta": "फ़ाइल अपलोड करें",
+      "quotaLabel": "स्टोरेज उपयोग",
+      "quotaValue": "{used} / {limit}",
+      "filters": {
+        "all": "सभी",
+        "images": "इमेज",
+        "documents": "दस्तावेज़",
+        "ready": "तैयार",
+        "deleted": "हटाए गए",
+        "searchPlaceholder": "फ़ाइल नाम से खोजें…"
+      },
+      "emptyTitle": "अभी कोई मीडिया नहीं",
+      "emptyDescription": "शुरू करने के लिए JPEG, PNG, PDF, CSV, DOCX या XLSX अपलोड करें।",
+      "loading": "मीडिया लोड हो रहा है…",
+      "kind": {
+        "image": "इमेज",
+        "document": "दस्तावेज़"
+      },
+      "actions": {
+        "delete": "हटाएँ",
+        "restore": "पुनर्स्थापित करें",
+        "purge": "स्थायी रूप से हटाएँ",
+        "preview": "खोलें",
+        "select": "चुनें"
+      },
+      "uploadProgress": "अपलोड हो रहा है…",
+      "uploadComplete": "अपलोड पूरा",
+      "errors": {
+        "uploadFailed": "अपलोड विफल",
+        "deleteFailed": "फ़ाइल नहीं हटाई जा सकी",
+        "restoreFailed": "फ़ाइल पुनर्स्थापित नहीं हो सकी",
+        "purgeFailed": "फ़ाइल स्थायी रूप से नहीं हटाई जा सकी",
+        "unsupportedType": "असमर्थित फ़ाइल प्रकार",
+        "referenced": "यह फ़ाइल उपयोग में है और हटाई नहीं जा सकती"
+      },
+      "pickerTitle": "मीडिया चुनें",
+      "pickerEmpty": "इस फ़िल्टर से कोई तैयार मीडिया नहीं मिला।",
+      "pagination": "{from} से {to} / {total}",
+      "prev": "पिछला",
+      "next": "अगला"
     },
     "accessDenied": {
       "eyebrow": "एक्सेस",
@@ -1796,8 +1843,11 @@
         "composer": {
           "label": "ग्राहक को जवाब दें",
           "placeholder": "जवाब लिखें…",
+          "captionPlaceholder": "वैकल्पिक कैप्शन जोड़ें…",
           "hint": "भेजने के लिए Enter · नई पंक्ति के लिए Shift+Enter",
           "send": "जवाब भेजें",
+          "attach": "मीडिया जोड़ें",
+          "clearAttachment": "अटैचमेंट हटाएँ",
           "readOnly": "आपको इस वर्कस्पेस में जवाब भेजने की अनुमति नहीं है।",
           "closedHint": "यह बातचीत बंद है। जवाब भेजने के लिए इसे फिर खोलें।",
           "errors": {
@@ -1805,7 +1855,8 @@
             "sessionExpired": "आपका सत्र समाप्त हो गया। कृपया फिर साइन इन करें।",
             "permissionDenied": "आपको जवाब भेजने की अनुमति नहीं है।",
             "conversationClosed": "बंद बातचीत में जवाब नहीं भेजा जा सकता।",
-            "notFound": "बातचीत नहीं मिली।"
+            "notFound": "बातचीत नहीं मिली।",
+            "sessionWindow": "24 घंटे की ग्राहक सेवा विंडो समाप्त हो गई है। दोबारा संपर्क के लिए स्वीकृत टेम्पलेट भेजें।"
           }
         },
         "actions": {
@@ -1973,6 +2024,10 @@
         "headerType": "हेडर",
         "headerContent": "हेडर टेक्स्ट",
         "headerPlaceholder": "ऑर्डर अपडेट",
+        "headerMedia": "हेडर मीडिया",
+        "headerMediaPick": "मीडिया लाइब्रेरी से चुनें",
+        "headerMediaClear": "हटाएँ",
+        "headerMediaHint": "मीडिया लाइब्रेरी से तैयार JPEG/PNG इमेज या दस्तावेज़ चुनें।",
         "body": "टेम्पलेट बॉडी",
         "bodyPlaceholder": "नमस्ते '{{1}}', आपका ऑर्डर '{{2}}' कन्फर्म हो गया है।",
         "footer": "फुटर",

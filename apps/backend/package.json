@@ -52,6 +52,9 @@
     "#services/object_storage/*": "./app/services/object_storage/*.js",
     "#services/object_storage/contracts/*": "./app/services/object_storage/contracts/*.js",
     "#services/object_storage/drivers/*": "./app/services/object_storage/drivers/*.js",
+    "#services/content_inspection/*": "./app/services/content_inspection/*.js",
+    "#services/content_inspection/contracts/*": "./app/services/content_inspection/contracts/*.js",
+    "#services/content_inspection/drivers/*": "./app/services/content_inspection/drivers/*.js",
     "#types/*": "./types/*.js"
   },
   "devDependencies": {

@@ -1442,6 +1442,8 @@
       "team": "Team Management",
       "teamMembers": "Team Members",
       "teamRoles": "Roles",
+      "templatesList": "Templates",
+      "templatesMedia": "Media Library",
       "inviteMember": "Invite Member",
       "contacts": "Contacts",
       "inbox": "Inbox",
@@ -1453,6 +1455,51 @@
       "billing": "Billing",
       "auditLogs": "Audit Logs",
       "settings": "Settings"
+    },
+    "media": {
+      "eyebrow": "Messaging",
+      "title": "Media Library",
+      "subtitle": "Upload and manage images and documents for templates, inbox, and campaigns.",
+      "uploadCta": "Upload file",
+      "quotaLabel": "Storage used",
+      "quotaValue": "{used} of {limit}",
+      "filters": {
+        "all": "All",
+        "images": "Images",
+        "documents": "Documents",
+        "ready": "Ready",
+        "deleted": "Deleted",
+        "searchPlaceholder": "Search by filename…"
+      },
+      "emptyTitle": "No media yet",
+      "emptyDescription": "Upload JPEG, PNG, PDF, CSV, DOCX, or XLSX files to get started.",
+      "loading": "Loading media…",
+      "kind": {
+        "image": "Image",
+        "document": "Document"
+      },
+      "actions": {
+        "delete": "Delete",
+        "restore": "Restore",
+        "purge": "Purge permanently",
+        "preview": "Open",
+        "select": "Select"
+      },
+      "uploadProgress": "Uploading…",
+      "uploadComplete": "Upload complete",
+      "errors": {
+        "uploadFailed": "Upload failed",
+        "deleteFailed": "Could not delete this file",
+        "restoreFailed": "Could not restore this file",
+        "purgeFailed": "Could not purge this file",
+        "unsupportedType": "Unsupported file type",
+        "referenced": "This file is in use and cannot be deleted"
+      },
+      "pickerTitle": "Select media",
+      "pickerEmpty": "No ready media matches this filter.",
+      "pagination": "Showing {from} to {to} of {total}",
+      "prev": "Previous",
+      "next": "Next"
     },
     "accessDenied": {
       "eyebrow": "Access",
@@ -1796,8 +1843,11 @@
         "composer": {
           "label": "Reply to customer",
           "placeholder": "Write a reply…",
+          "captionPlaceholder": "Add an optional caption…",
           "hint": "Enter to send · Shift+Enter for a new line",
           "send": "Send reply",
+          "attach": "Attach media",
+          "clearAttachment": "Remove attachment",
           "readOnly": "You don’t have permission to reply in this workspace.",
           "closedHint": "This conversation is closed. Reopen it to send a reply.",
           "errors": {
@@ -1805,7 +1855,8 @@
             "sessionExpired": "Your session expired. Please sign in again.",
             "permissionDenied": "You don’t have permission to send replies.",
             "conversationClosed": "Cannot reply to a closed conversation.",
-            "notFound": "Conversation not found."
+            "notFound": "Conversation not found.",
+            "sessionWindow": "The 24-hour customer service window has expired. Send an approved template to re-engage."
           }
         },
         "actions": {
@@ -1973,6 +2024,10 @@
         "headerType": "Header",
         "headerContent": "Header text",
         "headerPlaceholder": "Order update",
+        "headerMedia": "Header media",
+        "headerMediaPick": "Select from Media Library",
+        "headerMediaClear": "Clear",
+        "headerMediaHint": "Choose a ready JPEG/PNG image or document from the Media Library.",
         "body": "Template Body",
         "bodyPlaceholder": "Hi '{{1}}', your order '{{2}}' is confirmed.",
         "footer": "Footer",
