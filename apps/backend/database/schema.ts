@@ -490,16 +490,30 @@ export class JwkSchema extends BaseModel {
 
 export class MediaAssetSchema extends BaseModel {
   static $columns = [
+    'checksum',
+    'createdAt',
+    'deliveryUrl',
     'fileName',
     'filePath',
     'fileSize',
     'id',
     'mimeType',
     'organizationId',
+    'source',
+    'state',
+    'storageDisk',
+    'storageKey',
+    'updatedAt',
     'uploadedAt',
     'uploadedBy',
   ] as const
   $columns = MediaAssetSchema.$columns
+  @column()
+  declare checksum: string | null
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare deliveryUrl: string
   @column()
   declare fileName: string
   @column()
@@ -512,6 +526,16 @@ export class MediaAssetSchema extends BaseModel {
   declare mimeType: string
   @column()
   declare organizationId: string
+  @column()
+  declare source: string
+  @column()
+  declare state: string
+  @column()
+  declare storageDisk: string
+  @column()
+  declare storageKey: string
+  @column.dateTime()
+  declare updatedAt: DateTime
   @column.dateTime()
   declare uploadedAt: DateTime
   @column()
@@ -654,7 +678,7 @@ export class MessageSchema extends BaseModel {
   @column()
   declare metadata: any
   @column.dateTime()
-  declare occurredAt: DateTime
+  declare occurredAt: DateTime | null
   @column()
   declare organizationId: string
   @column()

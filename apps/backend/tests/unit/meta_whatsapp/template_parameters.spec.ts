@@ -17,6 +17,7 @@ test.group('deriveParameterSchema', () => {
     assert.isTrue(schema.sendable)
     assert.deepEqual(schema.headerNames, ['first_name'])
     assert.deepEqual(schema.bodyNames, ['order_id'])
+    assert.isUndefined(schema.headerMediaType)
   })
 
   test('rejects numbered placeholders', ({ assert }) => {
@@ -28,15 +29,48 @@ test.group('deriveParameterSchema', () => {
     assert.include(schema.unsupportedReason ?? '', 'Numbered')
   })
 
-  test('rejects media headers', ({ assert }) => {
+  test('marks image media headers sendable with headerMediaType and body names', ({ assert }) => {
     const schema = deriveParameterSchema({
       headerType: 'image',
       headerContent: 'https://example.com/x.jpg',
-      bodyText: 'See image',
+      bodyText: 'See {{product}}',
+    })
+
+    assert.isTrue(schema.sendable)
+    assert.equal(schema.headerMediaType, 'image')
+    assert.deepEqual(schema.headerNames, [])
+    assert.deepEqual(schema.bodyNames, ['product'])
+  })
+
+  test('rejects video headers', ({ assert }) => {
+    const schema = deriveParameterSchema({
+      headerType: 'video',
+      bodyText: 'Watch this',
     })
 
     assert.isFalse(schema.sendable)
-    assert.include(schema.unsupportedReason ?? '', 'Media header')
+    assert.include(schema.unsupportedReason ?? '', 'Video')
+  })
+
+  test('marks document headers sendable for integrations', ({ assert }) => {
+    const schema = deriveParameterSchema({
+      headerType: 'document',
+      bodyText: 'Invoice {{id}}',
+    })
+
+    assert.isTrue(schema.sendable)
+    assert.equal(schema.headerMediaType, 'document')
+    assert.deepEqual(schema.bodyNames, ['id'])
+  })
+
+  test('media header with numbered body is still rejected', ({ assert }) => {
+    const schema = deriveParameterSchema({
+      headerType: 'document',
+      bodyText: 'Invoice {{1}}',
+    })
+
+    assert.isFalse(schema.sendable)
+    assert.include(schema.unsupportedReason ?? '', 'Numbered')
   })
 
   test('rejects dynamic button variables', ({ assert }) => {
@@ -84,6 +118,83 @@ test.group('mapNamedParametersToMetaComponents', () => {
     ])
   })
 
+  test('maps image header media and body params', ({ assert }) => {
+    const components = mapNamedParametersToMetaComponents({
+      schema: {
+        headerNames: [],
+        bodyNames: ['sku'],
+        sendable: true,
+        headerMediaType: 'image',
+      },
+      values: { sku: 'A-1' },
+      headerMedia: { link: 'https://cdn.example.com/a.jpg' },
+    })
+
+    assert.deepEqual(components, [
+      {
+        type: 'header',
+        parameters: [{ type: 'image', image: { link: 'https://cdn.example.com/a.jpg' } }],
+      },
+      {
+        type: 'body',
+        parameters: [{ type: 'text', parameter_name: 'sku', text: 'A-1' }],
+      },
+    ])
+  })
+
+  test('maps document header with filename', ({ assert }) => {
+    const components = mapNamedParametersToMetaComponents({
+      schema: {
+        headerNames: [],
+        bodyNames: [],
+        sendable: true,
+        headerMediaType: 'document',
+      },
+      values: {},
+      headerMedia: { link: 'https://cdn.example.com/inv.pdf', filename: 'invoice.pdf' },
+    })
+
+    assert.deepEqual(components, [
+      {
+        type: 'header',
+        parameters: [
+          {
+            type: 'document',
+            document: { link: 'https://cdn.example.com/inv.pdf', filename: 'invoice.pdf' },
+          },
+        ],
+      },
+    ])
+  })
+
+  test('requires header media for media-header schemas and rejects it otherwise', ({ assert }) => {
+    assert.throws(
+      () =>
+        mapNamedParametersToMetaComponents({
+          schema: {
+            headerNames: [],
+            bodyNames: [],
+            sendable: true,
+            headerMediaType: 'image',
+          },
+          values: {},
+        }),
+      TemplateParameterError,
+      /Header media is required/
+    )
+
+    assert.throws(
+      () =>
+        mapNamedParametersToMetaComponents({
+          schema: { headerNames: [], bodyNames: [], sendable: true },
+          values: {},
+          headerMedia: { link: 'https://cdn.example.com/a.jpg' },
+        }),
+      TemplateParameterError,
+      /not allowed/
+    )
+  })
+
   test('rejects missing and unexpected keys', ({ assert }) => {
     const schema = {
       headerNames: [] as string[],
@@ -116,12 +227,12 @@ test.group('mapNamedParametersToMetaComponents', () => {
             headerNames: [],
             bodyNames: [],
             sendable: false,
-            unsupportedReason: 'Media header',
+            unsupportedReason: 'Numbered placeholders',
           },
           values: {},
         }),
       TemplateParameterError,
-      /Media header/
+      /Numbered/
     )
   })
 
@@ -135,14 +246,36 @@ test.group('mapNamedParametersToMetaComponents', () => {
 })
 
 test.group('parseParameterSchema', () => {
-  test('narrows stored jsonb', ({ assert }) => {
+  test('narrows stored jsonb including headerMediaType', ({ assert }) => {
     assert.deepEqual(
       parseParameterSchema({
         headerNames: ['a'],
         bodyNames: ['b'],
         sendable: true,
       }),
-      { headerNames: ['a'], bodyNames: ['b'], sendable: true, unsupportedReason: undefined }
+      {
+        headerNames: ['a'],
+        bodyNames: ['b'],
+        sendable: true,
+        unsupportedReason: undefined,
+        headerMediaType: undefined,
+      }
+    )
+
+    assert.deepEqual(
+      parseParameterSchema({
+        headerNames: [],
+        bodyNames: [],
+        sendable: true,
+        headerMediaType: 'IMAGE',
+      }),
+      {
+        headerNames: [],
+        bodyNames: [],
+        sendable: true,
+        unsupportedReason: undefined,
+        headerMediaType: 'image',
+      }
     )
   })
 

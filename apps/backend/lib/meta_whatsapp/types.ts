@@ -68,7 +68,7 @@ export type MetaWebhookError = {
 }
 
 export type MetaWebhookMessageType =
-  'text' | 'image' | 'video' | 'document' | 'audio' | 'location' | 'interactive' | string
+  'text' | 'image' | 'video' | 'document' | 'location' | 'interactive' | string
 
 export type MetaWebhookMessage = {
   from: string
@@ -77,7 +77,6 @@ export type MetaWebhookMessage = {
   type: MetaWebhookMessageType
   text?: MetaWebhookText
   image?: MetaWebhookMedia
-  audio?: MetaWebhookMedia
   video?: MetaWebhookMedia
   document?: MetaWebhookMedia
   location?: MetaWebhookLocation
@@ -148,7 +147,6 @@ export type MessageMetadata = {
   location?: MessageMetadataLocation
   interactive?: MessageMetadataInteractive
   errors?: MessageMetadataError[]
-  [key: string]: unknown
 }
 
 export type MetaTokenExchangeResult = {
@@ -170,26 +168,43 @@ export type MetaSendMessageResult = {
 }
 
 /** Cloud API send-time template component (header/body parameters). */
-export type MetaSendTemplateParameter = {
+export type MetaSendTemplateTextParameter = {
   type: 'text'
   text: string
   parameter_name?: string
 }
+
+export type MetaSendTemplateImageParameter = {
+  type: 'image'
+  image: { link: string }
+}
+
+export type MetaSendTemplateDocumentParameter = {
+  type: 'document'
+  document: { link: string; filename?: string }
+}
+
+export type MetaSendTemplateParameter =
+  MetaSendTemplateTextParameter | MetaSendTemplateImageParameter | MetaSendTemplateDocumentParameter
 
 export type MetaSendTemplateComponent = {
   type: 'header' | 'body'
   parameters: MetaSendTemplateParameter[]
 }
 
+/** Tenant-sendable header media is image-only; document is reserved for integrations. */
+export type TemplateHeaderMediaType = 'image' | 'document'
+
 /**
  * Normalized named-variable contract stored on message_templates.parameterSchema.
- * V1: body + text-header names only; sendable=false when unsupported.
+ * Media headers set headerMediaType and leave headerNames empty.
  */
 export type TemplateParameterSchema = {
   headerNames: string[]
   bodyNames: string[]
   sendable: boolean
   unsupportedReason?: string
+  headerMediaType?: TemplateHeaderMediaType
 }
 
 export type MetaGraphErrorBody = {

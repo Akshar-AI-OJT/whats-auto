@@ -24,7 +24,7 @@ function isUniqueViolation(error: unknown): boolean {
 }
 
 function parseMetadata(raw: unknown): Record<string, unknown> {
-  if (raw == null) return {}
+  if (raw === null) return {}
   if (typeof raw === 'string') {
     try {
       return JSON.parse(raw) as Record<string, unknown>
@@ -66,7 +66,7 @@ export type OutboundTextPayload = {
 export type OutboundMediaPayload = {
   kind: 'media'
   to: string
-  mediaType: 'image' | 'video' | 'document'
+  mediaType: 'image' | 'document'
   mediaAssetId: string
   mediaUrl: string
   caption?: string

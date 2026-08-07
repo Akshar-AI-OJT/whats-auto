@@ -1,20 +1,30 @@
 /**
- * Outbound media URL / MIME / size rules for WhatsApp Cloud API free-form media.
+ * Outbound media URL / MIME / size rules for WhatsApp Cloud API.
+ *
+ * Product policy:
+ * - Platform outbound kinds: image | document
+ * - Tenant agents / upload API: images only.
+ * - Connected integrations (system channel): may send documents (e.g. invoices).
  * Host allowlist is optional via OUTBOUND_MEDIA_ALLOWED_HOSTS (comma-separated).
  */
 
-export type OutboundMediaType = 'image' | 'video' | 'document'
+export type OutboundMediaType = 'image' | 'document'
+
+/** Media kinds tenants may upload or free-form send. */
+export const TENANT_OUTBOUND_MEDIA_TYPES = ['image'] as const
+export type TenantOutboundMediaType = (typeof TENANT_OUTBOUND_MEDIA_TYPES)[number]
+
+/** Media kinds system/integration sends may use. */
+export const SYSTEM_OUTBOUND_MEDIA_TYPES = ['image', 'document'] as const
 
 /** Meta Cloud API free-form media size limits (bytes). */
 export const OUTBOUND_MEDIA_MAX_BYTES: Record<OutboundMediaType, number> = {
   image: 5 * 1024 * 1024,
-  video: 16 * 1024 * 1024,
   document: 100 * 1024 * 1024,
 }
 
 const ALLOWED_MIME_TYPES: Record<OutboundMediaType, ReadonlySet<string>> = {
   image: new Set(['image/jpeg', 'image/png']),
-  video: new Set(['video/mp4', 'video/3gpp']),
   document: new Set([
     'application/pdf',
     'application/msword',
@@ -65,12 +75,34 @@ export function isApprovedOutboundMediaUrl(value: string, allowedHosts: string[]
   return allowedHosts.some((allowed) => hostname === allowed || hostname.endsWith(`.${allowed}`))
 }
 
+export function normalizeMimeType(mimeType: string): string {
+  return mimeType.toLowerCase().split(';')[0]?.trim() ?? ''
+}
+
 export function isMimeTypeAllowedForMediaType(
   mediaType: OutboundMediaType,
   mimeType: string
 ): boolean {
-  const normalized = mimeType.toLowerCase().split(';')[0]?.trim() ?? ''
-  return ALLOWED_MIME_TYPES[mediaType].has(normalized)
+  return ALLOWED_MIME_TYPES[mediaType].has(normalizeMimeType(mimeType))
+}
+
+/** Resolve platform outbound media kind from MIME (image | document), or null. */
+export function outboundMediaTypeForMime(mimeType: string): OutboundMediaType | null {
+  const normalized = normalizeMimeType(mimeType)
+  for (const mediaType of Object.keys(ALLOWED_MIME_TYPES) as OutboundMediaType[]) {
+    if (ALLOWED_MIME_TYPES[mediaType].has(normalized)) return mediaType
+  }
+  return null
+}
+
+/** Tenant upload/send: images only. */
+export function tenantOutboundMediaTypeForMime(mimeType: string): TenantOutboundMediaType | null {
+  const mediaType = outboundMediaTypeForMime(mimeType)
+  return mediaType === 'image' ? 'image' : null
+}
+
+export function isTenantOutboundMediaType(mediaType: string): mediaType is TenantOutboundMediaType {
+  return (TENANT_OUTBOUND_MEDIA_TYPES as readonly string[]).includes(mediaType)
 }
 
 export function isOutboundMediaSizeAllowed(

@@ -23,6 +23,8 @@ export const PERMISSIONS = {
   CONTACTS_IMPORT: 'contacts:import',
   CONTACTS_EXPORT: 'contacts:export',
 
+  MEDIA_UPLOAD: 'media:upload',
+
   TEMPLATES_VIEW: 'templates:view',
   TEMPLATES_CREATE: 'templates:create',
   TEMPLATES_EDIT: 'templates:edit',

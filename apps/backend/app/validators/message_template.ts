@@ -1,7 +1,7 @@
 import vine from '@vinejs/vine'
 
 export const TEMPLATE_CATEGORIES = ['MARKETING', 'UTILITY', 'AUTHENTICATION'] as const
-export const TEMPLATE_HEADER_TYPES = ['NONE', 'TEXT', 'IMAGE', 'VIDEO', 'DOCUMENT'] as const
+export const TEMPLATE_HEADER_TYPES = ['NONE', 'TEXT', 'IMAGE', 'DOCUMENT'] as const
 
 export const listMessageTemplatesValidator = vine.create(
   vine.object({

@@ -13,12 +13,8 @@ export default class InboxMessageReceived extends BaseEvent {
       whatsappConfigId: string
       contactId: string
       contentType: string
-      contentText: string | null
-      direction: 'inbound'
       providerMessageId: string
-      status: string
       occurredAt: string
-      createdAt: string
     }
   ) {
     super()

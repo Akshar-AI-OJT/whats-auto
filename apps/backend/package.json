@@ -45,9 +45,13 @@
     "#start/*": "./start/*.js",
     "#config/*": "./config/*.js",
     "#lib/*": "./lib/*.js",
+    "#lib/media/*": "./lib/media/*.js",
     "#lib/meta_whatsapp/*": "./lib/meta_whatsapp/*.js",
     "#lib/razorpay/*": "./lib/razorpay/*.js",
     "#services/billing/*": "./app/services/billing/*.js",
+    "#services/object_storage/*": "./app/services/object_storage/*.js",
+    "#services/object_storage/contracts/*": "./app/services/object_storage/contracts/*.js",
+    "#services/object_storage/drivers/*": "./app/services/object_storage/drivers/*.js",
     "#types/*": "./types/*.js"
   },
   "devDependencies": {
@@ -77,6 +81,8 @@
     "@adonisjs/lucid": "^22.4.2",
     "@adonisjs/session": "^8.1.0",
     "@adonisjs/shield": "^9.0.0",
+    "@aws-sdk/client-s3": "^3.1103.0",
+    "@aws-sdk/s3-request-presigner": "^3.1103.0",
     "@japa/api-client": "^3.2.1",
     "@tuyau/core": "^1.2.2",
     "@types/pg": "^8.20.0",

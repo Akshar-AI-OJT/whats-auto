@@ -18,7 +18,6 @@ const AuthController = () => import('#controllers/auth_controller')
 const PreSignupController = () => import('#controllers/pre_signup_controller')
 const VerifySignupController = () => import('#controllers/verify_signup_controller')
 const ContactsController = () => import('#controllers/contacts_controller')
-const CampaignsController = () => import('#controllers/campaigns_controller')
 const ConversationsController = () => import('#controllers/conversations_controller')
 const OrganizationsController = () => import('#controllers/organizations_controller')
 const InvitationsController = () => import('#controllers/invitations_controller')
@@ -36,10 +35,10 @@ const WhatsappConfigsController = () => import('#controllers/whatsapp_configs_co
 const MessageTemplatesController = () => import('#controllers/message_templates_controller')
 const MessagesController = () => import('#controllers/messages_controller')
 const ConversationNotesController = () => import('#controllers/conversation_notes_controller')
+const MediaUploadsController = () => import('#controllers/media_uploads_controller')
 const BillingController = () => import('#controllers/billing_controller')
 const BillingRazorpayWebhookController = () =>
   import('#controllers/billing_razorpay_webhook_controller')
-const InboxEventsController = () => import('#controllers/inbox_events_controller')
 
 type JsonSchema = {
   type: 'object'
@@ -163,28 +162,6 @@ const requestBodySchemas: Record<string, JsonSchema> = {
   'post /api/v1/contacts': bodySchema({ phone: { type: 'string', example: '+919876543210' } }, [
     'phone',
   ]),
-  'post /api/v1/campaigns': bodySchema(
-    {
-      name: { type: 'string', example: 'July Product Launch' },
-      whatsappConfigId: { type: 'string', format: 'uuid' },
-      messageTemplateId: { type: 'string', format: 'uuid' },
-      scheduledAt: { type: 'string', format: 'date-time', example: '2026-08-07T10:00:00.000Z' },
-      status: { type: 'string', example: 'draft', enum: ['draft', 'scheduled'] },
-    },
-    ['name']
-  ),
-  'patch /api/v1/campaigns/{id}': bodySchema({
-    name: { type: 'string', example: 'July Product Launch v2' },
-    whatsappConfigId: { type: 'string', format: 'uuid', nullable: true },
-    messageTemplateId: { type: 'string', format: 'uuid', nullable: true },
-    scheduledAt: {
-      type: 'string',
-      format: 'date-time',
-      example: '2026-08-07T10:00:00.000Z',
-      nullable: true,
-    },
-    status: { type: 'string', example: 'scheduled', enum: ['draft', 'scheduled'] },
-  }),
   'post /api/v1/inbox/conversations': bodySchema(
     {
       contactId: { type: 'string', format: 'uuid' },
@@ -204,7 +181,7 @@ const requestBodySchemas: Record<string, JsonSchema> = {
       contentType: {
         type: 'string',
         example: 'text',
-        enum: ['text', 'image', 'video', 'document'],
+        enum: ['text', 'image', 'template'],
       },
       contentText: { type: 'string', example: 'Hello!' },
       mediaAssetId: { type: 'string', format: 'uuid' },
@@ -575,36 +552,18 @@ router
   .prefix('/api/v1/contacts')
   .use([middleware.jwtAuth(), middleware.tenant()])
 
-// campaigns — outbound broadcasts (product: Campaign)
+// media uploads — direct-to-S3 pending → ready lifecycle
 router
   .group(() => {
     router
-      .get('/', [CampaignsController, 'index'])
-      .use(middleware.requirePermission({ permission: 'campaigns:view' }))
+      .post('/uploads', [MediaUploadsController, 'store'])
+      .use(middleware.requirePermission({ permission: 'media:upload' }))
     router
-      .get('/:id', [CampaignsController, 'show'])
-      .use(middleware.requirePermission({ permission: 'campaigns:view' }))
-    router
-      .post('/', [CampaignsController, 'store'])
-      .use(middleware.requirePermission({ permission: 'campaigns:create' }))
-    router
-      .patch('/:id', [CampaignsController, 'update'])
-      .use(middleware.requirePermission({ permission: 'campaigns:edit' }))
-    router
-      .delete('/:id', [CampaignsController, 'softDelete'])
-      .use(middleware.requirePermission({ permission: 'campaigns:delete' }))
+      .post('/uploads/:id/complete', [MediaUploadsController, 'complete'])
+      .use(middleware.requirePermission({ permission: 'media:upload' }))
   })
-  .prefix('/api/v1/campaigns')
+  .prefix('/api/v1/media')
   .use([middleware.jwtAuth(), middleware.tenant()])
-
-// inbox realtime — SSE stream (must be registered before /conversations/:id)
-router
-  .get('/api/v1/inbox/events', [InboxEventsController, 'stream'])
-  .use([
-    middleware.jwtAuth(),
-    middleware.tenant(),
-    middleware.requirePermission({ permission: 'inbox:view' }),
-  ])
 
 // inbox conversations — lifecycle APIs
 router
