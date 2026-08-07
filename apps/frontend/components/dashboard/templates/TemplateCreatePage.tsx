@@ -1,8 +1,7 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Loader2 } from 'lucide-react'
 import {
@@ -17,18 +16,31 @@ import { TemplateForm, type TemplateFormValues } from './TemplateForm'
 import { templateQueryKeys } from './TemplatesListPage'
 import { normalizeButtons, unwrapTemplate } from './template-utils'
 
+/** Avoid useSearchParams — hard refresh can stall pages that suspend on it. */
+function readDuplicateFromId(): string | null {
+  if (typeof window === 'undefined') return null
+  try {
+    return new URLSearchParams(window.location.search).get('from')
+  } catch {
+    return null
+  }
+}
+
 export function TemplateCreatePage() {
   const t = useTranslations('dashboard.templates')
   const router = useRouter()
   const queryClient = useQueryClient()
-  const searchParams = useSearchParams()
-  const fromId = searchParams.get('from')
   const {
     tenantOrganizationId,
     canManageWhatsapp,
     isLoading: orgsLoading,
   } = useOrganizations()
+  const [fromId, setFromId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setFromId(readDuplicateFromId())
+  }, [])
 
   const sourceQuery = useQuery({
     queryKey: templateQueryKeys.detail(fromId ?? 'none'),

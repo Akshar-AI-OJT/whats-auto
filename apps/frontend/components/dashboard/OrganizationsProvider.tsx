@@ -49,7 +49,16 @@ type OrganizationsContextValue = {
   canViewWhatsapp: boolean
   canConnectWhatsapp: boolean
   canManageWhatsapp: boolean
+  canViewCampaigns: boolean
+  canCreateCampaigns: boolean
+  canEditCampaigns: boolean
+  canDeleteCampaigns: boolean
   isLoading: boolean
+  /**
+   * True until session/orgs/access-context are ready for permission checks.
+   * Includes in-flight workspace activate/switch (when accessContext is cleared).
+   */
+  isResolvingAccess: boolean
   error: string | null
   refresh: () => Promise<{
     organizations: OrganizationSummary[]
@@ -326,8 +335,20 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
     canViewWhatsapp: hasPermission(permissions, PERMISSIONS.WHATSAPP_VIEW),
     canConnectWhatsapp: hasPermission(permissions, PERMISSIONS.WHATSAPP_CONNECT),
     canManageWhatsapp: hasPermission(permissions, PERMISSIONS.WHATSAPP_MANAGE),
-    // Do not treat workspace switch / access refetch as full-shell loading.
+    canViewCampaigns: hasPermission(permissions, PERMISSIONS.CAMPAIGNS_VIEW),
+    canCreateCampaigns: hasPermission(permissions, PERMISSIONS.CAMPAIGNS_CREATE),
+    canEditCampaigns: hasPermission(permissions, PERMISSIONS.CAMPAIGNS_EDIT),
+    canDeleteCampaigns: hasPermission(permissions, PERMISSIONS.CAMPAIGNS_DELETE),
+    // Shell / list loading — avoid treating access refetch alone as full-shell load.
     isLoading: sessionPending || orgsQuery.isLoading || liveBootstrapping,
+    // Permission gates must wait for access-context (and activate/switch) or hard
+    // refresh stays on empty permissions / “Checking permissions…”.
+    isResolvingAccess:
+      sessionPending ||
+      orgsQuery.isLoading ||
+      liveBootstrapping ||
+      Boolean(livePendingActiveId) ||
+      (isSignedIn && accessQuery.isLoading),
     error: liveSwitchError ?? listError,
     refresh,
     selectOrganization,

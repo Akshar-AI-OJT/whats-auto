@@ -218,8 +218,8 @@ export type OrganizationSummary = {
   phone?: string | null
   website?: string | null
   industry?: string | null
-  country?: string
-  timezone?: string
+  country: string
+  timezone: string
   currency?: string | null
   role: string
   createdAt: string
@@ -502,6 +502,59 @@ export type CreateWhatsappTemplateBody = {
 
 export type SyncWhatsappTemplatesResult = {
   syncedCount: number
+}
+
+export type CampaignStatus =
+  | 'draft'
+  | 'scheduled'
+  | 'sending'
+  | 'sent'
+  | 'failed'
+  | string
+
+export type Campaign = {
+  id: string
+  organizationId: string
+  createdByUserId?: string | null
+  name: string
+  whatsappConfigId?: string | null
+  messageTemplateId?: string | null
+  scheduledAt?: string | null
+  status: CampaignStatus
+  totalRecipients: number
+  sentCount: number
+  deliveredCount: number
+  readCount: number
+  repliedCount?: number
+  failedCount: number
+  createdAt?: string
+  updatedAt?: string | null
+}
+
+export type ListCampaignsParams = {
+  page?: number
+  limit?: number
+  perPage?: number
+  search?: string
+  status?: string
+  sortBy?: string
+  sortOrder?: 'asc' | 'desc'
+}
+
+export type CreateCampaignBody = {
+  name: string
+  whatsappConfigId?: string
+  messageTemplateId?: string
+  scheduledAt?: string
+  status?: 'draft' | 'scheduled'
+}
+
+export type UpdateCampaignBody = {
+  name?: string
+  whatsappConfigId?: string | null
+  messageTemplateId?: string | null
+  scheduledAt?: string | null
+  status?: 'draft' | 'scheduled'
 }
 
 export type CreateInvitationBody = {
@@ -1021,6 +1074,50 @@ export const api = {
     deleteTemplate: (templateId: string) =>
       protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
         `/api/v1/whatsapp/templates/${templateId}`,
+        { method: 'DELETE' }
+      ),
+  },
+
+  campaigns: {
+    list: (params: ListCampaignsParams = {}) => {
+      const qs = new URLSearchParams()
+      if (params.page != null) qs.set('page', String(params.page))
+      if (params.limit != null) qs.set('limit', String(params.limit))
+      if (params.perPage != null) qs.set('perPage', String(params.perPage))
+      if (params.search?.trim()) qs.set('search', params.search.trim())
+      if (params.status) qs.set('status', params.status)
+      if (params.sortBy) qs.set('sortBy', params.sortBy)
+      if (params.sortOrder) qs.set('sortOrder', params.sortOrder)
+      const query = qs.toString()
+      return protectedRequest<
+        | Paginated<Campaign>
+        | { data?: Campaign[]; meta?: PaginationMeta }
+        | { data?: { data?: Campaign[]; meta?: PaginationMeta } }
+      >(`/api/v1/campaigns${query ? `?${query}` : ''}`, {
+        method: 'GET',
+      })
+    },
+
+    get: (campaignId: string) =>
+      protectedRequest<{ data?: Campaign } & Campaign>(`/api/v1/campaigns/${campaignId}`, {
+        method: 'GET',
+      }),
+
+    create: (body: CreateCampaignBody) =>
+      protectedRequest<{ data?: Campaign } & Campaign>('/api/v1/campaigns', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+
+    update: (campaignId: string, body: UpdateCampaignBody) =>
+      protectedRequest<{ data?: Campaign } & Campaign>(`/api/v1/campaigns/${campaignId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+
+    delete: (campaignId: string) =>
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/campaigns/${campaignId}`,
         { method: 'DELETE' }
       ),
   },

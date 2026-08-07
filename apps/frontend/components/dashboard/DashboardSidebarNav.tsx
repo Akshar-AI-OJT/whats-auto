@@ -30,7 +30,7 @@ export function DashboardSidebarNav({
   const t = useTranslations('dashboard.nav')
   const pathname = usePathname()
   const router = useRouter()
-  const { hasPermission, hasAnyPermission } = usePermissions()
+  const { hasPermission, hasAnyPermission, isLoading: permissionsLoading } = usePermissions()
   const [teamOpen, setTeamOpen] = useState(
     () => pathname === '/dashboard/team' || pathname.startsWith('/dashboard/team/')
   )
@@ -42,13 +42,14 @@ export function DashboardSidebarNav({
         const href = DASHBOARD_NAV_HREFS[key]
         const navPermission = DASHBOARD_NAV_PERMISSION[key]
 
-        // Team parent: show when any team child is allowed.
+        // While permissions load, keep real routes visible so hard refresh doesn't
+        // collapse the sidebar to only ungated placeholders.
         if (key === 'team') {
           const canMembers = hasPermission(PERMISSIONS.TEAM_VIEW)
           const canRoles =
             hasPermission(PERMISSIONS.ROLES_VIEW) || hasPermission(PERMISSIONS.TEAM_VIEW)
-          if (!canMembers && !canRoles) return null
-        } else if (navPermission && !hasPermission(navPermission)) {
+          if (!permissionsLoading && !canMembers && !canRoles) return null
+        } else if (navPermission && !permissionsLoading && !hasPermission(navPermission)) {
           return null
         }
 
@@ -77,6 +78,7 @@ export function DashboardSidebarNav({
 
         if (children && href) {
           const visibleChildren = children.filter((child) => {
+            if (permissionsLoading) return true
             if (child.key === 'teamMembers') return hasPermission(PERMISSIONS.TEAM_VIEW)
             if (child.key === 'teamRoles') {
               return hasAnyPermission([PERMISSIONS.ROLES_VIEW, PERMISSIONS.TEAM_VIEW])
