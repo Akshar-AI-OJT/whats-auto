@@ -4,6 +4,9 @@ import { createWhatsappOutboundDispatchHandler } from '#services/job_queue/handl
 import { createWhatsappOutboundRecoveryHandler } from '#services/job_queue/handlers/whatsapp_outbound_recovery_handler'
 import { createBillingPaymentWebhookHandler } from '#services/job_queue/handlers/billing_payment_webhook_handler'
 import { createMediaPendingUploadCleanupHandler } from '#services/job_queue/handlers/media_pending_upload_cleanup_handler'
+import { createMediaStorageLifecycleHandler } from '#services/job_queue/handlers/media_storage_lifecycle_handler'
+import { createCampaignExecuteHandler } from '#services/job_queue/handlers/campaign_execute_handler'
+import { createCampaignRecoveryHandler } from '#services/job_queue/handlers/campaign_recovery_handler'
 
 /**
  * Register all worker handlers. Add new jobs here as the product grows.
@@ -16,4 +19,7 @@ export async function registerJobHandlers(driver: JobQueueDriver): Promise<void>
     JOB_NAMES.MEDIA_PENDING_UPLOAD_CLEANUP,
     createMediaPendingUploadCleanupHandler()
   )
+  await driver.work(JOB_NAMES.MEDIA_STORAGE_LIFECYCLE, createMediaStorageLifecycleHandler())
+  await driver.work(JOB_NAMES.CAMPAIGN_EXECUTE, createCampaignExecuteHandler())
+  await driver.work(JOB_NAMES.CAMPAIGN_RECOVERY, createCampaignRecoveryHandler())
 }

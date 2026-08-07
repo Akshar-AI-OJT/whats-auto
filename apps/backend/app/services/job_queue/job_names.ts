@@ -5,6 +5,9 @@ export const JOB_NAMES = {
   WHATSAPP_UNMATCHED_RECEIPTS_CLEANUP: 'whatsapp.unmatched_receipts.cleanup',
   BILLING_PAYMENT_WEBHOOK_PROCESS: 'billing.payment_webhook.process',
   MEDIA_PENDING_UPLOAD_CLEANUP: 'media.pending_upload.cleanup',
+  MEDIA_STORAGE_LIFECYCLE: 'media.storage.lifecycle',
+  CAMPAIGN_EXECUTE: 'campaigns.execute',
+  CAMPAIGN_RECOVERY: 'campaigns.recovery',
 } as const
 
 export type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES]
@@ -14,3 +17,9 @@ export const WHATSAPP_OUTBOUND_RECOVERY_CRON = '*/1 * * * *'
 
 /** Cron for expiring abandoned pending media uploads (every 5 minutes). */
 export const MEDIA_PENDING_UPLOAD_CLEANUP_CRON = '*/5 * * * *'
+
+/** Cron for soft-delete purge, delete retry, and quota reconciliation. */
+export const MEDIA_STORAGE_LIFECYCLE_CRON = '*/15 * * * *'
+
+/** Cron for overdue scheduled/sending campaigns. */
+export const CAMPAIGN_RECOVERY_CRON = '*/1 * * * *'

@@ -52,8 +52,13 @@ try {
   const driver = await manager.start()
   await registerJobHandlers(driver)
 
-  const { JOB_NAMES, WHATSAPP_OUTBOUND_RECOVERY_CRON, MEDIA_PENDING_UPLOAD_CLEANUP_CRON } =
-    await import('#services/job_queue/job_names')
+  const {
+    JOB_NAMES,
+    WHATSAPP_OUTBOUND_RECOVERY_CRON,
+    MEDIA_PENDING_UPLOAD_CLEANUP_CRON,
+    MEDIA_STORAGE_LIFECYCLE_CRON,
+    CAMPAIGN_RECOVERY_CRON,
+  } = await import('#services/job_queue/job_names')
   if (typeof driver.schedule === 'function') {
     await driver.schedule(
       JOB_NAMES.WHATSAPP_OUTBOUND_RECOVERY,
@@ -75,6 +80,25 @@ try {
       { cron: MEDIA_PENDING_UPLOAD_CLEANUP_CRON },
       'job_queue.media_pending_upload_cleanup.scheduled'
     )
+
+    await driver.schedule(
+      JOB_NAMES.MEDIA_STORAGE_LIFECYCLE,
+      MEDIA_STORAGE_LIFECYCLE_CRON,
+      {},
+      { key: 'media-storage-lifecycle' }
+    )
+    logger.info(
+      { cron: MEDIA_STORAGE_LIFECYCLE_CRON },
+      'job_queue.media_storage_lifecycle.scheduled'
+    )
+
+    await driver.schedule(
+      JOB_NAMES.CAMPAIGN_RECOVERY,
+      CAMPAIGN_RECOVERY_CRON,
+      {},
+      { key: 'campaign-recovery' }
+    )
+    logger.info({ cron: CAMPAIGN_RECOVERY_CRON }, 'job_queue.campaign_recovery.scheduled')
   }
 
   const driverName = app.config.get('job_queue.default')
