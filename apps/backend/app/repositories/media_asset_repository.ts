@@ -10,6 +10,7 @@ export type MediaAssetRow = {
   deliveryUrl: string
   storageKey: string
   storageDisk: string
+  storageObjectId: string | null
   state: string
   source: string
   mimeType: string
@@ -32,6 +33,7 @@ export type InsertPendingMediaAssetParams = {
   storageKey: string
   deliveryUrl: string
   storageDisk: string
+  storageObjectId: string
   source: MediaAssetSource
   uploadedBy: string | null
 }
@@ -55,6 +57,7 @@ export class MediaAssetRepository {
         deliveryUrl: params.deliveryUrl,
         storageKey: params.storageKey,
         storageDisk: params.storageDisk,
+        storageObjectId: params.storageObjectId,
         state: 'pending_upload',
         source: params.source,
         mimeType: params.mimeType,
@@ -124,6 +127,42 @@ export class MediaAssetRepository {
       })
   }
 
+  async markDeleted(
+    params: { organizationId: string; mediaAssetId: string },
+    client: Db = db
+  ): Promise<MediaAssetRow | null> {
+    const [row] = await client
+      .from('media_assets')
+      .where('id', params.mediaAssetId)
+      .where('organizationId', params.organizationId)
+      .where('state', 'ready')
+      .update({
+        state: 'deleted',
+        updatedAt: new Date(),
+      })
+      .returning('*')
+
+    return row ? mapRow(row) : null
+  }
+
+  async markRestored(
+    params: { organizationId: string; mediaAssetId: string },
+    client: Db = db
+  ): Promise<MediaAssetRow | null> {
+    const [row] = await client
+      .from('media_assets')
+      .where('id', params.mediaAssetId)
+      .where('organizationId', params.organizationId)
+      .where('state', 'deleted')
+      .update({
+        state: 'ready',
+        updatedAt: new Date(),
+      })
+      .returning('*')
+
+    return row ? mapRow(row) : null
+  }
+
   async listExpiredPending(params: {
     organizationId: string
     olderThan: Date
@@ -140,6 +179,44 @@ export class MediaAssetRepository {
 
     return rows.map(mapRow)
   }
+
+  async listForLibrary(params: {
+    organizationId: string
+    page: number
+    perPage: number
+    state?: string
+    kind?: 'image' | 'document'
+    search?: string
+  }): Promise<{ rows: MediaAssetRow[]; total: number }> {
+    const query = db
+      .from('media_assets')
+      .where('organizationId', params.organizationId)
+      .whereNotIn('state', ['pending_upload', 'failed'])
+
+    if (params.state) {
+      query.where('state', params.state)
+    }
+    if (params.kind === 'image') {
+      query.whereILike('mimeType', 'image/%')
+    } else if (params.kind === 'document') {
+      query.whereRaw(`"mimeType" NOT ILIKE ?`, ['image/%'])
+    }
+    if (params.search?.trim()) {
+      const term = `%${params.search.trim()}%`
+      query.whereILike('fileName', term)
+    }
+
+    const countResult = await query.clone().count('* as total').first()
+    const total = Number(countResult?.total ?? 0)
+    const rows = await query
+      .clone()
+      .orderBy('createdAt', 'desc')
+      .offset((params.page - 1) * params.perPage)
+      .limit(params.perPage)
+      .select('*')
+
+    return { rows: rows.map(mapRow), total }
+  }
 }
 
 function mapRow(row: Record<string, unknown>): MediaAssetRow {
@@ -151,6 +228,7 @@ function mapRow(row: Record<string, unknown>): MediaAssetRow {
     deliveryUrl: row.deliveryUrl as string,
     storageKey: row.storageKey as string,
     storageDisk: row.storageDisk as string,
+    storageObjectId: (row.storageObjectId as string | null) ?? null,
     state: row.state as string,
     source: row.source as string,
     mimeType: row.mimeType as string,

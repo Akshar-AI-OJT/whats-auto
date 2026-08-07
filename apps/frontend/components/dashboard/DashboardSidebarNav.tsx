@@ -22,6 +22,14 @@ type DashboardSidebarNavProps = {
   collapsed?: boolean
 }
 
+function initialOpenState(pathname: string): Partial<Record<DashboardNavKey, boolean>> {
+  return {
+    team: pathname === '/dashboard/team' || pathname.startsWith('/dashboard/team/'),
+    templates:
+      pathname === '/dashboard/templates' || pathname.startsWith('/dashboard/templates/'),
+  }
+}
+
 export function DashboardSidebarNav({
   onNavigate,
   className,
@@ -31,9 +39,7 @@ export function DashboardSidebarNav({
   const pathname = usePathname()
   const router = useRouter()
   const { hasPermission, hasAnyPermission } = usePermissions()
-  const [teamOpen, setTeamOpen] = useState(
-    () => pathname === '/dashboard/team' || pathname.startsWith('/dashboard/team/')
-  )
+  const [openByKey, setOpenByKey] = useState(() => initialOpenState(pathname))
 
   return (
     <nav aria-label={t('ariaLabel')} className={cn('flex flex-col gap-0.5', className)}>
@@ -42,12 +48,15 @@ export function DashboardSidebarNav({
         const href = DASHBOARD_NAV_HREFS[key]
         const navPermission = DASHBOARD_NAV_PERMISSION[key]
 
-        // Team parent: show when any team child is allowed.
         if (key === 'team') {
           const canMembers = hasPermission(PERMISSIONS.TEAM_VIEW)
           const canRoles =
             hasPermission(PERMISSIONS.ROLES_VIEW) || hasPermission(PERMISSIONS.TEAM_VIEW)
           if (!canMembers && !canRoles) return null
+        } else if (key === 'templates') {
+          const canTemplates = hasPermission(PERMISSIONS.WHATSAPP_VIEW)
+          const canMedia = hasPermission(PERMISSIONS.MEDIA_VIEW)
+          if (!canTemplates && !canMedia) return null
         } else if (navPermission && !hasPermission(navPermission)) {
           return null
         }
@@ -87,12 +96,13 @@ export function DashboardSidebarNav({
           if (visibleChildren.length === 0) return null
 
           const primaryHref = visibleChildren[0]?.href ?? href
+          const sectionOpen = Boolean(openByKey[key])
 
           return (
             <div key={key} className="flex flex-col gap-0.5">
               <button
                 type="button"
-                aria-expanded={collapsed ? undefined : teamOpen}
+                aria-expanded={collapsed ? undefined : sectionOpen}
                 aria-label={collapsed ? label : undefined}
                 title={collapsed ? label : undefined}
                 className={itemClass}
@@ -102,7 +112,7 @@ export function DashboardSidebarNav({
                     onNavigate?.()
                     return
                   }
-                  setTeamOpen((open) => !open)
+                  setOpenByKey((prev) => ({ ...prev, [key]: !prev[key] }))
                 }}
               >
                 <span className={iconWrap}>
@@ -114,7 +124,7 @@ export function DashboardSidebarNav({
                     <ChevronDown
                       className={cn(
                         'size-4 shrink-0 text-mute transition-transform duration-200',
-                        teamOpen && 'rotate-180'
+                        sectionOpen && 'rotate-180'
                       )}
                       aria-hidden
                     />
@@ -122,14 +132,14 @@ export function DashboardSidebarNav({
                 ) : null}
               </button>
 
-              {!collapsed && teamOpen ? (
+              {!collapsed && sectionOpen ? (
                 <div className="ml-4 flex flex-col gap-0.5 border-l border-dash-border pl-2">
                   {visibleChildren.map((child) => {
                     const childLabel = t(child.key)
                     const childHref = child.href ?? href
                     const childActive =
-                      child.key === 'teamMembers'
-                        ? pathname === '/dashboard/team'
+                      child.key === 'teamMembers' || child.key === 'templatesList'
+                        ? pathname === childHref
                         : pathname === childHref || pathname.startsWith(`${childHref}/`)
 
                     return (
@@ -174,7 +184,6 @@ export function DashboardSidebarNav({
           )
         }
 
-        // Placeholders — left visible (coming soon); no backend route to gate yet.
         return (
           <button
             key={key}

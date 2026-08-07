@@ -37,6 +37,7 @@ const MessageTemplatesController = () => import('#controllers/message_templates_
 const MessagesController = () => import('#controllers/messages_controller')
 const ConversationNotesController = () => import('#controllers/conversation_notes_controller')
 const MediaUploadsController = () => import('#controllers/media_uploads_controller')
+const MediaAssetsController = () => import('#controllers/media_assets_controller')
 const BillingController = () => import('#controllers/billing_controller')
 const BillingRazorpayWebhookController = () =>
   import('#controllers/billing_razorpay_webhook_controller')
@@ -576,15 +577,33 @@ router
   .prefix('/api/v1/contacts')
   .use([middleware.jwtAuth(), middleware.tenant()])
 
-// media uploads — direct-to-S3 pending → ready lifecycle
+// media uploads — direct-to-S3 pending → ready lifecycle + Media Library
 router
   .group(() => {
+    router
+      .get('/', [MediaAssetsController, 'index'])
+      .use(middleware.requirePermission({ permission: 'media:view' }))
+    router
+      .get('/quota', [MediaAssetsController, 'quota'])
+      .use(middleware.requirePermission({ permission: 'media:view' }))
+    router
+      .get('/:id', [MediaAssetsController, 'show'])
+      .use(middleware.requirePermission({ permission: 'media:view' }))
     router
       .post('/uploads', [MediaUploadsController, 'store'])
       .use(middleware.requirePermission({ permission: 'media:upload' }))
     router
       .post('/uploads/:id/complete', [MediaUploadsController, 'complete'])
       .use(middleware.requirePermission({ permission: 'media:upload' }))
+    router
+      .delete('/:id', [MediaAssetsController, 'destroy'])
+      .use(middleware.requirePermission({ permission: 'media:delete' }))
+    router
+      .post('/:id/restore', [MediaAssetsController, 'restore'])
+      .use(middleware.requirePermission({ permission: 'media:delete' }))
+    router
+      .post('/:id/purge', [MediaAssetsController, 'purge'])
+      .use(middleware.requirePermission({ permission: 'media:purge' }))
   })
   .prefix('/api/v1/media')
   .use([middleware.jwtAuth(), middleware.tenant()])
@@ -603,6 +622,15 @@ router
       .use(middleware.requirePermission({ permission: 'campaigns:create' }))
     router
       .patch('/:id', [CampaignsController, 'update'])
+      .use(middleware.requirePermission({ permission: 'campaigns:edit' }))
+    router
+      .put('/:id/recipients', [CampaignsController, 'replaceRecipients'])
+      .use(middleware.requirePermission({ permission: 'campaigns:edit' }))
+    router
+      .post('/:id/schedule', [CampaignsController, 'schedule'])
+      .use(middleware.requirePermission({ permission: 'campaigns:edit' }))
+    router
+      .post('/:id/cancel', [CampaignsController, 'cancel'])
       .use(middleware.requirePermission({ permission: 'campaigns:edit' }))
     router
       .delete('/:id', [CampaignsController, 'softDelete'])

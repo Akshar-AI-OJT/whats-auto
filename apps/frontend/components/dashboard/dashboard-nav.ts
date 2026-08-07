@@ -56,13 +56,13 @@ export const DASHBOARD_NAV_HREFS: Partial<Record<DashboardNavKey, string>> = {
 }
 
 export type DashboardNavChild = {
-  key: 'teamMembers' | 'teamRoles'
+  key: 'teamMembers' | 'teamRoles' | 'templatesList' | 'templatesMedia'
   href?: string
   /** Permission required to show this child. */
   permission: string
 }
 
-/** Nested items under Team Management. */
+/** Nested items under Team Management and Templates. */
 export const DASHBOARD_NAV_CHILDREN: Partial<
   Record<DashboardNavKey, DashboardNavChild[]>
 > = {
@@ -73,6 +73,18 @@ export const DASHBOARD_NAV_CHILDREN: Partial<
       href: '/dashboard/team/roles',
       // List middleware uses team:view; catalog also has roles:view — child shown if either.
       permission: PERMISSIONS.ROLES_VIEW,
+    },
+  ],
+  templates: [
+    {
+      key: 'templatesList',
+      href: '/dashboard/templates',
+      permission: PERMISSIONS.WHATSAPP_VIEW,
+    },
+    {
+      key: 'templatesMedia',
+      href: '/dashboard/templates/media',
+      permission: PERMISSIONS.MEDIA_VIEW,
     },
   ],
 }

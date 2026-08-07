@@ -20,6 +20,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { TemplatePreview } from './TemplatePreview'
+import { MediaPicker } from './MediaPicker'
 import {
   TEMPLATE_CATEGORIES,
   TEMPLATE_HEADER_TYPES,
@@ -35,6 +36,8 @@ export type TemplateFormValues = {
   language: string
   headerType: WhatsappTemplateHeaderType
   headerContent: string
+  headerMediaAssetId: string
+  headerMediaFileName: string
   bodyText: string
   footerText: string
   buttons: WhatsappTemplateButton[]
@@ -52,6 +55,8 @@ export const EMPTY_TEMPLATE_FORM: TemplateFormValues = {
   language: 'en_US',
   headerType: 'NONE',
   headerContent: '',
+  headerMediaAssetId: '',
+  headerMediaFileName: '',
   bodyText: '',
   footerText: '',
   buttons: [],
@@ -85,6 +90,7 @@ export function TemplateForm({
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof TemplateFormValues, string>>>(
     {}
   )
+  const [mediaPickerOpen, setMediaPickerOpen] = useState(false)
 
   const [sampleErrors, setSampleErrors] = useState<Record<string, string>>({})
 
@@ -270,9 +276,17 @@ export function TemplateForm({
                 className={selectClassName}
                 value={values.headerType}
                 disabled={pending}
-                onChange={(e) =>
-                  update('headerType', e.target.value as WhatsappTemplateHeaderType)
-                }
+                onChange={(e) => {
+                  const next = e.target.value as WhatsappTemplateHeaderType
+                  setValues((prev) => ({
+                    ...prev,
+                    headerType: next,
+                    headerMediaAssetId:
+                      next === 'IMAGE' || next === 'DOCUMENT' ? prev.headerMediaAssetId : '',
+                    headerMediaFileName:
+                      next === 'IMAGE' || next === 'DOCUMENT' ? prev.headerMediaFileName : '',
+                  }))
+                }}
               >
                 {TEMPLATE_HEADER_TYPES.map((type) => (
                   <option key={type} value={type}>
@@ -298,6 +312,46 @@ export function TemplateForm({
               ) : null}
             </Field>
           ) : null}
+
+          {values.headerType === 'IMAGE' || values.headerType === 'DOCUMENT' ? (
+            <Field className="gap-2">
+              <FieldLabel>{t('headerMedia')}</FieldLabel>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={pending}
+                  onClick={() => setMediaPickerOpen(true)}
+                >
+                  {values.headerMediaFileName || t('headerMediaPick')}
+                </Button>
+                {values.headerMediaAssetId ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    disabled={pending}
+                    onClick={() => {
+                      update('headerMediaAssetId', '')
+                      update('headerMediaFileName', '')
+                    }}
+                  >
+                    {t('headerMediaClear')}
+                  </Button>
+                ) : null}
+              </div>
+              <FieldDescription>{t('headerMediaHint')}</FieldDescription>
+            </Field>
+          ) : null}
+
+          <MediaPicker
+            open={mediaPickerOpen}
+            onOpenChange={setMediaPickerOpen}
+            kind={values.headerType === 'IMAGE' ? 'image' : 'document'}
+            onSelect={(asset) => {
+              update('headerMediaAssetId', asset.id)
+              update('headerMediaFileName', asset.fileName)
+            }}
+          />
 
           <Field data-invalid={Boolean(fieldErrors.bodyText)} className="gap-2">
             <div className="flex items-center justify-between gap-3">
