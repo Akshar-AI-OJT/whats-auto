@@ -67,3 +67,20 @@ declare module '@adonisjs/core/http' {
     serialize: typeof serialize
   }
 }
+
+import type { ApplicationService } from '@adonisjs/core/types'
+import { RazorpayCheckoutService } from '#services/billing/razorpay_checkout_service'
+import { PlanRepository } from '#repositories/plan_repository'
+import { OrganizationSubscriptionRepository } from '#repositories/organization_subscription_repository'
+
+export default class ApiProvider {
+  constructor(protected app: ApplicationService) {}
+
+  register() {
+    this.app.container.singleton(RazorpayCheckoutService, async (resolver) => {
+      const plans = await resolver.make(PlanRepository)
+      const subs = await resolver.make(OrganizationSubscriptionRepository)
+      return new RazorpayCheckoutService(plans, subs)
+    })
+  }
+}
