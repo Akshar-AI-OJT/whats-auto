@@ -341,6 +341,9 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
               if (id === 'workspace' || id === 'settings') {
                 router.push('/dashboard/settings')
               }
+              if (id === 'billing') {
+                router.push('/dashboard/billing')
+              }
             }}
           />
         </div>

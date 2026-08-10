@@ -10,12 +10,13 @@ import { useRouter } from '@/i18n/navigation'
 import { Button } from '@/components/ui/button'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { CampaignCards } from './CampaignCards'
-import { CampaignComingSoonDialog, CampaignDeleteDialog } from './CampaignDialogs'
+import { CampaignCancelDialog, CampaignDeleteDialog } from './CampaignDialogs'
 import { CampaignFilters } from './CampaignFilters'
 import { CampaignTable } from './CampaignTable'
 import {
   type CampaignViewMode,
   filterCampaignsByDateRange,
+  unwrapCampaign,
   unwrapCampaignList,
 } from './campaign-utils'
 import { unwrapTemplateList } from '@/components/dashboard/templates/template-utils'
@@ -37,6 +38,7 @@ export function CampaignsListPage() {
     canCreateCampaigns,
     canEditCampaigns,
     canDeleteCampaigns,
+    canPauseCampaigns,
     isLoading: orgsLoading,
   } = useOrganizations()
 
@@ -50,7 +52,9 @@ export function CampaignsListPage() {
   const [page, setPage] = useState(1)
   const [deleteTarget, setDeleteTarget] = useState<Campaign | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
-  const [pauseOpen, setPauseOpen] = useState(false)
+  const [cancelTarget, setCancelTarget] = useState<Campaign | null>(null)
+  const [cancelError, setCancelError] = useState<string | null>(null)
+  const [listActionError, setListActionError] = useState<string | null>(null)
 
   const listParams = useMemo(
     () => ({
@@ -98,6 +102,38 @@ export function CampaignsListPage() {
     },
     onError: (err) => {
       setDeleteError((err as unknown as ApiError).message || t('errors.deleteFailed'))
+    },
+  })
+
+  const cancelMutation = useMutation({
+    mutationFn: async (campaignId: string) => {
+      const { data } = await api.campaigns.cancel(campaignId)
+      return unwrapCampaign(data)
+    },
+    onSuccess: async () => {
+      setCancelTarget(null)
+      setCancelError(null)
+      await queryClient.invalidateQueries({ queryKey: campaignQueryKeys.all })
+    },
+    onError: (err) => {
+      setCancelError((err as unknown as ApiError).message || t('errors.cancelFailed'))
+    },
+  })
+
+  const duplicateMutation = useMutation({
+    mutationFn: async (campaignId: string) => {
+      const { data } = await api.campaigns.duplicate(campaignId)
+      return unwrapCampaign(data)
+    },
+    onSuccess: async (campaign) => {
+      setListActionError(null)
+      await queryClient.invalidateQueries({ queryKey: campaignQueryKeys.all })
+      if (campaign?.id) {
+        router.push(`/dashboard/campaigns/${campaign.id}/edit`)
+      }
+    },
+    onError: (err) => {
+      setListActionError((err as unknown as ApiError).message || t('errors.duplicateFailed'))
     },
   })
 
@@ -190,6 +226,15 @@ export function CampaignsListPage() {
           onViewModeChange={setViewMode}
         />
 
+        {listActionError ? (
+          <div
+            role="alert"
+            className="mt-4 rounded-xl border border-negative/25 bg-negative/5 px-4 py-3 text-sm text-negative"
+          >
+            {listActionError}
+          </div>
+        ) : null}
+
         {campaignsQuery.isLoading || orgsLoading ? (
           <div className="mt-8 flex items-center justify-center gap-2 py-16 text-sm text-body">
             <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -229,15 +274,18 @@ export function CampaignsListPage() {
                 campaigns={items}
                 templateNames={templateNames}
                 canEdit={canEditCampaigns}
+                canCreate={canCreateCampaigns}
                 canDelete={canDeleteCampaigns}
+                canPause={canPauseCampaigns}
                 onView={(campaign) => router.push(`/dashboard/campaigns/${campaign.id}`)}
                 onEdit={(campaign) =>
                   router.push(`/dashboard/campaigns/${campaign.id}/edit`)
                 }
-                onDuplicate={(campaign) =>
-                  router.push(`/dashboard/campaigns/create?from=${campaign.id}`)
-                }
-                onPause={() => setPauseOpen(true)}
+                onDuplicate={(campaign) => duplicateMutation.mutate(campaign.id)}
+                onPause={(campaign) => {
+                  setCancelError(null)
+                  setCancelTarget(campaign)
+                }}
                 onDelete={(campaign) => {
                   setDeleteError(null)
                   setDeleteTarget(campaign)
@@ -248,15 +296,18 @@ export function CampaignsListPage() {
                 campaigns={items}
                 templateNames={templateNames}
                 canEdit={canEditCampaigns}
+                canCreate={canCreateCampaigns}
                 canDelete={canDeleteCampaigns}
+                canPause={canPauseCampaigns}
                 onView={(campaign) => router.push(`/dashboard/campaigns/${campaign.id}`)}
                 onEdit={(campaign) =>
                   router.push(`/dashboard/campaigns/${campaign.id}/edit`)
                 }
-                onDuplicate={(campaign) =>
-                  router.push(`/dashboard/campaigns/create?from=${campaign.id}`)
-                }
-                onPause={() => setPauseOpen(true)}
+                onDuplicate={(campaign) => duplicateMutation.mutate(campaign.id)}
+                onPause={(campaign) => {
+                  setCancelError(null)
+                  setCancelTarget(campaign)
+                }}
                 onDelete={(campaign) => {
                   setDeleteError(null)
                   setDeleteTarget(campaign)
@@ -311,7 +362,19 @@ export function CampaignsListPage() {
         }}
       />
 
-      <CampaignComingSoonDialog open={pauseOpen} onOpenChange={setPauseOpen} />
+      <CampaignCancelDialog
+        open={Boolean(cancelTarget)}
+        campaign={cancelTarget}
+        pending={cancelMutation.isPending}
+        error={cancelError}
+        onOpenChange={(open) => {
+          if (!open && !cancelMutation.isPending) setCancelTarget(null)
+        }}
+        onConfirm={() => {
+          if (!cancelTarget) return
+          cancelMutation.mutate(cancelTarget.id)
+        }}
+      />
     </div>
   )
 }

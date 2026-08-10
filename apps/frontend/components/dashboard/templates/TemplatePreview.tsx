@@ -6,6 +6,7 @@ import type { WhatsappMessageTemplate, WhatsappTemplateButton } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import {
   normalizeButtons,
+  normalizeSampleValues,
   renderTemplatePreviewText,
 } from './template-utils'
 
@@ -85,11 +86,6 @@ export function TemplatePreview({
 }
 
 export function templateToPreviewProps(template: WhatsappMessageTemplate): TemplatePreviewProps {
-  const sample =
-    template.sampleValues && typeof template.sampleValues === 'object'
-      ? (template.sampleValues as Record<string, string>)
-      : undefined
-
   return {
     name: template.name,
     headerType: template.headerType,
@@ -97,6 +93,6 @@ export function templateToPreviewProps(template: WhatsappMessageTemplate): Templ
     bodyText: template.bodyText,
     footerText: template.footerText,
     buttons: normalizeButtons(template.buttons),
-    sampleValues: sample,
+    sampleValues: normalizeSampleValues(template.sampleValues),
   }
 }

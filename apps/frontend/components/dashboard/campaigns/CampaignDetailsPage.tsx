@@ -3,19 +3,25 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
-import { ArrowLeft, Copy, Loader2, Pencil } from 'lucide-react'
-import { api, type ApiError } from '@/lib/api'
+import { ArrowLeft, Copy, Eye, Loader2, PauseCircle, Pencil, Rocket } from 'lucide-react'
+import { api, type ApiError, type CampaignPreview } from '@/lib/api'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { Link, useRouter } from '@/i18n/navigation'
 import { Button } from '@/components/ui/button'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { CampaignActionsMenu } from './CampaignCards'
-import { CampaignComingSoonDialog, CampaignDeleteDialog } from './CampaignDialogs'
+import {
+  CampaignCancelDialog,
+  CampaignDeleteDialog,
+  CampaignPreviewDialog,
+} from './CampaignDialogs'
 import { CampaignStatusBadge } from './CampaignStatusBadge'
 import { campaignQueryKeys } from './CampaignsListPage'
 import {
   formatCampaignDate,
+  isCancellableCampaignStatus,
   isEditableCampaignStatus,
+  isLaunchableCampaignStatus,
   ratePercent,
   unwrapCampaign,
 } from './campaign-utils'
@@ -32,14 +38,22 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
   const {
     tenantOrganizationId,
     canViewCampaigns,
+    canCreateCampaigns,
     canEditCampaigns,
     canDeleteCampaigns,
+    canLaunchCampaigns,
+    canPauseCampaigns,
     isLoading: orgsLoading,
   } = useOrganizations()
 
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
-  const [pauseOpen, setPauseOpen] = useState(false)
+  const [cancelOpen, setCancelOpen] = useState(false)
+  const [cancelError, setCancelError] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [preview, setPreview] = useState<CampaignPreview | null>(null)
+  const [previewError, setPreviewError] = useState<string | null>(null)
 
   const campaignQuery = useQuery({
     queryKey: campaignQueryKeys.detail(campaignId),
@@ -69,6 +83,70 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
     },
     onError: (err) => {
       setDeleteError((err as unknown as ApiError).message || t('errors.deleteFailed'))
+    },
+  })
+
+  const cancelMutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await api.campaigns.cancel(campaignId)
+      return unwrapCampaign(data)
+    },
+    onSuccess: async () => {
+      setCancelOpen(false)
+      setCancelError(null)
+      await queryClient.invalidateQueries({ queryKey: campaignQueryKeys.all })
+    },
+    onError: (err) => {
+      setCancelError((err as unknown as ApiError).message || t('errors.cancelFailed'))
+    },
+  })
+
+  const launchMutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await api.campaigns.send(campaignId)
+      return unwrapCampaign(data)
+    },
+    onSuccess: async () => {
+      setActionError(null)
+      await queryClient.invalidateQueries({ queryKey: campaignQueryKeys.all })
+    },
+    onError: (err) => {
+      setActionError((err as unknown as ApiError).message || t('errors.launchFailed'))
+    },
+  })
+
+  const duplicateMutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await api.campaigns.duplicate(campaignId)
+      return unwrapCampaign(data)
+    },
+    onSuccess: async (campaign) => {
+      await queryClient.invalidateQueries({ queryKey: campaignQueryKeys.all })
+      if (campaign?.id) {
+        router.push(`/dashboard/campaigns/${campaign.id}/edit`)
+      }
+    },
+    onError: (err) => {
+      setActionError((err as unknown as ApiError).message || t('errors.duplicateFailed'))
+    },
+  })
+
+  const previewMutation = useMutation({
+    mutationFn: async () => {
+      const { data } = await api.campaigns.preview(campaignId)
+      if (data && typeof data === 'object' && 'bodyPreview' in data) {
+        return data as CampaignPreview
+      }
+      const wrapped = data as { data?: CampaignPreview }
+      return wrapped.data ?? null
+    },
+    onSuccess: (data) => {
+      setPreview(data)
+      setPreviewError(null)
+    },
+    onError: (err) => {
+      setPreview(null)
+      setPreviewError((err as unknown as ApiError).message || t('errors.previewFailed'))
     },
   })
 
@@ -121,6 +199,12 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
     0
   )
   const pendingRate = ratePercent(pending, campaign.totalRecipients)
+  const canLaunch =
+    canLaunchCampaigns &&
+    isLaunchableCampaignStatus(campaign.status) &&
+    campaign.totalRecipients > 0 &&
+    Boolean(campaign.messageTemplateId)
+  const canCancel = canPauseCampaigns && isCancellableCampaignStatus(campaign.status)
 
   return (
     <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5">
@@ -149,6 +233,56 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {canViewCampaigns && campaign.messageTemplateId ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              disabled={previewMutation.isPending}
+              onClick={() => {
+                setPreviewOpen(true)
+                setPreview(null)
+                setPreviewError(null)
+                previewMutation.mutate()
+              }}
+            >
+              {previewMutation.isPending ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : (
+                <Eye className="size-4" aria-hidden />
+              )}
+              {t('actions.preview')}
+            </Button>
+          ) : null}
+          {canLaunch ? (
+            <Button
+              type="button"
+              className="gap-2"
+              disabled={launchMutation.isPending}
+              onClick={() => launchMutation.mutate()}
+            >
+              {launchMutation.isPending ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : (
+                <Rocket className="size-4" aria-hidden />
+              )}
+              {t('actions.launch')}
+            </Button>
+          ) : null}
+          {canCancel ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              onClick={() => {
+                setCancelError(null)
+                setCancelOpen(true)
+              }}
+            >
+              <PauseCircle className="size-4" aria-hidden />
+              {t('actions.cancel')}
+            </Button>
+          ) : null}
           {canEditCampaigns && isEditableCampaignStatus(campaign.status) ? (
             <Button
               type="button"
@@ -160,25 +294,35 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
               {t('actions.edit')}
             </Button>
           ) : null}
-          {canEditCampaigns ? (
+          {canCreateCampaigns ? (
             <Button
               type="button"
               variant="outline"
               className="gap-2"
-              onClick={() => router.push(`/dashboard/campaigns/create?from=${campaign.id}`)}
+              disabled={duplicateMutation.isPending}
+              onClick={() => duplicateMutation.mutate()}
             >
-              <Copy className="size-4" aria-hidden />
+              {duplicateMutation.isPending ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : (
+                <Copy className="size-4" aria-hidden />
+              )}
               {t('actions.duplicate')}
             </Button>
           ) : null}
           <CampaignActionsMenu
             campaign={campaign}
             canEdit={canEditCampaigns}
+            canCreate={canCreateCampaigns}
             canDelete={canDeleteCampaigns}
+            canPause={canPauseCampaigns}
             onView={() => undefined}
             onEdit={() => router.push(`/dashboard/campaigns/${campaign.id}/edit`)}
-            onDuplicate={() => router.push(`/dashboard/campaigns/create?from=${campaign.id}`)}
-            onPause={() => setPauseOpen(true)}
+            onDuplicate={() => duplicateMutation.mutate()}
+            onPause={() => {
+              setCancelError(null)
+              setCancelOpen(true)
+            }}
             onDelete={() => {
               setDeleteError(null)
               setDeleteOpen(true)
@@ -186,6 +330,15 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
           />
         </div>
       </div>
+
+      {actionError ? (
+        <p
+          role="alert"
+          className="rounded-xl border border-negative/25 bg-negative/5 px-3 py-2 text-sm text-negative"
+        >
+          {actionError}
+        </p>
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <StatCard label={t('metrics.recipients')} value={campaign.totalRecipients.toLocaleString()} />
@@ -274,7 +427,23 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
         }}
         onConfirm={() => deleteMutation.mutate()}
       />
-      <CampaignComingSoonDialog open={pauseOpen} onOpenChange={setPauseOpen} />
+      <CampaignCancelDialog
+        open={cancelOpen}
+        campaign={campaign}
+        pending={cancelMutation.isPending}
+        error={cancelError}
+        onOpenChange={(open) => {
+          if (!open && !cancelMutation.isPending) setCancelOpen(false)
+        }}
+        onConfirm={() => cancelMutation.mutate()}
+      />
+      <CampaignPreviewDialog
+        open={previewOpen}
+        pending={previewMutation.isPending}
+        error={previewError}
+        preview={preview}
+        onOpenChange={setPreviewOpen}
+      />
     </div>
   )
 }

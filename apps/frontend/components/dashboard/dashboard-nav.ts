@@ -53,6 +53,7 @@ export const DASHBOARD_NAV_HREFS: Partial<Record<DashboardNavKey, string>> = {
   inbox: '/dashboard/inbox',
   campaigns: '/dashboard/campaigns',
   templates: '/dashboard/templates',
+  billing: '/dashboard/billing',
   settings: '/dashboard/settings',
 }
 
@@ -99,5 +100,6 @@ export const DASHBOARD_NAV_PERMISSION: Partial<Record<DashboardNavKey, string>> 
   inbox: PERMISSIONS.INBOX_VIEW,
   campaigns: PERMISSIONS.CAMPAIGNS_VIEW,
   templates: PERMISSIONS.WHATSAPP_VIEW,
+  billing: PERMISSIONS.BILLING_VIEW,
   settings: PERMISSIONS.ORG_VIEW,
 }

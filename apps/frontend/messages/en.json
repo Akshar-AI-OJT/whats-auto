@@ -1947,7 +1947,7 @@
     },
     "templates": {
       "eyebrow": "Messaging",
-      "title": "Templates List",
+      "title": "Templates",
       "subtitle": "Create, review, and sync WhatsApp message templates for this workspace.",
       "createCta": "Create Template",
       "syncCta": "Sync from Meta",
@@ -1957,21 +1957,33 @@
         "body": "Browse Templates will be available in a future update.",
         "dismiss": "Got it"
       },
+      "whatsappRequired": {
+        "title": "WhatsApp is not connected",
+        "body": "You can still create and manage local draft templates. Sync from Meta and Meta approval require a connected WhatsApp Business account.",
+        "cta": "Connect WhatsApp",
+        "syncHint": "Connect WhatsApp to sync templates from Meta"
+      },
       "loading": "Loading templates…",
       "listTitle": "All templates",
       "listDescription": "Search and filter templates by category, status, or language.",
-      "searchPlaceholder": "Search templates by name, category or language…",
+      "searchPlaceholder": "Search templates by name…",
       "emptyTitle": "No templates yet",
-      "emptyDescription": "Create your first template or sync approved templates from Meta.",
+      "emptyDescription": "Create a local draft template, or connect WhatsApp and sync from Meta.",
       "pagination": "Showing {from} to {to} of {total} templates",
       "prev": "Previous",
       "next": "Next",
       "createTitle": "Create Template",
       "createFromTitle": "Duplicate Template",
-      "createSubtitle": "Build a WhatsApp template and submit it for Meta review.",
+      "createSubtitle": "Build a WhatsApp-style template. Without WhatsApp connected it is saved as a local draft — not Meta-approved.",
+      "createFromSubtitle": "Prefills the source template. Choose a new name before creating the draft.",
       "backToList": "Back to templates",
+      "view": {
+        "cards": "Cards view",
+        "list": "List view"
+      },
       "tabs": {
-        "all": "All Templates",
+        "all": "All",
+        "draft": "Draft",
         "approved": "Approved",
         "pending": "Pending",
         "rejected": "Rejected"
@@ -1982,7 +1994,8 @@
         "language": "Language",
         "allCategories": "All Categories",
         "allStatuses": "All Status",
-        "allLanguages": "All Languages"
+        "allLanguages": "All Languages",
+        "clear": "Clear filters"
       },
       "categories": {
         "MARKETING": "Marketing",
@@ -1999,13 +2012,17 @@
         "template": "Template",
         "category": "Category",
         "language": "Language",
+        "header": "Header",
         "status": "Status",
+        "quality": "Quality",
+        "qualityEmpty": "—",
         "updated": "Last Updated",
         "actions": "Actions"
       },
       "actions": {
         "menuAria": "Template actions",
-        "view": "View details",
+        "view": "View",
+        "duplicate": "Duplicate",
         "edit": "Edit template",
         "delete": "Delete"
       },
@@ -2024,19 +2041,18 @@
         "headerType": "Header",
         "headerContent": "Header text",
         "headerPlaceholder": "Order update",
-        "headerMedia": "Header media",
-        "headerMediaPick": "Select from Media Library",
-        "headerMediaClear": "Clear",
-        "headerMediaHint": "Choose a ready JPEG/PNG image or document from the Media Library.",
+        "headerMediaHint": "Image and document headers are supported by the create API as header type only. Sample media is managed separately in the Media Library.",
+        "previewImageHeader": "[Image header]",
+        "previewDocumentHeader": "[Document header]",
         "body": "Template Body",
         "bodyPlaceholder": "Hi '{{1}}', your order '{{2}}' is confirmed.",
         "footer": "Footer",
         "footerPlaceholder": "Thank you for shopping with us",
         "variables": "Variables",
-        "variablesHint": "Provide a real sample value for every numbered placeholder before submitting.",
+        "variablesHint": "Provide a sample value for every numbered placeholder.",
         "samplePlaceholder": "Example for {n}",
         "buttons": "Buttons",
-        "buttonsHint": "Optional. Up to 3 buttons.",
+        "buttonsHint": "Optional. Up to 3 buttons (quick reply, URL, or phone).",
         "addButton": "Add Button",
         "removeButton": "Remove",
         "buttonTextPlaceholder": "Button label",
@@ -2047,6 +2063,7 @@
         "formatItalic": "Italic",
         "formatStrike": "Strikethrough",
         "cancel": "Cancel",
+        "create": "Create template",
         "saveDraft": "Save as Draft",
         "submitReview": "Submit for Review",
         "previewNameFallback": "template_name",
@@ -2059,7 +2076,6 @@
           "NONE": "None",
           "TEXT": "Text",
           "IMAGE": "Image",
-          "VIDEO": "Video",
           "DOCUMENT": "Document"
         },
         "buttonTypes": {
@@ -2071,9 +2087,11 @@
           "nameInvalid": "Use lowercase letters, numbers, and underscores only.",
           "bodyRequired": "Body text is required.",
           "bodyTooLong": "Body text must be 1024 characters or fewer.",
+          "footerTooLong": "Footer must be 60 characters or fewer.",
           "headerRequired": "Enter header text for TEXT headers.",
+          "buttonUrlRequired": "URL buttons need a valid link.",
           "sampleRequired": "Enter a sample value for variable {n}.",
-          "samplesRequired": "Fill every variable sample value before submitting."
+          "samplesRequired": "Fill every variable sample value before creating."
         }
       },
       "details": {
@@ -2086,8 +2104,13 @@
         "buttons": "Buttons",
         "noButtons": "No buttons configured.",
         "history": "Submission History",
+        "noHistory": "No submission events yet.",
         "statusCard": "Template Status",
         "templateId": "Template ID",
+        "metaTemplateId": "Meta template ID",
+        "metaNotSynced": "Not synced to Meta",
+        "lastSubmitted": "Last submitted",
+        "localDraftNotice": "This is a local draft. It is not Meta-approved until WhatsApp is connected and the template is submitted or synced.",
         "historyEvents": {
           "created": "Created",
           "submitted": "Submitted",
@@ -2183,6 +2206,57 @@
         "permissionDenied": "You do not have permission to perform this action.",
         "sessionExpired": "Your session expired. Please sign in again.",
         "generic": "Something went wrong. Please try again."
+      }
+    },
+    "billing": {
+      "eyebrow": "Workspace",
+      "title": "Billing",
+      "subtitle": "View your current subscription and start Razorpay checkout for this workspace.",
+      "refresh": "Refresh",
+      "loading": "Loading subscription…",
+      "subscriptionTitle": "Current subscription",
+      "subscriptionDescription": "Entitlement-relevant subscription returned by the billing API for this organization.",
+      "choosePlanCta": "Choose plan",
+      "upgradeCta": "Upgrade / choose plan",
+      "renewCta": "Start checkout",
+      "completeCheckoutCta": "Complete payment",
+      "cancelAtPeriodEnd": "Cancels at period end",
+      "emptyTitle": "No subscription yet",
+      "emptyDescription": "This workspace has no subscription on record. Start checkout with a plan ID to subscribe.",
+      "fields": {
+        "planId": "Plan ID",
+        "status": "Status",
+        "currentPeriodStart": "Current period start",
+        "currentPeriodEnd": "Current period end",
+        "trialEndsAt": "Trial ends",
+        "gateway": "Gateway",
+        "gatewaySubscriptionId": "Gateway subscription ID",
+        "lastPaymentStatus": "Last payment status",
+        "lastPaymentAt": "Last payment at",
+        "subscriptionId": "Subscription ID"
+      },
+      "status": {
+        "active": "Active",
+        "trialing": "Trialing",
+        "pastDue": "Past due",
+        "cancelled": "Cancelled"
+      },
+      "checkout": {
+        "title": "Start checkout",
+        "description": "Checkout requires a plan UUID from the billing catalog. There is no public plan list API yet, so enter the plan ID directly.",
+        "planId": "Plan ID",
+        "planIdPlaceholder": "00000000-0000-0000-0000-000000000000",
+        "planIdHint": "Must be a valid UUID accepted by POST /api/v1/billing/checkout.",
+        "planIdInvalid": "Enter a valid plan UUID.",
+        "cancel": "Cancel",
+        "confirm": "Continue to checkout",
+        "starting": "Starting…",
+        "success": "Checkout started. Redirecting to the payment page if a checkout URL was returned."
+      },
+      "errors": {
+        "permissionDenied": "You don’t have permission to view billing in this workspace.",
+        "loadFailed": "Couldn’t load subscription. Please try again.",
+        "checkoutFailed": "Couldn’t start checkout. Please try again."
       }
     },
     "sidebar": {
@@ -2390,6 +2464,9 @@
         "edit": "Edit Campaign",
         "duplicate": "Duplicate Campaign",
         "pause": "Pause Campaign",
+        "cancel": "Cancel campaign",
+        "launch": "Launch campaign",
+        "preview": "Preview message",
         "delete": "Delete Campaign"
       },
       "delete": {
@@ -2399,10 +2476,19 @@
         "confirm": "Delete campaign",
         "deleting": "Deleting…"
       },
-      "pauseComingSoon": {
-        "title": "Coming Soon",
-        "body": "Pause Campaign will be available in a future update.",
-        "dismiss": "Got it"
+      "cancel": {
+        "title": "Cancel this campaign?",
+        "body": "“{name}” will stop. Scheduled campaigns return to draft; sending campaigns are cancelled.",
+        "dismiss": "Keep running",
+        "confirm": "Cancel campaign",
+        "cancelling": "Cancelling…"
+      },
+      "preview": {
+        "title": "Message preview",
+        "subtitle": "Template: {template}",
+        "subtitleFallback": "Preview of the linked WhatsApp template.",
+        "loading": "Loading preview…",
+        "dismiss": "Close"
       },
       "form": {
         "name": "Campaign Name",
@@ -2414,18 +2500,24 @@
         "audience": "Target Audience",
         "audiencePlaceholder": "Select audience",
         "audienceAll": "All contacts ({count})",
-        "audienceHint": "Audience selection is shown for planning. Recipient attachment is not available on the API yet.",
+        "audienceHint": "Selected contacts are attached to the campaign before send or schedule.",
         "schedule": "Schedule",
         "sendNow": "Send Now",
         "scheduleLater": "Schedule for Later",
-        "scheduleHint": "Send Now saves as a draft. Schedule for Later requires a date and time.",
+        "scheduleHint": "Send Now launches immediately after recipients are saved. Schedule for Later queues a future send.",
         "cancel": "Cancel",
-        "reviewConfirm": "Review & Confirm",
+        "reviewConfirm": "Save draft",
+        "confirmSend": "Save & send",
+        "confirmSchedule": "Save & schedule",
         "saving": "Saving…",
         "errors": {
           "nameRequired": "Campaign name is required.",
-          "nameTooLong": "Campaign name must be 100 characters or fewer.",
-          "scheduledAtRequired": "Choose a schedule date and time."
+          "nameTooLong": "Campaign name must be 200 characters or fewer.",
+          "templateRequired": "Select an approved template.",
+          "audienceRequired": "Select a target audience.",
+          "audienceEmpty": "Add contacts before attaching an audience.",
+          "scheduledAtRequired": "Choose a schedule date and time.",
+          "scheduledAtFuture": "Schedule time must be in the future."
         }
       },
       "summary": {
@@ -2460,6 +2552,10 @@
         "loadFailed": "Could not load campaigns. Please try again.",
         "deleteFailed": "Could not delete this campaign.",
         "saveFailed": "Could not save this campaign.",
+        "cancelFailed": "Could not cancel this campaign.",
+        "launchFailed": "Could not launch this campaign.",
+        "duplicateFailed": "Could not duplicate this campaign.",
+        "previewFailed": "Could not preview this campaign.",
         "notEditable": "Only draft or scheduled campaigns can be edited."
       }
     }

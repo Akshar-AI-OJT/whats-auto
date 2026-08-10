@@ -619,6 +619,23 @@ export type ReplaceCampaignRecipientsBody = {
   variables?: Record<string, string>
 }
 
+export type CampaignPreview = {
+  campaignId: string
+  campaignName: string
+  messageTemplateId: string
+  templateName: string
+  templateStatus: string
+  category?: string
+  language?: string | null
+  bodyPreview: string
+  headerType?: string | null
+  headerContent?: string | null
+  headerMediaUrl?: string | null
+  footerText?: string | null
+  variables: Record<string, string>
+  buttons?: unknown
+}
+
 export type CreateInvitationBody = {
   email: string
   role: string
@@ -803,6 +820,39 @@ export type UpdateSuperAdminSubscriptionBody = {
   currentPeriodStart?: string
   currentPeriodEnd?: string
   cancelAt?: string | null
+}
+
+/** GET /api/v1/billing/subscription — fields returned by BillingController.showSubscription */
+export type BillingSubscription = {
+  id: string
+  organizationId: string
+  planId: string
+  status: string
+  gateway?: string | null
+  gatewaySubscriptionId?: string | null
+  checkoutUrl?: string | null
+  currentPeriodStart?: string | null
+  currentPeriodEnd?: string | null
+  trialEndsAt?: string | null
+  cancelAtPeriodEnd?: boolean | null
+  lastPaymentStatus?: string | null
+  lastPaymentAt?: string | null
+}
+
+/** POST /api/v1/billing/checkout — fields returned by BillingController.checkout */
+export type BillingCheckoutResult = {
+  subscriptionId: string
+  planId: string
+  status: string
+  checkoutUrl?: string | null
+  gatewaySubscriptionId?: string | null
+  gatewayCustomerId?: string | null
+  currentPeriodStart?: string | null
+  currentPeriodEnd?: string | null
+}
+
+export type BillingCheckoutBody = {
+  planId: string
 }
 
 export const api = {
@@ -1199,6 +1249,23 @@ export const api = {
       ),
   },
 
+  billing: {
+    getSubscription: () =>
+      protectedRequest<{ data?: BillingSubscription } & BillingSubscription>(
+        '/api/v1/billing/subscription',
+        { method: 'GET' }
+      ),
+
+    checkout: (body: BillingCheckoutBody) =>
+      protectedRequest<{ data?: BillingCheckoutResult } & BillingCheckoutResult>(
+        '/api/v1/billing/checkout',
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+  },
+
   campaigns: {
     list: (params: ListCampaignsParams = {}) => {
       const qs = new URLSearchParams()
@@ -1263,6 +1330,30 @@ export const api = {
       protectedRequest<{ data?: Campaign } & Campaign>(`/api/v1/campaigns/${campaignId}/cancel`, {
         method: 'PATCH',
       }),
+
+    preview: (campaignId: string, body: { variables?: Record<string, string> } = {}) =>
+      protectedRequest<{ data?: CampaignPreview } & CampaignPreview>(
+        `/api/v1/campaigns/${campaignId}/preview`,
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    duplicate: (campaignId: string) =>
+      protectedRequest<{ data?: Campaign } & Campaign>(
+        `/api/v1/campaigns/${campaignId}/duplicate`,
+        { method: 'POST' }
+      ),
+
+    changeStatus: (campaignId: string, body: { status: CampaignStatus }) =>
+      protectedRequest<{ data?: Campaign } & Campaign>(
+        `/api/v1/campaigns/${campaignId}/status`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify(body),
+        }
+      ),
   },
 
   members: {
