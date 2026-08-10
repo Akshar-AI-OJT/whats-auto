@@ -24,9 +24,11 @@ import {
 import { ORG_SETUP_PATH } from '@/lib/onboarding'
 import {
   acceptInvitationPath,
+  isAcceptInvitationPath,
   normalizeAppPath,
   readPendingInvitationId,
   resolvePostAuthPath,
+  SUPER_ADMIN_HOME_PATH,
 } from '@/lib/post-auth-redirect'
 import { Button } from '@/components/ui/button'
 import { Field, FieldGroup } from '@/components/ui/field'
@@ -92,7 +94,8 @@ export function OrganizationRegistrationForm({
   const [basicsErrors, setBasicsErrors] = useState<OrganizationWizardBasicsErrors>({})
   const [guardingInvite, setGuardingInvite] = useState(true)
 
-  // Invitees / platform superadmins must never stay on create-org.
+  // Only bounce invitees / platform superadmins. Users who already have a
+  // workspace (Create workspace from the switcher) must stay on this page.
   useEffect(() => {
     let cancelled = false
     ;(async () => {
@@ -102,7 +105,12 @@ export function OrganizationRegistrationForm({
           fallback: ORG_SETUP_PATH,
         })
         if (cancelled) return
-        if (normalizeAppPath(nextPath) !== ORG_SETUP_PATH) {
+        const normalized = normalizeAppPath(nextPath)
+        if (
+          isAcceptInvitationPath(normalized) ||
+          normalized === SUPER_ADMIN_HOME_PATH ||
+          normalized.startsWith('/admin')
+        ) {
           router.replace(nextPath)
           return
         }
