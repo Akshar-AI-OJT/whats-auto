@@ -338,6 +338,9 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
             }}
             onSignOut={handleSignOut}
             onSelectItem={(id) => {
+              if (id === 'profile') {
+                router.push('/dashboard/profile')
+              }
               if (id === 'workspace' || id === 'settings') {
                 router.push('/dashboard/settings')
               }

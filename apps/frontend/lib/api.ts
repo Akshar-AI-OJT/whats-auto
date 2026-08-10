@@ -667,6 +667,13 @@ export type OrganizationMember = {
   createdAt?: string
 }
 
+/** POST /api/v1/ownership/transfer */
+export type TransferOwnershipBody = {
+  targetMemberId: string
+  replacementRoleForCurrentOwner: string
+  reason: string
+}
+
 /** Row from GET /api/v1/organization-admin/users (id = userId). */
 export type OrganizationAdminUser = {
   id: string
@@ -697,6 +704,24 @@ export type Paginated<T> = {
 export type ListOrganizationAdminUsersParams = {
   page?: number
   perPage?: number
+}
+
+/** Row from GET /api/v1/audit */
+export type AuthorizationAuditEvent = {
+  id: string
+  actorUserId: string | null
+  targetType: string
+  targetId: string | null
+  eventType: string
+  before: unknown
+  after: unknown
+  reason: string | null
+  createdAt: string | Date
+}
+
+export type ListAuditParams = {
+  /** 1–100, backend default 50 */
+  limit?: number
 }
 
 export type PendingInvitation = {
@@ -1376,6 +1401,35 @@ export const api = {
         `/api/v1/members/${memberId}`,
         { method: 'DELETE' }
       ),
+  },
+
+  ownership: {
+    /**
+     * Transfer org ownership — current owner only.
+     * Body: targetMemberId, replacementRoleForCurrentOwner, reason (min 5).
+     */
+    transfer: (body: TransferOwnershipBody) =>
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+        '/api/v1/ownership/transfer',
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+  },
+
+  audit: {
+    /** Authorization audit events for the active organization (newest first). */
+    list: (params: ListAuditParams = {}) => {
+      const qs = new URLSearchParams()
+      if (params.limit != null) qs.set('limit', String(params.limit))
+      const query = qs.toString()
+      return protectedRequest<
+        { data?: AuthorizationAuditEvent[] } | AuthorizationAuditEvent[]
+      >(`/api/v1/audit${query ? `?${query}` : ''}`, {
+        method: 'GET',
+      })
+    },
   },
 
   organizationAdmin: {

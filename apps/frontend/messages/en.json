@@ -2206,6 +2206,71 @@
         "permissionDenied": "You do not have permission to perform this action.",
         "sessionExpired": "Your session expired. Please sign in again.",
         "generic": "Something went wrong. Please try again."
+      },
+      "ownership": {
+        "title": "Transfer Organization Ownership",
+        "description": "Transfer ownership will make another organization member the owner. You will lose ownership privileges and keep the replacement role you choose below.",
+        "currentOwner": "Current owner",
+        "currentOwnerFallback": "You",
+        "currentOwnerRole": "Role: Owner",
+        "newOwner": "New owner",
+        "newOwnerPlaceholder": "Select a member",
+        "newOwnerHint": "Choose a current workspace member. The current owner cannot be selected.",
+        "replacementRole": "Your role after transfer",
+        "replacementRoleHint": "Role assigned to you after you step down as owner.",
+        "reason": "Reason",
+        "reasonPlaceholder": "Why are you transferring ownership?",
+        "reasonHint": "Required. 5–500 characters.",
+        "transferCta": "Transfer Ownership",
+        "loadingMembers": "Loading members…",
+        "noEligibleMembers": "No other members are available to receive ownership. Invite someone first.",
+        "confirmTitle": "Transfer organization ownership?",
+        "confirmBody": "You are about to transfer ownership to {name}. After the transfer, you will no longer be the organization owner.",
+        "confirmWarning": "This cannot be undone from Settings. The new owner will control ownership privileges for this workspace.",
+        "cancel": "Cancel",
+        "confirmTransfer": "Transfer Ownership",
+        "transferring": "Transferring…",
+        "success": "Ownership transferred to {name}. Your access was refreshed.",
+        "roles": {
+          "admin": "Admin",
+          "agent": "Agent",
+          "viewer": "Viewer"
+        },
+        "errors": {
+          "loadMembers": "Couldn’t load members for ownership transfer.",
+          "membersPermission": "You need team view permission to choose a new owner.",
+          "reasonTooShort": "Enter a reason of at least 5 characters.",
+          "reasonTooLong": "Reason must be 500 characters or fewer.",
+          "notOwner": "Only the organization owner can transfer ownership.",
+          "sameMember": "Cannot transfer ownership to the same member.",
+          "transferFailed": "Couldn’t transfer ownership. Please try again."
+        }
+      }
+    },
+    "profile": {
+      "eyebrow": "Account",
+      "title": "My Profile",
+      "subtitle": "View the account details returned for your signed-in user.",
+      "refresh": "Refresh",
+      "loading": "Loading profile…",
+      "sectionTitle": "Profile information",
+      "sectionDescription": "Read-only details from GET /api/v1/account/profile.",
+      "unnamed": "Unnamed user",
+      "emptyTitle": "No profile found",
+      "emptyDescription": "We couldn’t find profile details for this account.",
+      "readOnlyNotice": "Profile editing is not available yet — there is no update endpoint.",
+      "fields": {
+        "name": "Full name",
+        "email": "Email",
+        "firstname": "First name",
+        "lastname": "Last name",
+        "initials": "Initials",
+        "userId": "User ID",
+        "createdAt": "Created",
+        "updatedAt": "Updated"
+      },
+      "errors": {
+        "loadFailed": "Couldn’t load your profile. Please try again."
       }
     },
     "billing": {
@@ -2977,22 +3042,39 @@
     },
     "auditLogs": {
       "eyebrow": "Compliance",
-      "title": "Platform Audit Logs",
-      "subtitle": "Track sensitive admin actions across organizations and internal operators.",
+      "title": "Audit Logs",
+      "subtitle": "Authorization audit events for the active organization from GET /api/v1/audit.",
       "tableTitle": "Recent audit events",
       "tableDescription": "{count, plural, one {# event} other {# events}}",
+      "tableDescriptionLoading": "Loading events…",
+      "limitLabel": "Limit",
+      "refresh": "Refresh",
+      "loading": "Loading audit events…",
+      "emptyTitle": "No audit events",
+      "emptyDescription": "No authorization audit events were returned for the active organization.",
+      "emptyValue": "—",
+      "viewDetails": "Details",
       "columns": {
         "timestamp": "Timestamp",
-        "user": "User",
-        "action": "Action",
-        "organization": "Organization",
-        "ipAddress": "IP Address",
-        "status": "Status"
+        "actor": "Actor user ID",
+        "eventType": "Event",
+        "target": "Target",
+        "reason": "Reason",
+        "actions": "Actions"
       },
-      "statuses": {
-        "success": "Success",
-        "warning": "Warning",
-        "failed": "Failed"
+      "details": {
+        "title": "Audit event details",
+        "fallbackEvent": "Audit event",
+        "targetType": "Target type",
+        "targetId": "Target ID",
+        "before": "Before",
+        "after": "After",
+        "close": "Close"
+      },
+      "errors": {
+        "loadFailed": "Couldn’t load audit events.",
+        "loadFailedHint": "GET /api/v1/audit requires an authenticated tenant session with team:view on the active organization.",
+        "noActiveOrgMissingFlow": "Super Admin has no organization-selection / set-active flow. Tenant dashboard establishes active org via OrganizationsProvider + POST /api/v1/organizations/:id/set-active; that mechanism is not wired into /admin. A platform audit API or an admin active-org picker would be needed before these events can load here."
       }
     },
     "settings": {
