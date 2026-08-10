@@ -4,7 +4,6 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { FileText, MoreVertical } from 'lucide-react'
 import type { WhatsappMessageTemplate } from '@/lib/api'
-import { cn } from '@/lib/utils'
 import { TemplateStatusBadge } from './TemplateStatusBadge'
 import {
   formatHeaderType,
@@ -14,7 +13,7 @@ import {
   truncatePreview,
 } from './template-utils'
 
-type TemplateTableProps = {
+type TemplateCardsProps = {
   templates: WhatsappMessageTemplate[]
   onView: (template: WhatsappMessageTemplate) => void
   onDuplicate: (template: WhatsappMessageTemplate) => void
@@ -22,17 +21,15 @@ type TemplateTableProps = {
   canManage: boolean
 }
 
-function useStatusLabel(status: string) {
-  const t = useTranslations('dashboard.templates.status')
+function statusLabelKey(status: string) {
   const key = status.toLowerCase()
-  if (key === 'approved') return t('approved')
-  if (key === 'pending') return t('pending')
-  if (key === 'rejected') return t('rejected')
-  if (key === 'draft') return t('draft')
-  return status
+  if (key === 'approved' || key === 'pending' || key === 'rejected' || key === 'draft') {
+    return key
+  }
+  return null
 }
 
-function RowActions({
+function CardActions({
   canManage,
   onView,
   onDuplicate,
@@ -73,7 +70,10 @@ function RowActions({
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={t('menuAria')}
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={(e) => {
+          e.stopPropagation()
+          setOpen((prev) => !prev)
+        }}
       >
         <MoreVertical className="size-4" aria-hidden />
       </button>
@@ -87,7 +87,8 @@ function RowActions({
             type="button"
             role="menuitem"
             className="block w-full px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
-            onClick={() => {
+            onClick={(e) => {
+              e.stopPropagation()
               setOpen(false)
               onView()
             }}
@@ -99,7 +100,8 @@ function RowActions({
               type="button"
               role="menuitem"
               className="block w-full px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation()
                 setOpen(false)
                 onDuplicate()
               }}
@@ -112,7 +114,8 @@ function RowActions({
               type="button"
               role="menuitem"
               className="block w-full px-3 py-2 text-left text-sm text-negative hover:bg-negative/5"
-              onClick={() => {
+              onClick={(e) => {
+                e.stopPropagation()
                 setOpen(false)
                 onDelete()
               }}
@@ -126,7 +129,7 @@ function RowActions({
   )
 }
 
-function TemplateRow({
+function TemplateCard({
   template,
   canManage,
   onView,
@@ -140,86 +143,86 @@ function TemplateRow({
   onDelete: () => void
 }) {
   const t = useTranslations('dashboard.templates')
-  const statusLabel = useStatusLabel(template.status)
+  const key = statusLabelKey(template.status)
+  const statusLabel = key ? t(`status.${key}`) : template.status
 
   return (
-    <tr className={cn('transition-colors hover:bg-dash-surface/40')}>
-      <td className="px-4 py-3.5">
-        <button type="button" className="flex min-w-0 items-start gap-3 text-left" onClick={onView}>
-          <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary-pale text-positive-deep">
+    <article className="flex flex-col rounded-2xl border border-dash-border bg-canvas p-4 transition-colors hover:border-dash-border-strong">
+      <div className="flex items-start justify-between gap-3">
+        <button
+          type="button"
+          className="flex min-w-0 flex-1 items-start gap-3 text-left"
+          onClick={onView}
+        >
+          <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary-pale text-positive-deep">
             <FileText className="size-4" aria-hidden />
           </span>
           <span className="min-w-0">
-            <span className="block font-semibold text-ink">{template.name}</span>
-            <span className="mt-0.5 line-clamp-1 block text-xs text-mute">
-              {truncatePreview(template.bodyText, 80)}
+            <span className="block truncate font-semibold text-ink">{template.name}</span>
+            <span className="mt-1 line-clamp-2 block text-xs leading-5 text-mute">
+              {truncatePreview(template.bodyText, 110)}
             </span>
           </span>
         </button>
-      </td>
-      <td className="px-4 py-3.5 text-body">{formatTemplateCategory(String(template.category))}</td>
-      <td className="px-4 py-3.5 text-body">{formatTemplateLanguage(template.language)}</td>
-      <td className="px-4 py-3.5 text-body">{formatHeaderType(template.headerType)}</td>
-      <td className="px-4 py-3.5">
-        <TemplateStatusBadge status={template.status} label={statusLabel} />
-      </td>
-      <td className="px-4 py-3.5 text-body">
-        {template.qualityScore ? template.qualityScore : t('table.qualityEmpty')}
-      </td>
-      <td className="px-4 py-3.5 text-body">
-        {formatRelativeDate(template.updatedAt ?? template.createdAt)}
-      </td>
-      <td className="px-4 py-3.5 text-right">
-        <RowActions
+        <CardActions
           canManage={canManage}
           onView={onView}
           onDuplicate={onDuplicate}
           onDelete={onDelete}
         />
-      </td>
-    </tr>
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <TemplateStatusBadge status={template.status} label={statusLabel} />
+        <span className="rounded-md bg-dash-surface px-2 py-0.5 text-[11px] font-semibold text-body">
+          {formatTemplateCategory(String(template.category))}
+        </span>
+        <span className="rounded-md bg-dash-surface px-2 py-0.5 text-[11px] font-medium text-body">
+          {formatTemplateLanguage(template.language)}
+        </span>
+      </div>
+
+      <dl className="mt-4 grid grid-cols-2 gap-3 text-xs">
+        <div>
+          <dt className="text-mute">{t('table.header')}</dt>
+          <dd className="mt-0.5 font-medium text-ink">{formatHeaderType(template.headerType)}</dd>
+        </div>
+        <div>
+          <dt className="text-mute">{t('table.quality')}</dt>
+          <dd className="mt-0.5 font-medium text-ink">
+            {template.qualityScore || t('table.qualityEmpty')}
+          </dd>
+        </div>
+        <div className="col-span-2">
+          <dt className="text-mute">{t('table.updated')}</dt>
+          <dd className="mt-0.5 font-medium text-ink">
+            {formatRelativeDate(template.updatedAt ?? template.createdAt)}
+          </dd>
+        </div>
+      </dl>
+    </article>
   )
 }
 
-export function TemplateTable({
+export function TemplateCards({
   templates,
   onView,
   onDuplicate,
   onDelete,
   canManage,
-}: TemplateTableProps) {
-  const t = useTranslations('dashboard.templates')
-
+}: TemplateCardsProps) {
   return (
-    <div className="overflow-x-auto rounded-2xl border border-dash-border">
-      <table className="min-w-full border-collapse text-left text-sm">
-        <thead className="bg-dash-surface/60 text-xs tracking-wide text-mute uppercase">
-          <tr>
-            <th className="px-4 py-3 font-semibold">{t('table.template')}</th>
-            <th className="px-4 py-3 font-semibold">{t('table.category')}</th>
-            <th className="px-4 py-3 font-semibold">{t('table.language')}</th>
-            <th className="px-4 py-3 font-semibold">{t('table.header')}</th>
-            <th className="px-4 py-3 font-semibold">{t('table.status')}</th>
-            <th className="px-4 py-3 font-semibold">{t('table.quality')}</th>
-            <th className="px-4 py-3 font-semibold">{t('table.updated')}</th>
-            <th className="px-4 py-3 font-semibold">
-              <span className="sr-only">{t('table.actions')}</span>
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-dash-border bg-canvas">
-          {templates.map((template) => (
-            <TemplateRow
-              key={template.id}
-              template={template}
-              canManage={canManage}
-              onView={() => onView(template)}
-              onDuplicate={() => onDuplicate(template)}
-              onDelete={() => onDelete(template)}
-            />
-          ))}
-        </tbody>
-      </table>
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+      {templates.map((template) => (
+        <TemplateCard
+          key={template.id}
+          template={template}
+          canManage={canManage}
+          onView={() => onView(template)}
+          onDuplicate={() => onDuplicate(template)}
+          onDelete={() => onDelete(template)}
+        />
+      ))}
     </div>
   )
 }

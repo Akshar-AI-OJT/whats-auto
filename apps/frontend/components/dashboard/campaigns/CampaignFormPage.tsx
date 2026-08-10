@@ -4,7 +4,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { ArrowLeft, Loader2 } from 'lucide-react'
-import { api, type ApiError, type CreateCampaignBody, type UpdateCampaignBody } from '@/lib/api'
+import {
+  api,
+  type ApiError,
+  type Campaign,
+  type ContactSummary,
+  type CreateCampaignBody,
+  type UpdateCampaignBody,
+} from '@/lib/api'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { Link, useRouter } from '@/i18n/navigation'
 import { Button } from '@/components/ui/button'
@@ -22,6 +29,12 @@ function readDuplicateFromId(): string | null {
   } catch {
     return null
   }
+}
+
+function unwrapContacts(data: unknown): ContactSummary[] {
+  if (Array.isArray(data)) return data as ContactSummary[]
+  const wrapped = data as { data?: ContactSummary[] }
+  return Array.isArray(wrapped.data) ? wrapped.data : []
 }
 
 type CampaignFormPageProps = {
@@ -53,6 +66,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
     tenantOrganizationId,
     canCreateCampaigns,
     canEditCampaigns,
+    canLaunchCampaigns,
     canViewContacts,
     isLoading: orgsLoading,
   } = useOrganizations()
@@ -60,7 +74,11 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
   const [fromId, setFromId] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm)
   const [error, setError] = useState<string | null>(null)
-  const [fieldErrors, setFieldErrors] = useState<{ name?: string }>({})
+  const [fieldErrors, setFieldErrors] = useState<{
+    name?: string
+    template?: string
+    audience?: string
+  }>({})
 
   useEffect(() => {
     if (mode !== 'create') {
@@ -104,9 +122,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
     enabled: Boolean(tenantOrganizationId) && canViewContacts && canSubmit && !orgsLoading,
     queryFn: async () => {
       const { data } = await api.contacts.list()
-      if (Array.isArray(data)) return data
-      const wrapped = data as { data?: typeof data }
-      return Array.isArray(wrapped.data) ? wrapped.data : []
+      return unwrapContacts(data)
     },
   })
 
@@ -116,7 +132,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
     setForm({
       name: mode === 'create' && fromId ? `${source.name} (copy)` : source.name,
       messageTemplateId: source.messageTemplateId ?? '',
-      audienceLabel: '',
+      audienceLabel: source.totalRecipients > 0 ? 'all-contacts' : '',
       scheduleMode: source.scheduledAt ? 'later' : 'now',
       scheduledAt: source.scheduledAt
         ? new Date(source.scheduledAt).toISOString().slice(0, 16)
@@ -129,35 +145,61 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
     [templatesQuery.data, form.messageTemplateId]
   )
 
+  const contactIds = useMemo(
+    () => (contactsQuery.data ?? []).map((contact) => contact.id),
+    [contactsQuery.data]
+  )
+
   const mutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (): Promise<Campaign | null> => {
       const bodyBase = {
         name: form.name.trim(),
         ...(form.messageTemplateId ? { messageTemplateId: form.messageTemplateId } : {}),
       }
 
+      // Always persist as draft first; schedule/send APIs own lifecycle transitions.
+      let campaign: Campaign | null = null
       if (mode === 'edit' && campaignId) {
         const body: UpdateCampaignBody = {
           ...bodyBase,
-          status: form.scheduleMode === 'later' ? 'scheduled' : 'draft',
-          scheduledAt:
-            form.scheduleMode === 'later' && form.scheduledAt
-              ? new Date(form.scheduledAt).toISOString()
-              : null,
+          status: 'draft',
+          scheduledAt: null,
         }
         const { data } = await api.campaigns.update(campaignId, body)
-        return unwrapCampaign(data)
+        campaign = unwrapCampaign(data)
+      } else {
+        const body: CreateCampaignBody = {
+          ...bodyBase,
+          status: 'draft',
+        }
+        const { data } = await api.campaigns.create(body)
+        campaign = unwrapCampaign(data)
       }
 
-      const body: CreateCampaignBody = {
-        ...bodyBase,
-        status: form.scheduleMode === 'later' ? 'scheduled' : 'draft',
-        ...(form.scheduleMode === 'later' && form.scheduledAt
-          ? { scheduledAt: new Date(form.scheduledAt).toISOString() }
-          : {}),
+      if (!campaign?.id) {
+        throw new Error(t('errors.saveFailed'))
       }
-      const { data } = await api.campaigns.create(body)
-      return unwrapCampaign(data)
+
+      if (form.audienceLabel === 'all-contacts') {
+        if (contactIds.length === 0) {
+          throw new Error(t('form.errors.audienceEmpty'))
+        }
+        const { data } = await api.campaigns.replaceRecipients(campaign.id, {
+          contactIds,
+        })
+        campaign = unwrapCampaign(data) ?? campaign
+      }
+
+      if (form.scheduleMode === 'later') {
+        const scheduledAt = new Date(form.scheduledAt).toISOString()
+        const { data } = await api.campaigns.schedule(campaign.id, { scheduledAt })
+        campaign = unwrapCampaign(data) ?? campaign
+      } else if (canLaunchCampaigns && form.audienceLabel === 'all-contacts') {
+        const { data } = await api.campaigns.send(campaign.id)
+        campaign = unwrapCampaign(data) ?? campaign
+      }
+
+      return campaign
     },
     onSuccess: async (campaign) => {
       await queryClient.invalidateQueries({ queryKey: campaignQueryKeys.all })
@@ -173,20 +215,33 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
   })
 
   function validate() {
-    const next: { name?: string } = {}
+    const next: { name?: string; template?: string; audience?: string } = {}
     if (!form.name.trim()) next.name = t('form.errors.nameRequired')
-    if (form.name.trim().length > 100) next.name = t('form.errors.nameTooLong')
-    if (form.scheduleMode === 'later' && !form.scheduledAt) {
-      setError(t('form.errors.scheduledAtRequired'))
-      return false
+    if (form.name.trim().length > 200) next.name = t('form.errors.nameTooLong')
+    if (!form.messageTemplateId) next.template = t('form.errors.templateRequired')
+    if (!form.audienceLabel) next.audience = t('form.errors.audienceRequired')
+    if (form.audienceLabel === 'all-contacts' && contactIds.length === 0) {
+      next.audience = t('form.errors.audienceEmpty')
+    }
+    if (form.scheduleMode === 'later') {
+      if (!form.scheduledAt) {
+        setError(t('form.errors.scheduledAtRequired'))
+        setFieldErrors(next)
+        return false
+      }
+      if (new Date(form.scheduledAt).getTime() <= Date.now()) {
+        setError(t('form.errors.scheduledAtFuture'))
+        setFieldErrors(next)
+        return false
+      }
     }
     setFieldErrors(next)
+    setError(null)
     return Object.keys(next).length === 0
   }
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault()
-    setError(null)
     if (!validate()) return
     mutation.mutate()
   }
@@ -226,6 +281,13 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
     )
   }
 
+  const submitLabel =
+    form.scheduleMode === 'later'
+      ? t('form.confirmSchedule')
+      : canLaunchCampaigns
+        ? t('form.confirmSend')
+        : t('form.reviewConfirm')
+
   return (
     <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5">
       <div>
@@ -242,7 +304,10 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
         <p className="mt-1 text-sm text-body">{t('formSubtitle')}</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]">
+      <form
+        onSubmit={handleSubmit}
+        className="grid gap-5 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]"
+      >
         <DashboardPanel as="section" className="space-y-5 p-5 sm:p-6">
           <div className="space-y-2">
             <label htmlFor="campaign-name" className="text-sm font-medium text-ink">
@@ -251,15 +316,15 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
             <Input
               id="campaign-name"
               value={form.name}
-              maxLength={100}
+              maxLength={200}
               onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
               placeholder={t('form.namePlaceholder')}
             />
             <div className="flex justify-between text-xs text-mute">
-              <span>{fieldErrors.name ? <span className="text-negative">{fieldErrors.name}</span> : null}</span>
               <span>
-                {form.name.length}/100
+                {fieldErrors.name ? <span className="text-negative">{fieldErrors.name}</span> : null}
               </span>
+              <span>{form.name.length}/200</span>
             </div>
           </div>
 
@@ -297,6 +362,9 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
                 </option>
               ))}
             </select>
+            {fieldErrors.template ? (
+              <p className="text-xs text-negative">{fieldErrors.template}</p>
+            ) : null}
           </div>
 
           <div className="space-y-2">
@@ -315,6 +383,9 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
               </option>
             </select>
             <p className="text-xs text-mute">{t('form.audienceHint')}</p>
+            {fieldErrors.audience ? (
+              <p className="text-xs text-negative">{fieldErrors.audience}</p>
+            ) : null}
           </div>
 
           <fieldset className="space-y-3">
@@ -349,7 +420,10 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
           </fieldset>
 
           {error ? (
-            <p role="alert" className="rounded-xl border border-negative/25 bg-negative/5 px-3 py-2 text-sm text-negative">
+            <p
+              role="alert"
+              className="rounded-xl border border-negative/25 bg-negative/5 px-3 py-2 text-sm text-negative"
+            >
               {error}
             </p>
           ) : null}
@@ -398,7 +472,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
             </Button>
             <Button type="submit" disabled={mutation.isPending} className="gap-2">
               {mutation.isPending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
-              {mutation.isPending ? t('form.saving') : t('form.reviewConfirm')}
+              {mutation.isPending ? t('form.saving') : submitLabel}
             </Button>
           </div>
         </div>

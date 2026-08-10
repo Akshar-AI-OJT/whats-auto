@@ -5,8 +5,15 @@ import type {
 } from '@/lib/api'
 
 export const TEMPLATE_CATEGORIES = ['MARKETING', 'UTILITY', 'AUTHENTICATION'] as const
-export const TEMPLATE_HEADER_TYPES = ['NONE', 'TEXT', 'IMAGE', 'VIDEO', 'DOCUMENT'] as const
-export const TEMPLATE_STATUS_TABS = ['all', 'approved', 'pending', 'rejected'] as const
+/** Matches backend create validator — VIDEO is not accepted. */
+export const TEMPLATE_HEADER_TYPES = ['NONE', 'TEXT', 'IMAGE', 'DOCUMENT'] as const
+export const TEMPLATE_STATUS_TABS = [
+  'all',
+  'draft',
+  'pending',
+  'approved',
+  'rejected',
+] as const
 export const TEMPLATE_LANGUAGES = [
   { value: 'en_US', label: 'English (US)' },
   { value: 'en', label: 'English' },
@@ -16,6 +23,7 @@ export const TEMPLATE_LANGUAGES = [
 ] as const
 
 export type TemplateStatusTab = (typeof TEMPLATE_STATUS_TABS)[number]
+export type TemplateViewMode = 'cards' | 'list'
 
 export function unwrapTemplateList(data: unknown): {
   items: WhatsappMessageTemplate[]
@@ -118,6 +126,17 @@ export function formatTemplateLanguage(language: string | null | undefined) {
   return language
 }
 
+export function formatHeaderType(headerType: string | null | undefined) {
+  if (!headerType) return 'None'
+  const value = headerType.toUpperCase()
+  if (value === 'NONE' || value === '') return 'None'
+  if (value === 'TEXT') return 'Text'
+  if (value === 'IMAGE') return 'Image'
+  if (value === 'DOCUMENT') return 'Document'
+  if (value === 'VIDEO') return 'Video'
+  return headerType
+}
+
 export function formatRelativeDate(value: string | null | undefined) {
   if (!value) return '—'
   try {
@@ -131,18 +150,40 @@ export function formatRelativeDate(value: string | null | undefined) {
   }
 }
 
+export function truncatePreview(text: string | null | undefined, max = 90) {
+  if (!text) return '—'
+  const normalized = text.replace(/\s+/g, ' ').trim()
+  if (normalized.length <= max) return normalized
+  return `${normalized.slice(0, max - 1)}…`
+}
+
 export function statusTone(status: string) {
   const normalized = status.toLowerCase()
   if (normalized === 'approved') {
     return 'bg-primary-pale text-positive-deep border-primary/25'
   }
-  if (normalized === 'pending' || normalized === 'draft') {
+  if (normalized === 'pending') {
     return 'bg-warning/15 text-ink border-warning/30'
+  }
+  if (normalized === 'draft') {
+    return 'bg-dash-surface text-body border-dash-border'
   }
   if (normalized === 'rejected' || normalized === 'deleted') {
     return 'bg-negative/10 text-negative border-negative/25'
   }
   return 'bg-dash-surface text-body border-dash-border'
+}
+
+export function normalizeSampleValues(
+  sampleValues: unknown
+): Record<string, string> {
+  if (!sampleValues || typeof sampleValues !== 'object') return {}
+  const result: Record<string, string> = {}
+  for (const [key, value] of Object.entries(sampleValues as Record<string, unknown>)) {
+    if (value == null) continue
+    result[key] = String(value)
+  }
+  return result
 }
 
 export function buildSubmissionHistory(template: WhatsappMessageTemplate) {

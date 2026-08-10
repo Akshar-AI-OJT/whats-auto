@@ -10,7 +10,9 @@ import { formatCampaignDate, ratePercent } from './campaign-utils'
 type CampaignActionsMenuProps = {
   campaign: Campaign
   canEdit: boolean
+  canCreate?: boolean
   canDelete: boolean
+  canPause?: boolean
   onView: () => void
   onEdit: () => void
   onDuplicate: () => void
@@ -21,7 +23,9 @@ type CampaignActionsMenuProps = {
 export function CampaignActionsMenu({
   campaign,
   canEdit,
+  canCreate = canEdit,
   canDelete,
+  canPause = false,
   onView,
   onEdit,
   onDuplicate,
@@ -33,6 +37,7 @@ export function CampaignActionsMenu({
   const menuRef = useRef<HTMLDivElement>(null)
   const buttonId = useId()
   const editable = campaign.status === 'draft' || campaign.status === 'scheduled'
+  const cancellable = campaign.status === 'scheduled' || campaign.status === 'sending'
 
   useEffect(() => {
     if (!open) return
@@ -93,7 +98,7 @@ export function CampaignActionsMenu({
               {t('edit')}
             </button>
           ) : null}
-          {canEdit ? (
+          {canCreate ? (
             <button
               type="button"
               role="menuitem"
@@ -106,7 +111,7 @@ export function CampaignActionsMenu({
               {t('duplicate')}
             </button>
           ) : null}
-          {canEdit ? (
+          {canPause && cancellable ? (
             <button
               type="button"
               role="menuitem"
@@ -116,7 +121,7 @@ export function CampaignActionsMenu({
                 onPause()
               }}
             >
-              {t('pause')}
+              {t('cancel')}
             </button>
           ) : null}
           {canDelete ? (
@@ -142,7 +147,9 @@ type CampaignCardsProps = {
   campaigns: Campaign[]
   templateNames: Record<string, string>
   canEdit: boolean
+  canCreate?: boolean
   canDelete: boolean
+  canPause?: boolean
   onView: (campaign: Campaign) => void
   onEdit: (campaign: Campaign) => void
   onDuplicate: (campaign: Campaign) => void
@@ -154,7 +161,9 @@ export function CampaignCards({
   campaigns,
   templateNames,
   canEdit,
+  canCreate = canEdit,
   canDelete,
+  canPause = false,
   onView,
   onEdit,
   onDuplicate,
@@ -193,7 +202,9 @@ export function CampaignCards({
                   <CampaignActionsMenu
                     campaign={campaign}
                     canEdit={canEdit}
+                    canCreate={canCreate}
                     canDelete={canDelete}
+                    canPause={canPause}
                     onView={() => onView(campaign)}
                     onEdit={() => onEdit(campaign)}
                     onDuplicate={() => onDuplicate(campaign)}

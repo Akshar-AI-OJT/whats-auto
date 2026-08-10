@@ -11,7 +11,9 @@ type CampaignTableProps = {
   campaigns: Campaign[]
   templateNames: Record<string, string>
   canEdit: boolean
+  canCreate?: boolean
   canDelete: boolean
+  canPause?: boolean
   onView: (campaign: Campaign) => void
   onEdit: (campaign: Campaign) => void
   onDuplicate: (campaign: Campaign) => void
@@ -23,7 +25,9 @@ export function CampaignTable({
   campaigns,
   templateNames,
   canEdit,
+  canCreate = canEdit,
   canDelete,
+  canPause = false,
   onView,
   onEdit,
   onDuplicate,
@@ -100,7 +104,9 @@ export function CampaignTable({
                   <CampaignActionsMenu
                     campaign={campaign}
                     canEdit={canEdit}
+                    canCreate={canCreate}
                     canDelete={canDelete}
+                    canPause={canPause}
                     onView={() => onView(campaign)}
                     onEdit={() => onEdit(campaign)}
                     onDuplicate={() => onDuplicate(campaign)}

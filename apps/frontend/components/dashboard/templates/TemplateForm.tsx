@@ -20,7 +20,6 @@ import {
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import { TemplatePreview } from './TemplatePreview'
-import { MediaPicker } from './MediaPicker'
 import {
   TEMPLATE_CATEGORIES,
   TEMPLATE_HEADER_TYPES,
@@ -36,8 +35,6 @@ export type TemplateFormValues = {
   language: string
   headerType: WhatsappTemplateHeaderType
   headerContent: string
-  headerMediaAssetId: string
-  headerMediaFileName: string
   bodyText: string
   footerText: string
   buttons: WhatsappTemplateButton[]
@@ -55,8 +52,6 @@ export const EMPTY_TEMPLATE_FORM: TemplateFormValues = {
   language: 'en_US',
   headerType: 'NONE',
   headerContent: '',
-  headerMediaAssetId: '',
-  headerMediaFileName: '',
   bodyText: '',
   footerText: '',
   buttons: [],
@@ -68,8 +63,7 @@ type TemplateFormProps = {
   pending?: boolean
   error?: string | null
   submitLabel: string
-  secondaryLabel?: string
-  onSubmit: (body: CreateWhatsappTemplateBody, mode: 'draft' | 'submit') => void
+  onSubmit: (body: CreateWhatsappTemplateBody) => void
   onCancel: () => void
 }
 
@@ -78,7 +72,6 @@ export function TemplateForm({
   pending = false,
   error,
   submitLabel,
-  secondaryLabel,
   onSubmit,
   onCancel,
 }: TemplateFormProps) {
@@ -90,8 +83,6 @@ export function TemplateForm({
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof TemplateFormValues, string>>>(
     {}
   )
-  const [mediaPickerOpen, setMediaPickerOpen] = useState(false)
-
   const [sampleErrors, setSampleErrors] = useState<Record<string, string>>({})
 
   const variables = useMemo(() => {
@@ -104,8 +95,7 @@ export function TemplateForm({
     [variables, values.sampleValues]
   )
 
-  const samplesComplete = missingSamples.length === 0
-  const canSubmit = !pending && samplesComplete
+  const canSubmit = !pending && missingSamples.length === 0
 
   function update<K extends keyof TemplateFormValues>(key: K, value: TemplateFormValues[K]) {
     setValues((prev) => ({ ...prev, [key]: value }))
@@ -159,6 +149,16 @@ export function TemplateForm({
     if (values.bodyText.trim().length > 1024) next.bodyText = t('errors.bodyTooLong')
     if (values.headerType === 'TEXT' && !values.headerContent.trim()) {
       next.headerContent = t('errors.headerRequired')
+    }
+    if (values.footerText.trim().length > 60) next.footerText = t('errors.footerTooLong')
+
+    for (const button of values.buttons) {
+      const text = String(button.text || '').trim()
+      if (!text) continue
+      if (button.type === 'URL' && !String(button.url || '').trim()) {
+        next.buttons = t('errors.buttonUrlRequired')
+        break
+      }
     }
 
     const nextSampleErrors: Record<string, string> = {}
@@ -214,12 +214,13 @@ export function TemplateForm({
     return body
   }
 
-  function handleSubmit(mode: 'draft' | 'submit') {
+  function handleSubmit() {
     if (!validate()) return
-    const body = buildBody()
-    console.log('[templates] create payload', body)
-    onSubmit(body, mode)
+    onSubmit(buildBody())
   }
+
+  const isMediaHeader =
+    values.headerType === 'IMAGE' || values.headerType === 'DOCUMENT'
 
   return (
     <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
@@ -281,10 +282,7 @@ export function TemplateForm({
                   setValues((prev) => ({
                     ...prev,
                     headerType: next,
-                    headerMediaAssetId:
-                      next === 'IMAGE' || next === 'DOCUMENT' ? prev.headerMediaAssetId : '',
-                    headerMediaFileName:
-                      next === 'IMAGE' || next === 'DOCUMENT' ? prev.headerMediaFileName : '',
+                    headerContent: next === 'TEXT' ? prev.headerContent : '',
                   }))
                 }}
               >
@@ -299,7 +297,10 @@ export function TemplateForm({
 
           {values.headerType === 'TEXT' ? (
             <Field data-invalid={Boolean(fieldErrors.headerContent)} className="gap-2">
-              <FieldLabel>{t('headerContent')}</FieldLabel>
+              <div className="flex items-center justify-between gap-3">
+                <FieldLabel>{t('headerContent')}</FieldLabel>
+                <p className="text-xs tabular-nums text-mute">{values.headerContent.length}/60</p>
+              </div>
               <Input
                 value={values.headerContent}
                 maxLength={60}
@@ -313,45 +314,11 @@ export function TemplateForm({
             </Field>
           ) : null}
 
-          {values.headerType === 'IMAGE' || values.headerType === 'DOCUMENT' ? (
-            <Field className="gap-2">
-              <FieldLabel>{t('headerMedia')}</FieldLabel>
-              <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={pending}
-                  onClick={() => setMediaPickerOpen(true)}
-                >
-                  {values.headerMediaFileName || t('headerMediaPick')}
-                </Button>
-                {values.headerMediaAssetId ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    disabled={pending}
-                    onClick={() => {
-                      update('headerMediaAssetId', '')
-                      update('headerMediaFileName', '')
-                    }}
-                  >
-                    {t('headerMediaClear')}
-                  </Button>
-                ) : null}
-              </div>
-              <FieldDescription>{t('headerMediaHint')}</FieldDescription>
-            </Field>
+          {isMediaHeader ? (
+            <div className="rounded-xl border border-dash-border bg-dash-surface/40 px-3 py-2.5 text-sm text-body">
+              {t('headerMediaHint')}
+            </div>
           ) : null}
-
-          <MediaPicker
-            open={mediaPickerOpen}
-            onOpenChange={setMediaPickerOpen}
-            kind={values.headerType === 'IMAGE' ? 'image' : 'document'}
-            onSelect={(asset) => {
-              update('headerMediaAssetId', asset.id)
-              update('headerMediaFileName', asset.fileName)
-            }}
-          />
 
           <Field data-invalid={Boolean(fieldErrors.bodyText)} className="gap-2">
             <div className="flex items-center justify-between gap-3">
@@ -444,8 +411,11 @@ export function TemplateForm({
             </div>
           ) : null}
 
-          <Field className="gap-2">
-            <FieldLabel>{t('footer')}</FieldLabel>
+          <Field data-invalid={Boolean(fieldErrors.footerText)} className="gap-2">
+            <div className="flex items-center justify-between gap-3">
+              <FieldLabel>{t('footer')}</FieldLabel>
+              <p className="text-xs tabular-nums text-mute">{values.footerText.length}/60</p>
+            </div>
             <Input
               value={values.footerText}
               maxLength={60}
@@ -453,6 +423,7 @@ export function TemplateForm({
               onChange={(e) => update('footerText', e.target.value)}
               placeholder={t('footerPlaceholder')}
             />
+            {fieldErrors.footerText ? <FieldError>{fieldErrors.footerText}</FieldError> : null}
           </Field>
 
           <div className="space-y-3 rounded-xl border border-dash-border p-3">
@@ -473,6 +444,7 @@ export function TemplateForm({
                 {t('addButton')}
               </Button>
             </div>
+            {fieldErrors.buttons ? <FieldError>{fieldErrors.buttons}</FieldError> : null}
             {values.buttons.map((button, index) => (
               <div
                 key={`button-${index}`}
@@ -539,23 +511,11 @@ export function TemplateForm({
           <Button type="button" variant="outline" disabled={pending} onClick={onCancel}>
             {t('cancel')}
           </Button>
-          {secondaryLabel ? (
-            <Button
-              type="button"
-              variant="outline"
-              disabled={!canSubmit}
-              className="gap-2"
-              onClick={() => handleSubmit('draft')}
-            >
-              {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
-              {secondaryLabel}
-            </Button>
-          ) : null}
           <Button
             type="button"
             disabled={!canSubmit}
             className="gap-2"
-            onClick={() => handleSubmit('submit')}
+            onClick={handleSubmit}
           >
             {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
             {submitLabel}
@@ -566,7 +526,13 @@ export function TemplateForm({
       <TemplatePreview
         name={values.name || t('previewNameFallback')}
         headerType={values.headerType}
-        headerContent={values.headerContent}
+        headerContent={
+          isMediaHeader
+            ? values.headerType === 'IMAGE'
+              ? t('previewImageHeader')
+              : t('previewDocumentHeader')
+            : values.headerContent
+        }
         bodyText={values.bodyText}
         footerText={values.footerText}
         buttons={values.buttons}

@@ -53,6 +53,10 @@ type OrganizationsContextValue = {
   canCreateCampaigns: boolean
   canEditCampaigns: boolean
   canDeleteCampaigns: boolean
+  canLaunchCampaigns: boolean
+  canPauseCampaigns: boolean
+  canViewBilling: boolean
+  canManageBilling: boolean
   isLoading: boolean
   /**
    * True until session/orgs/access-context are ready for permission checks.
@@ -339,6 +343,10 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
     canCreateCampaigns: hasPermission(permissions, PERMISSIONS.CAMPAIGNS_CREATE),
     canEditCampaigns: hasPermission(permissions, PERMISSIONS.CAMPAIGNS_EDIT),
     canDeleteCampaigns: hasPermission(permissions, PERMISSIONS.CAMPAIGNS_DELETE),
+    canLaunchCampaigns: hasPermission(permissions, PERMISSIONS.CAMPAIGNS_LAUNCH),
+    canPauseCampaigns: hasPermission(permissions, PERMISSIONS.CAMPAIGNS_PAUSE),
+    canViewBilling: hasPermission(permissions, PERMISSIONS.BILLING_VIEW),
+    canManageBilling: hasPermission(permissions, PERMISSIONS.BILLING_MANAGE),
     // Shell / list loading — avoid treating access refetch alone as full-shell load.
     isLoading: sessionPending || orgsQuery.isLoading || liveBootstrapping,
     // Permission gates must wait for access-context (and activate/switch) or hard
