@@ -3,9 +3,12 @@ import { AiUsageDecision } from '#enums/ai_usage_decision'
 import { ConversationAiMode } from '#enums/conversation_ai_mode'
 import { type AiUsageLogRepository } from '#repositories/ai_usage_log_repository'
 import { type ConversationAiRepository } from '#repositories/conversation_ai_repository'
+import type AiConversationSummaryService from '#services/ai/ai_conversation_summary_service'
 import type AiDebounceService from '#services/ai/ai_debounce_service'
 import AiDebounceTurnService from '#services/ai/ai_debounce_turn_service'
+import type { InboxAiSseEvent } from '#services/ai/contracts/inbox_ai_sse'
 import type { DebounceTurnJobPayload } from '#services/ai/contracts/ai_job_payloads'
+import { inboxEventsHub } from '#services/inbox_events_hub'
 import type { MemoryWorkingSetService } from '#services/ai/contracts/memory_working_set_service'
 import FakeLlmProvider from '#services/ai/drivers/fake_llm_provider'
 import type KnowledgeRetrievalService from '#services/ai/knowledge_retrieval_service'
@@ -32,10 +35,15 @@ function createTurn(params: {
   maxScore?: number
   buffered?: Array<{ messageId: string; content: string; receivedAt: string }>
   queueText?: () => Promise<{ messageId: string; dispatchId: string }>
+  useHub?: boolean
+  aiSummary?: string | null
+  summaryError?: boolean
 }) {
   const usage: unknown[] = []
   const handovers: string[] = []
   const queued: string[] = []
+  const scheduled: string[] = []
+  const sse: InboxAiSseEvent[] = []
   const llm = new FakeLlmProvider()
   llm.text = 'We open at 9.'
 
@@ -58,6 +66,7 @@ function createTurn(params: {
       return {
         id: CONV,
         aiMode: params.aiMode ?? ConversationAiMode.AI_AUTO,
+        aiSummary: params.aiSummary ?? null,
         attributedCampaignId: 'camp-1',
         contactId: CONTACT,
       }
@@ -111,11 +120,20 @@ function createTurn(params: {
     },
   } as unknown as MemoryWorkingSetService
 
+  const summary = {
+    async scheduleAfterAutoReply() {
+      if (params.summaryError) throw new Error('summary boom')
+      scheduled.push(CONV)
+    },
+  } as unknown as AiConversationSummaryService
+
   return {
     llm,
     usage,
     handovers,
     queued,
+    scheduled,
+    sse,
     service: new AiDebounceTurnService(
       debounce,
       conversations,
@@ -124,7 +142,13 @@ function createTurn(params: {
       platform,
       outbound,
       llm,
-      memory
+      memory,
+      params.useHub
+        ? undefined
+        : (_organizationId, event) => {
+            sse.push(event)
+          },
+      summary
     ),
   }
 }
@@ -144,10 +168,14 @@ test.group('AiDebounceTurnService', () => {
     const emptyResult = await empty.service.process(payload)
     assert.equal(emptyResult.outcome, 'skipped')
     assert.lengthOf(empty.llm.calls, 0)
+    assert.lengthOf(disabled.sse, 0)
+    assert.lengthOf(empty.sse, 0)
+    assert.lengthOf(disabled.scheduled, 0)
+    assert.lengthOf(empty.scheduled, 0)
   })
 
   test('hands over on keyword without calling the LLM', async ({ assert }) => {
-    const { service, llm, handovers, usage } = createTurn({
+    const { service, llm, handovers, usage, sse, scheduled } = createTurn({
       keywords: ['agent'],
       buffered: [
         { messageId: 'in-1', content: 'I want an agent', receivedAt: '2026-08-11T12:00:00.000Z' },
@@ -159,30 +187,60 @@ test.group('AiDebounceTurnService', () => {
     assert.deepEqual(handovers, ['agent'])
     assert.lengthOf(llm.calls, 0)
     assert.equal((usage[0] as { decision: string }).decision, AiUsageDecision.HANDOVER_KEYWORD)
+    assert.deepEqual(
+      sse.map((event) => event.type),
+      ['ai.handover.triggered']
+    )
+    assert.equal(sse[0]!.type, 'ai.handover.triggered')
+    if (sse[0]!.type === 'ai.handover.triggered') {
+      assert.equal(sse[0].data.reason, 'keyword_match')
+      assert.equal(sse[0].data.matchedKeyword, 'agent')
+    }
+    assert.lengthOf(scheduled, 0)
   })
 
   test('hands over when retrieval misses confidence', async ({ assert }) => {
-    const { service, llm, handovers } = createTurn({ meetsMinConfidence: false, maxScore: 0 })
+    const { service, llm, handovers, sse } = createTurn({
+      meetsMinConfidence: false,
+      maxScore: 0,
+    })
     const result = await service.process(payload)
     assert.equal(result.decision, AiUsageDecision.HANDOVER_LOW_CONFIDENCE)
     assert.deepEqual(handovers, ['low_confidence'])
     assert.lengthOf(llm.calls, 0)
+    assert.equal(sse[0]!.type, 'ai.handover.triggered')
+    if (sse[0]!.type === 'ai.handover.triggered') {
+      assert.equal(sse[0].data.reason, 'low_confidence')
+      assert.equal(sse[0].data.score, 0)
+    }
   })
 
   test('queues an AI reply and writes AUTO_REPLIED', async ({ assert }) => {
-    const { service, llm, queued, usage, handovers } = createTurn({})
+    const { service, llm, queued, usage, handovers, sse, scheduled } = createTurn({
+      aiSummary: 'Customer asked about store hours last week.',
+    })
     const result = await service.process(payload)
     assert.equal(result.outcome, 'auto_replied')
     assert.lengthOf(llm.calls, 1)
     assert.include(llm.calls[0]!.userPrompt, 'What are your hours?')
     assert.include(llm.calls[0]!.userPrompt, 'July launch')
+    assert.include(llm.calls[0]!.userPrompt, 'Customer asked about store hours last week.')
     assert.deepEqual(queued, ['ai:We open at 9.'])
     assert.equal((usage[0] as { decision: string }).decision, AiUsageDecision.AUTO_REPLIED)
     assert.lengthOf(handovers, 0)
+    assert.deepEqual(scheduled, [CONV])
+    assert.equal(sse[0]!.type, 'ai.generation.started')
+    const deltas = sse.filter((event) => event.type === 'ai.token.delta')
+    assert.isAbove(deltas.length, 0)
+    assert.equal(sse[sse.length - 1]!.type, 'ai.generation.completed')
+    const completed = sse[sse.length - 1]!
+    if (completed.type === 'ai.generation.completed') {
+      assert.equal(completed.data.fullText, 'We open at 9.')
+    }
   })
 
   test('session-window failure becomes HANDOVER_ERROR and does not throw', async ({ assert }) => {
-    const { service, handovers } = createTurn({
+    const { service, handovers, sse, scheduled } = createTurn({
       queueText: async () => {
         throw new WhatsappOutboundException(
           'The 24-hour customer service window has expired. Send an approved WhatsApp template to re-engage this contact.',
@@ -193,5 +251,47 @@ test.group('AiDebounceTurnService', () => {
     const result = await service.process(payload)
     assert.equal(result.decision, AiUsageDecision.HANDOVER_ERROR)
     assert.lengthOf(handovers, 1)
+    assert.equal(sse[0]!.type, 'ai.generation.started')
+    assert.equal(sse[sse.length - 1]!.type, 'ai.handover.triggered')
+    const handover = sse[sse.length - 1]!
+    if (handover.type === 'ai.handover.triggered') {
+      assert.equal(handover.data.reason, 'business_exception')
+    }
+    assert.lengthOf(scheduled, 0)
+  })
+
+  test('summary schedule failure does not undo a sent reply', async ({ assert }) => {
+    const { service, queued } = createTurn({ summaryError: true })
+    const result = await service.process(payload)
+    assert.equal(result.outcome, 'auto_replied')
+    assert.deepEqual(queued, ['ai:We open at 9.'])
+  })
+
+  test('default publisher fans out ai.* only to the conversation org', async ({ assert }) => {
+    const forOrg: string[] = []
+    const forOther: string[] = []
+    const unsubOrg = inboxEventsHub.subscribe({
+      organizationId: ORG,
+      write: (chunk) => forOrg.push(chunk),
+      close: () => {},
+    })
+    const unsubOther = inboxEventsHub.subscribe({
+      organizationId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+      write: (chunk) => forOther.push(chunk),
+      close: () => {},
+    })
+
+    try {
+      const { service } = createTurn({ useHub: true })
+      await service.process(payload)
+      const joined = forOrg.join('')
+      assert.include(joined, 'ai.generation.started')
+      assert.include(joined, 'ai.token.delta')
+      assert.include(joined, 'ai.generation.completed')
+      assert.lengthOf(forOther, 0)
+    } finally {
+      unsubOrg()
+      unsubOther()
+    }
   })
 })

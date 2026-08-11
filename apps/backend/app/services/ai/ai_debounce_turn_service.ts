@@ -4,11 +4,14 @@ import { AiUsageDecision } from '#enums/ai_usage_decision'
 import { ConversationAiMode } from '#enums/conversation_ai_mode'
 import { AiUsageLogRepository } from '#repositories/ai_usage_log_repository'
 import { ConversationAiRepository } from '#repositories/conversation_ai_repository'
+import AiConversationSummaryService from '#services/ai/ai_conversation_summary_service'
 import AiDebounceService from '#services/ai/ai_debounce_service'
 import { MemoryWorkingSetService } from '#services/ai/contracts/memory_working_set_service'
+import type { InboxAiSseEvent } from '#services/ai/contracts/inbox_ai_sse'
 import type { DebounceTurnJobPayload } from '#services/ai/contracts/ai_job_payloads'
 import type { MemoryTurn } from '#services/ai/contracts/memory_working_set_service'
 import { LlmProvider } from '#services/ai/contracts/llm_provider'
+import { publishInboxAiEvent } from '#services/ai/publish_inbox_ai_sse'
 import KnowledgeRetrievalService from '#services/ai/knowledge_retrieval_service'
 import { matchHandoverKeyword } from '#services/ai/match_handover_keywords'
 import PlatformAiConfigService from '#services/ai/platform_ai_config_service'
@@ -34,7 +37,12 @@ export default class AiDebounceTurnService {
     private platform: PlatformAiConfigService = new PlatformAiConfigService(),
     private outbound: WhatsappOutboundService = new WhatsappOutboundService(),
     private llm?: LlmProvider,
-    private memory?: MemoryWorkingSetService
+    private memory?: MemoryWorkingSetService,
+    private publishAi: (
+      organizationId: string,
+      event: InboxAiSseEvent
+    ) => void = publishInboxAiEvent,
+    private summary: AiConversationSummaryService = new AiConversationSummaryService()
   ) {}
 
   async process(payload: DebounceTurnJobPayload): Promise<DebounceTurnResult> {
@@ -99,12 +107,13 @@ export default class AiDebounceTurnService {
       if (!this.llm) await this.platform.assertLlmReady()
       const llm = await this.#llm()
       const turns = await this.#recentTurns(payload.organizationId, payload.conversationId)
-      const completion = await llm.generateCompletion({
+      const options = {
         model: config.modelName,
         temperature: config.temperature,
         systemPrompt: config.systemPrompt?.trim() || DEFAULT_AI_SYSTEM_PROMPT,
         userPrompt: buildUserPrompt({
           turns,
+          summary: conversation.aiSummary,
           campaignName: retrieved.campaign?.name ?? null,
           userText,
         }),
@@ -112,7 +121,12 @@ export default class AiDebounceTurnService {
           content: chunk.content,
           score: chunk.score,
         })),
+      }
+      this.publishAi(payload.organizationId, {
+        type: 'ai.generation.started',
+        data: { conversationId: payload.conversationId, promptAt: new Date().toISOString() },
       })
+      const completion = await this.#streamCompletion(payload, llm, options)
 
       const queued = await this.outbound.queueText({
         organizationId: payload.organizationId,
@@ -133,6 +147,36 @@ export default class AiDebounceTurnService {
         decision: AiUsageDecision.AUTO_REPLIED,
         retrievalScore: retrieved.maxScore,
       })
+
+      this.publishAi(payload.organizationId, {
+        type: 'ai.generation.completed',
+        data: {
+          conversationId: payload.conversationId,
+          fullText: completion.text,
+          latencyMs: completion.latencyMs,
+          usage: {
+            promptTokens: completion.promptTokens,
+            completionTokens: completion.completionTokens,
+            totalTokens: completion.totalTokens,
+          },
+        },
+      })
+
+      try {
+        await this.summary.scheduleAfterAutoReply({
+          organizationId: payload.organizationId,
+          conversationId: payload.conversationId,
+        })
+      } catch (error) {
+        logger.warn(
+          {
+            organizationId: payload.organizationId,
+            conversationId: payload.conversationId,
+            err: error instanceof Error ? error.message : 'unknown',
+          },
+          'ai.summarize.schedule_failed'
+        )
+      }
 
       return { outcome: 'auto_replied', decision: AiUsageDecision.AUTO_REPLIED }
     } catch (error) {
@@ -184,6 +228,35 @@ export default class AiDebounceTurnService {
       decision: params.decision,
       retrievalScore: params.retrievalScore ?? null,
     })
+    this.publishAi(payload.organizationId, handoverSseEvent(payload.conversationId, params))
+  }
+
+  async #streamCompletion(
+    payload: DebounceTurnJobPayload,
+    llm: LlmProvider,
+    options: {
+      model: string
+      temperature: number
+      systemPrompt: string
+      userPrompt: string
+      contextChunks: Array<{ content: string; score: number }>
+    }
+  ) {
+    const stream = llm.streamCompletion(options)
+    let next = await stream.next()
+    while (!next.done) {
+      const chunk = next.value
+      this.publishAi(payload.organizationId, {
+        type: 'ai.token.delta',
+        data: {
+          conversationId: payload.conversationId,
+          delta: chunk.delta,
+          chunkIndex: chunk.chunkIndex,
+        },
+      })
+      next = await stream.next()
+    }
+    return next.value
   }
 
   async #recentTurns(organizationId: string, conversationId: string): Promise<MemoryTurn[]> {
@@ -199,10 +272,17 @@ export default class AiDebounceTurnService {
 
 function buildUserPrompt(params: {
   turns: MemoryTurn[]
+  summary: string | null
   campaignName: string | null
   userText: string
 }): string {
   const lines: string[] = []
+  const summary = params.summary?.trim()
+  if (summary) {
+    lines.push('Conversation summary:')
+    lines.push(summary)
+    lines.push('')
+  }
   if (params.turns.length > 0) {
     lines.push('Recent conversation:')
     for (const turn of params.turns) {
@@ -216,4 +296,30 @@ function buildUserPrompt(params: {
   lines.push('New messages:')
   lines.push(params.userText)
   return lines.join('\n')
+}
+
+function handoverSseEvent(
+  conversationId: string,
+  params: { decision: AiUsageDecision; reason: string; retrievalScore?: number }
+): InboxAiSseEvent {
+  if (params.decision === AiUsageDecision.HANDOVER_KEYWORD) {
+    return {
+      type: 'ai.handover.triggered',
+      data: { conversationId, reason: 'keyword_match', matchedKeyword: params.reason },
+    }
+  }
+  if (params.decision === AiUsageDecision.HANDOVER_LOW_CONFIDENCE) {
+    return {
+      type: 'ai.handover.triggered',
+      data: {
+        conversationId,
+        reason: 'low_confidence',
+        score: params.retrievalScore,
+      },
+    }
+  }
+  return {
+    type: 'ai.handover.triggered',
+    data: { conversationId, reason: 'business_exception' },
+  }
 }

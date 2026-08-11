@@ -27,6 +27,20 @@ export class MemoryWorkingSetRepository {
       .filter((turn): turn is MemoryTurn => turn !== null)
       .reverse()
   }
+
+  async countTurns(params: { organizationId: string; conversationId: string }): Promise<number> {
+    const row = await db
+      .from('messages')
+      .where('organizationId', params.organizationId)
+      .where('conversationId', params.conversationId)
+      .whereIn('senderType', [...TURN_SENDER_TYPES])
+      .whereNotNull('contentText')
+      .whereNot('contentText', '')
+      .count('* as total')
+      .first()
+
+    return Number(row?.total ?? 0)
+  }
 }
 
 function toIso(value: unknown): string {

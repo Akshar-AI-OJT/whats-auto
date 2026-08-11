@@ -9,6 +9,7 @@ import { createCampaignExecuteHandler } from '#services/job_queue/handlers/campa
 import { createCampaignRecoveryHandler } from '#services/job_queue/handlers/campaign_recovery_handler'
 import { createAiProcessDocumentHandler } from '#services/job_queue/handlers/ai_process_document_handler'
 import { createAiDebounceTurnHandler } from '#services/job_queue/handlers/ai_debounce_turn_handler'
+import { createAiSummarizeConversationHandler } from '#services/job_queue/handlers/ai_summarize_conversation_handler'
 
 /**
  * Register default (pg-boss) worker handlers.
@@ -30,4 +31,5 @@ export async function registerJobHandlers(driver: JobQueueDriver): Promise<void>
 export async function registerAiJobHandlers(driver: JobQueueDriver): Promise<void> {
   await driver.work(JOB_NAMES.AI_PROCESS_DOCUMENT, createAiProcessDocumentHandler())
   await driver.work(JOB_NAMES.AI_DEBOUNCE_TURN, createAiDebounceTurnHandler())
+  await driver.work(JOB_NAMES.AI_SUMMARIZE_CONVERSATION, createAiSummarizeConversationHandler())
 }
