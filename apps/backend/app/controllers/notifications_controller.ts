@@ -15,7 +15,7 @@ export default class NotificationsController {
    * @security BearerAuth
    * @paramQuery page - Page number (default 1) - @type(number)
    * @paramQuery limit - Items per page (1-100, default 20) - @type(number)
-   * @responseBody 200 - { "data": [{ "id": "uuid", "type": "assignment", "title": "Assigned", "body": null, "readAt": null, "createdAt": "2026-08-10T12:00:00.000Z" }], "meta": { "total": 1, "perPage": 20, "currentPage": 1, "lastPage": 1 } }
+   * @responseBody 200 - { "data": [{ "id": "uuid", "type": "assignment", "title": "Assigned", "body": "You were assigned a conversation", "readAt": "2026-08-10T12:05:00.000Z", "createdAt": "2026-08-10T12:00:00.000Z" }], "meta": { "total": 1, "perPage": 20, "currentPage": 1, "lastPage": 1 } }
    * @responseBody 401 - { "error": "Missing or invalid session" }
    */
   async index({ request, serialize }: HttpContext) {

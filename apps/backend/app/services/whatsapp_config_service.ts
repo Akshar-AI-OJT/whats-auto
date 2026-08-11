@@ -1,10 +1,12 @@
 import db from '@adonisjs/lucid/services/db'
+import logger from '@adonisjs/core/services/logger'
 import WhatsappConfigException from '#exceptions/whatsapp_config_exception'
 import {
   decryptWhatsappAccessToken,
   encryptWhatsappAccessToken,
 } from '#lib/meta_whatsapp/access_token_crypto'
 import { createMetaGraphClient, type MetaGraphClient } from '#lib/meta_whatsapp/graph_client'
+import { NotificationService } from '#services/notification_service'
 
 export type WhatsappConfigStatus = 'connected' | 'disconnected' | 'error'
 
@@ -208,6 +210,8 @@ export class WhatsappConfigService {
    */
   async disconnect(configId: string, organizationId: string): Promise<WhatsappConfigDto> {
     const existing = await this.findRowOrFail(configId, organizationId)
+    const wasAlreadyDisconnected = existing.status === 'disconnected'
+
     const [row] = await db
       .from('whatsapp_configs')
       .where('id', existing.id)
@@ -227,7 +231,17 @@ export class WhatsappConfigService {
         'updatedAt',
       ])
 
-    return this.toDto({ ...(row as WhatsappConfigRow), accessToken: '' })
+    const dto = this.toDto({ ...(row as WhatsappConfigRow), accessToken: '' })
+
+    // Notify only when status actually transitions into disconnected.
+    if (!wasAlreadyDisconnected) {
+      await this.#notifyOwnerDisconnectedBestEffort({
+        organizationId,
+        phoneNumberId: existing.phoneNumberId,
+      })
+    }
+
+    return dto
   }
 
   /**
@@ -278,5 +292,59 @@ export class WhatsappConfigService {
     if (!error || typeof error !== 'object') return false
     const code = (error as { code?: string }).code
     return code === '23505'
+  }
+
+  async #resolveOwnerUserId(organizationId: string): Promise<string | null> {
+    const row = await db
+      .from('organization_members')
+      .join('roles', 'roles.id', 'organization_members.roleId')
+      .where('organization_members.organizationId', organizationId)
+      .where('roles.name', 'owner')
+      .where('organization_members.isDeleted', false)
+      .select('organization_members.userId')
+      .first()
+
+    return (row?.userId as string | undefined) ?? null
+  }
+
+  /**
+   * Best-effort owner notification after WhatsApp disconnect. Never throws.
+   * actorUserId is null — disconnect() has no authenticated userId in its signature.
+   */
+  async #notifyOwnerDisconnectedBestEffort(params: {
+    organizationId: string
+    phoneNumberId: string
+  }): Promise<void> {
+    try {
+      const ownerUserId = await this.#resolveOwnerUserId(params.organizationId)
+      if (!ownerUserId) {
+        logger.warn(
+          {
+            organizationId: params.organizationId,
+            type: 'whatsapp_disconnected',
+          },
+          'whatsapp.notification_skipped_no_owner'
+        )
+        return
+      }
+
+      await new NotificationService().createNotification({
+        organizationId: params.organizationId,
+        userId: ownerUserId,
+        type: 'whatsapp_disconnected',
+        title: 'WhatsApp disconnected',
+        body: `WhatsApp was disconnected for phone number ID ${params.phoneNumberId}.`,
+        actorUserId: null,
+      })
+    } catch (error) {
+      logger.error(
+        {
+          organizationId: params.organizationId,
+          type: 'whatsapp_disconnected',
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'whatsapp.notification_failed'
+      )
+    }
   }
 }

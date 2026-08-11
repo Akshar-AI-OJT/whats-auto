@@ -1,5 +1,7 @@
 import db from '@adonisjs/lucid/services/db'
+import logger from '@adonisjs/core/services/logger'
 import ConversationException from '#exceptions/conversation_exception'
+import { NotificationService } from '#services/notification_service'
 
 export type ConversationStatus = 'open' | 'pending' | 'closed'
 
@@ -329,7 +331,8 @@ export class ConversationService {
   }): Promise<ConversationRecord> {
     const { organizationId, conversationId, assignedAgentId, assignedByUserId } = params
 
-    await this.findConversationOrFail({ organizationId, conversationId })
+    const existing = await this.findConversationOrFail({ organizationId, conversationId })
+    const previousAssignedAgentId = (existing.assignedAgentId as string | null) ?? null
 
     const agentMember = await db
       .from('organization_members')
@@ -343,7 +346,7 @@ export class ConversationService {
       throw ConversationException.agentNotFound()
     }
 
-    return db.transaction(async (trx) => {
+    const updated = await db.transaction(async (trx) => {
       const [row] = await trx
         .from('conversations')
         .where('id', conversationId)
@@ -363,6 +366,66 @@ export class ConversationService {
 
       return mapConversationRow(row)
     })
+
+    // After assignment commits — notify only when the assigned agent actually changed.
+    if (previousAssignedAgentId !== assignedAgentId) {
+      await this.#notifyConversationAssignedBestEffort({
+        organizationId,
+        conversationId,
+        contactId: existing.contactId as string,
+        assignedAgentId,
+        assignedByUserId,
+      })
+    }
+
+    return updated
+  }
+
+  /**
+   * Best-effort notification for the newly assigned agent. Never throws.
+   */
+  async #notifyConversationAssignedBestEffort(params: {
+    organizationId: string
+    conversationId: string
+    contactId: string
+    assignedAgentId: string
+    assignedByUserId: string
+  }): Promise<void> {
+    try {
+      const contact = await db
+        .from('contacts')
+        .where('id', params.contactId)
+        .where('organizationId', params.organizationId)
+        .select('name', 'phone')
+        .first()
+
+      const contactLabel =
+        (contact?.name as string | undefined)?.trim() ||
+        (contact?.phone as string | undefined) ||
+        'a contact'
+
+      await new NotificationService().createNotification({
+        organizationId: params.organizationId,
+        userId: params.assignedAgentId,
+        type: 'inbox_conversation_assigned',
+        title: 'Conversation assigned to you',
+        body: `You were assigned a conversation with ${contactLabel}.`,
+        conversationId: params.conversationId,
+        contactId: params.contactId,
+        actorUserId: params.assignedByUserId,
+      })
+    } catch (error) {
+      logger.error(
+        {
+          organizationId: params.organizationId,
+          conversationId: params.conversationId,
+          userId: params.assignedAgentId,
+          type: 'inbox_conversation_assigned',
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'inbox.notification_failed'
+      )
+    }
   }
 
   async closeConversation(params: {
