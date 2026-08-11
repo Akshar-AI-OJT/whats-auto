@@ -1,7 +1,8 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import { Search } from 'lucide-react'
+import { LayoutGrid, List, Search } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import {
@@ -9,6 +10,7 @@ import {
   TEMPLATE_LANGUAGES,
   TEMPLATE_STATUS_TABS,
   type TemplateStatusTab,
+  type TemplateViewMode,
 } from './template-utils'
 
 type TemplateFiltersProps = {
@@ -16,10 +18,14 @@ type TemplateFiltersProps = {
   category: string
   statusTab: TemplateStatusTab
   language: string
+  viewMode: TemplateViewMode
+  hasActiveFilters: boolean
   onSearchChange: (value: string) => void
   onCategoryChange: (value: string) => void
   onStatusTabChange: (value: TemplateStatusTab) => void
   onLanguageChange: (value: string) => void
+  onViewModeChange: (value: TemplateViewMode) => void
+  onClearFilters: () => void
 }
 
 const selectClassName = cn(
@@ -34,10 +40,14 @@ export function TemplateFilters({
   category,
   statusTab,
   language,
+  viewMode,
+  hasActiveFilters,
   onSearchChange,
   onCategoryChange,
   onStatusTabChange,
   onLanguageChange,
+  onViewModeChange,
+  onClearFilters,
 }: TemplateFiltersProps) {
   const t = useTranslations('dashboard.templates')
 
@@ -93,10 +103,48 @@ export function TemplateFilters({
             aria-label={t('filters.status')}
           >
             <option value="">{t('filters.allStatuses')}</option>
-            <option value="approved">{t('tabs.approved')}</option>
+            <option value="draft">{t('tabs.draft')}</option>
             <option value="pending">{t('tabs.pending')}</option>
+            <option value="approved">{t('tabs.approved')}</option>
             <option value="rejected">{t('tabs.rejected')}</option>
           </select>
+        </div>
+        <div className="flex items-center gap-2">
+          {hasActiveFilters ? (
+            <Button type="button" variant="outline" size="sm" onClick={onClearFilters}>
+              {t('filters.clear')}
+            </Button>
+          ) : null}
+          <div className="inline-flex rounded-xl border border-dash-border p-0.5">
+            <button
+              type="button"
+              className={cn(
+                'inline-flex size-9 items-center justify-center rounded-[0.65rem] transition-colors',
+                viewMode === 'cards'
+                  ? 'bg-primary-pale text-positive-deep'
+                  : 'text-mute hover:text-ink'
+              )}
+              aria-pressed={viewMode === 'cards'}
+              aria-label={t('view.cards')}
+              onClick={() => onViewModeChange('cards')}
+            >
+              <LayoutGrid className="size-4" aria-hidden />
+            </button>
+            <button
+              type="button"
+              className={cn(
+                'inline-flex size-9 items-center justify-center rounded-[0.65rem] transition-colors',
+                viewMode === 'list'
+                  ? 'bg-primary-pale text-positive-deep'
+                  : 'text-mute hover:text-ink'
+              )}
+              aria-pressed={viewMode === 'list'}
+              aria-label={t('view.list')}
+              onClick={() => onViewModeChange('list')}
+            >
+              <List className="size-4" aria-hidden />
+            </button>
+          </div>
         </div>
       </div>
 

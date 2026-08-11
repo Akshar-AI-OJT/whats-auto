@@ -619,6 +619,23 @@ export type ReplaceCampaignRecipientsBody = {
   variables?: Record<string, string>
 }
 
+export type CampaignPreview = {
+  campaignId: string
+  campaignName: string
+  messageTemplateId: string
+  templateName: string
+  templateStatus: string
+  category?: string
+  language?: string | null
+  bodyPreview: string
+  headerType?: string | null
+  headerContent?: string | null
+  headerMediaUrl?: string | null
+  footerText?: string | null
+  variables: Record<string, string>
+  buttons?: unknown
+}
+
 export type CreateInvitationBody = {
   email: string
   role: string
@@ -648,6 +665,13 @@ export type OrganizationMember = {
   email: string
   name: string
   createdAt?: string
+}
+
+/** POST /api/v1/ownership/transfer */
+export type TransferOwnershipBody = {
+  targetMemberId: string
+  replacementRoleForCurrentOwner: string
+  reason: string
 }
 
 /** Row from GET /api/v1/organization-admin/users (id = userId). */
@@ -680,6 +704,24 @@ export type Paginated<T> = {
 export type ListOrganizationAdminUsersParams = {
   page?: number
   perPage?: number
+}
+
+/** Row from GET /api/v1/audit */
+export type AuthorizationAuditEvent = {
+  id: string
+  actorUserId: string | null
+  targetType: string
+  targetId: string | null
+  eventType: string
+  before: unknown
+  after: unknown
+  reason: string | null
+  createdAt: string | Date
+}
+
+export type ListAuditParams = {
+  /** 1–100, backend default 50 */
+  limit?: number
 }
 
 export type PendingInvitation = {
@@ -803,6 +845,39 @@ export type UpdateSuperAdminSubscriptionBody = {
   currentPeriodStart?: string
   currentPeriodEnd?: string
   cancelAt?: string | null
+}
+
+/** GET /api/v1/billing/subscription — fields returned by BillingController.showSubscription */
+export type BillingSubscription = {
+  id: string
+  organizationId: string
+  planId: string
+  status: string
+  gateway?: string | null
+  gatewaySubscriptionId?: string | null
+  checkoutUrl?: string | null
+  currentPeriodStart?: string | null
+  currentPeriodEnd?: string | null
+  trialEndsAt?: string | null
+  cancelAtPeriodEnd?: boolean | null
+  lastPaymentStatus?: string | null
+  lastPaymentAt?: string | null
+}
+
+/** POST /api/v1/billing/checkout — fields returned by BillingController.checkout */
+export type BillingCheckoutResult = {
+  subscriptionId: string
+  planId: string
+  status: string
+  checkoutUrl?: string | null
+  gatewaySubscriptionId?: string | null
+  gatewayCustomerId?: string | null
+  currentPeriodStart?: string | null
+  currentPeriodEnd?: string | null
+}
+
+export type BillingCheckoutBody = {
+  planId: string
 }
 
 export const api = {
@@ -1199,6 +1274,23 @@ export const api = {
       ),
   },
 
+  billing: {
+    getSubscription: () =>
+      protectedRequest<{ data?: BillingSubscription } & BillingSubscription>(
+        '/api/v1/billing/subscription',
+        { method: 'GET' }
+      ),
+
+    checkout: (body: BillingCheckoutBody) =>
+      protectedRequest<{ data?: BillingCheckoutResult } & BillingCheckoutResult>(
+        '/api/v1/billing/checkout',
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+  },
+
   campaigns: {
     list: (params: ListCampaignsParams = {}) => {
       const qs = new URLSearchParams()
@@ -1263,6 +1355,30 @@ export const api = {
       protectedRequest<{ data?: Campaign } & Campaign>(`/api/v1/campaigns/${campaignId}/cancel`, {
         method: 'PATCH',
       }),
+
+    preview: (campaignId: string, body: { variables?: Record<string, string> } = {}) =>
+      protectedRequest<{ data?: CampaignPreview } & CampaignPreview>(
+        `/api/v1/campaigns/${campaignId}/preview`,
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    duplicate: (campaignId: string) =>
+      protectedRequest<{ data?: Campaign } & Campaign>(
+        `/api/v1/campaigns/${campaignId}/duplicate`,
+        { method: 'POST' }
+      ),
+
+    changeStatus: (campaignId: string, body: { status: CampaignStatus }) =>
+      protectedRequest<{ data?: Campaign } & Campaign>(
+        `/api/v1/campaigns/${campaignId}/status`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify(body),
+        }
+      ),
   },
 
   members: {
@@ -1285,6 +1401,35 @@ export const api = {
         `/api/v1/members/${memberId}`,
         { method: 'DELETE' }
       ),
+  },
+
+  ownership: {
+    /**
+     * Transfer org ownership — current owner only.
+     * Body: targetMemberId, replacementRoleForCurrentOwner, reason (min 5).
+     */
+    transfer: (body: TransferOwnershipBody) =>
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+        '/api/v1/ownership/transfer',
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+  },
+
+  audit: {
+    /** Authorization audit events for the active organization (newest first). */
+    list: (params: ListAuditParams = {}) => {
+      const qs = new URLSearchParams()
+      if (params.limit != null) qs.set('limit', String(params.limit))
+      const query = qs.toString()
+      return protectedRequest<
+        { data?: AuthorizationAuditEvent[] } | AuthorizationAuditEvent[]
+      >(`/api/v1/audit${query ? `?${query}` : ''}`, {
+        method: 'GET',
+      })
+    },
   },
 
   organizationAdmin: {

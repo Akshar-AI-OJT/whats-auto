@@ -36,6 +36,7 @@ import {
   authInputClassName,
   authInputWithIconClassName,
 } from '@/components/auth/auth-field-styles'
+import { OwnershipTransferSection } from '@/components/dashboard/settings/OwnershipTransferSection'
 import { useRouter } from '@/i18n/navigation'
 
 /** Matches PATCH /api/v1/organizations/:id body (updateOrganizationValidator). */
@@ -680,6 +681,8 @@ export function WorkspaceSettingsPage() {
           ) : null}
         </form>
       </DashboardPanel>
+
+      <OwnershipTransferSection />
 
       {canDeleteOrganization ? (
         <DashboardPanel as="section" className="border-negative/25 p-4 sm:p-5 md:p-6">

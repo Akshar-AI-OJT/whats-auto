@@ -69,6 +69,14 @@ export function isEditableCampaignStatus(status: string): boolean {
   return status === 'draft' || status === 'scheduled'
 }
 
+export function isLaunchableCampaignStatus(status: string): boolean {
+  return status === 'draft' || status === 'scheduled'
+}
+
+export function isCancellableCampaignStatus(status: string): boolean {
+  return status === 'scheduled' || status === 'sending'
+}
+
 /** Client-side date range filter when API has no start/end params. */
 export function filterCampaignsByDateRange(
   items: Campaign[],

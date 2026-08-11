@@ -14,7 +14,7 @@ import { useRouter } from '@/i18n/navigation'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { TemplateForm, type TemplateFormValues } from './TemplateForm'
 import { templateQueryKeys } from './TemplatesListPage'
-import { normalizeButtons, unwrapTemplate } from './template-utils'
+import { normalizeButtons, normalizeSampleValues, unwrapTemplate } from './template-utils'
 
 /** Avoid useSearchParams — hard refresh can stall pages that suspend on it. */
 function readDuplicateFromId(): string | null {
@@ -54,28 +54,29 @@ export function TemplateCreatePage() {
   const initialValues = useMemo<Partial<TemplateFormValues> | undefined>(() => {
     const template = sourceQuery.data
     if (!template) return undefined
-    const sample =
-      template.sampleValues && typeof template.sampleValues === 'object'
-        ? (template.sampleValues as Record<string, string>)
-        : {}
+    const headerTypeRaw = String(template.headerType || 'NONE').toUpperCase()
+    const headerType = (
+      ['NONE', 'TEXT', 'IMAGE', 'DOCUMENT'].includes(headerTypeRaw)
+        ? headerTypeRaw
+        : 'NONE'
+    ) as TemplateFormValues['headerType']
+
     return {
-      name: `${template.name}_copy`,
-      category: (String(template.category).toUpperCase() as TemplateFormValues['category']) || 'UTILITY',
+      name: '',
+      category:
+        (String(template.category).toUpperCase() as TemplateFormValues['category']) || 'UTILITY',
       language: template.language || 'en_US',
-      headerType:
-        (String(template.headerType || 'NONE').toUpperCase() as TemplateFormValues['headerType']) ||
-        'NONE',
-      headerContent: template.headerContent || '',
+      headerType,
+      headerContent: headerType === 'TEXT' ? template.headerContent || '' : '',
       bodyText: template.bodyText || '',
       footerText: template.footerText || '',
       buttons: normalizeButtons(template.buttons),
-      sampleValues: sample,
+      sampleValues: normalizeSampleValues(template.sampleValues),
     }
   }, [sourceQuery.data])
 
   const createMutation = useMutation({
     mutationFn: async (body: CreateWhatsappTemplateBody) => {
-      console.log('[templates] outgoing createTemplate payload', body)
       const { data } = await api.whatsapp.createTemplate(body)
       return unwrapTemplate(data)
     },
@@ -113,6 +114,18 @@ export function TemplateCreatePage() {
     )
   }
 
+  if (fromId && (sourceQuery.isError || !sourceQuery.data)) {
+    return (
+      <div className="mx-auto w-full max-w-[1200px]">
+        <DashboardPanel className="px-4 py-5 sm:px-6">
+          <p className="text-sm text-negative">
+            {(sourceQuery.error as unknown as ApiError)?.message || t('errors.loadFailed')}
+          </p>
+        </DashboardPanel>
+      </div>
+    )
+  }
+
   return (
     <div className="mx-auto w-full max-w-[1200px]">
       <DashboardPanel as="section" className="p-4 sm:p-5 md:p-6">
@@ -123,7 +136,9 @@ export function TemplateCreatePage() {
           <h1 className="mt-2 font-display text-[1.7rem] tracking-tight text-ink sm:text-[1.95rem]">
             {fromId ? t('createFromTitle') : t('createTitle')}
           </h1>
-          <p className="mt-2 text-sm text-body">{t('createSubtitle')}</p>
+          <p className="mt-2 text-sm text-body">
+            {fromId ? t('createFromSubtitle') : t('createSubtitle')}
+          </p>
         </div>
 
         <TemplateForm
@@ -131,8 +146,7 @@ export function TemplateCreatePage() {
           initialValues={initialValues}
           pending={createMutation.isPending || !tenantOrganizationId}
           error={error}
-          submitLabel={t('form.submitReview')}
-          secondaryLabel={t('form.saveDraft')}
+          submitLabel={t('form.create')}
           onCancel={() => router.push('/dashboard/templates')}
           onSubmit={(body) => {
             setError(null)
