@@ -51,6 +51,10 @@ export default class FakeObjectStorage extends ObjectStorage {
     this.objects.set(key, { body, contentType })
   }
 
+  async writeObject(params: { key: string; body: Uint8Array; contentType: string }): Promise<void> {
+    this.putObject(params.key, Buffer.from(params.body), params.contentType)
+  }
+
   async headObject(key: string): Promise<ObjectHeadResult | null> {
     const object = this.objects.get(key)
     if (!object) return null

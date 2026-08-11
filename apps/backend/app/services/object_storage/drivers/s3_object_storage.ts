@@ -108,6 +108,17 @@ export default class S3ObjectStorage extends ObjectStorage {
       })
     )
   }
+
+  async writeObject(params: { key: string; body: Uint8Array; contentType: string }): Promise<void> {
+    await this.#client.send(
+      new PutObjectCommand({
+        Bucket: this.#bucket,
+        Key: params.key,
+        Body: params.body,
+        ContentType: params.contentType,
+      })
+    )
+  }
 }
 
 function isNotFoundError(error: unknown): boolean {

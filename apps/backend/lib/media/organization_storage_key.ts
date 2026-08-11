@@ -21,9 +21,10 @@ export type BuildOrganizationStorageKeyParams = {
 /**
  * Namespace-aware v2 key. Domain intent picks namespace; never trust client paths.
  *
- * media_library: organizations/{orgId}/media-library/{images|documents}/{assetId}.{ext}
- * campaigns:     organizations/{orgId}/campaigns/{campaignId}/{images|documents}/{assetId}.{ext}
- * temp uploads:  organizations/{orgId}/temp/uploads/{assetId}
+ * media_library:   organizations/{orgId}/media-library/{images|documents}/{assetId}.{ext}
+ * campaigns:       organizations/{orgId}/campaigns/{campaignId}/{images|documents}/{assetId}.{ext}
+ * knowledge_base:  organizations/{orgId}/knowledge-base/{images|documents}/{assetId}.{ext}
+ * temp uploads:    organizations/{orgId}/temp/uploads/{assetId}
  */
 export function buildOrganizationStorageKey(params: BuildOrganizationStorageKeyParams): string {
   const nsPath = STORAGE_NAMESPACE_PATH[params.namespace]
@@ -48,6 +49,12 @@ export function buildOrganizationStorageKey(params: BuildOrganizationStorageKeyP
       folder,
       `${params.assetId}${ext}`,
     ].join('/')
+  }
+
+  if (params.namespace === StorageNamespace.KnowledgeBase) {
+    return ['organizations', params.organizationId, nsPath, folder, `${params.assetId}${ext}`].join(
+      '/'
+    )
   }
 
   if (params.namespace === StorageNamespace.Temp) {

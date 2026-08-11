@@ -192,6 +192,12 @@ export class MediaAssetRepository {
       .from('media_assets')
       .where('organizationId', params.organizationId)
       .whereNotIn('state', ['pending_upload', 'failed'])
+      .whereExists((builder) => {
+        builder
+          .from('organization_storage_objects as o')
+          .whereRaw('o.id = media_assets."storageObjectId"')
+          .where('o.namespace', 'media_library')
+      })
 
     if (params.state) {
       query.where('state', params.state)

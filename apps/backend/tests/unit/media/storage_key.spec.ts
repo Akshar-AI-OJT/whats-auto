@@ -30,6 +30,26 @@ test.group('Media storage key + delivery URL', () => {
     assert.isTrue(isLegacyStorageKey(key))
   })
 
+  test('builds v2 organization namespace keys for knowledge base', ({ assert }) => {
+    const key = buildOrganizationStorageKey({
+      organizationId: '7bd23286-0000-4000-8000-000000000001',
+      namespace: StorageNamespace.KnowledgeBase,
+      mediaType: 'document',
+      assetId: '550e8400-e29b-41d4-a716-446655440000',
+      mimeType: 'application/pdf',
+      fileName: 'pricing.pdf',
+    })
+
+    assert.equal(
+      key,
+      'organizations/7bd23286-0000-4000-8000-000000000001/knowledge-base/documents/550e8400-e29b-41d4-a716-446655440000.pdf'
+    )
+    assert.equal(
+      retentionForNamespace(StorageNamespace.KnowledgeBase),
+      StorageRetentionPolicy.UntilDeleted
+    )
+  })
+
   test('builds v2 organization namespace keys for media library', ({ assert }) => {
     const key = buildOrganizationStorageKey({
       organizationId: '7bd23286-0000-4000-8000-000000000001',
