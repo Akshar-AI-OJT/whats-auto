@@ -71,6 +71,16 @@ export default class BullmqJobQueueDriver implements JobQueueDriver {
     return job.id
   }
 
+  async remove(name: string, singletonKey: string): Promise<void> {
+    const queue = this.#queue(name)
+    const existing = await queue.getJob(singletonKey)
+    if (!existing) return
+    const state = await existing.getState()
+    if (state === 'delayed' || state === 'waiting' || state === 'prioritized') {
+      await existing.remove()
+    }
+  }
+
   async work(name: string, handler: JobHandler): Promise<void> {
     const connection = this.#requireConnection()
     const worker = new Worker(

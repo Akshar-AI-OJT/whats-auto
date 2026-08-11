@@ -113,6 +113,37 @@ export default class AiDebounceService {
     }
   }
 
+  async cancelPending(organizationId: string, conversationId: string): Promise<void> {
+    try {
+      const store = await this.#store()
+      await store.del(tenantRedisKey('debounce', organizationId, conversationId))
+    } catch (error) {
+      logger.warn(
+        {
+          organizationId,
+          conversationId,
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'ai.debounce.cancel_buffer_failed'
+      )
+    }
+
+    try {
+      const manager = this.queue ?? (await app.container.make(JobQueueManager))
+      const driver = await manager.ensureStarted(manager.aiDriverName())
+      await driver.remove?.(JOB_NAMES.AI_DEBOUNCE_TURN, conversationId)
+    } catch (error) {
+      logger.warn(
+        {
+          organizationId,
+          conversationId,
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'ai.debounce.cancel_job_failed'
+      )
+    }
+  }
+
   async #store(): Promise<TenantRedisStore> {
     if (this.store) return this.store
     return app.container.make(TenantRedisStore)

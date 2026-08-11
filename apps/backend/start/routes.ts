@@ -36,6 +36,7 @@ const WhatsappEmbeddedSignupController = () =>
 const WhatsappConfigsController = () => import('#controllers/whatsapp_configs_controller')
 const MessageTemplatesController = () => import('#controllers/message_templates_controller')
 const MessagesController = () => import('#controllers/messages_controller')
+const ConversationAiController = () => import('#controllers/conversation_ai_controller')
 const ConversationNotesController = () => import('#controllers/conversation_notes_controller')
 const MediaUploadsController = () => import('#controllers/media_uploads_controller')
 const MediaAssetsController = () => import('#controllers/media_assets_controller')
@@ -779,6 +780,12 @@ router
       .use(middleware.requirePermission({ permission: 'inbox:view' }))
     router
       .post('/:id/messages', [MessagesController, 'store'])
+      .use(middleware.requirePermission({ permission: 'inbox:reply' }))
+    router
+      .post('/:id/ai/takeover', [ConversationAiController, 'takeover'])
+      .use(middleware.requirePermission({ permission: 'inbox:reply' }))
+    router
+      .post('/:id/ai/resume', [ConversationAiController, 'resume'])
       .use(middleware.requirePermission({ permission: 'inbox:reply' }))
     router
       .get('/:id/notes', [ConversationNotesController, 'index'])

@@ -40,6 +40,13 @@ export default class ConversationException extends Exception {
     })
   }
 
+  static invalidAiTransition() {
+    return new this('Conversation AI mode cannot change that way', {
+      status: 422,
+      code: 'E_CONVERSATION_AI_TRANSITION',
+    })
+  }
+
   handle(error: this, { response }: HttpContext) {
     return response.status(error.status).send({
       error: error.message,
