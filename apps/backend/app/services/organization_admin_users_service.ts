@@ -1,4 +1,6 @@
 import db from '@adonisjs/lucid/services/db'
+import logger from '@adonisjs/core/services/logger'
+import { NotificationService } from '#services/notification_service'
 import { DateTime } from 'luxon'
 
 const ORGANIZATION_USER_SELECT = [
@@ -115,6 +117,10 @@ export class OrganizationAdminUsersService {
 
     updates.updatedBy = actorUserId
 
+    const previousIsActive = Boolean(existing.isActive)
+    const nextIsActive =
+      updates.isActive !== undefined ? Boolean(updates.isActive) : previousIsActive
+
     await db.transaction(async (trx) => {
       await trx.from('users').where('id', userId).update(updates)
 
@@ -133,6 +139,20 @@ export class OrganizationAdminUsersService {
         after: JSON.stringify(updates),
       })
     })
+
+    if (previousIsActive === true && nextIsActive === false) {
+      const workspaceName = await this.#loadOrganizationName(organizationId)
+      await this.#notifyUserBestEffort({
+        organizationId,
+        userId,
+        actorUserId,
+        type: 'team_user_deactivated',
+        title: 'Your account was deactivated',
+        body: workspaceName
+          ? `Your account was deactivated in ${workspaceName}.`
+          : 'Your account was deactivated.',
+      })
+    }
 
     const updated = await this.getUserById({ organizationId, userId })
     if (!updated) {
@@ -186,5 +206,43 @@ export class OrganizationAdminUsersService {
     })
 
     return { ok: true as const }
+  }
+
+  async #loadOrganizationName(organizationId: string): Promise<string | null> {
+    const org = await db.from('organizations').where('id', organizationId).select('name').first()
+    return (org?.name as string | undefined) ?? null
+  }
+
+  /**
+   * Best-effort in-app notification for an organization user. Never throws.
+   */
+  async #notifyUserBestEffort(params: {
+    organizationId: string
+    userId: string
+    actorUserId: string
+    type: string
+    title: string
+    body: string
+  }): Promise<void> {
+    try {
+      await new NotificationService().createNotification({
+        organizationId: params.organizationId,
+        userId: params.userId,
+        type: params.type,
+        title: params.title,
+        body: params.body,
+        actorUserId: params.actorUserId,
+      })
+    } catch (error) {
+      logger.error(
+        {
+          organizationId: params.organizationId,
+          userId: params.userId,
+          type: params.type,
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'team.notification_failed'
+      )
+    }
   }
 }

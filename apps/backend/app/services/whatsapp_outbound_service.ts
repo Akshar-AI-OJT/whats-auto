@@ -44,6 +44,7 @@ import {
 } from '#repositories/whatsapp_outbound_repository'
 import JobQueueManager from '#services/job_queue/job_queue_manager'
 import { JOB_NAMES } from '#services/job_queue/job_names'
+import { NotificationService } from '#services/notification_service'
 import { runWithTenant } from '#services/tenant_context'
 import { WhatsappConfigService } from '#services/whatsapp_config_service'
 
@@ -633,6 +634,13 @@ export default class WhatsappOutboundService {
         })
       }
 
+      // After terminal failed state is persisted — best-effort in-app notify.
+      await this.#notifyTerminalMessageFailedBestEffort({
+        organizationId: params.organizationId,
+        messageId: params.dispatch.messageId,
+        errorMessage,
+      })
+
       return {
         outcome: 'failed',
         dispatchId: params.dispatch.id,
@@ -725,6 +733,79 @@ export default class WhatsappOutboundService {
       .first()
 
     return (row?.conversationId as string | undefined) ?? null
+  }
+
+  /**
+   * Best-effort in-app notification when outbound reaches terminal failed.
+   * Recipient: message.senderId, else conversation.assignedAgentId. Skips system/campaign with no user.
+   * Never throws.
+   */
+  async #notifyTerminalMessageFailedBestEffort(params: {
+    organizationId: string
+    messageId: string
+    errorMessage: string
+  }): Promise<void> {
+    try {
+      const message = await db
+        .from('messages')
+        .where('id', params.messageId)
+        .where('organizationId', params.organizationId)
+        .select('id', 'senderId', 'conversationId')
+        .first()
+
+      if (!message?.conversationId) return
+
+      const conversation = await db
+        .from('conversations as c')
+        .leftJoin('contacts as ct', 'ct.id', 'c.contactId')
+        .where('c.id', message.conversationId)
+        .where('c.organizationId', params.organizationId)
+        .select('c.contactId', 'c.assignedAgentId', 'ct.name as contactName', 'ct.phone as contactPhone')
+        .first()
+
+      const recipientUserId =
+        (message.senderId as string | null) ??
+        (conversation?.assignedAgentId as string | null) ??
+        null
+
+      if (!recipientUserId) {
+        logger.warn(
+          {
+            organizationId: params.organizationId,
+            messageId: params.messageId,
+            type: 'inbox_message_failed',
+          },
+          'inbox.notification_skipped_no_recipient'
+        )
+        return
+      }
+
+      const contactLabel =
+        (conversation?.contactName as string | undefined)?.trim() ||
+        (conversation?.contactPhone as string | undefined) ||
+        'a contact'
+
+      await new NotificationService().createNotification({
+        organizationId: params.organizationId,
+        userId: recipientUserId,
+        type: 'inbox_message_failed',
+        title: 'Message failed to send',
+        body: `Your message to ${contactLabel} failed to send: ${params.errorMessage}`,
+        conversationId: message.conversationId as string,
+        contactId: (conversation?.contactId as string | null) ?? null,
+        actorUserId: null,
+      })
+    } catch (error) {
+      logger.error(
+        {
+          organizationId: params.organizationId,
+          messageId: params.messageId,
+          type: 'inbox_message_failed',
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'inbox.notification_failed'
+      )
+    }
   }
 
   async #emitInboxMessageQueued(params: {
