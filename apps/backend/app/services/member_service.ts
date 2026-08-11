@@ -1,8 +1,10 @@
 import db from '@adonisjs/lucid/services/db'
+import logger from '@adonisjs/core/services/logger'
 import { AuthorizationService } from '#services/authorization_service'
 import type { Permission } from '#abilities/permissions'
 import RoleException from '#exceptions/role_exception'
 import { resolveAssignableRoleForOrg } from '#services/role_service'
+import { NotificationService } from '#services/notification_service'
 import { DateTime } from 'luxon'
 
 export class MemberService {
@@ -68,6 +70,8 @@ export class MemberService {
       throw new Error('Cannot change the Owner role directly. Use ownership transfer.')
     }
 
+    const oldRole = member.role as string
+
     await db.transaction(async (trx) => {
       await trx.rawQuery(
         `UPDATE "organization_members"
@@ -92,6 +96,20 @@ export class MemberService {
         after: JSON.stringify({ role: newRole }),
       })
     })
+
+    if (oldRole !== newRole) {
+      const workspaceName = await this.#loadOrganizationName(organizationId)
+      await this.#notifyMemberBestEffort({
+        organizationId,
+        userId: member.userId as string,
+        actorUserId,
+        type: 'team_member_role_changed',
+        title: 'Your role was updated',
+        body: workspaceName
+          ? `Your role in ${workspaceName} changed from ${oldRole} to ${newRole}.`
+          : `Your role changed from ${oldRole} to ${newRole}.`,
+      })
+    }
   }
 
   /**
@@ -133,5 +151,55 @@ export class MemberService {
         }),
       })
     })
+
+    const workspaceName = await this.#loadOrganizationName(organizationId)
+    await this.#notifyMemberBestEffort({
+      organizationId,
+      userId: member.userId as string,
+      actorUserId,
+      type: 'team_member_removed',
+      title: 'You were removed from this workspace',
+      body: workspaceName
+        ? `You were removed from ${workspaceName}.`
+        : 'You were removed from this workspace.',
+    })
+  }
+
+  async #loadOrganizationName(organizationId: string): Promise<string | null> {
+    const org = await db.from('organizations').where('id', organizationId).select('name').first()
+    return (org?.name as string | undefined) ?? null
+  }
+
+  /**
+   * Best-effort in-app notification for a team member. Never throws.
+   */
+  async #notifyMemberBestEffort(params: {
+    organizationId: string
+    userId: string
+    actorUserId: string
+    type: string
+    title: string
+    body: string
+  }): Promise<void> {
+    try {
+      await new NotificationService().createNotification({
+        organizationId: params.organizationId,
+        userId: params.userId,
+        type: params.type,
+        title: params.title,
+        body: params.body,
+        actorUserId: params.actorUserId,
+      })
+    } catch (error) {
+      logger.error(
+        {
+          organizationId: params.organizationId,
+          userId: params.userId,
+          type: params.type,
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'team.notification_failed'
+      )
+    }
   }
 }

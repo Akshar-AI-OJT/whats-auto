@@ -7,6 +7,7 @@ import { parseParameterSchema } from '#lib/meta_whatsapp/template_parameters'
 import type { TemplateParameterSchema } from '#lib/meta_whatsapp/types'
 import JobQueueManager from '#services/job_queue/job_queue_manager'
 import { JOB_NAMES } from '#services/job_queue/job_names'
+import { NotificationService } from '#services/notification_service'
 import type { CAMPAIGN_STATUSES } from '#validators/campaign'
 import {
   CAMPAIGN_SORT_FIELDS,
@@ -736,6 +737,15 @@ export class CampaignService {
       headerMediaAssetId: (row.headerMediaAssetId as string | null) ?? null,
     })
 
+    await this.notifyCreatorBestEffort({
+      organizationId: params.organizationId,
+      createdByUserId: (row.createdByUserId as string | null) ?? null,
+      type: 'campaign_scheduled',
+      title: 'Campaign scheduled',
+      body: `“${row.name as string}” is scheduled for ${scheduledAt.toISOString()}.`,
+      campaignId: params.campaignId,
+    })
+
     return mapCampaignRow(row)
   }
 
@@ -790,6 +800,15 @@ export class CampaignService {
 
     await this.unregisterCampaignSchedule({
       organizationId: params.organizationId,
+      campaignId: params.campaignId,
+    })
+
+    await this.notifyCreatorBestEffort({
+      organizationId: params.organizationId,
+      createdByUserId: (row.createdByUserId as string | null) ?? null,
+      type: 'campaign_cancelled',
+      title: 'Campaign cancelled',
+      body: `Scheduled campaign “${row.name as string}” was cancelled and returned to draft.`,
       campaignId: params.campaignId,
     })
 
@@ -863,6 +882,15 @@ export class CampaignService {
       headerMediaAssetId: (row.headerMediaAssetId as string | null) ?? null,
     })
 
+    await this.notifyCreatorBestEffort({
+      organizationId: params.organizationId,
+      createdByUserId: (row.createdByUserId as string | null) ?? null,
+      type: 'campaign_started',
+      title: 'Campaign started',
+      body: `“${row.name as string}” has started sending.`,
+      campaignId: params.campaignId,
+    })
+
     return mapCampaignRow(row)
   }
 
@@ -892,6 +920,41 @@ export class CampaignService {
       ownerId: params.campaignId,
       protectedUntil: null,
     })
+  }
+
+  /**
+   * Best-effort lifecycle notification for the campaign creator.
+   * Skips when createdByUserId is null. Never throws — campaign flow must not fail on notify.
+   */
+  async notifyCreatorBestEffort(params: {
+    organizationId: string
+    createdByUserId: string | null
+    type: string
+    title: string
+    body: string
+    campaignId: string
+  }): Promise<void> {
+    if (!params.createdByUserId) return
+
+    try {
+      await new NotificationService().createNotification({
+        organizationId: params.organizationId,
+        userId: params.createdByUserId,
+        type: params.type,
+        title: params.title,
+        body: params.body,
+      })
+    } catch (error) {
+      logger.error(
+        {
+          campaignId: params.campaignId,
+          organizationId: params.organizationId,
+          type: params.type,
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'campaigns.notification_failed'
+      )
+    }
   }
 
   async #enqueueCampaignWake(params: {

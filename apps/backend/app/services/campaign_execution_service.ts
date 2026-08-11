@@ -238,6 +238,15 @@ export class CampaignExecutionService {
         })
       }
 
+      await this.campaigns.notifyCreatorBestEffort({
+        organizationId: params.organizationId,
+        createdByUserId: (campaign.createdByUserId as string | null) ?? null,
+        type: 'campaign_cancelled',
+        title: 'Campaign cancelled',
+        body: `“${campaign.name as string}” was cancelled while sending.`,
+        campaignId: params.campaignId,
+      })
+
       return this.campaigns.getCampaignById({
         campaignId: params.campaignId,
         organizationId: params.organizationId,
@@ -277,12 +286,24 @@ export class CampaignExecutionService {
         if (scheduledAt && scheduledAt.getTime() > Date.now() + 1000) {
           return { claimed: 0, remaining: Number(campaign.totalRecipients), finalized: false }
         }
-        await db
+        const [started] = await db
           .from('broadcasts')
           .where('id', params.campaignId)
           .where('organizationId', params.organizationId)
           .where('status', 'scheduled')
           .update({ status: 'sending' })
+          .returning(['id', 'name', 'createdByUserId'])
+
+        if (started) {
+          await this.campaigns.notifyCreatorBestEffort({
+            organizationId: params.organizationId,
+            createdByUserId: (started.createdByUserId as string | null) ?? null,
+            type: 'campaign_started',
+            title: 'Campaign started',
+            body: `“${started.name as string}” has started sending.`,
+            campaignId: params.campaignId,
+          })
+        }
       }
 
       if (!campaign.messageTemplateId || !campaign.whatsappConfigId) {
@@ -547,7 +568,7 @@ export class CampaignExecutionService {
     const sentCount = Number(campaign.sentCount ?? 0)
     const status = failedCount > 0 && sentCount === 0 ? 'failed' : 'sent'
 
-    await db
+    const [finalized] = await db
       .from('broadcasts')
       .where('id', params.campaignId)
       .where('organizationId', params.organizationId)
@@ -556,6 +577,29 @@ export class CampaignExecutionService {
         status,
         finalizedAt: now,
       })
+      .returning(['id', 'name', 'createdByUserId'])
+
+    if (finalized) {
+      if (status === 'sent') {
+        await this.campaigns.notifyCreatorBestEffort({
+          organizationId: params.organizationId,
+          createdByUserId: (finalized.createdByUserId as string | null) ?? null,
+          type: 'campaign_completed',
+          title: 'Campaign completed',
+          body: `“${finalized.name as string}” finished sending.`,
+          campaignId: params.campaignId,
+        })
+      } else {
+        await this.campaigns.notifyCreatorBestEffort({
+          organizationId: params.organizationId,
+          createdByUserId: (finalized.createdByUserId as string | null) ?? null,
+          type: 'campaign_failed',
+          title: 'Campaign failed',
+          body: `“${finalized.name as string}” failed — no messages were sent successfully.`,
+          campaignId: params.campaignId,
+        })
+      }
+    }
 
     if (campaign.headerMediaAssetId) {
       const protectedUntil = new Date(
@@ -576,6 +620,9 @@ export class CampaignExecutionService {
     reason: string
   ): Promise<void> {
     const now = new Date()
+    const existing = await this.#loadCampaignRow(params)
+    const wasAlreadyFailed = existing.status === 'failed'
+
     await db
       .from('broadcasts')
       .where('id', params.campaignId)
@@ -584,10 +631,23 @@ export class CampaignExecutionService {
         status: 'failed',
         finalizedAt: now,
       })
+
     logger.warn(
       { campaignId: params.campaignId, organizationId: params.organizationId, reason },
       'campaigns.execute.failed'
     )
+
+    // Notify only on the first transition into failed (not on retry re-writes).
+    if (!wasAlreadyFailed) {
+      await this.campaigns.notifyCreatorBestEffort({
+        organizationId: params.organizationId,
+        createdByUserId: (existing.createdByUserId as string | null) ?? null,
+        type: 'campaign_failed',
+        title: 'Campaign failed',
+        body: `“${existing.name as string}” failed: ${reason}`,
+        campaignId: params.campaignId,
+      })
+    }
   }
 
   async #enqueueCampaignWake(params: {
