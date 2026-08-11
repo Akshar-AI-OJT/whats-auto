@@ -8,6 +8,9 @@ export const JOB_NAMES = {
   MEDIA_STORAGE_LIFECYCLE: 'media.storage.lifecycle',
   CAMPAIGN_EXECUTE: 'campaigns.execute',
   CAMPAIGN_RECOVERY: 'campaigns.recovery',
+  AI_PROCESS_DOCUMENT: 'ai.process_document',
+  AI_DEBOUNCE_TURN: 'ai.debounce_turn',
+  AI_SUMMARIZE_CONVERSATION: 'ai.summarize_conversation',
 } as const
 
 export type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES]

@@ -1,5 +1,5 @@
 /**
- * Neutral job-queue contract. Drivers: pgboss now, redis later.
+ * Neutral job-queue contract. Drivers: pgboss | bullmq | null.
  * Domain owns retry state; the queue only wakes work.
  */
 

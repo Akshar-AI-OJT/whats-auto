@@ -4,9 +4,10 @@ import NullJobQueueDriver from '#services/job_queue/drivers/null_driver'
 import PgBossJobQueueDriver, {
   defaultPgBossQueues,
 } from '#services/job_queue/drivers/pg_boss_driver'
+import BullmqJobQueueDriver from '#services/job_queue/drivers/bullmq_driver'
 
 /**
- * Resolves the configured job-queue driver (pgboss | null).
+ * Resolves the configured job-queue driver (pgboss | bullmq | null).
  * Cache one instance per driver name for the process lifetime.
  */
 export default class JobQueueManager {
@@ -57,6 +58,15 @@ export default class JobQueueManager {
     this.#started.clear()
   }
 
+  /**
+   * Optional second driver for AI jobs (BullMQ). Undefined when unset or `null`.
+   */
+  aiDriverName(): string | undefined {
+    const name = this.app.config.get<string | undefined>('job_queue.ai')
+    if (!name || name === 'null') return undefined
+    return name
+  }
+
   #defaultName(): string {
     return this.app.config.get<string>('job_queue.default', 'null')
   }
@@ -71,10 +81,13 @@ export default class JobQueueManager {
           this.app.config.get<string[]>('job_queue.drivers.pgboss.queues') ?? defaultPgBossQueues()
         return new PgBossJobQueueDriver({ schema, queues })
       }
+      case 'bullmq': {
+        const redisUrl = this.app.config.get<string>('job_queue.drivers.bullmq.redisUrl', '')
+        const prefix = this.app.config.get<string>('job_queue.drivers.bullmq.prefix', 'wa:bullmq')
+        return new BullmqJobQueueDriver({ redisUrl, prefix })
+      }
       default:
-        throw new Error(
-          `Unknown job queue driver "${name}". Supported: pgboss, null (redis reserved for later).`
-        )
+        throw new Error(`Unknown job queue driver "${name}". Supported: pgboss, bullmq, null.`)
     }
   }
 }

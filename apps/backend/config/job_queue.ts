@@ -4,9 +4,11 @@ import { JOB_NAMES } from '#services/job_queue/job_names'
 /**
  * Job queue driver selection. HTTP processes only enqueue; workers consume.
  * retryLimit is always 0 at the driver for outbound — domain owns backoff.
+ * AI jobs use the optional `ai` driver (bullmq) and do not migrate pgboss jobs.
  */
 const jobQueueConfig = {
   default: (env.get('JOB_QUEUE_DRIVER') ?? 'null') as 'pgboss' | 'null',
+  ai: (env.get('JOB_QUEUE_AI_DRIVER') ?? undefined) as 'bullmq' | 'null' | undefined,
 
   drivers: {
     null: {},
@@ -22,6 +24,10 @@ const jobQueueConfig = {
         JOB_NAMES.CAMPAIGN_EXECUTE,
         JOB_NAMES.CAMPAIGN_RECOVERY,
       ],
+    },
+    bullmq: {
+      redisUrl: env.get('REDIS_URL') ?? '',
+      prefix: env.get('JOB_QUEUE_BULLMQ_PREFIX') ?? 'wa:bullmq',
     },
   },
 }
