@@ -1286,7 +1286,8 @@
       "steps": {
         "basics": "Basics",
         "company": "Company",
-        "preferences": "Preferences"
+        "preferences": "Preferences",
+        "plan": "Plan"
       },
       "ownerNote": "You become the Owner automatically when you create this organization. Owner is never selected manually.",
       "name": "Organization Name",
@@ -1304,6 +1305,7 @@
       "continue": "Continue",
       "back": "Back",
       "createWorkspace": "Create Workspace",
+      "continueToDashboard": "Continue to dashboard",
       "creating": "Creating workspace…",
       "step1": {
         "title": "Create your organization",
@@ -1406,6 +1408,16 @@
           }
         }
       },
+      "step4": {
+        "title": "Choose a subscription plan",
+        "subtitle": "Pick the plan that fits your workspace today. You can update billing anytime from the Dashboard.",
+        "chooseCta": "Choose plan",
+        "selectedCta": "Selected",
+        "enterpriseCta": "Contact sales",
+        "enterpriseCustomPrice": "Custom",
+        "summaryLabel": "Selected plan",
+        "summaryNote": "This is a UI-only onboarding selection for now."
+      },
       "errors": {
         "generic": "Something went wrong. Please try again.",
         "sessionExpired": "Your session expired. Please sign in again.",
@@ -1424,7 +1436,8 @@
         "languageRequired": "Select a default language.",
         "dateFormatRequired": "Select a date format.",
         "timeFormatRequired": "Select a time format.",
-        "themeRequired": "Select a theme preference."
+        "themeRequired": "Select a theme preference.",
+        "planRequired": "Please select a subscription plan."
       }
     }
   },
@@ -2322,6 +2335,22 @@
         "permissionDenied": "You don’t have permission to view billing in this workspace.",
         "loadFailed": "Couldn’t load subscription. Please try again.",
         "checkoutFailed": "Couldn’t start checkout. Please try again."
+      },
+      "plansTitle": "Available plans",
+      "plansDescription": "Change your subscription plan anytime.",
+      "featuresLabel": "Features",
+      "currentPlanBadge": "Current plan",
+      "changePlanCta": "Change plan",
+      "enterpriseCta": "Contact sales",
+      "changeDialogTitle": "Confirm plan change",
+      "changeDialogDescription": "Switching plans updates your entitlements. This is UI-only for now.",
+      "changeDialogNoteUiOnly": "No billing change is performed yet.",
+      "confirmChange": "Confirm",
+      "cancel": "Cancel",
+      "limits": {
+        "users": "User limit",
+        "messages": "Message limit",
+        "workspaces": "Workspace limit"
       }
     },
     "sidebar": {
@@ -2906,7 +2935,7 @@
     "subscriptions": {
       "eyebrow": "Billing catalog",
       "title": "Subscriptions",
-      "subtitle": "Manage organization subscriptions and review platform plans.",
+      "subtitle": "Manage organization subscriptions from the platform billing API.",
       "tableTitle": "All subscriptions",
       "tableDescription": "{count, plural, =0 {No subscriptions} one {# subscription} other {# subscriptions}}",
       "create": "Create subscription",

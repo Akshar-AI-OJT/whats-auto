@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useId, useMemo, useState } from 'react'
-import { Check, Infinity, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
+import { Check, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -12,10 +12,7 @@ import {
   listSuperAdminOrganizations,
   type AdminOrganizationListItem,
 } from '@/components/admin/organizations/organization-api'
-import {
-  MOCK_PLATFORM_PLANS,
-  type MockPlatformPlan,
-} from '../mock-data'
+import { MOCK_PLATFORM_PLANS, type PlatformPlanId } from '../mock-data'
 import {
   createSuperAdminSubscription,
   dateInputToIso,
@@ -83,121 +80,6 @@ function formatDisplayDate(value: string) {
     month: 'short',
     day: 'numeric',
   })
-}
-
-function formatLimit(
-  value: number | null,
-  unlimitedLabel: string,
-  formatter?: (n: number) => string
-) {
-  if (value == null) return unlimitedLabel
-  return formatter ? formatter(value) : value.toLocaleString('en-US')
-}
-
-function PlanCard({
-  plan,
-  labels,
-}: {
-  plan: MockPlatformPlan
-  labels: {
-    name: string
-    description: string
-    perMonth: string
-    customPrice: string
-    users: string
-    messages: string
-    workspaces: string
-    features: string
-    unlimited: string
-    activeOrgs: string
-    popular: string
-    featureItems: Record<string, string>
-  }
-}) {
-  const priceLabel =
-    plan.priceMonthly == null
-      ? labels.customPrice
-      : `$${plan.priceMonthly.toLocaleString('en-US')}`
-
-  return (
-    <DashboardPanel
-      as="article"
-      className={cn(
-        'group relative flex h-full flex-col overflow-hidden p-5 sm:p-6',
-        'transition-[transform,box-shadow,border-color] duration-200 ease-out',
-        'hover:-translate-y-0.5 hover:border-dash-border-strong hover:dash-elevated-shadow',
-        plan.highlighted && 'border-primary/45 shadow-[0_0_0_1px_rgb(159_232_112/0.28)]'
-      )}
-    >
-      {plan.highlighted ? (
-        <span className="absolute top-4 right-4 rounded-lg bg-primary-pale px-2 py-0.5 text-[11px] font-semibold text-positive-deep ring-1 ring-primary/30">
-          {labels.popular}
-        </span>
-      ) : null}
-
-      <div className="min-w-0 pr-16">
-        <h3 className="font-display text-xl font-semibold tracking-tight text-ink">
-          {labels.name}
-        </h3>
-        <p className="mt-1.5 text-sm leading-6 text-mute">{labels.description}</p>
-      </div>
-
-      <div className="mt-5 flex items-baseline gap-1.5">
-        <span className="font-display text-3xl font-semibold tracking-tight text-ink tabular-nums sm:text-4xl">
-          {priceLabel}
-        </span>
-        {plan.priceMonthly != null ? (
-          <span className="text-sm text-mute">{labels.perMonth}</span>
-        ) : null}
-      </div>
-
-      <p className="mt-2 text-xs font-medium text-mute">{labels.activeOrgs}</p>
-
-      <dl className="mt-5 grid gap-2.5 rounded-2xl border border-dash-border bg-dash-surface/70 p-3.5">
-        <div className="flex items-center justify-between gap-3 text-sm">
-          <dt className="text-mute">{labels.users}</dt>
-          <dd className="inline-flex items-center gap-1 font-semibold tabular-nums text-ink">
-            {plan.userLimit == null ? (
-              <>
-                <Infinity className="size-3.5 text-positive-deep" aria-hidden />
-                {labels.unlimited}
-              </>
-            ) : (
-              plan.userLimit.toLocaleString('en-US')
-            )}
-          </dd>
-        </div>
-        <div className="flex items-center justify-between gap-3 text-sm">
-          <dt className="text-mute">{labels.messages}</dt>
-          <dd className="font-semibold tabular-nums text-ink">
-            {formatLimit(plan.messageLimit, labels.unlimited)}
-          </dd>
-        </div>
-        <div className="flex items-center justify-between gap-3 text-sm">
-          <dt className="text-mute">{labels.workspaces}</dt>
-          <dd className="font-semibold tabular-nums text-ink">
-            {formatLimit(plan.workspaceLimit, labels.unlimited)}
-          </dd>
-        </div>
-      </dl>
-
-      <div className="mt-5 flex min-h-0 flex-1 flex-col">
-        <p className="text-xs font-semibold tracking-wide text-mute uppercase">
-          {labels.features}
-        </p>
-        <ul className="mt-3 flex flex-col gap-2">
-          {plan.featureKeys.map((key) => (
-            <li key={key} className="flex items-start gap-2.5 text-sm text-body">
-              <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md bg-primary-pale text-positive-deep">
-                <Check className="size-3.5" aria-hidden />
-              </span>
-              <span>{labels.featureItems[key] ?? key}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </DashboardPanel>
-  )
 }
 
 function StatusBadge({ status, label }: { status: string; label: string }) {
@@ -390,6 +272,22 @@ export function SubscriptionsPage() {
     }
   }
 
+  function planKeyFromPlanId(planId: string): PlatformPlanId {
+    const starterId = DEMO_PLAN_OPTIONS.find((p) => p.label === 'Starter')?.id
+    const growthId = DEMO_PLAN_OPTIONS.find((p) => p.label === 'Growth')?.id
+    const scaleId = DEMO_PLAN_OPTIONS.find((p) => p.label === 'Scale')?.id
+
+    if (starterId && planId === starterId) return 'starter'
+    if (growthId && planId === growthId) return 'growth'
+    if (scaleId && planId === scaleId) return 'scale'
+    return 'enterprise'
+  }
+
+  function formatLimit(value: number | null, unlimitedLabel: string) {
+    if (value == null) return unlimitedLabel
+    return value.toLocaleString('en-US')
+  }
+
   function renderFormFields(
     form: SubscriptionFormState,
     setForm: (next: SubscriptionFormState) => void,
@@ -420,27 +318,141 @@ export function SubscriptionsPage() {
           </div>
         ) : null}
 
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="sub-plan" className="text-sm font-medium text-ink">
-            {t('fields.planId')}
-          </label>
-          <select
-            id="sub-plan"
-            value={form.planId}
-            disabled={pending}
-            onChange={(e) => setForm({ ...form, planId: e.target.value })}
-            className={selectClassName}
-          >
-            {DEMO_PLAN_OPTIONS.map((plan) => (
-              <option key={plan.id} value={plan.id}>
-                {plan.label}
-              </option>
-            ))}
-            {form.planId &&
-            !DEMO_PLAN_OPTIONS.some((plan) => plan.id === form.planId) ? (
-              <option value={form.planId}>{form.planId}</option>
-            ) : null}
-          </select>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-ink">{t('fields.planId')}</label>
+
+            {/* Show 2 cards per row in the modal to reduce vertical scrolling */}
+            <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
+              {MOCK_PLATFORM_PLANS.map((plan) => {
+                const isSelected = planKeyFromPlanId(form.planId) === plan.id
+                const isEnterprise = plan.id === 'enterprise'
+
+                const price =
+                  plan.priceMonthly == null
+                    ? t('customPrice')
+                    : `$${plan.priceMonthly.toLocaleString('en-US')}`
+
+                const perMonth = t('perMonth')
+                const unlimited = t('unlimited')
+
+                const starterId = DEMO_PLAN_OPTIONS.find((p) => p.label === 'Starter')?.id
+                const growthId = DEMO_PLAN_OPTIONS.find((p) => p.label === 'Growth')?.id
+                const scaleId = DEMO_PLAN_OPTIONS.find((p) => p.label === 'Scale')?.id
+
+                const nextPlanId =
+                  plan.id === 'starter'
+                    ? starterId ?? ''
+                    : plan.id === 'growth'
+                      ? growthId ?? ''
+                      : plan.id === 'scale'
+                        ? scaleId ?? ''
+                        : ''
+
+                return (
+                  <button
+                    key={plan.id}
+                    type="button"
+                    disabled={pending}
+                    onClick={() => {
+                      setForm({ ...form, planId: isEnterprise ? '' : nextPlanId })
+                    }}
+                    aria-pressed={isSelected}
+                    className={cn(
+                      'group relative flex flex-col gap-3 rounded-2xl p-3 text-left sm:p-4',
+                      'border bg-canvas/70 transition-[border-color,box-shadow,transform] duration-200 ease-out',
+                      isSelected
+                        ? 'border-primary/60 shadow-[0_0_0_1px_rgb(159_232_112/0.28)]'
+                        : 'border-[#E2E8F0] hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-sm'
+                    )}
+                  >
+                    {plan.highlighted ? (
+                      <span className="absolute right-4 top-4 rounded-lg bg-primary-pale px-2 py-0.5 text-[11px] font-semibold text-positive-deep ring-1 ring-primary/30">
+                        {t('popular')}
+                      </span>
+                    ) : null}
+
+                    <div className="min-w-0">
+                      <h3 className="font-display text-base font-semibold tracking-tight text-ink sm:text-lg">
+                        {t(`plans.${plan.id}.name`)}
+                      </h3>
+                      <p className="mt-1 break-words text-sm leading-6 text-mute">
+                        {t(`plans.${plan.id}.description`)}
+                      </p>
+                    </div>
+
+                    <div className="flex items-baseline gap-2">
+                      <span className="font-display text-3xl font-semibold tracking-tight text-ink tabular-nums">
+                        {price}
+                      </span>
+                      {plan.priceMonthly != null ? (
+                        <span className="text-sm text-mute">{perMonth}</span>
+                      ) : null}
+                    </div>
+
+                    <dl className="grid gap-2 rounded-2xl border border-dash-border bg-dash-surface/70 p-3">
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <dt className="text-mute">{t('limits.users')}</dt>
+                        <dd className="font-semibold tabular-nums text-ink">
+                          {formatLimit(plan.userLimit, unlimited)}
+                        </dd>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <dt className="text-mute">{t('limits.messages')}</dt>
+                        <dd className="font-semibold tabular-nums text-ink">
+                          {formatLimit(plan.messageLimit, unlimited)}
+                        </dd>
+                      </div>
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <dt className="text-mute">{t('limits.workspaces')}</dt>
+                        <dd className="font-semibold tabular-nums text-ink">
+                          {formatLimit(plan.workspaceLimit, unlimited)}
+                        </dd>
+                      </div>
+                    </dl>
+
+                    <div className="flex min-h-0 flex-1 flex-col gap-2">
+                      <p className="text-xs font-semibold tracking-wide text-mute uppercase">
+                        {t('featuresLabel')}
+                      </p>
+                      <ul className="flex flex-col gap-1.5">
+                        {plan.featureKeys.map((key) => (
+                          <li
+                            key={key}
+                            className="flex items-start gap-2 text-sm text-body"
+                          >
+                            <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md bg-primary-pale text-positive-deep">
+                              <Check className="size-3.5" aria-hidden />
+                            </span>
+                            <span>{t(`features.${key}`)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {planKeyFromPlanId(form.planId) === 'enterprise' ? (
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="sub-plan-custom" className="text-sm font-medium text-ink">
+                {t('fields.planId')}
+              </label>
+              <Input
+                id="sub-plan-custom"
+                value={form.planId}
+                disabled={pending}
+                onChange={(e) => setForm({ ...form, planId: e.target.value })}
+                className="h-11 rounded-xl border-dash-border"
+                placeholder="00000000-0000-0000-0000-000000000000"
+              />
+              <p className="text-xs leading-4 text-mute">
+                Enter the enterprise plan UUID to create this subscription.
+              </p>
+            </div>
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -787,50 +799,6 @@ export function SubscriptionsPage() {
         )}
       </DashboardPanel>
 
-      <section className="flex flex-col gap-4">
-        <DashboardSectionHeader
-          title={t('plansTitle')}
-          description={t('plansDescription')}
-        />
-
-        <div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 xl:gap-5">
-          {MOCK_PLATFORM_PLANS.map((plan) => (
-            <PlanCard
-              key={plan.id}
-              plan={plan}
-              labels={{
-                name: t(`plans.${plan.id}.name`),
-                description: t(`plans.${plan.id}.description`),
-                perMonth: t('perMonth'),
-                customPrice: t('customPrice'),
-                users: t('limits.users'),
-                messages: t('limits.messages'),
-                workspaces: t('limits.workspaces'),
-                features: t('featuresLabel'),
-                unlimited: t('unlimited'),
-                activeOrgs: t('activeOrgs', { count: plan.activeOrgs }),
-                popular: t('popular'),
-                featureItems: {
-                  inbox: t('features.inbox'),
-                  basicCampaigns: t('features.basicCampaigns'),
-                  campaigns: t('features.campaigns'),
-                  templates: t('features.templates'),
-                  emailSupport: t('features.emailSupport'),
-                  automation: t('features.automation'),
-                  analytics: t('features.analytics'),
-                  prioritySupport: t('features.prioritySupport'),
-                  webhooks: t('features.webhooks'),
-                  roles: t('features.roles'),
-                  sso: t('features.sso'),
-                  dedicatedSupport: t('features.dedicatedSupport'),
-                  sla: t('features.sla'),
-                },
-              }}
-            />
-          ))}
-        </div>
-      </section>
-
       {createOpen ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 backdrop-blur-[2px]"
@@ -843,7 +811,7 @@ export function SubscriptionsPage() {
             role="dialog"
             aria-modal="true"
             aria-labelledby={createTitleId}
-            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-dash-border bg-canvas p-5 shadow-[0_20px_50px_rgb(15_23_42/0.18)] sm:p-6"
+            className="max-h-[95vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-dash-border bg-canvas p-5 shadow-[0_20px_50px_rgb(15_23_42/0.18)] sm:p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 id={createTitleId} className="font-display text-lg tracking-tight text-ink">
@@ -902,7 +870,7 @@ export function SubscriptionsPage() {
             role="dialog"
             aria-modal="true"
             aria-labelledby={editTitleId}
-            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-dash-border bg-canvas p-5 shadow-[0_20px_50px_rgb(15_23_42/0.18)] sm:p-6"
+            className="max-h-[95vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-dash-border bg-canvas p-5 shadow-[0_20px_50px_rgb(15_23_42/0.18)] sm:p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 id={editTitleId} className="font-display text-lg tracking-tight text-ink">
