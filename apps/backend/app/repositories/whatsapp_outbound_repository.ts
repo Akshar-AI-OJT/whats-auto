@@ -131,7 +131,7 @@ export class WhatsappOutboundRepository {
       organizationId: string
       whatsappConfigId: string
       conversationId: string
-      senderType: 'agent' | 'system'
+      senderType: 'agent' | 'system' | 'ai'
       senderId: string | null
       contentType: string
       contentText: string | null

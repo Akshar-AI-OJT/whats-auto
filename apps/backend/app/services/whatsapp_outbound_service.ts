@@ -42,6 +42,7 @@ import {
   type OutboundDispatchPayload,
   type OutboundDispatchRow,
 } from '#repositories/whatsapp_outbound_repository'
+import { MemoryWorkingSetService } from '#services/ai/contracts/memory_working_set_service'
 import JobQueueManager from '#services/job_queue/job_queue_manager'
 import { JOB_NAMES } from '#services/job_queue/job_names'
 import { runWithTenant } from '#services/tenant_context'
@@ -109,6 +110,7 @@ export default class WhatsappOutboundService {
     text: string
     actorUserId?: string | null
     idempotencyKey?: string | null
+    senderType?: 'agent' | 'system' | 'ai'
   }): Promise<QueueOutboundResult> {
     const text = params.text.trim()
     if (!text) {
@@ -131,6 +133,7 @@ export default class WhatsappOutboundService {
           conversationId: params.conversationId,
           whatsappConfigId: ctx.whatsappConfigId,
           actorUserId: params.actorUserId,
+          senderType: params.senderType,
           contentType: 'text',
           contentText: text,
           messageTemplateId: null,
@@ -150,6 +153,13 @@ export default class WhatsappOutboundService {
       await this.#enqueueDispatchWake({
         organizationId: params.organizationId,
         dispatchId: queued.dispatchId,
+      })
+
+      await this.#appendAssistantTurn({
+        organizationId: params.organizationId,
+        conversationId: params.conversationId,
+        messageId: queued.messageId,
+        content: text,
       })
 
       return queued
@@ -755,6 +765,33 @@ export default class WhatsappOutboundService {
     }
   }
 
+  async #appendAssistantTurn(params: {
+    organizationId: string
+    conversationId: string
+    messageId: string
+    content: string
+  }): Promise<void> {
+    try {
+      const memory = await app.container.make(MemoryWorkingSetService)
+      await memory.appendTurn(params.organizationId, params.conversationId, {
+        role: 'assistant',
+        content: params.content,
+        timestamp: new Date().toISOString(),
+        messageId: params.messageId,
+      })
+    } catch (error) {
+      logger.warn(
+        {
+          organizationId: params.organizationId,
+          conversationId: params.conversationId,
+          messageId: params.messageId,
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'whatsapp.outbound.memory_append_failed'
+      )
+    }
+  }
+
   async #emitInboxMessageSent(params: {
     organizationId: string
     conversationId: string
@@ -1018,6 +1055,7 @@ export default class WhatsappOutboundService {
       conversationId: string
       whatsappConfigId: string
       actorUserId?: string | null
+      senderType?: 'agent' | 'system' | 'ai'
       contentType: string
       contentText: string | null
       messageTemplateId: string | null
@@ -1032,7 +1070,7 @@ export default class WhatsappOutboundService {
       organizationId: params.organizationId,
       whatsappConfigId: params.whatsappConfigId,
       conversationId: params.conversationId,
-      senderType: params.actorUserId ? 'agent' : 'system',
+      senderType: params.senderType ?? (params.actorUserId ? 'agent' : 'system'),
       senderId: params.actorUserId ?? null,
       contentType: params.contentType,
       contentText: params.contentText,

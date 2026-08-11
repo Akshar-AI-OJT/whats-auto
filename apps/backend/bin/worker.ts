@@ -45,12 +45,20 @@ try {
   await app.boot()
 
   const { default: JobQueueManager } = await import('#services/job_queue/job_queue_manager')
-  const { registerJobHandlers } = await import('#services/job_queue/register_handlers')
+  const { registerJobHandlers, registerAiJobHandlers } =
+    await import('#services/job_queue/register_handlers')
   const logger = await app.container.make('logger')
 
   const manager = await app.container.make(JobQueueManager)
   const driver = await manager.start()
   await registerJobHandlers(driver)
+
+  const aiDriverName = manager.aiDriverName()
+  if (aiDriverName) {
+    const aiDriver = await manager.start(aiDriverName)
+    await registerAiJobHandlers(aiDriver)
+    logger.info({ driver: aiDriverName }, 'job_queue.ai_driver.started')
+  }
 
   const {
     JOB_NAMES,
@@ -102,8 +110,10 @@ try {
   }
 
   const driverName = app.config.get('job_queue.default')
-  logger.info({ driver: driverName }, 'job_queue.worker.started')
-  console.log(`[job_queue] worker started (driver=${driverName})`)
+  logger.info({ driver: driverName, aiDriver: aiDriverName ?? null }, 'job_queue.worker.started')
+  console.log(
+    `[job_queue] worker started (driver=${driverName}${aiDriverName ? `, ai=${aiDriverName}` : ''})`
+  )
 
   await new Promise<void>((resolve) => {
     const shutdown = async () => {
