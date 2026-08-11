@@ -3,6 +3,7 @@
 const PENDING_PHONE_KEY = 'wa-onboarding-phone'
 const PENDING_EMAIL_KEY = 'wa-onboarding-email'
 const CHECKLIST_KEY = 'wa-onboarding-checklist'
+const PENDING_PLAN_KEY = 'wa-onboarding-plan'
 
 export const ORG_SETUP_PATH = '/onboarding/organization'
 export const TEAM_MEMBERS_PATH = '/dashboard/team'
@@ -240,6 +241,37 @@ export function dismissOnboardingChecklist() {
   try {
     window.sessionStorage.removeItem(CHECKLIST_KEY)
     window.dispatchEvent(new Event('wa-onboarding-checklist-change'))
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Stores the onboarding-selected subscription plan so the app can read it
+ * after redirecting to the dashboard (UI-only for now).
+ */
+export function savePendingWorkspacePlan(planId: string) {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.setItem(PENDING_PLAN_KEY, planId)
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+export function readPendingWorkspacePlan(): string | null {
+  if (typeof window === 'undefined') return null
+  try {
+    return window.sessionStorage.getItem(PENDING_PLAN_KEY)
+  } catch {
+    return null
+  }
+}
+
+export function clearPendingWorkspacePlan() {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.removeItem(PENDING_PLAN_KEY)
   } catch {
     /* ignore */
   }
