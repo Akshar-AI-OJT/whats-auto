@@ -3,13 +3,13 @@ import { inboxEventsHub } from '#services/inbox_events_hub'
 import '#types/http'
 
 /**
- * Server-Sent Events stream for live inbox updates (messages + delivery statuses).
+ * Server-Sent Events stream for live inbox updates (messages, delivery statuses, AI generation).
  */
 export default class InboxEventsController {
   /**
    * @stream
    * @summary Subscribe to inbox realtime events
-   * @description SSE stream scoped to the active organization. Emits message.received, message.queued, message.sent, message.failed, status.updated, and periodic ping events.
+   * @description SSE stream scoped to the active organization. Emits message.received, message.queued, message.sent, message.failed, status.updated, ai.generation.started, ai.token.delta, ai.generation.completed, ai.handover.triggered, and periodic ping events.
    * @tag Inbox Events
    * @security BearerAuth
    * @responseBody 200 - text/event-stream
@@ -46,7 +46,9 @@ export default class InboxEventsController {
       close,
     })
 
-    write(`event: ping\ndata: ${JSON.stringify({ type: 'ping', at: new Date().toISOString() })}\n\n`)
+    write(
+      `event: ping\ndata: ${JSON.stringify({ type: 'ping', at: new Date().toISOString() })}\n\n`
+    )
 
     const heartbeat = setInterval(() => {
       try {
