@@ -518,6 +518,33 @@ export class MessageSchema extends BaseModel {
   declare updatedAt: DateTime | null
 }
 
+export class NotificationSchema extends BaseModel {
+  static $columns = ['actorUserId', 'body', 'contactId', 'conversationId', 'createdAt', 'id', 'organizationId', 'readAt', 'title', 'type', 'userId'] as const
+  $columns = NotificationSchema.$columns
+  @column()
+  declare actorUserId: string | null
+  @column()
+  declare body: string | null
+  @column()
+  declare contactId: string | null
+  @column()
+  declare conversationId: string | null
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare organizationId: string
+  @column.dateTime()
+  declare readAt: DateTime | null
+  @column()
+  declare title: string
+  @column()
+  declare type: string
+  @column()
+  declare userId: string
+}
+
 export class OrganizationInvitationSchema extends BaseModel {
   static $columns = ['createdAt', 'email', 'expiresAt', 'id', 'inviterId', 'organizationId', 'roleId', 'status'] as const
   $columns = OrganizationInvitationSchema.$columns

@@ -42,6 +42,7 @@ const BillingController = () => import('#controllers/billing_controller')
 const BillingRazorpayWebhookController = () =>
   import('#controllers/billing_razorpay_webhook_controller')
 const InboxEventsController = () => import('#controllers/inbox_events_controller')
+const NotificationsController = () => import('#controllers/notifications_controller')
 
 type JsonSchema = {
   type: 'object'
@@ -738,4 +739,15 @@ router
       .use(middleware.requirePermission({ permission: 'billing:manage' }))
   })
   .prefix('/api/v1/billing')
+  .use([middleware.jwtAuth(), middleware.tenant()])
+
+// notifications — personal in-app feed (org + user scoped; not notifications:manage config)
+router
+  .group(() => {
+    router.get('/', [NotificationsController, 'index'])
+    // Static path before :id so "read-all" is not captured as an id
+    router.patch('/read-all', [NotificationsController, 'markAllAsRead'])
+    router.patch('/:id/read', [NotificationsController, 'markAsRead'])
+  })
+  .prefix('/api/v1/notifications')
   .use([middleware.jwtAuth(), middleware.tenant()])
