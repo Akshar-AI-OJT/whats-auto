@@ -22,7 +22,7 @@ function documentRow(overrides: Partial<AiKnowledgeDocumentRow> = {}): AiKnowled
     organizationId: ORG,
     mediaAssetId: ASSET,
     title: 'Hours',
-    sourceType: AiKnowledgeSourceType.MANUAL_TEXT,
+    sourceType: AiKnowledgeSourceType.FILE_TXT,
     status: AiKnowledgeDocumentStatus.PENDING,
     chunkCount: 0,
     embeddingModel: 'text-embedding-3-small',

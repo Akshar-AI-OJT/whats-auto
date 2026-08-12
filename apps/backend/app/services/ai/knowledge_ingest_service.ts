@@ -2,7 +2,6 @@ import app from '@adonisjs/core/services/app'
 import logger from '@adonisjs/core/services/logger'
 import db from '@adonisjs/lucid/services/db'
 import { AiKnowledgeDocumentStatus } from '#enums/ai_knowledge_document_status'
-import { AiKnowledgeSourceType } from '#enums/ai_knowledge_source_type'
 import { AiKnowledgeChunkRepository } from '#repositories/ai_knowledge_chunk_repository'
 import { AiKnowledgeDocumentRepository } from '#repositories/ai_knowledge_document_repository'
 import { MediaAssetRepository } from '#repositories/media_asset_repository'
@@ -160,12 +159,6 @@ export default class KnowledgeIngestService {
     organizationId: string,
     document: { mediaAssetId: string | null; sourceType: string }
   ): Promise<string> {
-    if (
-      document.sourceType === AiKnowledgeSourceType.FAQ_LIST ||
-      document.sourceType === AiKnowledgeSourceType.WEB_URL
-    ) {
-      throw new Error(`Source type ${document.sourceType} is not supported yet`)
-    }
     if (!document.mediaAssetId) {
       throw new Error('Document has no media asset')
     }

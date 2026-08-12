@@ -2,12 +2,11 @@ import { randomUUID } from 'node:crypto'
 import app from '@adonisjs/core/services/app'
 import logger from '@adonisjs/core/services/logger'
 import { AiKnowledgeDocumentStatus } from '#enums/ai_knowledge_document_status'
-import { AiKnowledgeSourceType } from '#enums/ai_knowledge_source_type'
+import type { AiKnowledgeSourceType } from '#enums/ai_knowledge_source_type'
 import KnowledgeDocumentException from '#exceptions/knowledge_document_exception'
 import { StorageNamespace } from '#lib/media/storage_types'
 import { normalizeMimeType } from '#lib/meta_whatsapp/outbound_media'
 import { AiKnowledgeDocumentRepository } from '#repositories/ai_knowledge_document_repository'
-import { MediaAssetRepository } from '#repositories/media_asset_repository'
 import {
   mimeTypeForKnowledgeSource,
   KNOWLEDGE_CREATE_SOURCE_TYPES,
@@ -15,28 +14,26 @@ import {
 import { MediaAssetService } from '#services/media_asset_service'
 import JobQueueManager from '#services/job_queue/job_queue_manager'
 import { JOB_NAMES } from '#services/job_queue/job_names'
-import { ObjectStorage } from '#services/object_storage/contracts/object_storage'
-import type { PresignedUpload } from '#services/object_storage/contracts/object_storage'
 import { runWithTenant } from '#services/tenant_context'
 import {
   transformKnowledgeDocument,
   type KnowledgeDocumentResponse,
 } from '#transformers/knowledge_document_transformer'
+import type { PresignedUpload } from '#services/object_storage/contracts/object_storage'
 
 export type CreateKnowledgeDocumentInput = {
   organizationId: string
   actorUserId: string
   title: string
   sourceType: AiKnowledgeSourceType
-  text?: string
-  fileName?: string
-  mimeType?: string
-  fileSize?: number
+  fileName: string
+  mimeType: string
+  fileSize: number
 }
 
 export type CreateKnowledgeDocumentResult = {
   document: KnowledgeDocumentResponse
-  upload?: PresignedUpload
+  upload: PresignedUpload
 }
 
 export type KnowledgeDocumentListResult = {
@@ -52,9 +49,7 @@ export type KnowledgeDocumentListResult = {
 export default class KnowledgeDocumentService {
   constructor(
     private documents: AiKnowledgeDocumentRepository = new AiKnowledgeDocumentRepository(),
-    private mediaAssets: MediaAssetRepository = new MediaAssetRepository(),
-    private media: MediaAssetService = new MediaAssetService(),
-    private storage?: ObjectStorage
+    private media: MediaAssetService = new MediaAssetService()
   ) {}
 
   async list(params: {
@@ -108,11 +103,44 @@ export default class KnowledgeDocumentService {
       throw KnowledgeDocumentException.sourceUnsupported(input.sourceType)
     }
 
-    if (input.sourceType === AiKnowledgeSourceType.MANUAL_TEXT) {
-      return this.#createManualText(input)
+    if (!input.fileName || !input.mimeType || !input.fileSize) {
+      throw KnowledgeDocumentException.invalidCreate(
+        'fileName, mimeType, and fileSize are required'
+      )
     }
 
-    return this.#createFileDocument(input)
+    const expectedMime = mimeTypeForKnowledgeSource(input.sourceType)
+    const mimeType = normalizeMimeType(input.mimeType)
+    if (!expectedMime || mimeType !== expectedMime) {
+      throw KnowledgeDocumentException.invalidCreate(
+        `mimeType must be ${expectedMime} for ${input.sourceType}`
+      )
+    }
+
+    const initiated = await this.media.initiateUpload({
+      organizationId: input.organizationId,
+      uploadedBy: input.actorUserId,
+      fileName: input.fileName,
+      mimeType,
+      fileSize: input.fileSize,
+      namespace: StorageNamespace.KnowledgeBase,
+    })
+
+    const document = await runWithTenant(input.organizationId, () =>
+      this.documents.insert({
+        id: randomUUID(),
+        organizationId: input.organizationId,
+        title: input.title,
+        sourceType: input.sourceType,
+        status: AiKnowledgeDocumentStatus.PENDING,
+        mediaAssetId: initiated.asset.id,
+      })
+    )
+
+    return {
+      document: transformKnowledgeDocument(document),
+      upload: initiated.upload,
+    }
   }
 
   async completeUpload(params: {
@@ -181,119 +209,6 @@ export default class KnowledgeDocumentService {
     }
   }
 
-  async #createFileDocument(
-    input: CreateKnowledgeDocumentInput
-  ): Promise<CreateKnowledgeDocumentResult> {
-    if (!input.fileName || !input.mimeType || !input.fileSize) {
-      throw KnowledgeDocumentException.invalidCreate(
-        'fileName, mimeType, and fileSize are required for file sources'
-      )
-    }
-
-    const expectedMime = mimeTypeForKnowledgeSource(input.sourceType)
-    const mimeType = normalizeMimeType(input.mimeType)
-    if (!expectedMime || mimeType !== expectedMime) {
-      throw KnowledgeDocumentException.invalidCreate(
-        `mimeType must be ${expectedMime} for ${input.sourceType}`
-      )
-    }
-
-    const initiated = await this.media.initiateUpload({
-      organizationId: input.organizationId,
-      uploadedBy: input.actorUserId,
-      fileName: input.fileName,
-      mimeType,
-      fileSize: input.fileSize,
-      namespace: StorageNamespace.KnowledgeBase,
-    })
-
-    const document = await this.#insertDocument({
-      organizationId: input.organizationId,
-      title: input.title,
-      sourceType: input.sourceType,
-      mediaAssetId: initiated.asset.id,
-    })
-
-    return { document, upload: initiated.upload }
-  }
-
-  async #createManualText(
-    input: CreateKnowledgeDocumentInput
-  ): Promise<CreateKnowledgeDocumentResult> {
-    const text = input.text?.trim()
-    if (!text) {
-      throw KnowledgeDocumentException.invalidCreate('text is required for MANUAL_TEXT')
-    }
-
-    const body = new TextEncoder().encode(text)
-    const initiated = await this.media.initiateUpload({
-      organizationId: input.organizationId,
-      uploadedBy: input.actorUserId,
-      fileName: `${safeFileStem(input.title)}.txt`,
-      mimeType: 'text/plain',
-      fileSize: body.byteLength,
-      namespace: StorageNamespace.KnowledgeBase,
-    })
-
-    const asset = await runWithTenant(input.organizationId, () =>
-      this.mediaAssets.findByIdForOrg({
-        organizationId: input.organizationId,
-        mediaAssetId: initiated.asset.id,
-      })
-    )
-    if (!asset) {
-      throw KnowledgeDocumentException.invalidCreate('Failed to create knowledge file')
-    }
-
-    const storage = await this.#objectStorage()
-    await storage.writeObject({
-      key: asset.storageKey,
-      body,
-      contentType: 'text/plain',
-    })
-
-    await this.media.completeUpload({
-      organizationId: input.organizationId,
-      mediaAssetId: initiated.asset.id,
-    })
-
-    const document = await this.#insertDocument({
-      organizationId: input.organizationId,
-      title: input.title,
-      sourceType: AiKnowledgeSourceType.MANUAL_TEXT,
-      mediaAssetId: initiated.asset.id,
-    })
-
-    await this.#enqueueIngest({
-      organizationId: input.organizationId,
-      documentId: document.id,
-      mediaAssetId: document.mediaAssetId,
-      sourceType: document.sourceType,
-      isUpdate: false,
-    })
-
-    return { document }
-  }
-
-  async #insertDocument(params: {
-    organizationId: string
-    title: string
-    sourceType: AiKnowledgeSourceType
-    mediaAssetId: string
-  }): Promise<KnowledgeDocumentResponse> {
-    const row = await runWithTenant(params.organizationId, () =>
-      this.documents.insert({
-        id: randomUUID(),
-        organizationId: params.organizationId,
-        title: params.title,
-        sourceType: params.sourceType,
-        status: AiKnowledgeDocumentStatus.PENDING,
-        mediaAssetId: params.mediaAssetId,
-      })
-    )
-    return transformKnowledgeDocument(row)
-  }
-
   async #enqueueIngest(params: {
     organizationId: string
     documentId: string
@@ -326,17 +241,4 @@ export default class KnowledgeDocumentService {
       )
     }
   }
-
-  async #objectStorage(): Promise<ObjectStorage> {
-    if (this.storage) return this.storage
-    return app.container.make(ObjectStorage)
-  }
-}
-
-function safeFileStem(title: string): string {
-  const stem = title
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-  return stem.length > 0 ? stem.slice(0, 80) : 'note'
 }

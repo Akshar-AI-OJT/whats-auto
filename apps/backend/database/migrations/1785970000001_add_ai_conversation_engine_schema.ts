@@ -61,7 +61,7 @@ export default class extends BaseSchema {
         "createdAt" timestamptz NOT NULL DEFAULT now(),
         "updatedAt" timestamptz NULL,
         CONSTRAINT "ai_knowledge_documents_source_type_check"
-          CHECK ("sourceType" IN ('FILE_PDF', 'FILE_DOCX', 'MANUAL_TEXT', 'FAQ_LIST', 'WEB_URL')),
+          CHECK ("sourceType" IN ('FILE_PDF', 'FILE_DOCX', 'FILE_TXT')),
         CONSTRAINT "ai_knowledge_documents_status_check"
           CHECK ("status" IN ('PENDING', 'PROCESSING', 'INDEXED', 'FAILED'))
       )

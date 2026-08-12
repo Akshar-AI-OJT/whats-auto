@@ -14,18 +14,16 @@ test.group('Knowledge source MIME', () => {
       mimeTypeForKnowledgeSource(AiKnowledgeSourceType.FILE_DOCX),
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
     )
-    assert.equal(mimeTypeForKnowledgeSource(AiKnowledgeSourceType.MANUAL_TEXT), 'text/plain')
-    assert.isNull(mimeTypeForKnowledgeSource(AiKnowledgeSourceType.FAQ_LIST))
-    assert.isNull(mimeTypeForKnowledgeSource(AiKnowledgeSourceType.WEB_URL))
+    assert.equal(mimeTypeForKnowledgeSource(AiKnowledgeSourceType.FILE_TXT), 'text/plain')
   })
 
-  test('create source types are pdf, docx, and manual text', ({ assert }) => {
+  test('create source types are pdf, docx, and txt files', ({ assert }) => {
     assert.deepEqual(
       [...KNOWLEDGE_CREATE_SOURCE_TYPES],
       [
         AiKnowledgeSourceType.FILE_PDF,
         AiKnowledgeSourceType.FILE_DOCX,
-        AiKnowledgeSourceType.MANUAL_TEXT,
+        AiKnowledgeSourceType.FILE_TXT,
       ]
     )
   })
@@ -38,28 +36,18 @@ test.group('KnowledgeDocumentService validation', () => {
     title: 'Hours',
   }
 
-  test('rejects FAQ_LIST and WEB_URL before storage', async ({ assert }) => {
+  test('rejects files without upload fields', async ({ assert }) => {
     const service = new KnowledgeDocumentService()
 
     await assert.rejects(
-      () => service.create({ ...base, sourceType: AiKnowledgeSourceType.FAQ_LIST }),
-      /not supported yet/
-    )
-    await assert.rejects(
-      () => service.create({ ...base, sourceType: AiKnowledgeSourceType.WEB_URL }),
-      /not supported yet/
-    )
-  })
-
-  test('rejects MANUAL_TEXT without text and files without upload fields', async ({ assert }) => {
-    const service = new KnowledgeDocumentService()
-
-    await assert.rejects(
-      () => service.create({ ...base, sourceType: AiKnowledgeSourceType.MANUAL_TEXT }),
-      /text is required/
-    )
-    await assert.rejects(
-      () => service.create({ ...base, sourceType: AiKnowledgeSourceType.FILE_PDF }),
+      () =>
+        service.create({
+          ...base,
+          sourceType: AiKnowledgeSourceType.FILE_PDF,
+          fileName: '',
+          mimeType: '',
+          fileSize: 0,
+        } as any),
       /fileName, mimeType, and fileSize/
     )
   })
@@ -82,7 +70,7 @@ test.group('KnowledgeDocumentService validation', () => {
 
   test('exception factories set HTTP codes', ({ assert }) => {
     const missing = KnowledgeDocumentException.notFound()
-    const unsupported = KnowledgeDocumentException.sourceUnsupported('FAQ_LIST')
+    const unsupported = KnowledgeDocumentException.sourceUnsupported('UNKNOWN')
     const invalid = KnowledgeDocumentException.invalidCreate('bad')
 
     assert.equal(missing.status, 404)

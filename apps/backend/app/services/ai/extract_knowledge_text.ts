@@ -4,7 +4,7 @@ import { AiKnowledgeSourceType } from '#enums/ai_knowledge_source_type'
 
 export async function extractKnowledgeText(sourceType: string, bytes: Uint8Array): Promise<string> {
   switch (sourceType) {
-    case AiKnowledgeSourceType.MANUAL_TEXT:
+    case AiKnowledgeSourceType.FILE_TXT:
       return new TextDecoder('utf-8').decode(bytes).trim()
     case AiKnowledgeSourceType.FILE_PDF:
       return extractPdf(bytes)

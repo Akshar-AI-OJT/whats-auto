@@ -107,8 +107,10 @@ test.group('Knowledge documents HTTP', (group) => {
       .header('Authorization', `Bearer ${token}`)
       .json({
         title: 'Hours',
-        sourceType: 'MANUAL_TEXT',
-        text: 'Open 9-5',
+        sourceType: 'FILE_TXT',
+        fileName: 'hours.txt',
+        mimeType: 'text/plain',
+        fileSize: 12,
       })
 
     response.assertStatus(403)
@@ -122,37 +124,49 @@ test.group('Knowledge documents HTTP', (group) => {
       .header('Authorization', `Bearer ${token}`)
       .json({
         title: 'Hours',
-        sourceType: 'MANUAL_TEXT',
-        text: 'Open 9-5',
+        sourceType: 'FILE_TXT',
+        fileName: 'hours.txt',
+        mimeType: 'text/plain',
+        fileSize: 12,
       })
 
     response.assertStatus(403)
     assert.equal(errorBody(response).code, 'PERMISSION_DENIED')
   })
 
-  test('owner creates MANUAL_TEXT as PENDING and hides it from the media library', async ({
+  test('owner uploads FILE_TXT as PENDING and hides it from the media library', async ({
     client,
     assert,
   }) => {
     const token = await mintDemoToken(DEMO_USERS.northstarOwner)
+    const body = Buffer.from('Open 9-5 Monday to Friday.')
     const create = await client
       .post('/api/v1/ai/knowledge-documents')
       .header('Authorization', `Bearer ${token}`)
       .json({
         title: 'Store hours',
-        sourceType: 'MANUAL_TEXT',
-        text: 'Open 9-5 Monday to Friday.',
+        sourceType: 'FILE_TXT',
+        fileName: 'store-hours.txt',
+        mimeType: 'text/plain',
+        fileSize: body.byteLength,
       })
 
     create.assertStatus(200)
     const created = create.body().data as {
       document: { id: string; status: string; sourceType: string; mediaAssetId: string }
-      upload?: unknown
+      upload: { method: string; url: string }
     }
     assert.equal(created.document.status, 'PENDING')
-    assert.equal(created.document.sourceType, 'MANUAL_TEXT')
-    assert.isUndefined(created.upload)
-    assert.isTrue(storage.objects.size > 0)
+    assert.equal(created.document.sourceType, 'FILE_TXT')
+    assert.equal(created.upload.method, 'PUT')
+    assert.lengthOf(storage.presigned, 1)
+
+    storage.putObject(storage.presigned[0]!.key, body, 'text/plain')
+
+    const complete = await client
+      .post(`/api/v1/ai/knowledge-documents/${created.document.id}/complete-upload`)
+      .header('Authorization', `Bearer ${token}`)
+    complete.assertStatus(200)
     assert.equal(queue.enqueued[0]?.name, JOB_NAMES.AI_PROCESS_DOCUMENT)
     assert.equal(queue.enqueued[0]?.data.documentId, created.document.id)
 
@@ -229,7 +243,7 @@ test.group('Knowledge documents HTTP', (group) => {
     assert.equal(complete.body().data.status, 'PENDING')
   })
 
-  test('FAQ_LIST is rejected with an unsupported source code', async ({ client, assert }) => {
+  test('unknown sourceType is rejected by validation', async ({ client }) => {
     const token = await mintDemoToken(DEMO_USERS.northstarOwner)
     const response = await client
       .post('/api/v1/ai/knowledge-documents')
@@ -240,6 +254,5 @@ test.group('Knowledge documents HTTP', (group) => {
       })
 
     response.assertStatus(422)
-    assert.equal(errorBody(response).code, 'E_KNOWLEDGE_SOURCE_UNSUPPORTED')
   })
 })

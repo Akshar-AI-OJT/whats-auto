@@ -6,10 +6,9 @@ export const createKnowledgeDocumentValidator = vine.create(
   vine.object({
     title: vine.string().trim().minLength(1).maxLength(255),
     sourceType: vine.enum(AI_KNOWLEDGE_SOURCE_TYPES),
-    text: vine.string().trim().minLength(1).maxLength(100_000).optional(),
-    fileName: vine.string().trim().minLength(1).maxLength(255).optional(),
-    mimeType: vine.string().trim().minLength(3).maxLength(255).optional(),
-    fileSize: vine.number().withoutDecimals().min(1).optional(),
+    fileName: vine.string().trim().minLength(1).maxLength(255),
+    mimeType: vine.string().trim().minLength(3).maxLength(255),
+    fileSize: vine.number().withoutDecimals().min(1),
   })
 )
 

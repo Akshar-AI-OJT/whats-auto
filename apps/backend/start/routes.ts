@@ -172,15 +172,14 @@ const requestBodySchemas: Record<string, JsonSchema> = {
       title: { type: 'string', example: 'Store hours' },
       sourceType: {
         type: 'string',
-        example: 'MANUAL_TEXT',
-        enum: ['FILE_PDF', 'FILE_DOCX', 'MANUAL_TEXT', 'FAQ_LIST', 'WEB_URL'],
+        example: 'FILE_PDF',
+        enum: ['FILE_PDF', 'FILE_DOCX', 'FILE_TXT'],
       },
-      text: { type: 'string', example: 'Open 9-5 Monday to Friday.' },
       fileName: { type: 'string', example: 'policy.pdf' },
       mimeType: { type: 'string', example: 'application/pdf' },
       fileSize: { type: 'integer', example: 12480 },
     },
-    ['title', 'sourceType']
+    ['title', 'sourceType', 'fileName', 'mimeType', 'fileSize']
   ),
   'post /api/v1/whatsapp/embedded-signup/complete': bodySchema(
     {

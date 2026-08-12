@@ -45,7 +45,7 @@ async function insertIndexedChunk(params: {
       .insert({
         organizationId: params.organizationId,
         title: params.content,
-        sourceType: AiKnowledgeSourceType.MANUAL_TEXT,
+        sourceType: AiKnowledgeSourceType.FILE_TXT,
         status: AiKnowledgeDocumentStatus.INDEXED,
         chunkCount: 1,
       })

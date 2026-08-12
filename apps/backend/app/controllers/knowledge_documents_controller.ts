@@ -12,13 +12,13 @@ export default class KnowledgeDocumentsController {
   /**
    * @index
    * @summary List knowledge documents
-   * @description Tenant-scoped KB documents. Requires ai:kb_view. Status stays PENDING until ingest (Phase 6).
+   * @description Tenant-scoped KB documents. Requires ai:kb_view.
    * @tag AI
    * @security BearerAuth
    * @paramQuery page - Page number - @type(number)
    * @paramQuery perPage - Page size - @type(number)
    * @paramQuery status - Filter by status - @type(string)
-   * @responseBody 200 - { "data": [{ "id": "uuid", "title": "FAQ", "sourceType": "MANUAL_TEXT", "status": "PENDING" }], "meta": { "total": 1 } }
+   * @responseBody 200 - { "data": [{ "id": "uuid", "title": "Policy", "sourceType": "FILE_PDF", "status": "PENDING" }], "meta": { "total": 1 } }
    */
   async index({ request, serialize }: HttpContext) {
     const params = await request.validateUsing(listKnowledgeDocumentsValidator, {
@@ -38,10 +38,10 @@ export default class KnowledgeDocumentsController {
   /**
    * @store
    * @summary Create a knowledge document
-   * @description FILE_PDF/FILE_DOCX return a presigned PUT. MANUAL_TEXT writes to S3 immediately. Status is PENDING.
+   * @description FILE_PDF / FILE_DOCX / FILE_TXT return a presigned PUT. Complete with complete-upload after the browser PUT. Status is PENDING.
    * @tag AI
    * @security BearerAuth
-   * @requestBody { "title": "Hours", "sourceType": "MANUAL_TEXT", "text": "Open 9-5" }
+   * @requestBody { "title": "Hours", "sourceType": "FILE_TXT", "fileName": "hours.txt", "mimeType": "text/plain", "fileSize": 24 }
    * @responseBody 200 - { "data": { "document": { "id": "uuid", "status": "PENDING" }, "upload": { "method": "PUT", "url": "https://s3..." } } }
    */
   async store({ request, serialize }: HttpContext) {
@@ -51,7 +51,6 @@ export default class KnowledgeDocumentsController {
       actorUserId: request.authUser!.id,
       title: payload.title,
       sourceType: payload.sourceType as AiKnowledgeSourceType,
-      text: payload.text,
       fileName: payload.fileName,
       mimeType: payload.mimeType,
       fileSize: payload.fileSize,

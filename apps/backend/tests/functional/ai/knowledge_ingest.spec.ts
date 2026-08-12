@@ -45,6 +45,37 @@ function createMedia(storage: FakeObjectStorage) {
   )
 }
 
+async function createTxtDocument(params: {
+  organizationId: string
+  storage: FakeObjectStorage
+  title: string
+  text: string
+}) {
+  const docs = new KnowledgeDocumentService(
+    new AiKnowledgeDocumentRepository(),
+    createMedia(params.storage)
+  )
+  const body = Buffer.from(params.text)
+  const created = await docs.create({
+    organizationId: params.organizationId,
+    actorUserId: randomUUID(),
+    title: params.title,
+    sourceType: AiKnowledgeSourceType.FILE_TXT,
+    fileName: `${params.title.toLowerCase().replace(/\s+/g, '-')}.txt`,
+    mimeType: 'text/plain',
+    fileSize: body.byteLength,
+  })
+
+  const key = params.storage.presigned[0]!.key
+  params.storage.putObject(key, body, 'text/plain')
+  await docs.completeUpload({
+    organizationId: params.organizationId,
+    documentId: created.document.id,
+  })
+
+  return created
+}
+
 test.group('Knowledge ingest', () => {
   test('indexes new chunks, skips unchanged re-ingest, and embeds only changed hashes', async ({
     assert,
@@ -52,12 +83,6 @@ test.group('Knowledge ingest', () => {
     const organizationId = await createOrg()
     const storage = new FakeObjectStorage()
     const llm = new FakeLlmProvider()
-    const docs = new KnowledgeDocumentService(
-      new AiKnowledgeDocumentRepository(),
-      new MediaAssetRepository(),
-      createMedia(storage),
-      storage
-    )
     const ingest = new KnowledgeIngestService(
       new AiKnowledgeDocumentRepository(),
       new AiKnowledgeChunkRepository(),
@@ -67,11 +92,10 @@ test.group('Knowledge ingest', () => {
     )
 
     const firstWords = Array.from({ length: 800 }, (_, i) => `alpha${i}`).join(' ')
-    const created = await docs.create({
+    const created = await createTxtDocument({
       organizationId,
-      actorUserId: randomUUID(),
+      storage,
       title: 'Policy',
-      sourceType: AiKnowledgeSourceType.MANUAL_TEXT,
       text: firstWords,
     })
 
@@ -131,17 +155,10 @@ test.group('Knowledge ingest', () => {
     const organizationId = await createOrg()
     const storage = new FakeObjectStorage()
     const llm = new FakeLlmProvider()
-    const docs = new KnowledgeDocumentService(
-      new AiKnowledgeDocumentRepository(),
-      new MediaAssetRepository(),
-      createMedia(storage),
-      storage
-    )
-    const created = await docs.create({
+    const created = await createTxtDocument({
       organizationId,
-      actorUserId: randomUUID(),
+      storage,
       title: 'Missing',
-      sourceType: AiKnowledgeSourceType.MANUAL_TEXT,
       text: 'Open 9-5',
     })
     storage.objects.clear()

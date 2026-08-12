@@ -66,7 +66,7 @@ test.group('AI schema', (group) => {
         .insert({
           organizationId: orgA,
           title: 'Org A FAQ',
-          sourceType: AiKnowledgeSourceType.MANUAL_TEXT,
+          sourceType: AiKnowledgeSourceType.FILE_TXT,
           status: AiKnowledgeDocumentStatus.PENDING,
         })
         .returning(['id'])
@@ -76,7 +76,7 @@ test.group('AI schema', (group) => {
       db.table('ai_knowledge_documents').insert({
         organizationId: orgB,
         title: 'Org B FAQ',
-        sourceType: AiKnowledgeSourceType.MANUAL_TEXT,
+        sourceType: AiKnowledgeSourceType.FILE_TXT,
         status: AiKnowledgeDocumentStatus.PENDING,
       })
     )
