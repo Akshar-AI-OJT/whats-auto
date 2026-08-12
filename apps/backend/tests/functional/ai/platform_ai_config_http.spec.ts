@@ -14,7 +14,7 @@ const DEFAULTS = {
   minConfidenceScore: 0.7,
   debounceDelaySeconds: 4,
   systemPrompt: null as string | null,
-  handoverKeywords: ['agent', 'human', 'representative', 'support', 'call me'],
+  handoverKeywords: JSON.stringify(['agent', 'human', 'representative', 'support', 'call me']),
   workingSetSize: 6,
   summaryTurnThreshold: 10,
   embeddingModel: 'text-embedding-3-small',

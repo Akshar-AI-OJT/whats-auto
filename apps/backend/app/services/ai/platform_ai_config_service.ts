@@ -115,7 +115,11 @@ export default class PlatformAiConfigService {
 
     const updates: Record<string, unknown> = { updatedByUserId: actorUserId }
     for (const [key, value] of Object.entries(patch)) {
-      if (value !== undefined) updates[key] = value
+      if (value === undefined) continue
+      // node-pg binds JS arrays as Postgres array literals ({a,b}), which is
+      // invalid for jsonb. Match other services and send a JSON string.
+      updates[key] =
+        key === 'handoverKeywords' && Array.isArray(value) ? JSON.stringify(value) : value
     }
 
     await db
@@ -179,6 +183,13 @@ function toIso(value: Date | string): string {
 }
 
 function normalizeKeywords(value: unknown): string[] {
+  if (typeof value === 'string') {
+    try {
+      return normalizeKeywords(JSON.parse(value))
+    } catch {
+      return []
+    }
+  }
   if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {
     return value
   }
