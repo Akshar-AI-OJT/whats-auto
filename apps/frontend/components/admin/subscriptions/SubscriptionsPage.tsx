@@ -364,71 +364,71 @@ export function SubscriptionsPage() {
                       isSelected
                         ? 'border-primary/60 shadow-[0_0_0_1px_rgb(159_232_112/0.28)]'
                         : 'border-[#E2E8F0] hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-sm'
-                    )}
-                  >
-                    {plan.highlighted ? (
+      )}
+    >
+      {plan.highlighted ? (
                       <span className="absolute right-4 top-4 rounded-lg bg-primary-pale px-2 py-0.5 text-[11px] font-semibold text-positive-deep ring-1 ring-primary/30">
                         {t('popular')}
-                      </span>
-                    ) : null}
+        </span>
+      ) : null}
 
                     <div className="min-w-0">
                       <h3 className="font-display text-base font-semibold tracking-tight text-ink sm:text-lg">
                         {t(`plans.${plan.id}.name`)}
-                      </h3>
+        </h3>
                       <p className="mt-1 break-words text-sm leading-6 text-mute">
                         {t(`plans.${plan.id}.description`)}
                       </p>
-                    </div>
+      </div>
 
                     <div className="flex items-baseline gap-2">
                       <span className="font-display text-3xl font-semibold tracking-tight text-ink tabular-nums">
                         {price}
-                      </span>
-                      {plan.priceMonthly != null ? (
+        </span>
+        {plan.priceMonthly != null ? (
                         <span className="text-sm text-mute">{perMonth}</span>
-                      ) : null}
-                    </div>
+        ) : null}
+      </div>
 
                     <dl className="grid gap-2 rounded-2xl border border-dash-border bg-dash-surface/70 p-3">
-                      <div className="flex items-center justify-between gap-3 text-sm">
+        <div className="flex items-center justify-between gap-3 text-sm">
                         <dt className="text-mute">{t('limits.users')}</dt>
                         <dd className="font-semibold tabular-nums text-ink">
                           {formatLimit(plan.userLimit, unlimited)}
-                        </dd>
-                      </div>
-                      <div className="flex items-center justify-between gap-3 text-sm">
+          </dd>
+        </div>
+        <div className="flex items-center justify-between gap-3 text-sm">
                         <dt className="text-mute">{t('limits.messages')}</dt>
-                        <dd className="font-semibold tabular-nums text-ink">
+          <dd className="font-semibold tabular-nums text-ink">
                           {formatLimit(plan.messageLimit, unlimited)}
-                        </dd>
-                      </div>
-                      <div className="flex items-center justify-between gap-3 text-sm">
+          </dd>
+        </div>
+        <div className="flex items-center justify-between gap-3 text-sm">
                         <dt className="text-mute">{t('limits.workspaces')}</dt>
-                        <dd className="font-semibold tabular-nums text-ink">
+          <dd className="font-semibold tabular-nums text-ink">
                           {formatLimit(plan.workspaceLimit, unlimited)}
-                        </dd>
-                      </div>
-                    </dl>
+          </dd>
+        </div>
+      </dl>
 
                     <div className="flex min-h-0 flex-1 flex-col gap-2">
-                      <p className="text-xs font-semibold tracking-wide text-mute uppercase">
+        <p className="text-xs font-semibold tracking-wide text-mute uppercase">
                         {t('featuresLabel')}
-                      </p>
+        </p>
                       <ul className="flex flex-col gap-1.5">
-                        {plan.featureKeys.map((key) => (
+          {plan.featureKeys.map((key) => (
                           <li
                             key={key}
                             className="flex items-start gap-2 text-sm text-body"
                           >
-                            <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md bg-primary-pale text-positive-deep">
-                              <Check className="size-3.5" aria-hidden />
-                            </span>
+              <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md bg-primary-pale text-positive-deep">
+                <Check className="size-3.5" aria-hidden />
+              </span>
                             <span>{t(`features.${key}`)}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+            </li>
+          ))}
+        </ul>
+      </div>
                   </button>
                 )
               })}
@@ -536,7 +536,7 @@ export function SubscriptionsPage() {
 
       <DashboardPanel as="section" className="p-4 sm:p-5 md:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-          <DashboardSectionHeader
+        <DashboardSectionHeader
             title={t('tableTitle')}
             description={t('tableDescription', { count: total })}
           />
