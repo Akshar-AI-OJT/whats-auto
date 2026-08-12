@@ -2418,11 +2418,25 @@
     },
     "notifications": {
       "title": "Notifications",
+      "eyebrow": "Activity",
+      "subtitle": "Updates about your workspace, inbox, campaigns, billing, and team.",
+      "listTitle": "All notifications",
+      "viewAll": "View all notifications",
       "markAllRead": "Mark all as read",
       "markRead": "Mark as read",
       "empty": "You’re all caught up",
       "unread": "Unread",
-      "unreadCount": "{count} unread"
+      "unreadCount": "{count} unread",
+      "loading": "Loading notifications…",
+      "loadingMore": "Loading more…",
+      "loadMore": "Load more",
+      "prevPage": "Previous",
+      "nextPage": "Next",
+      "pagination": "Page {page} of {lastPage} · {total} total",
+      "retry": "Retry",
+      "loadFailed": "Couldn’t load notifications. Please try again.",
+      "markReadFailed": "Couldn’t mark this notification as read.",
+      "markAllFailed": "Couldn’t mark all notifications as read."
     },
     "theme": {
       "switchToLight": "Switch to light mode",
