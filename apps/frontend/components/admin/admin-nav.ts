@@ -5,6 +5,7 @@ import {
   Users,
   BarChart3,
   ScrollText,
+  Bot,
   Settings,
   type LucideIcon,
 } from 'lucide-react'
@@ -16,6 +17,7 @@ export const ADMIN_NAV_KEYS = [
   'platformUsers',
   'analytics',
   'auditLogs',
+  'aiSettings',
   'settings',
 ] as const
 
@@ -28,6 +30,7 @@ export const ADMIN_NAV_ICONS: Record<AdminNavKey, LucideIcon> = {
   platformUsers: Users,
   analytics: BarChart3,
   auditLogs: ScrollText,
+  aiSettings: Bot,
   settings: Settings,
 }
 
@@ -39,5 +42,6 @@ export const ADMIN_NAV_HREFS: Partial<Record<AdminNavKey, string>> = {
   platformUsers: '/admin/platform-users',
   analytics: '/admin/analytics',
   auditLogs: '/admin/audit-logs',
+  aiSettings: '/admin/ai-settings',
   settings: '/admin/settings',
 }
