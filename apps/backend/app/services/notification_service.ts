@@ -15,6 +15,18 @@ export type NotificationRecord = {
   createdAt: string
 }
 
+/** Internal create payload — used by other backend modules (not a public API). */
+export type CreateNotificationInput = {
+  organizationId: string
+  userId: string
+  type: string
+  title: string
+  body?: string | null
+  conversationId?: string | null
+  contactId?: string | null
+  actorUserId?: string | null
+}
+
 const NOTIFICATION_COLUMNS = [
   'id',
   'organizationId',
@@ -58,6 +70,29 @@ function mapNotificationRow(r: Record<string, unknown>): NotificationRecord {
  * Controllers pass organizationId / userId explicitly (same as inbox modules).
  */
 export class NotificationService {
+  /**
+   * Internal: create an unread in-app notification for a user in an organization.
+   * Called by other backend modules (campaigns, billing, team, etc.) — not exposed as POST.
+   * Omits readAt so the row starts unread (NULL). id / createdAt come from DB defaults.
+   */
+  async createNotification(params: CreateNotificationInput): Promise<NotificationRecord> {
+    const [inserted] = await db
+      .table('notifications')
+      .insert({
+        organizationId: params.organizationId,
+        userId: params.userId,
+        type: params.type,
+        title: params.title,
+        body: params.body ?? null,
+        conversationId: params.conversationId ?? null,
+        contactId: params.contactId ?? null,
+        actorUserId: params.actorUserId ?? null,
+      })
+      .returning([...NOTIFICATION_COLUMNS])
+
+    return mapNotificationRow(inserted)
+  }
+
   /**
    * Paginated notifications for the authenticated user within the active org.
    * Newest first by createdAt.

@@ -1,9 +1,11 @@
 import db from '@adonisjs/lucid/services/db'
+import logger from '@adonisjs/core/services/logger'
 import { DateTime } from 'luxon'
 import env from '#start/env'
 import { resend } from '#lib/mail'
 import InvitationException from '#exceptions/invitation_exception'
 import { resolveAssignableRoleForOrg } from '#services/role_service'
+import { NotificationService } from '#services/notification_service'
 
 const INVITE_TTL_HOURS = 24
 
@@ -150,6 +152,15 @@ export class InvitationService {
       }
     }
 
+    // After invitation is successfully created (and kept) — best-effort notify existing users only.
+    await this.#notifyInviteeInvitationCreatedBestEffort({
+      organizationId,
+      inviterId,
+      inviteeEmail: normalizedEmail,
+      workspaceName: org.name as string,
+      role,
+    })
+
     return {
       id: invitation.id as string,
       email: invitation.email as string,
@@ -157,6 +168,50 @@ export class InvitationService {
       status: invitation.status as string,
       expiresAt: invitation.expiresAt as string,
       createdAt: invitation.createdAt as string,
+    }
+  }
+
+  /**
+   * Best-effort in-app notification for an existing invitee user after invitation creation.
+   * Skips when no user matches the invite email. Never throws.
+   */
+  async #notifyInviteeInvitationCreatedBestEffort(params: {
+    organizationId: string
+    inviterId: string
+    inviteeEmail: string
+    workspaceName: string
+    role: string
+  }): Promise<void> {
+    let recipientUserId: string | undefined
+    try {
+      const invitee = await db
+        .from('users')
+        .whereRaw('LOWER(email) = ?', [params.inviteeEmail])
+        .select('id')
+        .first()
+
+      if (!invitee) return
+
+      recipientUserId = invitee.id as string
+
+      await new NotificationService().createNotification({
+        organizationId: params.organizationId,
+        userId: recipientUserId,
+        type: 'team_invitation_created',
+        title: "You've been invited",
+        body: `You've been invited to join ${params.workspaceName} as ${params.role}.`,
+        actorUserId: params.inviterId,
+      })
+    } catch (error) {
+      logger.error(
+        {
+          organizationId: params.organizationId,
+          userId: recipientUserId,
+          type: 'team_invitation_created',
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'team.notification_failed'
+      )
     }
   }
 
@@ -326,7 +381,52 @@ export class InvitationService {
       })
     })
 
+    // After pending → accepted commits — best-effort notify must not roll back acceptance.
+    await this.#notifyInviterInvitationAcceptedBestEffort({
+      organizationId: invitation.organizationId as string,
+      inviterId: invitation.inviterId as string,
+      actorUserId: userId,
+    })
+
     return { organizationId: invitation.organizationId as string }
+  }
+
+  /**
+   * Best-effort in-app notification for the inviter after invitation acceptance. Never throws.
+   */
+  async #notifyInviterInvitationAcceptedBestEffort(params: {
+    organizationId: string
+    inviterId: string
+    actorUserId: string
+  }): Promise<void> {
+    try {
+      const [accepter, org] = await Promise.all([
+        db.from('users').where('id', params.actorUserId).select('name').first(),
+        db.from('organizations').where('id', params.organizationId).select('name').first(),
+      ])
+
+      const userName = (accepter?.name as string | undefined) ?? 'A user'
+      const workspaceName = (org?.name as string | undefined) ?? 'the workspace'
+
+      await new NotificationService().createNotification({
+        organizationId: params.organizationId,
+        userId: params.inviterId,
+        type: 'team_invitation_accepted',
+        title: 'Invitation accepted',
+        body: `${userName} accepted your invitation and joined ${workspaceName}.`,
+        actorUserId: params.actorUserId,
+      })
+    } catch (error) {
+      logger.error(
+        {
+          organizationId: params.organizationId,
+          userId: params.inviterId,
+          type: 'team_invitation_accepted',
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'team.notification_failed'
+      )
+    }
   }
 
   /**

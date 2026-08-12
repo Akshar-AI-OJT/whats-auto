@@ -1,6 +1,6 @@
 /** Shared options + types for the organization onboarding wizard. */
 
-export const ORG_WIZARD_STEPS = [1, 2, 3] as const
+export const ORG_WIZARD_STEPS = [1, 2, 3, 4] as const
 export type OrgWizardStep = (typeof ORG_WIZARD_STEPS)[number]
 
 export const INDUSTRY_OPTIONS = [
