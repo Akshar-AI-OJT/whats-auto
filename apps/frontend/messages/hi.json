@@ -1843,6 +1843,8 @@
         "back": "इनबॉक्स पर वापस जाएँ",
         "agentSender": "एजेंट",
         "noContent": "कोई संदेश सामग्री नहीं",
+        "imageAlt": "छवि अटैचमेंट",
+        "documentLabel": "दस्तावेज़",
         "emptyTitle": "📭 अभी कोई संदेश नहीं",
         "emptyDescription": "बातचीत शुरू होने पर संदेश यहाँ दिखेंगे।",
         "selectTitle": "एक बातचीत चुनें",
@@ -1878,6 +1880,7 @@
           "noAgents": "कोई एजेंट उपलब्ध नहीं",
           "statusLabel": "बातचीत की स्थिति",
           "close": "बंद करें",
+          "closeConfirm": "क्या आप इस बातचीत को बंद करना चाहते हैं? आप इसे बाद में फिर खोल सकते हैं।",
           "reopen": "फिर खोलें",
           "errors": {
             "actionFailed": "यह बातचीत अपडेट नहीं हो सकी। कृपया फिर कोशिश करें।",
@@ -1915,6 +1918,37 @@
         "title": "बातचीत",
         "comingSoon": "थ्रेड और जवाब अगले चरण में उपलब्ध होंगे।",
         "idLabel": "बातचीत ID: {id}"
+      },
+      "details": {
+        "title": "विवरण",
+        "subtitle": "संपर्क और बातचीत की जानकारी",
+        "closePanel": "विवरण बंद करें",
+        "openPanel": "विवरण",
+        "tabsLabel": "विवरण पैनल",
+        "tabs": {
+          "info": "जानकारी",
+          "notes": "नोट्स"
+        },
+        "loading": "विवरण लोड हो रहे हैं…",
+        "empty": "इस बातचीत के लिए कोई विवरण उपलब्ध नहीं है।",
+        "emptyTitle": "कोई बातचीत चयनित नहीं",
+        "emptyDescription": "संपर्क और बातचीत विवरण देखने के लिए एक बातचीत चुनें।",
+        "contactTitle": "संपर्क",
+        "conversationTitle": "बातचीत",
+        "fields": {
+          "name": "नाम",
+          "phone": "फ़ोन",
+          "email": "ईमेल",
+          "company": "कंपनी",
+          "status": "स्थिति",
+          "assignedTo": "असाइन किया गया",
+          "whatsappConfig": "WhatsApp नंबर",
+          "unreadCount": "अपठित",
+          "createdAt": "बनाया गया",
+          "updatedAt": "अपडेट किया गया",
+          "firstResponseAt": "पहली प्रतिक्रिया",
+          "closedAt": "बंद किया गया"
+        }
       }
     },
     "whatsapp": {

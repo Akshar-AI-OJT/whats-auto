@@ -1843,6 +1843,8 @@
         "back": "Back to inbox",
         "agentSender": "Agent",
         "noContent": "No message content",
+        "imageAlt": "Image attachment",
+        "documentLabel": "Document",
         "emptyTitle": "📭 No messages yet",
         "emptyDescription": "Messages will appear here once the conversation starts.",
         "selectTitle": "Select a conversation",
@@ -1878,6 +1880,7 @@
           "noAgents": "No agents available",
           "statusLabel": "Conversation status",
           "close": "Close",
+          "closeConfirm": "Close this conversation? You can reopen it later.",
           "reopen": "Reopen",
           "errors": {
             "actionFailed": "Couldn’t update this conversation. Please try again.",
@@ -1915,6 +1918,37 @@
         "title": "Conversation",
         "comingSoon": "Thread and replies will be available in the next step.",
         "idLabel": "Conversation ID: {id}"
+      },
+      "details": {
+        "title": "Details",
+        "subtitle": "Contact and conversation information",
+        "closePanel": "Close details",
+        "openPanel": "Details",
+        "tabsLabel": "Details panels",
+        "tabs": {
+          "info": "Info",
+          "notes": "Notes"
+        },
+        "loading": "Loading details…",
+        "empty": "No details available for this conversation.",
+        "emptyTitle": "No conversation selected",
+        "emptyDescription": "Select a conversation to see contact and conversation details.",
+        "contactTitle": "Contact",
+        "conversationTitle": "Conversation",
+        "fields": {
+          "name": "Name",
+          "phone": "Phone",
+          "email": "Email",
+          "company": "Company",
+          "status": "Status",
+          "assignedTo": "Assigned to",
+          "whatsappConfig": "WhatsApp number",
+          "unreadCount": "Unread",
+          "createdAt": "Created",
+          "updatedAt": "Updated",
+          "firstResponseAt": "First response",
+          "closedAt": "Closed"
+        }
       }
     },
     "whatsapp": {
