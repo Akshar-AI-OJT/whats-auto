@@ -212,11 +212,7 @@
           "name": "Starter",
           "price": "₹499/mo",
           "cta": "Get Started",
-          "features": [
-            "AI Assistant",
-            "Shared Inbox",
-            "Broadcast Campaigns"
-          ]
+          "features": ["AI Assistant", "Shared Inbox", "Broadcast Campaigns"]
         },
         "growth": {
           "name": "Growth",
@@ -234,11 +230,7 @@
           "name": "Enterprise",
           "price": "Custom",
           "cta": "Contact Sales",
-          "features": [
-            "Dedicated Support",
-            "Custom Integrations",
-            "Enterprise Security"
-          ]
+          "features": ["Dedicated Support", "Custom Integrations", "Enterprise Security"]
         }
       }
     },
@@ -276,11 +268,7 @@
       "secondary": "Book Demo",
       "secondaryBadge": "Coming Soon",
       "secondaryTooltip": "Demo booking will be available soon.",
-      "perks": [
-        "No credit card required",
-        "Setup in minutes",
-        "Secure authentication"
-      ]
+      "perks": ["No credit card required", "Setup in minutes", "Secure authentication"]
     }
   },
   "footer": {
@@ -761,67 +749,35 @@
       "items": {
         "ai": {
           "title": "AI Assistant",
-          "bullets": [
-            "AI-generated replies",
-            "Context-aware suggestions",
-            "Smart automation"
-          ]
+          "bullets": ["AI-generated replies", "Context-aware suggestions", "Smart automation"]
         },
         "broadcast": {
           "title": "Broadcast Campaigns",
-          "bullets": [
-            "Create campaigns",
-            "Schedule broadcasts",
-            "Delivery tracking"
-          ]
+          "bullets": ["Create campaigns", "Schedule broadcasts", "Delivery tracking"]
         },
         "inbox": {
           "title": "Shared Team Inbox",
-          "bullets": [
-            "Assign conversations",
-            "Collaborate",
-            "Notes & mentions"
-          ]
+          "bullets": ["Assign conversations", "Collaborate", "Notes & mentions"]
         },
         "analytics": {
           "title": "Analytics",
-          "bullets": [
-            "Conversation metrics",
-            "Response time",
-            "Campaign performance"
-          ]
+          "bullets": ["Conversation metrics", "Response time", "Campaign performance"]
         },
         "multiTenant": {
           "title": "Multi-Tenant",
-          "bullets": [
-            "Separate organizations",
-            "Workspace isolation",
-            "Role management"
-          ]
+          "bullets": ["Separate organizations", "Workspace isolation", "Role management"]
         },
         "auth": {
           "title": "Secure Authentication",
-          "bullets": [
-            "Google OAuth",
-            "OTP verification",
-            "Password recovery & JWT"
-          ]
+          "bullets": ["Google OAuth", "OTP verification", "Password recovery & JWT"]
         },
         "workflow": {
           "title": "Workflow Automation",
-          "bullets": [
-            "Automated flows",
-            "Message triggers",
-            "Conditional actions"
-          ]
+          "bullets": ["Automated flows", "Message triggers", "Conditional actions"]
         },
         "templates": {
           "title": "Templates",
-          "bullets": [
-            "Saved responses",
-            "Reusable campaigns",
-            "Quick deployment"
-          ]
+          "bullets": ["Saved responses", "Reusable campaigns", "Quick deployment"]
         }
       }
     },
@@ -833,42 +789,25 @@
           "title": "AI Assistant",
           "description": "Answer customers instantly with human-like AI replies, then hand off to your team when needed.",
           "visualLabel": "AI assistant conversation",
-          "points": [
-            "AI replies",
-            "Human handoff",
-            "Smart suggestions",
-            "Instant responses"
-          ]
+          "points": ["AI replies", "Human handoff", "Smart suggestions", "Instant responses"]
         },
         "broadcast": {
           "title": "Broadcast Campaigns",
           "description": "Reach opted-in audiences with scheduled campaigns and clear delivery visibility.",
           "visualLabel": "Broadcast campaign mockup",
-          "points": [
-            "Schedule",
-            "Segment contacts",
-            "Delivery insights"
-          ]
+          "points": ["Schedule", "Segment contacts", "Delivery insights"]
         },
         "inbox": {
           "title": "Team Collaboration",
           "description": "Run support from one shared WhatsApp workspace with assignment and internal context.",
           "visualLabel": "Shared inbox illustration",
-          "points": [
-            "Assign chats",
-            "Internal notes",
-            "Multi-agent support"
-          ]
+          "points": ["Assign chats", "Internal notes", "Multi-agent support"]
         },
         "analytics": {
           "title": "Analytics & Reports",
           "description": "Understand engagement and campaign performance without leaving your workspace.",
           "visualLabel": "Analytics illustration",
-          "points": [
-            "Campaign metrics",
-            "Reply rates",
-            "Team performance"
-          ]
+          "points": ["Campaign metrics", "Reply rates", "Team performance"]
         }
       }
     },
@@ -1463,11 +1402,57 @@
       "messages": "Messages",
       "campaigns": "Campaigns",
       "templates": "Templates",
+      "knowledge": "Knowledge Base",
       "notifications": "Notifications",
       "analytics": "Analytics",
       "billing": "Billing",
       "auditLogs": "Audit Logs",
       "settings": "Settings"
+    },
+    "knowledge": {
+      "eyebrow": "AI",
+      "title": "Knowledge Base",
+      "subtitle": "Upload PDF, DOCX, or TXT files that ground auto-replies for this workspace.",
+      "uploadCta": "Upload file",
+      "uploadProgress": "Uploading…",
+      "loading": "Loading documents…",
+      "retry": "Retry",
+      "emptyTitle": "No knowledge documents yet",
+      "emptyDescription": "Upload a PDF, DOCX, or TXT file to get started. Indexed documents are used for grounded replies.",
+      "pagination": "Showing {from}–{to} of {total}",
+      "prev": "Previous",
+      "next": "Next",
+      "chunkCount": "{count, plural, one {# chunk} other {# chunks}}",
+      "filters": {
+        "label": "Status",
+        "all": "All",
+        "PENDING": "Pending",
+        "PROCESSING": "Processing",
+        "INDEXED": "Indexed",
+        "FAILED": "Failed"
+      },
+      "status": {
+        "PENDING": "Pending",
+        "PROCESSING": "Processing",
+        "INDEXED": "Indexed",
+        "FAILED": "Failed"
+      },
+      "source": {
+        "FILE_PDF": "PDF",
+        "FILE_DOCX": "DOCX",
+        "FILE_TXT": "TXT",
+        "UNKNOWN": "Document"
+      },
+      "actions": {
+        "delete": "Delete"
+      },
+      "errors": {
+        "unsupportedType": "Only PDF, DOCX, and TXT files are supported.",
+        "fileTooLarge": "File must be 100 MB or smaller.",
+        "uploadFailed": "Couldn’t upload the document.",
+        "deleteFailed": "Couldn’t delete the document.",
+        "loadFailed": "Couldn’t load knowledge documents."
+      }
     },
     "media": {
       "eyebrow": "Messaging",
@@ -1934,12 +1919,15 @@
           "close": "Close",
           "closeConfirm": "Close this conversation? You can reopen it later.",
           "reopen": "Reopen",
+          "takeover": "Take Over",
+          "resume": "Resume AI",
           "errors": {
             "actionFailed": "Couldn’t update this conversation. Please try again.",
             "sessionExpired": "Your session expired. Please sign in again.",
             "permissionDenied": "You don’t have permission to change this conversation.",
             "notFound": "Conversation not found.",
-            "agentNotFound": "That agent is not a member of this workspace."
+            "agentNotFound": "That agent is not a member of this workspace.",
+            "invalidAiTransition": "This conversation’s AI mode cannot change that way."
           }
         },
         "panelsLabel": "Conversation panels",
@@ -1993,6 +1981,7 @@
           "email": "Email",
           "company": "Company",
           "status": "Status",
+          "aiMode": "AI mode",
           "assignedTo": "Assigned to",
           "whatsappConfig": "WhatsApp number",
           "unreadCount": "Unread",
@@ -2000,6 +1989,20 @@
           "updatedAt": "Updated",
           "firstResponseAt": "First response",
           "closedAt": "Closed"
+        }
+      },
+      "aiMode": {
+        "pill": {
+          "AI_AUTO": "AI Mode",
+          "HANDOVER": "Handover",
+          "HUMAN_ACTIVE": "Human"
+        },
+        "banner": {
+          "title": "AI handed this conversation to your team",
+          "keyword": "The customer asked for a human ({keyword}).",
+          "keywordGeneric": "The customer asked for a human.",
+          "low_confidence": "AI is not confident enough to reply automatically.",
+          "error": "AI paused because of an error."
         }
       }
     },
@@ -2766,6 +2769,7 @@
       "platformUsers": "Platform Users",
       "analytics": "Analytics",
       "auditLogs": "Audit Logs",
+      "aiSettings": "AI Settings",
       "settings": "Settings"
     },
     "sidebar": {
@@ -3206,6 +3210,10 @@
         "noActiveOrgMissingFlow": "Super Admin has no organization-selection / set-active flow. Tenant dashboard establishes active org via OrganizationsProvider + POST /api/v1/organizations/:id/set-active; that mechanism is not wired into /admin. A platform audit API or an admin active-org picker would be needed before these events can load here."
       }
     },
+    "aiSettings": {
+      "title": "AI Settings",
+      "subtitle": "Configure how the conversation engine responds, retrieves knowledge, and hands conversations to human agents."
+    },
     "settings": {
       "eyebrow": "Administration",
       "title": "Platform Settings",
@@ -3260,6 +3268,73 @@
         "enabled": "Enabled",
         "disabled": "Disabled",
         "scheduled": "Scheduled"
+      },
+      "ai": {
+        "title": "Conversation AI",
+        "description": "Platform-wide auto-reply knobs. Changes apply to every workspace after the in-process cache refreshes (up to 30 seconds).",
+        "loading": "Loading AI settings…",
+        "retry": "Retry",
+        "save": "Save AI settings",
+        "saving": "Saving…",
+        "saved": "AI settings saved.",
+        "saveFooterHint": "Changes apply to all workspaces.",
+        "promptPlaceholder": "Leave empty to use the built-in grounded WhatsApp assistant prompt.",
+        "keywordPlaceholder": "Add keyword…",
+        "keywordsEmpty": "No keywords yet.",
+        "removeKeyword": "Remove {keyword}",
+        "sections": {
+          "response": {
+            "title": "Response",
+            "description": "Control whether auto-reply is on and how the model generates replies."
+          },
+          "knowledge": {
+            "title": "Knowledge & memory",
+            "description": "Retrieval, confidence, and how much conversation context the engine keeps."
+          },
+          "instructions": {
+            "title": "Instructions",
+            "description": "The system prompt sent with every grounded auto-reply."
+          },
+          "handover": {
+            "title": "Human handover",
+            "description": "Phrases that move a conversation from AI to a human agent."
+          }
+        },
+        "fields": {
+          "isEnabled": "Enable auto-reply",
+          "modelName": "Chat model",
+          "embeddingModel": "Embedding model",
+          "temperature": "Temperature",
+          "debounceDelaySeconds": "Debounce (s)",
+          "campaignAttributionWindowHours": "Attribution window (hrs)",
+          "minConfidenceScore": "Min confidence",
+          "workingSetSize": "Working-set size",
+          "summaryTurnThreshold": "Summary threshold",
+          "systemPrompt": "System prompt",
+          "handoverKeywords": "Handover keywords"
+        },
+        "hints": {
+          "isEnabled": "When off, inbound messages are not sent to the LLM.",
+          "embeddingModel": "1536-dimension models only. Changing this does not re-embed existing knowledge chunks.",
+          "temperature": "0 to 2.",
+          "debounceDelaySeconds": "1 to 15. Delay before a grounded reply is generated.",
+          "campaignAttributionWindowHours": "1 to 168.",
+          "minConfidenceScore": "0 to 1. Retrieval below this score hands over.",
+          "workingSetSize": "2 to 20 recent turns kept in memory.",
+          "summaryTurnThreshold": "2 to 200, and must be at least the working-set size.",
+          "systemPrompt": "Plain text. Newlines are kept. Empty uses the built-in default.",
+          "handoverKeywords": "1 to 50 phrases. A case-insensitive substring match hands the chat to a human."
+        },
+        "errors": {
+          "loadFailed": "Couldn’t load AI settings. Please try again.",
+          "saveFailed": "Couldn’t save AI settings. Please try again.",
+          "sessionExpired": "Your session expired. Please sign in again.",
+          "permissionDenied": "You don’t have permission to manage platform AI settings.",
+          "notFound": "Platform AI config was not found.",
+          "summaryThreshold": "Summary turn threshold must be greater than or equal to working-set size.",
+          "invalidRange": "One or more values are outside the allowed range.",
+          "keywordsRequired": "Add at least one handover keyword."
+        }
       }
     },
     "analytics": {

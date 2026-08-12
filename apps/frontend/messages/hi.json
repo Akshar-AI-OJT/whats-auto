@@ -23,12 +23,7 @@
     "ctaSecondary": "डेमो बुक करें",
     "ctaSecondaryBadge": "Soon",
     "ctaSecondaryTooltip": "डेमो बुकिंग जल्द उपलब्ध होगी।",
-    "chips": [
-      "आधिकारिक WhatsApp API",
-      "AI चैट असिस्टेंट",
-      "शेयर टीम इनबॉक्स",
-      "ब्रॉडकास्ट कैंपेन"
-    ],
+    "chips": ["आधिकारिक WhatsApp API", "AI चैट असिस्टेंट", "शेयर टीम इनबॉक्स", "ब्रॉडकास्ट कैंपेन"],
     "visualLabel": "WhatsApp AI बातचीत पूर्वावलोकन",
     "mock": {
       "businessName": "Whats-Auto Store",
@@ -212,11 +207,7 @@
           "name": "Starter",
           "price": "₹499/mo",
           "cta": "Get Started",
-          "features": [
-            "AI Assistant",
-            "Shared Inbox",
-            "Broadcast Campaigns"
-          ]
+          "features": ["AI Assistant", "Shared Inbox", "Broadcast Campaigns"]
         },
         "growth": {
           "name": "Growth",
@@ -234,11 +225,7 @@
           "name": "Enterprise",
           "price": "Custom",
           "cta": "Contact Sales",
-          "features": [
-            "Dedicated Support",
-            "Custom Integrations",
-            "Enterprise Security"
-          ]
+          "features": ["Dedicated Support", "Custom Integrations", "Enterprise Security"]
         }
       }
     },
@@ -276,11 +263,7 @@
       "secondary": "डेमो बुक करें",
       "secondaryBadge": "Coming Soon",
       "secondaryTooltip": "डेमो बुकिंग जल्द उपलब्ध होगी।",
-      "perks": [
-        "क्रेडिट कार्ड की ज़रूरत नहीं",
-        "मिनटों में सेटअप",
-        "सुरक्षित ऑथेंटिकेशन"
-      ]
+      "perks": ["क्रेडिट कार्ड की ज़रूरत नहीं", "मिनटों में सेटअप", "सुरक्षित ऑथेंटिकेशन"]
     }
   },
   "footer": {
@@ -761,67 +744,35 @@
       "items": {
         "ai": {
           "title": "AI Assistant",
-          "bullets": [
-            "AI-generated replies",
-            "Context-aware suggestions",
-            "Smart automation"
-          ]
+          "bullets": ["AI-generated replies", "Context-aware suggestions", "Smart automation"]
         },
         "broadcast": {
           "title": "Broadcast Campaigns",
-          "bullets": [
-            "Create campaigns",
-            "Schedule broadcasts",
-            "Delivery tracking"
-          ]
+          "bullets": ["Create campaigns", "Schedule broadcasts", "Delivery tracking"]
         },
         "inbox": {
           "title": "Shared Team Inbox",
-          "bullets": [
-            "Assign conversations",
-            "Collaborate",
-            "Notes & mentions"
-          ]
+          "bullets": ["Assign conversations", "Collaborate", "Notes & mentions"]
         },
         "analytics": {
           "title": "Analytics",
-          "bullets": [
-            "Conversation metrics",
-            "Response time",
-            "Campaign performance"
-          ]
+          "bullets": ["Conversation metrics", "Response time", "Campaign performance"]
         },
         "multiTenant": {
           "title": "Multi-Tenant",
-          "bullets": [
-            "Separate organizations",
-            "Workspace isolation",
-            "Role management"
-          ]
+          "bullets": ["Separate organizations", "Workspace isolation", "Role management"]
         },
         "auth": {
           "title": "Secure Authentication",
-          "bullets": [
-            "Google OAuth",
-            "OTP verification",
-            "Password recovery & JWT"
-          ]
+          "bullets": ["Google OAuth", "OTP verification", "Password recovery & JWT"]
         },
         "workflow": {
           "title": "Workflow Automation",
-          "bullets": [
-            "Automated flows",
-            "Message triggers",
-            "Conditional actions"
-          ]
+          "bullets": ["Automated flows", "Message triggers", "Conditional actions"]
         },
         "templates": {
           "title": "Templates",
-          "bullets": [
-            "Saved responses",
-            "Reusable campaigns",
-            "Quick deployment"
-          ]
+          "bullets": ["Saved responses", "Reusable campaigns", "Quick deployment"]
         }
       }
     },
@@ -833,42 +784,25 @@
           "title": "AI Assistant",
           "description": "मानवीय जैसे AI जवाब से तुरंत जवाब दें, ज़रूरत पड़ने पर टीम को हैंडऑफ़ करें।",
           "visualLabel": "AI असिस्टेंट बातचीत",
-          "points": [
-            "AI replies",
-            "Human handoff",
-            "Smart suggestions",
-            "Instant responses"
-          ]
+          "points": ["AI replies", "Human handoff", "Smart suggestions", "Instant responses"]
         },
         "broadcast": {
           "title": "Broadcast Campaigns",
           "description": "शेड्यूल्ड कैंपेन से ऑप्ट-इन ऑडियंस तक पहुँचें और डिलीवरी साफ़ देखें।",
           "visualLabel": "ब्रॉडकास्ट कैंपेन मॉकअप",
-          "points": [
-            "Schedule",
-            "Segment contacts",
-            "Delivery insights"
-          ]
+          "points": ["Schedule", "Segment contacts", "Delivery insights"]
         },
         "inbox": {
           "title": "Team Collaboration",
           "description": "असाइनमेंट और इंटरनल कॉन्टेक्स्ट के साथ एक शेयर WhatsApp वर्कस्पेस से सपोर्ट चलाएँ।",
           "visualLabel": "शेयर इनबॉक्स इलस्ट्रेशन",
-          "points": [
-            "Assign chats",
-            "Internal notes",
-            "Multi-agent support"
-          ]
+          "points": ["Assign chats", "Internal notes", "Multi-agent support"]
         },
         "analytics": {
           "title": "Analytics & Reports",
           "description": "वर्कस्पेस छोड़े बिना एंगेजमेंट और कैंपेन परफ़ॉर्मेंस समझें।",
           "visualLabel": "एनालिटिक्स इलस्ट्रेशन",
-          "points": [
-            "Campaign metrics",
-            "Reply rates",
-            "Team performance"
-          ]
+          "points": ["Campaign metrics", "Reply rates", "Team performance"]
         }
       }
     },
@@ -1463,11 +1397,57 @@
       "messages": "संदेश",
       "campaigns": "कैंपेन",
       "templates": "टेम्पलेट्स",
+      "knowledge": "नॉलेज बेस",
       "notifications": "सूचनाएँ",
       "analytics": "एनालिटिक्स",
       "billing": "बिलिंग",
       "auditLogs": "ऑडिट लॉग्स",
       "settings": "सेटिंग्स"
+    },
+    "knowledge": {
+      "eyebrow": "AI",
+      "title": "नॉलेज बेस",
+      "subtitle": "PDF, DOCX, या TXT फ़ाइलें अपलोड करें जो इस वर्कस्पेस के ऑटो-रिप्लाई को ग्राउंड करती हैं।",
+      "uploadCta": "फ़ाइल अपलोड करें",
+      "uploadProgress": "अपलोड हो रहा है…",
+      "loading": "दस्तावेज़ लोड हो रहे हैं…",
+      "retry": "फिर कोशिश करें",
+      "emptyTitle": "अभी कोई नॉलेज दस्तावेज़ नहीं",
+      "emptyDescription": "शुरू करने के लिए PDF, DOCX, या TXT फ़ाइल अपलोड करें। इंडेक्स्ड दस्तावेज़ ग्राउंडेड जवाबों के लिए उपयोग होते हैं।",
+      "pagination": "{total} में से {from}–{to} दिख रहे हैं",
+      "prev": "पिछला",
+      "next": "अगला",
+      "chunkCount": "{count, plural, one {# चंक} other {# चंक}}",
+      "filters": {
+        "label": "स्थिति",
+        "all": "सभी",
+        "PENDING": "लंबित",
+        "PROCESSING": "प्रोसेसिंग",
+        "INDEXED": "इंडेक्स्ड",
+        "FAILED": "विफल"
+      },
+      "status": {
+        "PENDING": "लंबित",
+        "PROCESSING": "प्रोसेसिंग",
+        "INDEXED": "इंडेक्स्ड",
+        "FAILED": "विफल"
+      },
+      "source": {
+        "FILE_PDF": "PDF",
+        "FILE_DOCX": "DOCX",
+        "FILE_TXT": "TXT",
+        "UNKNOWN": "दस्तावेज़"
+      },
+      "actions": {
+        "delete": "हटाएँ"
+      },
+      "errors": {
+        "unsupportedType": "केवल PDF, DOCX, और TXT फ़ाइलें समर्थित हैं।",
+        "fileTooLarge": "फ़ाइल 100 MB या उससे छोटी होनी चाहिए।",
+        "uploadFailed": "दस्तावेज़ अपलोड नहीं हो सका।",
+        "deleteFailed": "दस्तावेज़ हटा नहीं सका।",
+        "loadFailed": "नॉलेज दस्तावेज़ लोड नहीं हो सके।"
+      }
     },
     "media": {
       "eyebrow": "मैसेजिंग",
@@ -1934,12 +1914,15 @@
           "close": "बंद करें",
           "closeConfirm": "क्या आप इस बातचीत को बंद करना चाहते हैं? आप इसे बाद में फिर खोल सकते हैं।",
           "reopen": "फिर खोलें",
+          "takeover": "संभालें",
+          "resume": "AI फिर शुरू करें",
           "errors": {
             "actionFailed": "यह बातचीत अपडेट नहीं हो सकी। कृपया फिर कोशिश करें।",
             "sessionExpired": "आपका सत्र समाप्त हो गया। कृपया फिर साइन इन करें।",
             "permissionDenied": "आपको यह बातचीत बदलने की अनुमति नहीं है।",
             "notFound": "बातचीत नहीं मिली।",
-            "agentNotFound": "वह एजेंट इस वर्कस्पेस का सदस्य नहीं है।"
+            "agentNotFound": "वह एजेंट इस वर्कस्पेस का सदस्य नहीं है।",
+            "invalidAiTransition": "इस बातचीत का AI मोड इस तरह नहीं बदला जा सकता।"
           }
         },
         "panelsLabel": "बातचीत पैनल",
@@ -1993,6 +1976,7 @@
           "email": "ईमेल",
           "company": "कंपनी",
           "status": "स्थिति",
+          "aiMode": "AI मोड",
           "assignedTo": "असाइन किया गया",
           "whatsappConfig": "WhatsApp नंबर",
           "unreadCount": "अपठित",
@@ -2000,6 +1984,20 @@
           "updatedAt": "अपडेट किया गया",
           "firstResponseAt": "पहली प्रतिक्रिया",
           "closedAt": "बंद किया गया"
+        }
+      },
+      "aiMode": {
+        "pill": {
+          "AI_AUTO": "AI मोड",
+          "HANDOVER": "हैंडओवर",
+          "HUMAN_ACTIVE": "मानव"
+        },
+        "banner": {
+          "title": "AI ने यह बातचीत आपकी टीम को सौंपी",
+          "keyword": "ग्राहक ने मानव एजेंट मांगा ({keyword})।",
+          "keywordGeneric": "ग्राहक ने मानव एजेंट मांगा।",
+          "low_confidence": "AI स्वचालित जवाब देने के लिए पर्याप्त आश्वस्त नहीं है।",
+          "error": "त्रुटि के कारण AI रुक गया है।"
         }
       }
     },
@@ -2766,6 +2764,7 @@
       "platformUsers": "प्लेटफ़ॉर्म उपयोगकर्ता",
       "analytics": "एनालिटिक्स",
       "auditLogs": "ऑडिट लॉग्स",
+      "aiSettings": "AI सेटिंग्स",
       "settings": "सेटिंग्स"
     },
     "sidebar": {
@@ -3206,6 +3205,10 @@
         "noActiveOrgMissingFlow": "सुपर एडमिन में संगठन चयन / set-active फ्लो नहीं है। टेनेंट डैशबोर्ड OrganizationsProvider + POST /api/v1/organizations/:id/set-active से सक्रिय संगठन सेट करता है; यह /admin में जुड़ा नहीं है। यहाँ लॉग लोड करने के लिए प्लेटफ़ॉर्म ऑडिट API या एडमिन सक्रिय-संगठन चयनकर्ता आवश्यक होगा।"
       }
     },
+    "aiSettings": {
+      "title": "AI सेटिंग्स",
+      "subtitle": "कॉन्फ़िगर करें कि बातचीत इंजन कैसे जवाब देता है, ज्ञान खोजता है, और बातचीत मानव एजेंटों को सौंपता है।"
+    },
     "settings": {
       "eyebrow": "प्रशासन",
       "title": "प्लेटफ़ॉर्म सेटिंग्स",
@@ -3260,6 +3263,72 @@
         "enabled": "सक्रिय",
         "disabled": "निष्क्रिय",
         "scheduled": "निर्धारित"
+      },
+      "ai": {
+        "title": "बातचीत AI",
+        "loading": "AI सेटिंग्स लोड हो रही हैं…",
+        "retry": "फिर कोशिश करें",
+        "save": "AI सेटिंग्स सेव करें",
+        "saving": "सेव हो रहा है…",
+        "saved": "AI सेटिंग्स सेव हो गईं।",
+        "saveFooterHint": "बदलाव सभी वर्कस्पेस पर लागू होते हैं।",
+        "promptPlaceholder": "बिल्ट-इन ग्राउंडेड WhatsApp असिस्टेंट प्रॉम्प्ट के लिए खाली छोड़ें।",
+        "keywordPlaceholder": "कीवर्ड जोड़ें…",
+        "keywordsEmpty": "अभी कोई कीवर्ड नहीं।",
+        "removeKeyword": "{keyword} हटाएँ",
+        "sections": {
+          "response": {
+            "title": "प्रतिक्रिया",
+            "description": "ऑटो-रिप्लाई चालू है या नहीं, और मॉडल कैसे जवाब बनाता है, यह नियंत्रित करें।"
+          },
+          "knowledge": {
+            "title": "ज्ञान और मेमोरी",
+            "description": "रिट्रीवल, कॉन्फिडेंस, और इंजन कितना बातचीत संदर्भ रखता है।"
+          },
+          "instructions": {
+            "title": "निर्देश",
+            "description": "हर ग्राउंडेड ऑटो-रिप्लाई के साथ भेजा जाने वाला सिस्टम प्रॉम्प्ट।"
+          },
+          "handover": {
+            "title": "मानव हैंडओवर",
+            "description": "वे वाक्यांश जो बातचीत को AI से मानव एजेंट को सौंपते हैं।"
+          }
+        },
+        "fields": {
+          "isEnabled": "ऑटो-रिप्लाई चालू करें",
+          "modelName": "चैट मॉडल",
+          "embeddingModel": "एम्बेडिंग मॉडल",
+          "temperature": "टेम्परेचर",
+          "debounceDelaySeconds": "डिबाउंस (सेकंड)",
+          "campaignAttributionWindowHours": "एट्रिब्यूशन विंडो (घंटे)",
+          "minConfidenceScore": "न्यूनतम कॉन्फिडेंस",
+          "workingSetSize": "वर्किंग-सेट आकार",
+          "summaryTurnThreshold": "सारांश थ्रेशोल्ड",
+          "systemPrompt": "सिस्टम प्रॉम्प्ट",
+          "handoverKeywords": "हैंडओवर कीवर्ड"
+        },
+        "hints": {
+          "isEnabled": "बंद होने पर इनबाउंड संदेश LLM को नहीं भेजे जाते।",
+          "embeddingModel": "केवल 1536-डाइमेंशन मॉडल। बदलने से मौजूदा नॉलेज चंक्स फिर से एम्बेड नहीं होते।",
+          "temperature": "0 से 2।",
+          "debounceDelaySeconds": "1 से 15। ग्राउंडेड जवाब से पहले विलंब।",
+          "campaignAttributionWindowHours": "1 से 168।",
+          "minConfidenceScore": "0 से 1। इससे कम रिट्रीवल स्कोर पर हैंडओवर होता है।",
+          "workingSetSize": "मेमोरी में रखे गए 2 से 20 हाल के टर्न।",
+          "summaryTurnThreshold": "2 से 200, और वर्किंग-सेट आकार से कम नहीं हो सकता।",
+          "systemPrompt": "सादा टेक्स्ट। नई पंक्तियाँ सुरक्षित रहती हैं। खाली होने पर बिल्ट-इन डिफ़ॉल्ट लगता है।",
+          "handoverKeywords": "1 से 50 वाक्यांश। केस-इन्सेंसिटिव सबस्ट्रिंग मैच चैट को मानव को सौंपता है।"
+        },
+        "errors": {
+          "loadFailed": "AI सेटिंग्स लोड नहीं हो सकीं। कृपया फिर कोशिश करें।",
+          "saveFailed": "AI सेटिंग्स सेव नहीं हो सकीं। कृपया फिर कोशिश करें।",
+          "sessionExpired": "आपका सत्र समाप्त हो गया। कृपया फिर साइन इन करें।",
+          "permissionDenied": "आपको प्लेटफ़ॉर्म AI सेटिंग्स प्रबंधित करने की अनुमति नहीं है।",
+          "notFound": "प्लेटफ़ॉर्म AI कॉन्फ़िग नहीं मिला।",
+          "summaryThreshold": "सारांश टर्न थ्रेशोल्ड वर्किंग-सेट आकार से बड़ा या बराबर होना चाहिए।",
+          "invalidRange": "एक या अधिक मान अनुमत सीमा से बाहर हैं।",
+          "keywordsRequired": "कम से कम एक हैंडओवर कीवर्ड जोड़ें।"
+        }
       }
     },
     "analytics": {
