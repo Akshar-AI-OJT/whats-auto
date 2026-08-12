@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 import { Loader2, PanelRightClose, StickyNote } from 'lucide-react'
 import {
@@ -15,13 +15,10 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { InboxThreadNotes } from './InboxThreadNotes'
+import { InboxAiModePill } from './InboxAiModePill'
+import { useLatestRef } from '@/hooks/useLatestRef'
 import { useInboxWorkspace } from './InboxWorkspaceContext'
-import {
-  formatMessageTime,
-  unwrapList,
-  unwrapSingle,
-  mergeConversationUpdate,
-} from './inbox-utils'
+import { formatMessageTime, unwrapList, unwrapSingle } from './inbox-utils'
 
 function unwrapMembers(data: unknown): OrganizationMember[] {
   if (!data) return []
@@ -68,17 +65,22 @@ export function InboxConversationDetails({
   const [whatsappConfigs, setWhatsappConfigs] = useState<WhatsappConfigSummary[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [detailsTab, setDetailsTab] = useState<'info' | 'notes'>('info')
+  const [tabState, setTabState] = useState<{ conversationId: string; tab: 'info' | 'notes' }>({
+    conversationId,
+    tab: 'info',
+  })
 
-  const organizationIdRef = useRef(tenantOrganizationId)
-  const conversationIdRef = useRef(conversationId)
-  organizationIdRef.current = tenantOrganizationId
-  conversationIdRef.current = conversationId
+  const organizationIdRef = useLatestRef(tenantOrganizationId)
+  const conversationIdRef = useLatestRef(conversationId)
 
   const conversation =
     workspaceConversationId === conversationId && workspaceConversation
       ? workspaceConversation
       : localConversation
+
+  const detailsTab = tabState.conversationId === conversationId ? tabState.tab : 'info'
+  const whatsappConfigId = conversation?.whatsappConfigId ?? null
+  const assignedAgentId = conversation?.assignedAgentId ?? null
 
   const agentNameByUserId = useMemo(() => {
     const map = new Map<string, string>()
@@ -143,57 +145,39 @@ export function InboxConversationDetails({
         }
       }
     },
-    [
-      canViewInbox,
-      setWorkspaceConversation,
-      setWorkspaceConversationId,
-      setWorkspaceMembers,
-      t,
-    ]
+    [canViewInbox, conversationIdRef, organizationIdRef, setWorkspaceConversation, setWorkspaceConversationId, setWorkspaceMembers, t]
   )
 
   useEffect(() => {
-    if (orgsLoading) return
-    if (!tenantOrganizationId) return
-    void loadDetails(tenantOrganizationId, conversationId)
+    if (orgsLoading || !tenantOrganizationId) return
+    let cancelled = false
+    const scheduled = Promise.resolve().then(() => {
+      if (cancelled) return
+      return loadDetails(tenantOrganizationId, conversationId)
+    })
+    return () => {
+      cancelled = true
+      void scheduled
+    }
   }, [orgsLoading, tenantOrganizationId, conversationId, loadDetails])
 
-  useEffect(() => {
-    setDetailsTab('info')
-  }, [conversationId])
-
   const whatsappLabel = useMemo(() => {
-    if (!conversation?.whatsappConfigId) return null
-    const match = whatsappConfigs.find((cfg) => cfg.id === conversation.whatsappConfigId)
-    if (!match) return conversation.whatsappConfigId
-    return (
-      match.displayPhoneNumber?.trim() ||
-      match.phoneNumberId ||
-      conversation.whatsappConfigId
-    )
-  }, [conversation?.whatsappConfigId, whatsappConfigs])
+    if (!whatsappConfigId) return null
+    const match = whatsappConfigs.find((cfg) => cfg.id === whatsappConfigId)
+    if (!match) return whatsappConfigId
+    return match.displayPhoneNumber?.trim() || match.phoneNumberId || whatsappConfigId
+  }, [whatsappConfigId, whatsappConfigs])
 
   const agentLabel = useMemo(() => {
-    if (!conversation?.assignedAgentId) return t('unassigned')
-    return (
-      agentNameByUserId.get(conversation.assignedAgentId) ??
-      conversation.assignedAgentId.slice(0, 8)
-    )
-  }, [agentNameByUserId, conversation?.assignedAgentId, t])
+    if (!assignedAgentId) return t('unassigned')
+    return agentNameByUserId.get(assignedAgentId) ?? assignedAgentId.slice(0, 8)
+  }, [agentNameByUserId, assignedAgentId, t])
 
   const statusLabel = conversation
     ? ['open', 'pending', 'closed'].includes(conversation.status)
       ? t(`filters.status.${conversation.status as InboxConversationStatus}`)
       : conversation.status
     : ''
-
-  // Keep local copy in sync when workspace conversation is patched from chat actions.
-  useEffect(() => {
-    if (workspaceConversationId !== conversationId || !workspaceConversation) return
-    setLocalConversation((prev) =>
-      prev ? mergeConversationUpdate(prev, workspaceConversation) : workspaceConversation
-    )
-  }, [conversationId, workspaceConversation, workspaceConversationId])
 
   return (
     <aside
@@ -248,7 +232,7 @@ export function InboxConversationDetails({
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
                 selected ? 'border-b-2 border-primary text-ink' : 'text-mute hover:text-ink'
               )}
-              onClick={() => setDetailsTab(tab.id)}
+              onClick={() => setTabState({ conversationId, tab: tab.id })}
             >
               {tab.label}
             </button>
@@ -316,6 +300,10 @@ export function InboxConversationDetails({
             </h3>
             <dl className="space-y-2.5 rounded-2xl border border-dash-border bg-dash-surface/40 p-3.5">
               <DetailRow label={tDetails('fields.status')} value={statusLabel} />
+              <DetailRow
+                label={tDetails('fields.aiMode')}
+                value={<InboxAiModePill conversation={conversation} />}
+              />
               <DetailRow label={tDetails('fields.assignedTo')} value={agentLabel} />
               <DetailRow label={tDetails('fields.whatsappConfig')} value={whatsappLabel} />
               <DetailRow

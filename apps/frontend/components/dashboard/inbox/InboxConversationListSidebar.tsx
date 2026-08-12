@@ -2,14 +2,7 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import {
-  ChevronLeft,
-  ChevronRight,
-  Loader2,
-  Plus,
-  RefreshCw,
-  Search,
-} from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2, Plus, RefreshCw, Search } from 'lucide-react'
 import {
   api,
   type ApiError,
@@ -26,11 +19,21 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { WorkspaceAvatar } from '@/components/dashboard/WorkspaceSwitcher'
 import { InboxNewConversationSheet } from './InboxNewConversationSheet'
+import { InboxAiModePill } from './InboxAiModePill'
+import { useLatestRef } from '@/hooks/useLatestRef'
+import { useInboxWorkspace } from './InboxWorkspaceContext'
+import {
+  applyInboxSseToList,
+  upsertConversationInList,
+  type InboxListFilters,
+} from './apply-inbox-sse'
 import {
   contactInitials,
   contactLabel,
   formatRelativeListTime,
   unwrapPaginated,
+  unwrapSingle,
+  mergeConversationUpdate,
 } from './inbox-utils'
 
 const PER_PAGE = 20
@@ -63,7 +66,9 @@ function StatusBadge({ status, label }: { status: string; label: string }) {
         : 'bg-mute/15 text-mute ring-dash-border'
 
   return (
-    <span className={cn('inline-flex rounded-md px-1.5 py-0.5 text-[10px] font-semibold ring-1', tone)}>
+    <span
+      className={cn('inline-flex rounded-md px-1.5 py-0.5 text-[10px] font-semibold ring-1', tone)}
+    >
       {label}
     </span>
   )
@@ -86,6 +91,7 @@ export function InboxConversationListSidebar({
     permissions,
     isLoading: orgsLoading,
   } = useOrganizations()
+  const { subscribeInboxEvents, conversation: workspaceConversation } = useInboxWorkspace()
 
   const canCreate =
     hasPermission(permissions, PERMISSIONS.INBOX_VIEW) &&
@@ -104,8 +110,14 @@ export function InboxConversationListSidebar({
   const [agentFilter, setAgentFilter] = useState('all')
   const [newOpen, setNewOpen] = useState(false)
 
-  const organizationIdRef = useRef(tenantOrganizationId)
-  organizationIdRef.current = tenantOrganizationId
+  const organizationIdRef = useLatestRef(tenantOrganizationId)
+  const filtersRef = useLatestRef<InboxListFilters>({
+    page,
+    search,
+    status: statusFilter,
+    assignedAgentId: agentFilter,
+  })
+  const inflightConversationFetches = useRef(new Set<string>())
   const searchId = useId()
 
   const agentNameByUserId = useMemo(() => {
@@ -147,9 +159,7 @@ export function InboxConversationListSidebar({
         ])
         if (organizationId !== organizationIdRef.current) return
 
-        const { items, meta: nextMeta } = unwrapPaginated<InboxConversation>(
-          conversationsRes.data
-        )
+        const { items, meta: nextMeta } = unwrapPaginated<InboxConversation>(conversationsRes.data)
         setConversations(items)
         setMeta(nextMeta)
         setPage(nextMeta?.currentPage ?? nextPage)
@@ -165,21 +175,72 @@ export function InboxConversationListSidebar({
         }
       }
     },
-    [agentFilter, canViewInbox, search, statusFilter, t]
+    [agentFilter, canViewInbox, organizationIdRef, search, statusFilter, t]
   )
 
   useEffect(() => {
-    if (orgsLoading) return
-    if (!tenantOrganizationId) {
-      setConversations([])
-      setLoading(true)
-      return
+    if (orgsLoading || !tenantOrganizationId) return
+    let cancelled = false
+    const scheduled = Promise.resolve().then(() => {
+      if (cancelled) return
+      return loadList(tenantOrganizationId, page)
+    })
+    return () => {
+      cancelled = true
+      void scheduled
     }
-    void loadList(tenantOrganizationId, page)
   }, [orgsLoading, tenantOrganizationId, loadList, page])
 
+  const fetchAndUpsertConversation = useCallback(
+    async (conversationId: string) => {
+      if (!canViewInbox) return
+      if (inflightConversationFetches.current.has(conversationId)) return
+      inflightConversationFetches.current.add(conversationId)
+      try {
+        const res = await api.inbox.getConversation(conversationId)
+        if (organizationIdRef.current !== tenantOrganizationId) return
+        const detail = unwrapSingle<InboxConversation>(res.data)
+        if (!detail) return
+        setConversations((prev) => upsertConversationInList(prev, detail, filtersRef.current))
+      } catch {
+        // Keep the current page; the next refresh or event can retry.
+      } finally {
+        inflightConversationFetches.current.delete(conversationId)
+      }
+    },
+    [canViewInbox, filtersRef, organizationIdRef, tenantOrganizationId]
+  )
+
+  useEffect(() => {
+    if (!canViewInbox) return
+    return subscribeInboxEvents((event) => {
+      let fetchConversationId: string | null = null
+      setConversations((prev) => {
+        const result = applyInboxSseToList(prev, event, filtersRef.current)
+        fetchConversationId = result.fetchConversationId
+        return result.conversations
+      })
+      if (fetchConversationId) {
+        void fetchAndUpsertConversation(fetchConversationId)
+      }
+    })
+  }, [canViewInbox, fetchAndUpsertConversation, filtersRef, subscribeInboxEvents])
+
   const lastPage = meta?.lastPage ?? 1
-  const total = meta?.total ?? conversations.length
+  const visibleConversations = useMemo(() => {
+    const base = tenantOrganizationId ? conversations : []
+    if (!workspaceConversation) return base
+    return base.map((row) =>
+      row.id === workspaceConversation.id
+        ? mergeConversationUpdate(row, {
+            aiMode: workspaceConversation.aiMode,
+            aiHandoverReason: workspaceConversation.aiHandoverReason,
+          })
+        : row
+    )
+  }, [conversations, tenantOrganizationId, workspaceConversation])
+  const total = meta?.total ?? visibleConversations.length
+  const listBusy = orgsLoading || !tenantOrganizationId || loading
 
   return (
     <aside
@@ -197,16 +258,14 @@ export function InboxConversationListSidebar({
             <h2 className="font-display text-sm font-semibold tracking-tight text-ink">
               {t('listTitle')}
             </h2>
-            <p className="mt-0.5 text-xs text-mute">
-              {t('listDescription', { count: total })}
-            </p>
+            <p className="mt-0.5 text-xs text-mute">{t('listDescription', { count: total })}</p>
           </div>
           <div className="flex shrink-0 items-center gap-1">
             <Button
               type="button"
               variant="ghost"
               size="icon-sm"
-              disabled={loading || orgsLoading}
+              disabled={listBusy}
               onClick={() => {
                 if (tenantOrganizationId) void loadList(tenantOrganizationId, page)
               }}
@@ -287,7 +346,7 @@ export function InboxConversationListSidebar({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {loading || orgsLoading ? (
+        {listBusy ? (
           <div className="flex items-center justify-center gap-2 px-4 py-10 text-sm text-body">
             <Loader2 className="size-4 animate-spin" aria-hidden />
             {t('loading')}
@@ -308,19 +367,17 @@ export function InboxConversationListSidebar({
               {t('retry')}
             </Button>
           </div>
-        ) : conversations.length === 0 ? (
+        ) : visibleConversations.length === 0 ? (
           <div className="px-4 py-10 text-center">
             <p className="text-sm font-semibold text-ink">{t('emptyTitle')}</p>
             <p className="mt-1 text-xs leading-5 text-mute">{t('emptyDescription')}</p>
           </div>
         ) : (
           <ul>
-            {conversations.map((conversation) => {
+            {visibleConversations.map((conversation) => {
               const isSelected = conversation.id === selectedConversationId
               const updated =
-                conversation.lastMessageAt ||
-                conversation.updatedAt ||
-                conversation.createdAt
+                conversation.lastMessageAt || conversation.updatedAt || conversation.createdAt
               const agentLabel = conversation.assignedAgentId
                 ? (agentNameByUserId.get(conversation.assignedAgentId) ?? t('unassigned'))
                 : t('unassigned')
@@ -359,6 +416,7 @@ export function InboxConversationListSidebar({
                       </p>
                       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                         <StatusBadge status={conversation.status} label={statusLabel} />
+                        <InboxAiModePill conversation={conversation} size="sm" />
                         <span className="truncate text-[11px] text-body">{agentLabel}</span>
                       </div>
                     </div>

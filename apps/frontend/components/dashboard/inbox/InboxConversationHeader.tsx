@@ -7,6 +7,8 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { WorkspaceAvatar } from '@/components/dashboard/WorkspaceSwitcher'
 import { InboxConversationActions } from './InboxConversationActions'
+import { InboxAiModePill } from './InboxAiModePill'
+import { InboxAiHandoverBanner } from './InboxAiHandoverBanner'
 import { useInboxWorkspace } from './InboxWorkspaceContext'
 import {
   contactInitials,
@@ -69,8 +71,9 @@ export function InboxConversationHeader({
     .join(' · ')
 
   return (
-    <header className="sticky top-0 z-10 border-b border-dash-border bg-canvas/95 px-4 py-3.5 backdrop-blur-sm sm:px-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <header className="sticky top-0 z-10 border-b border-dash-border bg-canvas/95 backdrop-blur-sm">
+      <div className="px-4 py-3.5 sm:px-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 items-start gap-3">
           <WorkspaceAvatar
             initials={contactInitials(conversation)}
@@ -83,6 +86,7 @@ export function InboxConversationHeader({
                 {contactLabel(conversation)}
               </h2>
               <StatusBadge status={conversation.status} label={statusLabel} />
+              <InboxAiModePill conversation={conversation} />
             </div>
             {secondaryContact ? (
               <p className="mt-0.5 truncate text-sm text-mute">{secondaryContact}</p>
@@ -117,7 +121,9 @@ export function InboxConversationHeader({
             onUpdated={onConversationUpdated}
           />
         </div>
+        </div>
       </div>
+      <InboxAiHandoverBanner conversation={conversation} />
     </header>
   )
 }
