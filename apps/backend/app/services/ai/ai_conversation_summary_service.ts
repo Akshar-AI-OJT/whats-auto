@@ -48,7 +48,7 @@ export default class AiConversationSummaryService {
       if (count <= config.summaryTurnThreshold) return
 
       const manager = this.queue ?? (await app.container.make(JobQueueManager))
-      const driver = await manager.ensureStarted(manager.aiDriverName())
+      const driver = await manager.ensureStarted()
       const payload: SummarizeConversationJobPayload = {
         organizationId: input.organizationId,
         conversationId: input.conversationId,

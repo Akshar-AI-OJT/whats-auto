@@ -12,7 +12,7 @@ import { createAiDebounceTurnHandler } from '#services/job_queue/handlers/ai_deb
 import { createAiSummarizeConversationHandler } from '#services/job_queue/handlers/ai_summarize_conversation_handler'
 
 /**
- * Register default (pg-boss) worker handlers.
+ * Register all worker handlers on the single BullMQ driver.
  */
 export async function registerJobHandlers(driver: JobQueueDriver): Promise<void> {
   await driver.work(JOB_NAMES.WHATSAPP_OUTBOUND_DISPATCH, createWhatsappOutboundDispatchHandler())
@@ -25,10 +25,6 @@ export async function registerJobHandlers(driver: JobQueueDriver): Promise<void>
   await driver.work(JOB_NAMES.MEDIA_STORAGE_LIFECYCLE, createMediaStorageLifecycleHandler())
   await driver.work(JOB_NAMES.CAMPAIGN_EXECUTE, createCampaignExecuteHandler())
   await driver.work(JOB_NAMES.CAMPAIGN_RECOVERY, createCampaignRecoveryHandler())
-}
-
-/** Register AI jobs on the BullMQ driver. */
-export async function registerAiJobHandlers(driver: JobQueueDriver): Promise<void> {
   await driver.work(JOB_NAMES.AI_PROCESS_DOCUMENT, createAiProcessDocumentHandler())
   await driver.work(JOB_NAMES.AI_DEBOUNCE_TURN, createAiDebounceTurnHandler())
   await driver.work(JOB_NAMES.AI_SUMMARIZE_CONVERSATION, createAiSummarizeConversationHandler())

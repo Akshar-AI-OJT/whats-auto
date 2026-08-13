@@ -218,7 +218,7 @@ export default class KnowledgeDocumentService {
   }): Promise<void> {
     try {
       const manager = await app.container.make(JobQueueManager)
-      const queue = await manager.ensureStarted(manager.aiDriverName())
+      const queue = await manager.ensureStarted()
       await queue.enqueue(
         JOB_NAMES.AI_PROCESS_DOCUMENT,
         {

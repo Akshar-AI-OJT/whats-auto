@@ -86,7 +86,7 @@ export default class AiDebounceService {
   async #enqueue(input: InboundDebounceInput, delaySeconds: number): Promise<void> {
     try {
       const manager = this.queue ?? (await app.container.make(JobQueueManager))
-      const driver = await manager.ensureStarted(manager.aiDriverName())
+      const driver = await manager.ensureStarted()
       const payload: DebounceTurnJobPayload = {
         organizationId: input.organizationId,
         contactId: input.contactId,
@@ -130,7 +130,7 @@ export default class AiDebounceService {
 
     try {
       const manager = this.queue ?? (await app.container.make(JobQueueManager))
-      const driver = await manager.ensureStarted(manager.aiDriverName())
+      const driver = await manager.ensureStarted()
       await driver.remove?.(JOB_NAMES.AI_DEBOUNCE_TURN, conversationId)
     } catch (error) {
       logger.warn(

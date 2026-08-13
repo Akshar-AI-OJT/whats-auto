@@ -2,7 +2,6 @@
 export const JOB_NAMES = {
   WHATSAPP_OUTBOUND_DISPATCH: 'whatsapp.outbound.dispatch',
   WHATSAPP_OUTBOUND_RECOVERY: 'whatsapp.outbound.recovery',
-  WHATSAPP_UNMATCHED_RECEIPTS_CLEANUP: 'whatsapp.unmatched_receipts.cleanup',
   BILLING_PAYMENT_WEBHOOK_PROCESS: 'billing.payment_webhook.process',
   MEDIA_PENDING_UPLOAD_CLEANUP: 'media.pending_upload.cleanup',
   MEDIA_STORAGE_LIFECYCLE: 'media.storage.lifecycle',
@@ -26,3 +25,6 @@ export const MEDIA_STORAGE_LIFECYCLE_CRON = '*/15 * * * *'
 
 /** Cron for overdue scheduled/sending campaigns. */
 export const CAMPAIGN_RECOVERY_CRON = '*/1 * * * *'
+
+/** Cron for sweeping unprocessed billing webhook events (every 5 minutes). */
+export const BILLING_PAYMENT_WEBHOOK_RECOVERY_CRON = '*/5 * * * *'
