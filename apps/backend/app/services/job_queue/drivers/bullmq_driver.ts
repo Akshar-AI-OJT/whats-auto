@@ -58,13 +58,7 @@ export default class BullmqJobQueueDriver implements JobQueueDriver {
     const mapped = mapBullmqEnqueueOptions(options)
 
     if (mapped.jobId) {
-      const existing = await queue.getJob(mapped.jobId)
-      if (existing) {
-        const state = await existing.getState()
-        if (state === 'delayed' || state === 'waiting' || state === 'prioritized') {
-          await existing.remove()
-        }
-      }
+      await this.#removeReplaceableJob(queue, mapped.jobId)
     }
 
     const job = await queue.add(name, data, mapped)
@@ -73,10 +67,26 @@ export default class BullmqJobQueueDriver implements JobQueueDriver {
 
   async remove(name: string, singletonKey: string): Promise<void> {
     const queue = this.#queue(name)
-    const existing = await queue.getJob(singletonKey)
+    await this.#removeReplaceableJob(queue, singletonKey)
+  }
+
+  /**
+   * BullMQ keeps completed/failed jobs when removeOnComplete/Fail is a number.
+   * Re-adding the same jobId then appears to succeed but schedules nothing — AI
+   * debounce would never fire again for that conversation. Remove replaceable
+   * states before add; leave `active` alone.
+   */
+  async #removeReplaceableJob(queue: Queue, jobId: string): Promise<void> {
+    const existing = await queue.getJob(jobId)
     if (!existing) return
     const state = await existing.getState()
-    if (state === 'delayed' || state === 'waiting' || state === 'prioritized') {
+    if (
+      state === 'delayed' ||
+      state === 'waiting' ||
+      state === 'prioritized' ||
+      state === 'completed' ||
+      state === 'failed'
+    ) {
       await existing.remove()
     }
   }
