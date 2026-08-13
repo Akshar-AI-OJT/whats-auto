@@ -816,15 +816,26 @@ export class CampaignService {
   }
 
   /**
-   * Placeholder for removing a future campaign schedule job.
-   * pg-boss singletonKey = campaignId means a later enqueue replaces; cancel relies on
-   * status checks in executeCampaign to no-op if reverted to draft.
+   * Drop the delayed campaign execute job when a schedule is cancelled.
+   * BullMQ jobId = campaignId; executeCampaign still no-ops if status is draft.
    */
-  protected async unregisterCampaignSchedule(_params: {
+  protected async unregisterCampaignSchedule(params: {
     organizationId: string
     campaignId: string
   }): Promise<void> {
-    // No explicit job cancel API required — executeCampaign ignores non-due draft rows.
+    try {
+      const manager = await app.container.make(JobQueueManager)
+      const queue = await manager.ensureStarted()
+      await queue.remove?.(JOB_NAMES.CAMPAIGN_EXECUTE, params.campaignId)
+    } catch (error) {
+      logger.warn(
+        {
+          campaignId: params.campaignId,
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'campaigns.unregister_schedule_failed'
+      )
+    }
   }
 
   /**
