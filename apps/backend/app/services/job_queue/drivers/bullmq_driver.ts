@@ -15,7 +15,7 @@ export type BullmqDriverConfig = {
 }
 
 /**
- * BullMQ driver for AI jobs. Domain owns retries — attempts is always 1.
+ * BullMQ driver for all jobs. Domain owns retries — attempts is always 1.
  * singletonKey maps to jobId; a new enqueue with the same key replaces a
  * delayed/waiting job (debounce reset).
  */

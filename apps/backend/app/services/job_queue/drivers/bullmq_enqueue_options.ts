@@ -8,7 +8,7 @@ export type BullmqMappedJobOptions = {
 
 /**
  * Map the portable enqueue contract onto BullMQ JobsOptions.
- * attempts: 1 matches pg-boss retryLimit: 0 (domain owns retries).
+ * attempts: 1 — domain owns retry logic, not the queue driver.
  */
 export function mapBullmqEnqueueOptions(
   options?: JobEnqueueOptions,
