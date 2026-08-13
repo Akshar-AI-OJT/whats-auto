@@ -438,6 +438,30 @@ export type CreateInboxConversationNoteBody = {
   noteText: string
 }
 
+/** Row from GET /api/v1/notifications */
+export type Notification = {
+  id: string
+  organizationId: string
+  userId: string
+  type: string
+  conversationId: string | null
+  contactId: string | null
+  actorUserId: string | null
+  title: string
+  body: string | null
+  readAt: string | null
+  createdAt: string
+}
+
+export type ListNotificationsParams = {
+  page?: number
+  limit?: number
+}
+
+export type MarkAllNotificationsReadResult = {
+  updatedCount: number
+}
+
 export type WhatsappConfigSummary = {
   id: string
   organizationId?: string
@@ -1125,6 +1149,31 @@ export const api = {
           body: JSON.stringify(body),
         }
       ),
+  },
+
+  notifications: {
+    list: (params: ListNotificationsParams = {}) => {
+      const qs = new URLSearchParams()
+      if (params.page != null) qs.set('page', String(params.page))
+      if (params.limit != null) qs.set('limit', String(params.limit))
+      const query = qs.toString()
+      return protectedRequest<
+        Paginated<Notification> | { data?: Notification[]; meta?: PaginationMeta }
+      >(`/api/v1/notifications${query ? `?${query}` : ''}`, {
+        method: 'GET',
+      })
+    },
+
+    markAsRead: (notificationId: string) =>
+      protectedRequest<{ data?: Notification } & Notification>(
+        `/api/v1/notifications/${notificationId}/read`,
+        { method: 'PATCH' }
+      ),
+
+    markAllAsRead: () =>
+      protectedRequest<
+        { data?: MarkAllNotificationsReadResult } & MarkAllNotificationsReadResult
+      >('/api/v1/notifications/read-all', { method: 'PATCH' }),
   },
 
   whatsapp: {

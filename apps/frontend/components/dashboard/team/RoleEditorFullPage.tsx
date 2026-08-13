@@ -1,8 +1,18 @@
 'use client'
 
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Check, Loader2, Search, Shield } from 'lucide-react'
+import {
+  Check,
+  ChevronRight,
+  Headset,
+  Info,
+  Loader2,
+  Search,
+  Settings2,
+  Shield,
+  Users,
+} from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api, type ApiError, type OrganizationRole } from '@/lib/api'
 import {
@@ -21,27 +31,21 @@ import {
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
+import { Link } from '@/i18n/navigation'
+import {
+  actionLabel,
+  crudColumnForPermission,
+  grantablePreset,
+  matchingTemplate,
+  resourceLabel,
+  setsEqual,
+  sortPermissions,
+  sortResources,
+  type CrudColumn,
+  type RoleTemplateId,
+} from './role-editor-utils'
 
-const RESOURCE_LABELS: Record<string, string> = {
-  inbox: 'Conversations',
-  contacts: 'Contacts',
-  campaigns: 'Campaigns',
-  templates: 'Templates',
-  analytics: 'Reports',
-  history: 'Reports',
-  org: 'Organization',
-  team: 'Users',
-  ai: 'AI',
-  automations: 'Automations',
-  notifications: 'Notifications',
-  roles: 'Roles',
-  billing: 'Billing',
-  whatsapp: 'WhatsApp',
-  integrations: 'Integrations',
-  audit: 'Audit',
-}
-
-const RESOURCE_ORDER = [
+const MODULE_DESCRIPTION_KEYS = new Set([
   'inbox',
   'contacts',
   'campaigns',
@@ -57,68 +61,17 @@ const RESOURCE_ORDER = [
   'whatsapp',
   'integrations',
   'audit',
-] as const
+  'media',
+])
 
-const PERMISSION_LABELS: Record<string, string> = {
-  'inbox:view': 'View',
-  'inbox:reply': 'Reply',
-  'inbox:assign': 'Assign',
-  'inbox:close': 'Close',
-  'contacts:view': 'View',
-  'contacts:create': 'Create',
-  'contacts:edit': 'Edit',
-  'contacts:delete': 'Delete',
-  'contacts:import': 'Import',
-  'contacts:export': 'Export',
-  'campaigns:view': 'View',
-  'campaigns:create': 'Create',
-  'campaigns:edit': 'Edit',
-  'campaigns:pause': 'Pause',
-  'campaigns:launch': 'Schedule',
-  'campaigns:delete': 'Delete',
-  'templates:view': 'View',
-  'templates:create': 'Create',
-  'templates:edit': 'Edit',
-  'templates:sync': 'Submit to Meta',
-  'templates:delete': 'Delete',
-  'analytics:view': 'Dashboard',
-  'analytics:export': 'Export',
-  'history:export': 'Campaign Reports',
-  'org:view': 'View Settings',
-  'org:settings_manage': 'Edit Settings',
-  'org:delete': 'Delete Organization',
-  'team:view': 'View',
-  'team:invite': 'Invite',
-  'team:remove': 'Remove',
-  'team:role_assign': 'Edit',
-  'ai:draft': 'Generate Replies',
-  'ai:kb_view': 'View Knowledge Base',
-  'ai:kb_manage': 'Manage Knowledge Base',
-  'ai:agent_manage': 'Generate Templates',
+const CRUD_COLUMNS: CrudColumn[] = ['view', 'create', 'update', 'delete']
+
+const TEMPLATE_ICONS: Record<RoleTemplateId, typeof Shield> = {
+  admin: Shield,
+  manager: Users,
+  agent: Headset,
+  custom: Settings2,
 }
-
-const ACTION_ORDER = [
-  'view',
-  'create',
-  'edit',
-  'reply',
-  'assign',
-  'close',
-  'schedule',
-  'pause',
-  'launch',
-  'sync',
-  'import',
-  'export',
-  'invite',
-  'remove',
-  'role_assign',
-  'draft',
-  'kb_view',
-  'kb_manage',
-  'agent_manage',
-  'delete',
-] as const
 
 function unwrapList<T>(data: { data?: T[] } | T[] | undefined): T[] {
   if (!data) return []
@@ -153,29 +106,26 @@ function slugPreview(name: string) {
     .slice(0, 20)
 }
 
-function startCase(value: string) {
-  return value
-    .replace(/[_-]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .replace(/\b\w/g, (m) => m.toUpperCase())
-}
-
-function resourceLabel(resource: string) {
-  if (resource === 'reports') return 'Reports'
-  return RESOURCE_LABELS[resource] ?? startCase(resource)
-}
-
-function actionLabel(permission: string) {
-  return PERMISSION_LABELS[permission] ?? startCase(permission.split(':')[1] ?? permission)
-}
-
-function setsEqual(a: Set<string>, b: Set<string>) {
-  if (a.size !== b.size) return false
-  for (const value of a) {
-    if (!b.has(value)) return false
-  }
-  return true
+function RadioDot({
+  checked,
+  disabled,
+}: {
+  checked: boolean
+  disabled?: boolean
+}) {
+  return (
+    <span
+      className={cn(
+        'inline-flex size-4 items-center justify-center rounded-full border',
+        checked
+          ? 'border-primary bg-primary'
+          : 'border-dash-border bg-canvas',
+        disabled && !checked && 'opacity-30'
+      )}
+    >
+      {checked ? <span className="size-1.5 rounded-full bg-on-primary" /> : null}
+    </span>
+  )
 }
 
 export function RoleEditorFullPage({
@@ -190,12 +140,12 @@ export function RoleEditorFullPage({
   const TEMP_ROLE_EDIT_REASON = 'Permissions updated from role editor'
 
   const nameId = useId()
+  const descriptionId = useId()
   const searchId = useId()
   const formErrorId = useId()
+  const didInitCreate = useRef(false)
 
-  const [role, setRole] = useState<OrganizationRole | null>(
-    mode === 'edit' ? null : null
-  )
+  const [role, setRole] = useState<OrganizationRole | null>(null)
   const [roleLoading, setRoleLoading] = useState(mode === 'edit')
   const [roleLoadError, setRoleLoadError] = useState<string | null>(null)
 
@@ -209,6 +159,7 @@ export function RoleEditorFullPage({
   const groups = useMemo(() => groupProductPermissions(grantable), [grantable])
 
   const [name, setName] = useState('')
+  const [description, setDescription] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [initialSelected, setInitialSelected] = useState<Set<string>>(new Set())
   const [permSearch, setPermSearch] = useState('')
@@ -218,12 +169,21 @@ export function RoleEditorFullPage({
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
 
+  const activeTemplate = useMemo(
+    () => matchingTemplate(selected, grantable),
+    [selected, grantable]
+  )
+
   const dirty = useMemo(() => {
     if (mode === 'create') {
-      return name.trim().length > 0 || selected.size > 0
+      return (
+        name.trim().length > 0 ||
+        description.trim().length > 0 ||
+        !setsEqual(selected, initialSelected)
+      )
     }
     return !setsEqual(selected, initialSelected)
-  }, [mode, name, selected, initialSelected])
+  }, [mode, name, description, selected, initialSelected])
 
   const filteredGroups = useMemo(() => {
     const q = permSearch.trim().toLowerCase()
@@ -235,7 +195,8 @@ export function RoleEditorFullPage({
               (permission) =>
                 permission.toLowerCase().includes(q) ||
                 group.resource.toLowerCase().includes(q) ||
-                resourceLabel(group.resource).toLowerCase().includes(q)
+                resourceLabel(group.resource).toLowerCase().includes(q) ||
+                actionLabel(permission).toLowerCase().includes(q)
             ),
           }))
           .filter((group) => group.permissions.length > 0)
@@ -255,35 +216,19 @@ export function RoleEditorFullPage({
       }
     }
 
-    const normalized = [...merged.values()].map((group) => {
-      const sortedPermissions = [...new Set(group.permissions)].sort((a, b) => {
-        const actionA = a.split(':')[1] ?? ''
-        const actionB = b.split(':')[1] ?? ''
-        const idxA = ACTION_ORDER.indexOf(actionA as (typeof ACTION_ORDER)[number])
-        const idxB = ACTION_ORDER.indexOf(actionB as (typeof ACTION_ORDER)[number])
-        if (idxA === -1 && idxB === -1) return a.localeCompare(b)
-        if (idxA === -1) return 1
-        if (idxB === -1) return -1
-        return idxA - idxB
-      })
-      return { resource: group.resource, permissions: sortedPermissions }
-    })
+    const normalized = [...merged.values()].map((group) => ({
+      resource: group.resource,
+      permissions: sortPermissions(group.permissions),
+    }))
 
-    return normalized.sort((a, b) => {
-      const idxA = RESOURCE_ORDER.indexOf(a.resource as (typeof RESOURCE_ORDER)[number])
-      const idxB = RESOURCE_ORDER.indexOf(b.resource as (typeof RESOURCE_ORDER)[number])
-      if (idxA === -1 && idxB === -1) return a.resource.localeCompare(b.resource)
-      if (idxA === -1) return 1
-      if (idxB === -1) return -1
-      return idxA - idxB
-    })
+    return sortResources(normalized)
   }, [groups, permSearch])
 
-  function togglePermission(permission: string) {
+  function togglePermission(permission: string, enabled: boolean) {
     setSelected((prev) => {
       const next = new Set(prev)
-      if (next.has(permission)) next.delete(permission)
-      else next.add(permission)
+      if (enabled) next.add(permission)
+      else next.delete(permission)
       return next
     })
   }
@@ -299,15 +244,9 @@ export function RoleEditorFullPage({
     })
   }
 
-  function toggleAllPermissions(checked: boolean) {
-    setSelected((prev) => {
-      const next = new Set(prev)
-      for (const permission of grantable) {
-        if (checked) next.add(permission)
-        else next.delete(permission)
-      }
-      return next
-    })
+  function applyTemplate(template: RoleTemplateId) {
+    if (template === 'custom') return
+    setSelected(new Set(grantablePreset(template, grantable)))
   }
 
   function mapError(apiError: ApiError): string {
@@ -366,11 +305,9 @@ export function RoleEditorFullPage({
         setNameError(t('errors.invalidKey'))
         return
       }
-    } else {
-      if (!role) {
-        setError(t('errors.generic'))
-        return
-      }
+    } else if (!role) {
+      setError(t('errors.generic'))
+      return
     }
 
     setPending(true)
@@ -380,7 +317,6 @@ export function RoleEditorFullPage({
       } else if (role) {
         await api.roles.update(role.role, {
           permissions,
-          // Audit reason UI is temporarily disabled; keep API contract satisfied.
           reason: TEMP_ROLE_EDIT_REASON,
         })
       }
@@ -395,13 +331,14 @@ export function RoleEditorFullPage({
   }
 
   useEffect(() => {
-    // Reset editor state when we navigate between different roles.
     setError(null)
     setNameError(null)
     setPermsError(null)
     setPending(false)
     setPermSearch('')
     setOpenResource(null)
+    setDescription('')
+    didInitCreate.current = false
 
     if (mode === 'create') {
       setRole(null)
@@ -411,7 +348,6 @@ export function RoleEditorFullPage({
       return
     }
 
-    // Edit mode: load role from /api/v1/roles (only API available).
     setRoleLoading(true)
     setRoleLoadError(null)
     void api.roles
@@ -430,7 +366,7 @@ export function RoleEditorFullPage({
         setInitialSelected(new Set(nextSelected))
       })
       .catch((err) => {
-        setRoleLoadError((err as ApiError).message || t('errors.loadFailed'))
+        setRoleLoadError((err as ApiError).message || tRoles('errors.loadFailed'))
       })
       .finally(() => {
         setRoleLoading(false)
@@ -439,7 +375,16 @@ export function RoleEditorFullPage({
   }, [mode, roleKey])
 
   useEffect(() => {
-    // When grantable set changes (permissions/context), re-map initial selection for edit mode.
+    if (mode !== 'create') return
+    if (didInitCreate.current) return
+    if (grantable.length === 0) return
+    const preset = new Set(grantablePreset('admin', grantable))
+    setSelected(preset)
+    setInitialSelected(preset)
+    didInitCreate.current = true
+  }, [mode, grantable])
+
+  useEffect(() => {
     if (mode !== 'edit') return
     if (!role) return
     const nextSelected = new Set(
@@ -451,7 +396,6 @@ export function RoleEditorFullPage({
   }, [grantable])
 
   useEffect(() => {
-    // Accordion behavior: default first expanded; only one section open at a time.
     if (filteredGroups.length === 0) {
       setOpenResource(null)
       return
@@ -465,8 +409,27 @@ export function RoleEditorFullPage({
     mode === 'create'
       ? t('createTitle')
       : t('editTitle', { role: (role?.role ?? '').toUpperCase() })
+  const subtitle = mode === 'create' ? t('createSubtitle') : t('editSubtitle')
   const keyHint = mode === 'create' ? slugPreview(name) : role?.role
   const saveDisabled = pending || !canManageRoles || !dirty
+
+  const headerActions = (
+    <div className="flex flex-col gap-2 sm:flex-row sm:justify-end sm:gap-3">
+      <Button type="button" variant="outline" disabled={pending} onClick={requestCancel}>
+        {t('cancel')}
+      </Button>
+      <Button type="submit" disabled={saveDisabled} className="gap-2">
+        {pending ? (
+          <>
+            <Loader2 className="size-4 animate-spin" aria-hidden />
+            {t('saving')}
+          </>
+        ) : (
+          t(mode === 'create' ? 'createSubmit' : 'editSubmit')
+        )}
+      </Button>
+    </div>
+  )
 
   if (mode === 'edit' && roleLoading) {
     return (
@@ -502,9 +465,20 @@ export function RoleEditorFullPage({
     )
   }
 
+  const activeGroup =
+    filteredGroups.find((group) => group.resource === openResource) ?? filteredGroups[0]
+  const enabledInActive = activeGroup
+    ? activeGroup.permissions.filter((p) => selected.has(p)).length
+    : 0
+  const allActiveChecked = Boolean(
+    activeGroup && activeGroup.permissions.every((p) => selected.has(p))
+  )
+  const someActiveChecked = Boolean(
+    activeGroup && activeGroup.permissions.some((p) => selected.has(p))
+  )
+
   return (
     <div className="mx-auto w-full max-w-[1160px]">
-      <DashboardPanel as="section" className="rounded-2xl p-4 sm:p-5 md:p-6">
       <form
         className="flex min-w-0 flex-col gap-5"
         onSubmit={handleSubmit}
@@ -512,85 +486,166 @@ export function RoleEditorFullPage({
         aria-busy={pending}
         aria-describedby={error ? formErrorId : undefined}
       >
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-            <h1 className="font-display text-[1.7rem] tracking-tight text-ink sm:text-[1.95rem]">
-              {title}
-            </h1>
-            {dirty ? (
-              <span
-                role="status"
-                className="inline-flex items-center gap-1.5 rounded-full border border-warning/30 bg-warning/10 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-ink"
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
+            <nav aria-label="Breadcrumb" className="flex items-center gap-1 text-sm text-mute">
+              <Link
+                href="/dashboard/team/roles"
+                className="hover:text-ink"
               >
-                <span className="size-1.5 rounded-full bg-warning-deep" aria-hidden />
-                {t('unsavedChanges')}
-              </span>
-            ) : null}
+                {t('breadcrumb')}
+              </Link>
+              <ChevronRight className="size-3.5 shrink-0" aria-hidden />
+              <span className="text-ink">{title}</span>
+            </nav>
+            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+              <h1 className="font-display text-[1.7rem] tracking-tight text-ink sm:text-[1.95rem]">
+                {title}
+              </h1>
+              {dirty ? (
+                <span
+                  role="status"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-warning/30 bg-warning/10 px-2.5 py-0.5 text-[11px] font-semibold tracking-wide text-ink"
+                >
+                  <span className="size-1.5 rounded-full bg-warning-deep" aria-hidden />
+                  {t('unsavedChanges')}
+                </span>
+              ) : null}
+            </div>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-body">{subtitle}</p>
           </div>
+          {headerActions}
         </div>
 
-        <div className="space-y-4 pb-20">
-          <FieldGroup className="gap-5">
-            {mode === 'create' ? (
-              <Field data-invalid={Boolean(nameError)} className="max-w-2xl gap-2">
-                <FieldLabel htmlFor={nameId}>{t('name')}</FieldLabel>
-                <Input
-                  id={nameId}
-                  value={name}
-                  maxLength={20}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder={t('namePlaceholder')}
-                  aria-invalid={Boolean(nameError)}
-                />
-                <FieldDescription>
-                  {t('nameHint')}
-                  {keyHint ? (
-                    <span className="mt-1 block font-mono text-xs text-mute">
-                      {t('keyPreview', { key: keyHint })}
-                    </span>
-                  ) : null}
-                </FieldDescription>
-                {nameError ? <FieldError>{nameError}</FieldError> : null}
-              </Field>
-            ) : (
-              <div className="max-w-2xl rounded-xl border border-dash-border bg-dash-surface/60 px-3 py-2">
-                <p className="text-xs font-semibold tracking-wide text-mute uppercase">{t('roleKey')}</p>
-                <p className="mt-1 font-mono text-sm text-ink">
-                  {(role?.role ?? '').toUpperCase()}
-                </p>
-              </div>
-            )}
-
-            <Field data-invalid={Boolean(permsError)}>
-              <div className="flex flex-col gap-2.5">
-                <div className="flex flex-col gap-1.5 sm:flex-row sm:items-end sm:justify-between">
-                  <div>
-                    <FieldLabel className="text-base font-semibold text-ink">{t('permissions')}</FieldLabel>
-                    <FieldDescription className="text-xs text-mute">{t('permissionsHint')}</FieldDescription>
-                  </div>
-                  <p className="shrink-0 text-right text-[11px] font-medium text-mute/90 tabular-nums">
-                    {t('enabledTotal', { enabled: selected.size, total: grantable.length })}
+        <DashboardPanel as="section" className="p-4 sm:p-5 md:p-6">
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <FieldGroup className="gap-5">
+              <h2 className="font-display text-lg font-semibold tracking-tight text-ink">
+                {t('detailsTitle')}
+              </h2>
+              {mode === 'create' ? (
+                <>
+                  <Field data-invalid={Boolean(nameError)} className="gap-2">
+                    <FieldLabel htmlFor={nameId}>{t('name')}</FieldLabel>
+                    <Input
+                      id={nameId}
+                      value={name}
+                      maxLength={20}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder={t('namePlaceholder')}
+                      aria-invalid={Boolean(nameError)}
+                    />
+                    <FieldDescription>
+                      {t('nameHint')}
+                      {keyHint ? (
+                        <span className="mt-1 block font-mono text-xs text-mute">
+                          {t('keyPreview', { key: keyHint })}
+                        </span>
+                      ) : null}
+                    </FieldDescription>
+                    {nameError ? <FieldError>{nameError}</FieldError> : null}
+                  </Field>
+                  <Field className="gap-2">
+                    <FieldLabel htmlFor={descriptionId}>{t('description')}</FieldLabel>
+                    <textarea
+                      id={descriptionId}
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder={t('descriptionPlaceholder')}
+                      rows={4}
+                      className={cn(
+                        'w-full min-w-0 rounded-md border border-ink bg-canvas px-4 py-3 text-base leading-5 text-ink shadow-none outline-none',
+                        'placeholder:text-mute hover:border-body',
+                        'focus-visible:border-ink focus-visible:ring-2 focus-visible:ring-primary/50'
+                      )}
+                    />
+                    <FieldDescription>{t('descriptionHint')}</FieldDescription>
+                  </Field>
+                </>
+              ) : (
+                <div className="rounded-xl border border-dash-border bg-dash-surface/60 px-3 py-2">
+                  <p className="text-xs font-semibold tracking-wide text-mute uppercase">
+                    {t('roleKey')}
+                  </p>
+                  <p className="mt-1 font-mono text-sm text-ink">
+                    {(role?.role ?? '').toUpperCase()}
                   </p>
                 </div>
+              )}
+            </FieldGroup>
 
-                <label className="inline-flex w-fit items-center gap-2 rounded-lg border border-dash-border bg-dash-surface/50 px-3 py-2 text-sm text-ink">
-                  <input
-                    type="checkbox"
-                    className="size-4 rounded border-dash-border"
-                    checked={grantable.length > 0 && grantable.every((p) => selected.has(p))}
-                    ref={(el) => {
-                      if (!el) return
-                      const someEnabled = grantable.some((p) => selected.has(p))
-                      el.indeterminate =
-                        someEnabled && !grantable.every((p) => selected.has(p))
-                    }}
-                    onChange={(e) => toggleAllPermissions(e.target.checked)}
-                    aria-label={t('selectAllGlobal')}
-                  />
-                  <span className="font-medium">{t('selectAllGlobal')}</span>
-                </label>
+            <div>
+              <h2 className="font-display text-lg font-semibold tracking-tight text-ink">
+                {t('quickSetupTitle')}
+              </h2>
+              <p className="mt-0.5 text-sm text-mute">{t('quickSetupHint')}</p>
+              <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {(['admin', 'manager', 'agent', 'custom'] as const).map((id) => {
+                  const Icon = TEMPLATE_ICONS[id]
+                  const selectedTemplate = activeTemplate === id
+                  return (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => applyTemplate(id)}
+                      className={cn(
+                        'flex items-start gap-3 rounded-2xl border px-3.5 py-3.5 text-left transition-colors',
+                        selectedTemplate
+                          ? 'border-primary bg-primary-pale/40 shadow-[0_0_0_1px_rgb(159_232_112/0.25)]'
+                          : 'border-dash-border bg-canvas hover:bg-dash-surface/60'
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          'mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl',
+                          selectedTemplate
+                            ? 'bg-primary text-on-primary'
+                            : 'bg-dash-surface text-positive-deep'
+                        )}
+                      >
+                        {selectedTemplate ? (
+                          <Check className="size-4" aria-hidden />
+                        ) : (
+                          <Icon className="size-4" aria-hidden />
+                        )}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-sm font-semibold text-ink">
+                          {t(`templates.${id}.name`)}
+                        </span>
+                        <span className="mt-0.5 block text-xs leading-5 text-body">
+                          {t(`templates.${id}.description`)}
+                        </span>
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        </DashboardPanel>
 
-                <div className="relative w-full max-w-[390px]">
+        <DashboardPanel as="section" className="p-4 sm:p-5 md:p-6">
+          <div className="flex flex-col gap-1.5 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="font-display text-lg font-semibold tracking-tight text-ink">
+                {t('permissions')}
+              </h2>
+              <p className="mt-0.5 text-sm text-mute">{t('permissionsHint')}</p>
+            </div>
+            <p className="shrink-0 text-right text-[11px] font-medium text-mute tabular-nums">
+              {t('enabledTotal', { enabled: selected.size, total: grantable.length })}
+            </p>
+          </div>
+
+          {groups.length === 0 ? (
+            <p className="mt-5 rounded-xl border border-dashed border-dash-border px-3 py-6 text-center text-sm text-body">
+              {t('noGrantable')}
+            </p>
+          ) : (
+            <div className="mt-5 grid grid-cols-1 overflow-hidden rounded-2xl border border-dash-border xl:grid-cols-[280px_minmax(0,1fr)]">
+              <div className="border-b border-dash-border bg-canvas p-3 xl:border-r xl:border-b-0">
+                <div className="relative">
                   <Search
                     className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-mute"
                     aria-hidden
@@ -604,202 +659,192 @@ export function RoleEditorFullPage({
                     aria-label={t('searchPlaceholder')}
                   />
                 </div>
-              </div>
-
-              <div className="mt-3 grid grid-cols-1 gap-3 xl:grid-cols-[280px_minmax(0,1fr)]">
-                {groups.length === 0 ? (
-                  <p className="rounded-xl border border-dashed border-dash-border px-3 py-6 text-center text-sm text-body xl:col-span-2">
-                    {t('noGrantable')}
-                  </p>
-                ) : filteredGroups.length === 0 ? (
-                  <p className="rounded-xl border border-dashed border-dash-border px-3 py-6 text-center text-sm text-body xl:col-span-2">
-                    {t('searchNoMatches')}
-                  </p>
+                {filteredGroups.length === 0 ? (
+                  <p className="mt-4 px-1 text-sm text-body">{t('searchNoMatches')}</p>
                 ) : (
-                  <>
-                    <div className="rounded-xl border border-dash-border bg-canvas p-2">
-                      <p className="px-2 pb-1.5 text-xs font-semibold tracking-wide text-mute uppercase">
-                        {t('modules')}
-                      </p>
-                      <div className="space-y-1">
-                        {filteredGroups.map((group) => {
-                          const enabledInGroup = group.permissions.filter((p) =>
-                            selected.has(p)
-                          ).length
-                          const active = group.resource === openResource
-                          return (
-                            <button
-                              key={group.resource}
-                              type="button"
-                              onClick={() => setOpenResource(group.resource)}
-                              className={cn(
-                                'flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-sm',
-                                'transition-colors hover:bg-dash-surface/60',
-                                active && 'bg-primary text-white hover:bg-primary'
-                              )}
-                            >
-                              <span className="min-w-0 truncate font-medium">
-                                {resourceLabel(group.resource)}
-                              </span>
-                              <span
-                                className={cn(
-                                  'rounded-md px-1.5 py-0.5 text-[11px] tabular-nums',
-                                  active
-                                    ? 'bg-white/20 text-white'
-                                    : 'bg-dash-surface text-body'
-                                )}
-                              >
-                                {enabledInGroup}/{group.permissions.length}
-                              </span>
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-
-                    {(() => {
-                      const activeGroup =
-                        filteredGroups.find((group) => group.resource === openResource) ??
-                        filteredGroups[0]
-                      if (!activeGroup) return null
-
-                      const allChecked = activeGroup.permissions.every((p) => selected.has(p))
-                      const someChecked = activeGroup.permissions.some((p) => selected.has(p))
-                      const enabledInGroup = activeGroup.permissions.filter((p) =>
+                  <div className="mt-3 space-y-1">
+                    {filteredGroups.map((group) => {
+                      const enabledInGroup = group.permissions.filter((p) =>
                         selected.has(p)
                       ).length
-
+                      const active = group.resource === openResource
                       return (
-                        <div className="overflow-hidden rounded-xl border border-dash-border bg-canvas">
-                          <div className="border-b border-dash-border bg-dash-surface/40 px-3 py-2.5">
-                            <div className="flex items-center justify-between gap-3">
-                              <div>
-                                <p className="text-base font-semibold text-ink">
-                                  {resourceLabel(activeGroup.resource)}
-                                </p>
-                                <p className="text-xs text-mute">
-                                  {t('groupEnabledSummary', {
-                                    enabled: enabledInGroup,
-                                    total: activeGroup.permissions.length,
-                                  })}
-                                </p>
-                              </div>
-                              <label className="inline-flex items-center gap-2 text-xs font-medium text-ink">
-                                <input
-                                  type="checkbox"
-                                  className="size-4 rounded border-dash-border"
-                                  checked={allChecked}
-                                  ref={(el) => {
-                                    if (el) el.indeterminate = !allChecked && someChecked
-                                  }}
-                                  onChange={(e) =>
-                                    toggleGroup(activeGroup.permissions, e.target.checked)
-                                  }
-                                  aria-label={t('selectGroup', { resource: activeGroup.resource })}
-                                />
-                                {t('selectAllInModule')}
-                              </label>
-                            </div>
-                          </div>
-
-                          <div className="divide-y divide-[#F1F5F9]">
-                            {activeGroup.permissions.map((permission) => {
-                              const checked = selected.has(permission)
-                              return (
-                                <button
-                                  key={permission}
-                                  type="button"
-                                  className={cn(
-                                    'flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm',
-                                    'transition-colors hover:bg-dash-surface/70',
-                                    'focus-visible:bg-dash-surface/80 focus-visible:outline-none',
-                                    checked && 'bg-primary-pale/30'
-                                  )}
-                                  onClick={() => togglePermission(permission)}
-                                >
-                                  <span
-                                    className={cn(
-                                      'inline-flex size-4 shrink-0 items-center justify-center rounded border',
-                                      checked
-                                        ? 'border-primary bg-primary text-white'
-                                        : 'border-dash-border bg-canvas'
-                                    )}
-                                  >
-                                    {checked ? <Check className="size-3" aria-hidden /> : null}
-                                  </span>
-                                  <span className="min-w-0 flex-1 font-medium text-ink">
-                                    {actionLabel(permission)}
-                                  </span>
-                                  <span className="font-mono text-[11px] text-mute">
-                                    {permission}
-                                  </span>
-                                </button>
-                              )
-                            })}
-                          </div>
-                        </div>
+                        <button
+                          key={group.resource}
+                          type="button"
+                          onClick={() => setOpenResource(group.resource)}
+                          className={cn(
+                            'flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-sm',
+                            'transition-colors hover:bg-dash-surface/60',
+                            active && 'bg-primary-pale text-positive-deep hover:bg-primary-pale'
+                          )}
+                        >
+                          <span className="min-w-0 truncate font-medium">
+                            {resourceLabel(group.resource)}
+                          </span>
+                          <span
+                            className={cn(
+                              'rounded-md px-1.5 py-0.5 text-[11px] tabular-nums',
+                              active
+                                ? 'bg-primary/20 text-positive-deep'
+                                : 'bg-dash-surface text-body'
+                            )}
+                          >
+                            {enabledInGroup}/{group.permissions.length}
+                          </span>
+                        </button>
                       )
-                    })()}
-                  </>
+                    })}
+                  </div>
                 )}
               </div>
 
-              {permsError ? <FieldError>{permsError}</FieldError> : null}
-            </Field>
-          </FieldGroup>
+              {activeGroup ? (
+                <div className="min-w-0 bg-canvas">
+                  <div className="flex flex-col gap-3 border-b border-dash-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-base font-semibold text-ink">
+                        {resourceLabel(activeGroup.resource)}
+                      </p>
+                      <p className="text-xs text-mute">
+                        {MODULE_DESCRIPTION_KEYS.has(activeGroup.resource)
+                          ? t(`moduleDescriptions.${activeGroup.resource}`)
+                          : t('groupEnabledSummary', {
+                              enabled: enabledInActive,
+                              total: activeGroup.permissions.length,
+                            })}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <p className="text-xs font-medium text-mute tabular-nums">
+                        {t('groupEnabledSummary', {
+                          enabled: enabledInActive,
+                          total: activeGroup.permissions.length,
+                        })}
+                      </p>
+                      <label className="inline-flex items-center gap-2 text-xs font-medium text-ink">
+                        <input
+                          type="checkbox"
+                          className="size-4 rounded border-dash-border"
+                          checked={allActiveChecked}
+                          ref={(el) => {
+                            if (el) el.indeterminate = !allActiveChecked && someActiveChecked
+                          }}
+                          onChange={(e) =>
+                            toggleGroup(activeGroup.permissions, e.target.checked)
+                          }
+                          aria-label={t('selectGroup', { resource: activeGroup.resource })}
+                        />
+                        {t('selectAllInModule')}
+                      </label>
+                    </div>
+                  </div>
 
-          {error ? (
-            <p id={formErrorId} role="alert" className="text-sm text-negative">
-              {error}
-            </p>
-          ) : null}
-        </div>
+                  <div className="overflow-x-auto">
+                    <table className="min-w-[40rem] w-full border-collapse text-sm">
+                      <thead>
+                        <tr className="border-b border-dash-border text-[11px] font-semibold tracking-wide text-mute uppercase">
+                          <th className="px-4 py-2.5 text-left font-semibold">
+                            {t('columns.permission')}
+                          </th>
+                          <th className="px-2 py-2.5 text-center font-semibold">
+                            {t('columns.noAccess')}
+                          </th>
+                          {CRUD_COLUMNS.map((column) => (
+                            <th key={column} className="px-2 py-2.5 text-center font-semibold">
+                              {t(`columns.${column}`)}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {activeGroup.permissions.map((permission) => {
+                          const granted = selected.has(permission)
+                          const mapped = crudColumnForPermission(permission)
+                          return (
+                            <tr
+                              key={permission}
+                              className="border-b border-dash-border last:border-b-0"
+                            >
+                              <td className="px-4 py-3">
+                                <p className="font-medium text-ink">{actionLabel(permission)}</p>
+                                <p className="font-mono text-[11px] text-mute">{permission}</p>
+                              </td>
+                              <td className="px-2 py-3 text-center">
+                                <button
+                                  type="button"
+                                  className="inline-flex items-center justify-center rounded-full p-1"
+                                  aria-label={t('columns.noAccess')}
+                                  aria-pressed={!granted}
+                                  onClick={() => togglePermission(permission, false)}
+                                >
+                                  <RadioDot checked={!granted} />
+                                </button>
+                              </td>
+                              {CRUD_COLUMNS.map((column) => {
+                                const applicable = column === mapped
+                                const checked = granted && applicable
+                                return (
+                                  <td key={column} className="px-2 py-3 text-center">
+                                    <button
+                                      type="button"
+                                      disabled={!applicable}
+                                      className="inline-flex items-center justify-center rounded-full p-1 disabled:cursor-not-allowed"
+                                      aria-label={t(`columns.${column}`)}
+                                      aria-pressed={checked}
+                                      onClick={() => {
+                                        if (!applicable) return
+                                        togglePermission(permission, true)
+                                      }}
+                                    >
+                                      <RadioDot checked={checked} disabled={!applicable} />
+                                    </button>
+                                  </td>
+                                )
+                              })}
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <div className="flex items-start gap-3 border-t border-dash-border bg-primary-pale/30 px-4 py-3">
+                    <Info className="mt-0.5 size-4 shrink-0 text-positive-deep" aria-hidden />
+                    <p className="text-sm leading-6 text-body">{t('helpBanner')}</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="px-4 py-8 text-center text-sm text-body">{t('searchNoMatches')}</p>
+              )}
+            </div>
+          )}
+
+          {permsError ? <FieldError className="mt-3">{permsError}</FieldError> : null}
+        </DashboardPanel>
+
+        {error ? (
+          <p id={formErrorId} role="alert" className="text-sm text-negative">
+            {error}
+          </p>
+        ) : null}
 
         <div
           className={cn(
-            'sticky bottom-0 z-10 -mx-4 border-t border-dash-border bg-canvas/95 px-4 py-3.5 backdrop-blur-sm',
-            'shadow-[0_-10px_28px_rgb(15_23_42/0.06)]',
-            'sm:-mx-5 sm:px-5 md:-mx-6 md:px-6'
+            'sticky bottom-0 z-10 rounded-2xl border border-dash-border bg-canvas/95 px-4 py-3.5 backdrop-blur-sm',
+            'shadow-[0_-10px_28px_rgb(15_23_42/0.06)]'
           )}
         >
-          <div className="flex flex-col gap-3">
-            {/* Audit reason input is temporarily disabled. */}
-
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-              <div className="min-h-5">
-                {dirty ? (
-                  <p className="text-xs font-medium text-mute">{t('unsavedChanges')}</p>
-                ) : null}
-              </div>
-              <div className="flex flex-col gap-2 sm:flex-row sm:justify-end sm:gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={pending}
-                  onClick={requestCancel}
-                >
-                  {t('cancel')}
-                </Button>
-                <Button type="submit" disabled={saveDisabled} className="gap-2">
-                  {pending ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin" aria-hidden />
-                      {t('saving')}
-                    </>
-                  ) : (
-                    <>
-                      <Shield className="size-4" aria-hidden />
-                      {mode === 'create' ? t('createSubmit') : t('editSubmit')}
-                    </>
-                  )}
-                </Button>
-              </div>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+            <div className="min-h-5">
+              {dirty ? (
+                <p className="text-xs font-medium text-mute">{t('unsavedChanges')}</p>
+              ) : null}
             </div>
+            {headerActions}
           </div>
         </div>
       </form>
-    </DashboardPanel>
     </div>
   )
 }
-

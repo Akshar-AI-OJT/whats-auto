@@ -138,6 +138,7 @@ export function InboxConversationActions({
 
   const handleClose = useCallback(async () => {
     if (!canClose || isClosed || busy) return
+    if (!window.confirm(t('closeConfirm'))) return
 
     setPendingAction('close')
     clearToast()

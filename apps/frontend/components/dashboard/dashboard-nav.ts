@@ -53,6 +53,7 @@ export const DASHBOARD_NAV_HREFS: Partial<Record<DashboardNavKey, string>> = {
   inbox: '/dashboard/inbox',
   campaigns: '/dashboard/campaigns',
   templates: '/dashboard/templates',
+  notifications: '/dashboard/notifications',
   billing: '/dashboard/billing',
   settings: '/dashboard/settings',
 }
