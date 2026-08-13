@@ -3,12 +3,14 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
-import { Loader2, RefreshCw, ScrollText } from 'lucide-react'
+import { Loader2, RefreshCw, ScrollText, Search } from 'lucide-react'
 import { api, type ApiError, type AuthorizationAuditEvent } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
+import { listSuperAdminOrganizations } from '@/components/admin/organizations/organization-api'
 import {
   Dialog,
   DialogContent,
@@ -19,6 +21,8 @@ import {
 } from '@/components/ui/dialog'
 
 const LIMIT_OPTIONS = [25, 50, 100] as const
+
+type AuditStatus = 'granted' | 'revoked' | 'recorded'
 
 function unwrapAuditEvents(data: unknown): AuthorizationAuditEvent[] {
   if (!data) return []
@@ -57,19 +61,35 @@ function formatJson(value: unknown) {
   }
 }
 
-function isNoActiveOrganizationError(error: unknown): boolean {
-  const apiError = error as ApiError | undefined
-  if (!apiError) return false
-  const message = apiError.message?.toLowerCase() ?? ''
-  return (
-    apiError.code === 'E_NO_ACTIVE_ORGANIZATION' ||
-    message.includes('no active organization') ||
-    message.includes('set-active')
-  )
+function eventTime(value: string | Date | null | undefined): number | null {
+  if (!value) return null
+  const date = value instanceof Date ? value : new Date(value)
+  const time = date.getTime()
+  return Number.isNaN(time) ? null : time
+}
+
+function actorLabel(event: AuthorizationAuditEvent, empty: string) {
+  return event.actorName || event.actorEmail || event.actorUserId || empty
+}
+
+function organizationLabel(event: AuthorizationAuditEvent, empty: string) {
+  return event.organizationName || event.organizationId || empty
+}
+
+function auditStatus(granted: boolean | null | undefined): AuditStatus {
+  if (granted === true) return 'granted'
+  if (granted === false) return 'revoked'
+  return 'recorded'
+}
+
+const STATUS_CLASS: Record<AuditStatus, string> = {
+  granted: 'bg-primary-pale text-positive-deep ring-1 ring-primary/30',
+  revoked: 'bg-negative/10 text-negative ring-1 ring-negative/25',
+  recorded: 'bg-dash-surface text-body ring-1 ring-dash-border',
 }
 
 const selectClassName = cn(
-  'h-10 rounded-xl border border-dash-border bg-canvas px-3 text-sm text-ink outline-none',
+  'h-10 w-full rounded-xl border border-dash-border bg-canvas px-3 text-sm text-ink outline-none',
   'transition-[border-color,box-shadow] duration-200',
   'hover:border-dash-border-strong',
   'focus-visible:border-primary/55 focus-visible:ring-2 focus-visible:ring-primary/30'
@@ -78,26 +98,97 @@ const selectClassName = cn(
 export function PlatformAuditLogsPage() {
   const t = useTranslations('admin.auditLogs')
   const [limit, setLimit] = useState<(typeof LIMIT_OPTIONS)[number]>(50)
+  const [organizationId, setOrganizationId] = useState('')
+  const [search, setSearch] = useState('')
+  const [eventFilter, setEventFilter] = useState('all')
+  const [actorFilter, setActorFilter] = useState('all')
+  const [entityFilter, setEntityFilter] = useState('all')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
   const [selected, setSelected] = useState<AuthorizationAuditEvent | null>(null)
 
-  const auditQuery = useQuery({
-    queryKey: ['admin-audit-logs', limit],
+  const orgsQuery = useQuery({
+    queryKey: ['admin-audit-log-organizations'],
     queryFn: async () => {
-      const { data } = await api.audit.list({ limit })
+      const { items } = await listSuperAdminOrganizations({ page: 1, perPage: 100 })
+      return items
+    },
+  })
+
+  const auditQuery = useQuery({
+    queryKey: ['admin-audit-logs', limit, organizationId],
+    queryFn: async () => {
+      const { data } = await api.audit.list({
+        limit,
+        organizationId: organizationId || undefined,
+      })
       return unwrapAuditEvents(data)
     },
   })
 
   const events = auditQuery.data ?? []
 
+  const eventOptions = useMemo(
+    () => [...new Set(events.map((event) => event.eventType).filter(Boolean))].sort(),
+    [events]
+  )
+
+  const actorOptions = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const event of events) {
+      const key = event.actorUserId || actorLabel(event, t('emptyValue'))
+      if (!map.has(key)) map.set(key, actorLabel(event, t('emptyValue')))
+    }
+    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]))
+  }, [events, t])
+
+  const entityOptions = useMemo(
+    () => [...new Set(events.map((event) => event.targetType).filter(Boolean))].sort(),
+    [events]
+  )
+
+  const filteredEvents = useMemo(() => {
+    const query = search.trim().toLowerCase()
+    const fromTime = dateFrom ? new Date(`${dateFrom}T00:00:00`).getTime() : null
+    const toTime = dateTo ? new Date(`${dateTo}T23:59:59.999`).getTime() : null
+
+    return events.filter((event) => {
+      if (eventFilter !== 'all' && event.eventType !== eventFilter) return false
+      if (actorFilter !== 'all') {
+        const key = event.actorUserId || actorLabel(event, t('emptyValue'))
+        if (key !== actorFilter) return false
+      }
+      if (entityFilter !== 'all' && event.targetType !== entityFilter) return false
+
+      const time = eventTime(event.createdAt)
+      if (fromTime != null && (time == null || time < fromTime)) return false
+      if (toTime != null && (time == null || time > toTime)) return false
+
+      if (!query) return true
+      const haystack = [
+        event.eventType,
+        event.reason,
+        event.targetType,
+        event.targetId,
+        event.actorUserId,
+        event.actorName,
+        event.actorEmail,
+        event.organizationId,
+        event.organizationName,
+      ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+      return haystack.includes(query)
+    })
+  }, [actorFilter, dateFrom, dateTo, entityFilter, eventFilter, events, search, t])
+
   const selectedBefore = useMemo(
     () => (selected ? formatJson(selected.before) : null),
     [selected]
   )
-  const selectedAfter = useMemo(
-    () => (selected ? formatJson(selected.after) : null),
-    [selected]
-  )
+  const selectedAfter = useMemo(() => (selected ? formatJson(selected.after) : null), [selected])
+  const selectedStatus = selected ? auditStatus(selected.granted) : null
 
   return (
     <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 sm:gap-6">
@@ -125,7 +216,7 @@ export function PlatformAuditLogsPage() {
             <label className="flex items-center gap-2 text-sm text-body">
               <span className="whitespace-nowrap">{t('limitLabel')}</span>
               <select
-                className={selectClassName}
+                className={cn(selectClassName, 'w-auto')}
                 value={limit}
                 aria-label={t('limitLabel')}
                 onChange={(e) => setLimit(Number(e.target.value) as (typeof LIMIT_OPTIONS)[number])}
@@ -159,10 +250,103 @@ export function PlatformAuditLogsPage() {
           title={t('tableTitle')}
           description={
             auditQuery.isSuccess
-              ? t('tableDescription', { count: events.length })
+              ? t('tableDescription', { count: filteredEvents.length })
               : t('tableDescriptionLoading')
           }
         />
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="relative min-w-0 sm:col-span-2 xl:col-span-1">
+            <label htmlFor="audit-search" className="sr-only">
+              {t('filters.search')}
+            </label>
+            <Search
+              className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-mute"
+              aria-hidden
+            />
+            <Input
+              id="audit-search"
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder={t('searchPlaceholder')}
+              className="h-10 rounded-xl border-dash-border bg-canvas pl-10 text-sm shadow-none"
+            />
+          </div>
+
+          <select
+            className={selectClassName}
+            value={eventFilter}
+            aria-label={t('filters.event')}
+            onChange={(event) => setEventFilter(event.target.value)}
+          >
+            <option value="all">{t('filters.allEvents')}</option>
+            {eventOptions.map((value) => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
+          </select>
+
+          <select
+            className={selectClassName}
+            value={actorFilter}
+            aria-label={t('filters.actor')}
+            onChange={(event) => setActorFilter(event.target.value)}
+          >
+            <option value="all">{t('filters.allActors')}</option>
+            {actorOptions.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+
+          <select
+            className={selectClassName}
+            value={organizationId}
+            aria-label={t('filters.organization')}
+            onChange={(event) => setOrganizationId(event.target.value)}
+          >
+            <option value="">{t('filters.allOrganizations')}</option>
+            {(orgsQuery.data ?? []).map((org) => (
+              <option key={org.id} value={org.id}>
+                {org.name}
+              </option>
+            ))}
+          </select>
+
+          <select
+            className={selectClassName}
+            value={entityFilter}
+            aria-label={t('filters.entityType')}
+            onChange={(event) => setEntityFilter(event.target.value)}
+          >
+            <option value="all">{t('filters.allEntityTypes')}</option>
+            {entityOptions.map((value) => (
+              <option key={value} value={value}>
+                {value}
+              </option>
+            ))}
+          </select>
+
+          <div className="grid grid-cols-2 gap-3 sm:col-span-2 xl:col-span-1">
+            <Input
+              type="date"
+              value={dateFrom}
+              onChange={(event) => setDateFrom(event.target.value)}
+              aria-label={t('filters.dateFrom')}
+              className="h-10 rounded-xl border-dash-border bg-canvas px-3 text-sm shadow-none"
+            />
+            <Input
+              type="date"
+              value={dateTo}
+              onChange={(event) => setDateTo(event.target.value)}
+              aria-label={t('filters.dateTo')}
+              className="h-10 rounded-xl border-dash-border bg-canvas px-3 text-sm shadow-none"
+            />
+          </div>
+        </div>
 
         {auditQuery.isLoading ? (
           <div className="mt-8 flex items-center justify-center gap-2 py-16 text-sm text-body">
@@ -177,11 +361,7 @@ export function PlatformAuditLogsPage() {
             <p>
               {(auditQuery.error as unknown as ApiError)?.message || t('errors.loadFailed')}
             </p>
-            <p className="text-body">
-              {isNoActiveOrganizationError(auditQuery.error)
-                ? t('errors.noActiveOrgMissingFlow')
-                : t('errors.loadFailedHint')}
-            </p>
+            <p className="text-body">{t('errors.loadFailedHint')}</p>
           </div>
         ) : events.length === 0 ? (
           <div className="mt-8 flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-dash-border bg-dash-surface/50 px-6 py-16 text-center">
@@ -191,27 +371,35 @@ export function PlatformAuditLogsPage() {
             <p className="font-medium text-ink">{t('emptyTitle')}</p>
             <p className="max-w-md text-sm text-body">{t('emptyDescription')}</p>
           </div>
+        ) : filteredEvents.length === 0 ? (
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-dash-border bg-dash-surface/50 px-6 py-16 text-center">
+            <p className="font-medium text-ink">{t('emptyFilteredTitle')}</p>
+            <p className="max-w-md text-sm text-body">{t('emptyFilteredDescription')}</p>
+          </div>
         ) : (
           <>
             <div className="mt-5 hidden overflow-hidden rounded-2xl border border-dash-border md:block">
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[920px] border-collapse text-left">
+                <table className="w-full min-w-[1080px] border-collapse text-left">
                   <thead>
                     <tr className="border-b border-dash-border bg-dash-surface">
                       <th className="px-4 py-3.5 text-sm font-semibold text-ink sm:px-5">
-                        {t('columns.timestamp')}
+                        {t('columns.event')}
                       </th>
                       <th className="px-4 py-3.5 text-sm font-semibold text-ink">
                         {t('columns.actor')}
                       </th>
                       <th className="px-4 py-3.5 text-sm font-semibold text-ink">
-                        {t('columns.eventType')}
-                      </th>
-                      <th className="px-4 py-3.5 text-sm font-semibold text-ink">
                         {t('columns.target')}
                       </th>
                       <th className="px-4 py-3.5 text-sm font-semibold text-ink">
-                        {t('columns.reason')}
+                        {t('columns.organization')}
+                      </th>
+                      <th className="px-4 py-3.5 text-sm font-semibold text-ink">
+                        {t('columns.timestamp')}
+                      </th>
+                      <th className="px-4 py-3.5 text-sm font-semibold text-ink">
+                        {t('columns.status')}
                       </th>
                       <th className="px-4 py-3.5 text-sm font-semibold text-ink sm:px-5">
                         <span className="sr-only">{t('columns.actions')}</span>
@@ -219,87 +407,103 @@ export function PlatformAuditLogsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {events.map((event, index) => (
-                      <tr
-                        key={event.id}
-                        className={cn(
-                          'border-b border-dash-border last:border-b-0',
-                          'transition-colors duration-150',
-                          index % 2 === 1 && 'bg-dash-surface/60'
-                        )}
-                      >
-                        <td className="px-4 py-3.5 text-sm tabular-nums text-body sm:px-5">
-                          {formatTimestamp(event.createdAt)}
-                        </td>
-                        <td className="px-4 py-3.5 font-mono text-xs text-body">
-                          {event.actorUserId || t('emptyValue')}
-                        </td>
-                        <td className="px-4 py-3.5 text-sm font-medium text-ink">
-                          {event.eventType}
-                        </td>
-                        <td className="px-4 py-3.5 text-sm text-body">
-                          <span className="font-medium text-ink">{event.targetType}</span>
-                          {event.targetId ? (
-                            <span className="mt-0.5 block font-mono text-xs text-mute">
-                              {event.targetId}
+                    {filteredEvents.map((event, index) => {
+                      const status = auditStatus(event.granted)
+                      return (
+                        <tr
+                          key={event.id}
+                          className={cn(
+                            'border-b border-dash-border last:border-b-0',
+                            'transition-colors duration-150',
+                            index % 2 === 1 && 'bg-dash-surface/60'
+                          )}
+                        >
+                          <td className="px-4 py-3.5 text-sm font-medium text-ink sm:px-5">
+                            {event.eventType}
+                          </td>
+                          <td className="px-4 py-3.5 text-sm text-body">
+                            {actorLabel(event, t('emptyValue'))}
+                          </td>
+                          <td className="px-4 py-3.5 text-sm text-body">
+                            <span className="font-medium text-ink">{event.targetType}</span>
+                            {event.targetId ? (
+                              <span className="mt-0.5 block font-mono text-xs text-mute">
+                                {event.targetId}
+                              </span>
+                            ) : null}
+                          </td>
+                          <td className="px-4 py-3.5 text-sm text-body">
+                            {organizationLabel(event, t('emptyValue'))}
+                          </td>
+                          <td className="px-4 py-3.5 text-sm tabular-nums text-body">
+                            {formatTimestamp(event.createdAt)}
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <span
+                              className={cn(
+                                'inline-flex rounded-full px-2.5 py-1 text-xs font-medium',
+                                STATUS_CLASS[status]
+                              )}
+                            >
+                              {t(`status.${status}`)}
                             </span>
-                          ) : null}
-                        </td>
-                        <td className="max-w-[14rem] truncate px-4 py-3.5 text-sm text-body">
-                          {event.reason || t('emptyValue')}
-                        </td>
-                        <td className="px-4 py-3.5 sm:px-5">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setSelected(event)}
-                          >
-                            {t('viewDetails')}
-                          </Button>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                          <td className="px-4 py-3.5 sm:px-5">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSelected(event)}
+                            >
+                              {t('viewDetails')}
+                            </Button>
+                          </td>
+                        </tr>
+                      )
+                    })}
                   </tbody>
                 </table>
               </div>
             </div>
 
             <ul className="mt-5 flex flex-col gap-3 md:hidden">
-              {events.map((event) => (
-                <li
-                  key={event.id}
-                  className="rounded-2xl border border-dash-border bg-dash-surface/60 p-4"
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-semibold text-ink">{event.eventType}</p>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSelected(event)}
-                    >
-                      {t('viewDetails')}
-                    </Button>
-                  </div>
-                  <p className="mt-1 text-xs text-mute">{formatTimestamp(event.createdAt)}</p>
-                  <div className="mt-3 space-y-1 text-xs text-mute">
-                    <p>
-                      {t('columns.actor')}:{' '}
-                      <span className="font-mono">{event.actorUserId || t('emptyValue')}</span>
-                    </p>
-                    <p>
-                      {t('columns.target')}: {event.targetType}
-                      {event.targetId ? ` · ${event.targetId}` : ''}
-                    </p>
-                    {event.reason ? (
+              {filteredEvents.map((event) => {
+                const status = auditStatus(event.granted)
+                return (
+                  <li
+                    key={event.id}
+                    className="rounded-2xl border border-dash-border bg-dash-surface/60 p-4"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="text-sm font-semibold text-ink">{event.eventType}</p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setSelected(event)}
+                      >
+                        {t('viewDetails')}
+                      </Button>
+                    </div>
+                    <p className="mt-1 text-xs text-mute">{formatTimestamp(event.createdAt)}</p>
+                    <div className="mt-3 space-y-1 text-xs text-mute">
                       <p>
-                        {t('columns.reason')}: {event.reason}
+                        {t('columns.actor')}: {actorLabel(event, t('emptyValue'))}
                       </p>
-                    ) : null}
-                  </div>
-                </li>
-              ))}
+                      <p>
+                        {t('columns.target')}: {event.targetType}
+                        {event.targetId ? ` · ${event.targetId}` : ''}
+                      </p>
+                      <p>
+                        {t('columns.organization')}: {organizationLabel(event, t('emptyValue'))}
+                      </p>
+                      <p>
+                        {t('columns.status')}: {t(`status.${status}`)}
+                      </p>
+                    </div>
+                  </li>
+                )
+              })}
             </ul>
           </>
         )}
@@ -311,43 +515,58 @@ export function PlatformAuditLogsPage() {
           if (!open) setSelected(null)
         }}
       >
-        <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-lg" showCloseButton>
-          <DialogHeader className="border-b border-dash-border px-5 py-4 text-left sm:px-6">
+        <DialogContent
+          className="h-[min(88vh,800px)] max-h-[88vh] w-[min(94vw,880px)] max-w-[880px] gap-0 overflow-hidden p-0"
+          showCloseButton
+        >
+          <DialogHeader className="shrink-0 border-b border-dash-border px-6 py-5 text-left sm:px-8">
             <DialogTitle>{t('details.title')}</DialogTitle>
             <DialogDescription>
               {selected?.eventType || t('details.fallbackEvent')}
             </DialogDescription>
           </DialogHeader>
           {selected ? (
-            <div className="max-h-[70vh] space-y-4 overflow-y-auto px-5 py-4 sm:px-6">
-              <dl className="space-y-3 text-sm">
+            <div className="min-h-0 flex-1 space-y-6 overflow-y-auto px-6 py-5 sm:px-8">
+              <dl className="grid gap-x-8 gap-y-4 text-sm sm:grid-cols-2">
                 <div className="flex justify-between gap-3">
                   <dt className="text-mute">{t('columns.timestamp')}</dt>
                   <dd className="text-right text-ink">{formatTimestamp(selected.createdAt)}</dd>
                 </div>
                 <div className="flex justify-between gap-3">
                   <dt className="text-mute">{t('columns.actor')}</dt>
-                  <dd className="max-w-[60%] break-all text-right font-mono text-xs text-ink">
-                    {selected.actorUserId || t('emptyValue')}
+                  <dd className="max-w-[70%] break-all text-right text-ink">
+                    {actorLabel(selected, t('emptyValue'))}
                   </dd>
                 </div>
                 <div className="flex justify-between gap-3">
-                  <dt className="text-mute">{t('columns.eventType')}</dt>
+                  <dt className="text-mute">{t('columns.organization')}</dt>
+                  <dd className="max-w-[70%] break-all text-right text-ink">
+                    {organizationLabel(selected, t('emptyValue'))}
+                  </dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-mute">{t('columns.event')}</dt>
                   <dd className="text-right text-ink">{selected.eventType}</dd>
+                </div>
+                <div className="flex justify-between gap-3">
+                  <dt className="text-mute">{t('columns.status')}</dt>
+                  <dd className="text-right text-ink">
+                    {selectedStatus ? t(`status.${selectedStatus}`) : t('emptyValue')}
+                  </dd>
                 </div>
                 <div className="flex justify-between gap-3">
                   <dt className="text-mute">{t('details.targetType')}</dt>
                   <dd className="text-right text-ink">{selected.targetType}</dd>
                 </div>
-                <div className="flex justify-between gap-3">
+                <div className="flex justify-between gap-3 sm:col-span-2">
                   <dt className="text-mute">{t('details.targetId')}</dt>
-                  <dd className="max-w-[60%] break-all text-right font-mono text-xs text-ink">
+                  <dd className="max-w-[80%] break-all text-right font-mono text-xs text-ink">
                     {selected.targetId || t('emptyValue')}
                   </dd>
                 </div>
-                <div className="flex justify-between gap-3">
+                <div className="flex justify-between gap-3 sm:col-span-2">
                   <dt className="text-mute">{t('columns.reason')}</dt>
-                  <dd className="max-w-[60%] text-right text-ink">
+                  <dd className="max-w-[80%] text-right text-ink">
                     {selected.reason || t('emptyValue')}
                   </dd>
                 </div>
@@ -358,7 +577,7 @@ export function PlatformAuditLogsPage() {
                   <p className="text-xs font-semibold tracking-wide text-mute uppercase">
                     {t('details.before')}
                   </p>
-                  <pre className="mt-2 overflow-x-auto rounded-xl border border-dash-border bg-dash-surface/50 p-3 font-mono text-xs text-ink">
+                  <pre className="mt-2 min-h-[12rem] overflow-auto rounded-xl border border-dash-border bg-dash-surface/50 p-4 font-mono text-sm leading-6 text-ink">
                     {selectedBefore}
                   </pre>
                 </div>
@@ -369,14 +588,14 @@ export function PlatformAuditLogsPage() {
                   <p className="text-xs font-semibold tracking-wide text-mute uppercase">
                     {t('details.after')}
                   </p>
-                  <pre className="mt-2 overflow-x-auto rounded-xl border border-dash-border bg-dash-surface/50 p-3 font-mono text-xs text-ink">
+                  <pre className="mt-2 min-h-[12rem] overflow-auto rounded-xl border border-dash-border bg-dash-surface/50 p-4 font-mono text-sm leading-6 text-ink">
                     {selectedAfter}
                   </pre>
                 </div>
               ) : null}
             </div>
           ) : null}
-          <div className="border-t border-dash-border px-5 py-4 sm:px-6">
+          <div className="shrink-0 border-t border-dash-border px-6 py-4 sm:px-8">
             <DialogFooter className="border-0 bg-transparent p-0 sm:justify-end">
               <Button type="button" onClick={() => setSelected(null)}>
                 {t('details.close')}
