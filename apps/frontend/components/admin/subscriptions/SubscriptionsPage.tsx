@@ -1,26 +1,37 @@
 'use client'
 
 import { useCallback, useEffect, useId, useMemo, useState } from 'react'
-import { Check, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
+import {
+  CreditCard,
+  Download,
+  Loader2,
+  MoreHorizontal,
+  PauseCircle,
+  Pencil,
+  Search,
+  SlidersHorizontal,
+  Trash2,
+} from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
-import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
+import { KPIStatCard } from '@/components/dashboard/overview/KPIStatCard'
 import {
   listSuperAdminOrganizations,
   type AdminOrganizationListItem,
 } from '@/components/admin/organizations/organization-api'
-import { MOCK_PLATFORM_PLANS, type PlatformPlanId } from '../mock-data'
+import { SubscriptionDetailPanel } from './SubscriptionDetailPanel'
 import {
-  createSuperAdminSubscription,
   dateInputToIso,
   deleteSuperAdminSubscription,
   DEMO_PLAN_OPTIONS,
   isoToDateInput,
   listSuperAdminSubscriptions,
   mapSubscriptionApiError,
+  planAmountLabel,
+  planBillingKind,
   planLabel,
   SUBSCRIPTION_STATUSES,
   updateSuperAdminSubscription,
@@ -42,22 +53,16 @@ const selectClassName = cn(
 const UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
+type StatusFilter = 'all' | SuperAdminSubscriptionStatus
+type PlanFilter = 'all' | string
+type BillingFilter = 'all' | 'monthly' | 'custom'
+
 type SubscriptionFormState = {
   organizationId: string
   planId: string
   status: SuperAdminSubscriptionStatus
   startDate: string
   endDate: string
-}
-
-function emptyCreateForm(): SubscriptionFormState {
-  return {
-    organizationId: '',
-    planId: DEMO_PLAN_OPTIONS[0]?.id ?? '',
-    status: 'active',
-    startDate: '',
-    endDate: '',
-  }
 }
 
 function formFromSubscription(sub: SuperAdminSubscription): SubscriptionFormState {
@@ -72,7 +77,8 @@ function formFromSubscription(sub: SuperAdminSubscription): SubscriptionFormStat
   }
 }
 
-function formatDisplayDate(value: string) {
+function formatDisplayDate(value: string | null | undefined) {
+  if (!value) return '—'
   const date = new Date(value.includes('T') ? value : `${value}T00:00:00`)
   if (Number.isNaN(date.getTime())) return value
   return date.toLocaleDateString(undefined, {
@@ -82,23 +88,45 @@ function formatDisplayDate(value: string) {
   })
 }
 
+function getInitials(name: string) {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase() ?? '')
+    .join('')
+}
+
+function statusLabelKey(status: string): SuperAdminSubscriptionStatus | null {
+  return SUBSCRIPTION_STATUSES.includes(status as SuperAdminSubscriptionStatus)
+    ? (status as SuperAdminSubscriptionStatus)
+    : null
+}
+
+function relativeFromEnd(
+  value: string,
+  t: (key: string, values?: Record<string, number>) => string
+) {
+  const end = new Date(value.includes('T') ? value : `${value}T00:00:00`)
+  if (Number.isNaN(end.getTime())) return null
+  const days = Math.round((end.getTime() - Date.now()) / 86_400_000)
+  if (days === 0) return { text: t('relative.today'), overdue: false }
+  if (days > 0) return { text: t('relative.inDays', { count: days }), overdue: false }
+  return { text: t('relative.overdue', { count: Math.abs(days) }), overdue: true }
+}
+
 function StatusBadge({ status, label }: { status: string; label: string }) {
   const tone =
     status === 'active'
       ? 'bg-primary-pale text-positive-deep ring-primary/25'
       : status === 'trialing'
-        ? 'bg-dash-surface text-ink ring-dash-border'
+        ? 'bg-[#F3E8FF] text-[#6B21A8] ring-[#C084FC]/40'
         : status === 'past_due'
           ? 'bg-negative/10 text-negative ring-negative/25'
           : 'bg-mute/15 text-mute ring-dash-border'
 
   return (
-    <span
-      className={cn(
-        'inline-flex rounded-lg px-2 py-0.5 text-xs font-semibold ring-1',
-        tone
-      )}
-    >
+    <span className={cn('inline-flex rounded-lg px-2 py-0.5 text-xs font-semibold ring-1', tone)}>
       {label}
     </span>
   )
@@ -106,10 +134,10 @@ function StatusBadge({ status, label }: { status: string; label: string }) {
 
 export function SubscriptionsPage() {
   const t = useTranslations('admin.subscriptions')
-  const createTitleId = useId()
   const editTitleId = useId()
   const deleteTitleId = useId()
   const deleteDescId = useId()
+  const searchId = useId()
 
   const [subscriptions, setSubscriptions] = useState<SuperAdminSubscription[]>([])
   const [organizations, setOrganizations] = useState<AdminOrganizationListItem[]>([])
@@ -120,11 +148,12 @@ export function SubscriptionsPage() {
   const [listError, setListError] = useState<string | null>(null)
   const [actionMessage, setActionMessage] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
-
-  const [createOpen, setCreateOpen] = useState(false)
-  const [createForm, setCreateForm] = useState<SubscriptionFormState>(emptyCreateForm)
-  const [createPending, setCreatePending] = useState(false)
-  const [createError, setCreateError] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [planFilter, setPlanFilter] = useState<PlanFilter>('all')
+  const [billingFilter, setBillingFilter] = useState<BillingFilter>('all')
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [menuId, setMenuId] = useState<string | null>(null)
 
   const [editTarget, setEditTarget] = useState<SuperAdminSubscription | null>(null)
   const [editForm, setEditForm] = useState<SubscriptionFormState | null>(null)
@@ -135,9 +164,9 @@ export function SubscriptionsPage() {
   const [deletePending, setDeletePending] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
-  const orgNameById = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const org of organizations) map.set(org.id, org.name)
+  const orgById = useMemo(() => {
+    const map = new Map<string, AdminOrganizationListItem>()
+    for (const org of organizations) map.set(org.id, org)
     return map
   }, [organizations])
 
@@ -178,10 +207,40 @@ export function SubscriptionsPage() {
     void loadOrganizations()
   }, [loadSubscriptions, loadOrganizations])
 
-  function validateForm(form: SubscriptionFormState, requireOrg: boolean): string | null {
-    if (requireOrg && !UUID_RE.test(form.organizationId.trim())) {
-      return t('errors.organizationRequired')
+  const visibleSubscriptions = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return subscriptions.filter((sub) => {
+      if (statusFilter !== 'all' && sub.status !== statusFilter) return false
+      if (planFilter !== 'all' && sub.planId !== planFilter) return false
+      if (billingFilter !== 'all' && planBillingKind(sub.planId) !== billingFilter) return false
+      if (!q) return true
+      const orgName = orgById.get(sub.organizationId)?.name.toLowerCase() ?? ''
+      const website = orgById.get(sub.organizationId)?.website?.toLowerCase() ?? ''
+      const plan = planLabel(sub.planId).toLowerCase()
+      return (
+        orgName.includes(q) ||
+        website.includes(q) ||
+        plan.includes(q) ||
+        sub.status.toLowerCase().includes(q) ||
+        sub.organizationId.toLowerCase().includes(q)
+      )
+    })
+  }, [subscriptions, search, statusFilter, planFilter, billingFilter, orgById])
+
+  const selected = visibleSubscriptions.find((sub) => sub.id === selectedId) ?? null
+
+  const kpiCounts = useMemo(() => {
+    const counts = { active: 0, trialing: 0, past_due: 0, cancelled: 0 }
+    for (const sub of subscriptions) {
+      if (sub.status === 'active') counts.active += 1
+      else if (sub.status === 'trialing') counts.trialing += 1
+      else if (sub.status === 'past_due') counts.past_due += 1
+      else if (sub.status === 'cancelled') counts.cancelled += 1
     }
+    return counts
+  }, [subscriptions])
+
+  function validateForm(form: SubscriptionFormState): string | null {
     if (!UUID_RE.test(form.planId.trim())) {
       return t('errors.planRequired')
     }
@@ -194,43 +253,13 @@ export function SubscriptionsPage() {
     return null
   }
 
-  async function handleCreateSave() {
-    const validation = validateForm(createForm, true)
-    if (validation) {
-      setCreateError(validation)
-      return
-    }
-
-    setCreatePending(true)
-    setCreateError(null)
-    try {
-      await createSuperAdminSubscription({
-        organizationId: createForm.organizationId.trim(),
-        planId: createForm.planId.trim(),
-        status: createForm.status,
-        currentPeriodStart: dateInputToIso(createForm.startDate),
-        currentPeriodEnd: dateInputToIso(createForm.endDate, true),
-      })
-      setActionMessage(t('toast.created'))
-      setActionError(null)
-      setCreateOpen(false)
-      setCreateForm(emptyCreateForm())
-      await loadSubscriptions(1)
-    } catch (err) {
-      setCreateError(mapSubscriptionApiError(err, t('errors.createFailed')))
-    } finally {
-      setCreatePending(false)
-    }
-  }
-
   async function handleEditSave() {
     if (!editTarget || !editForm) return
-    const validation = validateForm(editForm, false)
+    const validation = validateForm(editForm)
     if (validation) {
       setEditError(validation)
       return
     }
-
     setEditPending(true)
     setEditError(null)
     try {
@@ -262,6 +291,7 @@ export function SubscriptionsPage() {
       await deleteSuperAdminSubscription(deleteTarget.id)
       setSubscriptions((prev) => prev.filter((row) => row.id !== deleteTarget.id))
       setTotal((prev) => Math.max(0, prev - 1))
+      if (selectedId === deleteTarget.id) setSelectedId(null)
       setActionMessage(t('toast.deleted'))
       setActionError(null)
       setDeleteTarget(null)
@@ -272,187 +302,61 @@ export function SubscriptionsPage() {
     }
   }
 
-  function planKeyFromPlanId(planId: string): PlatformPlanId {
-    const starterId = DEMO_PLAN_OPTIONS.find((p) => p.label === 'Starter')?.id
-    const growthId = DEMO_PLAN_OPTIONS.find((p) => p.label === 'Growth')?.id
-    const scaleId = DEMO_PLAN_OPTIONS.find((p) => p.label === 'Scale')?.id
-
-    if (starterId && planId === starterId) return 'starter'
-    if (growthId && planId === growthId) return 'growth'
-    if (scaleId && planId === scaleId) return 'scale'
-    return 'enterprise'
+  function openEdit(sub: SuperAdminSubscription) {
+    setEditTarget(sub)
+    setEditForm(formFromSubscription(sub))
+    setEditError(null)
+    setMenuId(null)
+    setActionMessage(null)
   }
 
-  function formatLimit(value: number | null, unlimitedLabel: string) {
-    if (value == null) return unlimitedLabel
-    return value.toLocaleString('en-US')
+  function renderStatus(status: string) {
+    const key = statusLabelKey(status)
+    return <StatusBadge status={status} label={key ? t(`statuses.${key}`) : status} />
+  }
+
+  function renderOrgCell(sub: SuperAdminSubscription) {
+    const org = orgById.get(sub.organizationId)
+    const name = org?.name ?? sub.organizationId.slice(0, 8)
+    const website = org?.website?.trim() || org?.slug || null
+
+    return (
+      <div className="flex min-w-0 items-center gap-3">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary-pale text-xs font-semibold text-positive-deep">
+          {getInitials(name) || 'OR'}
+        </span>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-semibold text-ink">{name}</p>
+          {website ? <p className="truncate text-xs text-mute">{website}</p> : null}
+        </div>
+      </div>
+    )
   }
 
   function renderFormFields(
     form: SubscriptionFormState,
     setForm: (next: SubscriptionFormState) => void,
-    pending: boolean,
-    options: { includeOrganization: boolean }
+    pending: boolean
   ) {
     return (
       <div className="mt-5 flex flex-col gap-3">
-        {options.includeOrganization ? (
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="sub-org" className="text-sm font-medium text-ink">
-              {t('fields.organizationId')}
-            </label>
-            <select
-              id="sub-org"
-              value={form.organizationId}
-              disabled={pending}
-              onChange={(e) => setForm({ ...form, organizationId: e.target.value })}
-              className={selectClassName}
-            >
-              <option value="">{t('fields.organizationPlaceholder')}</option>
-              {organizations.map((org) => (
-                <option key={org.id} value={org.id}>
-                  {org.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        ) : null}
-
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-sm font-medium text-ink">{t('fields.planId')}</label>
-
-            {/* Show 2 cards per row in the modal to reduce vertical scrolling */}
-            <div className="grid gap-3 sm:grid-cols-2 sm:gap-4">
-              {MOCK_PLATFORM_PLANS.map((plan) => {
-                const isSelected = planKeyFromPlanId(form.planId) === plan.id
-                const isEnterprise = plan.id === 'enterprise'
-
-                const price =
-                  plan.priceMonthly == null
-                    ? t('customPrice')
-                    : `$${plan.priceMonthly.toLocaleString('en-US')}`
-
-                const perMonth = t('perMonth')
-                const unlimited = t('unlimited')
-
-                const starterId = DEMO_PLAN_OPTIONS.find((p) => p.label === 'Starter')?.id
-                const growthId = DEMO_PLAN_OPTIONS.find((p) => p.label === 'Growth')?.id
-                const scaleId = DEMO_PLAN_OPTIONS.find((p) => p.label === 'Scale')?.id
-
-                const nextPlanId =
-                  plan.id === 'starter'
-                    ? starterId ?? ''
-                    : plan.id === 'growth'
-                      ? growthId ?? ''
-                      : plan.id === 'scale'
-                        ? scaleId ?? ''
-                        : ''
-
-                return (
-                  <button
-                    key={plan.id}
-                    type="button"
-                    disabled={pending}
-                    onClick={() => {
-                      setForm({ ...form, planId: isEnterprise ? '' : nextPlanId })
-                    }}
-                    aria-pressed={isSelected}
-                    className={cn(
-                      'group relative flex flex-col gap-3 rounded-2xl p-3 text-left sm:p-4',
-                      'border bg-canvas/70 transition-[border-color,box-shadow,transform] duration-200 ease-out',
-                      isSelected
-                        ? 'border-primary/60 shadow-[0_0_0_1px_rgb(159_232_112/0.28)]'
-                        : 'border-[#E2E8F0] hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-sm'
-      )}
-    >
-      {plan.highlighted ? (
-                      <span className="absolute right-4 top-4 rounded-lg bg-primary-pale px-2 py-0.5 text-[11px] font-semibold text-positive-deep ring-1 ring-primary/30">
-                        {t('popular')}
-        </span>
-      ) : null}
-
-                    <div className="min-w-0">
-                      <h3 className="font-display text-base font-semibold tracking-tight text-ink sm:text-lg">
-                        {t(`plans.${plan.id}.name`)}
-        </h3>
-                      <p className="mt-1 break-words text-sm leading-6 text-mute">
-                        {t(`plans.${plan.id}.description`)}
-                      </p>
-      </div>
-
-                    <div className="flex items-baseline gap-2">
-                      <span className="font-display text-3xl font-semibold tracking-tight text-ink tabular-nums">
-                        {price}
-        </span>
-        {plan.priceMonthly != null ? (
-                        <span className="text-sm text-mute">{perMonth}</span>
-        ) : null}
-      </div>
-
-                    <dl className="grid gap-2 rounded-2xl border border-dash-border bg-dash-surface/70 p-3">
-        <div className="flex items-center justify-between gap-3 text-sm">
-                        <dt className="text-mute">{t('limits.users')}</dt>
-                        <dd className="font-semibold tabular-nums text-ink">
-                          {formatLimit(plan.userLimit, unlimited)}
-          </dd>
-        </div>
-        <div className="flex items-center justify-between gap-3 text-sm">
-                        <dt className="text-mute">{t('limits.messages')}</dt>
-          <dd className="font-semibold tabular-nums text-ink">
-                          {formatLimit(plan.messageLimit, unlimited)}
-          </dd>
-        </div>
-        <div className="flex items-center justify-between gap-3 text-sm">
-                        <dt className="text-mute">{t('limits.workspaces')}</dt>
-          <dd className="font-semibold tabular-nums text-ink">
-                          {formatLimit(plan.workspaceLimit, unlimited)}
-          </dd>
-        </div>
-      </dl>
-
-                    <div className="flex min-h-0 flex-1 flex-col gap-2">
-        <p className="text-xs font-semibold tracking-wide text-mute uppercase">
-                        {t('featuresLabel')}
-        </p>
-                      <ul className="flex flex-col gap-1.5">
-          {plan.featureKeys.map((key) => (
-                          <li
-                            key={key}
-                            className="flex items-start gap-2 text-sm text-body"
-                          >
-              <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md bg-primary-pale text-positive-deep">
-                <Check className="size-3.5" aria-hidden />
-              </span>
-                            <span>{t(`features.${key}`)}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
-          {planKeyFromPlanId(form.planId) === 'enterprise' ? (
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="sub-plan-custom" className="text-sm font-medium text-ink">
-                {t('fields.planId')}
-              </label>
-              <Input
-                id="sub-plan-custom"
-                value={form.planId}
-                disabled={pending}
-                onChange={(e) => setForm({ ...form, planId: e.target.value })}
-                className="h-11 rounded-xl border-dash-border"
-                placeholder="00000000-0000-0000-0000-000000000000"
-              />
-              <p className="text-xs leading-4 text-mute">
-                Enter the enterprise plan UUID to create this subscription.
-              </p>
-            </div>
-          ) : null}
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="sub-plan" className="text-sm font-medium text-ink">
+            {t('fields.planId')}
+          </label>
+          <select
+            id="sub-plan"
+            value={form.planId}
+            disabled={pending}
+            onChange={(e) => setForm({ ...form, planId: e.target.value })}
+            className={selectClassName}
+          >
+            {DEMO_PLAN_OPTIONS.map((plan) => (
+              <option key={plan.id} value={plan.id}>
+                {plan.label}
+              </option>
+            ))}
+          </select>
         </div>
 
         <div className="flex flex-col gap-1.5">
@@ -464,14 +368,11 @@ export function SubscriptionsPage() {
             value={form.status}
             disabled={pending}
             onChange={(e) =>
-              setForm({
-                ...form,
-                status: e.target.value as SuperAdminSubscriptionStatus,
-              })
+              setForm({ ...form, status: e.target.value as SuperAdminSubscriptionStatus })
             }
             className={selectClassName}
           >
-            {SUBSCRIPTION_STATUSES.filter((status) => status !== 'cancelled').map((status) => (
+            {SUBSCRIPTION_STATUSES.map((status) => (
               <option key={status} value={status}>
                 {t(`statuses.${status}`)}
               </option>
@@ -511,349 +412,363 @@ export function SubscriptionsPage() {
     )
   }
 
+  const rangeStart = total === 0 ? 0 : (page - 1) * PER_PAGE + 1
+  const rangeEnd = Math.min(page * PER_PAGE, total)
+
   return (
-    <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 sm:gap-6">
-      <DashboardPanel
-        as="section"
-        className="relative overflow-hidden px-4 py-5 sm:px-6 sm:py-6 md:px-7 md:py-7"
-      >
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -top-16 -right-10 size-48 rounded-full bg-primary-pale/80 blur-[70px]"
-        />
-        <div className="relative">
-          <p className="text-sm font-semibold tracking-wide text-positive-deep uppercase">
-            {t('eyebrow')}
-          </p>
-          <h1 className="mt-2 font-display text-[1.75rem] leading-tight tracking-tight text-ink sm:text-3xl">
+    <div className="flex w-full flex-col gap-4 sm:gap-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h1 className="font-display text-[1.75rem] leading-tight tracking-tight text-ink sm:text-3xl">
             {t('title')}
           </h1>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-body sm:text-base sm:leading-7">
-            {t('subtitle')}
-          </p>
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-body">{t('subtitle')}</p>
         </div>
-      </DashboardPanel>
+        <Button
+          type="button"
+          variant="outline"
+          className="gap-2 self-start sm:self-auto"
+          onClick={() => setActionMessage(t('exportSoon'))}
+        >
+          <Download className="size-4" aria-hidden />
+          {t('export')}
+        </Button>
+      </div>
 
-      <DashboardPanel as="section" className="p-4 sm:p-5 md:p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <DashboardSectionHeader
-            title={t('tableTitle')}
-            description={t('tableDescription', { count: total })}
-          />
-          <Button
-            type="button"
-            className="gap-2 shrink-0"
-            onClick={() => {
-              setCreateForm(emptyCreateForm())
-              setCreateError(null)
-              setCreateOpen(true)
-              setActionMessage(null)
-              setActionError(null)
-            }}
-          >
-            <Plus className="size-4" aria-hidden />
-            {t('create')}
-          </Button>
-        </div>
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        <KPIStatCard
+          label={t('kpis.total')}
+          value={total}
+          format="number"
+          icon={CreditCard}
+          hint={t('tableDescription', { count: total })}
+          loading={listLoading}
+        />
+        <KPIStatCard
+          label={t('kpis.active')}
+          value={kpiCounts.active}
+          format="number"
+          icon={CreditCard}
+          hint={t('kpis.thisPage')}
+          loading={listLoading}
+        />
+        <KPIStatCard
+          label={t('kpis.trial')}
+          value={kpiCounts.trialing}
+          format="number"
+          icon={CreditCard}
+          hint={t('kpis.thisPage')}
+          loading={listLoading}
+        />
+        <KPIStatCard
+          label={t('kpis.pastDue')}
+          value={kpiCounts.past_due}
+          format="number"
+          icon={CreditCard}
+          hint={t('kpis.thisPage')}
+          loading={listLoading}
+        />
+        <KPIStatCard
+          label={t('kpis.cancelled')}
+          value={kpiCounts.cancelled}
+          format="number"
+          icon={CreditCard}
+          hint={t('kpis.thisPage')}
+          loading={listLoading}
+        />
+      </div>
 
-        {actionMessage ? (
-          <p
-            role="status"
-            className="mt-4 rounded-xl border border-primary/30 bg-primary-pale/50 px-4 py-3 text-sm text-positive-deep"
-          >
-            {actionMessage}
-          </p>
-        ) : null}
-
-        {actionError ? (
-          <p role="alert" className="mt-4 text-sm text-negative">
-            {actionError}
-          </p>
-        ) : null}
-
-        {listError ? (
-          <div className="mt-4 flex flex-col gap-3 rounded-xl border border-negative/25 bg-negative/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <p role="alert" className="text-sm text-negative">
-              {listError}
-            </p>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => void loadSubscriptions(page)}
+      <div className={cn('flex min-h-0 flex-col gap-4', selected ? 'xl:flex-row' : '')}>
+        <DashboardPanel as="section" className="min-w-0 flex-1 p-4 sm:p-5">
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_9rem_9rem_9rem_auto]">
+            <div className="relative min-w-0">
+              <Search
+                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-mute"
+                aria-hidden
+              />
+              <Input
+                id={searchId}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t('searchPlaceholder')}
+                className="h-11 rounded-xl border-dash-border bg-canvas pl-9 text-sm"
+              />
+            </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+              className={selectClassName}
+              aria-label={t('filterStatus')}
             >
-              {t('retry')}
+              <option value="all">{t('filterAll')}</option>
+              {SUBSCRIPTION_STATUSES.map((status) => (
+                <option key={status} value={status}>
+                  {t(`statuses.${status}`)}
+                </option>
+              ))}
+            </select>
+            <select
+              value={planFilter}
+              onChange={(e) => setPlanFilter(e.target.value)}
+              className={selectClassName}
+              aria-label={t('filterPlan')}
+            >
+              <option value="all">{t('filterAll')}</option>
+              {DEMO_PLAN_OPTIONS.map((plan) => (
+                <option key={plan.id} value={plan.id}>
+                  {plan.label}
+                </option>
+              ))}
+            </select>
+            <select
+              value={billingFilter}
+              onChange={(e) => setBillingFilter(e.target.value as BillingFilter)}
+              className={selectClassName}
+              aria-label={t('filterBilling')}
+            >
+              <option value="all">{t('filterAll')}</option>
+              <option value="monthly">{t('billingMonthly')}</option>
+              <option value="custom">{t('billingCustom')}</option>
+            </select>
+            <Button type="button" variant="outline" className="h-11 gap-2">
+              <SlidersHorizontal className="size-4" aria-hidden />
+              {t('filters')}
             </Button>
           </div>
-        ) : null}
 
-        {listLoading ? (
-          <div className="mt-8 flex items-center justify-center gap-2 py-16 text-sm text-body">
-            <Loader2 className="size-4 animate-spin" aria-hidden />
-            {t('loading')}
-          </div>
-        ) : (
-          <>
-            <div className="mt-5 hidden overflow-hidden rounded-2xl border border-dash-border md:block">
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[880px] border-collapse text-left">
-                  <thead>
-                    <tr className="border-b border-dash-border bg-dash-surface">
-                      <th className="px-4 py-3.5 text-sm font-semibold text-ink sm:px-5">
-                        {t('columns.organization')}
-                      </th>
-                      <th className="px-4 py-3.5 text-sm font-semibold text-ink">
-                        {t('columns.plan')}
-                      </th>
-                      <th className="px-4 py-3.5 text-sm font-semibold text-ink">
-                        {t('columns.status')}
-                      </th>
-                      <th className="px-4 py-3.5 text-sm font-semibold text-ink">
-                        {t('columns.period')}
-                      </th>
-                      <th className="px-4 py-3.5 text-right text-sm font-semibold text-ink sm:px-5">
-                        {t('columns.actions')}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {subscriptions.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="px-5 py-12 text-center text-sm text-mute">
-                          {t('empty')}
-                        </td>
+          {actionMessage ? (
+            <p
+              role="status"
+              className="mt-4 rounded-xl border border-primary/30 bg-primary-pale/50 px-4 py-3 text-sm text-positive-deep"
+            >
+              {actionMessage}
+            </p>
+          ) : null}
+          {actionError ? (
+            <p role="alert" className="mt-4 text-sm text-negative">
+              {actionError}
+            </p>
+          ) : null}
+          {listError ? (
+            <div className="mt-4 flex flex-col gap-3 rounded-xl border border-negative/25 bg-negative/5 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+              <p role="alert" className="text-sm text-negative">
+                {listError}
+              </p>
+              <Button type="button" variant="outline" size="sm" onClick={() => void loadSubscriptions(page)}>
+                {t('retry')}
+              </Button>
+            </div>
+          ) : null}
+
+          {listLoading ? (
+            <div className="mt-8 flex items-center justify-center gap-2 py-16 text-sm text-body">
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+              {t('loading')}
+            </div>
+          ) : (
+            <>
+              <div className="mt-4 hidden overflow-hidden rounded-2xl border border-dash-border md:block">
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[1080px] border-collapse text-left">
+                    <thead>
+                      <tr className="border-b border-dash-border bg-dash-surface/80">
+                        {[
+                          'organization',
+                          'plan',
+                          'status',
+                          'billing',
+                          'amount',
+                          'nextBilling',
+                          'startedOn',
+                          'actions',
+                        ].map((col) => (
+                          <th
+                            key={col}
+                            className={cn(
+                              'px-4 py-3 text-xs font-semibold tracking-wide text-mute uppercase',
+                              col === 'actions' && 'text-right'
+                            )}
+                          >
+                            {t(`columns.${col}`)}
+                          </th>
+                        ))}
                       </tr>
-                    ) : (
-                      subscriptions.map((sub, index) => (
-                        <tr
-                          key={sub.id}
-                          className={cn(
-                            'border-b border-dash-border last:border-b-0',
-                            'transition-colors duration-150',
-                            index % 2 === 1 && 'bg-dash-surface/60'
-                          )}
-                        >
-                          <td className="px-4 py-3.5 sm:px-5">
-                            <span className="block truncate text-sm font-semibold text-ink">
-                              {orgNameById.get(sub.organizationId) ??
-                                sub.organizationId.slice(0, 8)}
-                            </span>
-                            <span className="block truncate text-xs text-mute">
-                              {sub.organizationId}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3.5 text-sm font-medium text-ink">
-                            {planLabel(sub.planId)}
-                          </td>
-                          <td className="px-4 py-3.5">
-                            <StatusBadge
-                              status={sub.status}
-                              label={
-                                SUBSCRIPTION_STATUSES.includes(
-                                  sub.status as SuperAdminSubscriptionStatus
-                                )
-                                  ? t(`statuses.${sub.status as SuperAdminSubscriptionStatus}`)
-                                  : sub.status
-                              }
-                            />
-                          </td>
-                          <td className="px-4 py-3.5 text-sm tabular-nums text-body">
-                            {formatDisplayDate(sub.currentPeriodStart)} –{' '}
-                            {formatDisplayDate(sub.currentPeriodEnd)}
-                          </td>
-                          <td className="px-4 py-3.5 sm:px-5">
-                            <div className="flex justify-end gap-1">
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="gap-1.5"
-                                onClick={() => {
-                                  setEditTarget(sub)
-                                  setEditForm(formFromSubscription(sub))
-                                  setEditError(null)
-                                  setActionMessage(null)
-                                }}
-                              >
-                                <Pencil className="size-3.5" aria-hidden />
-                                {t('actions.edit')}
-                              </Button>
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                className="gap-1.5 text-negative hover:text-negative"
-                                onClick={() => {
-                                  setDeleteTarget(sub)
-                                  setDeleteError(null)
-                                }}
-                              >
-                                <Trash2 className="size-3.5" aria-hidden />
-                                {t('actions.delete')}
-                              </Button>
-                            </div>
+                    </thead>
+                    <tbody>
+                      {visibleSubscriptions.length === 0 ? (
+                        <tr>
+                          <td colSpan={8} className="px-5 py-12 text-center text-sm text-mute">
+                            {search.trim() || statusFilter !== 'all' || planFilter !== 'all'
+                              ? t('noMatches')
+                              : t('empty')}
                           </td>
                         </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <ul className="mt-5 flex flex-col gap-3 md:hidden">
-              {subscriptions.length === 0 ? (
-                <li className="rounded-2xl border border-dash-border bg-dash-surface/60 px-4 py-10 text-center text-sm text-mute">
-                  {t('empty')}
-                </li>
-              ) : (
-                subscriptions.map((sub) => (
-                  <li key={sub.id}>
-                    <article className="rounded-2xl border border-dash-border bg-dash-surface/60 p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-semibold text-ink">
-                            {orgNameById.get(sub.organizationId) ??
-                              sub.organizationId.slice(0, 8)}
-                          </p>
-                          <p className="mt-1 text-xs text-mute">{planLabel(sub.planId)}</p>
-                        </div>
-                        <StatusBadge
-                          status={sub.status}
-                          label={
-                            SUBSCRIPTION_STATUSES.includes(
-                              sub.status as SuperAdminSubscriptionStatus
-                            )
-                              ? t(`statuses.${sub.status as SuperAdminSubscriptionStatus}`)
-                              : sub.status
-                          }
-                        />
-                      </div>
-                      <p className="mt-3 text-xs tabular-nums text-body">
-                        {formatDisplayDate(sub.currentPeriodStart)} –{' '}
-                        {formatDisplayDate(sub.currentPeriodEnd)}
-                      </p>
-                      <div className="mt-3 flex gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="gap-1.5"
-                          onClick={() => {
-                            setEditTarget(sub)
-                            setEditForm(formFromSubscription(sub))
-                            setEditError(null)
-                          }}
-                        >
-                          <Pencil className="size-3.5" aria-hidden />
-                          {t('actions.edit')}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="gap-1.5 text-negative"
-                          onClick={() => {
-                            setDeleteTarget(sub)
-                            setDeleteError(null)
-                          }}
-                        >
-                          <Trash2 className="size-3.5" aria-hidden />
-                          {t('actions.delete')}
-                        </Button>
-                      </div>
-                    </article>
-                  </li>
-                ))
-              )}
-            </ul>
-
-            {lastPage > 1 ? (
-              <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-xs text-mute">
-                  {t('pagination', { page, lastPage, total })}
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={page <= 1 || listLoading}
-                    onClick={() => void loadSubscriptions(page - 1)}
-                  >
-                    {t('prevPage')}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    disabled={page >= lastPage || listLoading}
-                    onClick={() => void loadSubscriptions(page + 1)}
-                  >
-                    {t('nextPage')}
-                  </Button>
+                      ) : (
+                        visibleSubscriptions.map((sub) => {
+                          const relative = relativeFromEnd(sub.currentPeriodEnd, t)
+                          const isSelected = selectedId === sub.id
+                          return (
+                            <tr
+                              key={sub.id}
+                              onClick={() => setSelectedId(sub.id)}
+                              className={cn(
+                                'cursor-pointer border-b border-dash-border last:border-b-0 transition-colors',
+                                isSelected ? 'bg-primary-pale/50' : 'hover:bg-dash-surface/50'
+                              )}
+                            >
+                              <td className="px-4 py-3">{renderOrgCell(sub)}</td>
+                              <td className="px-4 py-3 text-sm font-medium text-ink">
+                                {planLabel(sub.planId)}
+                              </td>
+                              <td className="px-4 py-3">{renderStatus(sub.status)}</td>
+                              <td className="px-4 py-3 text-sm text-body">
+                                {planBillingKind(sub.planId) === 'custom'
+                                  ? t('billingCustom')
+                                  : t('billingMonthly')}
+                              </td>
+                              <td className="px-4 py-3 text-sm font-medium tabular-nums text-ink">
+                                {planAmountLabel(sub.planId, t('customPrice'))}
+                              </td>
+                              <td className="px-4 py-3">
+                                <p className="text-sm tabular-nums text-ink">
+                                  {formatDisplayDate(sub.currentPeriodEnd)}
+                                </p>
+                                {relative ? (
+                                  <p
+                                    className={cn(
+                                      'text-xs',
+                                      relative.overdue ? 'text-negative' : 'text-positive-deep'
+                                    )}
+                                  >
+                                    {relative.text}
+                                  </p>
+                                ) : null}
+                              </td>
+                              <td className="px-4 py-3 text-sm tabular-nums text-body">
+                                {formatDisplayDate(sub.currentPeriodStart)}
+                              </td>
+                              <td className="relative px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  type="button"
+                                  className="inline-flex size-8 items-center justify-center rounded-lg text-mute hover:bg-dash-surface hover:text-ink"
+                                  aria-label={t('actions.openMenu')}
+                                  onClick={() => setMenuId((id) => (id === sub.id ? null : sub.id))}
+                                >
+                                  <MoreHorizontal className="size-4" />
+                                </button>
+                                {menuId === sub.id ? (
+                                  <div className="absolute right-4 z-20 mt-1 w-44 overflow-hidden rounded-xl border border-dash-border bg-canvas py-1 shadow-lg">
+                                    <button
+                                      type="button"
+                                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
+                                      onClick={() => openEdit(sub)}
+                                    >
+                                      <Pencil className="size-3.5" />
+                                      {t('actions.edit')}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-mute"
+                                      disabled
+                                      title={t('actions.pauseSoon')}
+                                    >
+                                      <PauseCircle className="size-3.5" />
+                                      {t('actions.pause')}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-negative hover:bg-negative/5"
+                                      onClick={() => {
+                                        setDeleteTarget(sub)
+                                        setDeleteError(null)
+                                        setMenuId(null)
+                                      }}
+                                    >
+                                      <Trash2 className="size-3.5" />
+                                      {t('actions.delete')}
+                                    </button>
+                                  </div>
+                                ) : null}
+                              </td>
+                            </tr>
+                          )
+                        })
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
-            ) : null}
-          </>
-        )}
-      </DashboardPanel>
 
-      {createOpen ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 backdrop-blur-[2px]"
-          role="presentation"
-          onClick={() => {
-            if (!createPending) setCreateOpen(false)
-          }}
-        >
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={createTitleId}
-            className="max-h-[95vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-dash-border bg-canvas p-5 shadow-[0_20px_50px_rgb(15_23_42/0.18)] sm:p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 id={createTitleId} className="font-display text-lg tracking-tight text-ink">
-              {t('createTitle')}
-            </h2>
-            <p className="mt-1 text-sm text-body">{t('createSubtitle')}</p>
-            {renderFormFields(createForm, setCreateForm, createPending, {
-              includeOrganization: true,
-            })}
-            {createError ? (
-              <p role="alert" className="mt-3 text-sm text-negative">
-                {createError}
-              </p>
-            ) : null}
-            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={createPending}
-                onClick={() => setCreateOpen(false)}
-              >
-                {t('cancel')}
-              </Button>
-              <Button
-                type="button"
-                disabled={createPending}
-                className="gap-2"
-                onClick={() => void handleCreateSave()}
-              >
-                {createPending ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
-                    {t('saving')}
-                  </>
+              <ul className="mt-4 flex flex-col gap-3 md:hidden">
+                {visibleSubscriptions.length === 0 ? (
+                  <li className="rounded-2xl border border-dash-border px-4 py-10 text-center text-sm text-mute">
+                    {t('empty')}
+                  </li>
                 ) : (
-                  t('createSave')
+                  visibleSubscriptions.map((sub) => (
+                    <li key={sub.id}>
+                      <button
+                        type="button"
+                        className="w-full rounded-2xl border border-dash-border bg-dash-surface/60 p-4 text-left"
+                        onClick={() => setSelectedId(sub.id)}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          {renderOrgCell(sub)}
+                          {renderStatus(sub.status)}
+                        </div>
+                        <p className="mt-3 text-sm text-body">
+                          {planLabel(sub.planId)} · {planAmountLabel(sub.planId, t('customPrice'))}
+                        </p>
+                      </button>
+                    </li>
+                  ))
                 )}
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
+              </ul>
+
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-xs text-mute">
+                  {t('showingRange', { start: rangeStart, end: rangeEnd, total })}
+                </p>
+                {lastPage > 1 ? (
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={page <= 1 || listLoading}
+                      onClick={() => void loadSubscriptions(page - 1)}
+                    >
+                      {t('prevPage')}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={page >= lastPage || listLoading}
+                      onClick={() => void loadSubscriptions(page + 1)}
+                    >
+                      {t('nextPage')}
+                    </Button>
+                  </div>
+                ) : null}
+              </div>
+            </>
+          )}
+        </DashboardPanel>
+
+        {selected ? (
+          <SubscriptionDetailPanel
+            subscription={selected}
+            organization={orgById.get(selected.organizationId)}
+            onClose={() => setSelectedId(null)}
+            onChangePlan={() => openEdit(selected)}
+            onCancelSubscription={() => {
+              setDeleteTarget(selected)
+              setDeleteError(null)
+            }}
+          />
+        ) : null}
+      </div>
 
       {editTarget && editForm ? (
         <div
@@ -870,7 +785,7 @@ export function SubscriptionsPage() {
             role="dialog"
             aria-modal="true"
             aria-labelledby={editTitleId}
-            className="max-h-[95vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-dash-border bg-canvas p-5 shadow-[0_20px_50px_rgb(15_23_42/0.18)] sm:p-6"
+            className="max-h-[95vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-dash-border bg-canvas p-5 sm:p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 id={editTitleId} className="font-display text-lg tracking-tight text-ink">
@@ -878,22 +793,11 @@ export function SubscriptionsPage() {
             </h2>
             <p className="mt-1 text-sm text-body">
               {t('editSubtitle', {
-                name:
-                  orgNameById.get(editTarget.organizationId) ??
-                  editTarget.organizationId.slice(0, 8),
+                name: orgById.get(editTarget.organizationId)?.name ?? editTarget.organizationId.slice(0, 8),
               })}
             </p>
-            {renderFormFields(
-              editForm,
-              (next) => setEditForm(next),
-              editPending,
-              { includeOrganization: false }
-            )}
-            {editError ? (
-              <p role="alert" className="mt-3 text-sm text-negative">
-                {editError}
-              </p>
-            ) : null}
+            {renderFormFields(editForm, (next) => setEditForm(next), editPending)}
+            {editError ? <p role="alert" className="mt-3 text-sm text-negative">{editError}</p> : null}
             <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Button
                 type="button"
@@ -906,20 +810,9 @@ export function SubscriptionsPage() {
               >
                 {t('cancel')}
               </Button>
-              <Button
-                type="button"
-                disabled={editPending}
-                className="gap-2"
-                onClick={() => void handleEditSave()}
-              >
-                {editPending ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
-                    {t('saving')}
-                  </>
-                ) : (
-                  t('editSave')
-                )}
+              <Button type="button" disabled={editPending} className="gap-2" onClick={() => void handleEditSave()}>
+                {editPending ? <Loader2 className="size-4 animate-spin" /> : null}
+                {editPending ? t('saving') : t('editSave')}
               </Button>
             </div>
           </div>
@@ -939,7 +832,7 @@ export function SubscriptionsPage() {
             aria-modal="true"
             aria-labelledby={deleteTitleId}
             aria-describedby={deleteDescId}
-            className="w-full max-w-md rounded-2xl border border-dash-border bg-canvas p-5 shadow-[0_20px_50px_rgb(15_23_42/0.18)] sm:p-6"
+            className="w-full max-w-md rounded-2xl border border-dash-border bg-canvas p-5 sm:p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <h2 id={deleteTitleId} className="font-display text-lg tracking-tight text-ink">
@@ -947,23 +840,12 @@ export function SubscriptionsPage() {
             </h2>
             <p id={deleteDescId} className="mt-2 text-sm leading-6 text-body">
               {t('deleteConfirmBody', {
-                name:
-                  orgNameById.get(deleteTarget.organizationId) ??
-                  deleteTarget.organizationId.slice(0, 8),
+                name: orgById.get(deleteTarget.organizationId)?.name ?? deleteTarget.organizationId.slice(0, 8),
               })}
             </p>
-            {deleteError ? (
-              <p role="alert" className="mt-3 text-sm text-negative">
-                {deleteError}
-              </p>
-            ) : null}
+            {deleteError ? <p role="alert" className="mt-3 text-sm text-negative">{deleteError}</p> : null}
             <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={deletePending}
-                onClick={() => setDeleteTarget(null)}
-              >
+              <Button type="button" variant="outline" disabled={deletePending} onClick={() => setDeleteTarget(null)}>
                 {t('cancel')}
               </Button>
               <Button
@@ -973,14 +855,8 @@ export function SubscriptionsPage() {
                 className="gap-2"
                 onClick={() => void handleDeleteConfirm()}
               >
-                {deletePending ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
-                    {t('deleting')}
-                  </>
-                ) : (
-                  t('deleteConfirm')
-                )}
+                {deletePending ? <Loader2 className="size-4 animate-spin" /> : null}
+                {deletePending ? t('deleting') : t('deleteConfirm')}
               </Button>
             </div>
           </div>
