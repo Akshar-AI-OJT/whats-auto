@@ -50,9 +50,6 @@ function createService(params: { isEnabled?: boolean; aiMode?: string; delaySeco
     },
   } as unknown as ConversationAiRepository
   const queue = {
-    aiDriverName() {
-      return 'null'
-    },
     async ensureStarted() {
       return {
         async enqueue(name: string, data: Record<string, unknown>, options?: unknown) {

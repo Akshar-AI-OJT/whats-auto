@@ -18,30 +18,34 @@ test.group('JobQueueManager', () => {
   test('creates the default null driver', ({ assert }) => {
     const manager = new JobQueueManager(fakeApp({ 'job_queue.default': 'null' }))
     assert.instanceOf(manager.use(), NullJobQueueDriver)
-    assert.isUndefined(manager.aiDriverName())
   })
 
-  test('creates a bullmq driver for the AI name', ({ assert }) => {
+  test('creates a bullmq driver when selected as default', ({ assert }) => {
     const manager = new JobQueueManager(
       fakeApp({
-        'job_queue.default': 'null',
-        'job_queue.ai': 'bullmq',
+        'job_queue.default': 'bullmq',
         'job_queue.drivers.bullmq.redisUrl': 'redis://127.0.0.1:6379',
         'job_queue.drivers.bullmq.prefix': 'wa:test',
       })
     )
 
-    assert.equal(manager.aiDriverName(), 'bullmq')
-    assert.instanceOf(manager.use('bullmq'), BullmqJobQueueDriver)
+    assert.instanceOf(manager.use(), BullmqJobQueueDriver)
   })
 
-  test('treats ai driver null as unset', ({ assert }) => {
-    const manager = new JobQueueManager(fakeApp({ 'job_queue.ai': 'null' }))
-    assert.isUndefined(manager.aiDriverName())
+  test('creates a bullmq driver by explicit name', ({ assert }) => {
+    const manager = new JobQueueManager(
+      fakeApp({
+        'job_queue.default': 'null',
+        'job_queue.drivers.bullmq.redisUrl': 'redis://127.0.0.1:6379',
+        'job_queue.drivers.bullmq.prefix': 'wa:test',
+      })
+    )
+
+    assert.instanceOf(manager.use('bullmq'), BullmqJobQueueDriver)
   })
 
   test('rejects unknown driver names', ({ assert }) => {
     const manager = new JobQueueManager(fakeApp({}))
-    assert.throws(() => manager.use('redis'), /Supported: pgboss, bullmq, null/)
+    assert.throws(() => manager.use('redis'), /Supported: bullmq, null/)
   })
 })

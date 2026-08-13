@@ -70,9 +70,6 @@ function createSummary(params: {
   } as unknown as MemoryWorkingSetService
 
   const queue = {
-    aiDriverName() {
-      return 'bullmq'
-    },
     async ensureStarted() {
       return {
         async enqueue(name: string, data: Record<string, unknown>) {
