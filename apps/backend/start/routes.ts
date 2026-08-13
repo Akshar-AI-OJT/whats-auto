@@ -583,14 +583,10 @@ router
   .post('/api/v1/ownership/transfer', [controllers.Ownership, 'transfer'])
   .use([middleware.jwtAuth(), middleware.tenant()])
 
-//audit history
+//audit history — same endpoint; Super Admin is platform-scoped, tenants stay org-scoped
 router
   .get('/api/v1/audit', [controllers.Audit, 'index'])
-  .use([
-    middleware.jwtAuth(),
-    middleware.tenant(),
-    middleware.requirePermission({ permission: 'team:view' }),
-  ])
+  .use([middleware.jwtAuth(), middleware.auditAccess()])
 
 // contacts â€” sample RLS business table (tenant isolation demo)
 router

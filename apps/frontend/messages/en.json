@@ -2760,9 +2760,17 @@
     "nav": {
       "ariaLabel": "Admin navigation",
       "comingSoon": "Coming soon",
+      "sections": {
+        "overview": "Overview",
+        "management": "Management",
+        "subscriptionBilling": "Subscription & Billing",
+        "platform": "Platform"
+      },
       "dashboard": "Dashboard",
       "organizations": "Organizations",
+      "plans": "Plans",
       "subscriptions": "Subscriptions",
+      "invoices": "Invoices",
       "platformUsers": "Platform Users",
       "analytics": "Analytics",
       "auditLogs": "Audit Logs",
@@ -2862,14 +2870,19 @@
     "organizations": {
       "eyebrow": "Tenant management",
       "title": "Organizations",
-      "subtitle": "Search, filter, and manage every organization on the platform.",
+      "subtitle": "Search, view, and manage every organization on the platform.",
       "tableTitle": "All organizations",
       "tableDescription": "{count, plural, =0 {No organizations match} one {# organization} other {# organizations}}",
       "searchLabel": "Search organizations",
-      "searchPlaceholder": "Search by name, slug, or owner…",
+      "searchPlaceholder": "Search by name, slug, or owner email…",
       "statusFilterLabel": "Filter by status",
       "planFilterLabel": "Filter by plan",
+      "filtersButton": "Filters",
+      "resetFilters": "Reset",
+      "dateFrom": "From date",
+      "dateTo": "To date",
       "empty": "No organizations match your filters.",
+      "emptyValue": "—",
       "loading": "Loading organizations…",
       "retry": "Retry",
       "prevPage": "Previous",
@@ -2880,11 +2893,11 @@
       "editCancel": "Cancel",
       "editSave": "Save changes",
       "saving": "Saving…",
-      "deleteConfirmTitle": "Delete this organization?",
+      "deleteConfirmTitle": "Archive this organization?",
       "deleteConfirmBody": "“{name}” will be soft-deleted. Members will lose access.",
       "deleteCancel": "Cancel",
-      "deleteConfirm": "Delete organization",
-      "deleting": "Deleting…",
+      "deleteConfirm": "Archive organization",
+      "deleting": "Archiving…",
       "editFields": {
         "name": "Name",
         "phone": "Phone",
@@ -2895,7 +2908,29 @@
       },
       "toast": {
         "updated": "Updated “{name}”.",
-        "deleted": "Deleted “{name}”."
+        "deleted": "Archived “{name}”."
+      },
+      "kpis": {
+        "total": {
+          "label": "Total Organizations",
+          "hint": "All tenants on the platform"
+        },
+        "active": {
+          "label": "Active",
+          "hint": "Enabled organizations"
+        },
+        "suspended": {
+          "label": "Suspended",
+          "hint": "Inactive organizations"
+        },
+        "pending": {
+          "label": "Pending",
+          "hint": "Not tracked by the API"
+        },
+        "archived": {
+          "label": "Archived",
+          "hint": "Soft-deleted organizations"
+        }
       },
       "columns": {
         "organization": "Organization",
@@ -2903,20 +2938,23 @@
         "plan": "Plan",
         "status": "Status",
         "members": "Members",
-        "created": "Created Date",
+        "created": "Created At",
         "actions": "Actions"
       },
       "filters": {
         "status": {
-          "all": "All statuses",
+          "all": "All",
           "active": "Active",
           "trial": "Trial",
-          "suspended": "Suspended"
+          "suspended": "Suspended",
+          "pending": "Pending",
+          "archived": "Archived"
         },
         "plan": {
-          "all": "All plans",
+          "all": "All",
           "starter": "Starter",
           "growth": "Growth",
+          "scale": "Scale",
           "pro": "Pro",
           "enterprise": "Enterprise",
           "unavailable": "—"
@@ -2926,14 +2964,69 @@
         "menuLabel": "Actions for {name}",
         "view": "View",
         "edit": "Edit",
-        "suspend": "Suspend",
-        "activate": "Activate",
-        "delete": "Delete"
+        "suspend": "Change status",
+        "activate": "Change status",
+        "delete": "Archive"
+      },
+      "statusDialog": {
+        "title": "Change status",
+        "body": "Activate and suspend are not available on the organization API. You can archive “{name}” with a soft-delete.",
+        "archivedBody": "“{name}” is already archived. Restore is not available from the API.",
+        "cancel": "Cancel",
+        "archive": "Archive organization"
+      },
+      "drawer": {
+        "tabs": {
+          "overview": "Overview",
+          "users": "Users",
+          "subscription": "Subscription",
+          "activity": "Activity"
+        },
+        "overviewTitle": "Organization Details",
+        "planTitle": "Current Plan",
+        "quickActions": "Quick Actions",
+        "viewSubscription": "View Subscription",
+        "manageSubscriptions": "Manage subscriptions",
+        "perMonth": "month",
+        "monthly": "Monthly",
+        "customBilling": "Custom",
+        "noPlan": "No current plan",
+        "noPlanHint": "This organization has no subscription in the platform billing list.",
+        "usersUnavailableTitle": "Users aren’t listed here",
+        "usersUnavailable": "There is no Super Admin users-by-organization API. Manage members from the tenant workspace.",
+        "activityLoading": "Loading activity…",
+        "activityFailed": "Couldn’t load activity for this organization.",
+        "activityEmpty": "No audit events for this organization.",
+        "fields": {
+          "name": "Organization Name",
+          "slug": "Slug",
+          "ownerEmail": "Owner Email",
+          "phone": "Phone",
+          "website": "Website",
+          "industry": "Industry",
+          "country": "Country",
+          "timezone": "Timezone",
+          "currency": "Currency",
+          "created": "Created At",
+          "updated": "Updated At",
+          "status": "Status",
+          "price": "Price",
+          "billing": "Billing period",
+          "subStatus": "Subscription status",
+          "periodStart": "Period start",
+          "periodEnd": "Period end"
+        },
+        "actions": {
+          "viewOrganization": "View Organization",
+          "viewUsers": "View Users",
+          "viewSubscription": "View Subscription",
+          "changeStatus": "Change Status"
+        }
       },
       "errors": {
         "loadFailed": "Couldn’t load organizations. Please try again.",
         "updateFailed": "Couldn’t update this organization.",
-        "deleteFailed": "Couldn’t delete this organization.",
+        "deleteFailed": "Couldn’t archive this organization.",
         "nameRequired": "Name must be at least 2 characters.",
         "actionUnavailable": "This action isn’t available from the API yet."
       },
@@ -3032,12 +3125,199 @@
         }
       }
     },
+    "plans": {
+      "eyebrow": "Subscription & Billing",
+      "title": "Plans",
+      "subtitle": "Create and manage subscription plans available to organizations.",
+      "tableTitle": "Plan catalog",
+      "tableDescription": "{count, plural, =0 {No plans} one {# plan} other {# plans}}",
+      "searchPlaceholder": "Search plans...",
+      "noMatches": "No plans match your filters.",
+      "empty": "No plans yet. Create the first plan for organizations to choose.",
+      "create": "Create Plan",
+      "createTitle": "Create Subscription Plan",
+      "createSubtitle": "Create a new subscription plan that organizations can choose during signup or upgrade.",
+      "editTitle": "Edit Subscription Plan",
+      "editSubtitle": "Update this plan’s details, limits, and included features.",
+      "createPlan": "Create Plan",
+      "savePlan": "Save Plan",
+      "saving": "Saving…",
+      "loading": "Loading plans…",
+      "retry": "Retry",
+      "cancel": "Cancel",
+      "back": "Back",
+      "backToPlans": "Back to Plans",
+      "nextFeatures": "Next: Features",
+      "popular": "Popular",
+      "customPrice": "Custom",
+      "perMonth": "/ month",
+      "perYear": "/ year",
+      "unlimited": "Unlimited",
+      "filterStatus": "Status",
+      "filterAllStatuses": "All statuses",
+      "featureCount": "{count, plural, one {# feature} other {# features}}",
+      "selectedCount": "{count} of {total} selected",
+      "archiveTitle": "Archive this plan?",
+      "archiveBody": "“{name}” will be archived and hidden from new organization signups.",
+      "archiveConfirm": "Archive plan",
+      "kpis": {
+        "total": "Total Plans",
+        "active": "Active Plans",
+        "draft": "Draft Plans",
+        "popular": "Most Popular",
+        "catalog": "In catalog",
+        "published": "Available to orgs",
+        "unpublished": "Not published",
+        "mostChosen": "Marked as popular"
+      },
+      "columns": {
+        "plan": "Plan",
+        "price": "Price",
+        "limits": "Limits",
+        "features": "Features",
+        "status": "Status",
+        "updated": "Updated",
+        "created": "Created",
+        "actions": "Actions"
+      },
+      "actions": {
+        "view": "View",
+        "edit": "Edit Plan",
+        "archive": "Archive Plan",
+        "openMenu": "Open actions"
+      },
+      "statuses": {
+        "active": "Active",
+        "draft": "Draft",
+        "archived": "Archived"
+      },
+      "billing": {
+        "monthly": "Monthly",
+        "yearly": "Yearly",
+        "custom": "Custom",
+        "monthlyHint": "Pay every month",
+        "yearlyHint": "Pay yearly and save"
+      },
+      "currency": {
+        "usd": "USD ($)"
+      },
+      "limits": {
+        "users": "Users",
+        "messages": "Messages / month",
+        "workspaces": "Workspaces"
+      },
+      "steps": {
+        "details": "Plan Details",
+        "detailsHint": "Set name, price & limits",
+        "features": "Features & Benefits",
+        "featuresHint": "Choose what’s included"
+      },
+      "sections": {
+        "details": "Plan Details",
+        "detailsHint": "Name, pricing, and usage limits for this plan.",
+        "limits": "Plan Limits",
+        "limitsHint": "Leave a field empty for unlimited.",
+        "features": "Features & Benefits",
+        "featuresHint": "Choose the features and limits included in this subscription plan."
+      },
+      "fields": {
+        "name": "Plan Name",
+        "namePlaceholder": "e.g. Growth",
+        "nameHelp": "This will be visible to organizations.",
+        "description": "Description",
+        "descriptionPlaceholder": "Brief description of this plan and who it’s for.",
+        "descriptionHelp": "This helps organizations understand your plan.",
+        "price": "Price",
+        "currency": "Currency",
+        "billingPeriod": "Billing Period",
+        "customPricing": "Custom pricing",
+        "customPricingHelp": "Use this for Enterprise-style plans without a public price.",
+        "users": "Maximum Users",
+        "usersHelp": "Maximum number of users",
+        "messages": "Messages / month",
+        "messagesHelp": "Outgoing messages per month",
+        "workspaces": "Maximum Workspaces",
+        "workspacesHelp": "Maximum number of workspaces",
+        "trialDays": "Trial period (days)",
+        "status": "Status",
+        "benefitPlaceholder": "Optional benefit description"
+      },
+      "categories": {
+        "messaging": "Messaging",
+        "automation": "Automation",
+        "ai": "AI",
+        "team": "Team & Workspace",
+        "integrations": "Integrations"
+      },
+      "featureItems": {
+        "whatsappMessaging": "WhatsApp messaging",
+        "bulkMessaging": "Bulk messaging",
+        "scheduledMessages": "Scheduled messages",
+        "messageTemplates": "Message templates",
+        "automationWorkflows": "Automation workflows",
+        "campaigns": "Campaigns",
+        "flowBuilder": "Flow Builder",
+        "formBuilder": "Form Builder",
+        "aiAssistant": "AI assistant",
+        "aiAutomation": "AI-powered automation",
+        "aiVoiceCalling": "AI Voice Calling",
+        "multipleUsers": "Multiple users",
+        "multipleWorkspaces": "Multiple workspaces",
+        "rolesPermissions": "Roles & permissions",
+        "whatsappAccounts": "WhatsApp accounts",
+        "thirdPartyIntegrations": "Third-party integrations",
+        "apiAccess": "API access"
+      },
+      "view": {
+        "overview": "Overview"
+      },
+      "toast": {
+        "created": "Plan created successfully.",
+        "updated": "Plan updated successfully.",
+        "archived": "Plan archived."
+      },
+      "errors": {
+        "loadFailed": "Failed to load plans. Please try again.",
+        "notFound": "Plan not found.",
+        "createFailed": "Failed to create plan.",
+        "updateFailed": "Failed to update plan.",
+        "nameRequired": "Plan name is required.",
+        "priceRequired": "Enter a valid price, or enable custom pricing.",
+        "limitInvalid": "Limits must be empty or a number of zero or more.",
+        "trialInvalid": "Trial days must be empty or a number of zero or more."
+      }
+    },
     "subscriptions": {
-      "eyebrow": "Billing catalog",
+      "eyebrow": "Subscription & Billing",
       "title": "Subscriptions",
-      "subtitle": "Manage organization subscriptions from the platform billing API.",
+      "subtitle": "View and manage all organization subscriptions.",
       "tableTitle": "All subscriptions",
       "tableDescription": "{count, plural, =0 {No subscriptions} one {# subscription} other {# subscriptions}}",
+      "searchPlaceholder": "Search organizations...",
+      "noMatches": "No subscriptions match your filters on this page.",
+      "showingRange": "Showing {start} to {end} of {total} subscriptions",
+      "export": "Export",
+      "exportSoon": "Export isn’t available from the API yet.",
+      "filters": "Filters",
+      "filterStatus": "Status",
+      "filterPlan": "Plan",
+      "filterBilling": "Billing",
+      "filterAll": "All",
+      "billingMonthly": "Monthly",
+      "billingCustom": "Custom",
+      "kpis": {
+        "total": "Total Subscriptions",
+        "active": "Active",
+        "trial": "Trial",
+        "pastDue": "Past Due",
+        "cancelled": "Cancelled",
+        "thisPage": "On this page"
+      },
+      "relative": {
+        "inDays": "In {count, plural, one {# day} other {# days}}",
+        "overdue": "{count, plural, one {# day} other {# days}} overdue",
+        "today": "Today"
+      },
       "create": "Create subscription",
       "loading": "Loading subscriptions…",
       "retry": "Retry",
@@ -3056,17 +3336,41 @@
       "deleting": "Deleting…",
       "deleteConfirmTitle": "Cancel this subscription?",
       "deleteConfirmBody": "“{name}” will be soft-deleted (status set to cancelled).",
-      "deleteConfirm": "Delete subscription",
+      "deleteConfirm": "Cancel subscription",
       "columns": {
         "organization": "Organization",
         "plan": "Plan",
         "status": "Status",
+        "billing": "Billing",
+        "amount": "Amount",
         "period": "Period",
+        "startedOn": "Started On",
+        "nextBilling": "Next Billing",
+        "created": "Created",
         "actions": "Actions"
       },
       "actions": {
         "edit": "Edit",
-        "delete": "Delete"
+        "delete": "Cancel",
+        "openMenu": "Open actions",
+        "changePlan": "Change Plan",
+        "pause": "Pause Subscription",
+        "pauseSoon": "Pause isn’t available from the API yet.",
+        "viewOrg": "View organization"
+      },
+      "detail": {
+        "overview": "Overview",
+        "usage": "Usage",
+        "billingHistory": "Billing History",
+        "subscriptionDetails": "Subscription Details",
+        "usageTitle": "Usage (This Month)",
+        "usageSoon": "Usage metrics aren’t available from the API yet. Limits shown from the selected plan.",
+        "viewAnalytics": "View analytics",
+        "quickActions": "Quick Actions",
+        "goToOrg": "Go to Organization",
+        "paymentMethod": "Payment Method",
+        "paymentSoon": "Not available from the API yet.",
+        "amountPerMonth": "{amount}/month"
       },
       "fields": {
         "organizationId": "Organization",
@@ -3077,15 +3381,15 @@
         "endDate": "End date"
       },
       "statuses": {
-        "trialing": "Trialing",
+        "trialing": "Trial",
         "active": "Active",
-        "past_due": "Past due",
+        "past_due": "Past Due",
         "cancelled": "Cancelled"
       },
       "toast": {
         "created": "Subscription created.",
         "updated": "Subscription updated.",
-        "deleted": "Subscription deleted."
+        "deleted": "Subscription cancelled."
       },
       "errors": {
         "loadFailed": "Failed to load subscriptions. Please try again.",
@@ -3144,6 +3448,181 @@
         "sla": "Custom SLA"
       }
     },
+    "invoices": {
+      "title": "Invoices",
+      "subtitle": "Manage and view all invoices generated across organizations.",
+      "tableTitle": "Invoices List",
+      "tableDescription": "{count, plural, =0 {No invoices} one {# invoice} other {# invoices}}",
+      "searchPlaceholder": "Search invoices...",
+      "noMatches": "No invoices match your filters.",
+      "empty": "No invoices yet.",
+      "showingRange": "Showing {start} to {end} of {total} invoices",
+      "export": "Export",
+      "exportSoon": "Export isn’t available yet. This action is ready for API integration.",
+      "generate": "Generate Invoice",
+      "generateTitle": "Generate Invoice",
+      "generateSubtitle": "Create a mock invoice for an organization. This will use a real API later.",
+      "generatePageSubtitle": "Create a new invoice for an organization. This will use a real API later.",
+      "generateSave": "Generate Invoice",
+      "generating": "Generating…",
+      "backToInvoices": "Back to Invoices",
+      "reviewNext": "Review & Preview",
+      "editDetails": "Edit details",
+      "showPreview": "Preview Invoice",
+      "hidePreview": "Hide preview",
+      "previewLiveHint": "This preview updates live as you edit the form.",
+      "steps": {
+        "details": "Invoice Details",
+        "review": "Review & Preview"
+      },
+      "sections": {
+        "invoiceDetails": "Invoice Details",
+        "invoiceDetailsHint": "Enter billing information and line items for this invoice.",
+        "reviewDetails": "Review invoice",
+        "reviewDetailsHint": "Confirm the details below, then generate the invoice."
+      },
+      "lineItems": {
+        "title": "Line Items",
+        "add": "Add line item",
+        "description": "Description",
+        "qty": "Qty",
+        "unitPrice": "Unit Price (USD)",
+        "amount": "Amount (USD)",
+        "actions": "Actions",
+        "remove": "Remove line item"
+      },
+      "currency": {
+        "usd": "USD — US Dollar"
+      },
+      "filters": "Filters",
+      "filterStatus": "Status",
+      "filterDate": "Issue month",
+      "filterBilling": "Billing period",
+      "filterAllStatuses": "All statuses",
+      "filterAllDates": "All dates",
+      "filterAllBilling": "All billing periods",
+      "clearFilters": "Clear filters",
+      "loading": "Loading invoices…",
+      "retry": "Retry",
+      "prevPage": "Previous",
+      "nextPage": "Next",
+      "cancel": "Cancel",
+      "close": "Close",
+      "previewTitle": "Invoice preview",
+      "kpis": {
+        "total": "Total Invoices",
+        "paid": "Paid",
+        "pending": "Pending",
+        "overdue": "Overdue",
+        "cancelled": "Cancelled",
+        "allTime": "All time"
+      },
+      "columns": {
+        "invoiceNumber": "Invoice #",
+        "organization": "Organization",
+        "plan": "Subscription / Plan",
+        "amount": "Amount",
+        "period": "Billing period",
+        "issueDate": "Issue Date",
+        "dueDate": "Due Date",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "statuses": {
+        "paid": "Paid",
+        "pending": "Pending",
+        "overdue": "Overdue",
+        "cancelled": "Cancelled"
+      },
+      "billing": {
+        "monthly": "Monthly",
+        "yearly": "Yearly",
+        "custom": "Custom"
+      },
+      "fields": {
+        "organization": "Organization",
+        "organizationPlaceholder": "Select an organization",
+        "plan": "Plan",
+        "subscriptionPlan": "Subscription / Plan",
+        "billingPeriod": "Billing period",
+        "periodStart": "Period start",
+        "periodEnd": "Period end",
+        "issueDate": "Issue date",
+        "dueDate": "Due date",
+        "currency": "Currency",
+        "amount": "Amount (USD)",
+        "taxRate": "Tax %",
+        "discount": "Discount (USD)",
+        "notes": "Notes",
+        "notesPlaceholder": "Optional note shown on the invoice"
+      },
+      "actions": {
+        "view": "View Invoice",
+        "download": "Download Invoice",
+        "downloadPdf": "Download PDF",
+        "print": "Print",
+        "regenerate": "Regenerate Invoice",
+        "send": "Send Invoice",
+        "markPaid": "Mark as Paid",
+        "openMenu": "Open actions",
+        "downloadSoon": "PDF download isn’t available yet. Print is ready now; PDF can be wired later.",
+        "sendSoon": "Send Invoice isn’t available yet. This action is ready for API integration."
+      },
+      "document": {
+        "title": "INVOICE",
+        "invoiceNumber": "Invoice #:",
+        "issueDate": "Issue Date:",
+        "dueDate": "Due Date:",
+        "from": "From",
+        "billedTo": "Billed To",
+        "gstin": "GSTIN",
+        "subscriptionPlan": "Subscription / Plan",
+        "organization": "Organization",
+        "orgId": "Organization ID",
+        "description": "Description",
+        "qty": "Qty",
+        "unitPrice": "Unit Price",
+        "amount": "Amount (USD)",
+        "subtotal": "Subtotal",
+        "discount": "Discount",
+        "tax": "Tax ({rate}% GST)",
+        "total": "Total",
+        "amountInWords": "Amount in words",
+        "amountWordsFallback": "{amount} Only",
+        "paymentInfo": "Payment information",
+        "paymentMethod": "Payment Method",
+        "transactionId": "Transaction ID",
+        "paymentDate": "Payment Date",
+        "notPaid": "Not paid",
+        "notes": "Notes",
+        "defaultNotes": "This invoice is generated by Whats-Auto. For billing queries, contact billing@whatsauto.com.",
+        "thankYou": "Thank You!",
+        "thankYouBody": "We appreciate your business and look forward to helping you automate WhatsApp conversations.",
+        "pageOf": "Page {page} of {total}"
+      },
+      "toast": {
+        "created": "Invoice generated.",
+        "markedPaid": "Invoice marked as paid.",
+        "regenerated": "Invoice regenerated.",
+        "sent": "Invoice sent."
+      },
+      "errors": {
+        "loadFailed": "Failed to load invoices. Please try again.",
+        "createFailed": "Failed to generate invoice.",
+        "notFound": "Invoice not found.",
+        "cannotMarkCancelledPaid": "Cancelled invoices cannot be marked as paid.",
+        "organizationRequired": "Select an organization.",
+        "planRequired": "Select a plan.",
+        "datesRequired": "All date fields are required.",
+        "periodInvalid": "Period end must be on or after period start.",
+        "dueBeforeIssue": "Due date must be on or after issue date.",
+        "amountInvalid": "Enter a valid amount greater than zero.",
+        "discountInvalid": "Enter a valid discount of zero or more.",
+        "taxInvalid": "Enter a tax rate between 0 and 100.",
+        "lineItemsRequired": "Add at least one line item.",
+        "lineItemInvalid": "Each line item needs a description, quantity, and unit price."
+      }
+    },
     "platformUsers": {
       "eyebrow": "Access management",
       "title": "Platform Users",
@@ -3172,22 +3651,45 @@
     "auditLogs": {
       "eyebrow": "Compliance",
       "title": "Audit Logs",
-      "subtitle": "Authorization audit events for the active organization from GET /api/v1/audit.",
+      "subtitle": "Platform-wide authorization events from GET /api/v1/audit. Super Admin does not need an active organization.",
       "tableTitle": "Recent audit events",
       "tableDescription": "{count, plural, one {# event} other {# events}}",
       "tableDescriptionLoading": "Loading events…",
       "limitLabel": "Limit",
       "refresh": "Refresh",
       "loading": "Loading audit events…",
+      "searchPlaceholder": "Search event, actor, organization, or target…",
       "emptyTitle": "No audit events",
-      "emptyDescription": "No authorization audit events were returned for the active organization.",
+      "emptyDescription": "No authorization audit events were returned for the platform.",
+      "emptyFilteredTitle": "No matching events",
+      "emptyFilteredDescription": "Try a different search, organization, or date range.",
       "emptyValue": "—",
       "viewDetails": "Details",
+      "filters": {
+        "search": "Search",
+        "event": "Action / event",
+        "actor": "Actor / admin",
+        "organization": "Organization",
+        "entityType": "Entity type",
+        "dateFrom": "From date",
+        "dateTo": "To date",
+        "allEvents": "All events",
+        "allActors": "All actors",
+        "allOrganizations": "All organizations",
+        "allEntityTypes": "All entity types"
+      },
+      "status": {
+        "granted": "Granted",
+        "revoked": "Revoked",
+        "recorded": "Recorded"
+      },
       "columns": {
-        "timestamp": "Timestamp",
-        "actor": "Actor user ID",
-        "eventType": "Event",
+        "event": "Event",
+        "actor": "Actor",
         "target": "Target",
+        "organization": "Organization",
+        "timestamp": "Date & Time",
+        "status": "Status",
         "reason": "Reason",
         "actions": "Actions"
       },
@@ -3202,8 +3704,7 @@
       },
       "errors": {
         "loadFailed": "Couldn’t load audit events.",
-        "loadFailedHint": "GET /api/v1/audit requires an authenticated tenant session with team:view on the active organization.",
-        "noActiveOrgMissingFlow": "Super Admin has no organization-selection / set-active flow. Tenant dashboard establishes active org via OrganizationsProvider + POST /api/v1/organizations/:id/set-active; that mechanism is not wired into /admin. A platform audit API or an admin active-org picker would be needed before these events can load here."
+        "loadFailedHint": "GET /api/v1/audit returns platform-wide events for Super Admin. An active organization is not required."
       }
     },
     "settings": {

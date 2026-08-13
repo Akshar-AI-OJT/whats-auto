@@ -734,18 +734,25 @@ export type ListOrganizationAdminUsersParams = {
 export type AuthorizationAuditEvent = {
   id: string
   actorUserId: string | null
+  actorName?: string | null
+  actorEmail?: string | null
   targetType: string
   targetId: string | null
   eventType: string
+  granted?: boolean | null
   before: unknown
   after: unknown
   reason: string | null
   createdAt: string | Date
+  organizationId?: string | null
+  organizationName?: string | null
 }
 
 export type ListAuditParams = {
   /** 1–100, backend default 50 */
   limit?: number
+  /** Super Admin only — omit for platform-wide events. Tenant callers are always org-scoped. */
+  organizationId?: string
 }
 
 export type PendingInvitation = {
@@ -1468,10 +1475,14 @@ export const api = {
   },
 
   audit: {
-    /** Authorization audit events for the active organization (newest first). */
+    /**
+     * Authorization audit events (newest first).
+     * Tenant: active-organization scoped. Super Admin: platform-wide, optional organizationId filter.
+     */
     list: (params: ListAuditParams = {}) => {
       const qs = new URLSearchParams()
       if (params.limit != null) qs.set('limit', String(params.limit))
+      if (params.organizationId) qs.set('organizationId', params.organizationId)
       const query = qs.toString()
       return protectedRequest<
         { data?: AuthorizationAuditEvent[] } | AuthorizationAuditEvent[]

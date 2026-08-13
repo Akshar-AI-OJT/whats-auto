@@ -65,5 +65,7 @@ export const previewRoleUpdateValidator = vine.create(
 export const listAuditValidator = vine.create(
   vine.object({
     limit: vine.number().withoutDecimals().min(1).max(100).optional(),
+    /** Super Admin only — tenant callers ignore this and stay on the active organization. */
+    organizationId: vine.string().trim().uuid().optional(),
   })
 )

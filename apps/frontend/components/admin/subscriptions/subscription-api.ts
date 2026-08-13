@@ -7,6 +7,7 @@ import {
   type SuperAdminSubscriptionStatus,
   type UpdateSuperAdminSubscriptionBody,
 } from '@/lib/api'
+import { PLANS, planKeyFromCheckoutPlanId, type PlanConfig } from '@/lib/plan-config'
 
 /** Demo-seeded plan UUIDs (stableUuid) — used only when no plans catalog API exists. */
 export const DEMO_PLAN_OPTIONS: Array<{ id: string; label: string }> = [
@@ -21,6 +22,34 @@ export const SUBSCRIPTION_STATUSES: SuperAdminSubscriptionStatus[] = [
   'past_due',
   'cancelled',
 ]
+
+export function planConfigForSubscription(planId: string): PlanConfig | undefined {
+  const key = planKeyFromCheckoutPlanId(planId)
+  return key ? PLANS.find((plan) => plan.id === key) : undefined
+}
+
+export function planLabel(planId: string): string {
+  const config = planConfigForSubscription(planId)
+  if (config) {
+    const match = DEMO_PLAN_OPTIONS.find((plan) => plan.id === planId)
+    return match?.label ?? config.id
+  }
+  return DEMO_PLAN_OPTIONS.find((plan) => plan.id === planId)?.label ?? planId.slice(0, 8)
+}
+
+export function planAmountLabel(planId: string, customLabel: string): string {
+  const config = planConfigForSubscription(planId)
+  if (!config || config.priceMonthly == null) return customLabel
+  return `$${config.priceMonthly.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`
+}
+
+export function planBillingKind(planId: string): 'monthly' | 'custom' {
+  const config = planConfigForSubscription(planId)
+  return config?.priceMonthly == null ? 'custom' : 'monthly'
+}
 
 function unwrapPaginated(
   data: unknown
@@ -55,16 +84,28 @@ function unwrapSubscription(data: unknown): SuperAdminSubscription {
   return root as SuperAdminSubscription
 }
 
-export function planLabel(planId: string): string {
-  return DEMO_PLAN_OPTIONS.find((plan) => plan.id === planId)?.label ?? planId.slice(0, 8)
-}
-
 export async function listSuperAdminSubscriptions(params: {
   page?: number
   perPage?: number
 }): Promise<{ items: SuperAdminSubscription[]; meta: PaginationMeta | null }> {
   const { data } = await api.superAdmin.subscriptions.list(params)
   return unwrapPaginated(data)
+}
+
+export async function listAllSuperAdminSubscriptions(): Promise<SuperAdminSubscription[]> {
+  const perPage = 100
+  let page = 1
+  let lastPage = 1
+  const all: SuperAdminSubscription[] = []
+
+  do {
+    const { items, meta } = await listSuperAdminSubscriptions({ page, perPage })
+    all.push(...items)
+    lastPage = meta?.lastPage ?? page
+    page += 1
+  } while (page <= lastPage && page <= 20)
+
+  return all
 }
 
 export async function getSuperAdminSubscription(
