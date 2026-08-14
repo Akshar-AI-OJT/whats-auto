@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ArrowLeft, ArrowRight, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { Link, useRouter } from '@/i18n/navigation'
@@ -22,8 +22,8 @@ import {
   type InvoiceDraftForm,
   type InvoiceFormLineItem,
 } from './invoice-draft'
-import { createInvoice, listMockOrganizations } from './invoice-service'
-import type { InvoiceBillingPeriod } from './types'
+import { createInvoice, listInvoiceOrganizations } from './invoice-service'
+import type { InvoiceBillingPeriod, InvoiceOrganization } from './types'
 
 const selectClassName = cn(
   'h-11 w-full min-w-0 rounded-xl border border-dash-border bg-canvas px-3 text-sm text-ink outline-none',
@@ -75,17 +75,37 @@ function StepIndicator({ step }: { step: Step }) {
 export function GenerateInvoicePage() {
   const t = useTranslations('admin.invoices')
   const router = useRouter()
-  const organizations = useMemo(() => listMockOrganizations(), [])
+  const [organizations, setOrganizations] = useState<InvoiceOrganization[]>([])
+  const [orgsLoading, setOrgsLoading] = useState(true)
 
   const [step, setStep] = useState<Step>(1)
-  const [form, setForm] = useState<InvoiceDraftForm>(() => {
-    const base = emptyDraftForm()
-    if (organizations[0]) base.organizationId = organizations[0].id
-    return base
-  })
+  const [form, setForm] = useState<InvoiceDraftForm>(() => emptyDraftForm())
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    void listInvoiceOrganizations()
+      .then((items) => {
+        if (cancelled) return
+        setOrganizations(items)
+        if (items[0]) {
+          setForm((current) =>
+            current.organizationId ? current : { ...current, organizationId: items[0].id }
+          )
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setOrganizations([])
+      })
+      .finally(() => {
+        if (!cancelled) setOrgsLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   const selectedOrg = organizations.find((org) => org.id === form.organizationId) ?? null
 
@@ -262,7 +282,7 @@ export function GenerateInvoicePage() {
               <select
                 id="gen-org"
                 value={form.organizationId}
-                disabled={readOnly || pending}
+                disabled={readOnly || pending || orgsLoading}
                 className={selectClassName}
                 onChange={(e) => updateForm({ ...form, organizationId: e.target.value })}
               >

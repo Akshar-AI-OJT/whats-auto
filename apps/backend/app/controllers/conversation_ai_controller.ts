@@ -40,7 +40,7 @@ export default class ConversationAiController {
    * @tag Inbox Conversations
    * @security BearerAuth
    * @paramPath id - Conversation id - @type(string)
-   * @responseBody 200 - { "data": { "id": "uuid", "aiMode": "AI_AUTO", "aiHandoverReason": null } }
+   * @responseBody 200 - { "data": { "id": "uuid", "aiMode": "AI_AUTO", "aiHandoverReason": "" } }
    * @responseBody 404 - { "error": "Conversation not found", "code": "E_CONVERSATION_NOT_FOUND" }
    * @responseBody 422 - { "error": "Conversation AI mode cannot change that way", "code": "E_CONVERSATION_AI_TRANSITION" }
    * @responseBody 403 - { "error": "Permission denied: inbox:reply", "code": "PERMISSION_DENIED" }

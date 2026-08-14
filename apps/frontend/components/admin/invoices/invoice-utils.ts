@@ -1,12 +1,22 @@
 import type { InvoiceBillingPeriod, InvoiceStatus } from './types'
 
-export function formatMoney(amount: number, currency: 'USD' = 'USD') {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount)
+export function formatMoney(amount: number, currency = 'USD') {
+  const code = currency.trim().toUpperCase() || 'USD'
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: code,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount)
+  } catch {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(amount)
+  }
 }
 
 export function formatInvoiceDate(value: string | null | undefined) {
