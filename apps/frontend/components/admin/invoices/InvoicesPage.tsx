@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { KPIStatCard } from '@/components/dashboard/overview/KPIStatCard'
+import { InvoiceListOverflowMenu } from './InvoiceListOverflowMenu'
 import { InvoiceStatusBadge } from './InvoiceStatusBadge'
 import {
   downloadInvoice,
@@ -84,6 +85,7 @@ export function InvoicesPage() {
   const [billingFilter, setBillingFilter] = useState<BillingFilter>('all')
   const [filtersOpen, setFiltersOpen] = useState(true)
   const [menuId, setMenuId] = useState<string | null>(null)
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
   const [rowPendingId, setRowPendingId] = useState<string | null>(null)
 
   const monthOptions = useMemo(() => issueMonthOptions(), [])
@@ -129,18 +131,16 @@ export function InvoicesPage() {
   )
 
   useEffect(() => {
-    void load(1)
+    const frame = window.requestAnimationFrame(() => {
+      void load(1)
+    })
+    return () => window.cancelAnimationFrame(frame)
   }, [load])
 
-  useEffect(() => {
-    function onDocClick() {
-      setMenuId(null)
-    }
-    if (menuId) {
-      document.addEventListener('click', onDocClick)
-      return () => document.removeEventListener('click', onDocClick)
-    }
-  }, [menuId])
+  const closeMenu = useCallback(() => {
+    setMenuId(null)
+    setMenuAnchor(null)
+  }, [])
 
   const hasActiveFilters =
     Boolean(debouncedSearch.trim()) ||
@@ -163,7 +163,7 @@ export function InvoicesPage() {
 
   async function handleDownload(invoice: Invoice) {
     setRowPendingId(invoice.id)
-    setMenuId(null)
+    closeMenu()
     try {
       const result = await downloadInvoice(invoice.id)
       showMessage(t(result.messageKey ?? 'actions.downloadSoon'))
@@ -174,7 +174,7 @@ export function InvoicesPage() {
 
   async function handleSend(invoice: Invoice) {
     setRowPendingId(invoice.id)
-    setMenuId(null)
+    closeMenu()
     try {
       const result = await sendInvoice(invoice.id)
       if (result.ok) showMessage(t(result.messageKey ?? 'toast.sent'))
@@ -186,7 +186,7 @@ export function InvoicesPage() {
 
   async function handleMarkPaid(invoice: Invoice) {
     setRowPendingId(invoice.id)
-    setMenuId(null)
+    closeMenu()
     try {
       const result = await markInvoicePaid(invoice.id)
       if (!result.ok) {
@@ -203,7 +203,7 @@ export function InvoicesPage() {
 
   async function handleRegenerate(invoice: Invoice) {
     setRowPendingId(invoice.id)
-    setMenuId(null)
+    closeMenu()
     try {
       const result = await regenerateInvoice(invoice.id)
       if (!result.ok) {
@@ -221,6 +221,7 @@ export function InvoicesPage() {
 
   const rangeStart = total === 0 ? 0 : (page - 1) * PER_PAGE + 1
   const rangeEnd = Math.min(page * PER_PAGE, total)
+  const menuInvoice = menuId ? (items.find((item) => item.id === menuId) ?? null) : null
 
   return (
     <div className="flex w-full flex-col gap-4 sm:gap-5">
@@ -493,7 +494,7 @@ export function InvoicesPage() {
                               label={t(`statuses.${invoice.status}`)}
                             />
                           </td>
-                          <td className="relative px-4 py-3 text-right">
+                          <td className="px-4 py-3 text-right">
                             <div className="inline-flex items-center gap-1">
                               <button
                                 type="button"
@@ -520,65 +521,21 @@ export function InvoicesPage() {
                                 type="button"
                                 className="inline-flex size-8 items-center justify-center rounded-lg text-mute hover:bg-dash-surface hover:text-ink"
                                 aria-label={t('actions.openMenu')}
+                                aria-expanded={menuId === invoice.id}
+                                aria-haspopup="menu"
                                 onClick={(e) => {
                                   e.stopPropagation()
-                                  setMenuId((id) => (id === invoice.id ? null : invoice.id))
+                                  if (menuId === invoice.id) {
+                                    closeMenu()
+                                    return
+                                  }
+                                  setMenuId(invoice.id)
+                                  setMenuAnchor(e.currentTarget)
                                 }}
                               >
                                 <MoreVertical className="size-4" />
                               </button>
                             </div>
-                            {menuId === invoice.id ? (
-                              <div
-                                className="absolute right-4 z-20 mt-1 w-52 overflow-hidden rounded-xl border border-dash-border bg-canvas py-1 shadow-lg"
-                                onClick={(e) => e.stopPropagation()}
-                              >
-                                <button
-                                  type="button"
-                                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
-                                  onClick={() => {
-                                    setMenuId(null)
-                                    router.push(`/admin/invoices/${invoice.id}`)
-                                  }}
-                                >
-                                  <Eye className="size-3.5" />
-                                  {t('actions.view')}
-                                </button>
-                                <button
-                                  type="button"
-                                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
-                                  onClick={() => void handleDownload(invoice)}
-                                >
-                                  <Download className="size-3.5" />
-                                  {t('actions.download')}
-                                </button>
-                                <button
-                                  type="button"
-                                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
-                                  onClick={() => void handleRegenerate(invoice)}
-                                >
-                                  <RefreshCw className="size-3.5" />
-                                  {t('actions.regenerate')}
-                                </button>
-                                <button
-                                  type="button"
-                                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
-                                  onClick={() => void handleSend(invoice)}
-                                >
-                                  <Send className="size-3.5" />
-                                  {t('actions.send')}
-                                </button>
-                                <button
-                                  type="button"
-                                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface disabled:opacity-50"
-                                  disabled={invoice.status === 'paid' || invoice.status === 'cancelled'}
-                                  onClick={() => void handleMarkPaid(invoice)}
-                                >
-                                  <CheckCircle2 className="size-3.5" />
-                                  {t('actions.markPaid')}
-                                </button>
-                              </div>
-                            ) : null}
                           </td>
                         </tr>
                       ))
@@ -657,6 +614,61 @@ export function InvoicesPage() {
           </>
         )}
       </DashboardPanel>
+      <InvoiceListOverflowMenu
+        key={menuInvoice?.id ?? 'invoice-overflow-menu'}
+        open={Boolean(menuInvoice && menuAnchor)}
+        anchor={menuAnchor}
+        onClose={closeMenu}
+      >
+        {menuInvoice ? (
+          <>
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
+              onClick={() => {
+                closeMenu()
+                router.push(`/admin/invoices/${menuInvoice.id}`)
+              }}
+            >
+              <Eye className="size-3.5" />
+              {t('actions.view')}
+            </button>
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
+              onClick={() => void handleDownload(menuInvoice)}
+            >
+              <Download className="size-3.5" />
+              {t('actions.download')}
+            </button>
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
+              onClick={() => void handleRegenerate(menuInvoice)}
+            >
+              <RefreshCw className="size-3.5" />
+              {t('actions.regenerate')}
+            </button>
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
+              onClick={() => void handleSend(menuInvoice)}
+            >
+              <Send className="size-3.5" />
+              {t('actions.send')}
+            </button>
+            <button
+              type="button"
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface disabled:opacity-50"
+              disabled={menuInvoice.status === 'paid' || menuInvoice.status === 'cancelled'}
+              onClick={() => void handleMarkPaid(menuInvoice)}
+            >
+              <CheckCircle2 className="size-3.5" />
+              {t('actions.markPaid')}
+            </button>
+          </>
+        ) : null}
+      </InvoiceListOverflowMenu>
     </div>
   )
 }
