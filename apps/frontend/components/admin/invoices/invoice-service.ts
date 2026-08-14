@@ -1,11 +1,15 @@
 /**
- * Invoice data-access layer (mock-backed).
- *
- * Swap the bodies of these functions to real `api.superAdmin.invoices.*` calls later
- * without rewriting the Invoices UI.
+ * Invoice data-access layer — Super Admin billing APIs.
  */
 
-import { MOCK_INVOICES_SEED, MOCK_INVOICE_ORGANIZATIONS, PLATFORM_BILLING_PROFILE } from './mock-invoices'
+import { listAllSuperAdminOrganizations } from '@/components/admin/organizations/organization-api'
+import {
+  api,
+  type ApiError,
+  type PaginationMeta,
+  type SuperAdminInvoice,
+} from '@/lib/api'
+import { PLATFORM_BILLING_PROFILE } from './mock-invoices'
 import type {
   CreateInvoiceInput,
   Invoice,
@@ -19,282 +23,258 @@ import type {
   PlatformBillingProfile,
 } from './types'
 
-const LATENCY_MS = 180
-
-/** Mutable in-memory store. Reset only for tests if needed. */
-let store: Invoice[] = structuredClone(MOCK_INVOICES_SEED)
-let sequence = 513
-
-function delay(ms = LATENCY_MS) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-function cloneInvoice(invoice: Invoice): Invoice {
-  return structuredClone(invoice)
-}
-
-function matchesSearch(invoice: Invoice, search: string) {
-  const q = search.trim().toLowerCase()
-  if (!q) return true
+function isApiError(error: unknown): error is ApiError {
   return (
-    invoice.invoiceNumber.toLowerCase().includes(q) ||
-    invoice.organization.name.toLowerCase().includes(q) ||
-    invoice.organization.email.toLowerCase().includes(q) ||
-    invoice.planName.toLowerCase().includes(q)
+    typeof error === 'object' &&
+    error !== null &&
+    'status' in error &&
+    typeof (error as ApiError).status === 'number'
   )
 }
 
-function applyFilters(params: ListInvoicesParams): Invoice[] {
-  const status = params.status ?? 'all'
-  const issueMonth = params.issueMonth ?? 'all'
-  const billingPeriod = params.billingPeriod ?? 'all'
-  const search = params.search ?? ''
-
-  return store
-    .filter((invoice) => {
-      if (status !== 'all' && invoice.status !== status) return false
-      if (billingPeriod !== 'all' && invoice.billingPeriod !== billingPeriod) return false
-      if (issueMonth !== 'all' && !invoice.issueDate.startsWith(issueMonth)) return false
-      if (!matchesSearch(invoice, search)) return false
-      return true
-    })
-    .sort((a, b) => (a.issueDate < b.issueDate ? 1 : a.issueDate > b.issueDate ? -1 : 0))
+function unwrapInvoice(data: unknown): SuperAdminInvoice {
+  if (!data || typeof data !== 'object') {
+    throw new Error('Invalid invoice response')
+  }
+  const root = data as { data?: SuperAdminInvoice } & SuperAdminInvoice
+  if (root.data && typeof root.data === 'object' && 'id' in root.data) {
+    return root.data
+  }
+  if ('id' in root && 'invoiceNumber' in root) {
+    return root as SuperAdminInvoice
+  }
+  throw new Error('Invalid invoice response')
 }
 
-function roundMoney(value: number) {
-  return Math.round(value * 100) / 100
+function unwrapSummary(data: unknown): InvoiceSummary {
+  if (!data || typeof data !== 'object') {
+    throw new Error('Invalid invoice summary response')
+  }
+  const root = data as { data?: InvoiceSummary } & InvoiceSummary
+  if (root.data && typeof root.data === 'object' && 'totalCount' in root.data) {
+    return root.data
+  }
+  if ('totalCount' in root) {
+    return root as InvoiceSummary
+  }
+  throw new Error('Invalid invoice summary response')
 }
 
-function buildTotals(input: CreateInvoiceInput) {
-  if (input.lineItems && input.lineItems.length > 0) {
-    const subtotal = roundMoney(input.lineItems.reduce((sum, item) => sum + item.amount, 0))
-    const discount = roundMoney(Math.max(0, input.discount ?? 0))
-    const taxable = Math.max(0, subtotal - discount)
-    const taxRate = input.taxRate ?? 0.18
-    const tax = roundMoney(taxable * taxRate)
-    const total = roundMoney(taxable + tax)
-    return { subtotal, discount, taxRate, tax, total, extra: 0 }
+function unwrapPaginated(data: unknown): {
+  items: SuperAdminInvoice[]
+  meta: PaginationMeta | null
+} {
+  if (!data) return { items: [], meta: null }
+  if (Array.isArray(data)) return { items: data, meta: null }
+
+  const root = data as {
+    data?: SuperAdminInvoice[] | { data?: SuperAdminInvoice[]; meta?: PaginationMeta }
+    meta?: PaginationMeta
   }
 
-  const extra = input.extraLineAmount && input.extraLineAmount > 0 ? input.extraLineAmount : 0
-  const subtotal = roundMoney(input.amount + extra)
-  const discount = roundMoney(Math.max(0, input.discount ?? 0))
-  const taxable = Math.max(0, subtotal - discount)
-  const taxRate = input.taxRate ?? 0.18
-  const tax = roundMoney(taxable * taxRate)
-  const total = roundMoney(taxable + tax)
-  return { subtotal, discount, taxRate, tax, total, extra }
+  if (Array.isArray(root.data)) {
+    return { items: root.data, meta: root.meta ?? null }
+  }
+
+  if (root.data && typeof root.data === 'object' && Array.isArray(root.data.data)) {
+    return { items: root.data.data, meta: root.data.meta ?? root.meta ?? null }
+  }
+
+  return { items: [], meta: null }
+}
+
+function toNumber(value: unknown): number {
+  if (typeof value === 'number') return value
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : 0
+}
+
+function mapInvoice(apiInvoice: SuperAdminInvoice): Invoice {
+  return {
+    id: apiInvoice.id,
+    invoiceNumber: apiInvoice.invoiceNumber,
+    organization: {
+      id: apiInvoice.organization.id,
+      name: apiInvoice.organization.name,
+      email: apiInvoice.organization.email,
+      phone: apiInvoice.organization.phone ?? undefined,
+      address: apiInvoice.organization.address ?? undefined,
+      gstin: apiInvoice.organization.gstin ?? undefined,
+    },
+    planName: apiInvoice.planName,
+    billingPeriod: apiInvoice.billingPeriod as InvoiceBillingPeriod,
+    periodStart: apiInvoice.periodStart,
+    periodEnd: apiInvoice.periodEnd,
+    status: apiInvoice.status as InvoiceStatus,
+    issueDate: apiInvoice.issueDate,
+    dueDate: apiInvoice.dueDate,
+    currency: apiInvoice.currency || 'USD',
+    lineItems: apiInvoice.lineItems.map((item) => ({
+      id: item.id,
+      description: item.description,
+      detail: item.detail ?? undefined,
+      quantity: toNumber(item.quantity),
+      unitPrice: toNumber(item.unitPrice),
+      amount: toNumber(item.amount),
+    })),
+    subtotal: toNumber(apiInvoice.subtotal),
+    tax: toNumber(apiInvoice.tax),
+    taxRate: toNumber(apiInvoice.taxRate),
+    discount: toNumber(apiInvoice.discount),
+    total: toNumber(apiInvoice.total),
+    notes: apiInvoice.notes ?? undefined,
+    paymentMethod: apiInvoice.paymentMethod ?? null,
+    transactionId: apiInvoice.transactionId ?? null,
+    paymentDate: apiInvoice.paymentDate ?? null,
+    createdAt: apiInvoice.createdAt,
+    updatedAt: apiInvoice.updatedAt ?? apiInvoice.createdAt,
+  }
+}
+
+function listQueryParams(params: ListInvoicesParams = {}) {
+  return {
+    page: params.page,
+    perPage: params.perPage,
+    search: params.search,
+    status: params.status,
+    issueMonth: params.issueMonth,
+    billingPeriod: params.billingPeriod,
+  }
+}
+
+function mapActionError(error: unknown): InvoiceActionResult {
+  if (isApiError(error)) {
+    if (error.code === 'E_INVOICE_NOT_FOUND') {
+      return { ok: false, reason: 'not_found', messageKey: 'errors.notFound' }
+    }
+    if (error.code === 'E_INVOICE_CANNOT_MARK_CANCELLED_PAID') {
+      return { ok: false, reason: 'invalid', messageKey: 'errors.cannotMarkCancelledPaid' }
+    }
+    if (error.status === 501 || error.code === 'E_INVOICE_ACTION_UNAVAILABLE') {
+      return { ok: false, reason: 'unavailable', messageKey: 'actions.sendSoon' }
+    }
+  }
+  throw error
 }
 
 export function getPlatformBillingProfile(): PlatformBillingProfile {
   return PLATFORM_BILLING_PROFILE
 }
 
-export function listMockOrganizations(): InvoiceOrganization[] {
-  return structuredClone(MOCK_INVOICE_ORGANIZATIONS)
+/** Organizations for the generate-invoice selector (platform org list API). */
+export async function listInvoiceOrganizations(): Promise<InvoiceOrganization[]> {
+  const organizations = await listAllSuperAdminOrganizations()
+  return organizations
+    .filter((org) => org.uiStatus !== 'archived')
+    .map((org) => ({
+      id: org.id,
+      name: org.name,
+      email: org.email,
+      phone: org.phone ?? undefined,
+    }))
 }
 
 export async function listInvoices(params: ListInvoicesParams = {}): Promise<InvoiceListResult> {
-  await delay()
   const perPage = Math.max(1, params.perPage ?? 10)
   const page = Math.max(1, params.page ?? 1)
-  const filtered = applyFilters(params)
-  const total = filtered.length
-  const lastPage = Math.max(1, Math.ceil(total / perPage))
-  const safePage = Math.min(page, lastPage)
-  const start = (safePage - 1) * perPage
-  const items = filtered.slice(start, start + perPage).map(cloneInvoice)
-  return { items, total, page: safePage, perPage, lastPage }
+  const { data } = await api.superAdmin.invoices.list({ ...listQueryParams(params), page, perPage })
+  const { items, meta } = unwrapPaginated(data)
+
+  return {
+    items: items.map(mapInvoice),
+    total: meta?.total ?? items.length,
+    page: meta?.currentPage ?? page,
+    perPage: meta?.perPage ?? perPage,
+    lastPage: meta?.lastPage ?? 1,
+  }
 }
 
-export async function getInvoiceSummary(params: Omit<ListInvoicesParams, 'page' | 'perPage'> = {}): Promise<InvoiceSummary> {
-  await delay(80)
-  const filtered = applyFilters(params)
-  const now = new Date()
-  const thisMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-
-  const summary: InvoiceSummary = {
-    totalCount: filtered.length,
-    paidCount: 0,
-    paidAmount: 0,
-    pendingCount: 0,
-    pendingAmount: 0,
-    overdueCount: 0,
-    overdueAmount: 0,
-    cancelledCount: 0,
-    cancelledAmount: 0,
-    thisMonthCount: 0,
-    thisMonthAmount: 0,
-  }
-
-  for (const invoice of filtered) {
-    if (invoice.status === 'paid') {
-      summary.paidCount += 1
-      summary.paidAmount += invoice.total
-    } else if (invoice.status === 'pending') {
-      summary.pendingCount += 1
-      summary.pendingAmount += invoice.total
-    } else if (invoice.status === 'overdue') {
-      summary.overdueCount += 1
-      summary.overdueAmount += invoice.total
-    } else if (invoice.status === 'cancelled') {
-      summary.cancelledCount += 1
-      summary.cancelledAmount += invoice.total
-    }
-
-    if (invoice.issueDate.startsWith(thisMonthPrefix)) {
-      summary.thisMonthCount += 1
-      summary.thisMonthAmount += invoice.total
-    }
-  }
-
-  return summary
+export async function getInvoiceSummary(
+  params: Omit<ListInvoicesParams, 'page' | 'perPage'> = {}
+): Promise<InvoiceSummary> {
+  const { data } = await api.superAdmin.invoices.summary(listQueryParams(params))
+  return unwrapSummary(data)
 }
 
 export async function getInvoice(id: string): Promise<Invoice | null> {
-  await delay()
-  const found = store.find((invoice) => invoice.id === id)
-  return found ? cloneInvoice(found) : null
+  try {
+    const { data } = await api.superAdmin.invoices.get(id)
+    return mapInvoice(unwrapInvoice(data))
+  } catch (error) {
+    if (isApiError(error) && error.status === 404) {
+      return null
+    }
+    throw error
+  }
 }
 
-export async function createInvoice(input: CreateInvoiceInput): Promise<Invoice> {
-  await delay(220)
-  const { subtotal, discount, taxRate, tax, total, extra } = buildTotals(input)
-  const now = new Date().toISOString()
-  const invoiceNumber = `INV-2026-${String(sequence++).padStart(6, '0')}`
-
-  const lineItems: Invoice['lineItems'] =
-    input.lineItems && input.lineItems.length > 0
-      ? input.lineItems.map((item, index) => ({
-          id: `li_${sequence}_${index}`,
-          description: item.description,
-          detail: item.detail,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          amount: item.amount,
-        }))
-      : [
-          {
-            id: `li_${sequence}_a`,
-            description: `${input.planName} Plan (${
-              input.billingPeriod === 'monthly'
-                ? 'Monthly Subscription'
-                : input.billingPeriod === 'yearly'
-                  ? 'Yearly Subscription'
-                  : 'Custom Subscription'
-            })`,
-            detail: 'Includes plan features for the selected billing period',
-            quantity: 1,
-            unitPrice: input.amount,
-            amount: input.amount,
-          },
-          ...(extra > 0
-            ? [
-                {
-                  id: `li_${sequence}_b`,
-                  description: input.extraLineDescription?.trim() || 'Additional usage',
-                  quantity: 1,
-                  unitPrice: extra,
-                  amount: extra,
-                },
-              ]
-            : []),
-        ]
-
-  const invoice: Invoice = {
-    id: `inv_${crypto.randomUUID().slice(0, 8)}`,
-    invoiceNumber,
-    organization: {
-      id: input.organizationId,
-      name: input.organizationName,
-      email: input.organizationEmail,
-      phone: input.organizationPhone,
-      address: input.organizationAddress,
-      gstin: input.organizationGstin,
-    },
+function toCreateBody(input: CreateInvoiceInput) {
+  return {
+    organizationId: input.organizationId,
+    organizationName: input.organizationName,
+    organizationEmail: input.organizationEmail,
+    organizationPhone: input.organizationPhone,
+    organizationAddress: input.organizationAddress,
+    organizationGstin: input.organizationGstin,
     planName: input.planName,
     billingPeriod: input.billingPeriod,
     periodStart: input.periodStart,
     periodEnd: input.periodEnd,
-    status: 'pending',
     issueDate: input.issueDate,
     dueDate: input.dueDate,
     currency: 'USD',
-    lineItems,
-    subtotal,
-    discount,
-    taxRate,
-    tax,
-    total,
-    notes: input.notes?.trim() || undefined,
-    paymentMethod: null,
-    transactionId: null,
-    paymentDate: null,
-    createdAt: now,
-    updatedAt: now,
+    taxRate: input.taxRate,
+    discount: input.discount,
+    notes: input.notes,
+    lineItems: (input.lineItems ?? []).map((item) => ({
+      description: item.description,
+      detail: item.detail,
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      amount: item.amount,
+    })),
   }
+}
 
-  store = [invoice, ...store]
-  return cloneInvoice(invoice)
+export async function createInvoice(input: CreateInvoiceInput): Promise<Invoice> {
+  const { data } = await api.superAdmin.invoices.create(toCreateBody(input))
+  return mapInvoice(unwrapInvoice(data))
 }
 
 export async function markInvoicePaid(id: string): Promise<InvoiceActionResult> {
-  await delay()
-  const index = store.findIndex((invoice) => invoice.id === id)
-  if (index < 0) return { ok: false, reason: 'not_found', messageKey: 'errors.notFound' }
-
-  const current = store[index]
-  if (current.status === 'cancelled') {
-    return { ok: false, reason: 'invalid', messageKey: 'errors.cannotMarkCancelledPaid' }
+  try {
+    const { data } = await api.superAdmin.invoices.markPaid(id, { paymentMethod: 'Manual' })
+    return {
+      ok: true,
+      invoice: mapInvoice(unwrapInvoice(data)),
+      messageKey: 'toast.markedPaid',
+    }
+  } catch (error) {
+    return mapActionError(error)
   }
-
-  const now = new Date()
-  const updated: Invoice = {
-    ...current,
-    status: 'paid',
-    paymentMethod: current.paymentMethod ?? 'Manual',
-    transactionId: current.transactionId ?? `txn_mock_${now.getTime()}`,
-    paymentDate: now.toISOString().slice(0, 10),
-    updatedAt: now.toISOString(),
-  }
-  store[index] = updated
-  return { ok: true, invoice: cloneInvoice(updated), messageKey: 'toast.markedPaid' }
 }
 
-export async function sendInvoice(_id: string): Promise<InvoiceActionResult> {
-  await delay(100)
-  // No email/send API yet — keep UI wired without inventing HTTP.
+export async function sendInvoice(id: string): Promise<InvoiceActionResult> {
+  void id
   return { ok: false, reason: 'unavailable', messageKey: 'actions.sendSoon' }
 }
 
-export async function downloadInvoice(_id: string): Promise<InvoiceActionResult> {
-  await delay(80)
+export async function downloadInvoice(id: string): Promise<InvoiceActionResult> {
+  void id
   return { ok: false, reason: 'unavailable', messageKey: 'actions.downloadSoon' }
 }
 
 export async function regenerateInvoice(id: string): Promise<InvoiceActionResult> {
-  await delay()
-  const index = store.findIndex((invoice) => invoice.id === id)
-  if (index < 0) return { ok: false, reason: 'not_found', messageKey: 'errors.notFound' }
-
-  const current = store[index]
-  const now = new Date().toISOString()
-  const updated: Invoice = {
-    ...cloneInvoice(current),
-    id: `inv_${crypto.randomUUID().slice(0, 8)}`,
-    invoiceNumber: `INV-2026-${String(sequence++).padStart(6, '0')}`,
-    status: current.status === 'cancelled' ? 'pending' : current.status,
-    updatedAt: now,
-    createdAt: now,
+  try {
+    const { data } = await api.superAdmin.invoices.regenerate(id)
+    return {
+      ok: true,
+      invoice: mapInvoice(unwrapInvoice(data)),
+      messageKey: 'toast.regenerated',
+    }
+  } catch (error) {
+    return mapActionError(error)
   }
-  store = [updated, ...store]
-  return { ok: true, invoice: cloneInvoice(updated), messageKey: 'toast.regenerated' }
-}
-
-/** Test helper — not used by UI. */
-export function __resetInvoiceStoreForTests() {
-  store = structuredClone(MOCK_INVOICES_SEED)
-  sequence = 513
 }
 
 export type { InvoiceStatus, InvoiceBillingPeriod }

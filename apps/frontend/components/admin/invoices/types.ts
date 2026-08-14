@@ -37,7 +37,7 @@ export type Invoice = {
   status: InvoiceStatus
   issueDate: string
   dueDate: string
-  currency: 'USD'
+  currency: string
   lineItems: InvoiceLineItem[]
   subtotal: number
   /** Absolute tax amount (not rate). */

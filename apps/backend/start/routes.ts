@@ -28,6 +28,7 @@ const SuperAdminOrganizationsController = () =>
   import('#controllers/super_admin_organizations_controller')
 const SuperAdminSubscriptionsController = () =>
   import('#controllers/super_admin_subscriptions_controller')
+const SuperAdminInvoicesController = () => import('#controllers/super_admin_invoices_controller')
 const SuperAdminAiConfigController = () => import('#controllers/super_admin_ai_config_controller')
 const OrganizationAdminUsersController = () =>
   import('#controllers/organization_admin_users_controller')
@@ -150,6 +151,47 @@ const requestBodySchemas: Record<string, JsonSchema> = {
     status: { type: 'string', example: 'past_due' },
     currentPeriodStart: { type: 'string', format: 'date-time' },
     currentPeriodEnd: { type: 'string', format: 'date-time' },
+  }),
+  'post /api/v1/super-admin/invoices': bodySchema(
+    {
+      organizationId: { type: 'string', format: 'uuid' },
+      planName: { type: 'string', example: 'Growth' },
+      billingPeriod: { type: 'string', example: 'monthly' },
+      periodStart: { type: 'string', format: 'date-time' },
+      periodEnd: { type: 'string', format: 'date-time' },
+      issueDate: { type: 'string', format: 'date' },
+      dueDate: { type: 'string', format: 'date' },
+      organizationName: { type: 'string', example: 'Acme Corp' },
+      organizationEmail: { type: 'string', format: 'email' },
+      lineItems: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            description: { type: 'string' },
+            quantity: { type: 'number' },
+            unitPrice: { type: 'number' },
+            amount: { type: 'number' },
+          },
+        },
+      },
+    },
+    [
+      'organizationId',
+      'planName',
+      'billingPeriod',
+      'periodStart',
+      'periodEnd',
+      'issueDate',
+      'dueDate',
+      'organizationName',
+      'organizationEmail',
+      'lineItems',
+    ]
+  ),
+  'post /api/v1/super-admin/invoices/{id}/mark-paid': bodySchema({
+    paymentMethod: { type: 'string', example: 'Manual' },
+    paymentTransactionId: { type: 'string', format: 'uuid' },
   }),
   'patch /api/v1/super-admin/ai-config': bodySchema({
     isEnabled: { type: 'boolean', example: true },
@@ -521,6 +563,30 @@ router
       .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
     router
       .delete('/subscriptions/:id', [SuperAdminSubscriptionsController, 'softDelete'])
+      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
+    router
+      .get('/invoices/summary', [SuperAdminInvoicesController, 'summary'])
+      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
+    router
+      .get('/invoices', [SuperAdminInvoicesController, 'index'])
+      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
+    router
+      .post('/invoices', [SuperAdminInvoicesController, 'store'])
+      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
+    router
+      .get('/invoices/:id', [SuperAdminInvoicesController, 'show'])
+      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
+    router
+      .post('/invoices/:id/mark-paid', [SuperAdminInvoicesController, 'markPaid'])
+      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
+    router
+      .post('/invoices/:id/regenerate', [SuperAdminInvoicesController, 'regenerate'])
+      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
+    router
+      .post('/invoices/:id/send', [SuperAdminInvoicesController, 'send'])
+      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
+    router
+      .get('/invoices/:id/download', [SuperAdminInvoicesController, 'download'])
       .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
     router
       .get('/ai-config', [SuperAdminAiConfigController, 'show'])

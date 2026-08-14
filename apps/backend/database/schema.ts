@@ -608,6 +608,100 @@ export class ConversationSchema extends BaseModel {
   declare whatsappConfigId: string
 }
 
+export class InvoiceLineItemSchema extends BaseModel {
+  static $columns = ['amount', 'createdAt', 'description', 'detail', 'id', 'invoiceId', 'organizationId', 'quantity', 'sortOrder', 'unitPrice'] as const
+  $columns = InvoiceLineItemSchema.$columns
+  @column()
+  declare amount: string
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare description: string
+  @column()
+  declare detail: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare invoiceId: string
+  @column()
+  declare organizationId: string
+  @column()
+  declare quantity: string
+  @column()
+  declare sortOrder: number
+  @column()
+  declare unitPrice: string
+}
+
+export class InvoiceSchema extends BaseModel {
+  static $columns = ['billingPeriod', 'billToAddress', 'billToEmail', 'billToGstin', 'billToName', 'billToPhone', 'cancelledAt', 'createdAt', 'currency', 'discount', 'dueDate', 'id', 'invoiceNumber', 'issueDate', 'metadata', 'notes', 'organizationId', 'paidAt', 'paymentMethod', 'paymentTransactionId', 'periodEnd', 'periodStart', 'planId', 'planName', 'sourceInvoiceId', 'status', 'subscriptionId', 'subtotal', 'tax', 'taxRate', 'total', 'updatedAt'] as const
+  $columns = InvoiceSchema.$columns
+  @column()
+  declare billingPeriod: string
+  @column()
+  declare billToAddress: string | null
+  @column()
+  declare billToEmail: string
+  @column()
+  declare billToGstin: string | null
+  @column()
+  declare billToName: string
+  @column()
+  declare billToPhone: string | null
+  @column.dateTime()
+  declare cancelledAt: DateTime | null
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare currency: string
+  @column()
+  declare discount: string
+  @column.date()
+  declare dueDate: DateTime
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare invoiceNumber: string
+  @column.date()
+  declare issueDate: DateTime
+  @column()
+  declare metadata: any
+  @column()
+  declare notes: string | null
+  @column()
+  declare organizationId: string
+  @column.dateTime()
+  declare paidAt: DateTime | null
+  @column()
+  declare paymentMethod: string | null
+  @column()
+  declare paymentTransactionId: string | null
+  @column.dateTime()
+  declare periodEnd: DateTime
+  @column.dateTime()
+  declare periodStart: DateTime
+  @column()
+  declare planId: string | null
+  @column()
+  declare planName: string
+  @column()
+  declare sourceInvoiceId: string | null
+  @column()
+  declare status: string
+  @column()
+  declare subscriptionId: string | null
+  @column()
+  declare subtotal: string
+  @column()
+  declare tax: string
+  @column()
+  declare taxRate: string
+  @column()
+  declare total: string
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+}
+
 export class JwkSchema extends BaseModel {
   static $columns = [
     'alg',

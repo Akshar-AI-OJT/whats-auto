@@ -993,6 +993,116 @@ export type UpdateSuperAdminSubscriptionBody = {
   cancelAt?: string | null
 }
 
+export type SuperAdminInvoiceStatus = 'paid' | 'pending' | 'overdue' | 'cancelled'
+
+export type SuperAdminInvoiceBillingPeriod = 'monthly' | 'yearly' | 'custom'
+
+export type SuperAdminInvoiceLineItem = {
+  id: string
+  description: string
+  detail?: string | null
+  quantity: number
+  unitPrice: number
+  amount: number
+}
+
+export type SuperAdminInvoiceOrganization = {
+  id: string
+  name: string
+  email: string
+  phone?: string | null
+  address?: string | null
+  gstin?: string | null
+}
+
+/** Row from GET /api/v1/super-admin/invoices/:id */
+export type SuperAdminInvoice = {
+  id: string
+  invoiceNumber: string
+  organization: SuperAdminInvoiceOrganization
+  planName: string
+  billingPeriod: SuperAdminInvoiceBillingPeriod
+  periodStart: string
+  periodEnd: string
+  status: SuperAdminInvoiceStatus
+  issueDate: string
+  dueDate: string
+  currency: string
+  lineItems: SuperAdminInvoiceLineItem[]
+  subtotal: number
+  tax: number
+  taxRate: number
+  discount: number
+  total: number
+  notes?: string | null
+  paymentMethod?: string | null
+  transactionId?: string | null
+  paymentDate?: string | null
+  organizationId: string
+  subscriptionId?: string | null
+  planId?: string | null
+  paymentTransactionId?: string | null
+  sourceInvoiceId?: string | null
+  createdAt: string
+  updatedAt: string | null
+}
+
+export type SuperAdminInvoiceSummary = {
+  totalCount: number
+  paidCount: number
+  paidAmount: number
+  pendingCount: number
+  pendingAmount: number
+  overdueCount: number
+  overdueAmount: number
+  cancelledCount: number
+  cancelledAmount: number
+  thisMonthCount: number
+  thisMonthAmount: number
+}
+
+export type ListSuperAdminInvoicesParams = {
+  page?: number
+  perPage?: number
+  search?: string
+  status?: SuperAdminInvoiceStatus | 'all'
+  issueMonth?: string | 'all'
+  billingPeriod?: SuperAdminInvoiceBillingPeriod | 'all'
+}
+
+export type CreateSuperAdminInvoiceBody = {
+  organizationId: string
+  subscriptionId?: string
+  planId?: string
+  organizationName: string
+  organizationEmail: string
+  organizationPhone?: string
+  organizationAddress?: string
+  organizationGstin?: string
+  planName: string
+  billingPeriod: SuperAdminInvoiceBillingPeriod
+  periodStart: string
+  periodEnd: string
+  issueDate: string
+  dueDate: string
+  currency?: string
+  taxRate?: number
+  discount?: number
+  notes?: string
+  lineItems: Array<{
+    description: string
+    detail?: string
+    quantity: number
+    unitPrice: number
+    amount: number
+  }>
+}
+
+export type MarkSuperAdminInvoicePaidBody = {
+  paymentMethod?: string
+  paymentTransactionId?: string
+}
+
 /** GET /api/v1/billing/subscription — fields returned by BillingController.showSubscription */
 export type BillingSubscription = {
   id: string
@@ -1847,6 +1957,76 @@ export const api = {
         protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
           `/api/v1/super-admin/subscriptions/${subscriptionId}`,
           { method: 'DELETE' }
+        ),
+    },
+
+    invoices: {
+      list: (params: ListSuperAdminInvoicesParams = {}) => {
+        const qs = new URLSearchParams()
+        if (params.page != null) qs.set('page', String(params.page))
+        if (params.perPage != null) qs.set('perPage', String(params.perPage))
+        if (params.search?.trim()) qs.set('search', params.search.trim())
+        if (params.status && params.status !== 'all') qs.set('status', params.status)
+        if (params.issueMonth && params.issueMonth !== 'all') qs.set('issueMonth', params.issueMonth)
+        if (params.billingPeriod && params.billingPeriod !== 'all') {
+          qs.set('billingPeriod', params.billingPeriod)
+        }
+        const query = qs.toString()
+        return protectedRequest<
+          | Paginated<SuperAdminInvoice>
+          | { data?: SuperAdminInvoice[]; meta?: PaginationMeta }
+        >(`/api/v1/super-admin/invoices${query ? `?${query}` : ''}`, {
+          method: 'GET',
+        })
+      },
+
+      summary: (params: Omit<ListSuperAdminInvoicesParams, 'page' | 'perPage'> = {}) => {
+        const qs = new URLSearchParams()
+        if (params.search?.trim()) qs.set('search', params.search.trim())
+        if (params.status && params.status !== 'all') qs.set('status', params.status)
+        if (params.issueMonth && params.issueMonth !== 'all') qs.set('issueMonth', params.issueMonth)
+        if (params.billingPeriod && params.billingPeriod !== 'all') {
+          qs.set('billingPeriod', params.billingPeriod)
+        }
+        const query = qs.toString()
+        return protectedRequest<
+          { data?: SuperAdminInvoiceSummary } & SuperAdminInvoiceSummary
+        >(`/api/v1/super-admin/invoices/summary${query ? `?${query}` : ''}`, {
+          method: 'GET',
+        })
+      },
+
+      get: (invoiceId: string) =>
+        protectedRequest<{ data?: SuperAdminInvoice } & SuperAdminInvoice>(
+          `/api/v1/super-admin/invoices/${invoiceId}`,
+          { method: 'GET' }
+        ),
+
+      create: (body: CreateSuperAdminInvoiceBody) =>
+        protectedRequest<{ data?: SuperAdminInvoice } & SuperAdminInvoice>(
+          '/api/v1/super-admin/invoices',
+          {
+            method: 'POST',
+            body: JSON.stringify(body),
+          }
+        ),
+
+      markPaid: (invoiceId: string, body: MarkSuperAdminInvoicePaidBody = {}) =>
+        protectedRequest<{ data?: SuperAdminInvoice } & SuperAdminInvoice>(
+          `/api/v1/super-admin/invoices/${invoiceId}/mark-paid`,
+          {
+            method: 'POST',
+            body: JSON.stringify(body),
+          }
+        ),
+
+      regenerate: (invoiceId: string) =>
+        protectedRequest<{ data?: SuperAdminInvoice } & SuperAdminInvoice>(
+          `/api/v1/super-admin/invoices/${invoiceId}/regenerate`,
+          {
+            method: 'POST',
+            body: JSON.stringify({}),
+          }
         ),
     },
 
