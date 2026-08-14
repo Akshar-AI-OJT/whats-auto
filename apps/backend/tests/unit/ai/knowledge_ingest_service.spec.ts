@@ -97,7 +97,10 @@ function createIngest(params: {
   const llm = new FakeLlmProvider()
   const platform = {
     async get() {
-      return { embeddingModel: 'text-embedding-3-small' }
+      return {
+        embeddingModel: 'text-embedding-3-small',
+        activeEmbeddingSpaceId: 'openai:text-embedding-3-small:1024:v1',
+      }
     },
   } as unknown as PlatformAiConfigService
 

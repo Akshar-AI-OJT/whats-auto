@@ -10,6 +10,8 @@ import { MediaAssetReferenceRepository } from '#repositories/media_asset_referen
 import { OrganizationStorageObjectRepository } from '#repositories/organization_storage_object_repository'
 import KnowledgeDocumentService from '#services/ai/knowledge_document_service'
 import KnowledgeIngestService from '#services/ai/knowledge_ingest_service'
+import { DEFAULT_EMBEDDING_SPACE_ID } from '#services/ai/embedding_space'
+import { LlmChatProvider } from '#enums/llm_chat_provider'
 import FakeLlmProvider from '#services/ai/drivers/fake_llm_provider'
 import { chunkKnowledgeText } from '#services/ai/chunk_knowledge_text'
 import SignatureContentInspection from '#services/content_inspection/drivers/signature_content_inspection'
@@ -145,10 +147,59 @@ test.group('Knowledge ingest', () => {
       db
         .from('ai_knowledge_chunks')
         .where('documentId', created.document.id)
-        .count('* as total')
-        .first()
+        .select('embeddingSpaceId')
     )
-    assert.equal(Number(stored?.total ?? 0), secondChunks.length)
+    assert.equal(stored.length, secondChunks.length)
+    assert.equal(stored[0]?.embeddingSpaceId, DEFAULT_EMBEDDING_SPACE_ID)
+  })
+
+  test('reindexDocument embeds into the target space even when the hash matches', async ({
+    assert,
+  }) => {
+    const organizationId = await createOrg()
+    const storage = new FakeObjectStorage()
+    const llm = new FakeLlmProvider()
+    const ingest = new KnowledgeIngestService(
+      new AiKnowledgeDocumentRepository(),
+      new AiKnowledgeChunkRepository(),
+      new MediaAssetRepository(),
+      storage,
+      llm
+    )
+
+    const text = Array.from({ length: 800 }, (_, i) => `beta${i}`).join(' ')
+    const created = await createTxtDocument({
+      organizationId,
+      storage,
+      title: 'Hours',
+      text,
+    })
+
+    await ingest.process({ organizationId, documentId: created.document.id })
+    const firstEmbeds = llm.embedCalls.length
+    const targetSpaceId = 'google:gemini-embedding-2:1024:v1'
+
+    const result = await ingest.reindexDocument({
+      organizationId,
+      documentId: created.document.id,
+      embeddingModel: 'gemini-embedding-2',
+      embeddingProvider: LlmChatProvider.Google,
+      targetSpaceId,
+    })
+
+    assert.equal(result.status, AiKnowledgeDocumentStatus.INDEXED)
+    assert.isFalse(result.skipped)
+    assert.isAbove(llm.embedCalls.length, firstEmbeds)
+
+    const stored = await runWithTenant(organizationId, () =>
+      db
+        .from('ai_knowledge_chunks')
+        .where('documentId', created.document.id)
+        .select('embeddingSpaceId')
+    )
+    const spaces = stored.map((row: { embeddingSpaceId: string }) => row.embeddingSpaceId)
+    assert.include(spaces, DEFAULT_EMBEDDING_SPACE_ID)
+    assert.include(spaces, targetSpaceId)
   })
 
   test('marks ingest FAILED when the file is missing', async ({ assert }) => {

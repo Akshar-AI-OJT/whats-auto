@@ -41,12 +41,24 @@ test.group('AI schema', (group) => {
   test('seeds a single platform_ai_configs row readable without tenant GUC', async ({ assert }) => {
     const rows = await db
       .from('platform_ai_configs')
-      .select('singletonKey', 'isEnabled', 'modelName')
+      .select(
+        'singletonKey',
+        'isEnabled',
+        'modelName',
+        'chatProvider',
+        'chatModel',
+        'activeEmbeddingSpaceId',
+        'maxOutputTokens'
+      )
 
     assert.lengthOf(rows, 1)
     assert.equal(rows[0].singletonKey, 'default')
     assert.equal(rows[0].isEnabled, true)
     assert.equal(rows[0].modelName, 'gpt-4o-mini')
+    assert.equal(rows[0].chatProvider, 'openai')
+    assert.equal(rows[0].chatModel, 'gpt-4o-mini')
+    assert.equal(rows[0].activeEmbeddingSpaceId, 'openai:text-embedding-3-small:1024:v1')
+    assert.equal(Number(rows[0].maxOutputTokens), 1024)
   })
 
   test('rejects a second platform_ai_configs singleton', async ({ assert }) => {

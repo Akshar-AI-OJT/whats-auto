@@ -2,6 +2,7 @@ import { test } from '@japa/runner'
 import { type AiKnowledgeChunkRepository } from '#repositories/ai_knowledge_chunk_repository'
 import type { KnowledgeChunkSearchHit } from '#repositories/ai_knowledge_chunk_repository'
 import FakeLlmProvider, { fakeEmbeddingFor } from '#services/ai/drivers/fake_llm_provider'
+import { DEFAULT_EMBEDDING_SPACE_ID } from '#services/ai/embedding_space'
 import PassthroughRerankerService from '#services/ai/drivers/passthrough_reranker_service'
 import KnowledgeRetrievalService from '#services/ai/knowledge_retrieval_service'
 import type PlatformAiConfigService from '#services/ai/platform_ai_config_service'
@@ -22,10 +23,14 @@ function hits(rows: Array<Partial<KnowledgeChunkSearchHit> & { id: string; vecto
 function createService(params: {
   searchHits?: KnowledgeChunkSearchHit[]
   minConfidenceScore?: number
+  embeddingModel?: string
+  activeEmbeddingSpaceId?: string
 }) {
   const llm = new FakeLlmProvider()
+  const searches: Array<{ embeddingSpaceId: string }> = []
   const chunks = {
-    async searchByEmbedding() {
+    async searchByEmbedding(input: { embeddingSpaceId: string }) {
+      searches.push(input)
       return params.searchHits ?? []
     },
   } as unknown as AiKnowledgeChunkRepository
@@ -33,13 +38,15 @@ function createService(params: {
     async get() {
       return {
         minConfidenceScore: params.minConfidenceScore ?? 0.7,
-        embeddingModel: 'text-embedding-3-small',
+        embeddingModel: params.embeddingModel ?? 'text-embedding-3-small',
+        activeEmbeddingSpaceId: params.activeEmbeddingSpaceId,
       }
     },
   } as unknown as PlatformAiConfigService
 
   return {
     llm,
+    searches,
     service: new KnowledgeRetrievalService(chunks, llm, platform, new PassthroughRerankerService()),
   }
 }
@@ -60,7 +67,7 @@ test.group('KnowledgeRetrievalService', () => {
   })
 
   test('empty KB returns score 0', async ({ assert }) => {
-    const { service, llm } = createService({ searchHits: [] })
+    const { service, llm, searches } = createService({ searchHits: [] })
 
     const result = await service.retrieve({ organizationId: ORG, query: 'hours?' })
 
@@ -68,6 +75,8 @@ test.group('KnowledgeRetrievalService', () => {
     assert.equal(result.maxScore, 0)
     assert.isFalse(result.meetsMinConfidence)
     assert.deepEqual(llm.embedCalls, ['hours?'])
+    assert.deepEqual(llm.embedModels, ['text-embedding-3-small'])
+    assert.equal(searches[0]!.embeddingSpaceId, DEFAULT_EMBEDDING_SPACE_ID)
     assert.deepEqual(await llm.embedTexts(['hours?']), [fakeEmbeddingFor('hours?')])
   })
 
@@ -110,5 +119,18 @@ test.group('KnowledgeRetrievalService', () => {
 
     assert.equal(result.maxScore, 0.55)
     assert.isFalse(result.meetsMinConfidence)
+  })
+
+  test('embeds with embeddingModel and searches the active space', async ({ assert }) => {
+    const { service, llm, searches } = createService({
+      embeddingModel: 'text-embedding-3-large',
+      activeEmbeddingSpaceId: 'openai:text-embedding-3-large:1024:v1',
+      searchHits: hits([{ id: 'a', vectorScore: 0.9 }]),
+    })
+
+    await service.retrieve({ organizationId: ORG, query: 'hours' })
+
+    assert.deepEqual(llm.embedModels, ['text-embedding-3-large'])
+    assert.equal(searches[0]!.embeddingSpaceId, 'openai:text-embedding-3-large:1024:v1')
   })
 })
