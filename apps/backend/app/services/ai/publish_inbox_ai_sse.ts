@@ -1,10 +1,10 @@
 import logger from '@adonisjs/core/services/logger'
 import type { InboxAiSseEvent } from '#services/ai/contracts/inbox_ai_sse'
-import { inboxEventsHub } from '#services/inbox_events_hub'
+import { inboxSseBus } from '#services/inbox_sse_bus'
 
 export function publishInboxAiEvent(organizationId: string, event: InboxAiSseEvent): void {
   try {
-    inboxEventsHub.publish({
+    inboxSseBus.publish({
       type: event.type,
       organizationId,
       payload: event.data,

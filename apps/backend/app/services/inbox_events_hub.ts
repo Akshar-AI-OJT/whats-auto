@@ -1,6 +1,6 @@
 /**
  * In-process SSE fan-out for inbox domain events.
- * One Node process only — fine for single-server / local; multi-node needs a shared bus later.
+ * HTTP clients subscribe here; cross-process publishers use InboxSseBus (Redis pub/sub).
  */
 
 export type InboxSseEventType =
