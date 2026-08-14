@@ -12,6 +12,7 @@ export type ApiError = {
   status: number
   code?: string
   retryAfter?: number
+  chunkCount?: number
 }
 
 export type AuthRequestMode = 'public' | 'protected'
@@ -48,6 +49,7 @@ async function parseError(response: Response): Promise<ApiError> {
   let message = response.statusText || 'Request failed'
   let code: string | undefined
   let retryAfter: number | undefined
+  let chunkCount: number | undefined
 
   try {
     const data = (await response.json()) as {
@@ -55,6 +57,7 @@ async function parseError(response: Response): Promise<ApiError> {
       error?: string | { message?: string; code?: string }
       code?: string
       retryAfter?: number
+      chunkCount?: number
       errors?: Array<{ message?: string; field?: string }>
     }
 
@@ -88,11 +91,15 @@ async function parseError(response: Response): Promise<ApiError> {
         if (!Number.isNaN(parsed)) retryAfter = parsed
       }
     }
+
+    if (typeof data.chunkCount === 'number') {
+      chunkCount = data.chunkCount
+    }
   } catch {
     // non-JSON body — keep statusText
   }
 
-  return { message, status: response.status, code, retryAfter }
+  return { message, status: response.status, code, retryAfter, chunkCount }
 }
 
 /**
@@ -889,6 +896,9 @@ export type CreateSuperAdminSubscriptionBody = {
 export type PlatformAiConfig = {
   id: string
   isEnabled: boolean
+  chatProvider: 'openai' | 'google' | 'mistral' | string
+  chatModel: string
+  summaryModel: string | null
   modelName: string
   temperature: number
   campaignAttributionWindowHours: number
@@ -898,7 +908,15 @@ export type PlatformAiConfig = {
   handoverKeywords: string[]
   workingSetSize: number
   summaryTurnThreshold: number
+  embeddingProvider: 'openai' | 'google' | 'mistral' | string
   embeddingModel: string
+  activeEmbeddingSpaceId?: string
+  maxOutputTokens?: number
+  reindexStatus?: 'idle' | 'running' | 'failed'
+  reindexFromSpaceId?: string | null
+  reindexToSpaceId?: string | null
+  reindexEmbeddingModel?: string | null
+  reindexEmbeddingProvider?: string | null
   updatedByUserId: string | null
   createdAt: string
   updatedAt: string | null
@@ -906,6 +924,9 @@ export type PlatformAiConfig = {
 
 export type UpdatePlatformAiConfigBody = {
   isEnabled?: boolean
+  chatProvider?: string
+  chatModel?: string
+  summaryModel?: string | null
   modelName?: string
   temperature?: number
   campaignAttributionWindowHours?: number
@@ -915,7 +936,9 @@ export type UpdatePlatformAiConfigBody = {
   handoverKeywords?: string[]
   workingSetSize?: number
   summaryTurnThreshold?: number
+  embeddingProvider?: string
   embeddingModel?: string
+  confirmReindex?: boolean
 }
 
 export type KnowledgeDocumentStatus = 'PENDING' | 'PROCESSING' | 'INDEXED' | 'FAILED'

@@ -3779,10 +3779,19 @@
         "saving": "Saving…",
         "saved": "AI settings saved.",
         "saveFooterHint": "Changes apply to all workspaces.",
+        "reindexConfirm": "This will re-embed {count} knowledge chunks into a new space. Retrieval stays on the current embedding model until the job finishes. Continue?",
+        "reindexRunning": "Re-embedding knowledge into the new space. Chat settings can still be saved. Provider and embedding model are locked until this finishes.",
+        "reindexFailed": "Knowledge reindex failed. Save again to retry, or switch back to the previous embedding model.",
         "promptPlaceholder": "Leave empty to use the built-in grounded WhatsApp assistant prompt.",
         "keywordPlaceholder": "Add keyword…",
         "keywordsEmpty": "No keywords yet.",
         "removeKeyword": "Remove {keyword}",
+        "sameAsMain": "Same as main chat model",
+        "providers": {
+          "openai": "OpenAI",
+          "google": "Gemini",
+          "mistral": "Mistral"
+        },
         "sections": {
           "response": {
             "title": "Response",
@@ -3803,6 +3812,9 @@
         },
         "fields": {
           "isEnabled": "Enable auto-reply",
+          "chatProvider": "Provider",
+          "chatModel": "Main chat model",
+          "summaryModel": "Summary model",
           "modelName": "Chat model",
           "embeddingModel": "Embedding model",
           "temperature": "Temperature",
@@ -3816,7 +3828,10 @@
         },
         "hints": {
           "isEnabled": "When off, inbound messages are not sent to the LLM.",
-          "embeddingModel": "1536-dimension models only. Changing this does not re-embed existing knowledge chunks.",
+          "chatProvider": "API keys stay in server env. Only the selected provider’s key is required.",
+          "chatModel": "Used for auto-replies. Changing this does not re-embed knowledge.",
+          "summaryModel": "Optional cheaper model for conversation summaries. Must be the same provider.",
+          "embeddingModel": "1024-dimension models only. Changing provider or embedding model re-embeds the knowledge base after you confirm.",
           "temperature": "0 to 2.",
           "debounceDelaySeconds": "1 to 15. Delay before a grounded reply is generated.",
           "campaignAttributionWindowHours": "1 to 168.",
@@ -3834,7 +3849,11 @@
           "notFound": "Platform AI config was not found.",
           "summaryThreshold": "Summary turn threshold must be greater than or equal to working-set size.",
           "invalidRange": "One or more values are outside the allowed range.",
-          "keywordsRequired": "Add at least one handover keyword."
+          "keywordsRequired": "Add at least one handover keyword.",
+          "reindexRequired": "Changing provider or embedding model requires re-embedding the knowledge base. Confirm when prompted.",
+          "reindexInProgress": "A knowledge reindex is already running. Wait for it to finish before changing provider or embedding model.",
+          "invalidModel": "That model is not allowed for the selected provider.",
+          "providerMismatch": "Embedding provider must match the chat provider."
         }
       }
     },

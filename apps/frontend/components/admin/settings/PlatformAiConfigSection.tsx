@@ -14,9 +14,9 @@ import { Button } from '@/components/ui/button'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardToast, useDashboardToast } from '@/components/dashboard/ui/use-dashboard-toast'
 import {
-  PLATFORM_AI_CHAT_MODELS,
-  PLATFORM_AI_EMBEDDING_MODELS,
   PLATFORM_AI_LIMITS,
+  PLATFORM_AI_PROVIDERS,
+  catalogForProvider,
   selectOptionsWithCurrent,
 } from './platform-ai-models'
 
@@ -35,7 +35,9 @@ const textareaClassName = cn(
 
 type FormState = {
   isEnabled: boolean
-  modelName: string
+  chatProvider: string
+  chatModel: string
+  summaryModel: string | null
   embeddingModel: string
   temperature: string
   campaignAttributionWindowHours: string
@@ -50,20 +52,33 @@ type FormState = {
 function unwrapConfig(payload: unknown): PlatformAiConfig | null {
   if (!payload || typeof payload !== 'object') return null
   const root = payload as { data?: PlatformAiConfig } & Partial<PlatformAiConfig>
-  if (root.data && typeof root.data === 'object' && typeof root.data.modelName === 'string') {
-    return root.data
+  if (root.data && typeof root.data === 'object') {
+    const chatModel = root.data.chatModel || root.data.modelName
+    if (typeof chatModel === 'string') return { ...root.data, chatModel, modelName: chatModel }
   }
-  if (typeof root.modelName === 'string' && typeof root.embeddingModel === 'string') {
-    return root as PlatformAiConfig
+  const chatModel = root.chatModel || root.modelName
+  if (typeof chatModel === 'string' && typeof root.embeddingModel === 'string') {
+    return { ...(root as PlatformAiConfig), chatModel, modelName: chatModel }
   }
   return null
 }
 
+function reindexStatusFromConfig(config: PlatformAiConfig): 'idle' | 'running' | 'failed' {
+  return config.reindexStatus === 'running' || config.reindexStatus === 'failed'
+    ? config.reindexStatus
+    : 'idle'
+}
+
 function formFromConfig(config: PlatformAiConfig): FormState {
+  const pendingEmbed =
+    (config.reindexStatus === 'running' || config.reindexStatus === 'failed') &&
+    config.reindexEmbeddingModel
   return {
     isEnabled: config.isEnabled,
-    modelName: config.modelName,
-    embeddingModel: config.embeddingModel,
+    chatProvider: config.chatProvider || 'openai',
+    chatModel: config.chatModel || config.modelName,
+    summaryModel: config.summaryModel ?? null,
+    embeddingModel: pendingEmbed || config.embeddingModel,
     temperature: String(config.temperature),
     campaignAttributionWindowHours: String(config.campaignAttributionWindowHours),
     minConfidenceScore: String(config.minConfidenceScore),
@@ -107,6 +122,10 @@ function mapAiConfigError(error: unknown, fallback: 'load' | 'save'): string {
   }
   if (apiError.code === 'E_PLATFORM_AI_CONFIG_SUMMARY_THRESHOLD') return 'summaryThreshold'
   if (apiError.code === 'E_PLATFORM_AI_CONFIG_NOT_FOUND') return 'notFound'
+  if (apiError.code === 'E_PLATFORM_AI_REINDEX_REQUIRED') return 'reindexRequired'
+  if (apiError.code === 'E_PLATFORM_AI_REINDEX_IN_PROGRESS') return 'reindexInProgress'
+  if (apiError.code === 'E_PLATFORM_AI_INVALID_MODEL') return 'invalidModel'
+  if (apiError.code === 'E_PLATFORM_AI_EMBEDDING_PROVIDER_MISMATCH') return 'providerMismatch'
   return apiError.message ? 'raw' : fallback === 'load' ? 'loadFailed' : 'saveFailed'
 }
 
@@ -203,18 +222,27 @@ export function PlatformAiConfigSection() {
   const { toast, showToast, clearToast } = useDashboardToast()
 
   const [form, setForm] = useState<FormState | null>(null)
+  const [reindexStatus, setReindexStatus] = useState<'idle' | 'running' | 'failed'>('idle')
   const [keywordDraft, setKeywordDraft] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
 
+  const catalog = useMemo(
+    () => catalogForProvider(form?.chatProvider ?? 'openai'),
+    [form?.chatProvider]
+  )
   const chatModels = useMemo(
-    () => selectOptionsWithCurrent(PLATFORM_AI_CHAT_MODELS, form?.modelName ?? ''),
-    [form?.modelName]
+    () => selectOptionsWithCurrent(catalog.chat, form?.chatModel ?? ''),
+    [catalog.chat, form?.chatModel]
   )
   const embeddingModels = useMemo(
-    () => selectOptionsWithCurrent(PLATFORM_AI_EMBEDDING_MODELS, form?.embeddingModel ?? ''),
-    [form?.embeddingModel]
+    () => selectOptionsWithCurrent(catalog.embedding, form?.embeddingModel ?? ''),
+    [catalog.embedding, form?.embeddingModel]
+  )
+  const summaryModels = useMemo(
+    () => selectOptionsWithCurrent(catalog.chat, form?.summaryModel ?? ''),
+    [catalog.chat, form?.summaryModel]
   )
 
   const loadConfig = useCallback(async () => {
@@ -229,6 +257,7 @@ export function PlatformAiConfigSection() {
         return
       }
       setForm(formFromConfig(config))
+      setReindexStatus(reindexStatusFromConfig(config))
     } catch (err) {
       setForm(null)
       const key = mapAiConfigError(err, 'load')
@@ -338,7 +367,10 @@ export function PlatformAiConfigSection() {
 
     const body: UpdatePlatformAiConfigBody = {
       isEnabled: form.isEnabled,
-      modelName: form.modelName,
+      chatProvider: form.chatProvider,
+      chatModel: form.chatModel,
+      summaryModel: form.summaryModel,
+      embeddingProvider: form.chatProvider,
       embeddingModel: form.embeddingModel,
       temperature,
       campaignAttributionWindowHours,
@@ -348,13 +380,31 @@ export function PlatformAiConfigSection() {
       summaryTurnThreshold,
       systemPrompt: form.systemPrompt.trim() ? form.systemPrompt : null,
       handoverKeywords: form.handoverKeywords,
+      ...(reindexStatus === 'failed' ? { confirmReindex: true } : {}),
     }
 
     setSaving(true)
     try {
-      const { data } = await api.superAdmin.aiConfig.update(body)
-      const config = unwrapConfig(data)
-      if (config) setForm(formFromConfig(config))
+      const persist = async (payload: UpdatePlatformAiConfigBody) => {
+        const { data } = await api.superAdmin.aiConfig.update(payload)
+        const config = unwrapConfig(data)
+        if (config) {
+          setForm(formFromConfig(config))
+          setReindexStatus(reindexStatusFromConfig(config))
+        }
+      }
+
+      try {
+        await persist(body)
+      } catch (err) {
+        const apiError = err as ApiError
+        if (apiError.code !== 'E_PLATFORM_AI_REINDEX_REQUIRED') throw err
+        const confirmed = window.confirm(
+          t('reindexConfirm', { count: apiError.chunkCount ?? 0 })
+        )
+        if (!confirmed) return
+        await persist({ ...body, confirmReindex: true })
+      }
       showToast(t('saved'), 'success')
     } catch (err) {
       const key = mapAiConfigError(err, 'save')
@@ -362,7 +412,9 @@ export function PlatformAiConfigSection() {
     } finally {
       setSaving(false)
     }
-  }, [clearToast, form, saving, showToast, t])
+  }, [clearToast, form, reindexStatus, saving, showToast, t])
+
+  const embedLocked = reindexStatus === 'running'
 
   return (
     <DashboardPanel as="section" className="overflow-hidden p-0">
@@ -423,15 +475,53 @@ export function PlatformAiConfigSection() {
                 </span>
               </label>
 
-              <div className="grid grid-cols-1 gap-x-5 gap-y-5 sm:grid-cols-4">
-                <FieldShell id={`${formId}-model`} label={t('fields.modelName')}>
+              <div className="grid grid-cols-1 gap-x-5 gap-y-5 sm:grid-cols-3">
+                <FieldShell
+                  id={`${formId}-provider`}
+                  label={t('fields.chatProvider')}
+                  hint={t('hints.chatProvider')}
+                >
                   <select
-                    id={`${formId}-model`}
+                    id={`${formId}-provider`}
+                    className={fieldClassName}
+                    disabled={saving || embedLocked}
+                    value={form.chatProvider}
+                    onChange={(event) => {
+                      const nextProvider = event.target.value
+                      const nextCatalog = catalogForProvider(nextProvider)
+                      setForm((prev) =>
+                        prev
+                          ? {
+                              ...prev,
+                              chatProvider: nextProvider,
+                              chatModel: nextCatalog.defaults.chatModel,
+                              summaryModel: nextCatalog.defaults.summaryModel,
+                              embeddingModel: nextCatalog.defaults.embeddingModel,
+                            }
+                          : prev
+                      )
+                    }}
+                  >
+                    {PLATFORM_AI_PROVIDERS.map((provider) => (
+                      <option key={provider} value={provider}>
+                        {t(`providers.${provider}`)}
+                      </option>
+                    ))}
+                  </select>
+                </FieldShell>
+
+                <FieldShell
+                  id={`${formId}-chat-model`}
+                  label={t('fields.chatModel')}
+                  hint={t('hints.chatModel')}
+                >
+                  <select
+                    id={`${formId}-chat-model`}
                     className={fieldClassName}
                     disabled={saving}
-                    value={form.modelName}
+                    value={form.chatModel}
                     onChange={(event) =>
-                      setForm((prev) => (prev ? { ...prev, modelName: event.target.value } : prev))
+                      setForm((prev) => (prev ? { ...prev, chatModel: event.target.value } : prev))
                     }
                   >
                     {chatModels.map((model) => (
@@ -442,6 +532,33 @@ export function PlatformAiConfigSection() {
                   </select>
                 </FieldShell>
 
+                <FieldShell
+                  id={`${formId}-summary-model`}
+                  label={t('fields.summaryModel')}
+                  hint={t('hints.summaryModel')}
+                >
+                  <select
+                    id={`${formId}-summary-model`}
+                    className={fieldClassName}
+                    disabled={saving}
+                    value={form.summaryModel ?? ''}
+                    onChange={(event) =>
+                      setForm((prev) =>
+                        prev ? { ...prev, summaryModel: event.target.value || null } : prev
+                      )
+                    }
+                  >
+                    <option value="">{t('sameAsMain')}</option>
+                    {summaryModels.map((model) => (
+                      <option key={model} value={model}>
+                        {model}
+                      </option>
+                    ))}
+                  </select>
+                </FieldShell>
+              </div>
+
+              <div className="grid grid-cols-1 gap-x-5 gap-y-5 sm:grid-cols-3">
                 <NumberField
                   id={`${formId}-temperature`}
                   label={t('fields.temperature')}
@@ -494,6 +611,16 @@ export function PlatformAiConfigSection() {
               title={t('sections.knowledge.title')}
               description={t('sections.knowledge.description')}
             >
+              {reindexStatus === 'running' ? (
+                <p role="status" className="text-sm leading-6 text-mute">
+                  {t('reindexRunning')}
+                </p>
+              ) : null}
+              {reindexStatus === 'failed' ? (
+                <p role="alert" className="text-sm leading-6 text-negative">
+                  {t('reindexFailed')}
+                </p>
+              ) : null}
               <FieldShell
                 id={`${formId}-embedding`}
                 label={t('fields.embeddingModel')}
@@ -502,7 +629,7 @@ export function PlatformAiConfigSection() {
                 <select
                   id={`${formId}-embedding`}
                   className={fieldClassName}
-                  disabled={saving}
+                  disabled={saving || embedLocked}
                   value={form.embeddingModel}
                   onChange={(event) =>
                     setForm((prev) =>
