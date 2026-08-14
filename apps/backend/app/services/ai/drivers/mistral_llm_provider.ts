@@ -1,4 +1,4 @@
-import { ChatOpenAI, OpenAIEmbeddings } from '@langchain/openai'
+import { ChatMistralAI, MistralAIEmbeddings } from '@langchain/mistralai'
 import LlmException from '#exceptions/llm_exception'
 import {
   LlmProvider,
@@ -6,7 +6,6 @@ import {
   type LlmCompletionResult,
   type LlmTokenDelta,
 } from '#services/ai/contracts/llm_provider'
-import { KNOWLEDGE_EMBEDDING_DIMENSIONS } from '#services/ai/embedding_space'
 import {
   assertEmbeddingVectors,
   generateFromLangChain,
@@ -15,25 +14,25 @@ import {
   type LangChainEmbeddings,
 } from '#services/ai/drivers/langchain_completion'
 
-const DEFAULT_CHAT_MODEL = 'gpt-4o-mini'
-const DEFAULT_EMBED_MODEL = 'text-embedding-3-small'
+const DEFAULT_CHAT_MODEL = 'mistral-small-latest'
+const DEFAULT_EMBED_MODEL = 'mistral-embed'
 
-export type OpenAiLlmProviderOptions = {
+export type MistralLlmProviderOptions = {
   apiKey?: string
   chat?: LangChainChatModel
   embeddings?: LangChainEmbeddings
 }
 
 /**
- * LangChain OpenAI chat + embeddings. Domain code must depend on LlmProvider only.
+ * LangChain Mistral chat + native 1024-d embeddings. Domain code must depend on LlmProvider only.
  */
-export default class OpenAiLlmProvider extends LlmProvider {
-  readonly name = 'openai'
+export default class MistralLlmProvider extends LlmProvider {
+  readonly name = 'mistral'
   #apiKey: string | undefined
   #chat: LangChainChatModel | undefined
   #embeddings: LangChainEmbeddings | undefined
 
-  constructor(options: OpenAiLlmProviderOptions = {}) {
+  constructor(options: MistralLlmProviderOptions = {}) {
     super()
     this.#apiKey = options.apiKey
     this.#chat = options.chat
@@ -76,7 +75,7 @@ export default class OpenAiLlmProvider extends LlmProvider {
 
   #chatModel(options: LlmCompletionOptions): LangChainChatModel {
     if (this.#chat) return this.#chat
-    return new ChatOpenAI({
+    return new ChatMistralAI({
       apiKey: this.#requireKey(),
       model: options.model ?? DEFAULT_CHAT_MODEL,
       temperature: options.temperature,
@@ -86,15 +85,14 @@ export default class OpenAiLlmProvider extends LlmProvider {
 
   #embeddingModel(model: string): LangChainEmbeddings {
     if (this.#embeddings) return this.#embeddings
-    return new OpenAIEmbeddings({
+    return new MistralAIEmbeddings({
       apiKey: this.#requireKey(),
       model,
-      dimensions: KNOWLEDGE_EMBEDDING_DIMENSIONS,
     })
   }
 
   #requireKey(): string {
-    if (!this.#apiKey) throw LlmException.missingApiKey('OPENAI_API_KEY')
+    if (!this.#apiKey) throw LlmException.missingApiKey('MISTRAL_API_KEY')
     return this.#apiKey
   }
 }

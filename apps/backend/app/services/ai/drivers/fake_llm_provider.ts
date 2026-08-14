@@ -4,19 +4,21 @@ import {
   type LlmCompletionResult,
   type LlmTokenDelta,
 } from '#services/ai/contracts/llm_provider'
+import { KNOWLEDGE_EMBEDDING_DIMENSIONS } from '#services/ai/embedding_space'
 
 const DEFAULT_TEXT = 'This is a fake LLM reply.'
 
 /**
  * Deterministic LLM for tests. No network.
  */
-export const FAKE_EMBEDDING_DIMENSIONS = 1536
+export const FAKE_EMBEDDING_DIMENSIONS = KNOWLEDGE_EMBEDDING_DIMENSIONS
 
 export default class FakeLlmProvider extends LlmProvider {
   readonly name = 'fake'
   text = DEFAULT_TEXT
   readonly calls: LlmCompletionOptions[] = []
   readonly embedCalls: string[] = []
+  readonly embedModels: Array<string | undefined> = []
 
   async generateCompletion(options: LlmCompletionOptions): Promise<LlmCompletionResult> {
     this.calls.push(options)
@@ -43,8 +45,9 @@ export default class FakeLlmProvider extends LlmProvider {
     return this.#result(options, this.text)
   }
 
-  async embedTexts(texts: string[], _model?: string): Promise<number[][]> {
+  async embedTexts(texts: string[], model?: string): Promise<number[][]> {
     this.embedCalls.push(...texts)
+    this.embedModels.push(model)
     return texts.map(fakeEmbeddingFor)
   }
 
@@ -66,7 +69,7 @@ function splitForStream(text: string): string[] {
   return parts.length > 0 ? parts : ['']
 }
 
-/** Deterministic 1536-d vector from text so unchanged chunks stay comparable. */
+/** Deterministic 1024-d vector from text so unchanged chunks stay comparable. */
 export function fakeEmbeddingFor(text: string): number[] {
   const vector = new Array<number>(FAKE_EMBEDDING_DIMENSIONS)
   let seed = 2166136261

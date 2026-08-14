@@ -28,9 +28,9 @@ export interface LlmTokenDelta {
 }
 
 /**
- * Swappable LLM boundary. Bind via IoC — domain code must not import OpenAI.
+ * Chat completions. Domain code must not import vendor SDKs.
  */
-export abstract class LlmProvider {
+export abstract class ChatLlmProvider {
   abstract readonly name: string
 
   abstract generateCompletion(options: LlmCompletionOptions): Promise<LlmCompletionResult>
@@ -38,6 +38,20 @@ export abstract class LlmProvider {
   abstract streamCompletion(
     options: LlmCompletionOptions
   ): AsyncGenerator<LlmTokenDelta, LlmCompletionResult, unknown>
+}
 
+/**
+ * Text embeddings. Vectors must be KNOWLEDGE_EMBEDDING_DIMENSIONS long.
+ */
+export abstract class EmbeddingLlmProvider {
+  abstract readonly name: string
+
+  abstract embedTexts(texts: string[], model?: string): Promise<number[][]>
+}
+
+/**
+ * Combined chat+embed binding. Prefer ChatLlmProvider / EmbeddingLlmProvider at call sites.
+ */
+export abstract class LlmProvider extends ChatLlmProvider implements EmbeddingLlmProvider {
   abstract embedTexts(texts: string[], model?: string): Promise<number[][]>
 }

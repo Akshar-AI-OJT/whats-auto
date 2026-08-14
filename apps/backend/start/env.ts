@@ -63,8 +63,9 @@ export default await Env.create(new URL('../', import.meta.url), {
   META_GRAPH_API_VERSION: Env.schema.string(),
 
   // Secrets only — model/debounce knobs live on platform_ai_configs.
-  OPENAI_API_KEY: Env.schema.string.optional(),
-  LLM_DRIVER: Env.schema.enum.optional(['openai', 'fake'] as const),
+  OPENAI_API_KEY: Env.schema.secret.optional(),
+  GOOGLE_AI_API_KEY: Env.schema.secret.optional(),
+  MISTRAL_API_KEY: Env.schema.secret.optional(),
 
   // Job queue — all jobs run on BullMQ (or null in tests). REDIS_URL required when driver=bullmq.
   JOB_QUEUE_DRIVER: Env.schema.enum.optional(['bullmq', 'null'] as const),

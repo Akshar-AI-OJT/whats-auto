@@ -2,10 +2,24 @@ import { Exception } from '@adonisjs/core/exceptions'
 import type { HttpContext } from '@adonisjs/core/http'
 
 export default class LlmException extends Exception {
-  static missingApiKey() {
-    return new this('OPENAI_API_KEY is required for the OpenAI LLM driver', {
+  static missingApiKey(envName = 'OPENAI_API_KEY') {
+    return new this(`${envName} is required for the LLM driver`, {
       status: 503,
       code: 'E_LLM_MISSING_API_KEY',
+    })
+  }
+
+  static unsupportedProvider(provider: string) {
+    return new this(`LLM provider "${provider}" is not available yet`, {
+      status: 503,
+      code: 'E_LLM_UNSUPPORTED_PROVIDER',
+    })
+  }
+
+  static embeddingDimensionMismatch(actual: number, expected: number) {
+    return new this(`Embedding must have ${expected} dimensions, got ${actual}`, {
+      status: 502,
+      code: 'E_LLM_EMBEDDING_DIMENSION',
     })
   }
 
