@@ -1,5 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import ConversationPolicy from '#policies/conversation_policy'
 import ConversationAiModeService from '#services/ai/conversation_ai_mode_service'
+import { ConversationService } from '#services/conversation_service'
 import { conversationIdParamValidator } from '#validators/conversation'
 import '#types/http'
 
@@ -16,10 +18,17 @@ export default class ConversationAiController {
    * @responseBody 422 - { "error": "Conversation AI mode cannot change that way", "code": "E_CONVERSATION_AI_TRANSITION" }
    * @responseBody 403 - { "error": "Permission denied: inbox:reply", "code": "PERMISSION_DENIED" }
    */
-  async takeover({ request, params, serialize }: HttpContext) {
+  async takeover({ bouncer, request, params, serialize }: HttpContext) {
     const { id } = await request.validateUsing(conversationIdParamValidator, {
       data: params,
     })
+
+    const existing = await new ConversationService().getConversationById({
+      organizationId: request.activeMember!.organizationId,
+      conversationId: id,
+    })
+
+    await bouncer.with(ConversationPolicy).authorize('takeoverAi', existing)
 
     const conversation = await new ConversationAiModeService().takeover({
       organizationId: request.activeMember!.organizationId,
@@ -45,10 +54,17 @@ export default class ConversationAiController {
    * @responseBody 422 - { "error": "Conversation AI mode cannot change that way", "code": "E_CONVERSATION_AI_TRANSITION" }
    * @responseBody 403 - { "error": "Permission denied: inbox:reply", "code": "PERMISSION_DENIED" }
    */
-  async resume({ request, params, serialize }: HttpContext) {
+  async resume({ bouncer, request, params, serialize }: HttpContext) {
     const { id } = await request.validateUsing(conversationIdParamValidator, {
       data: params,
     })
+
+    const existing = await new ConversationService().getConversationById({
+      organizationId: request.activeMember!.organizationId,
+      conversationId: id,
+    })
+
+    await bouncer.with(ConversationPolicy).authorize('resumeAi', existing)
 
     const conversation = await new ConversationAiModeService().resume({
       organizationId: request.activeMember!.organizationId,

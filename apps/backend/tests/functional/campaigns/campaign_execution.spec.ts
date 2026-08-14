@@ -99,16 +99,10 @@ async function seedTemplateAndConfig(organizationId: string) {
 
 function fakeGraph(): MetaGraphClient {
   return {
-    async sendText() {
-      return { messageId: `wamid.${randomUUID()}` }
-    },
-    async sendTemplate() {
-      return { messageId: `wamid.${randomUUID()}` }
-    },
-    async sendMediaByLink() {
-      return { messageId: `wamid.${randomUUID()}` }
-    },
-  }
+    sendTextMessage: async () => ({ messageId: `wamid.${randomUUID()}`, raw: {} }),
+    sendTemplateMessage: async () => ({ messageId: `wamid.${randomUUID()}`, raw: {} }),
+    sendMediaMessage: async () => ({ messageId: `wamid.${randomUUID()}`, raw: {} }),
+  } as unknown as MetaGraphClient
 }
 
 test.group('CampaignExecutionService', (group) => {

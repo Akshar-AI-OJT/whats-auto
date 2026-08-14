@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import AuditPolicy from '#policies/audit_policy'
 import { PERMISSIONS } from '#abilities/permissions'
 import { AuditService } from '#services/audit_service'
 import { listAuditValidator } from '#validators/organization'
@@ -17,10 +18,12 @@ export default class AuditController {
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 403 - { "error": "Permission denied: team:view", "code": "PERMISSION_DENIED" }
    */
-  async index({ request, serialize }: HttpContext) {
+  async index({ bouncer, request, serialize }: HttpContext) {
     const { limit, organizationId } = await request.validateUsing(listAuditValidator, {
       data: request.qs(),
     })
+
+    await bouncer.with(AuditPolicy).authorize('view', organizationId)
 
     const isPlatformAuditor = Boolean(
       request.memberPermissions?.has(PERMISSIONS.PLATFORM_AUDIT_VIEW)

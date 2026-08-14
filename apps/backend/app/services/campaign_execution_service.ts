@@ -12,6 +12,7 @@ import { CampaignService, type CampaignDto } from '#services/campaign_service'
 
 const CAMPAIGN_LIBRARY_RETENTION_DAYS = 30
 const RECIPIENT_BATCH_SIZE = 50
+const DB_INSERT_BATCH_SIZE = 5_000
 
 export type CampaignRecipientInput = {
   contactIds: string[]
@@ -39,16 +40,24 @@ export class CampaignExecutionService {
     variables?: Record<string, string>
   }): Promise<CampaignDto> {
     return runWithTenant(params.organizationId, async () => {
-      const campaign = await this.#loadEditableCampaign(params)
+      await this.#loadEditableCampaign(params)
 
       const uniqueIds = [...new Set(params.contactIds)]
-      const contacts = await db
-        .from('contacts')
-        .where('organizationId', params.organizationId)
-        .whereIn('id', uniqueIds)
-        .select('id')
 
-      if (contacts.length !== uniqueIds.length) {
+      // Validate contacts in batches to avoid PostgreSQL's 65,535 parameter limit.
+      let foundCount = 0
+      for (let i = 0; i < uniqueIds.length; i += DB_INSERT_BATCH_SIZE) {
+        const batch = uniqueIds.slice(i, i + DB_INSERT_BATCH_SIZE)
+        const found = await db
+          .from('contacts')
+          .where('organizationId', params.organizationId)
+          .whereIn('id', batch)
+          .count('* as total')
+          .first()
+        foundCount += Number((found as { total: number } | undefined)?.total ?? 0)
+      }
+
+      if (foundCount !== uniqueIds.length) {
         throw CampaignException.invalidReference()
       }
 
@@ -69,16 +78,20 @@ export class CampaignExecutionService {
           return
         }
 
-        await trx.table('broadcast_recipients').insert(
-          uniqueIds.map((contactId) => ({
-            organizationId: params.organizationId,
-            broadcastId: params.campaignId,
-            contactId,
-            status: 'pending',
-            variables: params.variables ?? null,
-            createdAt: now,
-          }))
-        )
+        // Insert recipients in batches to avoid PostgreSQL parameter limits.
+        for (let i = 0; i < uniqueIds.length; i += DB_INSERT_BATCH_SIZE) {
+          const batch = uniqueIds.slice(i, i + DB_INSERT_BATCH_SIZE)
+          await trx.table('broadcast_recipients').insert(
+            batch.map((contactId) => ({
+              organizationId: params.organizationId,
+              broadcastId: params.campaignId,
+              contactId,
+              status: 'pending',
+              variables: params.variables ?? null,
+              createdAt: now,
+            }))
+          )
+        }
 
         await trx
           .from('broadcasts')
@@ -395,7 +408,7 @@ export class CampaignExecutionService {
           .where('organizationId', organizationId)
           .where('status', 'sending')
           .whereNull('messageId')
-          .where('createdAt', '<', new Date(now.getTime() - 10 * 60 * 1000))
+          .where('updatedAt', '<', new Date(now.getTime() - 10 * 60 * 1000))
           .update({ status: 'pending' })
 
         return db

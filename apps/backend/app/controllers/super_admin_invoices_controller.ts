@@ -1,5 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
+import SuperAdminPolicy from '#policies/super_admin_policy'
 import { InvoiceService } from '#services/billing/invoice_service'
 import {
   createSuperAdminInvoiceValidator,
@@ -26,7 +27,9 @@ export default class SuperAdminInvoicesController {
    * @responseBody 200 - { "data": [{ "id": "uuid", "invoiceNumber": "INV-2026-000001", "status": "pending" }], "meta": { "total": 1, "perPage": 20, "currentPage": 1, "lastPage": 1 } }
    */
   @inject()
-  async index({ request, serialize }: HttpContext, invoices: InvoiceService) {
+  async index({ bouncer, request, serialize }: HttpContext, invoices: InvoiceService) {
+    await bouncer.with(SuperAdminPolicy).authorize('manageBilling')
+
     const query = await request.validateUsing(listSuperAdminInvoicesValidator, {
       data: request.qs(),
     })
@@ -53,7 +56,9 @@ export default class SuperAdminInvoicesController {
    * @responseBody 200 - { "data": { "totalCount": 10, "paidCount": 4, "pendingCount": 3, "overdueCount": 1 } }
    */
   @inject()
-  async summary({ request, serialize }: HttpContext, invoices: InvoiceService) {
+  async summary({ bouncer, request, serialize }: HttpContext, invoices: InvoiceService) {
+    await bouncer.with(SuperAdminPolicy).authorize('manageBilling')
+
     const filters = await request.validateUsing(invoiceSummaryValidator, {
       data: request.qs(),
     })
@@ -77,7 +82,9 @@ export default class SuperAdminInvoicesController {
    * @responseBody 200 - { "data": { "id": "uuid", "invoiceNumber": "INV-2026-000001", "status": "pending" } }
    */
   @inject()
-  async store({ request, serialize }: HttpContext, invoices: InvoiceService) {
+  async store({ bouncer, request, serialize }: HttpContext, invoices: InvoiceService) {
+    await bouncer.with(SuperAdminPolicy).authorize('manageBilling')
+
     const payload = await request.validateUsing(createSuperAdminInvoiceValidator)
     const invoice = await invoices.createInvoice(payload)
     return serialize(invoice)
@@ -93,7 +100,9 @@ export default class SuperAdminInvoicesController {
    * @responseBody 404 - { "error": "Invoice Not Found", "code": "E_INVOICE_NOT_FOUND" }
    */
   @inject()
-  async show({ request, params, serialize }: HttpContext, invoices: InvoiceService) {
+  async show({ bouncer, request, params, serialize }: HttpContext, invoices: InvoiceService) {
+    await bouncer.with(SuperAdminPolicy).authorize('manageBilling')
+
     const { id } = await request.validateUsing(invoiceIdParamValidator, { data: params })
     const invoice = await invoices.getInvoiceById(id)
     return serialize(invoice)
@@ -109,7 +118,9 @@ export default class SuperAdminInvoicesController {
    * @responseBody 200 - { "data": { "id": "uuid", "status": "paid" } }
    */
   @inject()
-  async markPaid({ request, params, serialize }: HttpContext, invoices: InvoiceService) {
+  async markPaid({ bouncer, request, params, serialize }: HttpContext, invoices: InvoiceService) {
+    await bouncer.with(SuperAdminPolicy).authorize('manageBilling')
+
     const { id } = await request.validateUsing(invoiceIdParamValidator, { data: params })
     const payload = await request.validateUsing(markSuperAdminInvoicePaidValidator)
     const invoice = await invoices.markInvoicePaid(id, payload)
@@ -125,7 +136,9 @@ export default class SuperAdminInvoicesController {
    * @responseBody 200 - { "data": { "id": "uuid", "invoiceNumber": "INV-2026-000002" } }
    */
   @inject()
-  async regenerate({ request, params, serialize }: HttpContext, invoices: InvoiceService) {
+  async regenerate({ bouncer, request, params, serialize }: HttpContext, invoices: InvoiceService) {
+    await bouncer.with(SuperAdminPolicy).authorize('manageBilling')
+
     const { id } = await request.validateUsing(invoiceIdParamValidator, { data: params })
     const payload = await request.validateUsing(regenerateSuperAdminInvoiceValidator)
     const invoice = await invoices.regenerateInvoice(id, payload)
@@ -140,7 +153,9 @@ export default class SuperAdminInvoicesController {
    * @responseBody 501 - { "error": "Invoice email delivery is not available yet", "code": "E_INVOICE_ACTION_UNAVAILABLE" }
    */
   @inject()
-  async send({ request, params }: HttpContext, invoices: InvoiceService) {
+  async send({ bouncer, request, params }: HttpContext, invoices: InvoiceService) {
+    await bouncer.with(SuperAdminPolicy).authorize('manageBilling')
+
     const { id } = await request.validateUsing(invoiceIdParamValidator, { data: params })
     await invoices.getInvoiceById(id)
     invoices.sendInvoiceUnavailable()
@@ -154,7 +169,9 @@ export default class SuperAdminInvoicesController {
    * @responseBody 501 - { "error": "Invoice PDF download is not available yet", "code": "E_INVOICE_ACTION_UNAVAILABLE" }
    */
   @inject()
-  async download({ request, params }: HttpContext, invoices: InvoiceService) {
+  async download({ bouncer, request, params }: HttpContext, invoices: InvoiceService) {
+    await bouncer.with(SuperAdminPolicy).authorize('manageBilling')
+
     const { id } = await request.validateUsing(invoiceIdParamValidator, { data: params })
     await invoices.getInvoiceById(id)
     invoices.downloadInvoiceUnavailable()

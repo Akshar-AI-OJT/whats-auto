@@ -1,5 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
+import BillingPolicy from '#policies/billing_policy'
 import BillingException from '#exceptions/billing_exception'
 import { RazorpayCheckoutService } from '#services/billing/razorpay_checkout_service'
 import { billingCheckoutValidator } from '#validators/billing_checkout'
@@ -17,7 +18,9 @@ export default class BillingController {
    * @responseBody 403 - { "error": "Permission denied: billing:manage", "code": "PERMISSION_DENIED" }
    */
   @inject()
-  async checkout({ request, serialize }: HttpContext, checkout: RazorpayCheckoutService) {
+  async checkout({ bouncer, request, serialize }: HttpContext, checkout: RazorpayCheckoutService) {
+    await bouncer.with(BillingPolicy).authorize('checkout')
+
     const payload = await request.validateUsing(billingCheckoutValidator)
 
     const result = await checkout.startCheckout({
@@ -47,7 +50,12 @@ export default class BillingController {
    * @responseBody 403 - { "error": "Permission denied: billing:view", "code": "PERMISSION_DENIED" }
    */
   @inject()
-  async showSubscription({ request, serialize }: HttpContext, checkout: RazorpayCheckoutService) {
+  async showSubscription(
+    { bouncer, request, serialize }: HttpContext,
+    checkout: RazorpayCheckoutService
+  ) {
+    await bouncer.with(BillingPolicy).authorize('viewSubscription')
+
     const subscription = await checkout.getCurrentSubscription(request.activeMember!.organizationId)
 
     if (!subscription) {

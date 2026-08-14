@@ -174,7 +174,7 @@ test.group('Knowledge documents HTTP', (group) => {
       .get(`/api/v1/ai/knowledge-documents/${created.document.id}`)
       .header('Authorization', `Bearer ${token}`)
     show.assertStatus(200)
-    assert.equal(show.body().data.id, created.document.id)
+    assert.equal((show.body().data as { id: string }).id, created.document.id)
 
     const list = await client
       .get('/api/v1/ai/knowledge-documents')

@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import TagPolicy from '#policies/tag_policy'
 import { TagService } from '#services/tag_service'
 import {
   assignTagContactValidator,
@@ -19,7 +20,9 @@ export default class TagsController {
    * @responseBody 200 - { "data": [{ "id": "uuid", "name": "VIP", "color": "#22C55E", "contactCount": 0, "createdAt": "2026-08-13T12:00:00.000Z" }] }
    * @responseBody 403 - { "error": "Permission denied: contacts:view", "code": "PERMISSION_DENIED" }
    */
-  async index({ request, serialize }: HttpContext) {
+  async index({ bouncer, request, serialize }: HttpContext) {
+    await bouncer.with(TagPolicy).authorize('viewList')
+
     const tags = await new TagService().listTags(request.activeMember!.organizationId)
     return serialize(tags)
   }
@@ -34,7 +37,9 @@ export default class TagsController {
    * @responseBody 403 - { "error": "Permission denied: contacts:create", "code": "PERMISSION_DENIED" }
    * @responseBody 409 - { "error": "A tag with this name already exists", "code": "E_TAG_NAME_EXISTS" }
    */
-  async store({ request, serialize }: HttpContext) {
+  async store({ bouncer, request, serialize }: HttpContext) {
+    await bouncer.with(TagPolicy).authorize('create')
+
     const payload = await request.validateUsing(createTagValidator)
 
     const tag = await new TagService().createTag({
@@ -55,9 +60,14 @@ export default class TagsController {
    * @responseBody 200 - { "data": { "id": "uuid", "name": "VIP", "color": "#22C55E", "contactCount": 1 } }
    * @responseBody 404 - { "error": "Tag not found", "code": "E_TAG_NOT_FOUND" }
    */
-  async show({ request, params, serialize }: HttpContext) {
+  async show({ bouncer, request, params, serialize }: HttpContext) {
     const { id } = await request.validateUsing(tagIdParamValidator, {
       data: params,
+    })
+
+    await bouncer.with(TagPolicy).authorize('view', {
+      organizationId: request.activeMember!.organizationId,
+      id,
     })
 
     const tag = await new TagService().getTagById({
@@ -80,10 +90,16 @@ export default class TagsController {
    * @responseBody 409 - { "error": "A tag with this name already exists", "code": "E_TAG_NAME_EXISTS" }
    * @responseBody 422 - { "error": "Provide at least one of name or color", "code": "E_TAG_EMPTY_UPDATE" }
    */
-  async update({ request, params, serialize }: HttpContext) {
+  async update({ bouncer, request, params, serialize }: HttpContext) {
     const { id } = await request.validateUsing(tagIdParamValidator, {
       data: params,
     })
+
+    await bouncer.with(TagPolicy).authorize('update', {
+      organizationId: request.activeMember!.organizationId,
+      id,
+    })
+
     const payload = await request.validateUsing(updateTagValidator)
 
     const tag = await new TagService().updateTag({
@@ -106,9 +122,14 @@ export default class TagsController {
    * @responseBody 403 - { "error": "Permission denied: contacts:delete", "code": "PERMISSION_DENIED" }
    * @responseBody 404 - { "error": "Tag not found", "code": "E_TAG_NOT_FOUND" }
    */
-  async destroy({ request, params, serialize }: HttpContext) {
+  async destroy({ bouncer, request, params, serialize }: HttpContext) {
     const { id } = await request.validateUsing(tagIdParamValidator, {
       data: params,
+    })
+
+    await bouncer.with(TagPolicy).authorize('destroy', {
+      organizationId: request.activeMember!.organizationId,
+      id,
     })
 
     const result = await new TagService().deleteTag({
@@ -127,9 +148,14 @@ export default class TagsController {
    * @responseBody 200 - { "data": [{ "id": "uuid", "phone": "+15551234567", "name": "Ada" }] }
    * @responseBody 404 - { "error": "Tag not found", "code": "E_TAG_NOT_FOUND" }
    */
-  async contacts({ request, params, serialize }: HttpContext) {
+  async contacts({ bouncer, request, params, serialize }: HttpContext) {
     const { id } = await request.validateUsing(tagIdParamValidator, {
       data: params,
+    })
+
+    await bouncer.with(TagPolicy).authorize('view', {
+      organizationId: request.activeMember!.organizationId,
+      id,
     })
 
     const contacts = await new TagService().listTagContacts({
@@ -152,10 +178,16 @@ export default class TagsController {
    * @responseBody 409 - { "error": "This contact is already assigned to the tag", "code": "E_TAG_ASSIGNMENT_EXISTS" }
    * @responseBody 422 - { "error": "Contact not found for this organization", "code": "E_TAG_INVALID_CONTACT" }
    */
-  async assignContact({ request, params, serialize }: HttpContext) {
+  async assignContact({ bouncer, request, params, serialize }: HttpContext) {
     const { id } = await request.validateUsing(tagIdParamValidator, {
       data: params,
     })
+
+    await bouncer.with(TagPolicy).authorize('assignContact', {
+      organizationId: request.activeMember!.organizationId,
+      id,
+    })
+
     const payload = await request.validateUsing(assignTagContactValidator)
 
     const assignment = await new TagService().assignContact({
@@ -177,9 +209,14 @@ export default class TagsController {
    * @responseBody 403 - { "error": "Permission denied: contacts:edit", "code": "PERMISSION_DENIED" }
    * @responseBody 404 - { "error": "Tag assignment not found", "code": "E_TAG_ASSIGNMENT_NOT_FOUND" }
    */
-  async removeContact({ request, params, serialize }: HttpContext) {
+  async removeContact({ bouncer, request, params, serialize }: HttpContext) {
     const { id, contactId } = await request.validateUsing(tagContactParamsValidator, {
       data: params,
+    })
+
+    await bouncer.with(TagPolicy).authorize('removeContact', {
+      organizationId: request.activeMember!.organizationId,
+      id,
     })
 
     const result = await new TagService().removeContact({

@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import OrganizationPolicy from '#policies/organization_policy'
 import { OrganizationService } from '#services/organization_service'
 import { mapRbacError } from '#lib/map_rbac_error'
 import { attachClearAccessToken, attachRemintedAccessToken } from '#lib/access_token_response'
@@ -85,9 +86,8 @@ export default class OrganizationsController {
    * @responseBody 200 - { "data": { "id": "uuid", "name": "Acme Corp" } }
    * @responseBody 403 - { "error": "Permission denied: org:settings_manage", "code": "PERMISSION_DENIED" }
    */
-  async update({ request, params, response, serialize }: HttpContext) {
-    const mismatch = this.assertActiveOrg(params.id, request.activeMember!.organizationId, response)
-    if (mismatch) return mismatch
+  async update({ bouncer, request, params, response, serialize }: HttpContext) {
+    await bouncer.with(OrganizationPolicy).authorize('update', params.id)
 
     const payload = await request.validateUsing(updateOrganizationValidator)
 
@@ -114,16 +114,8 @@ export default class OrganizationsController {
    * @responseHeader 200 - Clear-Auth-Jwt - Drop the in-memory access token; there is no replacement - @type(string)
    * @responseBody 403 - { "error": "Only the organization owner can delete the organization.", "code": "NOT_OWNER" }
    */
-  async destroy({ request, params, response, serialize }: HttpContext) {
-    const mismatch = this.assertActiveOrg(params.id, request.activeMember!.organizationId, response)
-    if (mismatch) return mismatch
-
-    if (request.activeMember!.role !== 'owner') {
-      return response.forbidden({
-        error: 'Only the organization owner can delete the organization.',
-        code: 'NOT_OWNER',
-      })
-    }
+  async destroy({ bouncer, request, params, response, serialize }: HttpContext) {
+    await bouncer.with(OrganizationPolicy).authorize('delete', params.id)
 
     try {
       await new OrganizationService().softDeleteOrganization({
@@ -135,16 +127,5 @@ export default class OrganizationsController {
     } catch (error) {
       return mapRbacError(error, response)
     }
-  }
-
-  /** Tenant middleware scopes the active org; path `:id` must not target a different org. */
-  private assertActiveOrg(pathId: string, activeOrgId: string, response: HttpContext['response']) {
-    if (pathId !== activeOrgId) {
-      return response.forbidden({
-        error: 'Organization id does not match the active organization. Call set-active first.',
-        code: 'ORG_ID_MISMATCH',
-      })
-    }
-    return null
   }
 }
