@@ -153,6 +153,9 @@ const requestBodySchemas: Record<string, JsonSchema> = {
   }),
   'patch /api/v1/super-admin/ai-config': bodySchema({
     isEnabled: { type: 'boolean', example: true },
+    chatProvider: { type: 'string', example: 'openai' },
+    chatModel: { type: 'string', example: 'gpt-4o-mini' },
+    summaryModel: { type: 'string', example: 'gpt-4o-mini' },
     modelName: { type: 'string', example: 'gpt-4o-mini' },
     temperature: { type: 'number', example: 0.2 },
     campaignAttributionWindowHours: { type: 'integer', example: 48 },
@@ -166,7 +169,13 @@ const requestBodySchemas: Record<string, JsonSchema> = {
     },
     workingSetSize: { type: 'integer', example: 6 },
     summaryTurnThreshold: { type: 'integer', example: 10 },
+    embeddingProvider: { type: 'string', example: 'openai' },
     embeddingModel: { type: 'string', example: 'text-embedding-3-small' },
+    activeEmbeddingSpaceId: {
+      type: 'string',
+      example: 'openai:text-embedding-3-small:1024:v1',
+    },
+    maxOutputTokens: { type: 'integer', example: 1024 },
   }),
   'post /api/v1/ai/knowledge-documents': bodySchema(
     {

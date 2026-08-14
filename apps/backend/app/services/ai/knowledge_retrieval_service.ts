@@ -1,9 +1,10 @@
 import app from '@adonisjs/core/services/app'
 import db from '@adonisjs/lucid/services/db'
 import { AiKnowledgeChunkRepository } from '#repositories/ai_knowledge_chunk_repository'
-import { LlmProvider } from '#services/ai/contracts/llm_provider'
+import { EmbeddingLlmProvider } from '#services/ai/contracts/llm_provider'
 import type { RerankerService } from '#services/ai/contracts/reranker_service'
 import PassthroughRerankerService from '#services/ai/drivers/passthrough_reranker_service'
+import { DEFAULT_EMBEDDING_SPACE_ID } from '#services/ai/embedding_space'
 import PlatformAiConfigService from '#services/ai/platform_ai_config_service'
 import { runWithTenant } from '#services/tenant_context'
 
@@ -38,7 +39,7 @@ export type KnowledgeRetrievalResult = {
 export default class KnowledgeRetrievalService {
   constructor(
     private chunks: AiKnowledgeChunkRepository = new AiKnowledgeChunkRepository(),
-    private llm?: LlmProvider,
+    private llm?: EmbeddingLlmProvider,
     private platform?: PlatformAiConfigService,
     private reranker: RerankerService = new PassthroughRerankerService()
   ) {}
@@ -73,6 +74,7 @@ export default class KnowledgeRetrievalService {
         organizationId: params.organizationId,
         embedding,
         limit: topK,
+        embeddingSpaceId: config.activeEmbeddingSpaceId ?? DEFAULT_EMBEDDING_SPACE_ID,
       })
     )
 
@@ -151,9 +153,9 @@ export default class KnowledgeRetrievalService {
     }
   }
 
-  async #llmProvider(): Promise<LlmProvider> {
+  async #llmProvider(): Promise<EmbeddingLlmProvider> {
     if (this.llm) return this.llm
-    return app.container.make(LlmProvider)
+    return app.container.make(EmbeddingLlmProvider)
   }
 
   async #platformConfig() {

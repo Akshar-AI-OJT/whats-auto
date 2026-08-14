@@ -10,6 +10,7 @@ import { createCampaignRecoveryHandler } from '#services/job_queue/handlers/camp
 import { createAiProcessDocumentHandler } from '#services/job_queue/handlers/ai_process_document_handler'
 import { createAiDebounceTurnHandler } from '#services/job_queue/handlers/ai_debounce_turn_handler'
 import { createAiSummarizeConversationHandler } from '#services/job_queue/handlers/ai_summarize_conversation_handler'
+import { createAiReindexAllDocumentsHandler } from '#services/job_queue/handlers/ai_reindex_all_documents_handler'
 
 /**
  * Register all worker handlers on the single BullMQ driver.
@@ -28,4 +29,5 @@ export async function registerJobHandlers(driver: JobQueueDriver): Promise<void>
   await driver.work(JOB_NAMES.AI_PROCESS_DOCUMENT, createAiProcessDocumentHandler())
   await driver.work(JOB_NAMES.AI_DEBOUNCE_TURN, createAiDebounceTurnHandler())
   await driver.work(JOB_NAMES.AI_SUMMARIZE_CONVERSATION, createAiSummarizeConversationHandler())
+  await driver.work(JOB_NAMES.AI_REINDEX_ALL_DOCUMENTS, createAiReindexAllDocumentsHandler())
 }

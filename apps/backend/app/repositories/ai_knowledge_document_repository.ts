@@ -137,6 +137,35 @@ export class AiKnowledgeDocumentRepository {
 
     return row ? mapRow(row) : null
   }
+
+  /**
+   * Cross-tenant INDEXED documents. FORCE RLS would hide rows without a tenant GUC.
+   */
+  async listIndexedForReindex(): Promise<Array<{ organizationId: string; documentId: string }>> {
+    const result = await db.rawQuery('SELECT * FROM list_ai_knowledge_documents_for_reindex()')
+    return mapReindexRows(result)
+  }
+
+  async listIndexedMissingSpace(
+    spaceId: string
+  ): Promise<Array<{ organizationId: string; documentId: string }>> {
+    const result = await db.rawQuery('SELECT * FROM list_ai_knowledge_documents_missing_space(?)', [
+      spaceId,
+    ])
+    return mapReindexRows(result)
+  }
+}
+
+function mapReindexRows(result: { rows?: unknown } | unknown): Array<{
+  organizationId: string
+  documentId: string
+}> {
+  const rows = ((result as { rows?: unknown }).rows ?? result) as Array<Record<string, unknown>>
+  if (!Array.isArray(rows)) return []
+  return rows.map((row) => ({
+    organizationId: String(row.organizationId),
+    documentId: String(row.id),
+  }))
 }
 
 function mapRow(row: Record<string, unknown>): AiKnowledgeDocumentRow {

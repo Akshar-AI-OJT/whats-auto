@@ -4,7 +4,7 @@ import { ConversationAiRepository } from '#repositories/conversation_ai_reposito
 import { MemoryWorkingSetRepository } from '#repositories/memory_working_set_repository'
 import type { SummarizeConversationJobPayload } from '#services/ai/contracts/ai_job_payloads'
 import type { MemoryTurn } from '#services/ai/contracts/memory_working_set_service'
-import { LlmProvider } from '#services/ai/contracts/llm_provider'
+import { ChatLlmProvider } from '#services/ai/contracts/llm_provider'
 import { MemoryWorkingSetService } from '#services/ai/contracts/memory_working_set_service'
 import PlatformAiConfigService from '#services/ai/platform_ai_config_service'
 import JobQueueManager from '#services/job_queue/job_queue_manager'
@@ -13,6 +13,8 @@ import { runWithTenant } from '#services/tenant_context'
 
 export const DEFAULT_SUMMARY_SYSTEM_PROMPT =
   'Summarize this WhatsApp conversation for a future assistant. Keep names, intents, facts, and open questions. Be concise. Do not greet or offer help.'
+
+export const SUMMARY_COMPLETION_TEMPERATURE = 0.1
 
 export type ScheduleSummaryInput = {
   organizationId: string
@@ -30,7 +32,7 @@ export default class AiConversationSummaryService {
     private conversations: ConversationAiRepository = new ConversationAiRepository(),
     private turns: MemoryWorkingSetRepository = new MemoryWorkingSetRepository(),
     private memory?: MemoryWorkingSetService,
-    private llm?: LlmProvider,
+    private llm?: ChatLlmProvider,
     private queue?: JobQueueManager
   ) {}
 
@@ -105,10 +107,11 @@ export default class AiConversationSummaryService {
     if (recent.length === 0 && !previous) return { outcome: 'skipped', reason: 'empty' }
 
     if (!this.llm) await this.platform.assertLlmReady()
-    const llm = this.llm ?? (await app.container.make(LlmProvider))
+    const llm = this.llm ?? (await app.container.make(ChatLlmProvider))
     const completion = await llm.generateCompletion({
-      model: config.modelName,
-      temperature: config.temperature,
+      model: config.summaryModel ?? config.chatModel,
+      temperature: SUMMARY_COMPLETION_TEMPERATURE,
+      maxTokens: config.maxOutputTokens,
       systemPrompt: DEFAULT_SUMMARY_SYSTEM_PROMPT,
       userPrompt: buildSummaryPrompt({ previous, turns: recent }),
     })

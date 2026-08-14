@@ -24,3 +24,9 @@ export interface SummarizeConversationJobPayload {
   conversationId: string
   triggerReason: 'turn_count_threshold' | 'inactivity_window'
 }
+
+/** Platform-wide; the worker reads pending fields from platform_ai_configs. */
+export interface ReindexAllDocumentsJobPayload {
+  fromSpaceId?: string
+  toSpaceId?: string
+}

@@ -1,8 +1,13 @@
 import { randomUUID } from 'node:crypto'
 import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
+import {
+  assertEmbeddingDimensions,
+  DEFAULT_EMBEDDING_SPACE_ID,
+  KNOWLEDGE_EMBEDDING_DIMENSIONS,
+} from '#services/ai/embedding_space'
 
-export const KNOWLEDGE_EMBEDDING_DIMENSIONS = 1536
+export { KNOWLEDGE_EMBEDDING_DIMENSIONS, DEFAULT_EMBEDDING_SPACE_ID }
 
 export type AiKnowledgeChunkHashRow = {
   id: string
@@ -26,6 +31,7 @@ export type InsertKnowledgeChunkParams = {
   contentHash: string
   content: string
   embedding: number[]
+  embeddingSpaceId?: string
   metadata?: Record<string, unknown> | null
 }
 
@@ -33,15 +39,17 @@ type Db = typeof db | TransactionClientContract
 
 export class AiKnowledgeChunkRepository {
   async listHashesForDocument(
-    params: { organizationId: string; documentId: string },
+    params: { organizationId: string; documentId: string; embeddingSpaceId?: string },
     client: Db = db
   ): Promise<AiKnowledgeChunkHashRow[]> {
-    const rows = await client
+    const query = client
       .from('ai_knowledge_chunks')
       .where('organizationId', params.organizationId)
       .where('documentId', params.documentId)
-      .orderBy('chunkIndex', 'asc')
-      .select('id', 'contentHash', 'chunkIndex')
+    if (params.embeddingSpaceId) {
+      query.where('embeddingSpaceId', params.embeddingSpaceId)
+    }
+    const rows = await query.orderBy('chunkIndex', 'asc').select('id', 'contentHash', 'chunkIndex')
 
     return rows.map((row: Record<string, unknown>) => ({
       id: row.id as string,
@@ -60,6 +68,7 @@ export class AiKnowledgeChunkRepository {
         contentHash: row.contentHash,
         content: row.content,
         metadata: row.metadata ?? null,
+        embeddingSpaceId: row.embeddingSpaceId ?? DEFAULT_EMBEDDING_SPACE_ID,
         embedding: client.raw('?::vector', [toVectorLiteral(row.embedding)]),
       })
     }
@@ -78,12 +87,40 @@ export class AiKnowledgeChunkRepository {
       .delete()
   }
 
+  async deleteByDocumentSpace(
+    params: { organizationId: string; documentId: string; embeddingSpaceId: string },
+    client: Db = db
+  ): Promise<void> {
+    await client
+      .from('ai_knowledge_chunks')
+      .where('organizationId', params.organizationId)
+      .where('documentId', params.documentId)
+      .where('embeddingSpaceId', params.embeddingSpaceId)
+      .delete()
+  }
+
+  /**
+   * Cross-tenant GC. FORCE RLS would hide rows without a tenant GUC.
+   */
+  async deleteAllInSpace(spaceId: string): Promise<number> {
+    const result = await db.rawQuery('SELECT delete_ai_knowledge_chunks_in_space(?) AS total', [
+      spaceId,
+    ])
+    const rows = (result.rows ?? result) as Array<{ total: string | number }>
+    return Number(rows[0]?.total ?? 0)
+  }
+
   /**
    * Org-scoped cosine search. Callers must run inside runWithTenant.
    * Score is 1 - cosine distance (higher is closer).
    */
   async searchByEmbedding(
-    params: { organizationId: string; embedding: number[]; limit: number },
+    params: {
+      organizationId: string
+      embedding: number[]
+      limit: number
+      embeddingSpaceId: string
+    },
     client: Db = db
   ): Promise<KnowledgeChunkSearchHit[]> {
     if (params.limit <= 0) return []
@@ -102,9 +139,17 @@ export class AiKnowledgeChunkRepository {
        WHERE c."organizationId" = ?
          AND d."organizationId" = ?
          AND d.status = 'INDEXED'
+         AND c."embeddingSpaceId" = ?
        ORDER BY c.embedding <=> ?::vector
        LIMIT ?`,
-      [literal, params.organizationId, params.organizationId, literal, params.limit]
+      [
+        literal,
+        params.organizationId,
+        params.organizationId,
+        params.embeddingSpaceId,
+        literal,
+        params.limit,
+      ]
     )
 
     const rows = (result.rows ?? result) as Array<Record<string, unknown>>
@@ -136,11 +181,6 @@ export class AiKnowledgeChunkRepository {
 }
 
 export function toVectorLiteral(values: number[]): string {
-  if (values.length !== KNOWLEDGE_EMBEDDING_DIMENSIONS) {
-    throw new Error(`Embedding must have ${KNOWLEDGE_EMBEDDING_DIMENSIONS} dimensions`)
-  }
-  if (values.some((value) => !Number.isFinite(value))) {
-    throw new Error('Embedding contains a non-finite value')
-  }
+  assertEmbeddingDimensions(values)
   return `[${values.join(',')}]`
 }
