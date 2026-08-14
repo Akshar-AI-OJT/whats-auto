@@ -15,6 +15,8 @@ import type KnowledgeRetrievalService from '#services/ai/knowledge_retrieval_ser
 import type PlatformAiConfigService from '#services/ai/platform_ai_config_service'
 import WhatsappOutboundException from '#exceptions/whatsapp_outbound_exception'
 import type WhatsappOutboundService from '#services/whatsapp_outbound_service'
+import AiAnswerCacheService from '#services/ai/ai_answer_cache_service'
+import { DEFAULT_EMBEDDING_SPACE_ID } from '#services/ai/embedding_space'
 
 const ORG = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const CONV = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
@@ -38,11 +40,17 @@ function createTurn(params: {
   useHub?: boolean
   aiSummary?: string | null
   summaryError?: boolean
+  chatModel?: string
+  maxOutputTokens?: number
+  temperature?: number
+  answers?: AiAnswerCacheService
+  activeEmbeddingSpaceId?: string
 }) {
   const usage: unknown[] = []
   const handovers: string[] = []
   const queued: string[] = []
   const scheduled: string[] = []
+  const retrieveCalls: string[] = []
   const sse: InboxAiSseEvent[] = []
   const llm = new FakeLlmProvider()
   llm.text = 'We open at 9.'
@@ -83,7 +91,8 @@ function createTurn(params: {
   } as unknown as AiUsageLogRepository
 
   const retrieval = {
-    async retrieve() {
+    async retrieve(input: { query: string }) {
+      retrieveCalls.push(input.query)
       return {
         chunks: params.meetsMinConfidence === false ? [] : [{ content: 'Hours 9-5', score: 0.9 }],
         maxScore: params.maxScore ?? (params.meetsMinConfidence === false ? 0 : 0.9),
@@ -98,10 +107,12 @@ function createTurn(params: {
     async get() {
       return {
         isEnabled: params.isEnabled ?? true,
-        modelName: 'gpt-4o-mini',
-        temperature: 0.2,
+        chatModel: params.chatModel ?? 'gpt-4o-mini',
+        temperature: params.temperature ?? 0.2,
+        maxOutputTokens: params.maxOutputTokens ?? 1024,
         systemPrompt: 'Be brief.',
         handoverKeywords: params.keywords ?? [],
+        activeEmbeddingSpaceId: params.activeEmbeddingSpaceId ?? DEFAULT_EMBEDDING_SPACE_ID,
       }
     },
   } as unknown as PlatformAiConfigService
@@ -133,6 +144,7 @@ function createTurn(params: {
     handovers,
     queued,
     scheduled,
+    retrieveCalls,
     sse,
     service: new AiDebounceTurnService(
       debounce,
@@ -148,7 +160,8 @@ function createTurn(params: {
         : (_organizationId, event) => {
             sse.push(event)
           },
-      summary
+      summary,
+      params.answers
     ),
   }
 }
@@ -225,6 +238,9 @@ test.group('AiDebounceTurnService', () => {
     assert.include(llm.calls[0]!.userPrompt, 'What are your hours?')
     assert.include(llm.calls[0]!.userPrompt, 'July launch')
     assert.include(llm.calls[0]!.userPrompt, 'Customer asked about store hours last week.')
+    assert.equal(llm.calls[0]!.model, 'gpt-4o-mini')
+    assert.equal(llm.calls[0]!.maxTokens, 1024)
+    assert.equal(llm.calls[0]!.temperature, 0.2)
     assert.deepEqual(queued, ['ai:We open at 9.'])
     assert.equal((usage[0] as { decision: string }).decision, AiUsageDecision.AUTO_REPLIED)
     assert.lengthOf(handovers, 0)
@@ -267,6 +283,18 @@ test.group('AiDebounceTurnService', () => {
     assert.deepEqual(queued, ['ai:We open at 9.'])
   })
 
+  test('streams with chatModel and maxOutputTokens from platform config', async ({ assert }) => {
+    const { service, llm } = createTurn({
+      chatModel: 'gpt-4o',
+      maxOutputTokens: 512,
+      temperature: 0.4,
+    })
+    await service.process(payload)
+    assert.equal(llm.calls[0]!.model, 'gpt-4o')
+    assert.equal(llm.calls[0]!.maxTokens, 512)
+    assert.equal(llm.calls[0]!.temperature, 0.4)
+  })
+
   test('default publisher fans out ai.* only to the conversation org', async ({ assert }) => {
     const forOrg: string[] = []
     const forOther: string[] = []
@@ -294,4 +322,123 @@ test.group('AiDebounceTurnService', () => {
       unsubOther()
     }
   })
+
+  test('cache hit skips retrieve and LLM, then queues the stored reply', async ({ assert }) => {
+    const answers = memoryAnswerCache()
+    await answers.set(
+      {
+        organizationId: ORG,
+        question: 'What are your hours?',
+        embeddingSpaceId: DEFAULT_EMBEDDING_SPACE_ID,
+      },
+      'We open at 9.'
+    )
+    const { service, llm, queued, retrieveCalls, usage, sse, scheduled } = createTurn({ answers })
+    const result = await service.process(payload)
+    assert.equal(result.outcome, 'auto_replied')
+    assert.equal(result.decision, AiUsageDecision.AUTO_REPLIED)
+    assert.lengthOf(retrieveCalls, 0)
+    assert.lengthOf(llm.calls, 0)
+    assert.deepEqual(queued, ['ai:We open at 9.'])
+    assert.equal((usage[0] as { decision: string }).decision, AiUsageDecision.AUTO_REPLIED)
+    assert.deepEqual(
+      sse.map((event) => event.type),
+      ['ai.generation.started', 'ai.generation.completed']
+    )
+    assert.deepEqual(scheduled, [CONV])
+  })
+
+  test('AUTO_REPLIED miss writes the cache; a second identical question hits', async ({
+    assert,
+  }) => {
+    const answers = memoryAnswerCache()
+    const first = createTurn({ answers })
+    const firstResult = await first.service.process(payload)
+    assert.equal(firstResult.outcome, 'auto_replied')
+    assert.lengthOf(first.retrieveCalls, 1)
+    assert.lengthOf(first.llm.calls, 1)
+
+    const second = createTurn({ answers })
+    const secondResult = await second.service.process(payload)
+    assert.equal(secondResult.outcome, 'auto_replied')
+    assert.lengthOf(second.retrieveCalls, 0)
+    assert.lengthOf(second.llm.calls, 0)
+    assert.deepEqual(second.queued, ['ai:We open at 9.'])
+  })
+
+  test('keyword handover does not read or write the answer cache', async ({ assert }) => {
+    const answers = memoryAnswerCache()
+    await answers.set(
+      {
+        organizationId: ORG,
+        question: 'I want an agent',
+        embeddingSpaceId: DEFAULT_EMBEDDING_SPACE_ID,
+      },
+      'We open at 9.'
+    )
+    const { service, llm, queued, retrieveCalls } = createTurn({
+      answers,
+      keywords: ['agent'],
+      buffered: [
+        { messageId: 'in-1', content: 'I want an agent', receivedAt: '2026-08-11T12:00:00.000Z' },
+      ],
+    })
+    const result = await service.process(payload)
+    assert.equal(result.outcome, 'handover')
+    assert.lengthOf(llm.calls, 0)
+    assert.lengthOf(retrieveCalls, 0)
+    assert.lengthOf(queued, 0)
+    assert.equal(
+      await answers.get({
+        organizationId: ORG,
+        question: 'I want an agent',
+        embeddingSpaceId: DEFAULT_EMBEDDING_SPACE_ID,
+      }),
+      'We open at 9.'
+    )
+  })
+
+  test('low-confidence handover does not write the answer cache', async ({ assert }) => {
+    const answers = memoryAnswerCache()
+    const { service } = createTurn({ answers, meetsMinConfidence: false, maxScore: 0 })
+    await service.process(payload)
+    assert.isNull(
+      await answers.get({
+        organizationId: ORG,
+        question: 'What are your hours?',
+        embeddingSpaceId: DEFAULT_EMBEDDING_SPACE_ID,
+      })
+    )
+  })
+
+  test('cache miss in another embedding space still retrieves', async ({ assert }) => {
+    const answers = memoryAnswerCache()
+    await answers.set(
+      {
+        organizationId: ORG,
+        question: 'What are your hours?',
+        embeddingSpaceId: DEFAULT_EMBEDDING_SPACE_ID,
+      },
+      'We open at 9.'
+    )
+    const { service, llm, retrieveCalls } = createTurn({
+      answers,
+      activeEmbeddingSpaceId: 'mistral:mistral-embed:1024:v1',
+    })
+    await service.process(payload)
+    assert.lengthOf(retrieveCalls, 1)
+    assert.lengthOf(llm.calls, 1)
+  })
 })
+
+function memoryAnswerCache(): AiAnswerCacheService {
+  const values = new Map<string, string>()
+  return new AiAnswerCacheService({
+    async get(key: string) {
+      return values.get(key) ?? null
+    },
+    async set(key: string, value: string) {
+      values.set(key, value)
+    },
+  } as never)
+}

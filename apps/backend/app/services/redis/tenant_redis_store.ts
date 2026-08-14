@@ -3,8 +3,8 @@ import { createRedisConnection } from '#lib/redis/create_redis_connection'
 import { assertTenantRedisKey } from '#lib/redis/tenant_redis_keys'
 
 /**
- * List/TTL helper for AI debounce and memory working-set.
- * Callers must pass keys from tenantRedisKey() — other prefixes are rejected.
+ * List/TTL/string helper for AI debounce, memory working-set, and exact answer cache.
+ * Callers must pass keys from tenantRedisKey() or tenantAnswerCacheKey() — other prefixes are rejected.
  */
 export default class TenantRedisStore {
   #client: Redis | null = null
@@ -46,6 +46,22 @@ export default class TenantRedisStore {
     const results = await client.multi().lrange(key, 0, -1).del(key).exec()
     const range = results?.[0]?.[1]
     return Array.isArray(range) ? (range as string[]) : []
+  }
+
+  async get(key: string): Promise<string | null> {
+    assertTenantRedisKey(key)
+    const client = await this.#connect()
+    return client.get(key)
+  }
+
+  async set(key: string, value: string, ttlSeconds?: number): Promise<void> {
+    assertTenantRedisKey(key)
+    const client = await this.#connect()
+    if (ttlSeconds === undefined) {
+      await client.set(key, value)
+      return
+    }
+    await client.set(key, value, 'EX', ttlSeconds)
   }
 
   async expire(key: string, ttlSeconds: number): Promise<void> {
