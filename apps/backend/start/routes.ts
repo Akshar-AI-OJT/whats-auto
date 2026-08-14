@@ -18,6 +18,7 @@ const AuthController = () => import('#controllers/auth_controller')
 const PreSignupController = () => import('#controllers/pre_signup_controller')
 const VerifySignupController = () => import('#controllers/verify_signup_controller')
 const ContactsController = () => import('#controllers/contacts_controller')
+const TagsController = () => import('#controllers/tags_controller')
 const CampaignsController = () => import('#controllers/campaigns_controller')
 const ConversationsController = () => import('#controllers/conversations_controller')
 const OrganizationsController = () => import('#controllers/organizations_controller')
@@ -165,6 +166,20 @@ const requestBodySchemas: Record<string, JsonSchema> = {
   ),
   'post /api/v1/contacts': bodySchema({ phone: { type: 'string', example: '+919876543210' } }, [
     'phone',
+  ]),
+  'post /api/v1/tags': bodySchema(
+    {
+      name: { type: 'string', example: 'VIP' },
+      color: { type: 'string', example: '#22C55E', nullable: true },
+    },
+    ['name']
+  ),
+  'patch /api/v1/tags/{id}': bodySchema({
+    name: { type: 'string', example: 'Wholesale' },
+    color: { type: 'string', example: '#000000', nullable: true },
+  }),
+  'post /api/v1/tags/{id}/contacts': bodySchema({ contactId: { type: 'string', format: 'uuid' } }, [
+    'contactId',
   ]),
   'post /api/v1/campaigns': bodySchema(
     {
@@ -599,6 +614,37 @@ router
       .use(middleware.requirePermission({ permission: 'contacts:create' }))
   })
   .prefix('/api/v1/contacts')
+  .use([middleware.jwtAuth(), middleware.tenant()])
+
+// contact tags — grouping via existing tags / contact_tags tables
+router
+  .group(() => {
+    router
+      .get('/', [TagsController, 'index'])
+      .use(middleware.requirePermission({ permission: 'contacts:view' }))
+    router
+      .post('/', [TagsController, 'store'])
+      .use(middleware.requirePermission({ permission: 'contacts:create' }))
+    router
+      .get('/:id/contacts', [TagsController, 'contacts'])
+      .use(middleware.requirePermission({ permission: 'contacts:view' }))
+    router
+      .post('/:id/contacts', [TagsController, 'assignContact'])
+      .use(middleware.requirePermission({ permission: 'contacts:edit' }))
+    router
+      .delete('/:id/contacts/:contactId', [TagsController, 'removeContact'])
+      .use(middleware.requirePermission({ permission: 'contacts:edit' }))
+    router
+      .get('/:id', [TagsController, 'show'])
+      .use(middleware.requirePermission({ permission: 'contacts:view' }))
+    router
+      .patch('/:id', [TagsController, 'update'])
+      .use(middleware.requirePermission({ permission: 'contacts:edit' }))
+    router
+      .delete('/:id', [TagsController, 'destroy'])
+      .use(middleware.requirePermission({ permission: 'contacts:delete' }))
+  })
+  .prefix('/api/v1/tags')
   .use([middleware.jwtAuth(), middleware.tenant()])
 
 // media uploads — direct-to-S3 pending → ready lifecycle + Media Library
