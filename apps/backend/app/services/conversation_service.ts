@@ -26,6 +26,8 @@ export type ConversationRecord = {
   firstResponseAt: string | null
   closedAt: string | null
   unreadCount: number
+  aiMode: string
+  aiHandoverReason: string | null
   createdAt: string
   updatedAt: string | null
 }
@@ -51,12 +53,14 @@ const CONVERSATION_COLUMNS = [
   'firstResponseAt',
   'closedAt',
   'unreadCount',
+  'aiMode',
+  'aiHandoverReason',
   'createdAt',
   'updatedAt',
 ] as const
 
 function toIso(value: unknown): string | null {
-  if (value == null) return null
+  if (value === null) return null
   if (value instanceof Date) return value.toISOString()
   return String(value)
 }
@@ -74,6 +78,8 @@ function mapConversationRow(r: Record<string, unknown>): ConversationRecord {
     firstResponseAt: toIso(r.firstResponseAt),
     closedAt: toIso(r.closedAt),
     unreadCount: Number(r.unreadCount ?? 0),
+    aiMode: (r.aiMode as string) || 'AI_AUTO',
+    aiHandoverReason: (r.aiHandoverReason as string | null) ?? null,
     createdAt: toIso(r.createdAt) as string,
     updatedAt: toIso(r.updatedAt),
   }
@@ -157,6 +163,8 @@ export class ConversationService {
         'c.firstResponseAt',
         'c.closedAt',
         'c.unreadCount',
+        'c.aiMode',
+        'c.aiHandoverReason',
         'c.createdAt',
         'c.updatedAt',
         'ct.id as contactId',
@@ -468,10 +476,7 @@ export class ConversationService {
     return mapConversationRow(row)
   }
 
-  private async findConversationOrFail(params: {
-    organizationId: string
-    conversationId: string
-  }) {
+  private async findConversationOrFail(params: { organizationId: string; conversationId: string }) {
     const row = await db
       .from('conversations')
       .where('id', params.conversationId)
@@ -507,6 +512,8 @@ export class ConversationService {
         'c.firstResponseAt',
         'c.closedAt',
         'c.unreadCount',
+        'c.aiMode',
+        'c.aiHandoverReason',
         'c.createdAt',
         'c.updatedAt',
         'ct.id as contactId',

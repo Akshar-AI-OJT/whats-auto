@@ -8,7 +8,7 @@
 | (same as web/test).
 |
 | Usage:
-|   JOB_QUEUE_WORKER=1 JOB_QUEUE_DRIVER=pgboss node --import=tsx bin/worker.ts
+|   JOB_QUEUE_WORKER=1 JOB_QUEUE_DRIVER=bullmq REDIS_URL=redis://127.0.0.1:6379 node --import=tsx bin/worker.ts
 |   or after build: JOB_QUEUE_WORKER=1 node build/bin/worker.js
 |
 */
@@ -58,6 +58,7 @@ try {
     MEDIA_PENDING_UPLOAD_CLEANUP_CRON,
     MEDIA_STORAGE_LIFECYCLE_CRON,
     CAMPAIGN_RECOVERY_CRON,
+    BILLING_PAYMENT_WEBHOOK_RECOVERY_CRON,
   } = await import('#services/job_queue/job_names')
   if (typeof driver.schedule === 'function') {
     await driver.schedule(
@@ -99,6 +100,19 @@ try {
       { key: 'campaign-recovery' }
     )
     logger.info({ cron: CAMPAIGN_RECOVERY_CRON }, 'job_queue.campaign_recovery.scheduled')
+
+    // Billing recovery: sweep payment_webhook_events rows stuck in pending/failed.
+    // Empty payload — handler calls processNextDue() when webhookEventId is absent.
+    await driver.schedule(
+      JOB_NAMES.BILLING_PAYMENT_WEBHOOK_PROCESS,
+      BILLING_PAYMENT_WEBHOOK_RECOVERY_CRON,
+      {},
+      { key: 'billing-webhook-recovery' }
+    )
+    logger.info(
+      { cron: BILLING_PAYMENT_WEBHOOK_RECOVERY_CRON },
+      'job_queue.billing_webhook_recovery.scheduled'
+    )
   }
 
   const driverName = app.config.get('job_queue.default')

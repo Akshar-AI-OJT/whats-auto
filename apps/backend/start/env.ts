@@ -62,9 +62,15 @@ export default await Env.create(new URL('../', import.meta.url), {
 
   META_GRAPH_API_VERSION: Env.schema.string(),
 
-  // Job queue (pgboss | null; redis reserved for a future driver)
-  JOB_QUEUE_DRIVER: Env.schema.enum.optional(['pgboss', 'null'] as const),
-  JOB_QUEUE_PGBOSS_SCHEMA: Env.schema.string.optional(),
+  // Secrets only — model/debounce knobs live on platform_ai_configs.
+  OPENAI_API_KEY: Env.schema.string.optional(),
+  LLM_DRIVER: Env.schema.enum.optional(['openai', 'fake'] as const),
+
+  // Job queue — all jobs run on BullMQ (or null in tests). REDIS_URL required when driver=bullmq.
+  JOB_QUEUE_DRIVER: Env.schema.enum.optional(['bullmq', 'null'] as const),
+  JOB_QUEUE_BULLMQ_PREFIX: Env.schema.string.optional(),
+  // Keep optional so NODE_ENV=test with null driver still boots; config asserts when bullmq.
+  REDIS_URL: Env.schema.string.optional(),
 
   // Comma-separated hostnames allowed for outbound media public URLs (optional)
   OUTBOUND_MEDIA_ALLOWED_HOSTS: Env.schema.string.optional(),

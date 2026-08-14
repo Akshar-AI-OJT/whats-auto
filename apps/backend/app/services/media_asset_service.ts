@@ -217,6 +217,7 @@ export class MediaAssetService {
     fileName: string
     mimeType: string
     fileSize: number
+    namespace?: StorageNamespace
   }): Promise<InitiateUploadResult> {
     const mimeType = normalizeMimeType(params.mimeType)
     const mediaType = tenantOutboundMediaTypeForMime(mimeType)
@@ -229,7 +230,7 @@ export class MediaAssetService {
 
     const assetId = randomUUID()
     const storageObjectId = randomUUID()
-    const namespace = StorageNamespace.MediaLibrary
+    const namespace = params.namespace ?? StorageNamespace.MediaLibrary
     const keyVersion = 2
     const storageKey = buildOrganizationStorageKey({
       organizationId: params.organizationId,

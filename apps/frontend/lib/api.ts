@@ -304,7 +304,22 @@ export type InboxConversation = {
   unreadCount: number
   createdAt: string
   updatedAt?: string | null
+  aiMode?: InboxAiMode | string
+  aiHandoverReason?: string | null
   contact: InboxConversationContact
+}
+
+export type InboxAiMode = 'AI_AUTO' | 'HANDOVER' | 'HUMAN_ACTIVE'
+
+export type InboxAiHandoverReason =
+  | 'low_confidence'
+  | 'keyword_match'
+  | 'business_exception'
+
+export type InboxAiModePatch = {
+  id: string
+  aiMode: InboxAiMode | string
+  aiHandoverReason: string | null
 }
 
 export type CreateInboxConversationBody = {
@@ -870,6 +885,83 @@ export type CreateSuperAdminSubscriptionBody = {
   cancelAt?: string
 }
 
+/** Row from GET /api/v1/super-admin/ai-config (no API keys). */
+export type PlatformAiConfig = {
+  id: string
+  isEnabled: boolean
+  modelName: string
+  temperature: number
+  campaignAttributionWindowHours: number
+  minConfidenceScore: number
+  debounceDelaySeconds: number
+  systemPrompt: string | null
+  handoverKeywords: string[]
+  workingSetSize: number
+  summaryTurnThreshold: number
+  embeddingModel: string
+  updatedByUserId: string | null
+  createdAt: string
+  updatedAt: string | null
+}
+
+export type UpdatePlatformAiConfigBody = {
+  isEnabled?: boolean
+  modelName?: string
+  temperature?: number
+  campaignAttributionWindowHours?: number
+  minConfidenceScore?: number
+  debounceDelaySeconds?: number
+  systemPrompt?: string | null
+  handoverKeywords?: string[]
+  workingSetSize?: number
+  summaryTurnThreshold?: number
+  embeddingModel?: string
+}
+
+export type KnowledgeDocumentStatus = 'PENDING' | 'PROCESSING' | 'INDEXED' | 'FAILED'
+
+export type KnowledgeDocumentSourceType = 'FILE_PDF' | 'FILE_DOCX' | 'FILE_TXT'
+
+export type KnowledgeDocument = {
+  id: string
+  title: string
+  sourceType: KnowledgeDocumentSourceType | string
+  status: KnowledgeDocumentStatus | string
+  chunkCount: number
+  mediaAssetId: string | null
+  embeddingModel: string
+  documentHash: string | null
+  errorMessage: string | null
+  createdAt: string
+  updatedAt: string | null
+}
+
+export type ListKnowledgeDocumentsParams = {
+  page?: number
+  perPage?: number
+  status?: KnowledgeDocumentStatus
+}
+
+export type CreateKnowledgeDocumentBody = {
+  title: string
+  sourceType: 'FILE_PDF' | 'FILE_DOCX' | 'FILE_TXT'
+  fileName: string
+  mimeType: string
+  fileSize: number
+}
+
+export type KnowledgeDocumentPresignedUpload = {
+  method: 'PUT'
+  url: string
+  headers: Record<string, string>
+  expiresInSeconds: number
+}
+
+export type CreateKnowledgeDocumentResult = {
+  document: KnowledgeDocument
+  upload?: KnowledgeDocumentPresignedUpload
+}
+
 export type UpdateSuperAdminSubscriptionBody = {
   planId?: string
   status?: SuperAdminSubscriptionStatus
@@ -1156,6 +1248,18 @@ export const api = {
           body: JSON.stringify(body),
         }
       ),
+
+    takeoverAi: (conversationId: string) =>
+      protectedRequest<{ data?: InboxAiModePatch } & InboxAiModePatch>(
+        `/api/v1/inbox/conversations/${conversationId}/ai/takeover`,
+        { method: 'POST' }
+      ),
+
+    resumeAi: (conversationId: string) =>
+      protectedRequest<{ data?: InboxAiModePatch } & InboxAiModePatch>(
+        `/api/v1/inbox/conversations/${conversationId}/ai/resume`,
+        { method: 'POST' }
+      ),
   },
 
   notifications: {
@@ -1267,6 +1371,48 @@ export const api = {
     deleteTemplate: (templateId: string) =>
       protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
         `/api/v1/whatsapp/templates/${templateId}`,
+        { method: 'DELETE' }
+      ),
+  },
+
+  knowledgeDocuments: {
+    list: (params: ListKnowledgeDocumentsParams = {}) => {
+      const qs = new URLSearchParams()
+      if (params.page != null) qs.set('page', String(params.page))
+      if (params.perPage != null) qs.set('perPage', String(params.perPage))
+      if (params.status) qs.set('status', params.status)
+      const query = qs.toString()
+      return protectedRequest<
+        | Paginated<KnowledgeDocument>
+        | { data?: KnowledgeDocument[]; meta?: PaginationMeta }
+        | { data?: { data?: KnowledgeDocument[]; meta?: PaginationMeta } }
+      >(`/api/v1/ai/knowledge-documents${query ? `?${query}` : ''}`, { method: 'GET' })
+    },
+
+    get: (documentId: string) =>
+      protectedRequest<{ data?: KnowledgeDocument } & KnowledgeDocument>(
+        `/api/v1/ai/knowledge-documents/${documentId}`,
+        { method: 'GET' }
+      ),
+
+    create: (body: CreateKnowledgeDocumentBody) =>
+      protectedRequest<{ data?: CreateKnowledgeDocumentResult } & CreateKnowledgeDocumentResult>(
+        '/api/v1/ai/knowledge-documents',
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    completeUpload: (documentId: string) =>
+      protectedRequest<{ data?: KnowledgeDocument } & KnowledgeDocument>(
+        `/api/v1/ai/knowledge-documents/${documentId}/complete-upload`,
+        { method: 'POST' }
+      ),
+
+    delete: (documentId: string) =>
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/ai/knowledge-documents/${documentId}`,
         { method: 'DELETE' }
       ),
   },
@@ -1678,6 +1824,23 @@ export const api = {
         protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
           `/api/v1/super-admin/subscriptions/${subscriptionId}`,
           { method: 'DELETE' }
+        ),
+    },
+
+    aiConfig: {
+      get: () =>
+        protectedRequest<{ data?: PlatformAiConfig } & PlatformAiConfig>(
+          '/api/v1/super-admin/ai-config',
+          { method: 'GET' }
+        ),
+
+      update: (body: UpdatePlatformAiConfigBody) =>
+        protectedRequest<{ data?: PlatformAiConfig } & PlatformAiConfig>(
+          '/api/v1/super-admin/ai-config',
+          {
+            method: 'PATCH',
+            body: JSON.stringify(body),
+          }
         ),
     },
   },

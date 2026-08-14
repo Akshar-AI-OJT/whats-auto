@@ -38,6 +38,91 @@ export class AccountSchema extends BaseModel {
   declare userId: string
 }
 
+export class AiKnowledgeChunkSchema extends BaseModel {
+  static $columns = ['chunkIndex', 'content', 'contentHash', 'createdAt', 'documentId', 'embedding', 'id', 'metadata', 'organizationId', 'updatedAt'] as const
+  $columns = AiKnowledgeChunkSchema.$columns
+  @column()
+  declare chunkIndex: number
+  @column()
+  declare content: string
+  @column()
+  declare contentHash: string
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare documentId: string
+  @column()
+  declare embedding: any
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare metadata: any | null
+  @column()
+  declare organizationId: string
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+}
+
+export class AiKnowledgeDocumentSchema extends BaseModel {
+  static $columns = ['chunkCount', 'createdAt', 'documentHash', 'embeddingModel', 'errorMessage', 'id', 'mediaAssetId', 'organizationId', 'sourceType', 'status', 'title', 'updatedAt'] as const
+  $columns = AiKnowledgeDocumentSchema.$columns
+  @column()
+  declare chunkCount: number
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare documentHash: string | null
+  @column()
+  declare embeddingModel: string
+  @column()
+  declare errorMessage: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare mediaAssetId: string | null
+  @column()
+  declare organizationId: string
+  @column()
+  declare sourceType: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+}
+
+export class AiUsageLogSchema extends BaseModel {
+  static $columns = ['completionTokens', 'conversationId', 'createdAt', 'decision', 'estimatedCostUsd', 'id', 'latencyMs', 'messageId', 'modelName', 'organizationId', 'promptTokens', 'retrievalScore', 'totalTokens'] as const
+  $columns = AiUsageLogSchema.$columns
+  @column()
+  declare completionTokens: number
+  @column()
+  declare conversationId: string
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare decision: string
+  @column()
+  declare estimatedCostUsd: string
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare latencyMs: number
+  @column()
+  declare messageId: string | null
+  @column()
+  declare modelName: string
+  @column()
+  declare organizationId: string
+  @column()
+  declare promptTokens: number
+  @column()
+  declare retrievalScore: string | null
+  @column()
+  declare totalTokens: number
+}
+
 export class AuthorizationAuditSchema extends BaseModel {
   static $columns = ['actorUserId', 'after', 'before', 'createdAt', 'eventType', 'granted', 'id', 'organizationId', 'permissionId', 'reason', 'roleId', 'targetId', 'targetType'] as const
   $columns = AuthorizationAuditSchema.$columns
@@ -301,10 +386,18 @@ export class ConversationNoteSchema extends BaseModel {
 }
 
 export class ConversationSchema extends BaseModel {
-  static $columns = ['assignedAgentId', 'closedAt', 'contactId', 'createdAt', 'firstResponseAt', 'id', 'lastMessageAt', 'lastMessageText', 'organizationId', 'status', 'unreadCount', 'updatedAt', 'whatsappConfigId'] as const
+  static $columns = ['aiHandoverReason', 'aiMode', 'aiSummary', 'assignedAgentId', 'attributedCampaignId', 'closedAt', 'contactId', 'createdAt', 'firstResponseAt', 'id', 'lastMessageAt', 'lastMessageText', 'organizationId', 'status', 'unreadCount', 'updatedAt', 'whatsappConfigId'] as const
   $columns = ConversationSchema.$columns
   @column()
+  declare aiHandoverReason: string | null
+  @column()
+  declare aiMode: string
+  @column()
+  declare aiSummary: string | null
+  @column()
   declare assignedAgentId: string | null
+  @column()
+  declare attributedCampaignId: string | null
   @column.dateTime()
   declare closedAt: DateTime | null
   @column()
@@ -917,6 +1010,43 @@ export class PlanSchema extends BaseModel {
   declare trialDays: number
   @column.dateTime()
   declare updatedAt: DateTime | null
+}
+
+export class PlatformAiConfigSchema extends BaseModel {
+  static $columns = ['campaignAttributionWindowHours', 'createdAt', 'debounceDelaySeconds', 'embeddingModel', 'handoverKeywords', 'id', 'isEnabled', 'minConfidenceScore', 'modelName', 'singletonKey', 'summaryTurnThreshold', 'systemPrompt', 'temperature', 'updatedAt', 'updatedByUserId', 'workingSetSize'] as const
+  $columns = PlatformAiConfigSchema.$columns
+  @column()
+  declare campaignAttributionWindowHours: number
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare debounceDelaySeconds: number
+  @column()
+  declare embeddingModel: string
+  @column()
+  declare handoverKeywords: any
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare isEnabled: boolean
+  @column()
+  declare minConfidenceScore: string
+  @column()
+  declare modelName: string
+  @column()
+  declare singletonKey: string
+  @column()
+  declare summaryTurnThreshold: number
+  @column()
+  declare systemPrompt: string | null
+  @column()
+  declare temperature: string
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+  @column()
+  declare updatedByUserId: string | null
+  @column()
+  declare workingSetSize: number
 }
 
 export class RolePermissionSchema extends BaseModel {

@@ -9,6 +9,10 @@ export type InboxSseEventType =
   | 'message.sent'
   | 'message.failed'
   | 'status.updated'
+  | 'ai.generation.started'
+  | 'ai.token.delta'
+  | 'ai.generation.completed'
+  | 'ai.handover.triggered'
   | 'ping'
 
 export type InboxSseEvent = {

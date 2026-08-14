@@ -28,6 +28,7 @@ const SuperAdminOrganizationsController = () =>
   import('#controllers/super_admin_organizations_controller')
 const SuperAdminSubscriptionsController = () =>
   import('#controllers/super_admin_subscriptions_controller')
+const SuperAdminAiConfigController = () => import('#controllers/super_admin_ai_config_controller')
 const OrganizationAdminUsersController = () =>
   import('#controllers/organization_admin_users_controller')
 const WhatsappWebhookController = () => import('#controllers/whatsapp_webhook_controller')
@@ -36,9 +37,11 @@ const WhatsappEmbeddedSignupController = () =>
 const WhatsappConfigsController = () => import('#controllers/whatsapp_configs_controller')
 const MessageTemplatesController = () => import('#controllers/message_templates_controller')
 const MessagesController = () => import('#controllers/messages_controller')
+const ConversationAiController = () => import('#controllers/conversation_ai_controller')
 const ConversationNotesController = () => import('#controllers/conversation_notes_controller')
 const MediaUploadsController = () => import('#controllers/media_uploads_controller')
 const MediaAssetsController = () => import('#controllers/media_assets_controller')
+const KnowledgeDocumentsController = () => import('#controllers/knowledge_documents_controller')
 const BillingController = () => import('#controllers/billing_controller')
 const BillingRazorpayWebhookController = () =>
   import('#controllers/billing_razorpay_webhook_controller')
@@ -148,6 +151,37 @@ const requestBodySchemas: Record<string, JsonSchema> = {
     currentPeriodStart: { type: 'string', format: 'date-time' },
     currentPeriodEnd: { type: 'string', format: 'date-time' },
   }),
+  'patch /api/v1/super-admin/ai-config': bodySchema({
+    isEnabled: { type: 'boolean', example: true },
+    modelName: { type: 'string', example: 'gpt-4o-mini' },
+    temperature: { type: 'number', example: 0.2 },
+    campaignAttributionWindowHours: { type: 'integer', example: 48 },
+    minConfidenceScore: { type: 'number', example: 0.7 },
+    debounceDelaySeconds: { type: 'integer', example: 4 },
+    systemPrompt: { type: 'string', example: 'You are a grounded support agent.' },
+    handoverKeywords: {
+      type: 'array',
+      items: { type: 'string' },
+      example: ['agent', 'human', 'representative'],
+    },
+    workingSetSize: { type: 'integer', example: 6 },
+    summaryTurnThreshold: { type: 'integer', example: 10 },
+    embeddingModel: { type: 'string', example: 'text-embedding-3-small' },
+  }),
+  'post /api/v1/ai/knowledge-documents': bodySchema(
+    {
+      title: { type: 'string', example: 'Store hours' },
+      sourceType: {
+        type: 'string',
+        example: 'FILE_PDF',
+        enum: ['FILE_PDF', 'FILE_DOCX', 'FILE_TXT'],
+      },
+      fileName: { type: 'string', example: 'policy.pdf' },
+      mimeType: { type: 'string', example: 'application/pdf' },
+      fileSize: { type: 'integer', example: 12480 },
+    },
+    ['title', 'sourceType', 'fileName', 'mimeType', 'fileSize']
+  ),
   'post /api/v1/whatsapp/embedded-signup/complete': bodySchema(
     {
       code: { type: 'string', example: 'AQB...' },
@@ -479,6 +513,12 @@ router
     router
       .delete('/subscriptions/:id', [SuperAdminSubscriptionsController, 'softDelete'])
       .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
+    router
+      .get('/ai-config', [SuperAdminAiConfigController, 'show'])
+      .use(middleware.requirePermission({ permission: 'platform:config_view' }))
+    router
+      .patch('/ai-config', [SuperAdminAiConfigController, 'update'])
+      .use(middleware.requirePermission({ permission: 'platform:config_manage' }))
   })
   .prefix('/api/v1/super-admin')
   .use([middleware.jwtAuth(), middleware.platform()])
@@ -678,6 +718,28 @@ router
   .prefix('/api/v1/media')
   .use([middleware.jwtAuth(), middleware.tenant()])
 
+// AI knowledge base — files live in the knowledge_base S3 namespace
+router
+  .group(() => {
+    router
+      .get('/', [KnowledgeDocumentsController, 'index'])
+      .use(middleware.requirePermission({ permission: 'ai:kb_view' }))
+    router
+      .post('/', [KnowledgeDocumentsController, 'store'])
+      .use(middleware.requirePermission({ permission: 'ai:kb_manage' }))
+    router
+      .get('/:id', [KnowledgeDocumentsController, 'show'])
+      .use(middleware.requirePermission({ permission: 'ai:kb_view' }))
+    router
+      .post('/:id/complete-upload', [KnowledgeDocumentsController, 'completeUpload'])
+      .use(middleware.requirePermission({ permission: 'ai:kb_manage' }))
+    router
+      .delete('/:id', [KnowledgeDocumentsController, 'destroy'])
+      .use(middleware.requirePermission({ permission: 'ai:kb_manage' }))
+  })
+  .prefix('/api/v1/ai/knowledge-documents')
+  .use([middleware.jwtAuth(), middleware.tenant()])
+
 // campaigns — outbound broadcasts (product: Campaign)
 router
   .group(() => {
@@ -759,6 +821,12 @@ router
       .use(middleware.requirePermission({ permission: 'inbox:view' }))
     router
       .post('/:id/messages', [MessagesController, 'store'])
+      .use(middleware.requirePermission({ permission: 'inbox:reply' }))
+    router
+      .post('/:id/ai/takeover', [ConversationAiController, 'takeover'])
+      .use(middleware.requirePermission({ permission: 'inbox:reply' }))
+    router
+      .post('/:id/ai/resume', [ConversationAiController, 'resume'])
       .use(middleware.requirePermission({ permission: 'inbox:reply' }))
     router
       .get('/:id/notes', [ConversationNotesController, 'index'])

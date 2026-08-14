@@ -1,5 +1,6 @@
 import db from '@adonisjs/lucid/services/db'
 import ConversationException from '#exceptions/conversation_exception'
+import ConversationAiModeService from '#services/ai/conversation_ai_mode_service'
 import WhatsappOutboundService, {
   type QueueOutboundResult,
 } from '#services/whatsapp_outbound_service'
@@ -141,7 +142,8 @@ const MESSAGE_SELECT = [
 
 export class MessageService {
   constructor(
-    protected whatsappOutbound: WhatsappOutboundService = new WhatsappOutboundService()
+    protected whatsappOutbound: WhatsappOutboundService = new WhatsappOutboundService(),
+    protected conversationAi: ConversationAiModeService = new ConversationAiModeService()
   ) {}
 
   /**
@@ -202,6 +204,7 @@ export class MessageService {
   async sendAgentReply(params: SendAgentReplyParams): Promise<MessageRecord> {
     const { organizationId, conversationId, senderId, contentType } = params
     const queued = await this.queueOutboundByContentType(params)
+    await this.conversationAi.onAgentReply({ organizationId, conversationId })
 
     return this.hydrateMessage({
       id: queued.messageId,

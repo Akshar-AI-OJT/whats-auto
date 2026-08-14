@@ -27,6 +27,13 @@ export abstract class ObjectStorage {
 
   abstract deleteObject(key: string): Promise<void>
 
+  /** Server-side write (manual KB text). Browser uploads still use presign. */
+  abstract writeObject(params: {
+    key: string
+    body: Uint8Array
+    contentType: string
+  }): Promise<void>
+
   /**
    * Read the first maxBytes of an object for content inspection.
    * Returns null when the object is missing.

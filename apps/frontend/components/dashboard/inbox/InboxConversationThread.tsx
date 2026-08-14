@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { ArrowLeft } from 'lucide-react'
 import {
@@ -18,11 +18,10 @@ import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { InboxConversationHeader } from './InboxConversationHeader'
 import { InboxMessageList } from './InboxMessageList'
 import { InboxReplyComposer } from './InboxReplyComposer'
-import {
-  InboxThreadHeaderSkeleton,
-  InboxThreadMessagesSkeleton,
-} from './InboxThreadSkeleton'
+import { InboxThreadHeaderSkeleton, InboxThreadMessagesSkeleton } from './InboxThreadSkeleton'
+import { useLatestRef } from '@/hooks/useLatestRef'
 import { useInboxWorkspace } from './InboxWorkspaceContext'
+import { applyInboxSseToConversation, applyInboxSseToMessages } from './apply-inbox-sse'
 import { contactLabel, unwrapPaginated, unwrapSingle, mergeConversationUpdate } from './inbox-utils'
 
 const MESSAGE_PAGE_LIMIT = 100
@@ -72,6 +71,7 @@ export function InboxConversationThread({
   const tInbox = useTranslations('dashboard.inbox')
   const { tenantOrganizationId, canViewInbox, isLoading: orgsLoading } = useOrganizations()
   const workspace = useInboxWorkspace()
+  const subscribeInboxEvents = workspace.subscribeInboxEvents
 
   const [conversation, setConversation] = useState<InboxConversation | null>(null)
   const [messages, setMessages] = useState<InboxMessage[]>([])
@@ -80,10 +80,8 @@ export function InboxConversationThread({
   const [messagesLoading, setMessagesLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const organizationIdRef = useRef(tenantOrganizationId)
-  const conversationIdRef = useRef(conversationId)
-  organizationIdRef.current = tenantOrganizationId
-  conversationIdRef.current = conversationId
+  const organizationIdRef = useLatestRef(tenantOrganizationId)
+  const conversationIdRef = useLatestRef(conversationId)
 
   const setWorkspaceConversation = workspace.setConversation
   const setWorkspaceConversationId = workspace.setConversationId
@@ -160,19 +158,20 @@ export function InboxConversationThread({
         }
       }
     },
-    [
-      canViewInbox,
-      setWorkspaceConversation,
-      setWorkspaceConversationId,
-      setWorkspaceMembers,
-      t,
-    ]
+    [canViewInbox, conversationIdRef, organizationIdRef, setWorkspaceConversation, setWorkspaceConversationId, setWorkspaceMembers, t]
   )
 
   useEffect(() => {
-    if (orgsLoading) return
-    if (!tenantOrganizationId) return
-    void loadThread(tenantOrganizationId, conversationId)
+    if (orgsLoading || !tenantOrganizationId) return
+    let cancelled = false
+    const scheduled = Promise.resolve().then(() => {
+      if (cancelled) return
+      return loadThread(tenantOrganizationId, conversationId)
+    })
+    return () => {
+      cancelled = true
+      void scheduled
+    }
   }, [orgsLoading, tenantOrganizationId, conversationId, loadThread])
 
   const agentLabel = useMemo(() => {
@@ -203,7 +202,38 @@ export function InboxConversationThread({
     } catch {
       // Keep existing messages; composer surfaces send errors via toast.
     }
-  }, [canViewInbox, conversationId, setWorkspaceConversation, tenantOrganizationId])
+  }, [canViewInbox, conversationId, conversationIdRef, setWorkspaceConversation, tenantOrganizationId])
+
+  useEffect(() => {
+    if (!canViewInbox) return
+    return subscribeInboxEvents((event) => {
+      if (event.payload.conversationId !== conversationIdRef.current) return
+
+      let missingMessage = false
+      let conversationPatch: InboxConversation | null = null
+
+      setMessages((prev) => {
+        const result = applyInboxSseToMessages(prev, event, conversationIdRef.current)
+        missingMessage = result.missingMessage
+        return result.messages
+      })
+
+      setConversation((prev) => {
+        if (!prev) return prev
+        const next = applyInboxSseToConversation(prev, event)
+        if (next !== prev) conversationPatch = next
+        return next
+      })
+
+      if (conversationPatch) {
+        mergeWorkspaceConversation(conversationPatch)
+      }
+
+      if (missingMessage) {
+        void refreshMessages()
+      }
+    })
+  }, [canViewInbox, conversationIdRef, mergeWorkspaceConversation, refreshMessages, subscribeInboxEvents])
 
   const handleRetry = () => {
     if (tenantOrganizationId) {
