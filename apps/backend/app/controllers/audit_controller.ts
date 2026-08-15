@@ -30,7 +30,9 @@ export default class AuditController {
     )
 
     const events = await new AuditService().listEvents({
-      organizationId: isPlatformAuditor ? (organizationId ?? null) : request.activeMember!.organizationId,
+      organizationId: isPlatformAuditor
+        ? (organizationId ?? null)
+        : request.activeMember!.organizationId,
       limit,
     })
     return serialize(events)

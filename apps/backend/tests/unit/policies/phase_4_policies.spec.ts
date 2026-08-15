@@ -59,7 +59,11 @@ test.group('Phase 4 Policies - WhatsappConfigPolicy', () => {
   })
 
   test('disconnect and test check whatsapp:manage and tenant isolation', ({ assert }) => {
-    const manager = makePrincipal({ role: 'admin', orgId: 'org-1', permissions: ['whatsapp:manage'] })
+    const manager = makePrincipal({
+      role: 'admin',
+      orgId: 'org-1',
+      permissions: ['whatsapp:manage'],
+    })
     const viewer = makePrincipal({ role: 'agent', orgId: 'org-1', permissions: ['whatsapp:view'] })
 
     assert.isTrue(policy.disconnect(manager, { organizationId: 'org-1', id: 'cfg-1' }))
@@ -80,9 +84,17 @@ test.group('Phase 4 Policies - MessageTemplatePolicy', () => {
   })
 
   test('checks template permissions and tenant isolation', ({ assert }) => {
-    const creator = makePrincipal({ role: 'agent', orgId: 'org-1', permissions: ['templates:create', 'templates:view'] })
+    const creator = makePrincipal({
+      role: 'agent',
+      orgId: 'org-1',
+      permissions: ['templates:create', 'templates:view'],
+    })
     const syncer = makePrincipal({ role: 'admin', orgId: 'org-1', permissions: ['templates:sync'] })
-    const deleter = makePrincipal({ role: 'admin', orgId: 'org-1', permissions: ['templates:delete'] })
+    const deleter = makePrincipal({
+      role: 'admin',
+      orgId: 'org-1',
+      permissions: ['templates:delete'],
+    })
 
     assert.isTrue(policy.viewList(creator))
     assert.isTrue(policy.view(creator, { organizationId: 'org-1', id: 'tpl-1' }))
@@ -106,12 +118,18 @@ test.group('Phase 4 Policies - CampaignPolicy', () => {
   })
 
   test('send validates permissions, tenant isolation, and status transition', ({ assert }) => {
-    const launcher = makePrincipal({ role: 'admin', orgId: 'org-1', permissions: ['campaigns:launch'] })
+    const launcher = makePrincipal({
+      role: 'admin',
+      orgId: 'org-1',
+      permissions: ['campaigns:launch'],
+    })
     const viewer = makePrincipal({ role: 'agent', orgId: 'org-1', permissions: ['campaigns:view'] })
 
     // Valid draft/scheduled
     assert.isTrue(policy.send(launcher, { organizationId: 'org-1', id: 'camp-1', status: 'draft' }))
-    assert.isTrue(policy.send(launcher, { organizationId: 'org-1', id: 'camp-1', status: 'scheduled' }))
+    assert.isTrue(
+      policy.send(launcher, { organizationId: 'org-1', id: 'camp-1', status: 'scheduled' })
+    )
 
     // Missing permission
     const denyPerm = policy.send(viewer, { organizationId: 'org-1', id: 'camp-1', status: 'draft' })
@@ -119,34 +137,62 @@ test.group('Phase 4 Policies - CampaignPolicy', () => {
     assert.equal((denyPerm as AuthorizationResponse).status, 403)
 
     // Cross-tenant
-    const denyTenant = policy.send(launcher, { organizationId: 'org-2', id: 'camp-1', status: 'draft' })
+    const denyTenant = policy.send(launcher, {
+      organizationId: 'org-2',
+      id: 'camp-1',
+      status: 'draft',
+    })
     assert.instanceOf(denyTenant, AuthorizationResponse)
     assert.equal((denyTenant as AuthorizationResponse).status, 404)
 
     // Ineligible status (already sending)
-    const denyStatus = policy.send(launcher, { organizationId: 'org-1', id: 'camp-1', status: 'sending' })
+    const denyStatus = policy.send(launcher, {
+      organizationId: 'org-1',
+      id: 'camp-1',
+      status: 'sending',
+    })
     assert.instanceOf(denyStatus, AuthorizationResponse)
     assert.equal((denyStatus as AuthorizationResponse).status, 422)
   })
 
   test('cancel validates pause permission and status transition', ({ assert }) => {
-    const manager = makePrincipal({ role: 'admin', orgId: 'org-1', permissions: ['campaigns:pause'] })
+    const manager = makePrincipal({
+      role: 'admin',
+      orgId: 'org-1',
+      permissions: ['campaigns:pause'],
+    })
 
     // Eligible: scheduled or sending
-    assert.isTrue(policy.cancel(manager, { organizationId: 'org-1', id: 'camp-1', status: 'scheduled' }))
-    assert.isTrue(policy.cancel(manager, { organizationId: 'org-1', id: 'camp-1', status: 'sending' }))
+    assert.isTrue(
+      policy.cancel(manager, { organizationId: 'org-1', id: 'camp-1', status: 'scheduled' })
+    )
+    assert.isTrue(
+      policy.cancel(manager, { organizationId: 'org-1', id: 'camp-1', status: 'sending' })
+    )
 
     // Ineligible: draft
-    const denyDraft = policy.cancel(manager, { organizationId: 'org-1', id: 'camp-1', status: 'draft' })
+    const denyDraft = policy.cancel(manager, {
+      organizationId: 'org-1',
+      id: 'camp-1',
+      status: 'draft',
+    })
     assert.instanceOf(denyDraft, AuthorizationResponse)
     assert.equal((denyDraft as AuthorizationResponse).status, 422)
   })
 
   test('update and delete validate permissions and tenant isolation', ({ assert }) => {
-    const editor = makePrincipal({ role: 'admin', orgId: 'org-1', permissions: ['campaigns:edit', 'campaigns:delete'] })
+    const editor = makePrincipal({
+      role: 'admin',
+      orgId: 'org-1',
+      permissions: ['campaigns:edit', 'campaigns:delete'],
+    })
 
     assert.isTrue(policy.update(editor, { organizationId: 'org-1', id: 'camp-1', status: 'draft' }))
-    const updateSent = policy.update(editor, { organizationId: 'org-1', id: 'camp-1', status: 'sent' })
+    const updateSent = policy.update(editor, {
+      organizationId: 'org-1',
+      id: 'camp-1',
+      status: 'sent',
+    })
     assert.instanceOf(updateSent, AuthorizationResponse)
     assert.equal((updateSent as AuthorizationResponse).status, 422)
 

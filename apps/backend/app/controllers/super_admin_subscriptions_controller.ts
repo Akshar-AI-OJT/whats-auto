@@ -73,7 +73,10 @@ export default class SuperAdminSubscriptionsController {
    * @responseBody 404 - { "error": "Subscription Not Found", "code": "E_SUBSCRIPTION_NOT_FOUND" }
    */
   @inject()
-  async show({ bouncer, request, params, serialize }: HttpContext, subscriptions: SubscriptionService) {
+  async show(
+    { bouncer, request, params, serialize }: HttpContext,
+    subscriptions: SubscriptionService
+  ) {
     await bouncer.with(SuperAdminPolicy).authorize('manageBilling')
 
     const { id } = await request.validateUsing(subscriptionIdParamValidator, {
@@ -99,7 +102,10 @@ export default class SuperAdminSubscriptionsController {
    * @responseBody 422 - { "error": "currentPeriodEnd must be after currentPeriodStart", "code": "E_SUBSCRIPTION_INVALID_PERIOD" }
    */
   @inject()
-  async update({ bouncer, request, params, serialize }: HttpContext, subscriptions: SubscriptionService) {
+  async update(
+    { bouncer, request, params, serialize }: HttpContext,
+    subscriptions: SubscriptionService
+  ) {
     await bouncer.with(SuperAdminPolicy).authorize('manageBilling')
 
     const { id } = await request.validateUsing(subscriptionIdParamValidator, {

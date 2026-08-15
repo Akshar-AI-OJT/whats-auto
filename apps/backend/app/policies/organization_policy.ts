@@ -28,7 +28,10 @@ export default class OrganizationPolicy extends BasePolicy {
       )
     }
     if (user.activeMember?.role !== 'owner') {
-      return AuthorizationResponse.deny('Only the organization owner can delete the organization.', 403)
+      return AuthorizationResponse.deny(
+        'Only the organization owner can delete the organization.',
+        403
+      )
     }
     return user.memberPermissions?.has('org:delete') ?? false
   }

@@ -16,7 +16,10 @@ export default class ConversationNotePolicy extends BasePolicy {
     return true
   }
 
-  create(user: AuthzPrincipal, conversation?: ConversationResource): boolean | AuthorizationResponse {
+  create(
+    user: AuthzPrincipal,
+    conversation?: ConversationResource
+  ): boolean | AuthorizationResponse {
     if (!user.memberPermissions?.has('inbox:reply')) {
       return AuthorizationResponse.deny('Permission denied: inbox:reply', 403)
     }

@@ -609,7 +609,18 @@ export class ConversationSchema extends BaseModel {
 }
 
 export class InvoiceLineItemSchema extends BaseModel {
-  static $columns = ['amount', 'createdAt', 'description', 'detail', 'id', 'invoiceId', 'organizationId', 'quantity', 'sortOrder', 'unitPrice'] as const
+  static $columns = [
+    'amount',
+    'createdAt',
+    'description',
+    'detail',
+    'id',
+    'invoiceId',
+    'organizationId',
+    'quantity',
+    'sortOrder',
+    'unitPrice',
+  ] as const
   $columns = InvoiceLineItemSchema.$columns
   @column()
   declare amount: string
@@ -634,7 +645,40 @@ export class InvoiceLineItemSchema extends BaseModel {
 }
 
 export class InvoiceSchema extends BaseModel {
-  static $columns = ['billingPeriod', 'billToAddress', 'billToEmail', 'billToGstin', 'billToName', 'billToPhone', 'cancelledAt', 'createdAt', 'currency', 'discount', 'dueDate', 'id', 'invoiceNumber', 'issueDate', 'metadata', 'notes', 'organizationId', 'paidAt', 'paymentMethod', 'paymentTransactionId', 'periodEnd', 'periodStart', 'planId', 'planName', 'sourceInvoiceId', 'status', 'subscriptionId', 'subtotal', 'tax', 'taxRate', 'total', 'updatedAt'] as const
+  static $columns = [
+    'billingPeriod',
+    'billToAddress',
+    'billToEmail',
+    'billToGstin',
+    'billToName',
+    'billToPhone',
+    'cancelledAt',
+    'createdAt',
+    'currency',
+    'discount',
+    'dueDate',
+    'id',
+    'invoiceNumber',
+    'issueDate',
+    'metadata',
+    'notes',
+    'organizationId',
+    'paidAt',
+    'paymentMethod',
+    'paymentTransactionId',
+    'periodEnd',
+    'periodStart',
+    'planId',
+    'planName',
+    'sourceInvoiceId',
+    'status',
+    'subscriptionId',
+    'subtotal',
+    'tax',
+    'taxRate',
+    'total',
+    'updatedAt',
+  ] as const
   $columns = InvoiceSchema.$columns
   @column()
   declare billingPeriod: string

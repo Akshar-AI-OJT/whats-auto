@@ -37,7 +37,10 @@ export default class SuperAdminAiConfigController {
    * @responseBody 422 - { "error": "chatModel is not allowed for provider openai", "code": "E_PLATFORM_AI_INVALID_MODEL" }
    */
   @inject()
-  async update({ bouncer, request, serialize }: HttpContext, platformAiConfig: PlatformAiConfigService) {
+  async update(
+    { bouncer, request, serialize }: HttpContext,
+    platformAiConfig: PlatformAiConfigService
+  ) {
     await bouncer.with(SuperAdminPolicy).authorize('manageAiConfig')
 
     const payload = await request.validateUsing(updatePlatformAiConfigValidator)

@@ -85,7 +85,10 @@ export default class CampaignPolicy extends BasePolicy {
     return true
   }
 
-  replaceRecipients(user: AuthzPrincipal, campaign?: CampaignResource): boolean | AuthorizationResponse {
+  replaceRecipients(
+    user: AuthzPrincipal,
+    campaign?: CampaignResource
+  ): boolean | AuthorizationResponse {
     if (!user.memberPermissions?.has('campaigns:edit')) {
       return AuthorizationResponse.deny('Permission denied: campaigns:edit', 403)
     }

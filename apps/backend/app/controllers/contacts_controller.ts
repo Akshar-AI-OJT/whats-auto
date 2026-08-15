@@ -17,9 +17,7 @@ export default class ContactsController {
   async index({ bouncer, request, serialize }: HttpContext) {
     await bouncer.with(ContactPolicy).authorize('viewAny')
 
-    const contacts = await new ContactService().listContacts(
-      request.activeMember!.organizationId
-    )
+    const contacts = await new ContactService().listContacts(request.activeMember!.organizationId)
     return serialize(contacts)
   }
 

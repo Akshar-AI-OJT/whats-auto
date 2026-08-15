@@ -171,7 +171,11 @@ test.group('Phase 3 Policies - RolePolicy', () => {
       policy.destroy(admin, { roleKey: 'custom_role', isSystem: false, organizationId: 'org-1' })
     )
 
-    const sysRes = policy.destroy(admin, { roleKey: 'agent', isSystem: true, organizationId: 'org-1' })
+    const sysRes = policy.destroy(admin, {
+      roleKey: 'agent',
+      isSystem: true,
+      organizationId: 'org-1',
+    })
     assert.instanceOf(sysRes, AuthorizationResponse)
     assert.equal((sysRes as AuthorizationResponse).status, 422)
   })

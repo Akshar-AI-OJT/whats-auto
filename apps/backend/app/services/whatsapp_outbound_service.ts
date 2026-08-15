@@ -770,7 +770,12 @@ export default class WhatsappOutboundService {
         .leftJoin('contacts as ct', 'ct.id', 'c.contactId')
         .where('c.id', message.conversationId)
         .where('c.organizationId', params.organizationId)
-        .select('c.contactId', 'c.assignedAgentId', 'ct.name as contactName', 'ct.phone as contactPhone')
+        .select(
+          'c.contactId',
+          'c.assignedAgentId',
+          'ct.name as contactName',
+          'ct.phone as contactPhone'
+        )
         .first()
 
       const recipientUserId =

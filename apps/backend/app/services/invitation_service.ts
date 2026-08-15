@@ -148,7 +148,9 @@ export class InvitationService {
         console.warn(`[DEV] Invitation link: ${inviteLink}`)
       } else {
         await db.from('organization_invitations').where('id', invitation.id).delete()
-        throw InvitationException.emailSendFailed(error instanceof Error ? error.message : undefined)
+        throw InvitationException.emailSendFailed(
+          error instanceof Error ? error.message : undefined
+        )
       }
     }
 
