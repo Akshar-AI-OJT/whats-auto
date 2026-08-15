@@ -1,12 +1,16 @@
+import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
-import app from '@adonisjs/core/services/app'
 import logger from '@adonisjs/core/services/logger'
 import CampaignException from '#exceptions/campaign_exception'
 import { MediaAssetReferenceRepository } from '#repositories/media_asset_reference_repository'
 import { parseParameterSchema } from '#lib/meta_whatsapp/template_parameters'
 import type { TemplateParameterSchema } from '#lib/meta_whatsapp/types'
-import JobQueueManager from '#services/job_queue/job_queue_manager'
-import { JOB_NAMES } from '#services/job_queue/job_names'
+import {
+  assertApprovedTemplate,
+  assertConnectedWhatsappConfig,
+  assertReadyMediaAsset,
+} from '#services/campaign_preflight'
+import { enqueueCampaignWake, removeCampaignWake } from '#services/campaign_queue'
 import { NotificationService } from '#services/notification_service'
 import type { CAMPAIGN_STATUSES } from '#validators/campaign'
 import {
@@ -144,9 +148,17 @@ function toJsDate(value: DateTime | Date): Date {
 
 function toIso(value: DateTime | Date | string | null | undefined): string | null {
   if (!value) return null
-  if (typeof value === 'string') return new Date(value).toISOString()
-  if (value instanceof Date) return value.toISOString()
-  return value.toISO()
+  if (typeof value === 'string') {
+    const date = new Date(value)
+    return Number.isNaN(date.getTime()) ? null : date.toISOString()
+  }
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value.toISOString()
+  }
+  const iso = value.toISO()
+  if (!iso) return null
+  const parsed = new Date(iso)
+  return Number.isNaN(parsed.getTime()) ? null : iso
 }
 
 function mapCampaignRow(row: Record<string, unknown>): CampaignDto {
@@ -243,10 +255,9 @@ const BROADCAST_COLUMNS = [
   'updatedAt',
 ] as const
 
+@inject()
 export class CampaignService {
-  constructor(
-    protected mediaReferences: MediaAssetReferenceRepository = new MediaAssetReferenceRepository()
-  ) {}
+  constructor(protected mediaReferences: MediaAssetReferenceRepository) {}
 
   /**
    * Load an active campaign row for the active org or throw not found.
@@ -348,8 +359,8 @@ export class CampaignService {
   /**
    * Update only the campaign status field to an active lifecycle value.
    * Soft-deleted campaigns are treated as not found (404).
-   * No cross-status transition matrix exists for this endpoint — dedicated
-   * send/schedule/cancel APIs keep their own eligibility rules.
+   * Lifecycle kickoff (sending / cancel / finalize) uses dedicated endpoints.
+   * This PATCH only allows draft↔scheduled transitions.
    * updatedAt is maintained by the DB trigger `trg_set_updated_at`.
    */
   async changeCampaignStatus(params: {
@@ -357,10 +368,20 @@ export class CampaignService {
     organizationId: string
     status: CampaignLifecycleStatus
   }): Promise<CampaignDto> {
-    await this.findCampaignRowOrFail({
+    const existing = await this.findCampaignRowOrFail({
       campaignId: params.campaignId,
       organizationId: params.organizationId,
     })
+    const from = existing.status as string
+    const to = params.status
+
+    const allowed =
+      (from === 'draft' && (to === 'draft' || to === 'scheduled')) ||
+      (from === 'scheduled' && (to === 'draft' || to === 'scheduled'))
+
+    if (!allowed) {
+      throw CampaignException.invalidStatusTransition(from, to)
+    }
 
     // Knex (not Lucid .save) — DB columns are camelCase; Lucid emits snake_case.
     // Do not write updatedAt; trg_set_updated_at handles it.
@@ -511,7 +532,7 @@ export class CampaignService {
    */
   async listCampaignsPaginated(input: ListCampaignsInput) {
     const page = input.page ?? 1
-    const perPage = input.limit ?? input.perPage ?? 20
+    const perPage = input.perPage ?? input.limit ?? 20
     const sortBy = input.sortBy && SORT_FIELD_SET.has(input.sortBy) ? input.sortBy : 'createdAt'
     const sortOrder = input.sortOrder === 'asc' ? 'asc' : 'desc'
 
@@ -672,6 +693,7 @@ export class CampaignService {
    * Schedule (or reschedule) a campaign for a future `scheduledAt`.
    * Persists existing `scheduledAt` + `status = scheduled` fields only — no schema change.
    * Soft-deleted campaigns are treated as not found (404).
+   * Requires an approved template and a connected WhatsApp configuration.
    */
   async scheduleCampaign(params: {
     campaignId: string
@@ -683,6 +705,9 @@ export class CampaignService {
       organizationId: params.organizationId,
     })
     const currentStatus = existing.status as string
+    const previousScheduledAt = existing.scheduledAt
+      ? new Date(existing.scheduledAt as string | Date)
+      : null
 
     if (!SCHEDULABLE_STATUS_SET.has(currentStatus)) {
       throw CampaignException.notEligibleToSchedule(currentStatus)
@@ -698,6 +723,13 @@ export class CampaignService {
 
     if (!existing.whatsappConfigId) {
       throw CampaignException.whatsappConfigNotConfigured()
+    }
+
+    await assertApprovedTemplate(params.organizationId, existing.messageTemplateId as string)
+    await assertConnectedWhatsappConfig(params.organizationId, existing.whatsappConfigId as string)
+
+    if (existing.headerMediaAssetId) {
+      await assertReadyMediaAsset(params.organizationId, existing.headerMediaAssetId as string)
     }
 
     const scheduledAt = toJsDate(params.scheduledAt)
@@ -725,11 +757,35 @@ export class CampaignService {
       throw CampaignException.notEligibleToSchedule(latest.status as string)
     }
 
-    await this.registerCampaignSchedule({
-      organizationId: params.organizationId,
-      campaignId: params.campaignId,
-      scheduledAt,
-    })
+    try {
+      await this.registerCampaignSchedule({
+        organizationId: params.organizationId,
+        campaignId: params.campaignId,
+        scheduledAt,
+      })
+    } catch (error) {
+      await db
+        .from('broadcasts')
+        .where('id', params.campaignId)
+        .where('organizationId', params.organizationId)
+        .where('status', CAMPAIGN_SCHEDULED_STATUS)
+        .update({
+          status:
+            currentStatus === CAMPAIGN_SCHEDULED_STATUS
+              ? CAMPAIGN_SCHEDULED_STATUS
+              : CAMPAIGN_DRAFT_STATUS,
+          scheduledAt: currentStatus === CAMPAIGN_SCHEDULED_STATUS ? previousScheduledAt : null,
+        })
+      logger.error(
+        {
+          campaignId: params.campaignId,
+          organizationId: params.organizationId,
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'campaigns.enqueue_failed'
+      )
+      throw error
+    }
 
     await this.#protectHeaderMedia({
       organizationId: params.organizationId,
@@ -757,7 +813,7 @@ export class CampaignService {
     campaignId: string
     scheduledAt: Date
   }): Promise<void> {
-    await this.#enqueueCampaignWake({
+    await enqueueCampaignWake({
       organizationId: params.organizationId,
       campaignId: params.campaignId,
       runAt: params.scheduledAt,
@@ -823,24 +879,13 @@ export class CampaignService {
     organizationId: string
     campaignId: string
   }): Promise<void> {
-    try {
-      const manager = await app.container.make(JobQueueManager)
-      const queue = await manager.ensureStarted()
-      await queue.remove?.(JOB_NAMES.CAMPAIGN_EXECUTE, params.campaignId)
-    } catch (error) {
-      logger.warn(
-        {
-          campaignId: params.campaignId,
-          err: error instanceof Error ? error.message : 'unknown',
-        },
-        'campaigns.unregister_schedule_failed'
-      )
-    }
+    await removeCampaignWake(params)
   }
 
   /**
    * Kick off campaign send: mark as `sending` ("running") when eligible, then enqueue fan-out.
    * Soft-deleted campaigns are treated as not found (404).
+   * Requires an approved template and a connected WhatsApp configuration.
    */
   async sendCampaign(params: { campaignId: string; organizationId: string }): Promise<CampaignDto> {
     const existing = await this.findCampaignRowOrFail(params)
@@ -862,11 +907,12 @@ export class CampaignService {
       throw CampaignException.recipientsRequired()
     }
 
-    await this.assertMessageTemplateInOrg(
-      params.organizationId,
-      existing.messageTemplateId as string
-    )
-    await this.assertWhatsappConfigInOrg(params.organizationId, existing.whatsappConfigId as string)
+    await assertApprovedTemplate(params.organizationId, existing.messageTemplateId as string)
+    await assertConnectedWhatsappConfig(params.organizationId, existing.whatsappConfigId as string)
+
+    if (existing.headerMediaAssetId) {
+      await assertReadyMediaAsset(params.organizationId, existing.headerMediaAssetId as string)
+    }
 
     // Conditional update prevents racing a second send into `sending`.
     const [row] = await db
@@ -882,10 +928,31 @@ export class CampaignService {
       throw CampaignException.notEligibleToSend(latest.status as string)
     }
 
-    await this.enqueueCampaignSend({
-      organizationId: params.organizationId,
-      campaignId: params.campaignId,
-    })
+    try {
+      await this.enqueueCampaignSend({
+        organizationId: params.organizationId,
+        campaignId: params.campaignId,
+      })
+    } catch (error) {
+      await db
+        .from('broadcasts')
+        .where('id', params.campaignId)
+        .where('organizationId', params.organizationId)
+        .where('status', CAMPAIGN_SENDING_STATUS)
+        .update({
+          status: currentStatus,
+          scheduledAt: existing.scheduledAt ?? null,
+        })
+      logger.error(
+        {
+          campaignId: params.campaignId,
+          organizationId: params.organizationId,
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'campaigns.enqueue_failed'
+      )
+      throw error
+    }
 
     await this.#protectHeaderMedia({
       organizationId: params.organizationId,
@@ -912,7 +979,7 @@ export class CampaignService {
     organizationId: string
     campaignId: string
   }): Promise<void> {
-    await this.#enqueueCampaignWake({
+    await enqueueCampaignWake({
       organizationId: params.organizationId,
       campaignId: params.campaignId,
     })
@@ -964,37 +1031,6 @@ export class CampaignService {
           err: error instanceof Error ? error.message : 'unknown',
         },
         'campaigns.notification_failed'
-      )
-    }
-  }
-
-  async #enqueueCampaignWake(params: {
-    organizationId: string
-    campaignId: string
-    runAt?: Date
-  }): Promise<void> {
-    try {
-      const manager = await app.container.make(JobQueueManager)
-      const queue = await manager.ensureStarted()
-      await queue.enqueue(
-        JOB_NAMES.CAMPAIGN_EXECUTE,
-        {
-          organizationId: params.organizationId,
-          campaignId: params.campaignId,
-        },
-        {
-          runAt: params.runAt,
-          singletonKey: params.campaignId,
-        }
-      )
-    } catch (error) {
-      logger.error(
-        {
-          campaignId: params.campaignId,
-          organizationId: params.organizationId,
-          err: error instanceof Error ? error.message : 'unknown',
-        },
-        'campaigns.enqueue_failed'
       )
     }
   }

@@ -1,15 +1,13 @@
 import logger from '@adonisjs/core/services/logger'
 import type { JobHandler } from '#services/job_queue/contracts/job_queue_driver'
-import { CampaignExecutionService } from '#services/campaign_execution_service'
+import type { CampaignExecutionService } from '#services/campaign_execution_service'
 
 export type CampaignRecoveryJobData = {
   organizationId?: string
   limit?: number
 }
 
-export function createCampaignRecoveryHandler(
-  execution: CampaignExecutionService = new CampaignExecutionService()
-): JobHandler {
+export function createCampaignRecoveryHandler(execution: CampaignExecutionService): JobHandler {
   return async (job) => {
     const organizationId =
       typeof job.data.organizationId === 'string' ? job.data.organizationId : undefined

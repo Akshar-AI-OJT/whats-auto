@@ -1,11 +1,15 @@
-import app from '@adonisjs/core/services/app'
+import { inject } from '@adonisjs/core'
 import logger from '@adonisjs/core/services/logger'
 import db from '@adonisjs/lucid/services/db'
 import CampaignException from '#exceptions/campaign_exception'
 import { MediaAssetReferenceRepository } from '#repositories/media_asset_reference_repository'
 import { WhatsappWebhookRepository } from '#repositories/whatsapp_webhook_repository'
-import JobQueueManager from '#services/job_queue/job_queue_manager'
-import { JOB_NAMES } from '#services/job_queue/job_names'
+import {
+  assertApprovedTemplate,
+  assertConnectedWhatsappConfig,
+  assertReadyMediaAsset,
+} from '#services/campaign_preflight'
+import { enqueueCampaignWake } from '#services/campaign_queue'
 import { runWithTenant } from '#services/tenant_context'
 import WhatsappOutboundService from '#services/whatsapp_outbound_service'
 import { CampaignService, type CampaignDto } from '#services/campaign_service'
@@ -22,12 +26,13 @@ export type CampaignRecipientInput = {
 /**
  * Executable campaign workflow: recipient snapshot, schedule/cancel, claim-and-send.
  */
+@inject()
 export class CampaignExecutionService {
   constructor(
-    protected campaigns: CampaignService = new CampaignService(),
-    protected outbound: WhatsappOutboundService = new WhatsappOutboundService(),
-    protected webhookRepo: WhatsappWebhookRepository = new WhatsappWebhookRepository(),
-    protected mediaReferences: MediaAssetReferenceRepository = new MediaAssetReferenceRepository()
+    protected campaigns: CampaignService,
+    protected outbound: WhatsappOutboundService,
+    protected webhookRepo: WhatsappWebhookRepository,
+    protected mediaReferences: MediaAssetReferenceRepository
   ) {}
 
   /**
@@ -128,17 +133,14 @@ export class CampaignExecutionService {
         throw CampaignException.recipientsRequired()
       }
 
-      await this.#assertApprovedTemplate(
+      await assertApprovedTemplate(params.organizationId, campaign.messageTemplateId as string)
+      await assertConnectedWhatsappConfig(
         params.organizationId,
-        campaign.messageTemplateId as string
+        campaign.whatsappConfigId as string
       )
-      await this.#assertConnectedConfig(params.organizationId, campaign.whatsappConfigId as string)
 
       if (campaign.headerMediaAssetId) {
-        await this.#assertReadyMediaAsset(
-          params.organizationId,
-          campaign.headerMediaAssetId as string
-        )
+        await assertReadyMediaAsset(params.organizationId, campaign.headerMediaAssetId as string)
       }
 
       const scheduledAt = params.scheduledAt
@@ -153,6 +155,10 @@ export class CampaignExecutionService {
 
       const now = new Date()
       const isImmediate = scheduledAt.getTime() <= now.getTime() + 1000
+      const previousStatus = campaign.status as string
+      const previousScheduledAt = campaign.scheduledAt
+        ? new Date(campaign.scheduledAt as string | Date)
+        : null
 
       await db.transaction(async (trx) => {
         await trx
@@ -179,11 +185,31 @@ export class CampaignExecutionService {
         }
       })
 
-      await this.#enqueueCampaignWake({
-        organizationId: params.organizationId,
-        campaignId: params.campaignId,
-        runAt: isImmediate ? undefined : scheduledAt,
-      })
+      try {
+        await enqueueCampaignWake({
+          organizationId: params.organizationId,
+          campaignId: params.campaignId,
+          runAt: isImmediate ? undefined : scheduledAt,
+        })
+      } catch (error) {
+        await db
+          .from('broadcasts')
+          .where('id', params.campaignId)
+          .where('organizationId', params.organizationId)
+          .update({
+            status: previousStatus,
+            scheduledAt: previousScheduledAt,
+          })
+        logger.error(
+          {
+            campaignId: params.campaignId,
+            organizationId: params.organizationId,
+            err: error instanceof Error ? error.message : 'unknown',
+          },
+          'campaigns.enqueue_failed'
+        )
+        throw error
+      }
 
       return this.campaigns.getCampaignById({
         campaignId: params.campaignId,
@@ -316,11 +342,45 @@ export class CampaignExecutionService {
             body: `“${started.name as string}” has started sending.`,
             campaignId: params.campaignId,
           })
+        } else {
+          logger.warn(
+            {
+              campaignId: params.campaignId,
+              organizationId: params.organizationId,
+            },
+            'campaigns.execute.transition_skipped'
+          )
+          const latest = await this.#loadCampaignRow(params)
+          if ((latest.status as string) !== 'sending') {
+            return {
+              claimed: 0,
+              remaining: Number(latest.totalRecipients ?? 0),
+              finalized:
+                latest.status === 'sent' ||
+                latest.status === 'cancelled' ||
+                latest.status === 'failed',
+            }
+          }
         }
       }
 
       if (!campaign.messageTemplateId || !campaign.whatsappConfigId) {
         await this.#failCampaign(params, 'Campaign is missing template or WhatsApp configuration')
+        return { claimed: 0, remaining: 0, finalized: true }
+      }
+
+      try {
+        await assertApprovedTemplate(params.organizationId, campaign.messageTemplateId as string)
+        await assertConnectedWhatsappConfig(
+          params.organizationId,
+          campaign.whatsappConfigId as string
+        )
+      } catch (error) {
+        const reason =
+          error instanceof CampaignException
+            ? error.message
+            : 'Campaign template or WhatsApp configuration is not ready'
+        await this.#failCampaign(params, reason)
         return { claimed: 0, remaining: 0, finalized: true }
       }
 
@@ -365,12 +425,19 @@ export class CampaignExecutionService {
 
       const remaining = await this.#countPendingRecipients(params)
       if (remaining === 0) {
-        await this.#finalizeCampaign(params)
+        const latest = await this.#loadCampaignRow(params)
+        await this.#finalizeCampaign({
+          organizationId: params.organizationId,
+          campaignId: params.campaignId,
+          sentCount: Number(latest.sentCount ?? 0),
+          failedCount: Number(latest.failedCount ?? 0),
+          headerMediaAssetId: (latest.headerMediaAssetId as string | null) ?? null,
+        })
         return { claimed, remaining: 0, finalized: true }
       }
 
       // More work left (should be rare with full claim loop) — re-wake.
-      await this.#enqueueCampaignWake({
+      await enqueueCampaignWake({
         organizationId: params.organizationId,
         campaignId: params.campaignId,
       })
@@ -430,7 +497,7 @@ export class CampaignExecutionService {
       })
 
       for (const row of due) {
-        await this.#enqueueCampaignWake({
+        await enqueueCampaignWake({
           organizationId,
           campaignId: row.id as string,
         })
@@ -452,21 +519,24 @@ export class CampaignExecutionService {
     recipient: { id: string; contactId: string; variables: Record<string, string> | null }
   }): Promise<void> {
     const conversation = await db.transaction(async (trx) => {
-      return this.webhookRepo.findOrCreateConversation(trx, {
+      const row = await this.webhookRepo.findOrCreateConversation(trx, {
         organizationId: params.organizationId,
         whatsappConfigId: params.whatsappConfigId,
         contactId: params.recipient.contactId,
       })
-    })
 
-    // Reopen closed conversations for template campaign sends.
-    if (conversation.status === 'closed') {
-      await db
-        .from('conversations')
-        .where('id', conversation.id)
-        .where('organizationId', params.organizationId)
-        .update({ status: 'open', closedAt: null, updatedAt: new Date() })
-    }
+      // Reopen closed conversations for template campaign sends (same transaction).
+      if (row.status === 'closed') {
+        await trx
+          .from('conversations')
+          .where('id', row.id)
+          .where('organizationId', params.organizationId)
+          .update({ status: 'open', closedAt: null, updatedAt: new Date() })
+        return { ...row, status: 'open', closedAt: null }
+      }
+
+      return row
+    })
 
     const queued = await this.outbound.queueTemplate({
       organizationId: params.organizationId,
@@ -491,12 +561,11 @@ export class CampaignExecutionService {
           errorMessage: null,
         })
 
-      await trx.rawQuery(
-        `UPDATE "broadcasts"
-         SET "sentCount" = "sentCount" + 1, "updatedAt" = ?
-         WHERE "id" = ? AND "organizationId" = ?`,
-        [now, params.campaignId, params.organizationId]
-      )
+      await trx
+        .from('broadcasts')
+        .where('id', params.campaignId)
+        .where('organizationId', params.organizationId)
+        .increment('sentCount', 1)
     })
   }
 
@@ -540,7 +609,6 @@ export class CampaignExecutionService {
     recipientId: string
     errorMessage: string
   }): Promise<void> {
-    const now = new Date()
     await db.transaction(async (trx) => {
       await trx
         .from('broadcast_recipients')
@@ -551,12 +619,11 @@ export class CampaignExecutionService {
           errorMessage: params.errorMessage.slice(0, 500),
         })
 
-      await trx.rawQuery(
-        `UPDATE "broadcasts"
-         SET "failedCount" = "failedCount" + 1, "updatedAt" = ?
-         WHERE "id" = ? AND "organizationId" = ?`,
-        [now, params.campaignId, params.organizationId]
-      )
+      await trx
+        .from('broadcasts')
+        .where('id', params.campaignId)
+        .where('organizationId', params.organizationId)
+        .increment('failedCount', 1)
     })
   }
 
@@ -574,12 +641,17 @@ export class CampaignExecutionService {
     return Number(row?.total ?? 0)
   }
 
-  async #finalizeCampaign(params: { organizationId: string; campaignId: string }): Promise<void> {
+  async #finalizeCampaign(params: {
+    organizationId: string
+    campaignId: string
+    sentCount: number
+    failedCount: number
+    headerMediaAssetId: string | null
+  }): Promise<void> {
     const now = new Date()
-    const campaign = await this.#loadCampaignRow(params)
-    const failedCount = Number(campaign.failedCount ?? 0)
-    const sentCount = Number(campaign.sentCount ?? 0)
-    const status = failedCount > 0 && sentCount === 0 ? 'failed' : 'sent'
+    // Partial delivery (some sent, some failed) is intentionally status `sent`.
+    // Callers surface failedCount on the campaign DTO; no separate `partial` status.
+    const status = params.failedCount > 0 && params.sentCount === 0 ? 'failed' : 'sent'
 
     const [finalized] = await db
       .from('broadcasts')
@@ -614,13 +686,13 @@ export class CampaignExecutionService {
       }
     }
 
-    if (campaign.headerMediaAssetId) {
+    if (params.headerMediaAssetId) {
       const protectedUntil = new Date(
         now.getTime() + CAMPAIGN_LIBRARY_RETENTION_DAYS * 24 * 60 * 60 * 1000
       )
       await this.mediaReferences.upsert({
         organizationId: params.organizationId,
-        mediaAssetId: campaign.headerMediaAssetId as string,
+        mediaAssetId: params.headerMediaAssetId,
         ownerType: 'campaign',
         ownerId: params.campaignId,
         protectedUntil,
@@ -663,37 +735,6 @@ export class CampaignExecutionService {
     }
   }
 
-  async #enqueueCampaignWake(params: {
-    organizationId: string
-    campaignId: string
-    runAt?: Date
-  }): Promise<void> {
-    try {
-      const manager = await app.container.make(JobQueueManager)
-      const queue = await manager.ensureStarted()
-      await queue.enqueue(
-        JOB_NAMES.CAMPAIGN_EXECUTE,
-        {
-          organizationId: params.organizationId,
-          campaignId: params.campaignId,
-        },
-        {
-          runAt: params.runAt,
-          singletonKey: params.campaignId,
-        }
-      )
-    } catch (error) {
-      logger.error(
-        {
-          campaignId: params.campaignId,
-          organizationId: params.organizationId,
-          err: error instanceof Error ? error.message : 'unknown',
-        },
-        'campaigns.enqueue_failed'
-      )
-    }
-  }
-
   async #loadEditableCampaign(params: {
     organizationId: string
     campaignId: string
@@ -721,48 +762,5 @@ export class CampaignExecutionService {
       throw CampaignException.notFound()
     }
     return row
-  }
-
-  async #assertApprovedTemplate(organizationId: string, templateId: string): Promise<void> {
-    const template = await db
-      .from('message_templates')
-      .where('id', templateId)
-      .where('organizationId', organizationId)
-      .select('id', 'status')
-      .first()
-    if (!template) {
-      throw CampaignException.messageTemplateNotFound()
-    }
-    if (String(template.status).toLowerCase() !== 'approved') {
-      throw CampaignException.messageTemplateNotFound()
-    }
-  }
-
-  async #assertConnectedConfig(organizationId: string, whatsappConfigId: string): Promise<void> {
-    const config = await db
-      .from('whatsapp_configs')
-      .where('id', whatsappConfigId)
-      .where('organizationId', organizationId)
-      .select('id', 'status')
-      .first()
-    if (!config) {
-      throw CampaignException.whatsappConfigNotFound()
-    }
-    if (config.status !== 'connected') {
-      throw CampaignException.whatsappConfigNotFound()
-    }
-  }
-
-  async #assertReadyMediaAsset(organizationId: string, mediaAssetId: string): Promise<void> {
-    const asset = await db
-      .from('media_assets')
-      .where('id', mediaAssetId)
-      .where('organizationId', organizationId)
-      .where('state', 'ready')
-      .select('id')
-      .first()
-    if (!asset) {
-      throw CampaignException.invalidReference()
-    }
   }
 }

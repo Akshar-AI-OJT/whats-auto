@@ -2751,6 +2751,8 @@
         "saveFailed": "Could not save this campaign.",
         "cancelFailed": "Could not cancel this campaign.",
         "launchFailed": "Could not launch this campaign.",
+        "templateNotApproved": "The linked message template is not approved. Approve it in Meta before launching.",
+        "whatsappNotConnected": "WhatsApp is not connected. Reconnect your WhatsApp account before launching.",
         "duplicateFailed": "Could not duplicate this campaign.",
         "previewFailed": "Could not preview this campaign.",
         "notEditable": "Only draft or scheduled campaigns can be edited."

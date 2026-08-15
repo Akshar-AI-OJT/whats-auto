@@ -2,8 +2,11 @@ import { test } from '@japa/runner'
 import { randomUUID } from 'node:crypto'
 import app from '@adonisjs/core/services/app'
 import db from '@adonisjs/lucid/services/db'
+import CampaignException from '#exceptions/campaign_exception'
 import { encryptWhatsappAccessToken } from '#lib/meta_whatsapp/access_token_crypto'
 import type { MetaGraphClient } from '#lib/meta_whatsapp/graph_client'
+import { MediaAssetReferenceRepository } from '#repositories/media_asset_reference_repository'
+import { WhatsappWebhookRepository } from '#repositories/whatsapp_webhook_repository'
 import NullJobQueueDriver from '#services/job_queue/drivers/null_driver'
 import JobQueueManager from '#services/job_queue/job_queue_manager'
 import { CampaignService } from '#services/campaign_service'
@@ -105,6 +108,18 @@ function fakeGraph(): MetaGraphClient {
   } as unknown as MetaGraphClient
 }
 
+function makeCampaignServices(outbound?: WhatsappOutboundService) {
+  const mediaReferences = new MediaAssetReferenceRepository()
+  const campaigns = new CampaignService(mediaReferences)
+  const execution = new CampaignExecutionService(
+    campaigns,
+    outbound ?? new WhatsappOutboundService(fakeGraph()),
+    new WhatsappWebhookRepository(),
+    mediaReferences
+  )
+  return { campaigns, execution }
+}
+
 test.group('CampaignExecutionService', (group) => {
   const orgIds: string[] = []
 
@@ -148,8 +163,7 @@ test.group('CampaignExecutionService', (group) => {
     const seeded = await seedTemplateAndConfig(organizationId)
 
     const outbound = new WhatsappOutboundService(fakeGraph())
-    const campaigns = new CampaignService()
-    const execution = new CampaignExecutionService(campaigns, outbound)
+    const { campaigns, execution } = makeCampaignServices(outbound)
 
     const campaign = await campaigns.createCampaign({
       organizationId,
@@ -200,8 +214,7 @@ test.group('CampaignExecutionService', (group) => {
     orgIds.push(organizationId)
     const userId = await seedUser()
     const seeded = await seedTemplateAndConfig(organizationId)
-    const campaigns = new CampaignService()
-    const execution = new CampaignExecutionService(campaigns)
+    const { campaigns, execution } = makeCampaignServices()
 
     const campaign = await campaigns.createCampaign({
       organizationId,
@@ -230,5 +243,224 @@ test.group('CampaignExecutionService', (group) => {
     })
     assert.equal(cancelled.status, 'draft')
     assert.isNull(cancelled.scheduledAt)
+  })
+
+  test('CampaignService.scheduleCampaign rejects unapproved template', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const userId = await seedUser()
+    const seeded = await seedTemplateAndConfig(organizationId)
+    const { campaigns, execution } = makeCampaignServices()
+
+    const campaign = await campaigns.createCampaign({
+      organizationId,
+      actorUserId: userId,
+      name: 'Unapproved template',
+      whatsappConfigId: seeded.whatsappConfigId,
+      messageTemplateId: seeded.messageTemplateId,
+      status: 'draft',
+    })
+
+    await execution.replaceRecipients({
+      organizationId,
+      campaignId: campaign.id,
+      contactIds: [seeded.contactId],
+    })
+
+    await runWithTenant(organizationId, async () => {
+      await db
+        .from('message_templates')
+        .where('id', seeded.messageTemplateId)
+        .update({ status: 'pending' })
+    })
+
+    try {
+      await campaigns.scheduleCampaign({
+        campaignId: campaign.id,
+        organizationId,
+        scheduledAt: new Date(Date.now() + 60 * 60 * 1000),
+      })
+      assert.fail('expected scheduleCampaign to reject')
+    } catch (error) {
+      assert.instanceOf(error, CampaignException)
+      assert.equal((error as CampaignException).code, 'E_CAMPAIGN_TEMPLATE_NOT_APPROVED')
+    }
+
+    const still = await campaigns.getCampaignById({ campaignId: campaign.id, organizationId })
+    assert.equal(still.status, 'draft')
+  })
+
+  test('CampaignService.sendCampaign rejects disconnected WhatsApp config', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const userId = await seedUser()
+    const seeded = await seedTemplateAndConfig(organizationId)
+    const { campaigns, execution } = makeCampaignServices()
+
+    const campaign = await campaigns.createCampaign({
+      organizationId,
+      actorUserId: userId,
+      name: 'Disconnected WA',
+      whatsappConfigId: seeded.whatsappConfigId,
+      messageTemplateId: seeded.messageTemplateId,
+      status: 'draft',
+    })
+
+    await execution.replaceRecipients({
+      organizationId,
+      campaignId: campaign.id,
+      contactIds: [seeded.contactId],
+    })
+
+    await runWithTenant(organizationId, async () => {
+      await db
+        .from('whatsapp_configs')
+        .where('id', seeded.whatsappConfigId)
+        .update({ status: 'disconnected' })
+    })
+
+    try {
+      await campaigns.sendCampaign({
+        campaignId: campaign.id,
+        organizationId,
+      })
+      assert.fail('expected sendCampaign to reject')
+    } catch (error) {
+      assert.instanceOf(error, CampaignException)
+      assert.equal((error as CampaignException).code, 'E_CAMPAIGN_WA_CONFIG_NOT_CONNECTED')
+    }
+
+    const still = await campaigns.getCampaignById({ campaignId: campaign.id, organizationId })
+    assert.equal(still.status, 'draft')
+  })
+
+  test('schedule enqueue failure compensates status back to draft', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const userId = await seedUser()
+    const seeded = await seedTemplateAndConfig(organizationId)
+    const { campaigns, execution } = makeCampaignServices()
+
+    const campaign = await campaigns.createCampaign({
+      organizationId,
+      actorUserId: userId,
+      name: 'Enqueue fail',
+      whatsappConfigId: seeded.whatsappConfigId,
+      messageTemplateId: seeded.messageTemplateId,
+      status: 'draft',
+    })
+
+    await execution.replaceRecipients({
+      organizationId,
+      campaignId: campaign.id,
+      contactIds: [seeded.contactId],
+    })
+
+    const manager = await app.container.make(JobQueueManager)
+    const driver = await manager.ensureStarted()
+    assert.instanceOf(driver, NullJobQueueDriver)
+    const original = driver.enqueue.bind(driver)
+    driver.enqueue = async () => {
+      throw new Error('queue unavailable')
+    }
+
+    try {
+      await assert.rejects(() =>
+        campaigns.scheduleCampaign({
+          campaignId: campaign.id,
+          organizationId,
+          scheduledAt: new Date(Date.now() + 60 * 60 * 1000),
+        })
+      )
+    } finally {
+      driver.enqueue = original
+    }
+
+    const still = await campaigns.getCampaignById({ campaignId: campaign.id, organizationId })
+    assert.equal(still.status, 'draft')
+    assert.isNull(still.scheduledAt)
+  })
+
+  test('changeCampaignStatus rejects terminal to draft', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const userId = await seedUser()
+    const seeded = await seedTemplateAndConfig(organizationId)
+    const { campaigns } = makeCampaignServices()
+
+    const campaign = await campaigns.createCampaign({
+      organizationId,
+      actorUserId: userId,
+      name: 'Already sent',
+      whatsappConfigId: seeded.whatsappConfigId,
+      messageTemplateId: seeded.messageTemplateId,
+      status: 'draft',
+    })
+
+    await runWithTenant(organizationId, async () => {
+      await db.from('broadcasts').where('id', campaign.id).update({ status: 'sent' })
+    })
+
+    try {
+      await campaigns.changeCampaignStatus({
+        campaignId: campaign.id,
+        organizationId,
+        status: 'draft',
+      })
+      assert.fail('expected changeCampaignStatus to reject')
+    } catch (error) {
+      assert.instanceOf(error, CampaignException)
+      assert.equal((error as CampaignException).code, 'E_CAMPAIGN_INVALID_STATUS_TRANSITION')
+    }
+  })
+
+  test('executeCampaign fails fast when template is not approved', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const userId = await seedUser()
+    const seeded = await seedTemplateAndConfig(organizationId)
+    const { campaigns, execution } = makeCampaignServices()
+
+    const campaign = await campaigns.createCampaign({
+      organizationId,
+      actorUserId: userId,
+      name: 'Execute unapproved',
+      whatsappConfigId: seeded.whatsappConfigId,
+      messageTemplateId: seeded.messageTemplateId,
+      status: 'draft',
+    })
+
+    await execution.replaceRecipients({
+      organizationId,
+      campaignId: campaign.id,
+      contactIds: [seeded.contactId],
+    })
+
+    await runWithTenant(organizationId, async () => {
+      await db
+        .from('message_templates')
+        .where('id', seeded.messageTemplateId)
+        .update({ status: 'pending' })
+      await db.from('broadcasts').where('id', campaign.id).update({ status: 'sending' })
+    })
+
+    const result = await execution.executeCampaign({
+      organizationId,
+      campaignId: campaign.id,
+    })
+    assert.equal(result.claimed, 0)
+    assert.isTrue(result.finalized)
+
+    await runWithTenant(organizationId, async () => {
+      const row = await db.from('broadcasts').where('id', campaign.id).first()
+      const pending = await db
+        .from('broadcast_recipients')
+        .where('broadcastId', campaign.id)
+        .where('status', 'pending')
+        .count('* as total')
+        .first()
+      assert.equal(row.status, 'failed')
+      assert.equal(Number(pending?.total ?? 0), 1)
+    })
   })
 })

@@ -33,6 +33,27 @@ export default class CampaignException extends Exception {
     })
   }
 
+  static templateNotApproved() {
+    return new this('Message template is not approved for sending', {
+      status: 422,
+      code: 'E_CAMPAIGN_TEMPLATE_NOT_APPROVED',
+    })
+  }
+
+  static whatsappConfigNotConnected() {
+    return new this('WhatsApp configuration is not connected', {
+      status: 422,
+      code: 'E_CAMPAIGN_WA_CONFIG_NOT_CONNECTED',
+    })
+  }
+
+  static invalidStatusTransition(from: string, to: string) {
+    return new this(`Cannot change campaign status from "${from}" to "${to}"`, {
+      status: 422,
+      code: 'E_CAMPAIGN_INVALID_STATUS_TRANSITION',
+    })
+  }
+
   static templateNotConfigured() {
     return new this('Campaign has no message template configured', {
       status: 422,
