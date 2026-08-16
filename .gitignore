@@ -43,3 +43,5 @@ todo.md
 .agents/
 skills-lock.json
 *.xlsx
+.code-review-graph/
+.mcp.json

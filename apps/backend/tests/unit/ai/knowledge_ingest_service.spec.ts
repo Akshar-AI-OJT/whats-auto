@@ -28,6 +28,7 @@ function documentRow(overrides: Partial<AiKnowledgeDocumentRow> = {}): AiKnowled
     embeddingModel: 'text-embedding-3-small',
     documentHash: null,
     errorMessage: null,
+    deletedAt: null,
     createdAt: new Date(),
     updatedAt: null,
     ...overrides,
@@ -97,7 +98,10 @@ function createIngest(params: {
   const llm = new FakeLlmProvider()
   const platform = {
     async get() {
-      return { embeddingModel: 'text-embedding-3-small' }
+      return {
+        embeddingModel: 'text-embedding-3-small',
+        activeEmbeddingSpaceId: 'openai:text-embedding-3-small:1024:v1',
+      }
     },
   } as unknown as PlatformAiConfigService
 

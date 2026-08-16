@@ -23,5 +23,6 @@ export const listKnowledgeDocumentsValidator = vine.create(
     page: vine.number().withoutDecimals().min(1).optional(),
     perPage: vine.number().withoutDecimals().min(1).max(100).optional(),
     status: vine.enum(AI_KNOWLEDGE_DOCUMENT_STATUSES).optional(),
+    lifecycle: vine.enum(['active', 'deleted'] as const).optional(),
   })
 )

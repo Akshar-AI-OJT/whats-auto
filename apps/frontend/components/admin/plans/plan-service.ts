@@ -1,80 +1,72 @@
 /**
- * Plan catalog data-access layer (mock-backed).
+ * Plan catalog data-access layer (live API).
  *
- * Swap the bodies of these functions to real `api.superAdmin.plans.*` calls later
- * without rewriting the Plans UI.
+ * UI keeps the SubscriptionPlan shape; this module maps super-admin plan DTOs.
  */
 
-import { MOCK_PLANS_SEED } from './mock-plans'
+import {
+  api,
+  type ApiError,
+  type CreateSuperAdminPlanBody,
+  type SuperAdminPlan,
+  type SuperAdminPlanFeature,
+  type UpdateSuperAdminPlanBody,
+} from '@/lib/api'
 import type {
   CreatePlanInput,
   ListPlansParams,
   PlanActionResult,
+  PlanFeature,
   PlanSummary,
   SubscriptionPlan,
   UpdatePlanInput,
 } from './types'
 
-const LATENCY_MS = 160
-
-let store: SubscriptionPlan[] = structuredClone(MOCK_PLANS_SEED)
-
-function delay(ms = LATENCY_MS) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
-function clonePlan(plan: SubscriptionPlan): SubscriptionPlan {
-  return structuredClone(plan)
-}
-
-function matchesSearch(plan: SubscriptionPlan, search: string) {
-  const q = search.trim().toLowerCase()
-  if (!q) return true
-  return (
-    plan.name.toLowerCase().includes(q) ||
-    plan.description.toLowerCase().includes(q) ||
-    plan.status.toLowerCase().includes(q)
-  )
-}
-
-export async function listPlans(
-  params: ListPlansParams = {}
-): Promise<{ items: SubscriptionPlan[]; summary: PlanSummary }> {
-  await delay()
-  const status = params.status ?? 'all'
-  const items = store
-    .filter((plan) => {
-      if (status !== 'all' && plan.status !== status) return false
-      return matchesSearch(plan, params.search ?? '')
-    })
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .map(clonePlan)
-
-  const popular = store.find((plan) => plan.popular && plan.status === 'active')
-  const summary: PlanSummary = {
-    total: store.length,
-    active: store.filter((plan) => plan.status === 'active').length,
-    draft: store.filter((plan) => plan.status === 'draft').length,
-    archived: store.filter((plan) => plan.status === 'archived').length,
-    popularName: popular?.name ?? null,
+function unwrapPlan(data: unknown): SuperAdminPlan {
+  if (!data || typeof data !== 'object') {
+    throw new Error('Invalid plan response')
   }
-
-  return { items, summary }
+  const root = data as { data?: SuperAdminPlan } & SuperAdminPlan
+  if (root.data && typeof root.data === 'object' && 'id' in root.data) {
+    return root.data
+  }
+  return root as SuperAdminPlan
 }
 
-export async function getPlan(id: string): Promise<SubscriptionPlan | null> {
-  await delay()
-  const found = store.find((plan) => plan.id === id)
-  return found ? clonePlan(found) : null
+function toSubscriptionPlan(plan: SuperAdminPlan): SubscriptionPlan {
+  const features: PlanFeature[] = (plan.features ?? []).map((feature: SuperAdminPlanFeature) => ({
+    key: feature.key,
+    name: feature.name || feature.key,
+    enabled: Boolean(feature.enabled),
+    description: feature.description,
+    category: feature.category ?? 'messaging',
+  }))
+
+  return {
+    id: plan.id,
+    name: plan.name,
+    description: plan.description ?? '',
+    price: plan.price,
+    currency: (plan.currency?.toUpperCase() === 'USD' ? 'USD' : 'INR') as 'INR' | 'USD',
+    billingPeriod: plan.billingPeriod,
+    status: plan.status,
+    popular: Boolean(plan.popular),
+    trialDays: plan.trialDays,
+    limits: {
+      users: plan.limits?.users ?? null,
+      messagesPerMonth: plan.limits?.messagesPerMonth ?? null,
+      workspaces: plan.limits?.workspaces ?? null,
+    },
+    features,
+    createdAt: plan.createdAt,
+    updatedAt: plan.updatedAt ?? plan.createdAt,
+  }
 }
 
-export async function createPlan(input: CreatePlanInput): Promise<SubscriptionPlan> {
-  await delay(220)
-  const now = new Date().toISOString()
-  const plan: SubscriptionPlan = {
-    id: `plan_${crypto.randomUUID().slice(0, 8)}`,
-    name: input.name.trim(),
-    description: input.description.trim(),
+function toCreateBody(input: CreatePlanInput): CreateSuperAdminPlanBody {
+  return {
+    name: input.name,
+    description: input.description,
     price: input.price,
     currency: input.currency,
     billingPeriod: input.billingPeriod,
@@ -82,51 +74,102 @@ export async function createPlan(input: CreatePlanInput): Promise<SubscriptionPl
     popular: Boolean(input.popular),
     trialDays: input.trialDays,
     limits: input.limits,
-    features: structuredClone(input.features),
-    createdAt: now,
-    updatedAt: now,
+    features: input.features.map((feature) => ({
+      key: feature.key,
+      name: feature.name,
+      enabled: feature.enabled,
+      description: feature.description,
+      category: feature.category,
+    })),
   }
-  store = [plan, ...store]
-  return clonePlan(plan)
 }
 
-export async function updatePlan(
-  id: string,
-  input: UpdatePlanInput
-): Promise<PlanActionResult> {
-  await delay(220)
-  const index = store.findIndex((plan) => plan.id === id)
-  if (index < 0) return { ok: false, reason: 'not_found', messageKey: 'errors.notFound' }
-
-  const current = store[index]
-  const updated: SubscriptionPlan = {
-    ...current,
-    ...input,
-    name: input.name?.trim() ?? current.name,
-    description: input.description?.trim() ?? current.description,
-    limits: input.limits ?? current.limits,
-    features: input.features ? structuredClone(input.features) : current.features,
-    updatedAt: new Date().toISOString(),
+function toUpdateBody(input: UpdatePlanInput): UpdateSuperAdminPlanBody {
+  const body: UpdateSuperAdminPlanBody = {}
+  if (input.name !== undefined) body.name = input.name
+  if (input.description !== undefined) body.description = input.description
+  if (input.price !== undefined) body.price = input.price
+  if (input.currency !== undefined) body.currency = input.currency
+  if (input.billingPeriod !== undefined) body.billingPeriod = input.billingPeriod
+  if (input.status !== undefined) body.status = input.status
+  if (input.popular !== undefined) body.popular = input.popular
+  if (input.trialDays !== undefined) body.trialDays = input.trialDays
+  if (input.limits !== undefined) body.limits = input.limits
+  if (input.features !== undefined) {
+    body.features = input.features.map((feature) => ({
+      key: feature.key,
+      name: feature.name,
+      enabled: feature.enabled,
+      description: feature.description,
+      category: feature.category,
+    }))
   }
-  store[index] = updated
-  return { ok: true, plan: clonePlan(updated), messageKey: 'toast.updated' }
+  return body
+}
+
+function isNotFound(error: unknown): boolean {
+  const apiError = error as ApiError | undefined
+  return Boolean(apiError && (apiError.status === 404 || apiError.code === 'E_PLAN_NOT_FOUND'))
+}
+
+export async function listPlans(
+  params: ListPlansParams = {}
+): Promise<{ items: SubscriptionPlan[]; summary: PlanSummary }> {
+  const { data } = await api.superAdmin.plans.list({
+    search: params.search,
+    status: params.status,
+  })
+  const payload =
+    (data as { data?: { items: SuperAdminPlan[]; summary: PlanSummary } })?.data ??
+    (data as { items?: SuperAdminPlan[]; summary?: PlanSummary })
+
+  const items = (payload.items ?? []).map(toSubscriptionPlan)
+  const summary = payload.summary ?? {
+    total: items.length,
+    active: items.filter((plan) => plan.status === 'active').length,
+    draft: items.filter((plan) => plan.status === 'draft').length,
+    archived: items.filter((plan) => plan.status === 'archived').length,
+    popularName: items.find((plan) => plan.popular && plan.status === 'active')?.name ?? null,
+  }
+
+  return { items, summary }
+}
+
+export async function getPlan(id: string): Promise<SubscriptionPlan | null> {
+  try {
+    const { data } = await api.superAdmin.plans.get(id)
+    return toSubscriptionPlan(unwrapPlan(data))
+  } catch (error) {
+    if (isNotFound(error)) return null
+    throw error
+  }
+}
+
+export async function createPlan(input: CreatePlanInput): Promise<SubscriptionPlan> {
+  const { data } = await api.superAdmin.plans.create(toCreateBody(input))
+  return toSubscriptionPlan(unwrapPlan(data))
+}
+
+export async function updatePlan(id: string, input: UpdatePlanInput): Promise<PlanActionResult> {
+  try {
+    const { data } = await api.superAdmin.plans.update(id, toUpdateBody(input))
+    return { ok: true, plan: toSubscriptionPlan(unwrapPlan(data)), messageKey: 'toast.updated' }
+  } catch (error) {
+    if (isNotFound(error)) {
+      return { ok: false, reason: 'not_found', messageKey: 'errors.notFound' }
+    }
+    throw error
+  }
 }
 
 export async function archivePlan(id: string): Promise<PlanActionResult> {
-  await delay()
-  const index = store.findIndex((plan) => plan.id === id)
-  if (index < 0) return { ok: false, reason: 'not_found', messageKey: 'errors.notFound' }
-
-  const updated: SubscriptionPlan = {
-    ...store[index],
-    status: 'archived',
-    popular: false,
-    updatedAt: new Date().toISOString(),
+  try {
+    const { data } = await api.superAdmin.plans.destroy(id)
+    return { ok: true, plan: toSubscriptionPlan(unwrapPlan(data)), messageKey: 'toast.archived' }
+  } catch (error) {
+    if (isNotFound(error)) {
+      return { ok: false, reason: 'not_found', messageKey: 'errors.notFound' }
+    }
+    throw error
   }
-  store[index] = updated
-  return { ok: true, plan: clonePlan(updated), messageKey: 'toast.archived' }
-}
-
-export function __resetPlanStoreForTests() {
-  store = structuredClone(MOCK_PLANS_SEED)
 }

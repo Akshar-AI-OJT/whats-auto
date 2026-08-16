@@ -1,6 +1,6 @@
 'use client'
 
-import { useId, useState } from 'react'
+import { useId, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Loader2, Mail, Phone, UserPlus } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -60,6 +60,7 @@ export function InviteMemberSheet({
   const phoneId = useId()
   const roleId = useId()
   const formErrorId = useId()
+  const submitLockRef = useRef(false)
 
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
@@ -77,6 +78,7 @@ export function InviteMemberSheet({
     setError(null)
     setSuccess(null)
     setPending(false)
+    submitLockRef.current = false
   }
 
   function validate(): FieldErrors {
@@ -106,7 +108,9 @@ export function InviteMemberSheet({
     if (apiError.code === 'E_ROLE_MISSING') return t('errors.roleInvalid')
     if (apiError.code === 'E_INVITE_EMAIL_FAILED') return t('errors.emailFailed')
     if (apiError.status >= 500) return t('errors.generic')
-    return apiError.message || t('errors.generic')
+    // Bare fetch fallback ("Request failed") when statusText/body are empty — show generic copy.
+    if (!apiError.message || apiError.message === 'Request failed') return t('errors.generic')
+    return apiError.message
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -128,12 +132,18 @@ export function InviteMemberSheet({
       return
     }
 
+    // Sync lock — React state `pending` alone allows double-submit before re-render.
+    if (submitLockRef.current) return
+    submitLockRef.current = true
+
     setPending(true)
     try {
       await api.invitations.create(tenantOrganizationId, {
         email: email.trim(),
         role,
       })
+      // 2xx from create means the invite row was accepted — do not re-validate
+      // response wrapping here (serialize may nest under `data`).
       setSuccess(t('success'))
       onInvited?.()
       window.setTimeout(() => {
@@ -142,6 +152,7 @@ export function InviteMemberSheet({
       }, 700)
     } catch (err) {
       setError(mapInviteError(err as ApiError))
+      submitLockRef.current = false
     } finally {
       setPending(false)
     }

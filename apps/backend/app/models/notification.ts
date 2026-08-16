@@ -1,10 +1,6 @@
 import { belongsTo } from '@adonisjs/lucid/orm'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
-import {
-  ContactSchema,
-  ConversationSchema,
-  NotificationSchema,
-} from '#database/schema'
+import { ContactSchema, ConversationSchema, NotificationSchema } from '#database/schema'
 import Organization from '#models/organization'
 import User from '#models/user'
 

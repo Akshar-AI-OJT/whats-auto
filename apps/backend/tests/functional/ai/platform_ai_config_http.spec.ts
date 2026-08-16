@@ -4,6 +4,8 @@ import { DEMO_PASSWORD, DEMO_USERS } from '#database/demo/credentials'
 import { FIXTURE_IDS } from '#database/demo/fixture_ids'
 import DemoSeeder from '#database/seeders/demo_seeder'
 import { auth } from '#lib/auth'
+import { LlmChatProvider } from '#enums/llm_chat_provider'
+import { catalogForProvider } from '#services/ai/platform_ai_models'
 import { AccessTokenClaimsService } from '#services/access_token_claims_service'
 
 const DEFAULTS = {
@@ -18,6 +20,17 @@ const DEFAULTS = {
   workingSetSize: 6,
   summaryTurnThreshold: 10,
   embeddingModel: 'text-embedding-3-small',
+  chatProvider: 'openai',
+  chatModel: 'gpt-4o-mini',
+  summaryModel: null as string | null,
+  embeddingProvider: 'openai',
+  activeEmbeddingSpaceId: 'openai:text-embedding-3-small:1024:v1',
+  maxOutputTokens: 1024,
+  reindexStatus: 'idle',
+  reindexFromSpaceId: null as string | null,
+  reindexToSpaceId: null as string | null,
+  reindexEmbeddingModel: null as string | null,
+  reindexEmbeddingProvider: null as string | null,
   updatedByUserId: null as string | null,
 }
 
@@ -103,8 +116,12 @@ test.group('Platform AI config HTTP', (group) => {
       .header('Authorization', `Bearer ${token}`)
     shown.assertStatus(200)
     assert.equal(shown.body().data.modelName, 'gpt-4o-mini')
+    assert.equal(shown.body().data.chatModel, 'gpt-4o-mini')
+    assert.equal(shown.body().data.chatProvider, 'openai')
+    assert.equal(shown.body().data.maxOutputTokens, 1024)
+    assert.equal(shown.body().data.reindexStatus, 'idle')
     assert.equal(shown.body().data.debounceDelaySeconds, 4)
-    assert.isUndefined(shown.body().data.singletonKey)
+    assert.isUndefined((shown.body().data as { singletonKey?: string }).singletonKey)
 
     const patched = await client
       .patch('/api/v1/super-admin/ai-config')
@@ -141,5 +158,36 @@ test.group('Platform AI config HTTP', (group) => {
       .json({ workingSetSize: 12, summaryTurnThreshold: 5 })
     response.assertStatus(422)
     assert.equal(errorBody(response).code, 'E_PLATFORM_AI_CONFIG_SUMMARY_THRESHOLD')
+  })
+
+  test('rejects a chat model outside the provider allowlist', async ({ client, assert }) => {
+    const token = await mintToken(DEMO_USERS.superadmin)
+    const response = await client
+      .patch('/api/v1/super-admin/ai-config')
+      .header('Authorization', `Bearer ${token}`)
+      .json({ chatModel: 'claude-3-haiku' })
+    response.assertStatus(422)
+    assert.equal(errorBody(response).code, 'E_PLATFORM_AI_INVALID_MODEL')
+  })
+
+  test('rejects a summary model from another provider', async ({ client, assert }) => {
+    const token = await mintToken(DEMO_USERS.superadmin)
+    const foreign = catalogForProvider(LlmChatProvider.Mistral).defaults.chatModel
+    const response = await client
+      .patch('/api/v1/super-admin/ai-config')
+      .header('Authorization', `Bearer ${token}`)
+      .json({ summaryModel: foreign })
+    response.assertStatus(422)
+    assert.equal(errorBody(response).code, 'E_PLATFORM_AI_INVALID_MODEL')
+  })
+
+  test('rejects embeddingProvider that does not match chatProvider', async ({ client, assert }) => {
+    const token = await mintToken(DEMO_USERS.superadmin)
+    const response = await client
+      .patch('/api/v1/super-admin/ai-config')
+      .header('Authorization', `Bearer ${token}`)
+      .json({ embeddingProvider: 'mistral' })
+    response.assertStatus(422)
+    assert.equal(errorBody(response).code, 'E_PLATFORM_AI_EMBEDDING_PROVIDER_MISMATCH')
   })
 })

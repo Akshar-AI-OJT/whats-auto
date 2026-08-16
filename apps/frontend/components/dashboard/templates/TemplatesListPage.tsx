@@ -53,10 +53,14 @@ export function TemplatesListPage() {
   const queryClient = useQueryClient()
   const {
     tenantOrganizationId,
-    canViewWhatsapp,
-    canManageWhatsapp,
+    canViewTemplates,
+    canCreateTemplates,
+    canSyncTemplates,
+    canDeleteTemplates,
     isLoading: orgsLoading,
   } = useOrganizations()
+
+  const canManageTemplates = canCreateTemplates || canDeleteTemplates
 
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('')
@@ -90,7 +94,7 @@ export function TemplatesListPage() {
 
   const templatesQuery = useQuery({
     queryKey: templateQueryKeys.list(tenantOrganizationId, listParams),
-    enabled: Boolean(tenantOrganizationId) && canViewWhatsapp && !orgsLoading,
+    enabled: Boolean(tenantOrganizationId) && canViewTemplates && !orgsLoading,
     queryFn: async () => {
       const { data } = await api.whatsapp.listTemplates(listParams)
       return unwrapTemplateList(data)
@@ -99,7 +103,7 @@ export function TemplatesListPage() {
 
   const whatsappQuery = useQuery({
     queryKey: templateQueryKeys.whatsappConnected(tenantOrganizationId),
-    enabled: Boolean(tenantOrganizationId) && canViewWhatsapp && !orgsLoading,
+    enabled: Boolean(tenantOrganizationId) && canViewTemplates && !orgsLoading,
     queryFn: async () => {
       const { data } = await api.whatsapp.listConfigs()
       return unwrapList<WhatsappConfigSummary>(data)
@@ -175,7 +179,7 @@ export function TemplatesListPage() {
     router.push(`/dashboard/templates/create?from=${template.id}`)
   }
 
-  if (!orgsLoading && !canViewWhatsapp) {
+  if (!orgsLoading && !canViewTemplates) {
     return (
       <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5">
         <DashboardPanel as="section" className="px-4 py-5 sm:px-6 sm:py-6">
@@ -212,7 +216,7 @@ export function TemplatesListPage() {
             </p>
           </div>
           <div className="flex shrink-0 flex-nowrap items-center gap-2 overflow-x-auto">
-            {canManageWhatsapp ? (
+            {canSyncTemplates ? (
               <Button
                 type="button"
                 variant="outline"
@@ -237,7 +241,7 @@ export function TemplatesListPage() {
               <LayoutGrid className="size-4" aria-hidden />
               {t('browseCta')}
             </Button>
-            {canManageWhatsapp ? (
+            {canCreateTemplates ? (
               <Button
                 type="button"
                 className="shrink-0 gap-2"
@@ -321,7 +325,7 @@ export function TemplatesListPage() {
             </span>
             <p className="font-medium text-ink">{t('emptyTitle')}</p>
             <p className="max-w-sm text-sm text-body">{t('emptyDescription')}</p>
-            {canManageWhatsapp ? (
+            {canCreateTemplates ? (
               <Button
                 type="button"
                 className="mt-2 gap-2"
@@ -337,7 +341,7 @@ export function TemplatesListPage() {
             {viewMode === 'cards' ? (
               <TemplateCards
                 templates={items}
-                canManage={canManageWhatsapp}
+                canManage={canManageTemplates}
                 onView={(template) => router.push(`/dashboard/templates/${template.id}`)}
                 onDuplicate={openDuplicate}
                 onDelete={(template) => {
@@ -348,7 +352,7 @@ export function TemplatesListPage() {
             ) : (
               <TemplateTable
                 templates={items}
-                canManage={canManageWhatsapp}
+                canManage={canManageTemplates}
                 onView={(template) => router.push(`/dashboard/templates/${template.id}`)}
                 onDuplicate={openDuplicate}
                 onDelete={(template) => {

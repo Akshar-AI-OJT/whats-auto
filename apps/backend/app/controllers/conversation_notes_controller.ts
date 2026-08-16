@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import ConversationNotePolicy from '#policies/conversation_note_policy'
 import { ConversationNoteService } from '#services/conversation_note_service'
 import { conversationIdParamValidator } from '#validators/conversation'
 import { createConversationNoteValidator } from '#validators/conversation_note'
@@ -16,9 +17,14 @@ export default class ConversationNotesController {
    * @responseBody 404 - { "error": "Conversation not found", "code": "E_CONVERSATION_NOT_FOUND" }
    * @responseBody 403 - { "error": "Permission denied: inbox:view", "code": "PERMISSION_DENIED" }
    */
-  async index({ request, params, serialize }: HttpContext) {
+  async index({ bouncer, request, params, serialize }: HttpContext) {
     const { id } = await request.validateUsing(conversationIdParamValidator, {
       data: params,
+    })
+
+    await bouncer.with(ConversationNotePolicy).authorize('viewList', {
+      organizationId: request.activeMember!.organizationId,
+      id,
     })
 
     const notes = await new ConversationNoteService().listNotes({
@@ -41,10 +47,16 @@ export default class ConversationNotesController {
    * @responseBody 404 - { "error": "Conversation not found", "code": "E_CONVERSATION_NOT_FOUND" }
    * @responseBody 403 - { "error": "Permission denied: inbox:reply", "code": "PERMISSION_DENIED" }
    */
-  async store({ request, params, serialize }: HttpContext) {
+  async store({ bouncer, request, params, serialize }: HttpContext) {
     const { id } = await request.validateUsing(conversationIdParamValidator, {
       data: params,
     })
+
+    await bouncer.with(ConversationNotePolicy).authorize('create', {
+      organizationId: request.activeMember!.organizationId,
+      id,
+    })
+
     const payload = await request.validateUsing(createConversationNoteValidator)
 
     const note = await new ConversationNoteService().createNote({

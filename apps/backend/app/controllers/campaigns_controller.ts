@@ -1,4 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import { inject } from '@adonisjs/core'
+import CampaignPolicy from '#policies/campaign_policy'
 import { CampaignExecutionService } from '#services/campaign_execution_service'
 import { CampaignService } from '#services/campaign_service'
 import {
@@ -30,12 +32,15 @@ export default class CampaignsController {
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 403 - { "error": "Permission denied: campaigns:view", "code": "PERMISSION_DENIED" }
    */
-  async index({ request, serialize }: HttpContext) {
+  @inject()
+  async index({ bouncer, request, serialize }: HttpContext, campaigns: CampaignService) {
+    await bouncer.with(CampaignPolicy).authorize('viewList')
+
     const params = await request.validateUsing(listCampaignsValidator, {
       data: request.qs(),
     })
 
-    const result = await new CampaignService().listCampaignsPaginated({
+    const result = await campaigns.listCampaignsPaginated({
       organizationId: request.activeMember!.organizationId,
       ...params,
     })
@@ -55,15 +60,18 @@ export default class CampaignsController {
    * @responseBody 403 - { "error": "Permission denied: campaigns:view", "code": "PERMISSION_DENIED" }
    * @responseBody 404 - { "error": "Campaign not found", "code": "E_CAMPAIGN_NOT_FOUND" }
    */
-  async show({ request, params, serialize }: HttpContext) {
+  @inject()
+  async show({ bouncer, request, params, serialize }: HttpContext, campaigns: CampaignService) {
     const { id } = await request.validateUsing(campaignIdParamValidator, {
       data: params,
     })
 
-    const campaign = await new CampaignService().getCampaignById({
+    const campaign = await campaigns.getCampaignById({
       campaignId: id,
       organizationId: request.activeMember!.organizationId,
     })
+
+    await bouncer.with(CampaignPolicy).authorize('view', campaign)
 
     return serialize(campaign)
   }
@@ -82,13 +90,22 @@ export default class CampaignsController {
    * @responseBody 404 - { "error": "Campaign not found", "code": "E_CAMPAIGN_NOT_FOUND" }
    * @responseBody 422 - { "error": "Campaign has no message template configured", "code": "E_CAMPAIGN_TEMPLATE_NOT_CONFIGURED" }
    */
-  async preview({ request, params, serialize }: HttpContext) {
+  @inject()
+  async preview({ bouncer, request, params, serialize }: HttpContext, campaigns: CampaignService) {
     const { id } = await request.validateUsing(campaignIdParamValidator, {
       data: params,
     })
+
+    const existing = await campaigns.getCampaignById({
+      campaignId: id,
+      organizationId: request.activeMember!.organizationId,
+    })
+
+    await bouncer.with(CampaignPolicy).authorize('preview', existing)
+
     const payload = await request.validateUsing(previewCampaignValidator)
 
-    const preview = await new CampaignService().previewCampaign({
+    const preview = await campaigns.previewCampaign({
       campaignId: id,
       organizationId: request.activeMember!.organizationId,
       variables: payload.variables,
@@ -109,13 +126,22 @@ export default class CampaignsController {
    * @responseBody 403 - { "error": "Permission denied: campaigns:launch", "code": "PERMISSION_DENIED" }
    * @responseBody 404 - { "error": "Campaign not found", "code": "E_CAMPAIGN_NOT_FOUND" }
    * @responseBody 422 - { "error": "Campaign with status \"sending\" is not eligible to send", "code": "E_CAMPAIGN_NOT_ELIGIBLE_TO_SEND" }
+   * @responseBody 422 - { "error": "Message template is not approved for sending", "code": "E_CAMPAIGN_TEMPLATE_NOT_APPROVED" }
    */
-  async send({ request, params, serialize }: HttpContext) {
+  @inject()
+  async send({ bouncer, request, params, serialize }: HttpContext, campaigns: CampaignService) {
     const { id } = await request.validateUsing(campaignIdParamValidator, {
       data: params,
     })
 
-    const campaign = await new CampaignService().sendCampaign({
+    const existing = await campaigns.getCampaignById({
+      campaignId: id,
+      organizationId: request.activeMember!.organizationId,
+    })
+
+    await bouncer.with(CampaignPolicy).authorize('send', existing)
+
+    const campaign = await campaigns.sendCampaign({
       campaignId: id,
       organizationId: request.activeMember!.organizationId,
     })
@@ -136,14 +162,24 @@ export default class CampaignsController {
    * @responseBody 403 - { "error": "Permission denied: campaigns:edit", "code": "PERMISSION_DENIED" }
    * @responseBody 404 - { "error": "Campaign not found", "code": "E_CAMPAIGN_NOT_FOUND" }
    * @responseBody 422 - { "error": "scheduledAt must be in the future", "code": "E_CAMPAIGN_SCHEDULED_AT_MUST_BE_FUTURE" }
+   * @responseBody 422 - { "error": "Message template is not approved for sending", "code": "E_CAMPAIGN_TEMPLATE_NOT_APPROVED" }
    */
-  async schedule({ request, params, serialize }: HttpContext) {
+  @inject()
+  async schedule({ bouncer, request, params, serialize }: HttpContext, campaigns: CampaignService) {
     const { id } = await request.validateUsing(campaignIdParamValidator, {
       data: params,
     })
+
+    const existing = await campaigns.getCampaignById({
+      campaignId: id,
+      organizationId: request.activeMember!.organizationId,
+    })
+
+    await bouncer.with(CampaignPolicy).authorize('schedule', existing)
+
     const payload = await request.validateUsing(scheduleCampaignValidator)
 
-    const campaign = await new CampaignService().scheduleCampaign({
+    const campaign = await campaigns.scheduleCampaign({
       campaignId: id,
       organizationId: request.activeMember!.organizationId,
       scheduledAt: payload.scheduledAt,
@@ -165,24 +201,31 @@ export default class CampaignsController {
    * @responseBody 404 - { "error": "Campaign not found", "code": "E_CAMPAIGN_NOT_FOUND" }
    * @responseBody 422 - { "error": "Campaign with status \"draft\" is not eligible to cancel schedule", "code": "E_CAMPAIGN_NOT_ELIGIBLE_TO_CANCEL" }
    */
-  async cancel({ request, params, serialize }: HttpContext) {
+  @inject()
+  async cancel(
+    { bouncer, request, params, serialize }: HttpContext,
+    campaigns: CampaignService,
+    execution: CampaignExecutionService
+  ) {
     const { id } = await request.validateUsing(campaignIdParamValidator, {
       data: params,
     })
     const organizationId = request.activeMember!.organizationId
 
-    const existing = await new CampaignService().getCampaignById({
+    const existing = await campaigns.getCampaignById({
       campaignId: id,
       organizationId,
     })
 
+    await bouncer.with(CampaignPolicy).authorize('cancel', existing)
+
     const campaign =
       existing.status === 'sending'
-        ? await new CampaignExecutionService().cancelCampaign({
+        ? await execution.cancelCampaign({
             organizationId,
             campaignId: id,
           })
-        : await new CampaignService().cancelScheduledCampaign({
+        : await campaigns.cancelScheduledCampaign({
             campaignId: id,
             organizationId,
           })
@@ -200,13 +243,26 @@ export default class CampaignsController {
    * @requestBody { "contactIds": ["uuid"], "variables": { "name": "Ada" } }
    * @responseBody 200 - { "data": { "id": "uuid", "totalRecipients": 1 } }
    */
-  async replaceRecipients({ request, params, serialize }: HttpContext) {
+  @inject()
+  async replaceRecipients(
+    { bouncer, request, params, serialize }: HttpContext,
+    campaigns: CampaignService,
+    execution: CampaignExecutionService
+  ) {
     const { id } = await request.validateUsing(campaignIdParamValidator, {
       data: params,
     })
+
+    const existing = await campaigns.getCampaignById({
+      campaignId: id,
+      organizationId: request.activeMember!.organizationId,
+    })
+
+    await bouncer.with(CampaignPolicy).authorize('replaceRecipients', existing)
+
     const payload = await request.validateUsing(replaceCampaignRecipientsValidator)
 
-    const campaign = await new CampaignExecutionService().replaceRecipients({
+    const campaign = await execution.replaceRecipients({
       organizationId: request.activeMember!.organizationId,
       campaignId: id,
       contactIds: payload.contactIds,
@@ -228,12 +284,23 @@ export default class CampaignsController {
    * @responseBody 403 - { "error": "Permission denied: campaigns:create", "code": "PERMISSION_DENIED" }
    * @responseBody 404 - { "error": "Campaign not found", "code": "E_CAMPAIGN_NOT_FOUND" }
    */
-  async duplicate({ request, params, serialize }: HttpContext) {
+  @inject()
+  async duplicate(
+    { bouncer, request, params, serialize }: HttpContext,
+    campaigns: CampaignService
+  ) {
     const { id } = await request.validateUsing(campaignIdParamValidator, {
       data: params,
     })
 
-    const campaign = await new CampaignService().duplicateCampaign({
+    const existing = await campaigns.getCampaignById({
+      campaignId: id,
+      organizationId: request.activeMember!.organizationId,
+    })
+
+    await bouncer.with(CampaignPolicy).authorize('duplicate', existing)
+
+    const campaign = await campaigns.duplicateCampaign({
       campaignId: id,
       organizationId: request.activeMember!.organizationId,
       actorUserId: request.authUser!.id,
@@ -245,24 +312,36 @@ export default class CampaignsController {
   /**
    * @changeStatus
    * @summary Change campaign status
-   * @description Updates only the campaign status to an active lifecycle value (draft, scheduled, sending, sent, failed). Soft-deleted campaigns return 404. Does not change other fields.
+   * @description Updates campaign status for draft↔scheduled only. Sending/sent/failed/cancelled use send, schedule, cancel, or finalize flows.
    * @tag Campaigns
    * @security BearerAuth
    * @paramPath id - Campaign id - @type(string)
-   * @requestBody { "status": "sent" }
-   * @responseBody 200 - { "data": { "id": "uuid", "name": "July Product Launch", "status": "sent" } }
+   * @requestBody { "status": "scheduled" }
+   * @responseBody 200 - { "data": { "id": "uuid", "name": "July Product Launch", "status": "scheduled" } }
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 403 - { "error": "Permission denied: campaigns:edit", "code": "PERMISSION_DENIED" }
    * @responseBody 404 - { "error": "Campaign not found", "code": "E_CAMPAIGN_NOT_FOUND" }
-   * @responseBody 422 - { "error": "Validation failed", "code": "E_VALIDATION_ERROR" }
+   * @responseBody 422 - { "error": "Cannot change campaign status from \"sent\" to \"draft\"", "code": "E_CAMPAIGN_INVALID_STATUS_TRANSITION" }
    */
-  async changeStatus({ request, params, serialize }: HttpContext) {
+  @inject()
+  async changeStatus(
+    { bouncer, request, params, serialize }: HttpContext,
+    campaigns: CampaignService
+  ) {
     const { id } = await request.validateUsing(campaignIdParamValidator, {
       data: params,
     })
+
+    const existing = await campaigns.getCampaignById({
+      campaignId: id,
+      organizationId: request.activeMember!.organizationId,
+    })
+
+    await bouncer.with(CampaignPolicy).authorize('changeStatus', existing)
+
     const payload = await request.validateUsing(changeCampaignStatusValidator)
 
-    const campaign = await new CampaignService().changeCampaignStatus({
+    const campaign = await campaigns.changeCampaignStatus({
       campaignId: id,
       organizationId: request.activeMember!.organizationId,
       status: payload.status,
@@ -283,10 +362,13 @@ export default class CampaignsController {
    * @responseBody 403 - { "error": "Permission denied: campaigns:create", "code": "PERMISSION_DENIED" }
    * @responseBody 422 - { "error": "Message template not found for this organization", "code": "E_CAMPAIGN_TEMPLATE_NOT_FOUND" }
    */
-  async store({ request, serialize }: HttpContext) {
+  @inject()
+  async store({ bouncer, request, serialize }: HttpContext, campaigns: CampaignService) {
+    await bouncer.with(CampaignPolicy).authorize('create')
+
     const payload = await request.validateUsing(createCampaignValidator)
 
-    const campaign = await new CampaignService().createCampaign({
+    const campaign = await campaigns.createCampaign({
       organizationId: request.activeMember!.organizationId,
       actorUserId: request.authUser!.id,
       name: payload.name,
@@ -314,13 +396,22 @@ export default class CampaignsController {
    * @responseBody 404 - { "error": "Campaign not found", "code": "E_CAMPAIGN_NOT_FOUND" }
    * @responseBody 422 - { "error": "scheduledAt is required when status is scheduled", "code": "E_CAMPAIGN_SCHEDULED_AT_REQUIRED" }
    */
-  async update({ request, params, serialize }: HttpContext) {
+  @inject()
+  async update({ bouncer, request, params, serialize }: HttpContext, campaigns: CampaignService) {
     const { id } = await request.validateUsing(campaignIdParamValidator, {
       data: params,
     })
+
+    const existing = await campaigns.getCampaignById({
+      campaignId: id,
+      organizationId: request.activeMember!.organizationId,
+    })
+
+    await bouncer.with(CampaignPolicy).authorize('update', existing)
+
     const payload = await request.validateUsing(updateCampaignValidator)
 
-    const campaign = await new CampaignService().updateCampaign({
+    const campaign = await campaigns.updateCampaign({
       campaignId: id,
       organizationId: request.activeMember!.organizationId,
       ...payload,
@@ -342,12 +433,23 @@ export default class CampaignsController {
    * @responseBody 404 - { "error": "Campaign not found", "code": "E_CAMPAIGN_NOT_FOUND" }
    * @responseBody 409 - { "error": "Campaign is already deleted", "code": "E_CAMPAIGN_ALREADY_DELETED" }
    */
-  async softDelete({ request, params, serialize }: HttpContext) {
+  @inject()
+  async softDelete(
+    { bouncer, request, params, serialize }: HttpContext,
+    campaigns: CampaignService
+  ) {
     const { id } = await request.validateUsing(campaignIdParamValidator, {
       data: params,
     })
 
-    const result = await new CampaignService().softDeleteCampaign({
+    const existing = await campaigns.getCampaignById({
+      campaignId: id,
+      organizationId: request.activeMember!.organizationId,
+    })
+
+    await bouncer.with(CampaignPolicy).authorize('delete', existing)
+
+    const result = await campaigns.softDeleteCampaign({
       campaignId: id,
       organizationId: request.activeMember!.organizationId,
     })

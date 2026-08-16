@@ -57,6 +57,7 @@ export default class KnowledgeDocumentService {
     page?: number
     perPage?: number
     status?: string
+    lifecycle?: 'active' | 'deleted'
   }): Promise<KnowledgeDocumentListResult> {
     const page = params.page ?? 1
     const perPage = params.perPage ?? 20
@@ -67,6 +68,7 @@ export default class KnowledgeDocumentService {
         page,
         perPage,
         status: params.status,
+        lifecycle: params.lifecycle ?? 'active',
       })
     )
 
@@ -156,6 +158,9 @@ export default class KnowledgeDocumentService {
     if (!row) {
       throw KnowledgeDocumentException.notFound()
     }
+    if (row.deletedAt) {
+      throw KnowledgeDocumentException.alreadyDeleted()
+    }
     if (!row.mediaAssetId) {
       throw KnowledgeDocumentException.invalidCreate('Document has no file to complete')
     }
@@ -176,7 +181,15 @@ export default class KnowledgeDocumentService {
     return transformKnowledgeDocument(row)
   }
 
-  async delete(params: { organizationId: string; documentId: string }): Promise<void> {
+  /**
+   * Soft-delete a KB document. Linked ready media is soft-deleted via MediaAssetService
+   * (quota retained until purge). Chunks remain until permanent purge; retrieval excludes
+   * soft-deleted docs.
+   */
+  async softDelete(params: {
+    organizationId: string
+    documentId: string
+  }): Promise<KnowledgeDocumentResponse> {
     const row = await runWithTenant(params.organizationId, () =>
       this.documents.findByIdForOrg({
         organizationId: params.organizationId,
@@ -185,6 +198,89 @@ export default class KnowledgeDocumentService {
     )
     if (!row) {
       throw KnowledgeDocumentException.notFound()
+    }
+    if (row.deletedAt) {
+      throw KnowledgeDocumentException.alreadyDeleted()
+    }
+
+    const updated = await runWithTenant(params.organizationId, () =>
+      this.documents.markSoftDeleted({
+        organizationId: params.organizationId,
+        documentId: params.documentId,
+      })
+    )
+    if (!updated) {
+      throw KnowledgeDocumentException.notFound()
+    }
+
+    if (row.mediaAssetId) {
+      try {
+        await this.media.softDelete({
+          organizationId: params.organizationId,
+          mediaAssetId: row.mediaAssetId,
+        })
+      } catch {
+        // Pending uploads are reaped by the existing media orphan cleaner.
+      }
+    }
+
+    return transformKnowledgeDocument(updated)
+  }
+
+  async restore(params: {
+    organizationId: string
+    documentId: string
+  }): Promise<KnowledgeDocumentResponse> {
+    const row = await runWithTenant(params.organizationId, () =>
+      this.documents.findByIdForOrg({
+        organizationId: params.organizationId,
+        documentId: params.documentId,
+      })
+    )
+    if (!row) {
+      throw KnowledgeDocumentException.notFound()
+    }
+    if (!row.deletedAt) {
+      throw KnowledgeDocumentException.notRestorable()
+    }
+
+    const updated = await runWithTenant(params.organizationId, () =>
+      this.documents.markRestored({
+        organizationId: params.organizationId,
+        documentId: params.documentId,
+      })
+    )
+    if (!updated) {
+      throw KnowledgeDocumentException.notRestorable()
+    }
+
+    if (row.mediaAssetId) {
+      try {
+        await this.media.restore({
+          organizationId: params.organizationId,
+          mediaAssetId: row.mediaAssetId,
+        })
+      } catch {
+        // Media may already be ready, pending, or purged by the lifecycle worker.
+      }
+    }
+
+    return transformKnowledgeDocument(updated)
+  }
+
+  /** Permanently remove a soft-deleted document (chunks cascade) and purge linked media. */
+  async purge(params: { organizationId: string; documentId: string }): Promise<void> {
+    const row = await runWithTenant(params.organizationId, () =>
+      this.documents.findByIdForOrg({
+        organizationId: params.organizationId,
+        documentId: params.documentId,
+      })
+    )
+    if (!row) {
+      throw KnowledgeDocumentException.notFound()
+    }
+    if (!row.deletedAt) {
+      throw KnowledgeDocumentException.notPurgeable()
     }
 
     const deleted = await runWithTenant(params.organizationId, () =>
@@ -199,12 +295,12 @@ export default class KnowledgeDocumentService {
 
     if (row.mediaAssetId) {
       try {
-        await this.media.softDelete({
+        await this.media.purge({
           organizationId: params.organizationId,
           mediaAssetId: row.mediaAssetId,
         })
       } catch {
-        // Pending uploads are reaped by the existing media orphan cleaner.
+        // Storage may already be purged by the media lifecycle worker.
       }
     }
   }

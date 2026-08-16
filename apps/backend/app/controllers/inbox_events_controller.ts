@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import ConversationPolicy from '#policies/conversation_policy'
 import { inboxEventsHub } from '#services/inbox_events_hub'
 import '#types/http'
 
@@ -15,7 +16,9 @@ export default class InboxEventsController {
    * @responseBody 200 - text/event-stream
    * @responseBody 403 - { "error": "Permission denied: inbox:view", "code": "PERMISSION_DENIED" }
    */
-  async stream({ request, response }: HttpContext) {
+  async stream({ bouncer, request, response }: HttpContext) {
+    await bouncer.with(ConversationPolicy).authorize('viewAny')
+
     const organizationId = request.activeMember!.organizationId
     const nodeResponse = response.response
 
@@ -29,7 +32,9 @@ export default class InboxEventsController {
     nodeResponse.flushHeaders?.()
 
     const write = (chunk: string) => {
-      nodeResponse.write(chunk)
+      if (!nodeResponse.writableEnded) {
+        nodeResponse.write(chunk)
+      }
     }
 
     const close = () => {

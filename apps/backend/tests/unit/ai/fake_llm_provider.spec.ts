@@ -1,6 +1,10 @@
 import { test } from '@japa/runner'
 import app from '@adonisjs/core/services/app'
-import { LlmProvider } from '#services/ai/contracts/llm_provider'
+import {
+  ChatLlmProvider,
+  EmbeddingLlmProvider,
+  LlmProvider,
+} from '#services/ai/contracts/llm_provider'
 import FakeLlmProvider from '#services/ai/drivers/fake_llm_provider'
 
 const OPTIONS = {
@@ -42,13 +46,13 @@ test.group('FakeLlmProvider', () => {
     assert.isTrue(next.value.totalTokens > 0)
   })
 
-  test('embedTexts returns deterministic 1536-d vectors and records inputs', async ({ assert }) => {
+  test('embedTexts returns deterministic 1024-d vectors and records inputs', async ({ assert }) => {
     const llm = new FakeLlmProvider()
     const [first] = await llm.embedTexts(['Open 9-5'])
     const [again] = await llm.embedTexts(['Open 9-5'])
     const [other] = await llm.embedTexts(['Closed Sundays'])
 
-    assert.lengthOf(first!, 1536)
+    assert.lengthOf(first!, 1024)
     assert.deepEqual(first, again)
     assert.notDeepEqual(first, other)
     assert.deepEqual(llm.embedCalls, ['Open 9-5', 'Open 9-5', 'Closed Sundays'])
@@ -58,5 +62,7 @@ test.group('FakeLlmProvider', () => {
     const llm = await app.container.make(LlmProvider)
     assert.instanceOf(llm, FakeLlmProvider)
     assert.equal(llm.name, 'fake')
+    assert.instanceOf(await app.container.make(ChatLlmProvider), FakeLlmProvider)
+    assert.instanceOf(await app.container.make(EmbeddingLlmProvider), FakeLlmProvider)
   })
 })

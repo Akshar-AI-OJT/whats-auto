@@ -14,6 +14,7 @@ export type AiKnowledgeDocumentRow = {
   embeddingModel: string
   documentHash: string | null
   errorMessage: string | null
+  deletedAt: Date | string | null
   createdAt: Date | string
   updatedAt: Date | string | null
 }
@@ -79,13 +80,49 @@ export class AiKnowledgeDocumentRepository {
     return Number(deleted) > 0
   }
 
+  async markSoftDeleted(
+    params: { organizationId: string; documentId: string; deletedAt?: Date },
+    client: Db = db
+  ): Promise<AiKnowledgeDocumentRow | null> {
+    const [row] = await client
+      .from('ai_knowledge_documents')
+      .where('id', params.documentId)
+      .where('organizationId', params.organizationId)
+      .whereNull('deletedAt')
+      .update({ deletedAt: params.deletedAt ?? new Date() })
+      .returning('*')
+    return row ? mapRow(row) : null
+  }
+
+  async markRestored(
+    params: { organizationId: string; documentId: string },
+    client: Db = db
+  ): Promise<AiKnowledgeDocumentRow | null> {
+    const [row] = await client
+      .from('ai_knowledge_documents')
+      .where('id', params.documentId)
+      .where('organizationId', params.organizationId)
+      .whereNotNull('deletedAt')
+      .update({ deletedAt: null })
+      .returning('*')
+    return row ? mapRow(row) : null
+  }
+
   async listForOrg(params: {
     organizationId: string
     page: number
     perPage: number
     status?: string
+    /** Default active (deletedAt IS NULL). Pass 'deleted' for trash. */
+    lifecycle?: 'active' | 'deleted'
   }): Promise<{ rows: AiKnowledgeDocumentRow[]; total: number }> {
     const query = db.from('ai_knowledge_documents').where('organizationId', params.organizationId)
+
+    if (params.lifecycle === 'deleted') {
+      query.whereNotNull('deletedAt')
+    } else {
+      query.whereNull('deletedAt')
+    }
 
     if (params.status) {
       query.where('status', params.status)
@@ -137,6 +174,35 @@ export class AiKnowledgeDocumentRepository {
 
     return row ? mapRow(row) : null
   }
+
+  /**
+   * Cross-tenant INDEXED documents. FORCE RLS would hide rows without a tenant GUC.
+   */
+  async listIndexedForReindex(): Promise<Array<{ organizationId: string; documentId: string }>> {
+    const result = await db.rawQuery('SELECT * FROM list_ai_knowledge_documents_for_reindex()')
+    return mapReindexRows(result)
+  }
+
+  async listIndexedMissingSpace(
+    spaceId: string
+  ): Promise<Array<{ organizationId: string; documentId: string }>> {
+    const result = await db.rawQuery('SELECT * FROM list_ai_knowledge_documents_missing_space(?)', [
+      spaceId,
+    ])
+    return mapReindexRows(result)
+  }
+}
+
+function mapReindexRows(result: { rows?: unknown } | unknown): Array<{
+  organizationId: string
+  documentId: string
+}> {
+  const rows = ((result as { rows?: unknown }).rows ?? result) as Array<Record<string, unknown>>
+  if (!Array.isArray(rows)) return []
+  return rows.map((row) => ({
+    organizationId: String(row.organizationId),
+    documentId: String(row.id),
+  }))
 }
 
 function mapRow(row: Record<string, unknown>): AiKnowledgeDocumentRow {
@@ -151,6 +217,7 @@ function mapRow(row: Record<string, unknown>): AiKnowledgeDocumentRow {
     embeddingModel: row.embeddingModel as string,
     documentHash: (row.documentHash as string | null) ?? null,
     errorMessage: (row.errorMessage as string | null) ?? null,
+    deletedAt: (row.deletedAt as Date | string | null) ?? null,
     createdAt: row.createdAt as Date | string,
     updatedAt: (row.updatedAt as Date | string | null) ?? null,
   }

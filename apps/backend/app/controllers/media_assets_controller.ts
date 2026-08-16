@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import MediaAssetPolicy from '#policies/media_asset_policy'
 import { MediaAssetService } from '#services/media_asset_service'
 import { listMediaLibraryValidator, mediaAssetIdParamValidator } from '#validators/media'
 import '#types/http'
@@ -20,7 +21,9 @@ export default class MediaAssetsController {
    * @paramQuery search - Filename search - @type(string)
    * @responseBody 200 - { "data": [{ "id": "uuid", "fileName": "a.jpg", "kind": "image", "state": "ready" }], "meta": { "total": 1, "perPage": 20, "currentPage": 1, "lastPage": 1 } }
    */
-  async index({ request, serialize }: HttpContext) {
+  async index({ bouncer, request, serialize }: HttpContext) {
+    await bouncer.with(MediaAssetPolicy).authorize('viewList')
+
     const params = await request.validateUsing(listMediaLibraryValidator, {
       data: request.qs(),
     })
@@ -44,7 +47,9 @@ export default class MediaAssetsController {
    * @security BearerAuth
    * @responseBody 200 - { "data": { "readyBytes": 0, "reservedBytes": 0, "usedBytes": 0, "limitBytes": 1073741824 } }
    */
-  async quota({ request, serialize }: HttpContext) {
+  async quota({ bouncer, request, serialize }: HttpContext) {
+    await bouncer.with(MediaAssetPolicy).authorize('viewList')
+
     const data = await new MediaAssetService().getQuota(request.activeMember!.organizationId)
     return serialize(data)
   }
@@ -56,12 +61,21 @@ export default class MediaAssetsController {
    * @security BearerAuth
    * @paramPath id - Media asset id - @type(string)
    */
-  async show({ request, params, serialize }: HttpContext) {
+  async show({ bouncer, request, params, serialize }: HttpContext) {
     const { id } = await request.validateUsing(mediaAssetIdParamValidator, { data: params })
+
+    const organizationId = request.activeMember!.organizationId
     const asset = await new MediaAssetService().getLibraryAsset({
-      organizationId: request.activeMember!.organizationId,
+      organizationId,
       mediaAssetId: id,
     })
+
+    await bouncer.with(MediaAssetPolicy).authorize('view', {
+      id: asset.id,
+      organizationId,
+      state: asset.state,
+    })
+
     return serialize(asset)
   }
 
@@ -72,10 +86,23 @@ export default class MediaAssetsController {
    * @security BearerAuth
    * @paramPath id - Media asset id - @type(string)
    */
-  async destroy({ request, params, serialize }: HttpContext) {
+  async destroy({ bouncer, request, params, serialize }: HttpContext) {
     const { id } = await request.validateUsing(mediaAssetIdParamValidator, { data: params })
+
+    const organizationId = request.activeMember!.organizationId
+    const existing = await new MediaAssetService().getLibraryAsset({
+      organizationId,
+      mediaAssetId: id,
+    })
+
+    await bouncer.with(MediaAssetPolicy).authorize('delete', {
+      id: existing.id,
+      organizationId,
+      state: existing.state,
+    })
+
     const asset = await new MediaAssetService().softDelete({
-      organizationId: request.activeMember!.organizationId,
+      organizationId,
       mediaAssetId: id,
     })
     return serialize(asset)
@@ -88,10 +115,23 @@ export default class MediaAssetsController {
    * @security BearerAuth
    * @paramPath id - Media asset id - @type(string)
    */
-  async restore({ request, params, serialize }: HttpContext) {
+  async restore({ bouncer, request, params, serialize }: HttpContext) {
     const { id } = await request.validateUsing(mediaAssetIdParamValidator, { data: params })
+
+    const organizationId = request.activeMember!.organizationId
+    const existing = await new MediaAssetService().getLibraryAsset({
+      organizationId,
+      mediaAssetId: id,
+    })
+
+    await bouncer.with(MediaAssetPolicy).authorize('restore', {
+      id: existing.id,
+      organizationId,
+      state: existing.state,
+    })
+
     const asset = await new MediaAssetService().restore({
-      organizationId: request.activeMember!.organizationId,
+      organizationId,
       mediaAssetId: id,
     })
     return serialize(asset)
@@ -104,10 +144,23 @@ export default class MediaAssetsController {
    * @security BearerAuth
    * @paramPath id - Media asset id - @type(string)
    */
-  async purge({ request, params, response }: HttpContext) {
+  async purge({ bouncer, request, params, response }: HttpContext) {
     const { id } = await request.validateUsing(mediaAssetIdParamValidator, { data: params })
+
+    const organizationId = request.activeMember!.organizationId
+    const existing = await new MediaAssetService().getLibraryAsset({
+      organizationId,
+      mediaAssetId: id,
+    })
+
+    await bouncer.with(MediaAssetPolicy).authorize('purge', {
+      id: existing.id,
+      organizationId,
+      state: existing.state,
+    })
+
     await new MediaAssetService().purge({
-      organizationId: request.activeMember!.organizationId,
+      organizationId,
       mediaAssetId: id,
     })
     return response.ok({ data: { ok: true } })

@@ -1,7 +1,9 @@
 import { test } from '@japa/runner'
 import { type ConversationAiRepository } from '#repositories/conversation_ai_repository'
 import { type MemoryWorkingSetRepository } from '#repositories/memory_working_set_repository'
-import AiConversationSummaryService from '#services/ai/ai_conversation_summary_service'
+import AiConversationSummaryService, {
+  SUMMARY_COMPLETION_TEMPERATURE,
+} from '#services/ai/ai_conversation_summary_service'
 import type { MemoryWorkingSetService } from '#services/ai/contracts/memory_working_set_service'
 import FakeLlmProvider from '#services/ai/drivers/fake_llm_provider'
 import type PlatformAiConfigService from '#services/ai/platform_ai_config_service'
@@ -19,6 +21,10 @@ function createSummary(params: {
   missingConversation?: boolean
   llmText?: string
   generateError?: boolean
+  chatModel?: string
+  summaryModel?: string | null
+  maxOutputTokens?: number
+  temperature?: number
 }) {
   const written: string[] = []
   const enqueued: Array<{ name: string; data: Record<string, unknown> }> = []
@@ -34,8 +40,10 @@ function createSummary(params: {
     async get() {
       return {
         isEnabled: params.isEnabled ?? true,
-        modelName: 'gpt-4o-mini',
-        temperature: 0.2,
+        chatModel: params.chatModel ?? 'gpt-4o-mini',
+        summaryModel: params.summaryModel ?? null,
+        temperature: params.temperature ?? 0.2,
+        maxOutputTokens: params.maxOutputTokens ?? 1024,
         summaryTurnThreshold: params.threshold ?? 10,
       }
     },
@@ -127,6 +135,40 @@ test.group('AiConversationSummaryService', () => {
     assert.deepEqual(written, ['Customer wants store hours.'])
     assert.include(llm.calls[0]!.userPrompt, 'Asked about pricing.')
     assert.include(llm.calls[0]!.userPrompt, 'hours?')
+    assert.equal(llm.calls[0]!.model, 'gpt-4o-mini')
+    assert.equal(llm.calls[0]!.temperature, SUMMARY_COMPLETION_TEMPERATURE)
+    assert.equal(llm.calls[0]!.maxTokens, 1024)
+  })
+
+  test('uses summaryModel when set and keeps temperature at 0.1', async ({ assert }) => {
+    const { service, llm } = createSummary({
+      chatModel: 'gpt-4o',
+      summaryModel: 'gpt-4o-mini',
+      maxOutputTokens: 256,
+      temperature: 0.7,
+    })
+    await service.process({
+      organizationId: ORG,
+      conversationId: CONV,
+      triggerReason: 'turn_count_threshold',
+    })
+    assert.equal(llm.calls[0]!.model, 'gpt-4o-mini')
+    assert.equal(llm.calls[0]!.temperature, 0.1)
+    assert.equal(llm.calls[0]!.maxTokens, 256)
+  })
+
+  test('uses chatModel when summaryModel is null', async ({ assert }) => {
+    const { service, llm } = createSummary({
+      chatModel: 'gpt-4o',
+      summaryModel: null,
+    })
+    await service.process({
+      organizationId: ORG,
+      conversationId: CONV,
+      triggerReason: 'turn_count_threshold',
+    })
+    assert.equal(llm.calls[0]!.model, 'gpt-4o')
+    assert.equal(llm.calls[0]!.temperature, SUMMARY_COMPLETION_TEMPERATURE)
   })
 
   test('skips an empty completion and does not throw on LLM failure', async ({ assert }) => {

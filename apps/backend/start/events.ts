@@ -12,7 +12,7 @@ import InboxMessageQueued from '#events/inbox_message_queued'
 import InboxMessageReceived from '#events/inbox_message_received'
 import InboxMessageSent from '#events/inbox_message_sent'
 import InboxStatusUpdated from '#events/inbox_status_updated'
-import { inboxEventsHub } from '#services/inbox_events_hub'
+import { inboxSseBus } from '#services/inbox_sse_bus'
 
 function logListenerFailure(eventName: string, payload: Record<string, unknown>, error: unknown) {
   logger.error(
@@ -31,7 +31,7 @@ function publishSafely(
   payload: Record<string, unknown>
 ) {
   try {
-    inboxEventsHub.publish({ type, organizationId, payload })
+    inboxSseBus.publish({ type, organizationId, payload })
   } catch (error) {
     logListenerFailure(`inbox.${type}_sse_failed`, payload, error)
   }

@@ -10,7 +10,11 @@ export const JOB_NAMES = {
   AI_PROCESS_DOCUMENT: 'ai.process_document',
   AI_DEBOUNCE_TURN: 'ai.debounce_turn',
   AI_SUMMARIZE_CONVERSATION: 'ai.summarize_conversation',
+  AI_REINDEX_ALL_DOCUMENTS: 'ai.reindex_all_documents',
 } as const
+
+/** Singleton key so only one platform KB reindex runs at a time. */
+export const PLATFORM_AI_REINDEX_SINGLETON_KEY = 'platform-ai-reindex'
 
 export type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES]
 

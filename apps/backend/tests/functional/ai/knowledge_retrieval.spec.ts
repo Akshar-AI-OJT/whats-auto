@@ -38,6 +38,7 @@ async function insertIndexedChunk(params: {
   organizationId: string
   content: string
   embedding: number[]
+  embeddingSpaceId?: string
 }) {
   const [document] = await runWithTenant(params.organizationId, () =>
     db
@@ -61,6 +62,7 @@ async function insertIndexedChunk(params: {
         contentHash: `hash-${document.id}`,
         content: params.content,
         embedding: params.embedding,
+        embeddingSpaceId: params.embeddingSpaceId,
       },
     ])
   )
@@ -136,5 +138,43 @@ test.group('Knowledge retrieval', () => {
     assert.equal(empty.maxScore, 0)
     assert.isFalse(empty.meetsMinConfidence)
     assert.isNull(empty.campaign)
+  })
+
+  test('searchByEmbedding only returns chunks in the active embedding space', async ({
+    assert,
+  }) => {
+    const org = await createOrg('space')
+    await insertIndexedChunk({
+      organizationId: org,
+      content: 'Hours in the active space',
+      embedding: axisEmbedding(0),
+      embeddingSpaceId: 'openai:text-embedding-3-small:1024:v1',
+    })
+    await insertIndexedChunk({
+      organizationId: org,
+      content: 'Hours in an old space',
+      embedding: axisEmbedding(0),
+      embeddingSpaceId: 'mistral:mistral-embed:1024:v1',
+    })
+
+    const llm = {
+      async embedTexts() {
+        return [axisEmbedding(0)]
+      },
+    } as unknown as LlmProvider
+    const platform = {
+      async get() {
+        return {
+          minConfidenceScore: 0.7,
+          embeddingModel: 'text-embedding-3-small',
+          activeEmbeddingSpaceId: 'openai:text-embedding-3-small:1024:v1',
+        }
+      },
+    } as unknown as PlatformAiConfigService
+    const retrieval = new KnowledgeRetrievalService(new AiKnowledgeChunkRepository(), llm, platform)
+
+    const result = await retrieval.retrieve({ organizationId: org, query: 'hours' })
+    assert.lengthOf(result.chunks, 1)
+    assert.include(result.chunks[0]!.content, 'active space')
   })
 })

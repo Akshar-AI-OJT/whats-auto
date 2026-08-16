@@ -1,6 +1,10 @@
 import { test } from '@japa/runner'
-import type OpenAI from 'openai'
 import OpenAiLlmProvider from '#services/ai/drivers/openai_llm_provider'
+import { KNOWLEDGE_EMBEDDING_DIMENSIONS } from '#services/ai/embedding_space'
+import type {
+  LangChainChatModel,
+  LangChainEmbeddings,
+} from '#services/ai/drivers/langchain_completion'
 
 const OPTIONS = {
   systemPrompt: 'Stay grounded.',
@@ -10,58 +14,46 @@ const OPTIONS = {
   contextChunks: [{ content: 'Open 9-5', score: 0.8 }],
 }
 
-function stubClient(params: {
-  text?: string
-  chunks?: string[]
-  fail?: Error
-  embeddings?: number[][]
-}): OpenAI {
-  return {
-    embeddings: {
-      create: async () => {
-        if (params.fail) throw params.fail
-        return {
-          data: (params.embeddings ?? [[0.1, 0.2]]).map((embedding, index) => ({
-            embedding,
-            index,
-          })),
-        }
-      },
-    },
-    chat: {
-      completions: {
-        create: async (body: { stream?: boolean }) => {
-          if (params.fail) throw params.fail
-          if (body.stream) {
-            return (async function* () {
-              for (const delta of params.chunks ?? ['Hel', 'lo']) {
-                yield {
-                  choices: [{ delta: { content: delta } }],
-                  model: 'gpt-4o-mini',
-                }
-              }
-              yield {
-                choices: [{ delta: {} }],
-                model: 'gpt-4o-mini',
-                usage: { prompt_tokens: 4, completion_tokens: 2, total_tokens: 6 },
-              }
-            })()
-          }
+function axis(fill: number): number[] {
+  return new Array(KNOWLEDGE_EMBEDDING_DIMENSIONS).fill(fill)
+}
 
-          return {
-            choices: [{ message: { content: params.text ?? 'Hello' } }],
-            usage: { prompt_tokens: 4, completion_tokens: 2, total_tokens: 6 },
-            model: 'gpt-4o-mini',
-          }
-        },
-      },
+function stubChat(params: { text?: string; chunks?: string[]; fail?: Error }): LangChainChatModel {
+  return {
+    async invoke() {
+      if (params.fail) throw params.fail
+      return {
+        content: params.text ?? 'Hello',
+        usage_metadata: { input_tokens: 4, output_tokens: 2, total_tokens: 6 },
+        response_metadata: { model_name: 'gpt-4o-mini' },
+      }
     },
-  } as unknown as OpenAI
+    async *stream() {
+      if (params.fail) throw params.fail
+      for (const delta of params.chunks ?? ['Hel', 'lo']) {
+        yield { content: delta }
+      }
+      yield {
+        content: '',
+        usage_metadata: { input_tokens: 4, output_tokens: 2, total_tokens: 6 },
+        response_metadata: { model_name: 'gpt-4o-mini' },
+      }
+    },
+  }
+}
+
+function stubEmbeddings(vectors: number[][], fail?: Error): LangChainEmbeddings {
+  return {
+    async embedDocuments() {
+      if (fail) throw fail
+      return vectors
+    },
+  }
 }
 
 test.group('OpenAiLlmProvider', () => {
-  test('generateCompletion maps text and usage from the client', async ({ assert }) => {
-    const llm = new OpenAiLlmProvider({ client: stubClient({ text: '  Open 9-5  ' }) })
+  test('generateCompletion maps text and usage from LangChain', async ({ assert }) => {
+    const llm = new OpenAiLlmProvider({ chat: stubChat({ text: '  Open 9-5  ' }) })
     const result = await llm.generateCompletion(OPTIONS)
 
     assert.equal(result.text, 'Open 9-5')
@@ -73,9 +65,7 @@ test.group('OpenAiLlmProvider', () => {
   })
 
   test('streamCompletion yields token deltas then a complete result', async ({ assert }) => {
-    const llm = new OpenAiLlmProvider({
-      client: stubClient({ chunks: ['Open ', '9-5'] }),
-    })
+    const llm = new OpenAiLlmProvider({ chat: stubChat({ chunks: ['Open ', '9-5'] }) })
 
     const deltas: string[] = []
     const generator = llm.streamCompletion(OPTIONS)
@@ -97,15 +87,22 @@ test.group('OpenAiLlmProvider', () => {
 
   test('embedTexts returns vectors in input order', async ({ assert }) => {
     const llm = new OpenAiLlmProvider({
-      client: stubClient({ embeddings: [[0.2], [0.1]] }),
+      embeddings: stubEmbeddings([axis(0.2), axis(0.1)]),
     })
     const vectors = await llm.embedTexts(['a', 'b'], 'text-embedding-3-small')
-    assert.deepEqual(vectors, [[0.2], [0.1]])
+    assert.deepEqual(vectors, [axis(0.2), axis(0.1)])
+  })
+
+  test('rejects embeddings that are not 1024-d', async ({ assert }) => {
+    const llm = new OpenAiLlmProvider({
+      embeddings: stubEmbeddings([[0.2]]),
+    })
+    await assert.rejects(() => llm.embedTexts(['a'], 'text-embedding-3-small'), /1024/)
   })
 
   test('wraps provider failures', async ({ assert }) => {
     const llm = new OpenAiLlmProvider({
-      client: stubClient({ fail: new Error('rate limited') }),
+      chat: stubChat({ fail: new Error('rate limited') }),
     })
     await assert.rejects(() => llm.generateCompletion(OPTIONS), /rate limited/)
   })

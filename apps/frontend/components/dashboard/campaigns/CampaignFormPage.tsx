@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { ArrowLeft, Loader2 } from 'lucide-react'
@@ -20,6 +20,7 @@ import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { campaignQueryKeys } from './CampaignsListPage'
 import { unwrapCampaign, isEditableCampaignStatus } from './campaign-utils'
 import { unwrapTemplateList } from '@/components/dashboard/templates/template-utils'
+import { datetimeLocalToVineDate } from '@/lib/vine-date'
 
 /** Avoid useSearchParams — it can stall the create page on hard refresh via Suspense. */
 function readDuplicateFromId(): string | null {
@@ -71,7 +72,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
     isLoading: orgsLoading,
   } = useOrganizations()
 
-  const [fromId, setFromId] = useState<string | null>(null)
+  const [fromId] = useState(() => (mode === 'create' ? readDuplicateFromId() : null))
   const [form, setForm] = useState<FormState>(emptyForm)
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<{
@@ -80,23 +81,12 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
     audience?: string
   }>({})
 
-  useEffect(() => {
-    if (mode !== 'create') {
-      setFromId(null)
-      return
-    }
-    setFromId(readDuplicateFromId())
-  }, [mode])
-
   const canSubmit = mode === 'create' ? canCreateCampaigns : canEditCampaigns
 
   const sourceQuery = useQuery({
     queryKey: campaignQueryKeys.detail(campaignId || fromId || 'none'),
     enabled:
-      Boolean(tenantOrganizationId) &&
-      Boolean(campaignId || fromId) &&
-      !orgsLoading &&
-      canSubmit,
+      Boolean(tenantOrganizationId) && Boolean(campaignId || fromId) && !orgsLoading && canSubmit,
     queryFn: async () => {
       const id = campaignId || fromId
       if (!id) return null
@@ -126,9 +116,14 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
     },
   })
 
-  useEffect(() => {
-    const source = sourceQuery.data
-    if (!source) return
+  // Hydrate form when source campaign loads (render-time — avoids setState-in-effect).
+  const source = sourceQuery.data
+  const sourceKey = source
+    ? `${mode}:${fromId ?? ''}:${campaignId ?? ''}:${source.id}:${source.updatedAt ?? source.createdAt ?? ''}`
+    : null
+  const [hydratedSourceKey, setHydratedSourceKey] = useState<string | null>(null)
+  if (source && sourceKey && sourceKey !== hydratedSourceKey) {
+    setHydratedSourceKey(sourceKey)
     setForm({
       name: mode === 'create' && fromId ? `${source.name} (copy)` : source.name,
       messageTemplateId: source.messageTemplateId ?? '',
@@ -138,7 +133,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
         ? new Date(source.scheduledAt).toISOString().slice(0, 16)
         : '',
     })
-  }, [sourceQuery.data, mode, fromId])
+  }
 
   const selectedTemplate = useMemo(
     () => templatesQuery.data?.find((item) => item.id === form.messageTemplateId) ?? null,
@@ -152,9 +147,11 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
 
   const mutation = useMutation({
     mutationFn: async (): Promise<Campaign | null> => {
+      const whatsappConfigId = selectedTemplate?.whatsappConfigId ?? undefined
       const bodyBase = {
         name: form.name.trim(),
         ...(form.messageTemplateId ? { messageTemplateId: form.messageTemplateId } : {}),
+        ...(whatsappConfigId ? { whatsappConfigId } : {}),
       }
 
       // Always persist as draft first; schedule/send APIs own lifecycle transitions.
@@ -191,7 +188,8 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
       }
 
       if (form.scheduleMode === 'later') {
-        const scheduledAt = new Date(form.scheduledAt).toISOString()
+        // Vine vine.date() rejects ISO-8601 with T/Z — send YYYY-MM-DD HH:mm:ss.
+        const scheduledAt = datetimeLocalToVineDate(form.scheduledAt)
         const { data } = await api.campaigns.schedule(campaign.id, { scheduledAt })
         campaign = unwrapCampaign(data) ?? campaign
       } else if (canLaunchCampaigns && form.audienceLabel === 'all-contacts') {
@@ -322,7 +320,9 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
             />
             <div className="flex justify-between text-xs text-mute">
               <span>
-                {fieldErrors.name ? <span className="text-negative">{fieldErrors.name}</span> : null}
+                {fieldErrors.name ? (
+                  <span className="text-negative">{fieldErrors.name}</span>
+                ) : null}
               </span>
               <span>{form.name.length}/200</span>
             </div>
@@ -351,9 +351,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
               id="campaign-template"
               className="h-11 w-full rounded-md border border-dash-border bg-canvas px-3 text-sm text-ink"
               value={form.messageTemplateId}
-              onChange={(e) =>
-                setForm((prev) => ({ ...prev, messageTemplateId: e.target.value }))
-              }
+              onChange={(e) => setForm((prev) => ({ ...prev, messageTemplateId: e.target.value }))}
             >
               <option value="">{t('form.templatePlaceholder')}</option>
               {(templatesQuery.data ?? []).map((template) => (
@@ -443,9 +441,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
               </div>
               <div className="flex justify-between gap-3 border-b border-dash-border pb-2">
                 <dt className="text-mute">{t('summary.template')}</dt>
-                <dd className="text-right font-medium text-ink">
-                  {selectedTemplate?.name || '—'}
-                </dd>
+                <dd className="text-right font-medium text-ink">{selectedTemplate?.name || '—'}</dd>
               </div>
               <div className="flex justify-between gap-3 border-b border-dash-border pb-2">
                 <dt className="text-mute">{t('summary.audience')}</dt>
@@ -467,7 +463,11 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
           </DashboardPanel>
 
           <div className="flex flex-wrap justify-end gap-2">
-            <Button type="button" variant="outline" onClick={() => router.push('/dashboard/campaigns')}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.push('/dashboard/campaigns')}
+            >
               {t('form.cancel')}
             </Button>
             <Button type="submit" disabled={mutation.isPending} className="gap-2">

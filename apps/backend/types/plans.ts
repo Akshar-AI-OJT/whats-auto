@@ -1,0 +1,73 @@
+export type PlanStatus = 'active' | 'draft' | 'archived'
+export type PlanBillingPeriod = 'monthly' | 'yearly' | 'custom'
+export type PlanFeatureCategory = 'messaging' | 'automation' | 'ai' | 'team' | 'integrations'
+
+export type PlanFeature = {
+  key: string
+  /** Defaults to `key` when omitted by clients. */
+  name?: string
+  enabled: boolean
+  description?: string
+  category?: PlanFeatureCategory
+}
+
+export type PlanLimits = {
+  users: number | null
+  messagesPerMonth: number | null
+  workspaces: number | null
+}
+
+export type SuperAdminPlan = {
+  id: string
+  code: string
+  name: string
+  description: string
+  price: number | null
+  currency: string
+  billingPeriod: PlanBillingPeriod
+  billingInterval: string
+  billingIntervalCount: number
+  status: PlanStatus
+  popular: boolean
+  trialDays: number | null
+  limits: PlanLimits
+  features: PlanFeature[]
+  gateway: string | null
+  gatewayPlanId: string | null
+  isActive: boolean
+  sortOrder: number
+  createdAt: string
+  updatedAt: string | null
+}
+
+export type SuperAdminPlanSummary = {
+  total: number
+  active: number
+  draft: number
+  archived: number
+  popularName: string | null
+}
+
+export type CreateSuperAdminPlanInput = {
+  name: string
+  description?: string
+  code?: string
+  price: number | null
+  currency: string
+  billingPeriod: PlanBillingPeriod
+  status: Exclude<PlanStatus, 'archived'>
+  popular?: boolean
+  trialDays?: number | null
+  limits: {
+    users?: number | null
+    messagesPerMonth?: number | null
+    workspaces?: number | null
+  }
+  features?: PlanFeature[]
+  sortOrder?: number
+}
+
+export type UpdateSuperAdminPlanInput = Omit<Partial<CreateSuperAdminPlanInput>, 'description'> & {
+  /** Null clears description in update payloads. */
+  description?: string | null
+}

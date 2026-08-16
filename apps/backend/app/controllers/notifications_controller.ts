@@ -1,9 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import NotificationPolicy from '#policies/notification_policy'
 import { NotificationService } from '#services/notification_service'
-import {
-  listNotificationsValidator,
-  notificationIdParamValidator,
-} from '#validators/notification'
+import { listNotificationsValidator, notificationIdParamValidator } from '#validators/notification'
 import '#types/http'
 
 export default class NotificationsController {
@@ -18,7 +16,9 @@ export default class NotificationsController {
    * @responseBody 200 - { "data": [{ "id": "uuid", "type": "assignment", "title": "Assigned", "body": "You were assigned a conversation", "readAt": "2026-08-10T12:05:00.000Z", "createdAt": "2026-08-10T12:00:00.000Z" }], "meta": { "total": 1, "perPage": 20, "currentPage": 1, "lastPage": 1 } }
    * @responseBody 401 - { "error": "Missing or invalid session" }
    */
-  async index({ request, serialize }: HttpContext) {
+  async index({ bouncer, request, serialize }: HttpContext) {
+    await bouncer.with(NotificationPolicy).authorize('viewList')
+
     const qs = await request.validateUsing(listNotificationsValidator, {
       data: request.qs(),
     })
@@ -44,9 +44,15 @@ export default class NotificationsController {
    * @responseBody 404 - { "error": "Notification not found", "code": "E_NOTIFICATION_NOT_FOUND" }
    * @responseBody 401 - { "error": "Missing or invalid session" }
    */
-  async markAsRead({ request, params, serialize }: HttpContext) {
+  async markAsRead({ bouncer, request, params, serialize }: HttpContext) {
     const { id } = await request.validateUsing(notificationIdParamValidator, {
       data: params,
+    })
+
+    await bouncer.with(NotificationPolicy).authorize('markAsRead', {
+      organizationId: request.activeMember!.organizationId,
+      userId: request.authUser!.id,
+      id,
     })
 
     const notification = await new NotificationService().markAsRead({
@@ -67,7 +73,9 @@ export default class NotificationsController {
    * @responseBody 200 - { "data": { "updatedCount": 3 } }
    * @responseBody 401 - { "error": "Missing or invalid session" }
    */
-  async markAllAsRead({ request, serialize }: HttpContext) {
+  async markAllAsRead({ bouncer, request, serialize }: HttpContext) {
+    await bouncer.with(NotificationPolicy).authorize('markAllAsRead')
+
     const result = await new NotificationService().markAllAsRead({
       organizationId: request.activeMember!.organizationId,
       userId: request.authUser!.id,

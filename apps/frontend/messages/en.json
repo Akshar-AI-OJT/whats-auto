@@ -1419,12 +1419,16 @@
       "retry": "Retry",
       "emptyTitle": "No knowledge documents yet",
       "emptyDescription": "Upload a PDF, DOCX, or TXT file to get started. Indexed documents are used for grounded replies.",
+      "emptyDeletedTitle": "No deleted documents",
+      "emptyDeletedDescription": "Soft-deleted knowledge documents appear here until restored or purged.",
       "pagination": "Showing {from}–{to} of {total}",
       "prev": "Previous",
       "next": "Next",
       "chunkCount": "{count, plural, one {# chunk} other {# chunks}}",
       "filters": {
         "label": "Status",
+        "active": "Active",
+        "deleted": "Deleted",
         "all": "All",
         "PENDING": "Pending",
         "PROCESSING": "Processing",
@@ -1444,13 +1448,17 @@
         "UNKNOWN": "Document"
       },
       "actions": {
-        "delete": "Delete"
+        "delete": "Delete",
+        "restore": "Restore",
+        "purge": "Purge permanently"
       },
       "errors": {
         "unsupportedType": "Only PDF, DOCX, and TXT files are supported.",
         "fileTooLarge": "File must be 100 MB or smaller.",
         "uploadFailed": "Couldn’t upload the document.",
         "deleteFailed": "Couldn’t delete the document.",
+        "restoreFailed": "Couldn’t restore the document.",
+        "purgeFailed": "Couldn’t permanently purge the document.",
         "loadFailed": "Couldn’t load knowledge documents."
       }
     },
@@ -2751,6 +2759,8 @@
         "saveFailed": "Could not save this campaign.",
         "cancelFailed": "Could not cancel this campaign.",
         "launchFailed": "Could not launch this campaign.",
+        "templateNotApproved": "The linked message template is not approved. Approve it in Meta before launching.",
+        "whatsappNotConnected": "WhatsApp is not connected. Reconnect your WhatsApp account before launching.",
         "duplicateFailed": "Could not duplicate this campaign.",
         "previewFailed": "Could not preview this campaign.",
         "notEditable": "Only draft or scheduled campaigns can be edited."
@@ -3203,6 +3213,7 @@
         "yearlyHint": "Pay yearly and save"
       },
       "currency": {
+        "inr": "INR (₹)",
         "usd": "USD ($)"
       },
       "limits": {
@@ -3779,10 +3790,19 @@
         "saving": "Saving…",
         "saved": "AI settings saved.",
         "saveFooterHint": "Changes apply to all workspaces.",
+        "reindexConfirm": "This will re-embed {count} knowledge chunks into a new space. Retrieval stays on the current embedding model until the job finishes. Continue?",
+        "reindexRunning": "Re-embedding knowledge into the new space. Chat settings can still be saved. Provider and embedding model are locked until this finishes.",
+        "reindexFailed": "Knowledge reindex failed. Save again to retry, or switch back to the previous embedding model.",
         "promptPlaceholder": "Leave empty to use the built-in grounded WhatsApp assistant prompt.",
         "keywordPlaceholder": "Add keyword…",
         "keywordsEmpty": "No keywords yet.",
         "removeKeyword": "Remove {keyword}",
+        "sameAsMain": "Same as main chat model",
+        "providers": {
+          "openai": "OpenAI",
+          "google": "Gemini",
+          "mistral": "Mistral"
+        },
         "sections": {
           "response": {
             "title": "Response",
@@ -3803,6 +3823,9 @@
         },
         "fields": {
           "isEnabled": "Enable auto-reply",
+          "chatProvider": "Provider",
+          "chatModel": "Main chat model",
+          "summaryModel": "Summary model",
           "modelName": "Chat model",
           "embeddingModel": "Embedding model",
           "temperature": "Temperature",
@@ -3816,7 +3839,10 @@
         },
         "hints": {
           "isEnabled": "When off, inbound messages are not sent to the LLM.",
-          "embeddingModel": "1536-dimension models only. Changing this does not re-embed existing knowledge chunks.",
+          "chatProvider": "API keys stay in server env. Only the selected provider’s key is required.",
+          "chatModel": "Used for auto-replies. Changing this does not re-embed knowledge.",
+          "summaryModel": "Optional cheaper model for conversation summaries. Must be the same provider.",
+          "embeddingModel": "1024-dimension models only. Changing provider or embedding model re-embeds the knowledge base after you confirm.",
           "temperature": "0 to 2.",
           "debounceDelaySeconds": "1 to 15. Delay before a grounded reply is generated.",
           "campaignAttributionWindowHours": "1 to 168.",
@@ -3834,7 +3860,11 @@
           "notFound": "Platform AI config was not found.",
           "summaryThreshold": "Summary turn threshold must be greater than or equal to working-set size.",
           "invalidRange": "One or more values are outside the allowed range.",
-          "keywordsRequired": "Add at least one handover keyword."
+          "keywordsRequired": "Add at least one handover keyword.",
+          "reindexRequired": "Changing provider or embedding model requires re-embedding the knowledge base. Confirm when prompted.",
+          "reindexInProgress": "A knowledge reindex is already running. Wait for it to finish before changing provider or embedding model.",
+          "invalidModel": "That model is not allowed for the selected provider.",
+          "providerMismatch": "Embedding provider must match the chat provider."
         }
       }
     },

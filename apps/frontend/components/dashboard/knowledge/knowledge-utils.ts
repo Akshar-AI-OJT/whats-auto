@@ -116,11 +116,14 @@ export function formatKnowledgeDate(iso: string, locale?: string): string {
 }
 
 export type StatusFilter = 'all' | KnowledgeDocumentStatus
+export type LifecycleFilter = 'active' | 'deleted'
 
 export const knowledgeQueryKeys = {
   all: ['knowledge-documents'] as const,
   list: (orgId: string | null | undefined, params: Record<string, string | number>) =>
     [...knowledgeQueryKeys.all, 'list', orgId ?? 'none', params] as const,
+  quota: (orgId: string | null | undefined) =>
+    [...knowledgeQueryKeys.all, 'quota', orgId ?? 'none'] as const,
 }
 
 export type KnowledgeSourceLabelKey = KnowledgeDocumentSourceType | string

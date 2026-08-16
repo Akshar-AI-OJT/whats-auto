@@ -60,6 +60,18 @@ function fakeRazorpay(overrides: Partial<RazorpayClient> = {}): RazorpayClient {
       short_url: 'https://rzp.io/i/demo',
       notes: params.notes,
     }),
+    createPlan: async (params) => ({
+      id: `plan_fake_${randomUUID().slice(0, 8)}`,
+      period: params.period,
+      interval: params.interval,
+      item: {
+        name: params.item.name,
+        amount: params.item.amount,
+        currency: params.item.currency,
+        description: params.item.description ?? null,
+      },
+      notes: params.notes,
+    }),
     ...overrides,
   }
 }

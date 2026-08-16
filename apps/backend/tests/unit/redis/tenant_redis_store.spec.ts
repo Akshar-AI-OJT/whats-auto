@@ -11,6 +11,8 @@ test.group('TenantRedisStore', () => {
     await assert.rejects(() => store.rpush('cache:global', 'x'), /Refusing Redis key/)
     await assert.rejects(() => store.ltrim('cache:global', -1, -1), /Refusing Redis key/)
     await assert.rejects(() => store.drain('cache:global'), /Refusing Redis key/)
+    await assert.rejects(() => store.get('cache:global'), /Refusing Redis key/)
+    await assert.rejects(() => store.set('cache:global', 'x', 60), /Refusing Redis key/)
   })
 
   test('requires REDIS_URL for tenant keys', async ({ assert }) => {

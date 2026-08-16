@@ -457,6 +457,8 @@ export class MediaAssetService {
       throw MediaException.notDeletable('Media asset has no storage object')
     }
 
+    // Closed conversations intentionally keep message refs live — closing does
+    // not release media; soft-delete stays blocked until refs are cleared otherwise.
     const hasRefs = await runWithTenant(params.organizationId, () =>
       this.references.hasLiveReferences({
         organizationId: params.organizationId,

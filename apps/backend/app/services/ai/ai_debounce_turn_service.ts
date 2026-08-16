@@ -10,13 +10,14 @@ import { MemoryWorkingSetService } from '#services/ai/contracts/memory_working_s
 import type { InboxAiSseEvent } from '#services/ai/contracts/inbox_ai_sse'
 import type { DebounceTurnJobPayload } from '#services/ai/contracts/ai_job_payloads'
 import type { MemoryTurn } from '#services/ai/contracts/memory_working_set_service'
-import { LlmProvider } from '#services/ai/contracts/llm_provider'
+import { ChatLlmProvider, type LlmCompletionOptions } from '#services/ai/contracts/llm_provider'
 import { publishInboxAiEvent } from '#services/ai/publish_inbox_ai_sse'
 import KnowledgeRetrievalService from '#services/ai/knowledge_retrieval_service'
 import { matchHandoverKeyword } from '#services/ai/match_handover_keywords'
 import PlatformAiConfigService from '#services/ai/platform_ai_config_service'
 import WhatsappOutboundException from '#exceptions/whatsapp_outbound_exception'
 import WhatsappOutboundService from '#services/whatsapp_outbound_service'
+import AiAnswerCacheService from '#services/ai/ai_answer_cache_service'
 import { runWithTenant } from '#services/tenant_context'
 
 export const DEFAULT_AI_SYSTEM_PROMPT =
@@ -36,13 +37,14 @@ export default class AiDebounceTurnService {
     private retrieval: KnowledgeRetrievalService = new KnowledgeRetrievalService(),
     private platform: PlatformAiConfigService = new PlatformAiConfigService(),
     private outbound: WhatsappOutboundService = new WhatsappOutboundService(),
-    private llm?: LlmProvider,
+    private llm?: ChatLlmProvider,
     private memory?: MemoryWorkingSetService,
     private publishAi: (
       organizationId: string,
       event: InboxAiSseEvent
     ) => void = publishInboxAiEvent,
-    private summary: AiConversationSummaryService = new AiConversationSummaryService()
+    private summary: AiConversationSummaryService = new AiConversationSummaryService(),
+    private answers?: AiAnswerCacheService
   ) {}
 
   async process(payload: DebounceTurnJobPayload): Promise<DebounceTurnResult> {
@@ -77,9 +79,46 @@ export default class AiDebounceTurnService {
         decision: AiUsageDecision.HANDOVER_KEYWORD,
         reason: keyword,
         messageId: lastInboundId,
-        modelName: config.modelName,
+        modelName: config.chatModel,
       })
       return { outcome: 'handover', decision: AiUsageDecision.HANDOVER_KEYWORD, reason: keyword }
+    }
+
+    const cacheLookup = {
+      organizationId: payload.organizationId,
+      question: userText,
+      embeddingSpaceId: config.activeEmbeddingSpaceId,
+    }
+    const cached = await this.#answers().get(cacheLookup)
+    if (cached) {
+      try {
+        await this.#sendCachedReply(payload, {
+          text: cached,
+          modelName: config.chatModel,
+        })
+        return { outcome: 'auto_replied', decision: AiUsageDecision.AUTO_REPLIED }
+      } catch (error) {
+        logger.warn(
+          {
+            organizationId: payload.organizationId,
+            conversationId: payload.conversationId,
+            err: error instanceof Error ? error.message : 'unknown',
+            code: error instanceof WhatsappOutboundException ? error.code : undefined,
+          },
+          'ai.debounce_turn.failed'
+        )
+        await this.#handover(payload, {
+          decision: AiUsageDecision.HANDOVER_ERROR,
+          reason: error instanceof Error ? error.message : 'unknown',
+          messageId: lastInboundId,
+          modelName: config.chatModel,
+        })
+        return {
+          outcome: 'handover',
+          decision: AiUsageDecision.HANDOVER_ERROR,
+          reason: 'error',
+        }
+      }
     }
 
     const retrieved = await this.retrieval.retrieve({
@@ -93,7 +132,7 @@ export default class AiDebounceTurnService {
         decision: AiUsageDecision.HANDOVER_LOW_CONFIDENCE,
         reason: 'low_confidence',
         messageId: lastInboundId,
-        modelName: config.modelName,
+        modelName: config.chatModel,
         retrievalScore: retrieved.maxScore,
       })
       return {
@@ -107,9 +146,10 @@ export default class AiDebounceTurnService {
       if (!this.llm) await this.platform.assertLlmReady()
       const llm = await this.#llm()
       const turns = await this.#recentTurns(payload.organizationId, payload.conversationId)
-      const options = {
-        model: config.modelName,
+      const options: LlmCompletionOptions = {
+        model: config.chatModel,
         temperature: config.temperature,
+        maxTokens: config.maxOutputTokens,
         systemPrompt: config.systemPrompt?.trim() || DEFAULT_AI_SYSTEM_PROMPT,
         userPrompt: buildUserPrompt({
           turns,
@@ -162,21 +202,8 @@ export default class AiDebounceTurnService {
         },
       })
 
-      try {
-        await this.summary.scheduleAfterAutoReply({
-          organizationId: payload.organizationId,
-          conversationId: payload.conversationId,
-        })
-      } catch (error) {
-        logger.warn(
-          {
-            organizationId: payload.organizationId,
-            conversationId: payload.conversationId,
-            err: error instanceof Error ? error.message : 'unknown',
-          },
-          'ai.summarize.schedule_failed'
-        )
-      }
+      await this.#scheduleSummary(payload)
+      await this.#answers().set(cacheLookup, completion.text)
 
       return { outcome: 'auto_replied', decision: AiUsageDecision.AUTO_REPLIED }
     } catch (error) {
@@ -193,7 +220,7 @@ export default class AiDebounceTurnService {
         decision: AiUsageDecision.HANDOVER_ERROR,
         reason: error instanceof Error ? error.message : 'unknown',
         messageId: lastInboundId,
-        modelName: config.modelName,
+        modelName: config.chatModel,
         retrievalScore: retrieved.maxScore,
       })
       return {
@@ -231,16 +258,70 @@ export default class AiDebounceTurnService {
     this.publishAi(payload.organizationId, handoverSseEvent(payload.conversationId, params))
   }
 
+  async #sendCachedReply(
+    payload: DebounceTurnJobPayload,
+    params: { text: string; modelName: string }
+  ): Promise<void> {
+    this.publishAi(payload.organizationId, {
+      type: 'ai.generation.started',
+      data: { conversationId: payload.conversationId, promptAt: new Date().toISOString() },
+    })
+
+    const queued = await this.outbound.queueText({
+      organizationId: payload.organizationId,
+      conversationId: payload.conversationId,
+      text: params.text,
+      senderType: 'ai',
+    })
+
+    await this.usage.insert({
+      organizationId: payload.organizationId,
+      conversationId: payload.conversationId,
+      messageId: queued.messageId,
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      modelName: params.modelName,
+      latencyMs: 0,
+      decision: AiUsageDecision.AUTO_REPLIED,
+      retrievalScore: null,
+    })
+
+    this.publishAi(payload.organizationId, {
+      type: 'ai.generation.completed',
+      data: {
+        conversationId: payload.conversationId,
+        fullText: params.text,
+        latencyMs: 0,
+        usage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+      },
+    })
+
+    await this.#scheduleSummary(payload)
+  }
+
+  async #scheduleSummary(payload: DebounceTurnJobPayload): Promise<void> {
+    try {
+      await this.summary.scheduleAfterAutoReply({
+        organizationId: payload.organizationId,
+        conversationId: payload.conversationId,
+      })
+    } catch (error) {
+      logger.warn(
+        {
+          organizationId: payload.organizationId,
+          conversationId: payload.conversationId,
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'ai.summarize.schedule_failed'
+      )
+    }
+  }
+
   async #streamCompletion(
     payload: DebounceTurnJobPayload,
-    llm: LlmProvider,
-    options: {
-      model: string
-      temperature: number
-      systemPrompt: string
-      userPrompt: string
-      contextChunks: Array<{ content: string; score: number }>
-    }
+    llm: ChatLlmProvider,
+    options: LlmCompletionOptions
   ) {
     const stream = llm.streamCompletion(options)
     let next = await stream.next()
@@ -264,9 +345,13 @@ export default class AiDebounceTurnService {
     return memory.getRecentTurns(organizationId, conversationId)
   }
 
-  async #llm(): Promise<LlmProvider> {
+  async #llm(): Promise<ChatLlmProvider> {
     if (this.llm) return this.llm
-    return app.container.make(LlmProvider)
+    return app.container.make(ChatLlmProvider)
+  }
+
+  #answers(): AiAnswerCacheService {
+    return this.answers ?? (this.answers = new AiAnswerCacheService())
   }
 }
 

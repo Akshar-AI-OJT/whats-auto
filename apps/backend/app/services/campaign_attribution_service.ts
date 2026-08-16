@@ -15,8 +15,8 @@ export type CampaignAttributionResult = {
 @inject()
 export default class CampaignAttributionService {
   constructor(
-    private recipients: CampaignAttributionRepository = new CampaignAttributionRepository(),
-    private platform: PlatformAiConfigService = new PlatformAiConfigService()
+    private recipients: CampaignAttributionRepository,
+    private platform: PlatformAiConfigService
   ) {}
 
   async attributeInbound(
@@ -46,17 +46,12 @@ export default class CampaignAttributionService {
       campaignId: recipient.broadcastId,
     })
 
-    const countedReply = await this.recipients.markRecipientRepliedOnce(trx, {
+    const countedReply = await this.recipients.markRecipientRepliedAndIncrement(trx, {
       organizationId: params.organizationId,
       recipientId: recipient.id,
+      campaignId: recipient.broadcastId,
       repliedAt: params.occurredAt,
     })
-    if (countedReply) {
-      await this.recipients.incrementBroadcastRepliedCount(trx, {
-        organizationId: params.organizationId,
-        campaignId: recipient.broadcastId,
-      })
-    }
 
     return {
       campaignId: recipient.broadcastId,

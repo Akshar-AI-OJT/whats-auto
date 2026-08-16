@@ -61,6 +61,46 @@ export class CampaignAttributionRepository {
     return Number(updated) > 0
   }
 
+  async markRecipientRepliedAndIncrement(
+    trx: TransactionClientContract,
+    params: {
+      organizationId: string
+      recipientId: string
+      campaignId: string
+      repliedAt: Date
+    }
+  ): Promise<boolean> {
+    const result = await trx.rawQuery(
+      `WITH marked AS (
+         UPDATE "broadcast_recipients"
+         SET "repliedAt" = ?
+         WHERE "id" = ?
+           AND "organizationId" = ?
+           AND "repliedAt" IS NULL
+         RETURNING "id"
+       ),
+       bumped AS (
+         UPDATE "broadcasts"
+         SET "repliedCount" = "repliedCount" + 1, "updatedAt" = NOW()
+         WHERE "id" = ?
+           AND "organizationId" = ?
+           AND EXISTS (SELECT 1 FROM marked)
+         RETURNING "id"
+       )
+       SELECT EXISTS (SELECT 1 FROM marked) AS counted`,
+      [
+        params.repliedAt,
+        params.recipientId,
+        params.organizationId,
+        params.campaignId,
+        params.organizationId,
+      ]
+    )
+
+    const row = (result.rows?.[0] ?? result[0]) as { counted?: boolean } | undefined
+    return Boolean(row?.counted)
+  }
+
   async markRecipientRepliedOnce(
     trx: TransactionClientContract,
     params: { organizationId: string; recipientId: string; repliedAt: Date }
@@ -79,12 +119,11 @@ export class CampaignAttributionRepository {
     trx: TransactionClientContract,
     params: { organizationId: string; campaignId: string }
   ): Promise<void> {
-    await trx.rawQuery(
-      `UPDATE "broadcasts"
-       SET "repliedCount" = "repliedCount" + 1, "updatedAt" = NOW()
-       WHERE "id" = ? AND "organizationId" = ?`,
-      [params.campaignId, params.organizationId]
-    )
+    await trx
+      .from('broadcasts')
+      .where('id', params.campaignId)
+      .where('organizationId', params.organizationId)
+      .increment('repliedCount', 1)
   }
 }
 

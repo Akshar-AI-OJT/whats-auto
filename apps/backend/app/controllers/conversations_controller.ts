@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import ConversationPolicy from '#policies/conversation_policy'
 import { ConversationService } from '#services/conversation_service'
 import {
   assignConversationValidator,
@@ -24,7 +25,9 @@ export default class ConversationsController {
    * @responseBody 200 - { "data": [{ "id": "uuid", "status": "open", "contactId": "uuid", "unreadCount": 0, "contact": { "id": "uuid", "name": "Ada", "phone": "+15551234567" } }], "meta": { "total": 1, "perPage": 20, "currentPage": 1, "lastPage": 1 } }
    * @responseBody 403 - { "error": "Permission denied: inbox:view", "code": "PERMISSION_DENIED" }
    */
-  async index({ request, serialize }: HttpContext) {
+  async index({ bouncer, request, serialize }: HttpContext) {
+    await bouncer.with(ConversationPolicy).authorize('viewAny')
+
     const qs = await request.validateUsing(listConversationsValidator, {
       data: request.qs(),
     })
@@ -52,7 +55,7 @@ export default class ConversationsController {
    * @responseBody 404 - { "error": "Conversation not found", "code": "E_CONVERSATION_NOT_FOUND" }
    * @responseBody 403 - { "error": "Permission denied: inbox:view", "code": "PERMISSION_DENIED" }
    */
-  async show({ request, params, serialize }: HttpContext) {
+  async show({ bouncer, request, params, serialize }: HttpContext) {
     const { id } = await request.validateUsing(conversationIdParamValidator, {
       data: params,
     })
@@ -61,6 +64,8 @@ export default class ConversationsController {
       organizationId: request.activeMember!.organizationId,
       conversationId: id,
     })
+
+    await bouncer.with(ConversationPolicy).authorize('view', conversation)
 
     return serialize(conversation)
   }
@@ -77,7 +82,9 @@ export default class ConversationsController {
    * @responseBody 409 - { "error": "An active conversation already exists for this contact and WhatsApp number", "code": "E_CONVERSATION_DUPLICATE_ACTIVE" }
    * @responseBody 403 - { "error": "Permission denied: inbox:view", "code": "PERMISSION_DENIED" }
    */
-  async store({ request, serialize }: HttpContext) {
+  async store({ bouncer, request, serialize }: HttpContext) {
+    await bouncer.with(ConversationPolicy).authorize('create')
+
     const payload = await request.validateUsing(createConversationValidator)
 
     const conversation = await new ConversationService().createConversation({
@@ -101,10 +108,18 @@ export default class ConversationsController {
    * @responseBody 404 - { "error": "Conversation not found", "code": "E_CONVERSATION_NOT_FOUND" }
    * @responseBody 403 - { "error": "Permission denied: inbox:view", "code": "PERMISSION_DENIED" }
    */
-  async update({ request, params, serialize }: HttpContext) {
+  async update({ bouncer, request, params, serialize }: HttpContext) {
     const { id } = await request.validateUsing(conversationIdParamValidator, {
       data: params,
     })
+
+    const existing = await new ConversationService().getConversationById({
+      organizationId: request.activeMember!.organizationId,
+      conversationId: id,
+    })
+
+    await bouncer.with(ConversationPolicy).authorize('update', existing)
+
     const payload = await request.validateUsing(updateConversationValidator)
 
     const conversation = await new ConversationService().updateConversation({
@@ -128,10 +143,18 @@ export default class ConversationsController {
    * @responseBody 404 - { "error": "Conversation not found", "code": "E_CONVERSATION_NOT_FOUND" }
    * @responseBody 403 - { "error": "Permission denied: inbox:assign", "code": "PERMISSION_DENIED" }
    */
-  async assign({ request, params, serialize }: HttpContext) {
+  async assign({ bouncer, request, params, serialize }: HttpContext) {
     const { id } = await request.validateUsing(conversationIdParamValidator, {
       data: params,
     })
+
+    const existing = await new ConversationService().getConversationById({
+      organizationId: request.activeMember!.organizationId,
+      conversationId: id,
+    })
+
+    await bouncer.with(ConversationPolicy).authorize('assign', existing)
+
     const payload = await request.validateUsing(assignConversationValidator)
 
     const conversation = await new ConversationService().assignConversation({
@@ -155,10 +178,17 @@ export default class ConversationsController {
    * @responseBody 404 - { "error": "Conversation not found", "code": "E_CONVERSATION_NOT_FOUND" }
    * @responseBody 403 - { "error": "Permission denied: inbox:close", "code": "PERMISSION_DENIED" }
    */
-  async close({ request, params, serialize }: HttpContext) {
+  async close({ bouncer, request, params, serialize }: HttpContext) {
     const { id } = await request.validateUsing(conversationIdParamValidator, {
       data: params,
     })
+
+    const existing = await new ConversationService().getConversationById({
+      organizationId: request.activeMember!.organizationId,
+      conversationId: id,
+    })
+
+    await bouncer.with(ConversationPolicy).authorize('close', existing)
 
     const conversation = await new ConversationService().closeConversation({
       organizationId: request.activeMember!.organizationId,
@@ -179,10 +209,17 @@ export default class ConversationsController {
    * @responseBody 404 - { "error": "Conversation not found", "code": "E_CONVERSATION_NOT_FOUND" }
    * @responseBody 403 - { "error": "Permission denied: inbox:close", "code": "PERMISSION_DENIED" }
    */
-  async reopen({ request, params, serialize }: HttpContext) {
+  async reopen({ bouncer, request, params, serialize }: HttpContext) {
     const { id } = await request.validateUsing(conversationIdParamValidator, {
       data: params,
     })
+
+    const existing = await new ConversationService().getConversationById({
+      organizationId: request.activeMember!.organizationId,
+      conversationId: id,
+    })
+
+    await bouncer.with(ConversationPolicy).authorize('reopen', existing)
 
     const conversation = await new ConversationService().reopenConversation({
       organizationId: request.activeMember!.organizationId,

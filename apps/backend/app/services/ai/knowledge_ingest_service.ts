@@ -1,14 +1,17 @@
 import app from '@adonisjs/core/services/app'
 import logger from '@adonisjs/core/services/logger'
 import db from '@adonisjs/lucid/services/db'
+import { type LlmChatProvider } from '#enums/llm_chat_provider'
 import { AiKnowledgeDocumentStatus } from '#enums/ai_knowledge_document_status'
 import { AiKnowledgeChunkRepository } from '#repositories/ai_knowledge_chunk_repository'
 import { AiKnowledgeDocumentRepository } from '#repositories/ai_knowledge_document_repository'
 import { MediaAssetRepository } from '#repositories/media_asset_repository'
 import { chunkKnowledgeText } from '#services/ai/chunk_knowledge_text'
-import { LlmProvider } from '#services/ai/contracts/llm_provider'
+import { type EmbeddingLlmProvider } from '#services/ai/contracts/llm_provider'
+import { DEFAULT_EMBEDDING_SPACE_ID } from '#services/ai/embedding_space'
 import { extractKnowledgeText } from '#services/ai/extract_knowledge_text'
 import { sha256Hex } from '#services/ai/knowledge_hash'
+import LlmProviderFactory from '#services/ai/llm_provider_factory'
 import { planChunkSync } from '#services/ai/plan_chunk_sync'
 import PlatformAiConfigService from '#services/ai/platform_ai_config_service'
 import { ObjectStorage } from '#services/object_storage/contracts/object_storage'
@@ -32,7 +35,7 @@ export default class KnowledgeIngestService {
     private chunks: AiKnowledgeChunkRepository = new AiKnowledgeChunkRepository(),
     private mediaAssets: MediaAssetRepository = new MediaAssetRepository(),
     private storage?: ObjectStorage,
-    private llm?: LlmProvider,
+    private llm?: EmbeddingLlmProvider,
     private platform?: PlatformAiConfigService
   ) {}
 
@@ -47,6 +50,17 @@ export default class KnowledgeIngestService {
       return {
         documentId: params.documentId,
         status: AiKnowledgeDocumentStatus.FAILED,
+        embedded: 0,
+        deleted: 0,
+        unchanged: 0,
+        skipped: true,
+      }
+    }
+
+    if (document.deletedAt) {
+      return {
+        documentId: params.documentId,
+        status: document.status as AiKnowledgeDocumentStatus,
         embedded: 0,
         deleted: 0,
         unchanged: 0,
@@ -88,14 +102,18 @@ export default class KnowledgeIngestService {
         return this.#fail(params, 'No chunks produced from document text')
       }
 
+      const dest = await this.#embedDestination()
       const existing = await runWithTenant(params.organizationId, () =>
-        this.chunks.listHashesForDocument(params)
+        this.chunks.listHashesForDocument({
+          ...params,
+          embeddingSpaceId: dest.embeddingSpaceId,
+        })
       )
       const plan = planChunkSync(existing, next)
-      const { embeddingModel } = await this.#platformConfig()
       const embeddings = await this.#embed(
         plan.toInsert.map((chunk) => chunk.content),
-        embeddingModel
+        dest.embeddingModel,
+        dest.embeddingProvider
       )
 
       await runWithTenant(params.organizationId, () =>
@@ -119,6 +137,7 @@ export default class KnowledgeIngestService {
               contentHash: chunk.contentHash,
               content: chunk.content,
               embedding: embeddings[index]!,
+              embeddingSpaceId: dest.embeddingSpaceId,
               metadata: { sourceType: document.sourceType },
             })),
             trx
@@ -129,7 +148,7 @@ export default class KnowledgeIngestService {
               status: AiKnowledgeDocumentStatus.INDEXED,
               documentHash,
               chunkCount: next.length,
-              embeddingModel,
+              embeddingModel: dest.embeddingModel,
               errorMessage: null,
             },
             trx
@@ -188,9 +207,9 @@ export default class KnowledgeIngestService {
     return extractKnowledgeText(document.sourceType, bytes)
   }
 
-  async #embed(texts: string[], model: string): Promise<number[][]> {
+  async #embed(texts: string[], model: string, provider: LlmChatProvider): Promise<number[][]> {
     if (texts.length === 0) return []
-    const llm = await this.#llmProvider()
+    const llm = await this.#llmProvider(provider)
     const vectors: number[][] = []
     for (let offset = 0; offset < texts.length; offset += EMBED_BATCH_SIZE) {
       const batch = texts.slice(offset, offset + EMBED_BATCH_SIZE)
@@ -242,13 +261,162 @@ export default class KnowledgeIngestService {
     return app.container.make(ObjectStorage)
   }
 
-  async #llmProvider(): Promise<LlmProvider> {
+  async #llmProvider(provider: LlmChatProvider): Promise<EmbeddingLlmProvider> {
     if (this.llm) return this.llm
-    return app.container.make(LlmProvider)
+    const factory = await app.container.make(LlmProviderFactory)
+    return factory.createEmbeddingFor(provider)
   }
 
-  async #platformConfig(): Promise<{ embeddingModel: string }> {
+  async #embedDestination(): Promise<{
+    embeddingProvider: LlmChatProvider
+    embeddingModel: string
+    embeddingSpaceId: string
+  }> {
     const service = this.platform ?? (await app.container.make(PlatformAiConfigService))
-    return service.get()
+    const snapshot = await service.get()
+    if (
+      snapshot.reindexStatus === 'running' &&
+      snapshot.reindexToSpaceId &&
+      snapshot.reindexEmbeddingModel &&
+      snapshot.reindexEmbeddingProvider
+    ) {
+      return {
+        embeddingProvider: snapshot.reindexEmbeddingProvider,
+        embeddingModel: snapshot.reindexEmbeddingModel,
+        embeddingSpaceId: snapshot.reindexToSpaceId,
+      }
+    }
+    return {
+      embeddingProvider: snapshot.embeddingProvider,
+      embeddingModel: snapshot.embeddingModel,
+      embeddingSpaceId: snapshot.activeEmbeddingSpaceId || DEFAULT_EMBEDDING_SPACE_ID,
+    }
   }
+
+  async reindexDocument(params: {
+    organizationId: string
+    documentId: string
+    embeddingModel: string
+    embeddingProvider: LlmChatProvider
+    targetSpaceId: string
+  }): Promise<KnowledgeIngestResult> {
+    const document = await runWithTenant(params.organizationId, () =>
+      this.documents.findByIdForOrg({
+        organizationId: params.organizationId,
+        documentId: params.documentId,
+      })
+    )
+    if (!document) {
+      return {
+        documentId: params.documentId,
+        status: AiKnowledgeDocumentStatus.FAILED,
+        embedded: 0,
+        deleted: 0,
+        unchanged: 0,
+        skipped: true,
+      }
+    }
+
+    if (document.deletedAt) {
+      return {
+        documentId: params.documentId,
+        status: document.status as AiKnowledgeDocumentStatus,
+        embedded: 0,
+        deleted: 0,
+        unchanged: 0,
+        skipped: true,
+      }
+    }
+
+    try {
+      const text = await this.#loadText(params.organizationId, document)
+      if (!text) {
+        return this.#fail(params, 'Extracted text is empty')
+      }
+
+      const next = await chunkKnowledgeText(text)
+      if (next.length === 0) {
+        return this.#fail(params, 'No chunks produced from document text')
+      }
+
+      const documentHash = sha256Hex(text)
+      const embeddings = await this.#embed(
+        next.map((chunk) => chunk.content),
+        params.embeddingModel,
+        params.embeddingProvider
+      )
+
+      await runWithTenant(params.organizationId, () =>
+        db.transaction(async (trx) => {
+          await this.chunks.deleteByDocumentSpace(
+            {
+              organizationId: params.organizationId,
+              documentId: params.documentId,
+              embeddingSpaceId: params.targetSpaceId,
+            },
+            trx
+          )
+          await this.chunks.insertMany(
+            next.map((chunk, index) => ({
+              organizationId: params.organizationId,
+              documentId: params.documentId,
+              chunkIndex: chunk.chunkIndex,
+              contentHash: chunk.contentHash,
+              content: chunk.content,
+              embedding: embeddings[index]!,
+              embeddingSpaceId: params.targetSpaceId,
+              metadata: { sourceType: document.sourceType },
+            })),
+            trx
+          )
+          await this.documents.updateForOrg(
+            {
+              organizationId: params.organizationId,
+              documentId: params.documentId,
+              status: AiKnowledgeDocumentStatus.INDEXED,
+              documentHash,
+              chunkCount: next.length,
+              embeddingModel: params.embeddingModel,
+              errorMessage: null,
+            },
+            trx
+          )
+        })
+      )
+
+      return {
+        documentId: params.documentId,
+        status: AiKnowledgeDocumentStatus.INDEXED,
+        embedded: next.length,
+        deleted: 0,
+        unchanged: 0,
+        skipped: false,
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Knowledge reindex failed'
+      if (isUnusableKnowledgeSource(message)) {
+        logger.warn(
+          { organizationId: params.organizationId, documentId: params.documentId, err: message },
+          'ai.reindex_document.unusable_source'
+        )
+        return this.#fail(params, message)
+      }
+      logger.error(
+        { organizationId: params.organizationId, documentId: params.documentId, err: message },
+        'ai.reindex_document.failed'
+      )
+      throw error
+    }
+  }
+}
+
+function isUnusableKnowledgeSource(message: string): boolean {
+  return (
+    /empty/i.test(message) ||
+    /no chunks/i.test(message) ||
+    /no media asset/i.test(message) ||
+    /was not found/i.test(message) ||
+    /not complete/i.test(message) ||
+    /missing from storage/i.test(message)
+  )
 }
