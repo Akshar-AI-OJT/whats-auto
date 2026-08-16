@@ -28,6 +28,7 @@ function documentRow(overrides: Partial<AiKnowledgeDocumentRow> = {}): AiKnowled
     embeddingModel: 'text-embedding-3-small',
     documentHash: null,
     errorMessage: null,
+    deletedAt: null,
     createdAt: new Date(),
     updatedAt: null,
     ...overrides,

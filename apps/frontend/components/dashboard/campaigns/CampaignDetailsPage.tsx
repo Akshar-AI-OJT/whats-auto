@@ -111,7 +111,16 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
       await queryClient.invalidateQueries({ queryKey: campaignQueryKeys.all })
     },
     onError: (err) => {
-      setActionError((err as unknown as ApiError).message || t('errors.launchFailed'))
+      const apiErr = err as unknown as ApiError
+      if (apiErr.code === 'E_CAMPAIGN_TEMPLATE_NOT_APPROVED') {
+        setActionError(t('errors.templateNotApproved'))
+        return
+      }
+      if (apiErr.code === 'E_CAMPAIGN_WA_CONFIG_NOT_CONNECTED') {
+        setActionError(t('errors.whatsappNotConnected'))
+        return
+      }
+      setActionError(apiErr.message || t('errors.launchFailed'))
     },
   })
 
@@ -151,13 +160,15 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
   })
 
   const campaign = campaignQuery.data
+  const linkedTemplate = useMemo(() => {
+    if (!campaign?.messageTemplateId || !templatesQuery.data) return null
+    return templatesQuery.data.find((item) => item.id === campaign.messageTemplateId) ?? null
+  }, [campaign, templatesQuery.data])
+
   const templateName = useMemo(() => {
     if (!campaign?.messageTemplateId) return null
-    return (
-      templatesQuery.data?.find((item) => item.id === campaign.messageTemplateId)?.name ??
-      campaign.messageTemplateId
-    )
-  }, [campaign, templatesQuery.data])
+    return linkedTemplate?.name ?? campaign.messageTemplateId
+  }, [campaign, linkedTemplate])
 
   if (!orgsLoading && !canViewCampaigns) {
     return (
@@ -199,11 +210,16 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
     0
   )
   const pendingRate = ratePercent(pending, campaign.totalRecipients)
+  const templateApproved =
+    !templatesQuery.isFetched ||
+    !campaign.messageTemplateId ||
+    linkedTemplate?.status?.toLowerCase() === 'approved'
   const canLaunch =
     canLaunchCampaigns &&
     isLaunchableCampaignStatus(campaign.status) &&
     campaign.totalRecipients > 0 &&
-    Boolean(campaign.messageTemplateId)
+    Boolean(campaign.messageTemplateId) &&
+    templateApproved
   const canCancel = canPauseCampaigns && isCancellableCampaignStatus(campaign.status)
 
   return (

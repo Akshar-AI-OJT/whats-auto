@@ -1,5 +1,6 @@
 import { Exception } from '@adonisjs/core/exceptions'
 import type { HttpContext } from '@adonisjs/core/http'
+import MessagePolicy from '#policies/message_policy'
 import { MessageService } from '#services/message_service'
 import { conversationIdParamValidator } from '#validators/conversation'
 import { createMessageValidator, listMessagesValidator } from '#validators/message'
@@ -20,10 +21,16 @@ export default class MessagesController {
    * @responseBody 404 - { "error": "Conversation not found", "code": "E_CONVERSATION_NOT_FOUND" }
    * @responseBody 403 - { "error": "Permission denied: inbox:view", "code": "PERMISSION_DENIED" }
    */
-  async index({ request, params, serialize }: HttpContext) {
+  async index({ bouncer, request, params, serialize }: HttpContext) {
     const { id } = await request.validateUsing(conversationIdParamValidator, {
       data: params,
     })
+
+    await bouncer.with(MessagePolicy).authorize('viewList', {
+      organizationId: request.activeMember!.organizationId,
+      id,
+    })
+
     const qs = await request.validateUsing(listMessagesValidator, {
       data: request.qs(),
     })
@@ -58,32 +65,23 @@ export default class MessagesController {
    * @responseBody 422 - { "error": "Idempotency-Key header is required", "code": "E_IDEMPOTENCY_KEY_REQUIRED" }
    * @responseBody 403 - { "error": "Permission denied: inbox:reply", "code": "PERMISSION_DENIED" }
    */
-  async store({ request, response, params, serialize }: HttpContext) {
-    const agent = request.authUser
-    const activeMember = request.activeMember
-    if (!agent || !activeMember) {
-      return response.unauthorized({ error: 'Unauthorized', code: 'UNAUTHORIZED' })
-    }
-
-    if (!request.memberPermissions?.has('inbox:reply')) {
-      return response.forbidden({
-        error: 'Permission denied: inbox:reply',
-        code: 'PERMISSION_DENIED',
-        required: 'inbox:reply',
-        role: activeMember.role,
-      })
-    }
-
+  async store({ bouncer, request, params, serialize }: HttpContext) {
     const { id } = await request.validateUsing(conversationIdParamValidator, {
       data: params,
     })
+
+    await bouncer.with(MessagePolicy).authorize('send', {
+      organizationId: request.activeMember!.organizationId,
+      id,
+    })
+
     const payload = await request.validateUsing(createMessageValidator)
     const idempotencyKey = this.requireIdempotencyKey(request)
 
     const message = await new MessageService().sendAgentReply({
-      organizationId: activeMember.organizationId,
+      organizationId: request.activeMember!.organizationId,
       conversationId: id,
-      senderId: agent.id,
+      senderId: request.authUser!.id,
       contentType: payload.contentType,
       contentText: payload.contentText,
       mediaAssetId: payload.mediaAssetId,

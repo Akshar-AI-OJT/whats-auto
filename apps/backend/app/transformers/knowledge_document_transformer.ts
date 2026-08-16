@@ -10,6 +10,7 @@ export type KnowledgeDocumentResponse = {
   embeddingModel: string
   documentHash: string | null
   errorMessage: string | null
+  deletedAt: string | null
   createdAt: string
   updatedAt: string | null
 }
@@ -25,6 +26,7 @@ export function transformKnowledgeDocument(row: AiKnowledgeDocumentRow): Knowled
     embeddingModel: row.embeddingModel,
     documentHash: row.documentHash,
     errorMessage: row.errorMessage,
+    deletedAt: row.deletedAt ? toIso(row.deletedAt) : null,
     createdAt: toIso(row.createdAt),
     updatedAt: row.updatedAt ? toIso(row.updatedAt) : null,
   }

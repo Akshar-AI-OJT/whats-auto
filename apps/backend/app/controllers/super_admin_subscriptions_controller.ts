@@ -1,5 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
+import SuperAdminPolicy from '#policies/super_admin_policy'
 import { SubscriptionService } from '#services/subscription_service'
 import {
   createSuperAdminSubscriptionValidator,
@@ -22,7 +23,9 @@ export default class SuperAdminSubscriptionsController {
    * @responseBody 403 - { "error": "Permission denied: platform:tenants_billing", "code": "PERMISSION_DENIED" }
    */
   @inject()
-  async index({ request, serialize }: HttpContext, subscriptions: SubscriptionService) {
+  async index({ bouncer, request, serialize }: HttpContext, subscriptions: SubscriptionService) {
+    await bouncer.with(SuperAdminPolicy).authorize('manageBilling')
+
     const { page, perPage } = await request.validateUsing(listSuperAdminSubscriptionsValidator, {
       data: request.qs(),
     })
@@ -48,7 +51,9 @@ export default class SuperAdminSubscriptionsController {
    * @responseBody 422 - { "error": "currentPeriodEnd must be after currentPeriodStart", "code": "E_SUBSCRIPTION_INVALID_PERIOD" }
    */
   @inject()
-  async store({ request, serialize }: HttpContext, subscriptions: SubscriptionService) {
+  async store({ bouncer, request, serialize }: HttpContext, subscriptions: SubscriptionService) {
+    await bouncer.with(SuperAdminPolicy).authorize('manageBilling')
+
     const payload = await request.validateUsing(createSuperAdminSubscriptionValidator)
 
     const subscription = await subscriptions.createSubscription(payload)
@@ -68,7 +73,12 @@ export default class SuperAdminSubscriptionsController {
    * @responseBody 404 - { "error": "Subscription Not Found", "code": "E_SUBSCRIPTION_NOT_FOUND" }
    */
   @inject()
-  async show({ request, params, serialize }: HttpContext, subscriptions: SubscriptionService) {
+  async show(
+    { bouncer, request, params, serialize }: HttpContext,
+    subscriptions: SubscriptionService
+  ) {
+    await bouncer.with(SuperAdminPolicy).authorize('manageBilling')
+
     const { id } = await request.validateUsing(subscriptionIdParamValidator, {
       data: params,
     })
@@ -92,7 +102,12 @@ export default class SuperAdminSubscriptionsController {
    * @responseBody 422 - { "error": "currentPeriodEnd must be after currentPeriodStart", "code": "E_SUBSCRIPTION_INVALID_PERIOD" }
    */
   @inject()
-  async update({ request, params, serialize }: HttpContext, subscriptions: SubscriptionService) {
+  async update(
+    { bouncer, request, params, serialize }: HttpContext,
+    subscriptions: SubscriptionService
+  ) {
+    await bouncer.with(SuperAdminPolicy).authorize('manageBilling')
+
     const { id } = await request.validateUsing(subscriptionIdParamValidator, {
       data: params,
     })
@@ -117,9 +132,11 @@ export default class SuperAdminSubscriptionsController {
    */
   @inject()
   async softDelete(
-    { request, params, serialize }: HttpContext,
+    { bouncer, request, params, serialize }: HttpContext,
     subscriptions: SubscriptionService
   ) {
+    await bouncer.with(SuperAdminPolicy).authorize('manageBilling')
+
     const { id } = await request.validateUsing(subscriptionIdParamValidator, {
       data: params,
     })

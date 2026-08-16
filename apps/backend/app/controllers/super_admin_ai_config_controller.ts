@@ -1,5 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
+import SuperAdminPolicy from '#policies/super_admin_policy'
 import PlatformAiConfigService from '#services/ai/platform_ai_config_service'
 import { updatePlatformAiConfigValidator } from '#validators/platform_ai_config'
 import '#types/http'
@@ -16,7 +17,9 @@ export default class SuperAdminAiConfigController {
    * @responseBody 403 - { "error": "Permission denied: platform:config_view", "code": "PERMISSION_DENIED" }
    */
   @inject()
-  async show({ serialize }: HttpContext, platformAiConfig: PlatformAiConfigService) {
+  async show({ bouncer, serialize }: HttpContext, platformAiConfig: PlatformAiConfigService) {
+    await bouncer.with(SuperAdminPolicy).authorize('viewAiConfig')
+
     return serialize(await platformAiConfig.get())
   }
 
@@ -34,7 +37,12 @@ export default class SuperAdminAiConfigController {
    * @responseBody 422 - { "error": "chatModel is not allowed for provider openai", "code": "E_PLATFORM_AI_INVALID_MODEL" }
    */
   @inject()
-  async update({ request, serialize }: HttpContext, platformAiConfig: PlatformAiConfigService) {
+  async update(
+    { bouncer, request, serialize }: HttpContext,
+    platformAiConfig: PlatformAiConfigService
+  ) {
+    await bouncer.with(SuperAdminPolicy).authorize('manageAiConfig')
+
     const payload = await request.validateUsing(updatePlatformAiConfigValidator)
     const config = await platformAiConfig.update(payload, request.authUser!.id)
     return serialize(config)

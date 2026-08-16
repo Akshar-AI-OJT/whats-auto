@@ -271,10 +271,8 @@ export class MessageTemplateService {
     nextStatus: string
     rejectionReason: string | null
   }): Promise<void> {
-    const becameApproved =
-      params.previousStatus !== 'approved' && params.nextStatus === 'approved'
-    const becameRejected =
-      params.previousStatus !== 'rejected' && params.nextStatus === 'rejected'
+    const becameApproved = params.previousStatus !== 'approved' && params.nextStatus === 'approved'
+    const becameRejected = params.previousStatus !== 'rejected' && params.nextStatus === 'rejected'
 
     if (!becameApproved && !becameRejected) return
 

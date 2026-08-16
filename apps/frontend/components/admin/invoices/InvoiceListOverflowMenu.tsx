@@ -47,11 +47,12 @@ export function InvoiceListOverflowMenu({
 
   useLayoutEffect(() => {
     if (!open || !anchor) return
+    const menuAnchor = anchor
 
     function update() {
-      if (!anchor || !menuRef.current) return
+      if (!menuRef.current) return
       const height = menuRef.current.offsetHeight || 220
-      setCoords(computePosition(anchor, height))
+      setCoords(computePosition(menuAnchor, height))
     }
 
     const frame = window.requestAnimationFrame(update)
@@ -62,7 +63,7 @@ export function InvoiceListOverflowMenu({
 
     function onPointerDown(event: MouseEvent) {
       const target = event.target as Node
-      if (menuRef.current?.contains(target) || anchor.contains(target)) return
+      if (menuRef.current?.contains(target) || menuAnchor.contains(target)) return
       onClose()
     }
 
@@ -87,7 +88,7 @@ export function InvoiceListOverflowMenu({
       ref={menuRef}
       role="menu"
       className={cn(
-        'fixed z-[80] w-52 overflow-hidden rounded-xl border border-dash-border bg-canvas py-1 shadow-lg',
+        'fixed z-80 w-52 overflow-hidden rounded-xl border border-dash-border bg-canvas py-1 shadow-lg',
         !coords && 'invisible'
       )}
       style={coords ? { top: coords.top, left: coords.left } : { top: 0, left: 0 }}

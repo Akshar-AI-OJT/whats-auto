@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import RolePolicy from '#policies/role_policy'
 import { RoleService } from '#services/role_service'
 import { mapRbacError } from '#lib/map_rbac_error'
 import {
@@ -21,7 +22,9 @@ export default class RolesController {
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 403 - { "error": "No active organization. Call POST /api/v1/organizations/:id/set-active first.", "code": "NO_ACTIVE_ORG" }
    */
-  async index({ request, serialize }: HttpContext) {
+  async index({ bouncer, request, serialize }: HttpContext) {
+    await bouncer.with(RolePolicy).authorize('viewList')
+
     const roles = await new RoleService().listRoles(request.activeMember!.organizationId)
     return serialize(roles)
   }
@@ -37,7 +40,9 @@ export default class RolesController {
    * @responseBody 403 - { "error": "Permission denied: roles:manage", "code": "PERMISSION_DENIED" }
    * @responseBody 422 - { "error": "Cannot grant permissions you do not hold", "code": "E_PERMISSION_ESCALATION" }
    */
-  async create({ request, response, serialize }: HttpContext) {
+  async create({ bouncer, request, response, serialize }: HttpContext) {
+    await bouncer.with(RolePolicy).authorize('create')
+
     const payload = await request.validateUsing(createRoleValidator)
 
     try {
@@ -65,7 +70,12 @@ export default class RolesController {
    * @responseBody 403 - { "error": "Permission denied: roles:manage", "code": "PERMISSION_DENIED" }
    * @responseBody 422 - { "error": "Role \"owner\" is protected", "code": "E_ROLE_PROTECTED" }
    */
-  async preview({ request, params, response, serialize }: HttpContext) {
+  async preview({ bouncer, request, params, response, serialize }: HttpContext) {
+    await bouncer.with(RolePolicy).authorize('preview', {
+      roleKey: params.roleKey,
+      organizationId: request.activeMember!.organizationId,
+    })
+
     const payload = await request.validateUsing(previewRoleUpdateValidator)
 
     try {
@@ -92,7 +102,12 @@ export default class RolesController {
    * @responseBody 403 - { "error": "Permission denied: roles:manage", "code": "PERMISSION_DENIED" }
    * @responseBody 422 - { "error": "Cannot grant permissions you do not hold", "code": "E_PERMISSION_ESCALATION" }
    */
-  async update({ request, params, response, serialize }: HttpContext) {
+  async update({ bouncer, request, params, response, serialize }: HttpContext) {
+    await bouncer.with(RolePolicy).authorize('update', {
+      roleKey: params.roleKey,
+      organizationId: request.activeMember!.organizationId,
+    })
+
     const payload = await request.validateUsing(updateRoleValidator)
 
     try {
@@ -121,7 +136,12 @@ export default class RolesController {
    * @responseBody 200 - { "data": { "ok": true } }
    * @responseBody 422 - { "error": "Only system roles can be reset to defaults", "code": "E_ROLE_RESET_CUSTOM" }
    */
-  async reset({ request, params, response, serialize }: HttpContext) {
+  async reset({ bouncer, request, params, response, serialize }: HttpContext) {
+    await bouncer.with(RolePolicy).authorize('reset', {
+      roleKey: params.roleKey,
+      organizationId: request.activeMember!.organizationId,
+    })
+
     const payload = await request.validateUsing(resetRoleValidator)
 
     try {
@@ -149,7 +169,12 @@ export default class RolesController {
    * @responseBody 403 - { "error": "Permission denied: roles:manage", "code": "PERMISSION_DENIED" }
    * @responseBody 422 - { "error": "Replacement role \"viewer\" does not exist", "code": "E_ROLE_REPLACEMENT_MISSING" }
    */
-  async destroy({ request, params, response, serialize }: HttpContext) {
+  async destroy({ bouncer, request, params, response, serialize }: HttpContext) {
+    await bouncer.with(RolePolicy).authorize('destroy', {
+      roleKey: params.roleKey,
+      organizationId: request.activeMember!.organizationId,
+    })
+
     const payload = await request.validateUsing(deleteRoleValidator)
 
     try {

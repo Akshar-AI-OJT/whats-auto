@@ -86,7 +86,7 @@ export const DASHBOARD_NAV_CHILDREN: Partial<
     {
       key: 'templatesList',
       href: '/dashboard/templates',
-      permission: PERMISSIONS.WHATSAPP_VIEW,
+      permission: PERMISSIONS.TEMPLATES_VIEW,
     },
     {
       key: 'templatesMedia',
@@ -99,12 +99,13 @@ export const DASHBOARD_NAV_CHILDREN: Partial<
 /**
  * Permission required to show a top-level nav item with a real route.
  * Placeholders (no href) are left ungated — see RBAC report.
+ * Templates uses TEMPLATES_VIEW; sidebar also allows WHATSAPP_VIEW | MEDIA_VIEW.
  */
 export const DASHBOARD_NAV_PERMISSION: Partial<Record<DashboardNavKey, string>> = {
   contacts: PERMISSIONS.CONTACTS_VIEW,
   inbox: PERMISSIONS.INBOX_VIEW,
   campaigns: PERMISSIONS.CAMPAIGNS_VIEW,
-  templates: PERMISSIONS.WHATSAPP_VIEW,
+  templates: PERMISSIONS.TEMPLATES_VIEW,
   knowledge: PERMISSIONS.AI_KB_VIEW,
   billing: PERMISSIONS.BILLING_VIEW,
   settings: PERMISSIONS.ORG_VIEW,

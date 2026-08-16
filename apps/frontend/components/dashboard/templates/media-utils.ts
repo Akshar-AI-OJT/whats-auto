@@ -1,4 +1,4 @@
-import type { MediaAsset, PaginationMeta } from '@/lib/api'
+import type { MediaAsset, MediaQuota, PaginationMeta } from '@/lib/api'
 
 /** MIME types accepted by Media Library upload (matches backend outbound allowlist). */
 export const MEDIA_UPLOAD_ACCEPT =
@@ -60,6 +60,29 @@ export function unwrapMediaList(data: unknown): {
   }
 
   return { items: [], meta: null }
+}
+
+/** API returns `{ data: MediaQuota }`; protectedRequest keeps the outer JSON. */
+export function unwrapMediaQuota(data: unknown): MediaQuota | null {
+  if (!data || typeof data !== 'object') return null
+
+  const root = data as { data?: MediaQuota } & Partial<MediaQuota>
+  const nested = root.data
+  const quota =
+    nested &&
+    typeof nested === 'object' &&
+    (nested.usedBytes != null || nested.limitBytes != null)
+      ? nested
+      : root
+
+  if (quota.usedBytes == null && quota.limitBytes == null) return null
+
+  return {
+    readyBytes: Number(quota.readyBytes ?? 0),
+    reservedBytes: Number(quota.reservedBytes ?? 0),
+    usedBytes: Number(quota.usedBytes ?? 0),
+    limitBytes: Number(quota.limitBytes ?? 0),
+  }
 }
 
 export const mediaQueryKeys = {

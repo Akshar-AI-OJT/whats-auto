@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import { accessOrgAdmin } from '#abilities/main'
 import { OrganizationAdminUsersService } from '#services/organization_admin_users_service'
 import {
   listOrganizationAdminUsersValidator,
@@ -7,8 +8,6 @@ import {
 } from '#validators/organization_admin_users'
 import { mapRbacError } from '#lib/map_rbac_error'
 import '#types/http'
-
-const ORGANIZATION_ADMIN_ROLES = new Set(['admin', 'owner'])
 
 export default class OrganizationAdminUsersController {
   /**
@@ -21,15 +20,10 @@ export default class OrganizationAdminUsersController {
    * @paramQuery perPage - Items per page (1-100, default 20) - @type(number)
    * @responseBody 200 - { "data": [{ "id": "uuid", "name": "Ada Agent", "firstname": "Ada", "lastname": "Agent", "email": "agent@example.com", "isActive": true, "memberId": "uuid", "role": "agent" }], "meta": { "total": 1, "perPage": 20, "currentPage": 1, "lastPage": 1 } }
    * @responseBody 401 - { "error": "Missing or invalid session" }
-   * @responseBody 403 - { "error": "Only organization admins can list organization users.", "code": "NOT_ORGANIZATION_ADMIN" }
+   * @responseBody 403 - { "error": "Access denied" }
    */
-  async index({ request, response, serialize }: HttpContext) {
-    if (!ORGANIZATION_ADMIN_ROLES.has(request.activeMember!.role)) {
-      return response.forbidden({
-        error: 'Only organization admins can list organization users.',
-        code: 'NOT_ORGANIZATION_ADMIN',
-      })
-    }
+  async index({ bouncer, request, serialize }: HttpContext) {
+    await bouncer.authorize(accessOrgAdmin)
 
     const { page, perPage } = await request.validateUsing(listOrganizationAdminUsersValidator, {
       data: request.qs(),
@@ -53,16 +47,11 @@ export default class OrganizationAdminUsersController {
    * @paramPath id - User id - @type(string)
    * @responseBody 200 - { "data": { "id": "uuid", "name": "Ada Agent", "firstname": "Ada", "lastname": "Agent", "email": "agent@example.com", "isActive": true, "memberId": "uuid", "role": "agent" } }
    * @responseBody 401 - { "error": "Missing or invalid session" }
-   * @responseBody 403 - { "error": "Only organization admins can view organization users.", "code": "NOT_ORGANIZATION_ADMIN" }
+   * @responseBody 403 - { "error": "Access denied" }
    * @responseBody 404 - { "error": "User Not Found", "code": "E_USER_NOT_FOUND" }
    */
-  async show({ request, params, response, serialize }: HttpContext) {
-    if (!ORGANIZATION_ADMIN_ROLES.has(request.activeMember!.role)) {
-      return response.forbidden({
-        error: 'Only organization admins can view organization users.',
-        code: 'NOT_ORGANIZATION_ADMIN',
-      })
-    }
+  async show({ bouncer, request, params, response, serialize }: HttpContext) {
+    await bouncer.authorize(accessOrgAdmin)
 
     const { id } = await request.validateUsing(organizationAdminUserIdParamValidator, {
       data: params,
@@ -93,17 +82,12 @@ export default class OrganizationAdminUsersController {
    * @requestBody { "firstname": "Ada", "lastname": "Agent", "email": "agent@example.com", "isActive": true }
    * @responseBody 200 - { "data": { "id": "uuid", "name": "Ada Agent", "firstname": "Ada", "lastname": "Agent", "email": "agent@example.com", "isActive": true, "memberId": "uuid", "role": "agent" } }
    * @responseBody 401 - { "error": "Missing or invalid session" }
-   * @responseBody 403 - { "error": "Only organization admins can update organization users.", "code": "NOT_ORGANIZATION_ADMIN" }
+   * @responseBody 403 - { "error": "Access denied" }
    * @responseBody 404 - { "error": "User Not Found", "code": "E_USER_NOT_FOUND" }
    * @responseBody 422 - { "error": "An account with this email already exists.", "code": "EMAIL_ALREADY_EXISTS" }
    */
-  async update({ request, params, response, serialize }: HttpContext) {
-    if (!ORGANIZATION_ADMIN_ROLES.has(request.activeMember!.role)) {
-      return response.forbidden({
-        error: 'Only organization admins can update organization users.',
-        code: 'NOT_ORGANIZATION_ADMIN',
-      })
-    }
+  async update({ bouncer, request, params, response, serialize }: HttpContext) {
+    await bouncer.authorize(accessOrgAdmin)
 
     const { id } = await request.validateUsing(organizationAdminUserIdParamValidator, {
       data: params,
@@ -127,7 +111,10 @@ export default class OrganizationAdminUsersController {
 
       return serialize(user)
     } catch (error) {
-      if (error instanceof Error && error.message === 'An account with this email already exists.') {
+      if (
+        error instanceof Error &&
+        error.message === 'An account with this email already exists.'
+      ) {
         return response.unprocessableEntity({
           error: error.message,
           code: 'EMAIL_ALREADY_EXISTS',
@@ -147,17 +134,12 @@ export default class OrganizationAdminUsersController {
    * @paramPath id - User id - @type(string)
    * @responseBody 200 - { "data": { "ok": true } }
    * @responseBody 401 - { "error": "Missing or invalid session" }
-   * @responseBody 403 - { "error": "Only organization admins can delete organization users.", "code": "NOT_ORGANIZATION_ADMIN" }
+   * @responseBody 403 - { "error": "Access denied" }
    * @responseBody 404 - { "error": "User Not Found", "code": "E_USER_NOT_FOUND" }
    * @responseBody 422 - { "error": "Cannot remove the Owner. Transfer ownership first.", "code": "E_MEMBER_REMOVE_OWNER" }
    */
-  async softDelete({ request, params, response, serialize }: HttpContext) {
-    if (!ORGANIZATION_ADMIN_ROLES.has(request.activeMember!.role)) {
-      return response.forbidden({
-        error: 'Only organization admins can delete organization users.',
-        code: 'NOT_ORGANIZATION_ADMIN',
-      })
-    }
+  async softDelete({ bouncer, request, params, response, serialize }: HttpContext) {
+    await bouncer.authorize(accessOrgAdmin)
 
     const { id } = await request.validateUsing(organizationAdminUserIdParamValidator, {
       data: params,

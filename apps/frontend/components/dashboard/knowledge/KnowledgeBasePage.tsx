@@ -17,6 +17,11 @@ import { Button } from '@/components/ui/button'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
 import {
+  formatBytes,
+  mediaQueryKeys,
+  unwrapMediaQuota,
+} from '@/components/dashboard/templates/media-utils'
+import {
   formatKnowledgeDate,
   isKnowledgeInFlight,
   KNOWLEDGE_MAX_FILE_BYTES,
@@ -26,6 +31,7 @@ import {
   titleFromFileName,
   unwrapKnowledgeCreate,
   unwrapKnowledgeList,
+  type LifecycleFilter,
   type StatusFilter,
 } from './knowledge-utils'
 
@@ -53,6 +59,7 @@ function statusBadgeClass(status: string): string {
 
 export function KnowledgeBasePage() {
   const t = useTranslations('dashboard.knowledge')
+  const tMedia = useTranslations('dashboard.media')
   const locale = useLocale()
   const queryClient = useQueryClient()
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -61,19 +68,21 @@ export function KnowledgeBasePage() {
   const canView = hasPermission(permissions, PERMISSIONS.AI_KB_VIEW)
   const canManage = hasPermission(permissions, PERMISSIONS.AI_KB_MANAGE)
 
+  const [lifecycle, setLifecycle] = useState<LifecycleFilter>('active')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [page, setPage] = useState(1)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
-  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [actionId, setActionId] = useState<string | null>(null)
 
   const listParams = useMemo(
     () => ({
       page,
       perPage: 20,
+      lifecycle,
       ...(statusFilter !== 'all' ? { status: statusFilter } : {}),
     }),
-    [page, statusFilter]
+    [page, lifecycle, statusFilter]
   )
 
   const listQuery = useQuery({
@@ -83,6 +92,7 @@ export function KnowledgeBasePage() {
       const { data } = await api.knowledgeDocuments.list({
         page: listParams.page,
         perPage: listParams.perPage,
+        lifecycle: listParams.lifecycle,
         ...(listParams.status
           ? { status: listParams.status as KnowledgeDocumentStatus }
           : {}),
@@ -90,10 +100,27 @@ export function KnowledgeBasePage() {
       return unwrapKnowledgeList(data)
     },
     refetchInterval: (query) => {
+      if (lifecycle === 'deleted') return false
       const items = query.state.data?.items ?? []
       return items.some((doc) => isKnowledgeInFlight(doc.status)) ? 3000 : false
     },
   })
+
+  const quotaQuery = useQuery({
+    queryKey: knowledgeQueryKeys.quota(tenantOrganizationId),
+    enabled: Boolean(tenantOrganizationId) && canView && !orgsLoading,
+    queryFn: async () => {
+      const { data } = await api.media.quota()
+      return unwrapMediaQuota(data)
+    },
+  })
+
+  const invalidateKnowledgeAndQuota = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: knowledgeQueryKeys.all }),
+      queryClient.invalidateQueries({ queryKey: mediaQueryKeys.all }),
+    ])
+  }
 
   const uploadFileMutation = useMutation({
     mutationFn: async (file: File) => {
@@ -132,7 +159,8 @@ export function KnowledgeBasePage() {
     onSuccess: async () => {
       setUploadError(null)
       setPage(1)
-      await queryClient.invalidateQueries({ queryKey: knowledgeQueryKeys.all })
+      setLifecycle('active')
+      await invalidateKnowledgeAndQuota()
     },
     onError: (err) => {
       setUploadError((err as Error).message || t('errors.uploadFailed'))
@@ -142,28 +170,67 @@ export function KnowledgeBasePage() {
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.knowledgeDocuments.delete(id),
     onMutate: (id) => {
-      setDeletingId(id)
+      setActionId(id)
     },
     onSuccess: async () => {
       setActionError(null)
-      await queryClient.invalidateQueries({ queryKey: knowledgeQueryKeys.all })
+      await invalidateKnowledgeAndQuota()
     },
     onError: (err) => {
       setActionError((err as unknown as ApiError).message || t('errors.deleteFailed'))
     },
     onSettled: () => {
-      setDeletingId(null)
+      setActionId(null)
+    },
+  })
+
+  const restoreMutation = useMutation({
+    mutationFn: (id: string) => api.knowledgeDocuments.restore(id),
+    onMutate: (id) => {
+      setActionId(id)
+    },
+    onSuccess: async () => {
+      setActionError(null)
+      await invalidateKnowledgeAndQuota()
+    },
+    onError: (err) => {
+      setActionError((err as unknown as ApiError).message || t('errors.restoreFailed'))
+    },
+    onSettled: () => {
+      setActionId(null)
+    },
+  })
+
+  const purgeMutation = useMutation({
+    mutationFn: (id: string) => api.knowledgeDocuments.purge(id),
+    onMutate: (id) => {
+      setActionId(id)
+    },
+    onSuccess: async () => {
+      setActionError(null)
+      await invalidateKnowledgeAndQuota()
+    },
+    onError: (err) => {
+      setActionError((err as unknown as ApiError).message || t('errors.purgeFailed'))
+    },
+    onSettled: () => {
+      setActionId(null)
     },
   })
 
   const items = listQuery.data?.items ?? []
   const meta = listQuery.data?.meta
+  const quota = quotaQuery.data
   const total = meta?.total ?? items.length
   const lastPage = meta?.lastPage ?? 1
   const perPage = meta?.perPage ?? 20
   const from = total === 0 ? 0 : (page - 1) * perPage + 1
   const to = Math.min(page * perPage, total)
-  const busy = uploadFileMutation.isPending || deleteMutation.isPending
+  const busy =
+    uploadFileMutation.isPending ||
+    deleteMutation.isPending ||
+    restoreMutation.isPending ||
+    purgeMutation.isPending
 
   return (
     <div className="mx-auto flex w-full max-w-300 flex-col gap-5 sm:gap-6">
@@ -174,7 +241,7 @@ export function KnowledgeBasePage() {
           title={t('title')}
           description={t('subtitle')}
           action={
-            canManage ? (
+            canManage && lifecycle === 'active' ? (
               <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
                 <input
                   ref={fileInputRef}
@@ -206,6 +273,18 @@ export function KnowledgeBasePage() {
         />
       </div>
 
+      {quota ? (
+        <p className="text-sm text-mute">
+          {tMedia('quotaLabel')}:{' '}
+          <span className="font-medium text-ink">
+            {tMedia('quotaValue', {
+              used: formatBytes(quota.usedBytes),
+              limit: formatBytes(quota.limitBytes),
+            })}
+          </span>
+        </p>
+      ) : null}
+
       {uploadError ? (
         <p role="alert" className="text-sm text-destructive">
           {uploadError}
@@ -219,25 +298,50 @@ export function KnowledgeBasePage() {
 
       <DashboardPanel className="overflow-hidden p-0">
         <div className="flex flex-col gap-3 border-b border-dash-border p-4">
-          <p className="text-xs font-medium tracking-wide text-mute uppercase">
-            {t('filters.label')}
-          </p>
           <div className="flex flex-wrap gap-2">
-            {STATUS_FILTERS.map((value) => (
+            {(
+              [
+                ['active', t('filters.active')],
+                ['deleted', t('filters.deleted')],
+              ] as const
+            ).map(([value, label]) => (
               <Button
                 key={value}
                 type="button"
                 size="sm"
-                variant={statusFilter === value ? 'default' : 'outline'}
+                variant={lifecycle === value ? 'default' : 'outline'}
                 onClick={() => {
-                  setStatusFilter(value)
+                  setLifecycle(value)
                   setPage(1)
                 }}
               >
-                {t(`filters.${value}`)}
+                {label}
               </Button>
             ))}
           </div>
+          {lifecycle === 'active' ? (
+            <>
+              <p className="text-xs font-medium tracking-wide text-mute uppercase">
+                {t('filters.label')}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {STATUS_FILTERS.map((value) => (
+                  <Button
+                    key={value}
+                    type="button"
+                    size="sm"
+                    variant={statusFilter === value ? 'default' : 'outline'}
+                    onClick={() => {
+                      setStatusFilter(value)
+                      setPage(1)
+                    }}
+                  >
+                    {t(`filters.${value}`)}
+                  </Button>
+                ))}
+              </div>
+            </>
+          ) : null}
         </div>
 
         {listQuery.isLoading ? (
@@ -264,8 +368,12 @@ export function KnowledgeBasePage() {
             <span className="mx-auto flex size-11 items-center justify-center rounded-xl bg-dash-surface text-mute">
               <BookOpen className="size-5" aria-hidden />
             </span>
-            <p className="mt-4 text-base font-medium text-ink">{t('emptyTitle')}</p>
-            <p className="mt-1 text-sm text-mute">{t('emptyDescription')}</p>
+            <p className="mt-4 text-base font-medium text-ink">
+              {lifecycle === 'deleted' ? t('emptyDeletedTitle') : t('emptyTitle')}
+            </p>
+            <p className="mt-1 text-sm text-mute">
+              {lifecycle === 'deleted' ? t('emptyDeletedDescription') : t('emptyDescription')}
+            </p>
           </div>
         ) : (
           <ul className="divide-y divide-dash-border">
@@ -275,8 +383,11 @@ export function KnowledgeBasePage() {
                 doc={doc}
                 locale={locale}
                 canManage={canManage}
-                deleting={deletingId === doc.id}
+                lifecycle={lifecycle}
+                acting={actionId === doc.id}
                 onDelete={() => deleteMutation.mutate(doc.id)}
+                onRestore={() => restoreMutation.mutate(doc.id)}
+                onPurge={() => purgeMutation.mutate(doc.id)}
               />
             ))}
           </ul>
@@ -318,14 +429,20 @@ function KnowledgeDocumentRow({
   doc,
   locale,
   canManage,
-  deleting,
+  lifecycle,
+  acting,
   onDelete,
+  onRestore,
+  onPurge,
 }: {
   doc: KnowledgeDocument
   locale: string
   canManage: boolean
-  deleting: boolean
+  lifecycle: LifecycleFilter
+  acting: boolean
   onDelete: () => void
+  onRestore: () => void
+  onPurge: () => void
 }) {
   const t = useTranslations('dashboard.knowledge')
   const sourceKey = ['FILE_PDF', 'FILE_DOCX', 'FILE_TXT'].includes(doc.sourceType)
@@ -367,22 +484,53 @@ function KnowledgeDocumentRow({
         </div>
       </div>
       {canManage ? (
-        <div className="flex shrink-0 sm:pl-3">
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="w-full sm:w-auto"
-            disabled={deleting}
-            onClick={onDelete}
-          >
-            {deleting ? (
-              <Loader2 className="size-3.5 animate-spin" aria-hidden />
-            ) : (
-              <Trash2 className="size-3.5" aria-hidden />
-            )}
-            {t('actions.delete')}
-          </Button>
+        <div className="flex shrink-0 flex-wrap gap-2 sm:pl-3">
+          {lifecycle === 'active' ? (
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="w-full sm:w-auto"
+              disabled={acting}
+              onClick={onDelete}
+            >
+              {acting ? (
+                <Loader2 className="size-3.5 animate-spin" aria-hidden />
+              ) : (
+                <Trash2 className="size-3.5" aria-hidden />
+              )}
+              {t('actions.delete')}
+            </Button>
+          ) : (
+            <>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="w-full sm:w-auto"
+                disabled={acting}
+                onClick={onRestore}
+              >
+                {acting ? (
+                  <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                ) : null}
+                {t('actions.restore')}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="destructive"
+                className="w-full sm:w-auto"
+                disabled={acting}
+                onClick={onPurge}
+              >
+                {acting ? (
+                  <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                ) : null}
+                {t('actions.purge')}
+              </Button>
+            </>
+          )}
         </div>
       ) : null}
     </li>

@@ -28,6 +28,7 @@ const SuperAdminOrganizationsController = () =>
   import('#controllers/super_admin_organizations_controller')
 const SuperAdminSubscriptionsController = () =>
   import('#controllers/super_admin_subscriptions_controller')
+const SuperAdminPlansController = () => import('#controllers/super_admin_plans_controller')
 const SuperAdminInvoicesController = () => import('#controllers/super_admin_invoices_controller')
 const SuperAdminAiConfigController = () => import('#controllers/super_admin_ai_config_controller')
 const OrganizationAdminUsersController = () =>
@@ -477,41 +478,19 @@ router
 */
 router
   .group(() => {
-    router
-      .get('/embedded-signup/session', [WhatsappEmbeddedSignupController, 'session'])
-      .use(middleware.requirePermission({ permission: 'whatsapp:connect' }))
-    router
-      .post('/embedded-signup/complete', [WhatsappEmbeddedSignupController, 'complete'])
-      .use(middleware.requirePermission({ permission: 'whatsapp:connect' }))
+    router.get('/embedded-signup/session', [WhatsappEmbeddedSignupController, 'session'])
+    router.post('/embedded-signup/complete', [WhatsappEmbeddedSignupController, 'complete'])
 
-    router
-      .get('/configs', [WhatsappConfigsController, 'index'])
-      .use(middleware.requirePermission({ permission: 'whatsapp:view' }))
-    router
-      .get('/configs/:id', [WhatsappConfigsController, 'show'])
-      .use(middleware.requirePermission({ permission: 'whatsapp:view' }))
-    router
-      .delete('/configs/:id', [WhatsappConfigsController, 'destroy'])
-      .use(middleware.requirePermission({ permission: 'whatsapp:connect' }))
-    router
-      .post('/configs/:id/test', [WhatsappConfigsController, 'test'])
-      .use(middleware.requirePermission({ permission: 'whatsapp:manage' }))
+    router.get('/configs', [WhatsappConfigsController, 'index'])
+    router.get('/configs/:id', [WhatsappConfigsController, 'show'])
+    router.delete('/configs/:id', [WhatsappConfigsController, 'destroy'])
+    router.post('/configs/:id/test', [WhatsappConfigsController, 'test'])
 
-    router
-      .get('/templates', [MessageTemplatesController, 'index'])
-      .use(middleware.requirePermission({ permission: 'whatsapp:view' }))
-    router
-      .get('/templates/:id', [MessageTemplatesController, 'show'])
-      .use(middleware.requirePermission({ permission: 'whatsapp:view' }))
-    router
-      .post('/templates', [MessageTemplatesController, 'store'])
-      .use(middleware.requirePermission({ permission: 'whatsapp:manage' }))
-    router
-      .post('/templates/sync', [MessageTemplatesController, 'sync'])
-      .use(middleware.requirePermission({ permission: 'whatsapp:manage' }))
-    router
-      .delete('/templates/:id', [MessageTemplatesController, 'destroy'])
-      .use(middleware.requirePermission({ permission: 'whatsapp:manage' }))
+    router.get('/templates', [MessageTemplatesController, 'index'])
+    router.get('/templates/:id', [MessageTemplatesController, 'show'])
+    router.post('/templates', [MessageTemplatesController, 'store'])
+    router.post('/templates/sync', [MessageTemplatesController, 'sync'])
+    router.delete('/templates/:id', [MessageTemplatesController, 'destroy'])
   })
   .prefix('/api/v1/whatsapp')
   .use([middleware.jwtAuth(), middleware.tenant()])
@@ -537,68 +516,41 @@ router
   .prefix('/api/v1/account')
   .use(middleware.jwtAuth())
 
-// super admin â€” platform scope (no active organization required)
+// super admin — platform scope (no active organization required)
 router
   .group(() => {
-    router
-      .get('/organizations', [SuperAdminOrganizationsController, 'index'])
-      .use(middleware.requirePermission({ permission: 'platform:tenants_view' }))
-    router
-      .patch('/organizations/:id', [SuperAdminOrganizationsController, 'update'])
-      .use(middleware.requirePermission({ permission: 'platform:tenants_update' }))
-    router
-      .delete('/organizations/:id', [SuperAdminOrganizationsController, 'softDelete'])
-      .use(middleware.requirePermission({ permission: 'platform:tenants_delete' }))
-    router
-      .get('/subscriptions', [SuperAdminSubscriptionsController, 'index'])
-      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
-    router
-      .post('/subscriptions', [SuperAdminSubscriptionsController, 'store'])
-      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
-    router
-      .get('/subscriptions/:id', [SuperAdminSubscriptionsController, 'show'])
-      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
-    router
-      .patch('/subscriptions/:id', [SuperAdminSubscriptionsController, 'update'])
-      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
-    router
-      .delete('/subscriptions/:id', [SuperAdminSubscriptionsController, 'softDelete'])
-      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
-    router
-      .get('/invoices/summary', [SuperAdminInvoicesController, 'summary'])
-      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
-    router
-      .get('/invoices', [SuperAdminInvoicesController, 'index'])
-      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
-    router
-      .post('/invoices', [SuperAdminInvoicesController, 'store'])
-      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
-    router
-      .get('/invoices/:id', [SuperAdminInvoicesController, 'show'])
-      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
-    router
-      .post('/invoices/:id/mark-paid', [SuperAdminInvoicesController, 'markPaid'])
-      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
-    router
-      .post('/invoices/:id/regenerate', [SuperAdminInvoicesController, 'regenerate'])
-      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
-    router
-      .post('/invoices/:id/send', [SuperAdminInvoicesController, 'send'])
-      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
-    router
-      .get('/invoices/:id/download', [SuperAdminInvoicesController, 'download'])
-      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
-    router
-      .get('/ai-config', [SuperAdminAiConfigController, 'show'])
-      .use(middleware.requirePermission({ permission: 'platform:config_view' }))
-    router
-      .patch('/ai-config', [SuperAdminAiConfigController, 'update'])
-      .use(middleware.requirePermission({ permission: 'platform:config_manage' }))
+    router.get('/organizations', [SuperAdminOrganizationsController, 'index'])
+    router.patch('/organizations/:id', [SuperAdminOrganizationsController, 'update'])
+    router.delete('/organizations/:id', [SuperAdminOrganizationsController, 'softDelete'])
+
+    router.get('/subscriptions', [SuperAdminSubscriptionsController, 'index'])
+    router.post('/subscriptions', [SuperAdminSubscriptionsController, 'store'])
+    router.get('/subscriptions/:id', [SuperAdminSubscriptionsController, 'show'])
+    router.patch('/subscriptions/:id', [SuperAdminSubscriptionsController, 'update'])
+    router.delete('/subscriptions/:id', [SuperAdminSubscriptionsController, 'softDelete'])
+
+    router.get('/plans', [SuperAdminPlansController, 'index'])
+    router.post('/plans', [SuperAdminPlansController, 'store'])
+    router.get('/plans/:id', [SuperAdminPlansController, 'show'])
+    router.patch('/plans/:id', [SuperAdminPlansController, 'update'])
+    router.delete('/plans/:id', [SuperAdminPlansController, 'softDelete'])
+
+    router.get('/invoices/summary', [SuperAdminInvoicesController, 'summary'])
+    router.get('/invoices', [SuperAdminInvoicesController, 'index'])
+    router.post('/invoices', [SuperAdminInvoicesController, 'store'])
+    router.get('/invoices/:id', [SuperAdminInvoicesController, 'show'])
+    router.post('/invoices/:id/mark-paid', [SuperAdminInvoicesController, 'markPaid'])
+    router.post('/invoices/:id/regenerate', [SuperAdminInvoicesController, 'regenerate'])
+    router.post('/invoices/:id/send', [SuperAdminInvoicesController, 'send'])
+    router.get('/invoices/:id/download', [SuperAdminInvoicesController, 'download'])
+
+    router.get('/ai-config', [SuperAdminAiConfigController, 'show'])
+    router.patch('/ai-config', [SuperAdminAiConfigController, 'update'])
   })
   .prefix('/api/v1/super-admin')
   .use([middleware.jwtAuth(), middleware.platform()])
 
-// organization admin â€” active-org scoped (admin/owner role enforced in controller)
+// organization admin — active-org scoped (admin/owner role enforced via OrganizationAdminUserPolicy)
 router
   .group(() => {
     router.get('/users', [OrganizationAdminUsersController, 'index'])
@@ -609,7 +561,7 @@ router
   .prefix('/api/v1/organization-admin')
   .use([middleware.jwtAuth(), middleware.tenant()])
 
-// organizations â€” create/list/set-active do not require an active org yet
+// organizations — create/list/set-active do not require an active org yet
 router.post('/api/v1/organizations', [OrganizationsController, 'store']).use([middleware.jwtAuth()])
 router.get('/api/v1/organizations', [OrganizationsController, 'index']).use([middleware.jwtAuth()])
 router
@@ -618,115 +570,75 @@ router
 
 router
   .group(() => {
-    router
-      .patch('/:id', [OrganizationsController, 'update'])
-      .use(middleware.requirePermission({ permission: 'org:settings_manage' }))
-    router
-      .delete('/:id', [OrganizationsController, 'destroy'])
-      .use(middleware.requirePermission({ permission: 'org:delete' }))
-    router
-      .post('/:id/invitations', [InvitationsController, 'store'])
-      .use(middleware.requirePermission({ permission: 'team:invite' }))
+    router.patch('/:id', [OrganizationsController, 'update'])
+    router.delete('/:id', [OrganizationsController, 'destroy'])
+    router.post('/:id/invitations', [InvitationsController, 'store'])
   })
   .prefix('/api/v1/organizations')
   .use([middleware.jwtAuth(), middleware.tenant()])
 
-// invitations â€” list stays active-org scoped; accept/reject/cancel use invitation :id
+// invitations — list stays active-org scoped; accept/reject/cancel use invitation :id
 router
   .get('/api/v1/invitations', [InvitationsController, 'index'])
-  .use([
-    middleware.jwtAuth(),
-    middleware.tenant(),
-    middleware.requirePermission({ permission: 'team:view' }),
-  ])
+  .use([middleware.jwtAuth(), middleware.tenant()])
 
 router.get('/api/v1/invitations/:id', [InvitationsController, 'show'])
 router
   .post('/api/v1/invitations/:id/accept', [InvitationsController, 'accept'])
   .use([middleware.jwtAuth()])
-// Public decline â€” invitation id is the secret (same as preview)
+// Public decline — invitation id is the secret (same as preview)
 router.post('/api/v1/invitations/:id/reject', [InvitationsController, 'reject'])
 router
   .post('/api/v1/invitations/:id/cancel', [InvitationsController, 'cancel'])
-  .use([
-    middleware.jwtAuth(),
-    middleware.tenant(),
-    middleware.requirePermission({ permission: 'team:invite' }),
-  ])
+  .use([middleware.jwtAuth(), middleware.tenant()])
 
 //  Access context (frontend polls this after login/org switch)
 router
   .get('/api/v1/access-context', [controllers.AccessContext, 'show'])
   .use([middleware.jwtAuth(), middleware.tenant()])
 
-// Onboarding state â€” no active org required; tells the client which screen comes next
+// Onboarding state — no active org required; tells the client which screen comes next
 router.get('/api/v1/onboarding/state', [OnboardingController, 'show']).use([middleware.jwtAuth()])
 
 // roles
 router
   .group(() => {
     router.get('/', [controllers.Roles, 'index'])
-    router
-      .post('/', [controllers.Roles, 'create'])
-      .use(middleware.requirePermission({ permission: 'roles:manage' }))
-    router
-      .post('/:roleKey/preview', [controllers.Roles, 'preview'])
-      .use(middleware.requirePermission({ permission: 'roles:manage' }))
-    router
-      .put('/:roleKey', [controllers.Roles, 'update'])
-      .use(middleware.requirePermission({ permission: 'roles:manage' }))
-    router
-      .post('/:roleKey/reset', [controllers.Roles, 'reset'])
-      .use(middleware.requirePermission({ permission: 'roles:manage' }))
-    router
-      .delete('/:roleKey', [controllers.Roles, 'destroy'])
-      .use(middleware.requirePermission({ permission: 'roles:manage' }))
+    router.post('/', [controllers.Roles, 'create'])
+    router.post('/:roleKey/preview', [controllers.Roles, 'preview'])
+    router.put('/:roleKey', [controllers.Roles, 'update'])
+    router.post('/:roleKey/reset', [controllers.Roles, 'reset'])
+    router.delete('/:roleKey', [controllers.Roles, 'destroy'])
   })
   .prefix('/api/v1/roles')
-  .use([
-    middleware.jwtAuth(),
-    middleware.tenant(),
-    middleware.requirePermission({ permission: 'team:view' }),
-  ])
+  .use([middleware.jwtAuth(), middleware.tenant()])
 
-//members
+// members
 router
   .group(() => {
     // Team UI lists members here; org-admin/users is the paginated Owner/Admin admin API.
     router.get('/', [controllers.Members, 'index'])
-    router
-      .patch('/:memberId/role', [controllers.Members, 'assignRole'])
-      .use(middleware.requirePermission({ permission: 'team:role_assign' }))
-    router
-      .delete('/:memberId', [controllers.Members, 'remove'])
-      .use(middleware.requirePermission({ permission: 'team:remove' }))
+    router.patch('/:memberId/role', [controllers.Members, 'assignRole'])
+    router.delete('/:memberId', [controllers.Members, 'remove'])
   })
   .prefix('/api/v1/members')
-  .use([
-    middleware.jwtAuth(),
-    middleware.tenant(),
-    middleware.requirePermission({ permission: 'team:view' }),
-  ])
+  .use([middleware.jwtAuth(), middleware.tenant()])
 
-//ownership transfer
+// ownership transfer
 router
   .post('/api/v1/ownership/transfer', [controllers.Ownership, 'transfer'])
   .use([middleware.jwtAuth(), middleware.tenant()])
 
-//audit history — same endpoint; Super Admin is platform-scoped, tenants stay org-scoped
+// audit history — dual-mode: Super Admin is platform-scoped, tenants stay org-scoped via AuditPolicy
 router
   .get('/api/v1/audit', [controllers.Audit, 'index'])
   .use([middleware.jwtAuth(), middleware.auditAccess()])
 
-// contacts â€” sample RLS business table (tenant isolation demo)
+// contacts — tenant isolation
 router
   .group(() => {
-    router
-      .get('/', [ContactsController, 'index'])
-      .use(middleware.requirePermission({ permission: 'contacts:view' }))
-    router
-      .post('/', [ContactsController, 'store'])
-      .use(middleware.requirePermission({ permission: 'contacts:create' }))
+    router.get('/', [ContactsController, 'index'])
+    router.post('/', [ContactsController, 'store'])
   })
   .prefix('/api/v1/contacts')
   .use([middleware.jwtAuth(), middleware.tenant()])
@@ -734,30 +646,14 @@ router
 // contact tags — grouping via existing tags / contact_tags tables
 router
   .group(() => {
-    router
-      .get('/', [TagsController, 'index'])
-      .use(middleware.requirePermission({ permission: 'contacts:view' }))
-    router
-      .post('/', [TagsController, 'store'])
-      .use(middleware.requirePermission({ permission: 'contacts:create' }))
-    router
-      .get('/:id/contacts', [TagsController, 'contacts'])
-      .use(middleware.requirePermission({ permission: 'contacts:view' }))
-    router
-      .post('/:id/contacts', [TagsController, 'assignContact'])
-      .use(middleware.requirePermission({ permission: 'contacts:edit' }))
-    router
-      .delete('/:id/contacts/:contactId', [TagsController, 'removeContact'])
-      .use(middleware.requirePermission({ permission: 'contacts:edit' }))
-    router
-      .get('/:id', [TagsController, 'show'])
-      .use(middleware.requirePermission({ permission: 'contacts:view' }))
-    router
-      .patch('/:id', [TagsController, 'update'])
-      .use(middleware.requirePermission({ permission: 'contacts:edit' }))
-    router
-      .delete('/:id', [TagsController, 'destroy'])
-      .use(middleware.requirePermission({ permission: 'contacts:delete' }))
+    router.get('/', [TagsController, 'index'])
+    router.post('/', [TagsController, 'store'])
+    router.get('/:id/contacts', [TagsController, 'contacts'])
+    router.post('/:id/contacts', [TagsController, 'assignContact'])
+    router.delete('/:id/contacts/:contactId', [TagsController, 'removeContact'])
+    router.get('/:id', [TagsController, 'show'])
+    router.patch('/:id', [TagsController, 'update'])
+    router.delete('/:id', [TagsController, 'destroy'])
   })
   .prefix('/api/v1/tags')
   .use([middleware.jwtAuth(), middleware.tenant()])
@@ -765,30 +661,14 @@ router
 // media uploads — direct-to-S3 pending → ready lifecycle + Media Library
 router
   .group(() => {
-    router
-      .get('/', [MediaAssetsController, 'index'])
-      .use(middleware.requirePermission({ permission: 'media:view' }))
-    router
-      .get('/quota', [MediaAssetsController, 'quota'])
-      .use(middleware.requirePermission({ permission: 'media:view' }))
-    router
-      .get('/:id', [MediaAssetsController, 'show'])
-      .use(middleware.requirePermission({ permission: 'media:view' }))
-    router
-      .post('/uploads', [MediaUploadsController, 'store'])
-      .use(middleware.requirePermission({ permission: 'media:upload' }))
-    router
-      .post('/uploads/:id/complete', [MediaUploadsController, 'complete'])
-      .use(middleware.requirePermission({ permission: 'media:upload' }))
-    router
-      .delete('/:id', [MediaAssetsController, 'destroy'])
-      .use(middleware.requirePermission({ permission: 'media:delete' }))
-    router
-      .post('/:id/restore', [MediaAssetsController, 'restore'])
-      .use(middleware.requirePermission({ permission: 'media:delete' }))
-    router
-      .post('/:id/purge', [MediaAssetsController, 'purge'])
-      .use(middleware.requirePermission({ permission: 'media:purge' }))
+    router.get('/', [MediaAssetsController, 'index'])
+    router.get('/quota', [MediaAssetsController, 'quota'])
+    router.get('/:id', [MediaAssetsController, 'show'])
+    router.post('/uploads', [MediaUploadsController, 'store'])
+    router.post('/uploads/:id/complete', [MediaUploadsController, 'complete'])
+    router.delete('/:id', [MediaAssetsController, 'destroy'])
+    router.post('/:id/restore', [MediaAssetsController, 'restore'])
+    router.post('/:id/purge', [MediaAssetsController, 'purge'])
   })
   .prefix('/api/v1/media')
   .use([middleware.jwtAuth(), middleware.tenant()])
@@ -796,21 +676,13 @@ router
 // AI knowledge base — files live in the knowledge_base S3 namespace
 router
   .group(() => {
-    router
-      .get('/', [KnowledgeDocumentsController, 'index'])
-      .use(middleware.requirePermission({ permission: 'ai:kb_view' }))
-    router
-      .post('/', [KnowledgeDocumentsController, 'store'])
-      .use(middleware.requirePermission({ permission: 'ai:kb_manage' }))
-    router
-      .get('/:id', [KnowledgeDocumentsController, 'show'])
-      .use(middleware.requirePermission({ permission: 'ai:kb_view' }))
-    router
-      .post('/:id/complete-upload', [KnowledgeDocumentsController, 'completeUpload'])
-      .use(middleware.requirePermission({ permission: 'ai:kb_manage' }))
-    router
-      .delete('/:id', [KnowledgeDocumentsController, 'destroy'])
-      .use(middleware.requirePermission({ permission: 'ai:kb_manage' }))
+    router.get('/', [KnowledgeDocumentsController, 'index'])
+    router.post('/', [KnowledgeDocumentsController, 'store'])
+    router.get('/:id', [KnowledgeDocumentsController, 'show'])
+    router.post('/:id/complete-upload', [KnowledgeDocumentsController, 'completeUpload'])
+    router.delete('/:id', [KnowledgeDocumentsController, 'destroy'])
+    router.post('/:id/restore', [KnowledgeDocumentsController, 'restore'])
+    router.post('/:id/purge', [KnowledgeDocumentsController, 'purge'])
   })
   .prefix('/api/v1/ai/knowledge-documents')
   .use([middleware.jwtAuth(), middleware.tenant()])
@@ -818,42 +690,18 @@ router
 // campaigns — outbound broadcasts (product: Campaign)
 router
   .group(() => {
-    router
-      .get('/', [CampaignsController, 'index'])
-      .use(middleware.requirePermission({ permission: 'campaigns:view' }))
-    router
-      .post('/:id/preview', [CampaignsController, 'preview'])
-      .use(middleware.requirePermission({ permission: 'campaigns:view' }))
-    router
-      .post('/:id/send', [CampaignsController, 'send'])
-      .use(middleware.requirePermission({ permission: 'campaigns:launch' }))
-    router
-      .post('/:id/schedule', [CampaignsController, 'schedule'])
-      .use(middleware.requirePermission({ permission: 'campaigns:edit' }))
-    router
-      .patch('/:id/cancel', [CampaignsController, 'cancel'])
-      .use(middleware.requirePermission({ permission: 'campaigns:pause' }))
-    router
-      .post('/:id/duplicate', [CampaignsController, 'duplicate'])
-      .use(middleware.requirePermission({ permission: 'campaigns:create' }))
-    router
-      .patch('/:id/status', [CampaignsController, 'changeStatus'])
-      .use(middleware.requirePermission({ permission: 'campaigns:edit' }))
-    router
-      .get('/:id', [CampaignsController, 'show'])
-      .use(middleware.requirePermission({ permission: 'campaigns:view' }))
-    router
-      .post('/', [CampaignsController, 'store'])
-      .use(middleware.requirePermission({ permission: 'campaigns:create' }))
-    router
-      .patch('/:id', [CampaignsController, 'update'])
-      .use(middleware.requirePermission({ permission: 'campaigns:edit' }))
-    router
-      .put('/:id/recipients', [CampaignsController, 'replaceRecipients'])
-      .use(middleware.requirePermission({ permission: 'campaigns:edit' }))
-    router
-      .delete('/:id', [CampaignsController, 'softDelete'])
-      .use(middleware.requirePermission({ permission: 'campaigns:delete' }))
+    router.get('/', [CampaignsController, 'index'])
+    router.post('/:id/preview', [CampaignsController, 'preview'])
+    router.post('/:id/send', [CampaignsController, 'send'])
+    router.post('/:id/schedule', [CampaignsController, 'schedule'])
+    router.patch('/:id/cancel', [CampaignsController, 'cancel'])
+    router.post('/:id/duplicate', [CampaignsController, 'duplicate'])
+    router.patch('/:id/status', [CampaignsController, 'changeStatus'])
+    router.get('/:id', [CampaignsController, 'show'])
+    router.post('/', [CampaignsController, 'store'])
+    router.patch('/:id', [CampaignsController, 'update'])
+    router.put('/:id/recipients', [CampaignsController, 'replaceRecipients'])
+    router.delete('/:id', [CampaignsController, 'softDelete'])
   })
   .prefix('/api/v1/campaigns')
   .use([middleware.jwtAuth(), middleware.tenant()])
@@ -861,67 +709,33 @@ router
 // inbox realtime — SSE stream (must be registered before /conversations/:id)
 router
   .get('/api/v1/inbox/events', [InboxEventsController, 'stream'])
-  .use([
-    middleware.jwtAuth(),
-    middleware.tenant(),
-    middleware.requirePermission({ permission: 'inbox:view' }),
-  ])
+  .use([middleware.jwtAuth(), middleware.tenant()])
 
 // inbox conversations — lifecycle APIs
 router
   .group(() => {
-    router
-      .get('/', [ConversationsController, 'index'])
-      .use(middleware.requirePermission({ permission: 'inbox:view' }))
-    router
-      .post('/', [ConversationsController, 'store'])
-      .use(middleware.requirePermission({ permission: 'inbox:view' }))
-    router
-      .get('/:id', [ConversationsController, 'show'])
-      .use(middleware.requirePermission({ permission: 'inbox:view' }))
-    router
-      .patch('/:id', [ConversationsController, 'update'])
-      .use(middleware.requirePermission({ permission: 'inbox:view' }))
-    router
-      .post('/:id/assign', [ConversationsController, 'assign'])
-      .use(middleware.requirePermission({ permission: 'inbox:assign' }))
-    router
-      .post('/:id/close', [ConversationsController, 'close'])
-      .use(middleware.requirePermission({ permission: 'inbox:close' }))
-    router
-      .post('/:id/reopen', [ConversationsController, 'reopen'])
-      .use(middleware.requirePermission({ permission: 'inbox:close' }))
-    router
-      .get('/:id/messages', [MessagesController, 'index'])
-      .use(middleware.requirePermission({ permission: 'inbox:view' }))
-    router
-      .post('/:id/messages', [MessagesController, 'store'])
-      .use(middleware.requirePermission({ permission: 'inbox:reply' }))
-    router
-      .post('/:id/ai/takeover', [ConversationAiController, 'takeover'])
-      .use(middleware.requirePermission({ permission: 'inbox:reply' }))
-    router
-      .post('/:id/ai/resume', [ConversationAiController, 'resume'])
-      .use(middleware.requirePermission({ permission: 'inbox:reply' }))
-    router
-      .get('/:id/notes', [ConversationNotesController, 'index'])
-      .use(middleware.requirePermission({ permission: 'inbox:view' }))
-    router
-      .post('/:id/notes', [ConversationNotesController, 'store'])
-      .use(middleware.requirePermission({ permission: 'inbox:reply' }))
+    router.get('/', [ConversationsController, 'index'])
+    router.post('/', [ConversationsController, 'store'])
+    router.get('/:id', [ConversationsController, 'show'])
+    router.patch('/:id', [ConversationsController, 'update'])
+    router.post('/:id/assign', [ConversationsController, 'assign'])
+    router.post('/:id/close', [ConversationsController, 'close'])
+    router.post('/:id/reopen', [ConversationsController, 'reopen'])
+    router.get('/:id/messages', [MessagesController, 'index'])
+    router.post('/:id/messages', [MessagesController, 'store'])
+    router.post('/:id/ai/takeover', [ConversationAiController, 'takeover'])
+    router.post('/:id/ai/resume', [ConversationAiController, 'resume'])
+    router.get('/:id/notes', [ConversationNotesController, 'index'])
+    router.post('/:id/notes', [ConversationNotesController, 'store'])
   })
   .prefix('/api/v1/inbox/conversations')
   .use([middleware.jwtAuth(), middleware.tenant()])
 
-// Platform billing (tenant) â€” Razorpay SaaS checkout + subscription read
+// Platform billing (tenant) — Razorpay SaaS checkout + subscription read
 router
   .group(() => {
-    router
-      .get('/subscription', [BillingController, 'showSubscription'])
-      .use(middleware.requirePermission({ permission: 'billing:view' }))
-    router
-      .post('/checkout', [BillingController, 'checkout'])
-      .use(middleware.requirePermission({ permission: 'billing:manage' }))
+    router.get('/subscription', [BillingController, 'showSubscription'])
+    router.post('/checkout', [BillingController, 'checkout'])
   })
   .prefix('/api/v1/billing')
   .use([middleware.jwtAuth(), middleware.tenant()])

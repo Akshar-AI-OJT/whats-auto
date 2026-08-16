@@ -9,7 +9,6 @@ import {
   type ApiError,
   type MediaAsset,
   type MediaAssetKind,
-  type MediaQuota,
 } from '@/lib/api'
 import { hasPermission, PERMISSIONS } from '@/lib/rbac'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
@@ -23,6 +22,7 @@ import {
   mediaQueryKeys,
   resolveUploadMimeType,
   unwrapMediaList,
+  unwrapMediaQuota,
 } from './media-utils'
 
 type KindFilter = 'all' | MediaAssetKind
@@ -71,7 +71,7 @@ export function MediaLibraryPage() {
     enabled: Boolean(tenantOrganizationId) && canView && !orgsLoading,
     queryFn: async () => {
       const { data } = await api.media.quota()
-      return (data?.usedBytes != null ? data : data) as MediaQuota
+      return unwrapMediaQuota(data)
     },
   })
 

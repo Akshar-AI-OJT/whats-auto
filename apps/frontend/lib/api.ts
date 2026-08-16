@@ -758,6 +758,7 @@ export type AuthorizationAuditEvent = {
   actorUserId: string | null
   actorName?: string | null
   actorEmail?: string | null
+  roleId?: string | null
   targetType: string
   targetId: string | null
   eventType: string
@@ -955,6 +956,7 @@ export type KnowledgeDocument = {
   embeddingModel: string
   documentHash: string | null
   errorMessage: string | null
+  deletedAt?: string | null
   createdAt: string
   updatedAt: string | null
 }
@@ -963,6 +965,7 @@ export type ListKnowledgeDocumentsParams = {
   page?: number
   perPage?: number
   status?: KnowledgeDocumentStatus
+  lifecycle?: 'active' | 'deleted'
 }
 
 export type CreateKnowledgeDocumentBody = {
@@ -1101,6 +1104,81 @@ export type CreateSuperAdminInvoiceBody = {
 export type MarkSuperAdminInvoicePaidBody = {
   paymentMethod?: string
   paymentTransactionId?: string
+}
+
+/** Super-admin SaaS plan catalog (GET/POST/PATCH/DELETE /api/v1/super-admin/plans) */
+export type SuperAdminPlanStatus = 'active' | 'draft' | 'archived'
+export type SuperAdminPlanBillingPeriod = 'monthly' | 'yearly' | 'custom'
+
+export type SuperAdminPlanFeature = {
+  key: string
+  name: string
+  enabled: boolean
+  description?: string
+  category?: 'messaging' | 'automation' | 'ai' | 'team' | 'integrations'
+}
+
+export type SuperAdminPlanLimits = {
+  users: number | null
+  messagesPerMonth: number | null
+  workspaces: number | null
+}
+
+export type SuperAdminPlan = {
+  id: string
+  code: string
+  name: string
+  description: string
+  price: number | null
+  currency: string
+  billingPeriod: SuperAdminPlanBillingPeriod
+  billingInterval?: string
+  billingIntervalCount?: number
+  status: SuperAdminPlanStatus
+  popular: boolean
+  trialDays: number | null
+  limits: SuperAdminPlanLimits
+  features: SuperAdminPlanFeature[]
+  gateway?: string | null
+  gatewayPlanId?: string | null
+  isActive?: boolean
+  sortOrder?: number
+  createdAt: string
+  updatedAt: string | null
+}
+
+export type SuperAdminPlanSummary = {
+  total: number
+  active: number
+  draft: number
+  archived: number
+  popularName: string | null
+}
+
+export type CreateSuperAdminPlanBody = {
+  name: string
+  description?: string
+  code?: string
+  price: number | null
+  currency: string
+  billingPeriod: SuperAdminPlanBillingPeriod
+  status: Exclude<SuperAdminPlanStatus, 'archived'>
+  popular?: boolean
+  trialDays?: number | null
+  limits: {
+    users?: number | null
+    messagesPerMonth?: number | null
+    workspaces?: number | null
+  }
+  features?: SuperAdminPlanFeature[]
+  sortOrder?: number
+}
+
+export type UpdateSuperAdminPlanBody = Partial<CreateSuperAdminPlanBody>
+
+export type ListSuperAdminPlansParams = {
+  search?: string
+  status?: SuperAdminPlanStatus | 'all'
 }
 
 /** GET /api/v1/billing/subscription — fields returned by BillingController.showSubscription */
@@ -1514,6 +1592,7 @@ export const api = {
       if (params.page != null) qs.set('page', String(params.page))
       if (params.perPage != null) qs.set('perPage', String(params.perPage))
       if (params.status) qs.set('status', params.status)
+      if (params.lifecycle) qs.set('lifecycle', params.lifecycle)
       const query = qs.toString()
       return protectedRequest<
         | Paginated<KnowledgeDocument>
@@ -1544,9 +1623,21 @@ export const api = {
       ),
 
     delete: (documentId: string) =>
-      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+      protectedRequest<{ data?: KnowledgeDocument } & KnowledgeDocument>(
         `/api/v1/ai/knowledge-documents/${documentId}`,
         { method: 'DELETE' }
+      ),
+
+    restore: (documentId: string) =>
+      protectedRequest<{ data?: KnowledgeDocument } & KnowledgeDocument>(
+        `/api/v1/ai/knowledge-documents/${documentId}/restore`,
+        { method: 'POST' }
+      ),
+
+    purge: (documentId: string) =>
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/ai/knowledge-documents/${documentId}/purge`,
+        { method: 'POST' }
       ),
   },
 
@@ -1956,6 +2047,50 @@ export const api = {
       destroy: (subscriptionId: string) =>
         protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
           `/api/v1/super-admin/subscriptions/${subscriptionId}`,
+          { method: 'DELETE' }
+        ),
+    },
+
+    plans: {
+      list: (params: ListSuperAdminPlansParams = {}) => {
+        const qs = new URLSearchParams()
+        if (params.search?.trim()) qs.set('search', params.search.trim())
+        if (params.status && params.status !== 'all') qs.set('status', params.status)
+        const query = qs.toString()
+        return protectedRequest<{
+          data?: { items: SuperAdminPlan[]; summary: SuperAdminPlanSummary }
+        }>(`/api/v1/super-admin/plans${query ? `?${query}` : ''}`, {
+          method: 'GET',
+        })
+      },
+
+      get: (planId: string) =>
+        protectedRequest<{ data?: SuperAdminPlan } & SuperAdminPlan>(
+          `/api/v1/super-admin/plans/${planId}`,
+          { method: 'GET' }
+        ),
+
+      create: (body: CreateSuperAdminPlanBody) =>
+        protectedRequest<{ data?: SuperAdminPlan } & SuperAdminPlan>(
+          '/api/v1/super-admin/plans',
+          {
+            method: 'POST',
+            body: JSON.stringify(body),
+          }
+        ),
+
+      update: (planId: string, body: UpdateSuperAdminPlanBody) =>
+        protectedRequest<{ data?: SuperAdminPlan } & SuperAdminPlan>(
+          `/api/v1/super-admin/plans/${planId}`,
+          {
+            method: 'PATCH',
+            body: JSON.stringify(body),
+          }
+        ),
+
+      destroy: (planId: string) =>
+        protectedRequest<{ data?: SuperAdminPlan } & SuperAdminPlan>(
+          `/api/v1/super-admin/plans/${planId}`,
           { method: 'DELETE' }
         ),
     },

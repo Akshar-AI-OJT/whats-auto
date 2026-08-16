@@ -56,7 +56,10 @@ export function DashboardSidebarNav({
             hasPermission(PERMISSIONS.ROLES_VIEW) || hasPermission(PERMISSIONS.TEAM_VIEW)
           if (!permissionsLoading && !canMembers && !canRoles) return null
         } else if (key === 'templates') {
-          const canTemplates = hasPermission(PERMISSIONS.WHATSAPP_VIEW)
+          const canTemplates = hasAnyPermission([
+            PERMISSIONS.TEMPLATES_VIEW,
+            PERMISSIONS.WHATSAPP_VIEW,
+          ])
           const canMedia = hasPermission(PERMISSIONS.MEDIA_VIEW)
           if (!permissionsLoading && !canTemplates && !canMedia) return null
         } else if (navPermission && !permissionsLoading && !hasPermission(navPermission)) {
@@ -92,6 +95,9 @@ export function DashboardSidebarNav({
             if (child.key === 'teamMembers') return hasPermission(PERMISSIONS.TEAM_VIEW)
             if (child.key === 'teamRoles') {
               return hasAnyPermission([PERMISSIONS.ROLES_VIEW, PERMISSIONS.TEAM_VIEW])
+            }
+            if (child.key === 'templatesList') {
+              return hasAnyPermission([PERMISSIONS.TEMPLATES_VIEW, PERMISSIONS.WHATSAPP_VIEW])
             }
             return hasPermission(child.permission)
           })

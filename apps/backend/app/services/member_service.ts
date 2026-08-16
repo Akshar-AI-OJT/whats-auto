@@ -9,6 +9,30 @@ import { DateTime } from 'luxon'
 
 export class MemberService {
   /**
+   * Fetch one membership row for authorization / display (excludes soft-deleted).
+   */
+  async getMemberById(params: { organizationId: string; memberId: string }) {
+    const row = await db
+      .from('organization_members as m')
+      .innerJoin('users as u', 'u.id', 'm.userId')
+      .innerJoin('roles as r', 'r.id', 'm.roleId')
+      .where('m.id', params.memberId)
+      .where('m.organizationId', params.organizationId)
+      .where('m.isDeleted', false)
+      .select('m.id', 'm.userId', 'm.organizationId', 'r.name as role')
+      .first()
+
+    if (!row) return null
+
+    return {
+      id: row.id as string,
+      userId: row.userId as string,
+      organizationId: row.organizationId as string,
+      role: row.role as string,
+    }
+  }
+
+  /**
    * List members of one organization (excludes soft-deleted memberships).
    */
   async listMembers(organizationId: string) {
@@ -89,6 +113,7 @@ export class MemberService {
       await trx.table('authorization_audits').insert({
         organizationId,
         actorUserId,
+        roleId: role.id,
         targetType: 'member',
         targetId: memberId,
         eventType: 'member.role_assigned',

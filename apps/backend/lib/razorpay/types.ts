@@ -37,10 +37,39 @@ export type CreateRazorpaySubscriptionParams = {
   notes: RazorpayNotes
 }
 
+export type RazorpayPlanPeriod = 'daily' | 'weekly' | 'monthly' | 'yearly'
+
+export type RazorpayPlan = {
+  id: string
+  period: string
+  interval: number
+  item?: {
+    id?: string
+    name?: string
+    amount?: number
+    currency?: string
+    description?: string | null
+  }
+  notes?: RazorpayNotes
+}
+
+export type CreateRazorpayPlanParams = {
+  period: RazorpayPlanPeriod
+  interval: number
+  item: {
+    name: string
+    amount: number
+    currency: string
+    description?: string | null
+  }
+  notes?: RazorpayNotes
+}
+
 /**
  * Contract for platform Razorpay REST calls (SaaS billing).
  */
 export interface RazorpayClient {
   createCustomer(params: CreateRazorpayCustomerParams): Promise<RazorpayCustomer>
   createSubscription(params: CreateRazorpaySubscriptionParams): Promise<RazorpaySubscription>
+  createPlan(params: CreateRazorpayPlanParams): Promise<RazorpayPlan>
 }

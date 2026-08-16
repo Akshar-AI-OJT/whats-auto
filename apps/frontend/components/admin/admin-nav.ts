@@ -50,7 +50,7 @@ export const ADMIN_NAV_SECTIONS: readonly AdminNavSection[] = [
   { id: 'subscriptionBilling', items: ['plans', 'subscriptions', 'invoices'] },
   {
     id: 'platform',
-    items: ['platformUsers', 'analytics', 'auditLogs', 'settings'],
+    items: ['platformUsers', 'analytics', 'auditLogs', 'aiSettings', 'settings'],
   },
 ]
 

@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import MemberPolicy from '#policies/member_policy'
 import { MemberService } from '#services/member_service'
 import { mapRbacError } from '#lib/map_rbac_error'
 import { assignMemberRoleValidator } from '#validators/organization'
@@ -15,7 +16,9 @@ export default class MembersController {
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 403 - { "error": "Permission denied: team:view", "code": "PERMISSION_DENIED" }
    */
-  async index({ request, serialize }: HttpContext) {
+  async index({ bouncer, request, serialize }: HttpContext) {
+    await bouncer.with(MemberPolicy).authorize('viewList')
+
     const members = await new MemberService().listMembers(request.activeMember!.organizationId)
     return serialize(members)
   }
@@ -32,7 +35,21 @@ export default class MembersController {
    * @responseBody 403 - { "error": "Permission denied: team:role_assign", "code": "PERMISSION_DENIED" }
    * @responseBody 422 - { "error": "Cannot change your own role", "code": "E_ROLE_SELF_ASSIGN" }
    */
-  async assignRole({ request, params, response, serialize }: HttpContext) {
+  async assignRole({ bouncer, request, params, response, serialize }: HttpContext) {
+    const member = await new MemberService().getMemberById({
+      organizationId: request.activeMember!.organizationId,
+      memberId: params.memberId,
+    })
+
+    if (!member) {
+      return response.notFound({
+        error: 'Member not found',
+        code: 'E_MEMBER_NOT_FOUND',
+      })
+    }
+
+    await bouncer.with(MemberPolicy).authorize('assignRole', member)
+
     const payload = await request.validateUsing(assignMemberRoleValidator)
 
     try {
@@ -61,7 +78,21 @@ export default class MembersController {
    * @responseBody 403 - { "error": "Permission denied: team:remove", "code": "PERMISSION_DENIED" }
    * @responseBody 422 - { "error": "Cannot remove the Owner. Transfer ownership first.", "code": "E_MEMBER_REMOVE_OWNER" }
    */
-  async remove({ request, params, response, serialize }: HttpContext) {
+  async remove({ bouncer, request, params, response, serialize }: HttpContext) {
+    const member = await new MemberService().getMemberById({
+      organizationId: request.activeMember!.organizationId,
+      memberId: params.memberId,
+    })
+
+    if (!member) {
+      return response.notFound({
+        error: 'Member not found',
+        code: 'E_MEMBER_NOT_FOUND',
+      })
+    }
+
+    await bouncer.with(MemberPolicy).authorize('remove', member)
+
     try {
       await new MemberService().removeMember({
         organizationId: request.activeMember!.organizationId,

@@ -15,9 +15,8 @@ export default class AuditAccessMiddleware {
   async handle(ctx: HttpContext, next: NextFn) {
     const userId = ctx.request.authUser?.id
     if (userId) {
-      const platformPermissions = await new AuthorizationService().resolvePlatformPermissionsForUser(
-        userId
-      )
+      const platformPermissions =
+        await new AuthorizationService().resolvePlatformPermissionsForUser(userId)
       if (platformPermissions.has(PERMISSIONS.PLATFORM_AUDIT_VIEW)) {
         ctx.request.memberPermissions = platformPermissions
         return next()

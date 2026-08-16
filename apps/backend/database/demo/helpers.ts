@@ -25,7 +25,7 @@ export async function upsertById(
   trx?: TransactionClientContract
 ) {
   const client = trx ?? db
-  const payload = { id, ...row }
+  const payload: Record<string, unknown> = { id, ...row }
   const existing = await client.from(table).where('id', id).select('id').first()
   if (existing) {
     const { id: _id, createdAt: _createdAt, ...update } = payload

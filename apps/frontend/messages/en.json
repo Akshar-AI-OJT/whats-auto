@@ -1419,12 +1419,16 @@
       "retry": "Retry",
       "emptyTitle": "No knowledge documents yet",
       "emptyDescription": "Upload a PDF, DOCX, or TXT file to get started. Indexed documents are used for grounded replies.",
+      "emptyDeletedTitle": "No deleted documents",
+      "emptyDeletedDescription": "Soft-deleted knowledge documents appear here until restored or purged.",
       "pagination": "Showing {from}–{to} of {total}",
       "prev": "Previous",
       "next": "Next",
       "chunkCount": "{count, plural, one {# chunk} other {# chunks}}",
       "filters": {
         "label": "Status",
+        "active": "Active",
+        "deleted": "Deleted",
         "all": "All",
         "PENDING": "Pending",
         "PROCESSING": "Processing",
@@ -1444,13 +1448,17 @@
         "UNKNOWN": "Document"
       },
       "actions": {
-        "delete": "Delete"
+        "delete": "Delete",
+        "restore": "Restore",
+        "purge": "Purge permanently"
       },
       "errors": {
         "unsupportedType": "Only PDF, DOCX, and TXT files are supported.",
         "fileTooLarge": "File must be 100 MB or smaller.",
         "uploadFailed": "Couldn’t upload the document.",
         "deleteFailed": "Couldn’t delete the document.",
+        "restoreFailed": "Couldn’t restore the document.",
+        "purgeFailed": "Couldn’t permanently purge the document.",
         "loadFailed": "Couldn’t load knowledge documents."
       }
     },
@@ -2751,6 +2759,8 @@
         "saveFailed": "Could not save this campaign.",
         "cancelFailed": "Could not cancel this campaign.",
         "launchFailed": "Could not launch this campaign.",
+        "templateNotApproved": "The linked message template is not approved. Approve it in Meta before launching.",
+        "whatsappNotConnected": "WhatsApp is not connected. Reconnect your WhatsApp account before launching.",
         "duplicateFailed": "Could not duplicate this campaign.",
         "previewFailed": "Could not preview this campaign.",
         "notEditable": "Only draft or scheduled campaigns can be edited."
@@ -3203,6 +3213,7 @@
         "yearlyHint": "Pay yearly and save"
       },
       "currency": {
+        "inr": "INR (₹)",
         "usd": "USD ($)"
       },
       "limits": {
