@@ -139,6 +139,7 @@ export class AiKnowledgeChunkRepository {
        WHERE c."organizationId" = ?
          AND d."organizationId" = ?
          AND d.status = 'INDEXED'
+         AND d."deletedAt" IS NULL
          AND c."embeddingSpaceId" = ?
        ORDER BY c.embedding <=> ?::vector
        LIMIT ?`,

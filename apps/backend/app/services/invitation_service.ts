@@ -1,6 +1,7 @@
 import db from '@adonisjs/lucid/services/db'
 import logger from '@adonisjs/core/services/logger'
 import { DateTime } from 'luxon'
+import app from '@adonisjs/core/services/app'
 import env from '#start/env'
 import { resend } from '#lib/mail'
 import InvitationException from '#exceptions/invitation_exception'
@@ -8,6 +9,12 @@ import { resolveAssignableRoleForOrg } from '#services/role_service'
 import { NotificationService } from '#services/notification_service'
 
 const INVITE_TTL_HOURS = 24
+
+function toIso(value: unknown): string {
+  if (value instanceof Date) return value.toISOString()
+  if (typeof value === 'string') return value
+  return String(value)
+}
 
 /** Postgres unique_violation, including Knex/Lucid-wrapped errors. */
 function isUniqueViolation(error: unknown): boolean {
@@ -113,6 +120,7 @@ export class InvitationService {
     }
 
     const inviteLink = `${env.get('CORS_ORIGIN')}/accept-invitation/${invitation.id}`
+    const softFailEmail = !app.inProduction
     try {
       const { error } = await resend.emails.send({
         from: env.get('EMAIL_FROM'),
@@ -125,14 +133,14 @@ export class InvitationService {
       })
       if (error) {
         // Resend test domain (onboarding@resend.dev) only delivers to the account email.
-        // Mirror pre_signup OTP: keep invites usable in development by logging the link.
-        if (env.get('NODE_ENV') === 'development') {
+        // Mirror pre_signup OTP: keep invites usable outside production by logging the link.
+        if (softFailEmail) {
           console.warn(`[DEV] Resend failed for invite ${normalizedEmail}: ${error.message}`)
           console.warn(`[DEV] Invitation link: ${inviteLink}`)
         } else {
           throw InvitationException.emailSendFailed(error.message)
         }
-      } else if (env.get('NODE_ENV') === 'development') {
+      } else if (softFailEmail) {
         console.info(`[DEV] Invite email sent to ${normalizedEmail}. Link: ${inviteLink}`)
       }
     } catch (error) {
@@ -141,7 +149,7 @@ export class InvitationService {
         await db.from('organization_invitations').where('id', invitation.id).delete()
         throw error
       }
-      if (env.get('NODE_ENV') === 'development') {
+      if (softFailEmail) {
         console.warn(
           `[DEV] Invite email threw for ${normalizedEmail}: ${error instanceof Error ? error.message : error}`
         )
@@ -168,8 +176,8 @@ export class InvitationService {
       email: invitation.email as string,
       role,
       status: invitation.status as string,
-      expiresAt: invitation.expiresAt as string,
-      createdAt: invitation.createdAt as string,
+      expiresAt: toIso(invitation.expiresAt),
+      createdAt: toIso(invitation.createdAt),
     }
   }
 

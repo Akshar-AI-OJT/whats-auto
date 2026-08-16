@@ -33,7 +33,7 @@ type PlanFormState = {
   description: string
   customPricing: boolean
   price: string
-  currency: 'USD'
+  currency: 'INR' | 'USD'
   billingPeriod: Exclude<PlanBillingPeriod, 'custom'> | 'custom'
   users: string
   messagesPerMonth: string
@@ -63,7 +63,7 @@ function emptyForm(): PlanFormState {
     description: '',
     customPricing: false,
     price: '',
-    currency: 'USD',
+    currency: 'INR',
     billingPeriod: 'monthly',
     users: '',
     messagesPerMonth: '',
@@ -119,7 +119,7 @@ function toCreateInput(form: PlanFormState): CreatePlanInput {
     name: form.name.trim(),
     description: form.description.trim(),
     price: custom ? null : Number(form.price),
-    currency: 'USD',
+    currency: form.currency,
     billingPeriod: custom ? 'custom' : form.billingPeriod === 'yearly' ? 'yearly' : 'monthly',
     status: form.status,
     trialDays: parseOptionalNumber(form.trialDays),
@@ -148,10 +148,17 @@ export function PlanFormPage({ mode, planId }: PlanFormPageProps) {
   const [error, setError] = useState<string | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
 
+  // Reset load state when switching edit targets (render-time — avoids setState-in-effect).
+  const [loadedPlanId, setLoadedPlanId] = useState<string | undefined>(planId)
+  if (mode === 'edit' && planId !== loadedPlanId) {
+    setLoadedPlanId(planId)
+    setLoading(true)
+    setLoadError(null)
+  }
+
   useEffect(() => {
     if (mode !== 'edit' || !planId) return
     let cancelled = false
-    setLoading(true)
     void getPlan(planId).then((plan) => {
       if (cancelled) return
       if (!plan) {
@@ -371,6 +378,7 @@ export function PlanFormPage({ mode, planId }: PlanFormPageProps) {
                     {t('fields.currency')}
                   </label>
                   <select id="plan-currency" value={form.currency} disabled className={selectClassName}>
+                    <option value="INR">{t('currency.inr')}</option>
                     <option value="USD">{t('currency.usd')}</option>
                   </select>
                 </div>

@@ -199,6 +199,43 @@ test.group('Knowledge documents HTTP', (group) => {
       .delete(`/api/v1/ai/knowledge-documents/${created.document.id}`)
       .header('Authorization', `Bearer ${token}`)
     destroy.assertStatus(200)
+    assert.isNotNull((destroy.body().data as { deletedAt: string | null }).deletedAt)
+
+    const softDeleted = await client
+      .get(`/api/v1/ai/knowledge-documents/${created.document.id}`)
+      .header('Authorization', `Bearer ${token}`)
+    softDeleted.assertStatus(200)
+    assert.isNotNull((softDeleted.body().data as { deletedAt: string | null }).deletedAt)
+
+    const activeList = await client
+      .get('/api/v1/ai/knowledge-documents')
+      .header('Authorization', `Bearer ${token}`)
+    activeList.assertStatus(200)
+    const activeRows = activeList.body().data as { data: Array<{ id: string }> }
+    assert.isFalse(activeRows.data.some((row) => row.id === created.document.id))
+
+    const deletedList = await client
+      .get('/api/v1/ai/knowledge-documents?lifecycle=deleted')
+      .header('Authorization', `Bearer ${token}`)
+    deletedList.assertStatus(200)
+    const deletedRows = deletedList.body().data as { data: Array<{ id: string }> }
+    assert.isTrue(deletedRows.data.some((row) => row.id === created.document.id))
+
+    const restore = await client
+      .post(`/api/v1/ai/knowledge-documents/${created.document.id}/restore`)
+      .header('Authorization', `Bearer ${token}`)
+    restore.assertStatus(200)
+    assert.isNull((restore.body().data as { deletedAt: string | null }).deletedAt)
+
+    const softDeleteAgain = await client
+      .delete(`/api/v1/ai/knowledge-documents/${created.document.id}`)
+      .header('Authorization', `Bearer ${token}`)
+    softDeleteAgain.assertStatus(200)
+
+    const purge = await client
+      .post(`/api/v1/ai/knowledge-documents/${created.document.id}/purge`)
+      .header('Authorization', `Bearer ${token}`)
+    purge.assertStatus(200)
 
     const gone = await client
       .get(`/api/v1/ai/knowledge-documents/${created.document.id}`)

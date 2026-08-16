@@ -57,6 +57,17 @@ export default class KnowledgeIngestService {
       }
     }
 
+    if (document.deletedAt) {
+      return {
+        documentId: params.documentId,
+        status: document.status as AiKnowledgeDocumentStatus,
+        embedded: 0,
+        deleted: 0,
+        unchanged: 0,
+        skipped: true,
+      }
+    }
+
     try {
       await this.#mark(params, {
         status: AiKnowledgeDocumentStatus.PROCESSING,
@@ -299,6 +310,17 @@ export default class KnowledgeIngestService {
       return {
         documentId: params.documentId,
         status: AiKnowledgeDocumentStatus.FAILED,
+        embedded: 0,
+        deleted: 0,
+        unchanged: 0,
+        skipped: true,
+      }
+    }
+
+    if (document.deletedAt) {
+      return {
+        documentId: params.documentId,
+        status: document.status as AiKnowledgeDocumentStatus,
         embedded: 0,
         deleted: 0,
         unchanged: 0,

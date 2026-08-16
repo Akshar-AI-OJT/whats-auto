@@ -322,12 +322,14 @@ export class CampaignService {
       .from('message_templates')
       .where('id', messageTemplateId)
       .where('organizationId', organizationId)
-      .select('id')
+      .select('id', 'whatsappConfigId')
       .first()
 
     if (!template) {
       throw CampaignException.messageTemplateNotFound()
     }
+
+    return template as { id: string; whatsappConfigId: string | null }
   }
 
   protected async assertMediaAssetInOrg(organizationId: string, mediaAssetId: string) {
@@ -459,9 +461,19 @@ export class CampaignService {
 
     if (input.messageTemplateId !== undefined) {
       if (input.messageTemplateId) {
-        await this.assertMessageTemplateInOrg(input.organizationId, input.messageTemplateId)
+        const template = await this.assertMessageTemplateInOrg(
+          input.organizationId,
+          input.messageTemplateId
+        )
+        updates.messageTemplateId = input.messageTemplateId
+        // Auto-fill from template when client omits whatsappConfigId (campaign send requires it).
+        if (input.whatsappConfigId === undefined && template.whatsappConfigId) {
+          await this.assertWhatsappConfigInOrg(input.organizationId, template.whatsappConfigId)
+          updates.whatsappConfigId = template.whatsappConfigId
+        }
+      } else {
+        updates.messageTemplateId = null
       }
-      updates.messageTemplateId = input.messageTemplateId
     }
 
     if (input.headerMediaAssetId !== undefined) {
@@ -585,12 +597,20 @@ export class CampaignService {
       throw CampaignException.scheduledAtRequired()
     }
 
-    if (input.whatsappConfigId) {
-      await this.assertWhatsappConfigInOrg(input.organizationId, input.whatsappConfigId)
-    }
+    let whatsappConfigId = input.whatsappConfigId ?? null
 
     if (input.messageTemplateId) {
-      await this.assertMessageTemplateInOrg(input.organizationId, input.messageTemplateId)
+      const template = await this.assertMessageTemplateInOrg(
+        input.organizationId,
+        input.messageTemplateId
+      )
+      if (!whatsappConfigId && template.whatsappConfigId) {
+        whatsappConfigId = template.whatsappConfigId
+      }
+    }
+
+    if (whatsappConfigId) {
+      await this.assertWhatsappConfigInOrg(input.organizationId, whatsappConfigId)
     }
 
     if (input.headerMediaAssetId) {
@@ -605,7 +625,7 @@ export class CampaignService {
           organizationId: input.organizationId,
           createdByUserId: input.actorUserId,
           name,
-          whatsappConfigId: input.whatsappConfigId ?? null,
+          whatsappConfigId,
           messageTemplateId: input.messageTemplateId ?? null,
           headerMediaAssetId: input.headerMediaAssetId ?? null,
           scheduledAt,

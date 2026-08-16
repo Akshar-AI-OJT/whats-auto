@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { Loader2 } from 'lucide-react'
@@ -32,19 +32,15 @@ export function TemplateCreatePage() {
   const queryClient = useQueryClient()
   const {
     tenantOrganizationId,
-    canManageWhatsapp,
+    canCreateTemplates,
     isLoading: orgsLoading,
   } = useOrganizations()
-  const [fromId, setFromId] = useState<string | null>(null)
+  const [fromId] = useState(() => readDuplicateFromId())
   const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    setFromId(readDuplicateFromId())
-  }, [])
 
   const sourceQuery = useQuery({
     queryKey: templateQueryKeys.detail(fromId ?? 'none'),
-    enabled: Boolean(fromId) && canManageWhatsapp,
+    enabled: Boolean(fromId) && canCreateTemplates,
     queryFn: async () => {
       const { data } = await api.whatsapp.getTemplate(fromId!)
       return unwrapTemplate(data)
@@ -95,7 +91,7 @@ export function TemplateCreatePage() {
     },
   })
 
-  if (!orgsLoading && !canManageWhatsapp) {
+  if (!orgsLoading && !canCreateTemplates) {
     return (
       <div className="mx-auto w-full max-w-[1200px]">
         <DashboardPanel className="px-4 py-5 sm:px-6">

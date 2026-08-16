@@ -95,6 +95,7 @@ export class AiKnowledgeDocumentSchema extends BaseModel {
   static $columns = [
     'chunkCount',
     'createdAt',
+    'deletedAt',
     'documentHash',
     'embeddingModel',
     'errorMessage',
@@ -111,6 +112,8 @@ export class AiKnowledgeDocumentSchema extends BaseModel {
   declare chunkCount: number
   @column.dateTime()
   declare createdAt: DateTime
+  @column.dateTime()
+  declare deletedAt: DateTime | null
   @column()
   declare documentHash: string | null
   @column()

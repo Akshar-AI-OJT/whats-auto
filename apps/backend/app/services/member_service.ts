@@ -113,6 +113,7 @@ export class MemberService {
       await trx.table('authorization_audits').insert({
         organizationId,
         actorUserId,
+        roleId: role.id,
         targetType: 'member',
         targetId: memberId,
         eventType: 'member.role_assigned',

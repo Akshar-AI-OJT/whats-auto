@@ -1,9 +1,11 @@
 import env from '#start/env'
 import type {
   CreateRazorpayCustomerParams,
+  CreateRazorpayPlanParams,
   CreateRazorpaySubscriptionParams,
   RazorpayClient,
   RazorpayCustomer,
+  RazorpayPlan,
   RazorpaySubscription,
 } from '#lib/razorpay/types'
 
@@ -107,6 +109,23 @@ export class HttpRazorpayClient implements RazorpayClient {
         total_count: params.totalCount,
         quantity: params.quantity ?? 1,
         customer_notify: params.customerNotify ?? true,
+        notes: params.notes,
+      }),
+    })
+  }
+
+  async createPlan(params: CreateRazorpayPlanParams): Promise<RazorpayPlan> {
+    return this.requestJson<RazorpayPlan>('createPlan', '/plans', {
+      method: 'POST',
+      body: JSON.stringify({
+        period: params.period,
+        interval: params.interval,
+        item: {
+          name: params.item.name,
+          amount: params.item.amount,
+          currency: params.item.currency,
+          description: params.item.description ?? undefined,
+        },
         notes: params.notes,
       }),
     })

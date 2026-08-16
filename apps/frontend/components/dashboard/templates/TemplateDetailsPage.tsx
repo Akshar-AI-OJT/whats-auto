@@ -29,13 +29,14 @@ export function TemplateDetailsPage({ templateId }: { templateId: string }) {
   const t = useTranslations('dashboard.templates')
   const router = useRouter()
   const queryClient = useQueryClient()
-  const { canViewWhatsapp, canManageWhatsapp, isLoading: orgsLoading } = useOrganizations()
+  const { canViewTemplates, canCreateTemplates, canDeleteTemplates, isLoading: orgsLoading } =
+    useOrganizations()
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const detailQuery = useQuery({
     queryKey: templateQueryKeys.detail(templateId),
-    enabled: Boolean(templateId) && canViewWhatsapp && !orgsLoading,
+    enabled: Boolean(templateId) && canViewTemplates && !orgsLoading,
     queryFn: async () => {
       const { data } = await api.whatsapp.getTemplate(templateId)
       return unwrapTemplate(data)
@@ -55,7 +56,7 @@ export function TemplateDetailsPage({ templateId }: { templateId: string }) {
     },
   })
 
-  if (!orgsLoading && !canViewWhatsapp) {
+  if (!orgsLoading && !canViewTemplates) {
     return (
       <DashboardPanel className="mx-auto max-w-[1200px] px-4 py-5">
         <p className="text-sm text-negative">{t('errors.permissionDenied')}</p>
@@ -139,7 +140,7 @@ export function TemplateDetailsPage({ templateId }: { templateId: string }) {
             >
               {t('backToList')}
             </Button>
-            {canManageWhatsapp ? (
+            {canCreateTemplates ? (
               <Button
                 type="button"
                 variant="outline"
@@ -150,7 +151,7 @@ export function TemplateDetailsPage({ templateId }: { templateId: string }) {
                 {t('actions.duplicate')}
               </Button>
             ) : null}
-            {canManageWhatsapp ? (
+            {canDeleteTemplates ? (
               <Button
                 type="button"
                 variant="outline"

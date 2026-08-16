@@ -34,7 +34,7 @@ export type SubscriptionPlan = {
   name: string
   description: string
   price: number | null
-  currency: 'USD'
+  currency: 'INR' | 'USD'
   billingPeriod: PlanBillingPeriod
   status: PlanStatus
   popular: boolean
@@ -49,7 +49,7 @@ export type CreatePlanInput = {
   name: string
   description: string
   price: number | null
-  currency: 'USD'
+  currency: 'INR' | 'USD'
   billingPeriod: PlanBillingPeriod
   status: Exclude<PlanStatus, 'archived'>
   popular?: boolean

@@ -1,8 +1,8 @@
 import type { PlanFeature, PlanFeatureDefinition, SubscriptionPlan } from './types'
 
 /**
- * Centralized mock plan catalog.
- * Replace with API responses via `plan-service.ts` — do not scatter plan objects in UI.
+ * Shared plan feature catalog for admin plan forms/views.
+ * Plan rows themselves come from the live API via `plan-service.ts`.
  */
 
 export const PLAN_FEATURE_CATALOG: PlanFeatureDefinition[] = [

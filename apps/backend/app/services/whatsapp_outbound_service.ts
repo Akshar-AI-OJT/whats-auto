@@ -1203,6 +1203,7 @@ export default class WhatsappOutboundService {
       protectedUntil?: Date | null
     }
   ): Promise<void> {
+    // Message refs stay live after conversation close (no clear on close).
     await this.mediaReferences.upsert(
       {
         organizationId: params.organizationId,

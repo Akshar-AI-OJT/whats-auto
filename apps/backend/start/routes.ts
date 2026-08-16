@@ -28,6 +28,7 @@ const SuperAdminOrganizationsController = () =>
   import('#controllers/super_admin_organizations_controller')
 const SuperAdminSubscriptionsController = () =>
   import('#controllers/super_admin_subscriptions_controller')
+const SuperAdminPlansController = () => import('#controllers/super_admin_plans_controller')
 const SuperAdminInvoicesController = () => import('#controllers/super_admin_invoices_controller')
 const SuperAdminAiConfigController = () => import('#controllers/super_admin_ai_config_controller')
 const OrganizationAdminUsersController = () =>
@@ -528,6 +529,12 @@ router
     router.patch('/subscriptions/:id', [SuperAdminSubscriptionsController, 'update'])
     router.delete('/subscriptions/:id', [SuperAdminSubscriptionsController, 'softDelete'])
 
+    router.get('/plans', [SuperAdminPlansController, 'index'])
+    router.post('/plans', [SuperAdminPlansController, 'store'])
+    router.get('/plans/:id', [SuperAdminPlansController, 'show'])
+    router.patch('/plans/:id', [SuperAdminPlansController, 'update'])
+    router.delete('/plans/:id', [SuperAdminPlansController, 'softDelete'])
+
     router.get('/invoices/summary', [SuperAdminInvoicesController, 'summary'])
     router.get('/invoices', [SuperAdminInvoicesController, 'index'])
     router.post('/invoices', [SuperAdminInvoicesController, 'store'])
@@ -623,7 +630,9 @@ router
   .use([middleware.jwtAuth(), middleware.tenant()])
 
 // audit history — dual-mode: Super Admin is platform-scoped, tenants stay org-scoped via AuditPolicy
-router.get('/api/v1/audit', [controllers.Audit, 'index']).use([middleware.jwtAuth()])
+router
+  .get('/api/v1/audit', [controllers.Audit, 'index'])
+  .use([middleware.jwtAuth(), middleware.auditAccess()])
 
 // contacts — tenant isolation
 router
@@ -672,6 +681,8 @@ router
     router.get('/:id', [KnowledgeDocumentsController, 'show'])
     router.post('/:id/complete-upload', [KnowledgeDocumentsController, 'completeUpload'])
     router.delete('/:id', [KnowledgeDocumentsController, 'destroy'])
+    router.post('/:id/restore', [KnowledgeDocumentsController, 'restore'])
+    router.post('/:id/purge', [KnowledgeDocumentsController, 'purge'])
   })
   .prefix('/api/v1/ai/knowledge-documents')
   .use([middleware.jwtAuth(), middleware.tenant()])

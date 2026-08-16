@@ -134,26 +134,10 @@ export async function deleteSuperAdminSubscription(subscriptionId: string): Prom
   await api.superAdmin.subscriptions.destroy(subscriptionId)
 }
 
-/**
- * Convert `<input type="date">` (YYYY-MM-DD) for Vine `vine.date()`.
- * Default Vine accepts `YYYY-MM-DD` or `YYYY-MM-DD HH:mm:ss` — not ISO-8601 with `T`/`Z`.
- */
-export function dateInputToIso(value: string, endOfDay = false): string {
-  const trimmed = value.trim()
-  if (!trimmed) return trimmed
-  const day = trimmed.includes('T') ? trimmed.slice(0, 10) : trimmed.slice(0, 10)
-  return endOfDay ? `${day} 23:59:59` : `${day} 00:00:00`
-}
-
-/** Prefer YYYY-MM-DD for date inputs. */
-export function isoToDateInput(value: string | null | undefined): string {
-  if (!value) return ''
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    return value.slice(0, 10)
-  }
-  return date.toISOString().slice(0, 10)
-}
+export {
+  dateInputToVineDate as dateInputToIso,
+  vineDateToDateInput as isoToDateInput,
+} from '@/lib/vine-date'
 
 export function mapSubscriptionApiError(error: unknown, fallback: string): string {
   const apiError = error as ApiError

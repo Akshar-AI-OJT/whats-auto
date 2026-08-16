@@ -1,9 +1,10 @@
-import { BasePolicy } from '@adonisjs/bouncer'
+import { BasePolicy, AuthorizationResponse } from '@adonisjs/bouncer'
 import type { AuthzPrincipal } from '#types/http'
 
 export type KnowledgeDocumentResource = {
   id?: string
   organizationId: string
+  deletedAt?: string | Date | null
 }
 
 export default class KnowledgeDocumentPolicy extends BasePolicy {
@@ -42,5 +43,28 @@ export default class KnowledgeDocumentPolicy extends BasePolicy {
       return false
     }
     return true
+  }
+
+  restore(user: AuthzPrincipal, doc?: KnowledgeDocumentResource): boolean | AuthorizationResponse {
+    if (doc && doc.organizationId !== user.activeMember?.organizationId) {
+      return false
+    }
+    if (doc && !doc.deletedAt) {
+      return AuthorizationResponse.deny(
+        'Only soft-deleted knowledge documents can be restored',
+        422
+      )
+    }
+    return user.memberPermissions?.has('ai:kb_manage') ?? false
+  }
+
+  purge(user: AuthzPrincipal, doc?: KnowledgeDocumentResource): boolean | AuthorizationResponse {
+    if (doc && doc.organizationId !== user.activeMember?.organizationId) {
+      return AuthorizationResponse.deny('Knowledge document not found', 404)
+    }
+    if (doc && !doc.deletedAt) {
+      return AuthorizationResponse.deny('Only soft-deleted knowledge documents can be purged', 422)
+    }
+    return user.memberPermissions?.has('ai:kb_manage') ?? false
   }
 }
