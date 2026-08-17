@@ -16,7 +16,7 @@ export function AccessDenied({ title, description }: AccessDeniedProps) {
   const t = useTranslations('dashboard.accessDenied')
 
   return (
-    <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 sm:gap-6">
+    <div className="flex w-full min-w-0 flex-col gap-5 sm:gap-6">
       <DashboardPanel as="section" className="px-4 py-5 sm:px-6 sm:py-6">
         <div className="flex items-start gap-3">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-warning/15 text-ink">

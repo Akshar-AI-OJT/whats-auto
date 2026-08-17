@@ -1392,7 +1392,10 @@
       "templatesList": "टेम्पलेट्स",
       "templatesMedia": "मीडिया लाइब्रेरी",
       "inviteMember": "सदस्य आमंत्रित करें",
-      "contacts": "संपर्क",
+      "contacts": "संपर्क और ऑडियंस",
+      "contactsList": "संपर्क",
+      "customerGroups": "ग्राहक समूह",
+      "media": "मीडिया लाइब्रेरी",
       "inbox": "इनबॉक्स",
       "messages": "संदेश",
       "campaigns": "कैंपेन",
@@ -1402,7 +1405,17 @@
       "analytics": "एनालिटिक्स",
       "billing": "बिलिंग",
       "auditLogs": "ऑडिट लॉग्स",
-      "settings": "सेटिंग्स"
+      "settings": "सेटिंग्स",
+      "sections": {
+        "overview": "ओवरव्यू",
+        "messaging": "मेसेजिंग",
+        "campaignsContent": "कैंपेन और कॉन्टेंट",
+        "automationAi": "ऑटोमेशन और AI",
+        "insights": "इनसाइट्स",
+        "teamAccess": "टीम और एक्सेस",
+        "billing": "बिलिंग",
+        "settings": "सेटिंग्स"
+      }
     },
     "knowledge": {
       "eyebrow": "AI",
@@ -1791,6 +1804,131 @@
           "permissionDenied": "आपको संपर्क जोड़ने की अनुमति नहीं है।",
           "generic": "संपर्क सहेजा नहीं जा सका। कृपया फिर कोशिश करें।"
         }
+      }
+    },
+    "customerGroups": {
+      "eyebrow": "ऑडियंस",
+      "title": "ग्राहक समूह",
+      "subtitle": "लक्षित कैंपेन और ऑटोमेशन के लिए संपर्कों को समूहों में व्यवस्थित करें।",
+      "create": "समूह बनाएँ",
+      "loading": "समूह लोड हो रहे हैं…",
+      "retry": "फिर कोशिश करें",
+      "searchPlaceholder": "समूह खोजें...",
+      "filterStatus": "स्थिति से फ़िल्टर करें",
+      "filterAllStatuses": "सभी स्थितियाँ",
+      "filters": "फ़िल्टर",
+      "filtersHint": "नाम या स्थिति से समूह सीमित करें।",
+      "clearFilters": "फ़िल्टर साफ़ करें",
+      "emptyTitle": "अभी कोई समूह नहीं",
+      "emptyDescription": "कैंपेन और ऑटोमेशन के लिए संपर्कों को व्यवस्थित करने हेतु एक ग्राहक समूह बनाएँ।",
+      "noMatches": "आपकी खोज से कोई समूह मेल नहीं खाता।",
+      "noDescription": "कोई विवरण नहीं",
+      "backToList": "ग्राहक समूहों पर वापस जाएँ",
+      "pagination": "{total} में से {from} से {to} समूह दिख रहे हैं",
+      "prev": "पिछला",
+      "next": "अगला",
+      "mobileMeta": "{count, plural, one {# संपर्क} other {# संपर्क}} · {date}",
+      "usedInCampaigns": "{count, plural, one {# कैंपेन} other {# कैंपेन}}",
+      "columns": {
+        "name": "समूह का नाम",
+        "contacts": "संपर्क",
+        "type": "प्रकार",
+        "usedIn": "उपयोग",
+        "createdOn": "बनाया गया",
+        "status": "स्थिति",
+        "actions": "क्रियाएँ"
+      },
+      "type": {
+        "static": "स्टैटिक"
+      },
+      "status": {
+        "active": "सक्रिय",
+        "inactive": "निष्क्रिय"
+      },
+      "kpis": {
+        "totalGroups": "कुल समूह",
+        "totalGroupsHint": "सभी समूहों में",
+        "totalContacts": "कुल संपर्क",
+        "totalContactsHint": "सभी समूहों में",
+        "usedInCampaigns": "कैंपेन में उपयोग",
+        "usedInCampaignsHint": "कैंपेन उपयोग ट्रैक होने पर उपलब्ध",
+        "engagementRate": "एंगेजमेंट दर",
+        "engagementRateHint": "समूहों का औसत"
+      },
+      "actions": {
+        "openMenu": "समूह क्रियाएँ खोलें",
+        "view": "समूह देखें",
+        "edit": "समूह संपादित करें",
+        "delete": "समूह हटाएँ",
+        "addContacts": "संपर्क जोड़ें",
+        "removeContact": "समूह से हटाएँ"
+      },
+      "form": {
+        "createTitle": "समूह बनाएँ",
+        "createSubtitle": "समूह का नाम दें, फिर शामिल करने के लिए मौजूदा संपर्क चुनें।",
+        "editTitle": "समूह संपादित करें",
+        "editSubtitle": "समूह विवरण या सदस्यता अपडेट करें। सदस्य हटाने से संपर्क नहीं हटता।",
+        "name": "समूह का नाम",
+        "namePlaceholder": "VIP ग्राहक",
+        "description": "विवरण",
+        "descriptionPlaceholder": "इस समूह में कौन आता है?",
+        "status": "स्थिति",
+        "statusActive": "सक्रिय",
+        "statusInactive": "निष्क्रिय",
+        "selectContacts": "संपर्क चुनें",
+        "selectContactsHint": "संपर्क जोड़ने या हटाने से केवल समूह सदस्यता बदलती है।",
+        "cancel": "रद्द करें",
+        "create": "समूह सहेजें",
+        "save": "परिवर्तन सहेजें",
+        "saving": "सहेजा जा रहा है…",
+        "errors": {
+          "nameRequired": "समूह का नाम आवश्यक है।",
+          "nameTooLong": "समूह का नाम 120 अक्षरों से अधिक नहीं होना चाहिए।"
+        }
+      },
+      "picker": {
+        "searchPlaceholder": "संपर्क खोजें...",
+        "loading": "संपर्क लोड हो रहे हैं…",
+        "loadFailed": "संपर्क लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+        "retry": "फिर कोशिश करें",
+        "empty": "अभी कोई संपर्क नहीं। पहले संपर्क जोड़ें, फिर उन्हें समूह में शामिल करें।",
+        "noMatches": "आपकी खोज से कोई संपर्क मेल नहीं खाता।",
+        "selectedCount": "चयनित: {count, plural, one {# संपर्क} other {# संपर्क}}",
+        "unnamed": "बिना नाम का संपर्क"
+      },
+      "delete": {
+        "title": "समूह हटाएँ",
+        "body": "“{name}” हटाएँ? यह वापस नहीं किया जा सकता।",
+        "contactsSafe": "इस समूह को हटाने से उसके संपर्क नहीं हटेंगे।",
+        "cancel": "रद्द करें",
+        "confirm": "समूह हटाएँ",
+        "deleting": "हटाया जा रहा है…"
+      },
+      "detail": {
+        "membersTitle": "सदस्य",
+        "membersCount": "{count, plural, one {# संपर्क} other {# संपर्क}}",
+        "emptyMembers": "इस समूह में कोई संपर्क नहीं है।",
+        "createdOn": "{date} को बनाया गया"
+      },
+      "about": {
+        "title": "ग्राहक समूह के बारे में",
+        "body": "व्यवहार, स्थान या कैंपेन फिट के अनुसार संपर्कों को व्यवस्थित करें, फिर ब्रॉडकास्ट और ऑटोमेशन में उन लोगों को लक्षित करें।",
+        "link": "और जानें →"
+      },
+      "toast": {
+        "created": "समूह बन गया।",
+        "updated": "समूह अपडेट हो गया।",
+        "deleted": "समूह हटा दिया गया।",
+        "membersUpdated": "समूह सदस्य अपडेट हो गए।",
+        "memberRemoved": "संपर्क समूह से हटा दिया गया।"
+      },
+      "errors": {
+        "permissionDenied": "आपको इस वर्कस्पेस में ग्राहक समूह देखने की अनुमति नहीं है।",
+        "loadFailed": "ग्राहक समूह लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+        "saveFailed": "यह समूह सहेजा नहीं जा सका। कृपया फिर कोशिश करें।",
+        "deleteFailed": "यह समूह हटाया नहीं जा सका। कृपया फिर कोशिश करें।",
+        "removeFailed": "इस संपर्क को समूह से हटाया नहीं जा सका।",
+        "notFound": "यह ग्राहक समूह नहीं मिला।"
       }
     },
     "inbox": {
@@ -2607,7 +2745,27 @@
         "audience": "लक्षित दर्शक",
         "audiencePlaceholder": "दर्शक चुनें",
         "audienceAll": "सभी संपर्क ({count})",
+        "audienceGroup": "ग्राहक समूह",
+        "audienceGroupPlaceholder": "ग्राहक समूह चुनें",
         "audienceHint": "चयनित संपर्क भेजने या शेड्यूल करने से पहले कैंपेन से जुड़ जाते हैं।",
+        "recipients": {
+          "selectedCount": "चयनित संपर्क: {count}",
+          "allCount": "सभी संपर्क ({count})",
+          "empty": "कोई संपर्क चयनित नहीं है",
+          "emptyGroup": "इस समूह में कोई संपर्क नहीं है।",
+          "loading": "संपर्क लोड हो रहे हैं…",
+          "groupsLoading": "समूह लोड हो रहे हैं…",
+          "noGroups": "अभी कोई सक्रिय ग्राहक समूह नहीं है। पहले एक समूह बनाएँ।",
+          "groupCount": "{count, plural, one {# संपर्क} other {# संपर्क}}",
+          "groupSummary": "{name} ({count})",
+          "loadFailed": "संपर्क लोड नहीं हो सके। कृपया फिर से प्रयास करें।",
+          "retry": "फिर कोशिश करें",
+          "remove": "हटाएँ",
+          "removeAria": "{name} को इस कैंपेन से हटाएँ",
+          "unnamed": "बिना नाम का संपर्क",
+          "showAll": "संपर्क देखें ({count})",
+          "showLess": "कम दिखाएँ"
+        },
         "schedule": "अनुसूची",
         "sendNow": "अभी भेजें",
         "scheduleLater": "बाद में शेड्यूल करें",
@@ -2623,6 +2781,11 @@
           "templateRequired": "एक स्वीकृत टेम्पलेट चुनें।",
           "audienceRequired": "लक्षित दर्शक चुनें।",
           "audienceEmpty": "दर्शक जोड़ने से पहले संपर्क जोड़ें।",
+          "groupRequired": "एक ग्राहक समूह चुनें।",
+          "groupEmpty": "इस समूह में कोई संपर्क नहीं है।",
+          "groupLoadFailed": "ग्राहक समूह लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+          "groupMembersLoadFailed": "इस समूह के संपर्क लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+          "audienceTooLarge": "इस दर्शक में {max} से अधिक संपर्क हैं। भेजने से पहले समूह का आकार घटाएँ।",
           "scheduledAtRequired": "शेड्यूल तिथि और समय चुनें।",
           "scheduledAtFuture": "शेड्यूल समय भविष्य में होना चाहिए।"
         }

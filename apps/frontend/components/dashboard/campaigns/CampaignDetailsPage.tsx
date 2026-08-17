@@ -172,7 +172,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
 
   if (!orgsLoading && !canViewCampaigns) {
     return (
-      <DashboardPanel as="section" className="mx-auto max-w-[1200px] px-4 py-6">
+      <DashboardPanel as="section" className="w-full min-w-0 px-4 py-6">
         <p role="alert" className="text-sm text-negative">
           {t('errors.permissionDenied')}
         </p>
@@ -191,7 +191,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
 
   if (campaignQuery.isError || !campaign) {
     return (
-      <DashboardPanel as="section" className="mx-auto max-w-[1200px] px-4 py-6">
+      <DashboardPanel as="section" className="w-full min-w-0 px-4 py-6">
         <p role="alert" className="text-sm text-negative">
           {(campaignQuery.error as unknown as ApiError)?.message || t('errors.loadFailed')}
         </p>
@@ -223,7 +223,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
   const canCancel = canPauseCampaigns && isCancellableCampaignStatus(campaign.status)
 
   return (
-    <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5">
+    <div className="flex w-full min-w-0 flex-col gap-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <Link
