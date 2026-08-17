@@ -1395,6 +1395,7 @@
       "contacts": "संपर्क और ऑडियंस",
       "contactsList": "संपर्क",
       "customerGroups": "ग्राहक समूह",
+      "media": "मीडिया लाइब्रेरी",
       "inbox": "इनबॉक्स",
       "messages": "संदेश",
       "campaigns": "कैंपेन",
@@ -1404,7 +1405,17 @@
       "analytics": "एनालिटिक्स",
       "billing": "बिलिंग",
       "auditLogs": "ऑडिट लॉग्स",
-      "settings": "सेटिंग्स"
+      "settings": "सेटिंग्स",
+      "sections": {
+        "overview": "ओवरव्यू",
+        "messaging": "मेसेजिंग",
+        "campaignsContent": "कैंपेन और कॉन्टेंट",
+        "automationAi": "ऑटोमेशन और AI",
+        "insights": "इनसाइट्स",
+        "teamAccess": "टीम और एक्सेस",
+        "billing": "बिलिंग",
+        "settings": "सेटिंग्स"
+      }
     },
     "knowledge": {
       "eyebrow": "AI",

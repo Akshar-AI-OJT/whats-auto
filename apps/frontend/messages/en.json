@@ -1400,6 +1400,7 @@
       "contacts": "Contacts & Audience",
       "contactsList": "Contacts",
       "customerGroups": "Customer Groups",
+      "media": "Media Library",
       "inbox": "Inbox",
       "messages": "Messages",
       "campaigns": "Campaigns",
@@ -1409,7 +1410,17 @@
       "analytics": "Analytics",
       "billing": "Billing",
       "auditLogs": "Audit Logs",
-      "settings": "Settings"
+      "settings": "Settings",
+      "sections": {
+        "overview": "Overview",
+        "messaging": "Messaging",
+        "campaignsContent": "Campaigns & Content",
+        "automationAi": "Automation & AI",
+        "insights": "Insights",
+        "teamAccess": "Team & Access",
+        "billing": "Billing",
+        "settings": "Settings"
+      }
     },
     "knowledge": {
       "eyebrow": "AI",
