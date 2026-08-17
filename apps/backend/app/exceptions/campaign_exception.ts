@@ -68,6 +68,13 @@ export default class CampaignException extends Exception {
     })
   }
 
+  static notEditable(status: string) {
+    return new this(`Campaign with status "${status}" is not editable`, {
+      status: 422,
+      code: 'E_CAMPAIGN_NOT_EDITABLE',
+    })
+  }
+
   static scheduledAtMustBeFuture() {
     return new this('scheduledAt must be in the future', {
       status: 422,
@@ -82,10 +89,45 @@ export default class CampaignException extends Exception {
     })
   }
 
+  static tagNotFound() {
+    return new this('Tag not found', {
+      status: 404,
+      code: 'E_CAMPAIGN_TAG_NOT_FOUND',
+    })
+  }
+
+  static recipientsAudienceRequired() {
+    return new this('Provide either contactIds or tagId', {
+      status: 422,
+      code: 'E_CAMPAIGN_RECIPIENTS_AUDIENCE_REQUIRED',
+    })
+  }
+
+  static conflictingAudience() {
+    return new this('Provide either contactIds or tagId, not both', {
+      status: 422,
+      code: 'E_CAMPAIGN_CONFLICTING_AUDIENCE',
+    })
+  }
+
   static alreadyDeleted() {
     return new this('Campaign is already deleted', {
       status: 409,
       code: 'E_CAMPAIGN_ALREADY_DELETED',
+    })
+  }
+
+  static templateNotSendable(reason?: string) {
+    return new this(reason || 'Campaign template is not sendable', {
+      status: 422,
+      code: 'E_CAMPAIGN_TEMPLATE_NOT_SENDABLE',
+    })
+  }
+
+  static missingTemplateParameters(detail: string) {
+    return new this(detail, {
+      status: 422,
+      code: 'E_CAMPAIGN_MISSING_TEMPLATE_PARAMETERS',
     })
   }
 

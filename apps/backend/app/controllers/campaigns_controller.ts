@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import CampaignException from '#exceptions/campaign_exception'
 import { CampaignService } from '#services/campaign_service'
 import {
   campaignIdParamValidator,
@@ -6,6 +7,7 @@ import {
   createCampaignValidator,
   listCampaignsValidator,
   previewCampaignValidator,
+  replaceCampaignRecipientsValidator,
   scheduleCampaignValidator,
   updateCampaignValidator,
 } from '#validators/campaign'
@@ -93,6 +95,44 @@ export default class CampaignsController {
     })
 
     return serialize(preview)
+  }
+
+  /**
+   * @replaceRecipients
+   * @summary Replace campaign recipients
+   * @description Replaces the recipient snapshot for a draft or scheduled campaign. Provide either contactIds (All Contacts) or tagId (customer group). Soft-deleted contacts are excluded when targeting by tag.
+   * @tag Campaigns
+   * @security BearerAuth
+   * @paramPath id - Campaign id - @type(string)
+   * @requestBody { "contactIds": ["uuid"] }
+   * @requestBody { "tagId": "uuid" }
+   * @responseBody 200 - { "data": { "id": "uuid", "name": "July Product Launch", "status": "draft", "totalRecipients": 1 } }
+   * @responseBody 401 - { "error": "Missing or invalid session" }
+   * @responseBody 403 - { "error": "Permission denied: campaigns:edit", "code": "PERMISSION_DENIED" }
+   * @responseBody 404 - { "error": "Tag not found", "code": "E_CAMPAIGN_TAG_NOT_FOUND" }
+   * @responseBody 422 - { "error": "Provide either contactIds or tagId, not both", "code": "E_CAMPAIGN_CONFLICTING_AUDIENCE" }
+   * @responseBody 422 - { "error": "Provide either contactIds or tagId", "code": "E_CAMPAIGN_RECIPIENTS_AUDIENCE_REQUIRED" }
+   */
+  async replaceRecipients({ request, params, serialize }: HttpContext) {
+    const { id } = await request.validateUsing(campaignIdParamValidator, { data: params })
+    const payload = await request.validateUsing(replaceCampaignRecipientsValidator)
+
+    if (payload.tagId && payload.contactIds !== undefined) {
+      throw CampaignException.conflictingAudience()
+    }
+    if (!payload.tagId && payload.contactIds === undefined) {
+      throw CampaignException.recipientsAudienceRequired()
+    }
+
+    const campaign = await new CampaignService().replaceRecipients({
+      organizationId: request.activeMember!.organizationId,
+      campaignId: id,
+      contactIds: payload.contactIds,
+      tagId: payload.tagId,
+      variables: payload.variables,
+    })
+
+    return serialize(campaign)
   }
 
   /**

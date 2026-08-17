@@ -8,7 +8,7 @@
 | (same as web/test).
 |
 | Usage:
-|   JOB_QUEUE_WORKER=1 JOB_QUEUE_DRIVER=pgboss node --import=tsx bin/worker.ts
+|   JOB_QUEUE_WORKER=1 JOB_QUEUE_DRIVER=bullmq REDIS_URL=redis://127.0.0.1:6379 node --import=tsx bin/worker.ts
 |   or after build: JOB_QUEUE_WORKER=1 node build/bin/worker.js
 |
 */

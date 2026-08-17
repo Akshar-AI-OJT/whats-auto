@@ -211,6 +211,19 @@ const requestBodySchemas: Record<string, JsonSchema> = {
     },
     status: { type: 'string', example: 'scheduled', enum: ['draft', 'scheduled'] },
   }),
+  'put /api/v1/campaigns/{id}/recipients': bodySchema({
+    contactIds: {
+      type: 'array',
+      items: { type: 'string', format: 'uuid' },
+      example: ['00000000-0000-0000-0000-000000000001'],
+    },
+    tagId: { type: 'string', format: 'uuid' },
+    variables: {
+      type: 'object',
+      additionalProperties: { type: 'string' },
+      example: { customer_name: 'Priya' },
+    },
+  }),
   'post /api/v1/inbox/conversations': bodySchema(
     {
       contactId: { type: 'string', format: 'uuid' },
@@ -624,6 +637,9 @@ router
       .use(middleware.requirePermission({ permission: 'campaigns:create' }))
     router
       .patch('/:id/status', [CampaignsController, 'changeStatus'])
+      .use(middleware.requirePermission({ permission: 'campaigns:edit' }))
+    router
+      .put('/:id/recipients', [CampaignsController, 'replaceRecipients'])
       .use(middleware.requirePermission({ permission: 'campaigns:edit' }))
     router
       .get('/:id', [CampaignsController, 'show'])

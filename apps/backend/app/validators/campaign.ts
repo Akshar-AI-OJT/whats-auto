@@ -30,13 +30,7 @@ export const CAMPAIGN_SCHEDULED_STATUS = 'scheduled' as const
 export const CAMPAIGN_DRAFT_STATUS = 'draft' as const
 
 /** Active lifecycle statuses returned by list/get (excludes soft-deleted). */
-export const CAMPAIGN_STATUSES = [
-  'draft',
-  'scheduled',
-  'sending',
-  'sent',
-  'failed',
-] as const
+export const CAMPAIGN_STATUSES = ['draft', 'scheduled', 'sending', 'sent', 'failed'] as const
 
 /** Whitelisted sort columns on `broadcasts` (camelCase DB columns). */
 export const CAMPAIGN_SORT_FIELDS = [
@@ -101,6 +95,14 @@ export const scheduleCampaignValidator = vine.create(
 export const changeCampaignStatusValidator = vine.create(
   vine.object({
     status: vine.enum(CAMPAIGN_STATUSES),
+  })
+)
+
+export const replaceCampaignRecipientsValidator = vine.create(
+  vine.object({
+    contactIds: vine.array(vine.string().trim().uuid()).optional(),
+    tagId: vine.string().trim().uuid().optional(),
+    variables: vine.record(vine.string()).optional(),
   })
 )
 
