@@ -12,7 +12,9 @@ import InboxMessageQueued from '#events/inbox_message_queued'
 import InboxMessageReceived from '#events/inbox_message_received'
 import InboxMessageSent from '#events/inbox_message_sent'
 import InboxStatusUpdated from '#events/inbox_status_updated'
+import IntegrationEventReceived from '#events/integration_event_received'
 import { inboxSseBus } from '#services/inbox_sse_bus'
+import { DeterministicCommerceNotifier } from '#services/integrations/deterministic_commerce_notifier'
 
 function logListenerFailure(eventName: string, payload: Record<string, unknown>, error: unknown) {
   logger.error(
@@ -87,5 +89,21 @@ emitter.on(InboxStatusUpdated, (event) => {
     publishSafely('status.updated', event.payload.organizationId, event.payload)
   } catch (error) {
     logListenerFailure('inbox.status.updated_listener_failed', event.payload, error)
+  }
+})
+
+emitter.on(IntegrationEventReceived, async (event) => {
+  try {
+    const notifier = new DeterministicCommerceNotifier()
+    await notifier.handle(event.payload)
+  } catch (error) {
+    logListenerFailure(
+      'integration.event.received_listener_failed',
+      {
+        integrationEventId: event.payload.integrationEventId,
+        organizationId: event.payload.organizationId,
+      },
+      error
+    )
   }
 })

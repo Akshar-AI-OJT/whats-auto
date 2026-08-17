@@ -11,6 +11,7 @@ export const JOB_NAMES = {
   AI_DEBOUNCE_TURN: 'ai.debounce_turn',
   AI_SUMMARIZE_CONVERSATION: 'ai.summarize_conversation',
   AI_REINDEX_ALL_DOCUMENTS: 'ai.reindex_all_documents',
+  INTEGRATION_EVENTS_RECOVERY: 'integrations.events.recovery',
 } as const
 
 /** Singleton key so only one platform KB reindex runs at a time. */
@@ -32,3 +33,6 @@ export const CAMPAIGN_RECOVERY_CRON = '*/1 * * * *'
 
 /** Cron for sweeping unprocessed billing webhook events (every 5 minutes). */
 export const BILLING_PAYMENT_WEBHOOK_RECOVERY_CRON = '*/5 * * * *'
+
+/** Cron for re-emitting stuck accepted integration_events (every 5 minutes). */
+export const INTEGRATION_EVENTS_RECOVERY_CRON = '*/5 * * * *'

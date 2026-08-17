@@ -2,6 +2,7 @@ import type {
   MetaSendTemplateComponent,
   TemplateHeaderMediaType,
   TemplateParameterSchema,
+  TemplateUrlButtonParam,
 } from '#lib/meta_whatsapp/types'
 
 const NAMED_PLACEHOLDER = /\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/g
@@ -27,7 +28,7 @@ function extractNamedPlaceholders(text: string | null | undefined): string[] {
   const seen = new Set<string>()
   for (const match of text.matchAll(NAMED_PLACEHOLDER)) {
     const name = match[1]
-    if (!seen.has(name)) {
+    if (name && !seen.has(name)) {
       seen.add(name)
       names.push(name)
     }
@@ -40,20 +41,104 @@ function hasNumberedPlaceholders(text: string | null | undefined): boolean {
   return NUMBERED_PLACEHOLDER.test(text)
 }
 
-function hasNamedPlaceholders(text: string): boolean {
-  return /\{\{\s*[a-zA-Z_][a-zA-Z0-9_]*\s*\}\}/.test(text)
+function parseButtonsArray(buttons: unknown): Array<Record<string, unknown>> | null {
+  if (!buttons) {
+    return []
+  }
+
+  let value: unknown = buttons
+  if (typeof buttons === 'string') {
+    try {
+      value = JSON.parse(buttons)
+    } catch {
+      return null
+    }
+  }
+
+  if (!Array.isArray(value)) {
+    return null
+  }
+
+  return value.filter(
+    (item): item is Record<string, unknown> =>
+      Boolean(item) && typeof item === 'object' && !Array.isArray(item)
+  )
 }
 
-function buttonsLookDynamic(buttons: unknown): boolean {
-  if (!buttons) return false
-  const raw = typeof buttons === 'string' ? buttons : JSON.stringify(buttons)
-  return hasNumberedPlaceholders(raw) || hasNamedPlaceholders(raw)
+function buttonType(button: Record<string, unknown>): string {
+  return typeof button.type === 'string' ? button.type.toLowerCase() : ''
+}
+
+function buttonUrl(button: Record<string, unknown>): string {
+  return typeof button.url === 'string' ? button.url : ''
+}
+
+function extractUrlButtons(
+  buttons: unknown
+): { ok: true; buttons: TemplateUrlButtonParam[] } | { ok: false; reason: string } {
+  const parsed = parseButtonsArray(buttons)
+  if (parsed === null) {
+    const raw = typeof buttons === 'string' ? buttons : JSON.stringify(buttons)
+    if (hasNumberedPlaceholders(raw) || extractNamedPlaceholders(raw).length > 0) {
+      return {
+        ok: false,
+        reason: 'Templates with dynamic button variables are not supported for outbound V1',
+      }
+    }
+    return { ok: true, buttons: [] }
+  }
+
+  const urlButtons: TemplateUrlButtonParam[] = []
+  const seen = new Set<string>()
+
+  for (const [index, button] of parsed.entries()) {
+    const url = buttonUrl(button)
+    const urlNames = extractNamedPlaceholders(url)
+    const otherText = [button.text, button.example]
+      .filter((value): value is string => typeof value === 'string')
+      .join(' ')
+    const otherNames = extractNamedPlaceholders(otherText)
+
+    if (buttonType(button) === 'url') {
+      if (urlNames.length > 1) {
+        return { ok: false, reason: 'URL buttons support one named variable' }
+      }
+      if (otherNames.length > 0) {
+        return {
+          ok: false,
+          reason: 'Named variables are only supported in URL button destinations',
+        }
+      }
+      if (urlNames.length === 1) {
+        const name = urlNames[0]
+        if (!name) {
+          continue
+        }
+        if (seen.has(name)) {
+          return { ok: false, reason: 'Duplicate template parameter name' }
+        }
+        seen.add(name)
+        urlButtons.push({ name, index })
+      }
+      continue
+    }
+
+    if (urlNames.length > 0 || otherNames.length > 0) {
+      return {
+        ok: false,
+        reason: 'Named variables are only supported on URL buttons',
+      }
+    }
+  }
+
+  return { ok: true, buttons: urlButtons }
 }
 
 function nonSendable(reason: string): TemplateParameterSchema {
   return {
     headerNames: [],
     bodyNames: [],
+    urlButtons: [],
     sendable: false,
     unsupportedReason: reason,
   }
@@ -61,7 +146,7 @@ function nonSendable(reason: string): TemplateParameterSchema {
 
 /**
  * Derive the stored parameterSchema from local template fields.
- * Media headers are sendable with headerMediaType; numbered vars and dynamic buttons stay blocked.
+ * Named URL-button vars are sendable; numbered placeholders stay blocked.
  */
 export function deriveParameterSchema(params: {
   headerType?: string | null
@@ -70,23 +155,33 @@ export function deriveParameterSchema(params: {
   buttons?: unknown
 }): TemplateParameterSchema {
   const headerType = (params.headerType ?? 'none').toLowerCase()
+  const buttonsRaw =
+    typeof params.buttons === 'string' ? params.buttons : JSON.stringify(params.buttons ?? '')
 
-  if (buttonsLookDynamic(params.buttons)) {
-    return nonSendable('Templates with dynamic button variables are not supported for outbound V1')
+  if (
+    hasNumberedPlaceholders(params.headerContent) ||
+    hasNumberedPlaceholders(params.bodyText) ||
+    hasNumberedPlaceholders(buttonsRaw)
+  ) {
+    return nonSendable('Numbered placeholders like {{1}} are not supported; use named variables')
   }
 
-  if (hasNumberedPlaceholders(params.headerContent) || hasNumberedPlaceholders(params.bodyText)) {
-    return nonSendable('Numbered placeholders like {{1}} are not supported; use named variables')
+  const urlButtonsResult = extractUrlButtons(params.buttons)
+  if (!urlButtonsResult.ok) {
+    return nonSendable(urlButtonsResult.reason)
   }
 
   if (headerType === 'video') {
     return nonSendable('Video header templates are not supported')
   }
 
+  const urlButtons = urlButtonsResult.buttons
+
   if (HEADER_MEDIA_TYPES.has(headerType as TemplateHeaderMediaType)) {
     return {
       headerNames: [],
       bodyNames: extractNamedPlaceholders(params.bodyText),
+      urlButtons,
       sendable: true,
       headerMediaType: headerType as TemplateHeaderMediaType,
     }
@@ -98,12 +193,41 @@ export function deriveParameterSchema(params: {
   return {
     headerNames,
     bodyNames,
+    urlButtons,
     sendable: true,
   }
 }
 
 function emptySchema(): TemplateParameterSchema {
-  return { headerNames: [], bodyNames: [], sendable: false, unsupportedReason: 'Invalid schema' }
+  return {
+    headerNames: [],
+    bodyNames: [],
+    urlButtons: [],
+    sendable: false,
+    unsupportedReason: 'Invalid schema',
+  }
+}
+
+function parseUrlButtons(raw: unknown): TemplateUrlButtonParam[] {
+  if (!Array.isArray(raw)) {
+    return []
+  }
+
+  const buttons: TemplateUrlButtonParam[] = []
+  for (const item of raw) {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) {
+      continue
+    }
+    const record = item as Record<string, unknown>
+    if (typeof record.name !== 'string' || typeof record.index !== 'number') {
+      continue
+    }
+    if (!Number.isInteger(record.index) || record.index < 0) {
+      continue
+    }
+    buttons.push({ name: record.name, index: record.index })
+  }
+  return buttons
 }
 
 /**
@@ -120,6 +244,7 @@ export function parseParameterSchema(raw: unknown): TemplateParameterSchema {
   const bodyNames = Array.isArray(record.bodyNames)
     ? record.bodyNames.filter((n): n is string => typeof n === 'string')
     : []
+  const urlButtons = parseUrlButtons(record.urlButtons)
   const sendable = record.sendable === true
   const unsupportedReason =
     typeof record.unsupportedReason === 'string' ? record.unsupportedReason : undefined
@@ -130,7 +255,14 @@ export function parseParameterSchema(raw: unknown): TemplateParameterSchema {
     ? (headerMediaRaw as TemplateHeaderMediaType)
     : undefined
 
-  return { headerNames, bodyNames, sendable, unsupportedReason, headerMediaType }
+  return {
+    headerNames,
+    bodyNames,
+    sendable,
+    unsupportedReason,
+    headerMediaType,
+    ...(urlButtons.length > 0 ? { urlButtons } : {}),
+  }
 }
 
 /**
@@ -142,6 +274,7 @@ export function mapNamedParametersToMetaComponents(params: {
   headerMedia?: HeaderMediaInput
 }): MetaSendTemplateComponent[] {
   const { schema, values, headerMedia } = params
+  const urlButtons = schema.urlButtons ?? []
 
   if (!schema.sendable) {
     throw new TemplateParameterError(
@@ -159,7 +292,7 @@ export function mapNamedParametersToMetaComponents(params: {
     throw new TemplateParameterError('Header media is not allowed for this template')
   }
 
-  const required = [...schema.headerNames, ...schema.bodyNames]
+  const required = [...schema.headerNames, ...schema.bodyNames, ...urlButtons.map((b) => b.name)]
   const requiredSet = new Set(required)
   const providedKeys = Object.keys(values)
 
@@ -216,6 +349,21 @@ export function mapNamedParametersToMetaComponents(params: {
         parameter_name: name,
         text: values[name],
       })),
+    })
+  }
+
+  for (const button of urlButtons) {
+    components.push({
+      type: 'button',
+      sub_type: 'url',
+      index: String(button.index),
+      parameters: [
+        {
+          type: 'text',
+          parameter_name: button.name,
+          text: values[button.name],
+        },
+      ],
     })
   }
 
