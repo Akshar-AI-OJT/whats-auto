@@ -2,6 +2,9 @@ import type { Campaign, PaginationMeta } from '@/lib/api'
 
 export type CampaignViewMode = 'cards' | 'list'
 
+/** Matches `replaceCampaignRecipientsValidator` maxLength on the backend. */
+export const CAMPAIGN_RECIPIENT_MAX = 5000
+
 export const CAMPAIGN_STATUSES = [
   'draft',
   'scheduled',

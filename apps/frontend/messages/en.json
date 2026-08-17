@@ -1397,7 +1397,9 @@
       "templatesList": "Templates",
       "templatesMedia": "Media Library",
       "inviteMember": "Invite Member",
-      "contacts": "Contacts",
+      "contacts": "Contacts & Audience",
+      "contactsList": "Contacts",
+      "customerGroups": "Customer Groups",
       "inbox": "Inbox",
       "messages": "Messages",
       "campaigns": "Campaigns",
@@ -1796,6 +1798,131 @@
           "permissionDenied": "You don’t have permission to add contacts.",
           "generic": "Couldn’t save this contact. Please try again."
         }
+      }
+    },
+    "customerGroups": {
+      "eyebrow": "Audience",
+      "title": "Customer Groups",
+      "subtitle": "Organize your contacts into groups for targeted campaigns and automations.",
+      "create": "Create Group",
+      "loading": "Loading groups…",
+      "retry": "Retry",
+      "searchPlaceholder": "Search groups...",
+      "filterStatus": "Filter by status",
+      "filterAllStatuses": "All Status",
+      "filters": "Filters",
+      "filtersHint": "Narrow groups by name or status.",
+      "clearFilters": "Clear filters",
+      "emptyTitle": "No groups yet",
+      "emptyDescription": "Create a customer group to organize contacts for campaigns and automations.",
+      "noMatches": "No groups match your search.",
+      "noDescription": "No description",
+      "backToList": "Back to customer groups",
+      "pagination": "Showing {from} to {to} of {total} groups",
+      "prev": "Previous",
+      "next": "Next",
+      "mobileMeta": "{count, plural, one {# contact} other {# contacts}} · {date}",
+      "usedInCampaigns": "{count, plural, one {# Campaign} other {# Campaigns}}",
+      "columns": {
+        "name": "Group Name",
+        "contacts": "Contacts",
+        "type": "Type",
+        "usedIn": "Used In",
+        "createdOn": "Created On",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "type": {
+        "static": "Static"
+      },
+      "status": {
+        "active": "Active",
+        "inactive": "Inactive"
+      },
+      "kpis": {
+        "totalGroups": "Total Groups",
+        "totalGroupsHint": "Across all groups",
+        "totalContacts": "Total Contacts",
+        "totalContactsHint": "In all groups",
+        "usedInCampaigns": "Used in Campaigns",
+        "usedInCampaignsHint": "Available when campaign usage is tracked",
+        "engagementRate": "Engagement Rate",
+        "engagementRateHint": "Average across groups"
+      },
+      "actions": {
+        "openMenu": "Open group actions",
+        "view": "View Group",
+        "edit": "Edit Group",
+        "delete": "Delete Group",
+        "addContacts": "Add Contacts",
+        "removeContact": "Remove from group"
+      },
+      "form": {
+        "createTitle": "Create Group",
+        "createSubtitle": "Name the group, then select existing contacts to include.",
+        "editTitle": "Edit Group",
+        "editSubtitle": "Update the group details or membership. Removing a member does not delete the contact.",
+        "name": "Group Name",
+        "namePlaceholder": "VIP Customers",
+        "description": "Description",
+        "descriptionPlaceholder": "Who belongs in this group?",
+        "status": "Status",
+        "statusActive": "Active",
+        "statusInactive": "Inactive",
+        "selectContacts": "Select Contacts",
+        "selectContactsHint": "Adding or removing contacts only changes group membership.",
+        "cancel": "Cancel",
+        "create": "Save Group",
+        "save": "Save changes",
+        "saving": "Saving…",
+        "errors": {
+          "nameRequired": "Group name is required.",
+          "nameTooLong": "Group name must be 120 characters or fewer."
+        }
+      },
+      "picker": {
+        "searchPlaceholder": "Search contacts...",
+        "loading": "Loading contacts…",
+        "loadFailed": "Couldn’t load contacts. Please try again.",
+        "retry": "Retry",
+        "empty": "No contacts yet. Add contacts first, then add them to a group.",
+        "noMatches": "No contacts match your search.",
+        "selectedCount": "Selected: {count, plural, one {# contact} other {# contacts}}",
+        "unnamed": "Unnamed contact"
+      },
+      "delete": {
+        "title": "Delete Group",
+        "body": "Delete “{name}”? This cannot be undone.",
+        "contactsSafe": "Deleting this group will not delete its contacts.",
+        "cancel": "Cancel",
+        "confirm": "Delete Group",
+        "deleting": "Deleting…"
+      },
+      "detail": {
+        "membersTitle": "Members",
+        "membersCount": "{count, plural, one {# contact} other {# contacts}}",
+        "emptyMembers": "This group has no contacts.",
+        "createdOn": "Created on {date}"
+      },
+      "about": {
+        "title": "About Customer Groups",
+        "body": "Use groups to organize contacts by behavior, location, or campaign fit, then target those people in broadcasts and automations.",
+        "link": "Learn more →"
+      },
+      "toast": {
+        "created": "Group created.",
+        "updated": "Group updated.",
+        "deleted": "Group deleted.",
+        "membersUpdated": "Group members updated.",
+        "memberRemoved": "Contact removed from the group."
+      },
+      "errors": {
+        "permissionDenied": "You don’t have permission to view customer groups in this workspace.",
+        "loadFailed": "Couldn’t load customer groups. Please try again.",
+        "saveFailed": "Couldn’t save this group. Please try again.",
+        "deleteFailed": "Couldn’t delete this group. Please try again.",
+        "removeFailed": "Couldn’t remove this contact from the group.",
+        "notFound": "This customer group could not be found."
       }
     },
     "inbox": {
@@ -2705,12 +2832,19 @@
         "audience": "Target Audience",
         "audiencePlaceholder": "Select audience",
         "audienceAll": "All contacts ({count})",
+        "audienceGroup": "Customer Group",
+        "audienceGroupPlaceholder": "Select customer group",
         "audienceHint": "Selected contacts are attached to the campaign before send or schedule.",
         "recipients": {
           "selectedCount": "Selected Contacts: {count}",
           "allCount": "All Contacts ({count})",
           "empty": "No contacts selected",
+          "emptyGroup": "This group has no contacts.",
           "loading": "Loading contacts…",
+          "groupsLoading": "Loading groups…",
+          "noGroups": "No active customer groups yet. Create a group first.",
+          "groupCount": "{count, plural, one {# contact} other {# contacts}}",
+          "groupSummary": "{name} ({count})",
           "loadFailed": "Couldn’t load contacts. Please try again.",
           "retry": "Retry",
           "remove": "Remove",
@@ -2734,6 +2868,11 @@
           "templateRequired": "Select an approved template.",
           "audienceRequired": "Select a target audience.",
           "audienceEmpty": "Add contacts before attaching an audience.",
+          "groupRequired": "Select a customer group.",
+          "groupEmpty": "This group has no contacts.",
+          "groupLoadFailed": "Couldn’t load customer groups. Please try again.",
+          "groupMembersLoadFailed": "Couldn’t load this group’s contacts. Please try again.",
+          "audienceTooLarge": "This audience has more than {max} contacts. Reduce the group size before sending.",
           "scheduledAtRequired": "Choose a schedule date and time.",
           "scheduledAtFuture": "Schedule time must be in the future."
         }

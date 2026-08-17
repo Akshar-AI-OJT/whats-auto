@@ -20,6 +20,8 @@ type CampaignRecipientListProps = {
   onRemove: (contactId: string) => void
   compact?: boolean
   showCount?: boolean
+  allowRemove?: boolean
+  emptyMessage?: string
 }
 
 function displayName(contact: ContactSummary, unnamed: string) {
@@ -37,6 +39,8 @@ export function CampaignRecipientList({
   onRemove,
   compact = false,
   showCount = true,
+  allowRemove = true,
+  emptyMessage,
 }: CampaignRecipientListProps) {
   const t = useTranslations('dashboard.campaigns.form.recipients')
   const [expanded, setExpanded] = useState(false)
@@ -72,7 +76,7 @@ export function CampaignRecipientList({
   }
 
   if (selectedCount === 0) {
-    return <p className="text-sm text-body">{t('empty')}</p>
+    return <p className="text-sm text-body">{emptyMessage ?? t('empty')}</p>
   }
 
   const countLabel = isAllContacts
@@ -102,17 +106,19 @@ export function CampaignRecipientList({
                   <p className="truncate text-xs text-mute">{contact.email}</p>
                 ) : null}
               </div>
-              <Button
-                type="button"
-                variant="ghost"
-                size="xs"
-                className="shrink-0 text-mute hover:text-ink"
-                onClick={() => onRemove(contact.id)}
-                aria-label={t('removeAria', { name })}
-              >
-                <X className="size-3.5" aria-hidden />
-                <span className="hidden sm:inline">{t('remove')}</span>
-              </Button>
+              {allowRemove ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  className="shrink-0 text-mute hover:text-ink"
+                  onClick={() => onRemove(contact.id)}
+                  aria-label={t('removeAria', { name })}
+                >
+                  <X className="size-3.5" aria-hidden />
+                  <span className="hidden sm:inline">{t('remove')}</span>
+                </Button>
+              ) : null}
             </li>
           )
         })}

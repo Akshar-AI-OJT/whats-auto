@@ -22,9 +22,17 @@ type DashboardSidebarNavProps = {
   collapsed?: boolean
 }
 
+function isCustomerGroupsPath(pathname: string) {
+  return pathname === '/dashboard/customer-groups' || pathname.startsWith('/dashboard/customer-groups/')
+}
+
 function initialOpenState(pathname: string): Partial<Record<DashboardNavKey, boolean>> {
   return {
     team: pathname === '/dashboard/team' || pathname.startsWith('/dashboard/team/'),
+    contacts:
+      pathname === '/dashboard/contacts' ||
+      pathname.startsWith('/dashboard/contacts/') ||
+      isCustomerGroupsPath(pathname),
     templates:
       pathname === '/dashboard/templates' || pathname.startsWith('/dashboard/templates/'),
   }
@@ -72,7 +80,11 @@ export function DashboardSidebarNav({
         const active =
           key === 'dashboard'
             ? pathname === '/dashboard'
-            : Boolean(href && (pathname === href || pathname.startsWith(`${href}/`)))
+            : key === 'contacts'
+              ? pathname === '/dashboard/contacts' ||
+                pathname.startsWith('/dashboard/contacts/') ||
+                isCustomerGroupsPath(pathname)
+              : Boolean(href && (pathname === href || pathname.startsWith(`${href}/`)))
 
         const itemClass = cn(
           'group flex w-full items-center rounded-xl text-sm font-medium transition-[background-color,color,box-shadow,transform] duration-200',
@@ -147,7 +159,9 @@ export function DashboardSidebarNav({
                     const childLabel = t(child.key)
                     const childHref = child.href ?? href
                     const childActive =
-                      child.key === 'teamMembers' || child.key === 'templatesList'
+                      child.key === 'teamMembers' ||
+                      child.key === 'templatesList' ||
+                      child.key === 'contactsList'
                         ? pathname === childHref
                         : pathname === childHref || pathname.startsWith(`${childHref}/`)
 
