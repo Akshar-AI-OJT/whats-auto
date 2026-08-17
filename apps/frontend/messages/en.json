@@ -1403,6 +1403,7 @@
       "campaigns": "Campaigns",
       "templates": "Templates",
       "knowledge": "Knowledge Base",
+      "integrations": "Integrations",
       "notifications": "Notifications",
       "analytics": "Analytics",
       "billing": "Billing",
@@ -2053,6 +2054,55 @@
         "notConnected": "This WhatsApp number is not connected.",
         "metaGraph": "Meta Graph API error. Please try again.",
         "testToRequired": "Enter a recipient phone number to send a test."
+      }
+    },
+    "integrations": {
+      "eyebrow": "Connect",
+      "title": "Integrations",
+      "subtitle": "Connect Shopenup so store events can create contacts and send WhatsApp templates.",
+      "refresh": "Refresh",
+      "loading": "Loading integrations…",
+      "shopenupTitle": "Shopenup",
+      "shopenupDescription": "Receive order and catalog events from your Shopenup store.",
+      "connectCta": "Connect Shopenup",
+      "disconnect": "Disconnect",
+      "webhookLabel": "Webhook URL",
+      "webhookHint": "Paste this URL in Shopenup as the events endpoint.",
+      "copyWebhook": "Copy URL",
+      "copied": "Copied",
+      "keysTitle": "API keys",
+      "keysDescription": "Shopenup authenticates with a workspace API key. The secret is shown only once.",
+      "generateCta": "Generate key",
+      "revoke": "Revoke",
+      "prefix": "Prefix: {prefix}",
+      "lastUsed": "Last used {date}",
+      "neverUsed": "Never used",
+      "noKeysTitle": "No API keys yet",
+      "noKeysDescription": "Generate a key, copy the secret, then paste it into Shopenup.",
+      "secretTitle": "Copy this API key",
+      "secretDescription": "This secret is shown once. Store it in Shopenup now — you cannot view it again.",
+      "secretLabel": "API key",
+      "copySecret": "Copy key",
+      "secretDone": "I've saved it",
+      "status": {
+        "connected": "Connected",
+        "disconnected": "Not connected",
+        "error": "Error"
+      },
+      "toasts": {
+        "connected": "Shopenup connected.",
+        "disconnected": "Shopenup disconnected.",
+        "keyCreated": "API key created. Copy the secret now.",
+        "keyRevoked": "API key revoked.",
+        "webhookCopied": "Webhook URL copied.",
+        "secretCopied": "API key copied."
+      },
+      "errors": {
+        "generic": "Something went wrong. Please try again.",
+        "sessionExpired": "Your session expired. Please sign in again.",
+        "permissionDenied": "You don’t have permission to manage integrations in this workspace.",
+        "secretMissing": "The API key was created, but the secret was not returned. Generate a new key.",
+        "clipboard": "Couldn’t copy. Select the text and copy it manually."
       }
     },
     "templates": {

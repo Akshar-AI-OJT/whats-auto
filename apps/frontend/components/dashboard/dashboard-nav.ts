@@ -10,6 +10,7 @@ import {
   Settings,
   UsersRound,
   BookOpen,
+  Plug,
   type LucideIcon,
 } from 'lucide-react'
 import { PERMISSIONS } from '@/lib/rbac'
@@ -23,6 +24,7 @@ export const DASHBOARD_NAV_KEYS = [
   'campaigns',
   'templates',
   'knowledge',
+  'integrations',
   'notifications',
   'analytics',
   'billing',
@@ -41,6 +43,7 @@ export const DASHBOARD_NAV_ICONS: Record<DashboardNavKey, LucideIcon> = {
   campaigns: Megaphone,
   templates: FileText,
   knowledge: BookOpen,
+  integrations: Plug,
   notifications: Bell,
   analytics: BarChart3,
   billing: CreditCard,
@@ -57,6 +60,7 @@ export const DASHBOARD_NAV_HREFS: Partial<Record<DashboardNavKey, string>> = {
   campaigns: '/dashboard/campaigns',
   templates: '/dashboard/templates',
   knowledge: '/dashboard/knowledge',
+  integrations: '/dashboard/integrations',
   notifications: '/dashboard/notifications',
   billing: '/dashboard/billing',
   settings: '/dashboard/settings',
@@ -107,6 +111,7 @@ export const DASHBOARD_NAV_PERMISSION: Partial<Record<DashboardNavKey, string>> 
   campaigns: PERMISSIONS.CAMPAIGNS_VIEW,
   templates: PERMISSIONS.TEMPLATES_VIEW,
   knowledge: PERMISSIONS.AI_KB_VIEW,
+  integrations: PERMISSIONS.INTEGRATIONS_VIEW,
   billing: PERMISSIONS.BILLING_VIEW,
   settings: PERMISSIONS.ORG_VIEW,
 }

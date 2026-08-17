@@ -499,6 +499,45 @@ export type WhatsappConfigSummary = {
   updatedAt?: string | null
 }
 
+export type IntegrationConnection = {
+  id: string
+  organizationId: string
+  provider: string
+  externalAccountId: string | null
+  displayName: string
+  config: Record<string, unknown>
+  status: string
+  lastSyncAt: string | null
+  lastErrorCode: string | null
+  lastErrorMessage: string | null
+  createdAt: string
+  updatedAt: string | null
+}
+
+export type UpsertIntegrationConnectionBody = {
+  displayName: string
+  externalAccountId?: string | null
+  config?: Record<string, unknown>
+}
+
+export type IntegrationApiKey = {
+  id: string
+  organizationId: string
+  name: string
+  keyPrefix: string
+  scopes: string[]
+  lastUsedAt: string | null
+  expiresAt: string | null
+  revokedAt: string | null
+  createdAt: string
+  secretToken?: string
+}
+
+export type CreateIntegrationApiKeyBody = {
+  name: string
+  scopes?: Array<'events:write'>
+}
+
 export type WhatsappEmbeddedSignupSession = {
   appId: string
   configId: string
@@ -1583,6 +1622,49 @@ export const api = {
       protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
         `/api/v1/whatsapp/templates/${templateId}`,
         { method: 'DELETE' }
+      ),
+  },
+
+  integrations: {
+    list: () =>
+      protectedRequest<{ data?: IntegrationConnection[] } | IntegrationConnection[]>(
+        '/api/v1/integrations',
+        { method: 'GET' }
+      ),
+
+    upsert: (provider: string, body: UpsertIntegrationConnectionBody) =>
+      protectedRequest<{ data?: IntegrationConnection } & IntegrationConnection>(
+        `/api/v1/integrations/${provider}`,
+        {
+          method: 'PUT',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    destroy: (provider: string) =>
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/integrations/${provider}`,
+        { method: 'DELETE' }
+      ),
+  },
+
+  apiKeys: {
+    list: () =>
+      protectedRequest<{ data?: IntegrationApiKey[] } | IntegrationApiKey[]>(
+        '/api/v1/api-keys',
+        { method: 'GET' }
+      ),
+
+    create: (body: CreateIntegrationApiKeyBody) =>
+      protectedRequest<{ data?: IntegrationApiKey } & IntegrationApiKey>('/api/v1/api-keys', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+
+    revoke: (id: string) =>
+      protectedRequest<{ data?: IntegrationApiKey } & IntegrationApiKey>(
+        `/api/v1/api-keys/${id}/revoke`,
+        { method: 'POST' }
       ),
   },
 
