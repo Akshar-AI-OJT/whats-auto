@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --webpack",
+    "dev": "node scripts/prepare-dev.mjs && next dev",
+    "dev:clean": "node scripts/prepare-dev.mjs --force && next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint"
