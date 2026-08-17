@@ -1,5 +1,6 @@
 import db from '@adonisjs/lucid/services/db'
 import logger from '@adonisjs/core/services/logger'
+import env from '#start/env'
 import ContactException from '#exceptions/contact_exception'
 import type { IntegrationEventReceivedPayload } from '#lib/integrations/event_contract'
 import {
@@ -7,6 +8,7 @@ import {
   INTEGRATION_NOTIFY_ERROR,
   collectNotifierValues,
   pickRequiredTemplateValues,
+  selectCommerceTemplateName,
 } from '#lib/integrations/notifier_mapping'
 import { parseParameterSchema } from '#lib/meta_whatsapp/template_parameters'
 import { IntegrationEventRepository } from '#repositories/integration_event_repository'
@@ -20,7 +22,10 @@ export class DeterministicCommerceNotifier {
     private events: IntegrationEventRepository = new IntegrationEventRepository(),
     private recipients: IntegrationRecipientService = new IntegrationRecipientService(),
     private outbound: WhatsappOutboundService = new WhatsappOutboundService(),
-    private contacts: WhatsappWebhookRepository = new WhatsappWebhookRepository()
+    private contacts: WhatsappWebhookRepository = new WhatsappWebhookRepository(),
+    private templateFallbackName: string | null = env.get(
+      'INTEGRATION_COMMERCE_TEMPLATE_FALLBACK'
+    ) ?? null
   ) {}
 
   async handle(event: IntegrationEventReceivedPayload): Promise<void> {
@@ -55,8 +60,8 @@ export class DeterministicCommerceNotifier {
       return
     }
 
-    const templateName = COMMERCE_TEMPLATE_BY_TYPE[event.type]
-    if (!templateName) {
+    const preferredName = COMMERCE_TEMPLATE_BY_TYPE[event.type]
+    if (!preferredName) {
       return
     }
 
@@ -66,22 +71,31 @@ export class DeterministicCommerceNotifier {
       return
     }
 
-    const template = await db
-      .from('message_templates')
-      .where('organizationId', event.organizationId)
-      .where('name', templateName)
-      .first()
-    const schema = template
-      ? parseParameterSchema(
-          typeof template.parameterSchema === 'string'
-            ? JSON.parse(template.parameterSchema)
-            : template.parameterSchema
-        )
-      : null
-    if (!template || String(template.status).toLowerCase() !== 'approved' || !schema?.sendable) {
+    const preferred = await this.#loadSendableTemplate(event.organizationId, preferredName)
+    const templateName = selectCommerceTemplateName(
+      preferredName,
+      Boolean(preferred),
+      this.templateFallbackName
+    )
+    const loaded =
+      templateName === preferredName
+        ? preferred
+        : await this.#loadSendableTemplate(event.organizationId, templateName)
+    if (!loaded) {
       await this.#fail(event, INTEGRATION_NOTIFY_ERROR.TEMPLATE_NOT_READY)
       return
     }
+    if (templateName !== preferredName) {
+      logger.info(
+        {
+          organizationId: event.organizationId,
+          preferredName,
+          fallbackName: templateName,
+        },
+        'integration.event.template_fallback'
+      )
+    }
+    const { template, schema } = loaded
 
     const collected = collectNotifierValues({
       subject: event.subject,
@@ -172,6 +186,26 @@ export class DeterministicCommerceNotifier {
     }
 
     await this.events.markProcessed(event.integrationEventId)
+  }
+
+  async #loadSendableTemplate(organizationId: string, name: string) {
+    const template = await db
+      .from('message_templates')
+      .where('organizationId', organizationId)
+      .where('name', name)
+      .first()
+    if (!template || String(template.status).toLowerCase() !== 'approved') {
+      return null
+    }
+    const schema = parseParameterSchema(
+      typeof template.parameterSchema === 'string'
+        ? JSON.parse(template.parameterSchema)
+        : template.parameterSchema
+    )
+    if (!schema.sendable) {
+      return null
+    }
+    return { template, schema }
   }
 
   async #fail(event: IntegrationEventReceivedPayload, errorCode: string): Promise<void> {

@@ -3,6 +3,7 @@ import {
   COMMERCE_TEMPLATE_BY_TYPE,
   collectNotifierValues,
   pickRequiredTemplateValues,
+  selectCommerceTemplateName,
 } from '#lib/integrations/notifier_mapping'
 
 test.group('notifier mapping', () => {
@@ -15,6 +16,27 @@ test.group('notifier mapping', () => {
       'shopenup_order_delivered_review'
     )
     assert.equal(COMMERCE_TEMPLATE_BY_TYPE['commerce.product_created'], 'shopenup_new_arrival')
+  })
+
+  test('selectCommerceTemplateName uses fallback only when preferred is not ready', ({
+    assert,
+  }) => {
+    assert.equal(
+      selectCommerceTemplateName('shopenup_order_confirmed', true, 'hello_world'),
+      'shopenup_order_confirmed'
+    )
+    assert.equal(
+      selectCommerceTemplateName('shopenup_order_confirmed', false, 'hello_world'),
+      'hello_world'
+    )
+    assert.equal(
+      selectCommerceTemplateName('shopenup_order_confirmed', false, null),
+      'shopenup_order_confirmed'
+    )
+    assert.equal(
+      selectCommerceTemplateName('shopenup_order_confirmed', false, '  '),
+      'shopenup_order_confirmed'
+    )
   })
 
   test('collects named values from subject and payload aliases', ({ assert }) => {

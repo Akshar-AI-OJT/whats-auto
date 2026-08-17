@@ -14,6 +14,19 @@ export const COMMERCE_TEMPLATE_BY_TYPE: Record<
   'commerce.product_created': 'shopenup_new_arrival',
 }
 
+/** Prefer the mapped name; use fallback only when that template is not sendable. */
+export function selectCommerceTemplateName(
+  preferredName: string,
+  preferredReady: boolean,
+  fallbackName?: string | null
+): string {
+  if (preferredReady) {
+    return preferredName
+  }
+  const fallback = fallbackName?.trim()
+  return fallback || preferredName
+}
+
 export const INTEGRATION_NOTIFY_ERROR = {
   MISSING_PHONE: 'MISSING_PHONE',
   TEMPLATE_NOT_READY: 'TEMPLATE_NOT_READY',

@@ -16,6 +16,7 @@ import JobQueueManager from '#services/job_queue/job_queue_manager'
 import NullJobQueueDriver from '#services/job_queue/drivers/null_driver'
 import { JOB_NAMES } from '#services/job_queue/job_names'
 import { runWithTenant } from '#services/tenant_context'
+import { WhatsappWebhookRepository } from '#repositories/whatsapp_webhook_repository'
 import WhatsappOutboundService from '#services/whatsapp_outbound_service'
 
 async function createOrg() {
@@ -95,6 +96,33 @@ async function seedCodTemplate(organizationId: string, whatsappConfigId: string 
   })
 }
 
+async function seedHelloWorldTemplate(organizationId: string, whatsappConfigId: string | null) {
+  return runWithTenant(organizationId, async () => {
+    const [row] = await db
+      .table('message_templates')
+      .insert({
+        organizationId,
+        whatsappConfigId,
+        name: 'hello_world',
+        category: 'UTILITY',
+        language: 'en_US',
+        headerType: 'text',
+        bodyText:
+          'Welcome and congratulations!! This message demonstrates your ability to send a WhatsApp message notification from the Cloud API.',
+        parameterSchema: {
+          headerNames: [],
+          bodyNames: [],
+          sendable: true,
+        },
+        status: 'approved',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning(['id'])
+    return row.id as string
+  })
+}
+
 function fakeGraph(): MetaGraphClient {
   return {
     exchangeEmbeddedSignupCode: async () => ({ accessToken: 'x' }),
@@ -116,11 +144,13 @@ async function nullQueueDriver(): Promise<NullJobQueueDriver> {
   return driver
 }
 
-function notifier() {
+function notifier(templateFallbackName: string | null = null) {
   return new DeterministicCommerceNotifier(
     new IntegrationEventRepository(),
     new IntegrationRecipientService(),
-    new WhatsappOutboundService(fakeGraph())
+    new WhatsappOutboundService(fakeGraph()),
+    new WhatsappWebhookRepository(),
+    templateFallbackName
   )
 }
 
@@ -326,6 +356,122 @@ test.group('Deterministic commerce notifier', (group) => {
           { type: 'text', parameter_name: 'order_id', text: 'ord_cod_1' },
         ],
       })
+    })
+  })
+
+  test('falls back to hello_world when the mapped template is missing', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const whatsappConfigId = await seedConnectedConfig(organizationId)
+    await seedHelloWorldTemplate(organizationId, whatsappConfigId)
+
+    const eventId = randomUUID()
+    await runWithTenant(organizationId, async () => {
+      await db.table('integration_events').insert({
+        id: eventId,
+        organizationId,
+        provider: 'shopenup',
+        externalEventId: 'ord_fallback',
+        eventType: 'commerce.order_placed',
+        payload: {
+          occurredAt: '2026-08-17T12:00:00.000Z',
+          subject: { phone: '+919444411111', externalOrderId: 'ord_fallback' },
+          data: {
+            orderId: 'ord_fallback',
+            customerName: 'Ada',
+            customerPhone: '+919444411111',
+          },
+        },
+        status: 'accepted',
+      })
+    })
+
+    await notifier('hello_world').handle({
+      integrationEventId: eventId,
+      organizationId,
+      provider: 'shopenup',
+      externalEventId: 'ord_fallback',
+      type: 'commerce.order_placed',
+      occurredAt: '2026-08-17T12:00:00.000Z',
+      subject: { phone: '+919444411111', externalOrderId: 'ord_fallback' },
+      payload: {
+        orderId: 'ord_fallback',
+        customerName: 'Ada',
+        customerPhone: '+919444411111',
+      },
+    })
+
+    await runWithTenant(organizationId, async () => {
+      const row = await db.from('integration_events').where('id', eventId).first()
+      assert.equal(row.status, 'processed')
+
+      const dispatch = await db
+        .from('outbound_dispatches')
+        .where('organizationId', organizationId)
+        .first()
+      const queued =
+        typeof dispatch.payload === 'string' ? JSON.parse(dispatch.payload) : dispatch.payload
+      assert.equal(queued.templateName, 'hello_world')
+      assert.deepEqual(queued.components, [])
+    })
+  })
+
+  test('mapped template wins even when a fallback name is configured', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const whatsappConfigId = await seedConnectedConfig(organizationId)
+    await seedCodTemplate(organizationId, whatsappConfigId)
+    await seedHelloWorldTemplate(organizationId, whatsappConfigId)
+
+    const eventId = randomUUID()
+    await runWithTenant(organizationId, async () => {
+      await db.table('integration_events').insert({
+        id: eventId,
+        organizationId,
+        provider: 'shopenup',
+        externalEventId: 'ord_preferred',
+        eventType: 'commerce.order_placed',
+        payload: {
+          occurredAt: '2026-08-17T12:00:00.000Z',
+          subject: { phone: '+919333311111', externalOrderId: 'ord_preferred' },
+          data: {
+            orderId: 'ord_preferred',
+            customerName: 'Ada',
+            customerPhone: '+919333311111',
+            cta_url: 'pay-ord-preferred',
+          },
+        },
+        status: 'accepted',
+      })
+    })
+
+    await notifier('hello_world').handle({
+      integrationEventId: eventId,
+      organizationId,
+      provider: 'shopenup',
+      externalEventId: 'ord_preferred',
+      type: 'commerce.order_placed',
+      occurredAt: '2026-08-17T12:00:00.000Z',
+      subject: { phone: '+919333311111', externalOrderId: 'ord_preferred' },
+      payload: {
+        orderId: 'ord_preferred',
+        customerName: 'Ada',
+        customerPhone: '+919333311111',
+        cta_url: 'pay-ord-preferred',
+      },
+    })
+
+    await runWithTenant(organizationId, async () => {
+      const row = await db.from('integration_events').where('id', eventId).first()
+      assert.equal(row.status, 'processed')
+
+      const dispatch = await db
+        .from('outbound_dispatches')
+        .where('organizationId', organizationId)
+        .first()
+      const queued =
+        typeof dispatch.payload === 'string' ? JSON.parse(dispatch.payload) : dispatch.payload
+      assert.equal(queued.templateName, 'shopenup_cod_to_prepaid')
     })
   })
 
