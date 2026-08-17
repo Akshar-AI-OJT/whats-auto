@@ -73,14 +73,61 @@ test.group('deriveParameterSchema', () => {
     assert.include(schema.unsupportedReason ?? '', 'Numbered')
   })
 
-  test('rejects dynamic button variables', ({ assert }) => {
+  test('allows named URL button variables', ({ assert }) => {
+    const schema = deriveParameterSchema({
+      bodyText: 'Tap below {{name}}',
+      buttons: [
+        { type: 'QUICK_REPLY', text: 'Thanks' },
+        { type: 'URL', text: 'Open', url: 'https://x.com/{{cta_url}}' },
+      ],
+    })
+
+    assert.isTrue(schema.sendable)
+    assert.deepEqual(schema.bodyNames, ['name'])
+    assert.deepEqual(schema.urlButtons, [{ name: 'cta_url', index: 1 }])
+  })
+
+  test('rejects numbered URL button placeholders', ({ assert }) => {
     const schema = deriveParameterSchema({
       bodyText: 'Tap below',
-      buttons: [{ type: 'URL', text: 'Open', url: 'https://x.com/{{token}}' }],
+      buttons: [{ type: 'URL', text: 'Open', url: 'https://x.com/{{1}}' }],
     })
 
     assert.isFalse(schema.sendable)
-    assert.include(schema.unsupportedReason ?? '', 'button')
+    assert.include(schema.unsupportedReason ?? '', 'Numbered')
+  })
+
+  test('rejects named variables on non-URL buttons', ({ assert }) => {
+    const schema = deriveParameterSchema({
+      bodyText: 'Tap below',
+      buttons: [{ type: 'QUICK_REPLY', text: 'Yes {{choice}}' }],
+    })
+
+    assert.isFalse(schema.sendable)
+    assert.include(schema.unsupportedReason ?? '', 'URL buttons')
+  })
+
+  test('rejects duplicate named URL button variables', ({ assert }) => {
+    const schema = deriveParameterSchema({
+      bodyText: 'Tap below',
+      buttons: [
+        { type: 'URL', text: 'A', url: 'https://a.com/{{cta_url}}' },
+        { type: 'URL', text: 'B', url: 'https://b.com/{{cta_url}}' },
+      ],
+    })
+
+    assert.isFalse(schema.sendable)
+    assert.include(schema.unsupportedReason ?? '', 'Duplicate')
+  })
+
+  test('static URL buttons remain sendable without urlButtons', ({ assert }) => {
+    const schema = deriveParameterSchema({
+      bodyText: 'Tap below',
+      buttons: [{ type: 'URL', text: 'Open', url: 'https://x.com/shop' }],
+    })
+
+    assert.isTrue(schema.sendable)
+    assert.deepEqual(schema.urlButtons, [])
   })
 
   test('parameterless body is sendable', ({ assert }) => {
@@ -243,6 +290,31 @@ test.group('mapNamedParametersToMetaComponents', () => {
     })
     assert.deepEqual(components, [])
   })
+
+  test('maps named URL button parameters with Meta index', ({ assert }) => {
+    const components = mapNamedParametersToMetaComponents({
+      schema: {
+        headerNames: [],
+        bodyNames: ['name'],
+        urlButtons: [{ name: 'cta_url', index: 1 }],
+        sendable: true,
+      },
+      values: { name: 'Ada', cta_url: 'blue-shirt' },
+    })
+
+    assert.deepEqual(components, [
+      {
+        type: 'body',
+        parameters: [{ type: 'text', parameter_name: 'name', text: 'Ada' }],
+      },
+      {
+        type: 'button',
+        sub_type: 'url',
+        index: '1',
+        parameters: [{ type: 'text', parameter_name: 'cta_url', text: 'blue-shirt' }],
+      },
+    ])
+  })
 })
 
 test.group('parseParameterSchema', () => {
@@ -275,6 +347,23 @@ test.group('parseParameterSchema', () => {
         sendable: true,
         unsupportedReason: undefined,
         headerMediaType: 'image',
+      }
+    )
+
+    assert.deepEqual(
+      parseParameterSchema({
+        headerNames: [],
+        bodyNames: [],
+        urlButtons: [{ name: 'cta_url', index: 0 }],
+        sendable: true,
+      }),
+      {
+        headerNames: [],
+        bodyNames: [],
+        urlButtons: [{ name: 'cta_url', index: 0 }],
+        sendable: true,
+        unsupportedReason: undefined,
+        headerMediaType: undefined,
       }
     )
   })
