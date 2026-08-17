@@ -21,6 +21,7 @@ import { campaignQueryKeys } from './CampaignsListPage'
 import { unwrapCampaign, isEditableCampaignStatus } from './campaign-utils'
 import { unwrapTemplateList } from '@/components/dashboard/templates/template-utils'
 import { datetimeLocalToVineDate } from '@/lib/vine-date'
+import { CampaignRecipientList } from './CampaignRecipientList'
 
 /** Avoid useSearchParams — it can stall the create page on hard refresh via Suspense. */
 function readDuplicateFromId(): string | null {
@@ -74,6 +75,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
 
   const [fromId] = useState(() => (mode === 'create' ? readDuplicateFromId() : null))
   const [form, setForm] = useState<FormState>(emptyForm)
+  const [excludedContactIds, setExcludedContactIds] = useState<string[]>([])
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<{
     name?: string
@@ -140,10 +142,31 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
     [templatesQuery.data, form.messageTemplateId]
   )
 
+  const allContacts = contactsQuery.data
+  const selectedContacts = useMemo(() => {
+    if (form.audienceLabel !== 'all-contacts') return []
+    const list = allContacts ?? []
+    if (excludedContactIds.length === 0) return list
+    const excluded = new Set(excludedContactIds)
+    return list.filter((contact) => !excluded.has(contact.id))
+  }, [form.audienceLabel, allContacts, excludedContactIds])
   const contactIds = useMemo(
-    () => (contactsQuery.data ?? []).map((contact) => contact.id),
-    [contactsQuery.data]
+    () => selectedContacts.map((contact) => contact.id),
+    [selectedContacts]
   )
+  const isAllContactsSelection =
+    form.audienceLabel === 'all-contacts' &&
+    excludedContactIds.length === 0 &&
+    selectedContacts.length > 0
+
+  function handleAudienceChange(value: string) {
+    setForm((prev) => ({ ...prev, audienceLabel: value }))
+    setExcludedContactIds([])
+  }
+
+  function handleRemoveRecipient(contactId: string) {
+    setExcludedContactIds((prev) => (prev.includes(contactId) ? prev : [...prev, contactId]))
+  }
 
   const mutation = useMutation({
     mutationFn: async (): Promise<Campaign | null> => {
@@ -218,8 +241,12 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
     if (form.name.trim().length > 200) next.name = t('form.errors.nameTooLong')
     if (!form.messageTemplateId) next.template = t('form.errors.templateRequired')
     if (!form.audienceLabel) next.audience = t('form.errors.audienceRequired')
-    if (form.audienceLabel === 'all-contacts' && contactIds.length === 0) {
-      next.audience = t('form.errors.audienceEmpty')
+    if (form.audienceLabel === 'all-contacts') {
+      if (contactsQuery.isError) {
+        next.audience = t('form.recipients.loadFailed')
+      } else if (contactIds.length === 0) {
+        next.audience = t('form.errors.audienceEmpty')
+      }
     }
     if (form.scheduleMode === 'later') {
       if (!form.scheduledAt) {
@@ -373,17 +400,35 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
               id="campaign-audience"
               className="h-11 w-full rounded-md border border-dash-border bg-canvas px-3 text-sm text-ink"
               value={form.audienceLabel}
-              onChange={(e) => setForm((prev) => ({ ...prev, audienceLabel: e.target.value }))}
+              onChange={(e) => handleAudienceChange(e.target.value)}
+              disabled={contactsQuery.isLoading}
             >
               <option value="">{t('form.audiencePlaceholder')}</option>
               <option value="all-contacts">
-                {t('form.audienceAll', { count: contactsQuery.data?.length ?? 0 })}
+                {t('form.audienceAll', { count: allContacts?.length ?? 0 })}
               </option>
             </select>
             <p className="text-xs text-mute">{t('form.audienceHint')}</p>
             {fieldErrors.audience ? (
               <p className="text-xs text-negative">{fieldErrors.audience}</p>
             ) : null}
+            <CampaignRecipientList
+              audienceSelected={form.audienceLabel === 'all-contacts'}
+              contacts={selectedContacts}
+              selectedCount={selectedContacts.length}
+              isAllContacts={isAllContactsSelection}
+              loading={contactsQuery.isLoading || (contactsQuery.isFetching && !allContacts)}
+              error={
+                contactsQuery.isError
+                  ? (contactsQuery.error as unknown as ApiError | undefined)?.message ||
+                    t('form.recipients.loadFailed')
+                  : null
+              }
+              onRetry={() => {
+                void contactsQuery.refetch()
+              }}
+              onRemove={handleRemoveRecipient}
+            />
           </div>
 
           <fieldset className="space-y-3">
@@ -443,13 +488,40 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
                 <dt className="text-mute">{t('summary.template')}</dt>
                 <dd className="text-right font-medium text-ink">{selectedTemplate?.name || '—'}</dd>
               </div>
-              <div className="flex justify-between gap-3 border-b border-dash-border pb-2">
-                <dt className="text-mute">{t('summary.audience')}</dt>
-                <dd className="text-right font-medium text-ink">
-                  {form.audienceLabel
-                    ? t('form.audienceAll', { count: contactsQuery.data?.length ?? 0 })
-                    : '—'}
-                </dd>
+              <div className="space-y-3 border-b border-dash-border pb-3">
+                <div className="flex justify-between gap-3">
+                  <dt className="text-mute">{t('summary.audience')}</dt>
+                  <dd className="text-right font-medium text-ink">
+                    {form.audienceLabel !== 'all-contacts'
+                      ? '—'
+                      : contactsQuery.isError
+                        ? t('form.recipients.loadFailed')
+                        : contactsQuery.isLoading && !allContacts
+                          ? t('form.recipients.loading')
+                          : isAllContactsSelection
+                            ? t('form.recipients.allCount', { count: selectedContacts.length })
+                            : t('form.recipients.selectedCount', { count: selectedContacts.length })}
+                  </dd>
+                </div>
+                <CampaignRecipientList
+                  compact
+                  showCount={false}
+                  audienceSelected={form.audienceLabel === 'all-contacts'}
+                  contacts={selectedContacts}
+                  selectedCount={selectedContacts.length}
+                  isAllContacts={isAllContactsSelection}
+                  loading={contactsQuery.isLoading || (contactsQuery.isFetching && !allContacts)}
+                  error={
+                    contactsQuery.isError
+                      ? (contactsQuery.error as unknown as ApiError | undefined)?.message ||
+                        t('form.recipients.loadFailed')
+                      : null
+                  }
+                  onRetry={() => {
+                    void contactsQuery.refetch()
+                  }}
+                  onRemove={handleRemoveRecipient}
+                />
               </div>
               <div className="flex justify-between gap-3">
                 <dt className="text-mute">{t('summary.schedule')}</dt>
@@ -470,7 +542,17 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
             >
               {t('form.cancel')}
             </Button>
-            <Button type="submit" disabled={mutation.isPending} className="gap-2">
+            <Button
+              type="submit"
+              disabled={
+                mutation.isPending ||
+                (form.audienceLabel === 'all-contacts' &&
+                  (contactsQuery.isLoading ||
+                    contactsQuery.isError ||
+                    contactIds.length === 0))
+              }
+              className="gap-2"
+            >
               {mutation.isPending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
               {mutation.isPending ? t('form.saving') : submitLabel}
             </Button>
