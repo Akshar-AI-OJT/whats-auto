@@ -289,7 +289,7 @@ export function WhatsappConnectionPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 sm:gap-6">
+    <div className="flex w-full min-w-0 flex-col gap-5 sm:gap-6">
       <DashboardPanel className="relative overflow-hidden px-4 py-5 sm:px-6 sm:py-6">
         <div
           aria-hidden

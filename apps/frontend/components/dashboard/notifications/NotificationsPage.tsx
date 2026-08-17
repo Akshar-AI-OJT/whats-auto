@@ -27,7 +27,7 @@ export function NotificationsPage() {
   } = useNotifications({ enabled: true })
 
   return (
-    <div className="mx-auto flex w-full max-w-[960px] flex-col gap-6">
+    <div className="flex w-full min-w-0 flex-col gap-6">
       <div className="space-y-1">
         <p className="text-xs font-semibold tracking-wide text-mute uppercase">
           {t('eyebrow')}

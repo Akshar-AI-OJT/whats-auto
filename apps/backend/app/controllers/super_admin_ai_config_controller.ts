@@ -12,7 +12,7 @@ export default class SuperAdminAiConfigController {
    * @description Singleton engine knobs. Requires Super Admin role and platform:config_view. Does not include API keys or knowledge-chunk counts. Includes reindexStatus when a knowledge reindex is running or failed.
    * @tag Super-Admin
    * @security BearerAuth
-   * @responseBody 200 - { "data": { "isEnabled": true, "chatProvider": "openai", "chatModel": "gpt-4o-mini", "summaryModel": null, "embeddingModel": "text-embedding-3-small" } }
+   * @responseBody 200 - { "data": { "isEnabled": true, "chatProvider": "openai", "chatModel": "gpt-4o-mini", "summaryModel": "", "embeddingModel": "text-embedding-3-small" } }
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 403 - { "error": "Permission denied: platform:config_view", "code": "PERMISSION_DENIED" }
    */
@@ -29,7 +29,7 @@ export default class SuperAdminAiConfigController {
    * @description Partial update of the singleton row. Requires Super Admin role and platform:config_manage. API keys are not accepted. Models must be in the provider allowlist. embeddingProvider must match chatProvider. Changing provider or embedding model while knowledge chunks exist in the active space returns 409 unless confirmReindex is true, which enqueues AI_REINDEX_ALL_DOCUMENTS and flips the live space only after the job finishes.
    * @tag Super-Admin
    * @security BearerAuth
-   * @requestBody { "chatProvider": "openai", "chatModel": "gpt-4o-mini", "summaryModel": null, "embeddingModel": "text-embedding-3-small", "confirmReindex": false }
+   * @requestBody { "chatProvider": "openai", "chatModel": "gpt-4o-mini", "summaryModel": "", "embeddingModel": "text-embedding-3-small", "confirmReindex": false }
    * @responseBody 200 - { "data": { "isEnabled": true, "chatProvider": "openai", "chatModel": "gpt-4o-mini", "reindexStatus": "idle" } }
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 403 - { "error": "Permission denied: platform:config_manage", "code": "PERMISSION_DENIED" }

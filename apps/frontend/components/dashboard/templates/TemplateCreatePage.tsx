@@ -93,7 +93,7 @@ export function TemplateCreatePage() {
 
   if (!orgsLoading && !canCreateTemplates) {
     return (
-      <div className="mx-auto w-full max-w-[1200px]">
+      <div className="w-full min-w-0">
         <DashboardPanel className="px-4 py-5 sm:px-6">
           <p className="text-sm text-negative">{t('errors.manageDenied')}</p>
         </DashboardPanel>
@@ -103,7 +103,7 @@ export function TemplateCreatePage() {
 
   if (fromId && sourceQuery.isLoading) {
     return (
-      <div className="mx-auto flex w-full max-w-[1200px] items-center justify-center gap-2 py-24 text-sm text-body">
+      <div className="flex w-full min-w-0 items-center justify-center gap-2 py-24 text-sm text-body">
         <Loader2 className="size-4 animate-spin" aria-hidden />
         {t('loading')}
       </div>
@@ -112,7 +112,7 @@ export function TemplateCreatePage() {
 
   if (fromId && (sourceQuery.isError || !sourceQuery.data)) {
     return (
-      <div className="mx-auto w-full max-w-[1200px]">
+      <div className="w-full min-w-0">
         <DashboardPanel className="px-4 py-5 sm:px-6">
           <p className="text-sm text-negative">
             {(sourceQuery.error as unknown as ApiError)?.message || t('errors.loadFailed')}
@@ -123,7 +123,7 @@ export function TemplateCreatePage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1200px]">
+    <div className="w-full min-w-0">
       <DashboardPanel as="section" className="p-4 sm:p-5 md:p-6">
         <div className="mb-5">
           <p className="text-sm font-semibold tracking-wide text-positive-deep uppercase">

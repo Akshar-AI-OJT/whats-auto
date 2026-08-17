@@ -246,7 +246,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
 
   if (!orgsLoading && !canSubmit) {
     return (
-      <DashboardPanel as="section" className="mx-auto max-w-[1200px] px-4 py-6">
+      <DashboardPanel as="section" className="w-full min-w-0 px-4 py-6">
         <p role="alert" className="text-sm text-negative">
           {t('errors.permissionDenied')}
         </p>
@@ -265,7 +265,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
 
   if (mode === 'edit' && sourceQuery.data && !isEditableCampaignStatus(sourceQuery.data.status)) {
     return (
-      <DashboardPanel as="section" className="mx-auto max-w-[1200px] px-4 py-6">
+      <DashboardPanel as="section" className="w-full min-w-0 px-4 py-6">
         <p role="alert" className="text-sm text-negative">
           {t('errors.notEditable')}
         </p>
@@ -287,7 +287,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
         : t('form.reviewConfirm')
 
   return (
-    <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5">
+    <div className="flex w-full min-w-0 flex-col gap-5">
       <div>
         <Link
           href="/dashboard/campaigns"
