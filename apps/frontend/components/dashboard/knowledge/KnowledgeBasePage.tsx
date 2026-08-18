@@ -233,7 +233,7 @@ export function KnowledgeBasePage() {
     purgeMutation.isPending
 
   return (
-    <div className="mx-auto flex w-full max-w-300 flex-col gap-5 sm:gap-6">
+    <div className="flex w-full min-w-0 flex-col gap-5 sm:gap-6">
       <div className="flex flex-col gap-1">
         <p className="text-xs font-medium tracking-wide text-mute uppercase">{t('eyebrow')}</p>
         <DashboardSectionHeader

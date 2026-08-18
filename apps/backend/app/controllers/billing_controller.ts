@@ -45,7 +45,6 @@ export default class BillingController {
    * @tag Billing
    * @security BearerAuth
    * @responseBody 200 - { "data": { "id": "uuid", "planId": "uuid", "status": "active" } }
-   * @responseBody 200 - { "data": null }
    * @responseBody 403 - { "error": "Permission denied: billing:view", "code": "PERMISSION_DENIED" }
    */
   @inject()

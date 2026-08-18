@@ -3,6 +3,7 @@ import {
   deriveParameterSchema,
   mapNamedParametersToMetaComponents,
   parseParameterSchema,
+  pickRequiredParameterValues,
   TemplateParameterError,
 } from '#lib/meta_whatsapp/template_parameters'
 
@@ -314,6 +315,66 @@ test.group('mapNamedParametersToMetaComponents', () => {
         parameters: [{ type: 'text', parameter_name: 'cta_url', text: 'blue-shirt' }],
       },
     ])
+  })
+})
+
+test.group('pickRequiredParameterValues', () => {
+  test('picks required keys and ignores extras', ({ assert }) => {
+    const picked = pickRequiredParameterValues({
+      schema: {
+        headerNames: ['first_name'],
+        bodyNames: ['order_id'],
+        sendable: true,
+      },
+      values: { first_name: 'Ada', order_id: '42', extra: 'ignored' },
+    })
+
+    assert.deepEqual(picked, { first_name: 'Ada', order_id: '42' })
+  })
+
+  test('returns empty object when the template has no variables', ({ assert }) => {
+    const picked = pickRequiredParameterValues({
+      schema: { headerNames: [], bodyNames: [], sendable: true },
+      values: { extra: 'ignored' },
+    })
+    assert.deepEqual(picked, {})
+  })
+
+  test('rejects missing or empty required values', ({ assert }) => {
+    const schema = {
+      headerNames: [] as string[],
+      bodyNames: ['name'],
+      sendable: true,
+    }
+
+    assert.throws(
+      () => pickRequiredParameterValues({ schema, values: {} }),
+      TemplateParameterError,
+      /Missing required/
+    )
+
+    assert.throws(
+      () => pickRequiredParameterValues({ schema, values: { name: '   ' } }),
+      TemplateParameterError,
+      /non-empty string/
+    )
+  })
+
+  test('rejects non-sendable schema', ({ assert }) => {
+    assert.throws(
+      () =>
+        pickRequiredParameterValues({
+          schema: {
+            headerNames: [],
+            bodyNames: [],
+            sendable: false,
+            unsupportedReason: 'Numbered placeholders like {{1}} are not supported',
+          },
+          values: {},
+        }),
+      TemplateParameterError,
+      /Numbered placeholders/
+    )
   })
 })
 

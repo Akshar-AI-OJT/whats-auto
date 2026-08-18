@@ -16,10 +16,10 @@ import { CampaignService, type CampaignDto } from '#services/campaign_service'
 
 const CAMPAIGN_LIBRARY_RETENTION_DAYS = 30
 const RECIPIENT_BATCH_SIZE = 50
-const DB_INSERT_BATCH_SIZE = 5_000
 
 export type CampaignRecipientInput = {
-  contactIds: string[]
+  contactIds?: string[]
+  tagId?: string
   variables?: Record<string, string>
 }
 
@@ -41,74 +41,12 @@ export class CampaignExecutionService {
   async replaceRecipients(params: {
     organizationId: string
     campaignId: string
-    contactIds: string[]
+    contactIds?: string[]
+    tagId?: string
     variables?: Record<string, string>
   }): Promise<CampaignDto> {
     return runWithTenant(params.organizationId, async () => {
-      await this.#loadEditableCampaign(params)
-
-      const uniqueIds = [...new Set(params.contactIds)]
-
-      // Validate contacts in batches to avoid PostgreSQL's 65,535 parameter limit.
-      let foundCount = 0
-      for (let i = 0; i < uniqueIds.length; i += DB_INSERT_BATCH_SIZE) {
-        const batch = uniqueIds.slice(i, i + DB_INSERT_BATCH_SIZE)
-        const found = await db
-          .from('contacts')
-          .where('organizationId', params.organizationId)
-          .whereIn('id', batch)
-          .count('* as total')
-          .first()
-        foundCount += Number((found as { total: number } | undefined)?.total ?? 0)
-      }
-
-      if (foundCount !== uniqueIds.length) {
-        throw CampaignException.invalidReference()
-      }
-
-      const now = new Date()
-      await db.transaction(async (trx) => {
-        await trx
-          .from('broadcast_recipients')
-          .where('organizationId', params.organizationId)
-          .where('broadcastId', params.campaignId)
-          .delete()
-
-        if (uniqueIds.length === 0) {
-          await trx
-            .from('broadcasts')
-            .where('id', params.campaignId)
-            .where('organizationId', params.organizationId)
-            .update({ totalRecipients: 0 })
-          return
-        }
-
-        // Insert recipients in batches to avoid PostgreSQL parameter limits.
-        for (let i = 0; i < uniqueIds.length; i += DB_INSERT_BATCH_SIZE) {
-          const batch = uniqueIds.slice(i, i + DB_INSERT_BATCH_SIZE)
-          await trx.table('broadcast_recipients').insert(
-            batch.map((contactId) => ({
-              organizationId: params.organizationId,
-              broadcastId: params.campaignId,
-              contactId,
-              status: 'pending',
-              variables: params.variables ?? null,
-              createdAt: now,
-            }))
-          )
-        }
-
-        await trx
-          .from('broadcasts')
-          .where('id', params.campaignId)
-          .where('organizationId', params.organizationId)
-          .update({ totalRecipients: uniqueIds.length })
-      })
-
-      return this.campaigns.getCampaignById({
-        campaignId: params.campaignId,
-        organizationId: params.organizationId,
-      })
+      return this.campaigns.replaceRecipients(params)
     })
   }
 

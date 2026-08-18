@@ -15,6 +15,8 @@ export const metadata: Metadata = {
   description: 'Automate WhatsApp for sales, support, and marketing',
 }
 
+export const dynamicParams = true
+
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }))
 }

@@ -304,7 +304,7 @@ const requestBodySchemas: Record<string, JsonSchema> = {
       status: {
         type: 'string',
         example: 'sent',
-        enum: ['draft', 'scheduled', 'sending', 'sent', 'failed'],
+        enum: ['draft', 'scheduled', 'sending', 'sent', 'failed', 'cancelled'],
       },
     },
     ['status']
@@ -320,6 +320,19 @@ const requestBodySchemas: Record<string, JsonSchema> = {
       nullable: true,
     },
     status: { type: 'string', example: 'scheduled', enum: ['draft', 'scheduled'] },
+  }),
+  'put /api/v1/campaigns/{id}/recipients': bodySchema({
+    contactIds: {
+      type: 'array',
+      items: { type: 'string', format: 'uuid' },
+      example: ['00000000-0000-0000-0000-000000000001'],
+    },
+    tagId: { type: 'string', format: 'uuid' },
+    variables: {
+      type: 'object',
+      additionalProperties: { type: 'string' },
+      example: { customer_name: 'Priya' },
+    },
   }),
   'post /api/v1/inbox/conversations': bodySchema(
     {

@@ -285,6 +285,60 @@ export type CreateContactBody = {
   company?: string
 }
 
+/**
+ * Customer Groups contract for the future `/api/v1/customer-groups` APIs.
+ * HTTP methods are not called yet — see `customer-group-service.ts`.
+ */
+export type CustomerGroupStatus = 'active' | 'inactive'
+
+/** Only Static groups are supported in this frontend version. */
+export type CustomerGroupType = 'static'
+
+export type CustomerGroup = {
+  id: string
+  organizationId: string
+  name: string
+  description: string
+  type: CustomerGroupType
+  status: CustomerGroupStatus
+  contactIds: string[]
+  contactCount: number
+  /** Campaign usage from a future backend. `null` means not available yet. */
+  usedInCampaigns: number | null
+  createdAt: string
+  updatedAt: string | null
+}
+
+export type CustomerGroupSummaryStats = {
+  totalGroups: number
+  totalContacts: number
+  usedInCampaigns: number | null
+  engagementRate: number | null
+}
+
+export type ListCustomerGroupsParams = {
+  search?: string
+  status?: CustomerGroupStatus | 'all'
+}
+
+export type CreateCustomerGroupBody = {
+  name: string
+  description?: string
+  status?: CustomerGroupStatus
+  contactIds?: string[]
+}
+
+export type UpdateCustomerGroupBody = {
+  name?: string
+  description?: string
+  status?: CustomerGroupStatus
+  contactIds?: string[]
+}
+
+export type AddCustomerGroupContactsBody = {
+  contactIds: string[]
+}
+
 export type InboxConversationStatus = 'open' | 'pending' | 'closed'
 
 export type InboxConversationContact = {

@@ -32,7 +32,7 @@ function InboxLayoutShellInner({ children }: InboxLayoutShellProps) {
       {/* Mobile / small tablet: list on index, thread on conversation */}
       <div className="lg:hidden">
         {!isThread ? (
-          <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-4">
+          <div className="flex w-full min-w-0 flex-col gap-4">
             <InboxConversationListSidebar variant="page" />
           </div>
         ) : (
