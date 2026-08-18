@@ -198,13 +198,19 @@ export type ProfileUser = {
   updatedAt: string | null
 }
 
+export type OrganizationType = 'company' | 'partnership' | 'sole_proprietorship' | 'other'
+
 export type CreateOrganizationBody = {
   name: string
   slug: string
   email: string
-  phone?: string
+  phone: string
   website?: string
   industry?: string
+  organizationType: OrganizationType
+  address: string
+  pan: string
+  gstin?: string
   country: string
   timezone: string
   currency?: string
@@ -225,6 +231,10 @@ export type OrganizationSummary = {
   phone?: string | null
   website?: string | null
   industry?: string | null
+  organizationType?: OrganizationType | null
+  address?: string | null
+  pan?: string | null
+  gstin?: string | null
   country: string
   timezone: string
   currency?: string | null
@@ -237,6 +247,10 @@ export type UpdateOrganizationBody = {
   phone?: string
   website?: string
   industry?: string
+  organizationType?: OrganizationType
+  address?: string
+  pan?: string
+  gstin?: string
   timezone?: string
   currency?: string
 }
@@ -249,6 +263,10 @@ export type OrganizationDetails = {
   phone: string | null
   website: string | null
   industry: string | null
+  organizationType: OrganizationType | null
+  address: string | null
+  pan: string | null
+  gstin: string | null
   country: string
   timezone: string
   currency: string | null
@@ -937,6 +955,10 @@ export type SuperAdminOrganization = {
   phone?: string | null
   website?: string | null
   industry?: string | null
+  organizationType?: OrganizationType | null
+  address?: string | null
+  pan?: string | null
+  gstin?: string | null
   country: string
   timezone: string
   currency?: string | null
@@ -952,6 +974,10 @@ export type UpdateSuperAdminOrganizationBody = {
   phone?: string
   website?: string
   industry?: string
+  organizationType?: OrganizationType
+  address?: string
+  pan?: string
+  gstin?: string
   timezone?: string
   currency?: string
 }

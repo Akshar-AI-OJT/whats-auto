@@ -57,6 +57,13 @@ export const organizationsModule: DemoSeedModule = {
         phone: key === 'northstar' ? '+919876543210' : '+12125550100',
         website: key === 'northstar' ? 'https://northstar.demo' : 'https://harbor.demo',
         industry: org.industry,
+        organizationType: 'company',
+        address:
+          key === 'northstar'
+            ? '12 MG Road, Bengaluru, Karnataka 560001'
+            : '200 Harbor Blvd, New York, NY 10004',
+        pan: key === 'northstar' ? 'AAAAA0000A' : 'BBBBB0000B',
+        gstin: key === 'northstar' ? '29AAAAA0000A1Z5' : null,
         country: org.country,
         timezone: org.timezone,
         currency: org.currency,
