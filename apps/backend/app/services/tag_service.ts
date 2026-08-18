@@ -1,5 +1,7 @@
 import db from '@adonisjs/lucid/services/db'
 import TagException from '#exceptions/tag_exception'
+import { CAMPAIGN_SOFT_DELETED_STATUS } from '#validators/campaign'
+import { TAG_DEFAULT_STATUS, TAG_STATUSES, type TagStatus } from '#validators/tag'
 
 /** Postgres unique_violation, including Knex/Lucid-wrapped errors. */
 function isUniqueViolation(error: unknown): boolean {
@@ -18,8 +20,11 @@ export type TagRecord = {
   createdByUserId: string | null
   name: string
   color: string | null
+  description: string | null
+  status: TagStatus
   createdAt: string
   contactCount: number
+  usedInCampaigns: number
 }
 
 export type TagAssignmentRecord = {
@@ -49,7 +54,20 @@ const TAG_COLUMNS = [
   'tags.createdByUserId',
   'tags.name',
   'tags.color',
+  'tags.description',
+  'tags.status',
   'tags.createdAt',
+] as const
+
+const TAG_RETURNING = [
+  'id',
+  'organizationId',
+  'createdByUserId',
+  'name',
+  'color',
+  'description',
+  'status',
+  'createdAt',
 ] as const
 
 const CONTACT_COLUMNS = [
@@ -76,15 +94,42 @@ const CONTACT_COUNT_SQL = `(
     AND c."deletedAt" IS NULL
 ) AS "contactCount"`
 
+/**
+ * Distinct non-deleted campaigns (`broadcasts`) whose recipient snapshot
+ * includes at least one live contact currently on the tag.
+ */
+const USED_IN_CAMPAIGNS_SQL = `(
+  SELECT COUNT(DISTINCT br."broadcastId")::int
+  FROM contact_tags AS ct
+  INNER JOIN contacts AS c ON c.id = ct."contactId"
+  INNER JOIN broadcast_recipients AS br
+    ON br."contactId" = ct."contactId"
+    AND br."organizationId" = ct."organizationId"
+  INNER JOIN broadcasts AS b
+    ON b.id = br."broadcastId"
+    AND b."organizationId" = ct."organizationId"
+  WHERE ct."tagId" = tags.id
+    AND ct."organizationId" = tags."organizationId"
+    AND c."deletedAt" IS NULL
+    AND b.status <> '${CAMPAIGN_SOFT_DELETED_STATUS}'
+) AS "usedInCampaigns"`
+
 function mapTagRow(r: Record<string, unknown>): TagRecord {
+  const status = TAG_STATUSES.includes(r.status as TagStatus)
+    ? (r.status as TagStatus)
+    : TAG_DEFAULT_STATUS
+
   return {
     id: r.id as string,
     organizationId: r.organizationId as string,
     createdByUserId: (r.createdByUserId as string | null) ?? null,
     name: r.name as string,
     color: (r.color as string | null) ?? null,
+    description: (r.description as string | null) ?? null,
+    status,
     createdAt: r.createdAt as string,
     contactCount: Number(r.contactCount ?? 0),
+    usedInCampaigns: Number(r.usedInCampaigns ?? 0),
   }
 }
 
@@ -123,6 +168,11 @@ function normalizeColor(color: string | null | undefined): string | null {
   return color.trim() || null
 }
 
+function normalizeDescription(description: string | null | undefined): string | null {
+  if (description === undefined || description === null) return null
+  return description.trim() || null
+}
+
 export class TagService {
   /**
    * List tags for one organization. Filters by organizationId (defense in depth) + RLS.
@@ -131,7 +181,7 @@ export class TagService {
     const rows = await db
       .from('tags')
       .where('organizationId', organizationId)
-      .select(...TAG_COLUMNS, db.raw(CONTACT_COUNT_SQL))
+      .select(...TAG_COLUMNS, db.raw(CONTACT_COUNT_SQL), db.raw(USED_IN_CAMPAIGNS_SQL))
       .orderBy('createdAt', 'desc')
 
     return rows.map((r) => mapTagRow(r))
@@ -146,9 +196,11 @@ export class TagService {
     actorUserId: string
     name: string
     color?: string | null
+    description?: string | null
   }): Promise<TagRecord> {
     const name = params.name.trim()
     const color = normalizeColor(params.color)
+    const description = normalizeDescription(params.description)
 
     try {
       const [row] = await db
@@ -158,10 +210,12 @@ export class TagService {
           createdByUserId: params.actorUserId,
           name,
           color,
+          description,
+          status: TAG_DEFAULT_STATUS,
         })
-        .returning(['id', 'organizationId', 'createdByUserId', 'name', 'color', 'createdAt'])
+        .returning([...TAG_RETURNING])
 
-      return mapTagRow({ ...row, contactCount: 0 })
+      return mapTagRow({ ...row, contactCount: 0, usedInCampaigns: 0 })
     } catch (error) {
       if (isUniqueViolation(error)) {
         throw TagException.duplicateName()
@@ -175,8 +229,15 @@ export class TagService {
     tagId: string
     name?: string
     color?: string | null
+    description?: string | null
+    status?: TagStatus
   }): Promise<TagRecord> {
-    if (params.name === undefined && params.color === undefined) {
+    if (
+      params.name === undefined &&
+      params.color === undefined &&
+      params.description === undefined &&
+      params.status === undefined
+    ) {
       throw TagException.emptyUpdate()
     }
 
@@ -188,6 +249,12 @@ export class TagService {
     }
     if (params.color !== undefined) {
       patch.color = normalizeColor(params.color)
+    }
+    if (params.description !== undefined) {
+      patch.description = normalizeDescription(params.description)
+    }
+    if (params.status !== undefined) {
+      patch.status = params.status
     }
 
     try {
@@ -294,7 +361,7 @@ export class TagService {
       .from('tags')
       .where('id', tagId)
       .where('organizationId', organizationId)
-      .select(...TAG_COLUMNS, db.raw(CONTACT_COUNT_SQL))
+      .select(...TAG_COLUMNS, db.raw(CONTACT_COUNT_SQL), db.raw(USED_IN_CAMPAIGNS_SQL))
       .first()
 
     if (!row) {

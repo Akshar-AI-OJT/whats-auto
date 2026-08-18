@@ -41,7 +41,7 @@ export default class TagException extends Exception {
   }
 
   static emptyUpdate() {
-    return new this('Provide at least one of name or color', {
+    return new this('Provide at least one of name, color, description, or status', {
       status: 422,
       code: 'E_TAG_EMPTY_UPDATE',
     })
