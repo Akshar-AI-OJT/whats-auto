@@ -2898,6 +2898,64 @@
         "workspaces": "वर्कस्पेस सीमा"
       }
     },
+    "auditLogs": {
+      "eyebrow": "वर्कस्पेस एक्सेस",
+      "title": "ऑडिट लॉग",
+      "subtitle": "{workspace} में भूमिका, सदस्य और आमंत्रण बदलाव। इवेंट इसी संगठन तक सीमित रहते हैं।",
+      "thisWorkspace": "इस वर्कस्पेस",
+      "tableTitle": "हाल के एक्सेस इवेंट",
+      "tableDescription": "{count, plural, one {# इवेंट} other {# इवेंट}}",
+      "tableDescriptionLoading": "इवेंट लोड हो रहे हैं…",
+      "limitLabel": "सीमा",
+      "refresh": "रिफ़्रेश",
+      "loading": "ऑडिट इवेंट लोड हो रहे हैं…",
+      "searchPlaceholder": "इवेंट, टीम सदस्य, भूमिका या टारगेट खोजें…",
+      "emptyTitle": "कोई ऑडिट इवेंट नहीं",
+      "emptyDescription": "इस वर्कस्पेस के भूमिका, सदस्य और आमंत्रण बदलाव यहाँ दिखेंगे।",
+      "emptyFilteredTitle": "कोई मेल खाता इवेंट नहीं",
+      "emptyFilteredDescription": "कोई दूसरी खोज, टीम सदस्य या दिनांक सीमा आज़माएँ।",
+      "emptyValue": "—",
+      "viewDetails": "विवरण",
+      "filters": {
+        "search": "खोज",
+        "event": "एक्शन / इवेंट",
+        "actor": "एक्टर / टीम सदस्य",
+        "entityType": "एंटिटी प्रकार",
+        "dateFrom": "प्रारंभ तिथि",
+        "dateTo": "समाप्ति तिथि",
+        "allEvents": "सभी इवेंट",
+        "allActors": "सभी टीम सदस्य",
+        "allEntityTypes": "सभी एंटिटी प्रकार"
+      },
+      "status": {
+        "granted": "अनुमत",
+        "revoked": "रद्द",
+        "recorded": "दर्ज"
+      },
+      "columns": {
+        "event": "इवेंट",
+        "actor": "एक्टर",
+        "target": "टारगेट",
+        "workspace": "वर्कस्पेस",
+        "timestamp": "दिनांक और समय",
+        "status": "स्थिति",
+        "reason": "कारण",
+        "actions": "क्रियाएँ"
+      },
+      "details": {
+        "title": "ऑडिट इवेंट विवरण",
+        "fallbackEvent": "ऑडिट इवेंट",
+        "targetType": "टारगेट प्रकार",
+        "targetId": "टारगेट ID",
+        "before": "पहले",
+        "after": "बाद में",
+        "close": "बंद करें"
+      },
+      "errors": {
+        "loadFailed": "ऑडिट इवेंट लोड नहीं हो सके।",
+        "loadFailedHint": "यह पृष्ठ सक्रिय वर्कस्पेस के भूमिका, सदस्य और आमंत्रण इवेंट दिखाता है। ऑडिट देखने की अनुमति आवश्यक है।"
+      }
+    },
     "profile": {
       "eyebrow": "खाता",
       "title": "मेरा प्रोफ़ाइल",

@@ -11,6 +11,7 @@ import {
   UsersRound,
   BookOpen,
   Image as ImageIcon,
+  ScrollText,
   type LucideIcon,
 } from 'lucide-react'
 import { PERMISSIONS } from '@/lib/rbac'
@@ -38,6 +39,7 @@ export const DASHBOARD_NAV_KEYS = [
   'knowledge',
   'analytics',
   'team',
+  'auditLogs',
   'billing',
   'notifications',
   'settings',
@@ -60,7 +62,7 @@ export const DASHBOARD_NAV_SECTIONS: readonly DashboardNavSection[] = [
   { id: 'campaignsContent', items: ['campaigns', 'templates', 'media'] },
   { id: 'automationAi', items: ['knowledge'] },
   { id: 'insights', items: ['analytics'] },
-  { id: 'teamAccess', items: ['team'] },
+  { id: 'teamAccess', items: ['team', 'auditLogs'] },
   { id: 'billing', items: ['billing'] },
   { id: 'settings', items: ['notifications', 'settings'] },
 ]
@@ -75,6 +77,7 @@ export const DASHBOARD_NAV_ICONS: Record<DashboardNavKey, LucideIcon> = {
   knowledge: BookOpen,
   analytics: BarChart3,
   team: UsersRound,
+  auditLogs: ScrollText,
   billing: CreditCard,
   notifications: Bell,
   settings: Settings,
@@ -90,6 +93,7 @@ export const DASHBOARD_NAV_HREFS: Partial<Record<DashboardNavKey, string>> = {
   media: '/dashboard/templates/media',
   knowledge: '/dashboard/knowledge',
   team: '/dashboard/team',
+  auditLogs: '/dashboard/audit-logs',
   billing: '/dashboard/billing',
   notifications: '/dashboard/notifications',
   settings: '/dashboard/settings',
@@ -136,6 +140,7 @@ export const DASHBOARD_NAV_PERMISSION: Partial<Record<DashboardNavKey, string>> 
   templates: PERMISSIONS.TEMPLATES_VIEW,
   media: PERMISSIONS.MEDIA_VIEW,
   knowledge: PERMISSIONS.AI_KB_VIEW,
+  auditLogs: PERMISSIONS.AUDIT_VIEW,
   billing: PERMISSIONS.BILLING_VIEW,
   settings: PERMISSIONS.ORG_VIEW,
 }

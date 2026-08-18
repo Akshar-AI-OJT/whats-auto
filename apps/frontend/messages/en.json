@@ -2588,6 +2588,64 @@
         "workspaces": "Workspace limit"
       }
     },
+    "auditLogs": {
+      "eyebrow": "Workspace access",
+      "title": "Audit Logs",
+      "subtitle": "Role, member, and invitation changes in {workspace}. Events stay in this organization.",
+      "thisWorkspace": "this workspace",
+      "tableTitle": "Recent access events",
+      "tableDescription": "{count, plural, one {# event} other {# events}}",
+      "tableDescriptionLoading": "Loading events…",
+      "limitLabel": "Limit",
+      "refresh": "Refresh",
+      "loading": "Loading audit events…",
+      "searchPlaceholder": "Search event, teammate, role, or target…",
+      "emptyTitle": "No audit events",
+      "emptyDescription": "Role, member, and invitation changes for this workspace will appear here.",
+      "emptyFilteredTitle": "No matching events",
+      "emptyFilteredDescription": "Try a different search, teammate, or date range.",
+      "emptyValue": "—",
+      "viewDetails": "Details",
+      "filters": {
+        "search": "Search",
+        "event": "Action / event",
+        "actor": "Actor / teammate",
+        "entityType": "Entity type",
+        "dateFrom": "From date",
+        "dateTo": "To date",
+        "allEvents": "All events",
+        "allActors": "All teammates",
+        "allEntityTypes": "All entity types"
+      },
+      "status": {
+        "granted": "Granted",
+        "revoked": "Revoked",
+        "recorded": "Recorded"
+      },
+      "columns": {
+        "event": "Event",
+        "actor": "Actor",
+        "target": "Target",
+        "workspace": "Workspace",
+        "timestamp": "Date & Time",
+        "status": "Status",
+        "reason": "Reason",
+        "actions": "Actions"
+      },
+      "details": {
+        "title": "Audit event details",
+        "fallbackEvent": "Audit event",
+        "targetType": "Target type",
+        "targetId": "Target ID",
+        "before": "Before",
+        "after": "After",
+        "close": "Close"
+      },
+      "errors": {
+        "loadFailed": "Couldn’t load audit events.",
+        "loadFailedHint": "This page lists role, member, and invitation events for the active workspace. You need audit view permission."
+      }
+    },
     "sidebar": {
       "planLabel": "Current plan",
       "planName": "Growth",
