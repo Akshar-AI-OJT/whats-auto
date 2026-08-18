@@ -3829,7 +3829,7 @@
     "auditLogs": {
       "eyebrow": "Compliance",
       "title": "Audit Logs",
-      "subtitle": "Platform-wide authorization events from GET /api/v1/audit. Super Admin does not need an active organization.",
+      "subtitle": "Platform organization, billing, plan, and AI configuration events. Super Admin does not need an active organization.",
       "tableTitle": "Recent audit events",
       "tableDescription": "{count, plural, one {# event} other {# events}}",
       "tableDescriptionLoading": "Loading events…",
@@ -3838,7 +3838,7 @@
       "loading": "Loading audit events…",
       "searchPlaceholder": "Search event, actor, organization, or target…",
       "emptyTitle": "No audit events",
-      "emptyDescription": "No authorization audit events were returned for the platform.",
+      "emptyDescription": "No platform audit events were returned.",
       "emptyFilteredTitle": "No matching events",
       "emptyFilteredDescription": "Try a different search, organization, or date range.",
       "emptyValue": "—",
@@ -3882,7 +3882,7 @@
       },
       "errors": {
         "loadFailed": "Couldn’t load audit events.",
-        "loadFailedHint": "GET /api/v1/audit returns platform-wide events for Super Admin. An active organization is not required."
+        "loadFailedHint": "GET /api/v1/super-admin/audit-logs returns organization, billing, plan, and AI events. An active organization is not required."
       }
     },
     "aiSettings": {

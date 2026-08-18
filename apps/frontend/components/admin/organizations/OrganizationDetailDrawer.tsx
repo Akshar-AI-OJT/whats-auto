@@ -1,16 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
-import {
-  Building2,
-  CreditCard,
-  ExternalLink,
-  Loader2,
-  ScrollText,
-  Users,
-} from 'lucide-react'
+import { Building2, CreditCard, ExternalLink, Loader2, ScrollText, Users } from 'lucide-react'
 import { api, type AuthorizationAuditEvent, type SuperAdminSubscription } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { Link } from '@/i18n/navigation'
@@ -105,10 +98,12 @@ export function OrganizationDetailDrawer({
 }: OrganizationDetailDrawerProps) {
   const t = useTranslations('admin.organizations')
   const [tab, setTab] = useState<DrawerTab>('overview')
+  const [tabOrganizationId, setTabOrganizationId] = useState(organization?.id)
 
-  useEffect(() => {
+  if (organization?.id !== tabOrganizationId) {
+    setTabOrganizationId(organization?.id)
     setTab('overview')
-  }, [organization?.id])
+  }
 
   const empty = t('emptyValue')
   const open = Boolean(organization)
@@ -427,7 +422,7 @@ function ActivityTab({ organizationId, empty }: { organizationId: string; empty:
   const activityQuery = useQuery({
     queryKey: ['admin-org-activity', organizationId],
     queryFn: async () => {
-      const { data } = await api.audit.list({ limit: 50, organizationId })
+      const { data } = await api.superAdmin.auditLogs.list({ limit: 50, organizationId })
       return unwrapAuditEvents(data)
     },
   })
@@ -445,7 +440,10 @@ function ActivityTab({ organizationId, empty }: { organizationId: string; empty:
 
   if (activityQuery.isError) {
     return (
-      <p role="alert" className="rounded-xl border border-negative/25 bg-negative/5 px-4 py-3 text-sm text-negative">
+      <p
+        role="alert"
+        className="rounded-xl border border-negative/25 bg-negative/5 px-4 py-3 text-sm text-negative"
+      >
         {t('drawer.activityFailed')}
       </p>
     )

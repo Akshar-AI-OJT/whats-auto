@@ -828,7 +828,7 @@ export type AuthorizationAuditEvent = {
 export type ListAuditParams = {
   /** 1–100, backend default 50 */
   limit?: number
-  /** Super Admin only — omit for platform-wide events. Tenant callers are always org-scoped. */
+  /** Super Admin platform list only — omit for platform-wide events. */
   organizationId?: string
 }
 
@@ -1900,13 +1900,12 @@ export const api = {
 
   audit: {
     /**
-     * Authorization audit events (newest first).
-     * Tenant: active-organization scoped. Super Admin: platform-wide, optional organizationId filter.
+     * Tenant authorization audit events (newest first).
+     * Active-organization scoped. Requires audit:view.
      */
     list: (params: ListAuditParams = {}) => {
       const qs = new URLSearchParams()
       if (params.limit != null) qs.set('limit', String(params.limit))
-      if (params.organizationId) qs.set('organizationId', params.organizationId)
       const query = qs.toString()
       return protectedRequest<
         { data?: AuthorizationAuditEvent[] } | AuthorizationAuditEvent[]
@@ -2234,6 +2233,20 @@ export const api = {
             body: JSON.stringify(body),
           }
         ),
+    },
+
+    auditLogs: {
+      list: (params: ListAuditParams = {}) => {
+        const qs = new URLSearchParams()
+        if (params.limit != null) qs.set('limit', String(params.limit))
+        if (params.organizationId) qs.set('organizationId', params.organizationId)
+        const query = qs.toString()
+        return protectedRequest<
+          { data?: AuthorizationAuditEvent[] } | AuthorizationAuditEvent[]
+        >(`/api/v1/super-admin/audit-logs${query ? `?${query}` : ''}`, {
+          method: 'GET',
+        })
+      },
     },
   },
 }
