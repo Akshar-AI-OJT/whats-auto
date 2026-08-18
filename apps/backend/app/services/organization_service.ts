@@ -8,13 +8,26 @@ import { getGlobalRoleIdByName, resolveAssignableRoleForOrg } from '#services/ro
 import { bumpAllOrgMembersPermissionVersion } from '#lib/permission_version_bumps'
 import { NotificationService } from '#services/notification_service'
 
+export const ORGANIZATION_TYPES = [
+  'company',
+  'partnership',
+  'sole_proprietorship',
+  'other',
+] as const
+
+export type OrganizationType = (typeof ORGANIZATION_TYPES)[number]
+
 export type CreateOrganizationInput = {
   name: string
   slug: string
   email: string
-  phone?: string
+  phone: string
   website?: string
   industry?: string
+  organizationType: OrganizationType
+  address: string
+  pan: string
+  gstin?: string
   country: string
   timezone: string
   currency?: string
@@ -25,8 +38,77 @@ export type UpdateOrganizationInput = {
   phone?: string
   website?: string
   industry?: string
+  organizationType?: OrganizationType
+  address?: string
+  pan?: string
+  gstin?: string
   timezone?: string
   currency?: string
+}
+
+export type OrganizationPublicFields = {
+  id: string
+  name: string
+  slug: string
+  email: string
+  phone: string | null
+  website: string | null
+  industry: string | null
+  organizationType: OrganizationType | null
+  address: string | null
+  pan: string | null
+  gstin: string | null
+  country: string
+  timezone: string
+  currency: string | null
+}
+
+const ORGANIZATION_PUBLIC_COLUMNS = [
+  'id',
+  'name',
+  'slug',
+  'email',
+  'phone',
+  'website',
+  'industry',
+  'organizationType',
+  'address',
+  'pan',
+  'gstin',
+  'country',
+  'timezone',
+  'currency',
+] as const
+
+function asOrganizationType(value: unknown): OrganizationType | null {
+  if (
+    value === 'company' ||
+    value === 'partnership' ||
+    value === 'sole_proprietorship' ||
+    value === 'other'
+  ) {
+    return value
+  }
+  return null
+}
+
+function mapOrganizationPublicFields(row: Record<string, unknown>): OrganizationPublicFields {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    slug: row.slug as string,
+    email: row.email as string,
+    phone: (row.phone as string | null) ?? null,
+    website: (row.website as string | null) ?? null,
+    industry: (row.industry as string | null) ?? null,
+    organizationType: asOrganizationType(row.organizationType),
+    address: (row.address as string | null) ?? null,
+    pan: (row.pan as string | null) ?? null,
+    gstin: (row.gstin as string | null) ?? null,
+    country: row.country as string,
+    timezone: row.timezone as string,
+    currency: (row.currency as string | null) ?? null,
+  }
 }
 
 export class OrganizationService {
@@ -94,27 +176,18 @@ export class OrganizationService {
           name: data.name,
           slug: data.slug,
           email: data.email,
-          phone: data.phone ?? null,
+          phone: data.phone,
           website: data.website ?? null,
           industry: data.industry ?? null,
+          organizationType: data.organizationType,
+          address: data.address,
+          pan: data.pan.replace(/\s+/g, '').toUpperCase(),
+          gstin: data.gstin ? data.gstin.replace(/\s+/g, '').toUpperCase() : null,
           country: data.country,
           timezone: data.timezone,
           currency: data.currency ?? null,
         })
-        .returning([
-          'id',
-          'name',
-          'slug',
-          'email',
-          'phone',
-          'website',
-          'industry',
-          'country',
-          'timezone',
-          'currency',
-          'status',
-          'createdAt',
-        ])
+        .returning([...ORGANIZATION_PUBLIC_COLUMNS, 'status', 'createdAt'])
 
       await trx.table('organization_members').insert({
         organizationId: org.id,
@@ -142,16 +215,7 @@ export class OrganizationService {
       })
 
       return {
-        id: org.id as string,
-        name: org.name as string,
-        slug: org.slug as string,
-        email: org.email as string,
-        phone: org.phone as string | null,
-        website: org.website as string | null,
-        industry: org.industry as string | null,
-        country: org.country as string,
-        timezone: org.timezone as string,
-        currency: org.currency as string | null,
+        ...mapOrganizationPublicFields(org as Record<string, unknown>),
         status: org.status as boolean,
         createdAt: org.createdAt as string,
         role: 'owner',
@@ -177,6 +241,10 @@ export class OrganizationService {
         'o.phone',
         'o.website',
         'o.industry',
+        'o.organizationType',
+        'o.address',
+        'o.pan',
+        'o.gstin',
         'o.country',
         'o.timezone',
         'o.currency',
@@ -186,16 +254,7 @@ export class OrganizationService {
       .orderBy('o.name', 'asc')
 
     return rows.map((r) => ({
-      id: r.id as string,
-      name: r.name as string,
-      slug: r.slug as string,
-      email: r.email as string,
-      phone: (r.phone as string | null) ?? null,
-      website: (r.website as string | null) ?? null,
-      industry: (r.industry as string | null) ?? null,
-      country: r.country as string,
-      timezone: r.timezone as string,
-      currency: (r.currency as string | null) ?? null,
+      ...mapOrganizationPublicFields(r as Record<string, unknown>),
       role: r.role as string,
       createdAt: r.createdAt as string,
     }))
@@ -272,22 +331,15 @@ export class OrganizationService {
     if (patch.phone !== undefined) updates.phone = patch.phone
     if (patch.website !== undefined) updates.website = patch.website
     if (patch.industry !== undefined) updates.industry = patch.industry
+    if (patch.organizationType !== undefined) updates.organizationType = patch.organizationType
+    if (patch.address !== undefined) updates.address = patch.address
+    if (patch.pan !== undefined) updates.pan = patch.pan.replace(/\s+/g, '').toUpperCase()
+    if (patch.gstin !== undefined) updates.gstin = patch.gstin.replace(/\s+/g, '').toUpperCase()
     if (patch.timezone !== undefined) updates.timezone = patch.timezone
     if (patch.currency !== undefined) updates.currency = patch.currency
 
     if (Object.keys(updates).length === 0) {
-      return {
-        id: existing.id as string,
-        name: existing.name as string,
-        slug: existing.slug as string,
-        email: existing.email as string,
-        phone: existing.phone as string | null,
-        website: existing.website as string | null,
-        industry: existing.industry as string | null,
-        country: existing.country as string,
-        timezone: existing.timezone as string,
-        currency: existing.currency as string | null,
-      }
+      return mapOrganizationPublicFields(existing as Record<string, unknown>)
     }
 
     return db.transaction(async (trx) => {
@@ -295,18 +347,7 @@ export class OrganizationService {
         .from('organizations')
         .where('id', organizationId)
         .update(updates)
-        .returning([
-          'id',
-          'name',
-          'slug',
-          'email',
-          'phone',
-          'website',
-          'industry',
-          'country',
-          'timezone',
-          'currency',
-        ])
+        .returning([...ORGANIZATION_PUBLIC_COLUMNS])
 
       await trx.table('authorization_audits').insert({
         organizationId,
@@ -319,24 +360,17 @@ export class OrganizationService {
           phone: existing.phone,
           website: existing.website,
           industry: existing.industry,
+          organizationType: existing.organizationType,
+          address: existing.address,
+          pan: existing.pan,
+          gstin: existing.gstin,
           timezone: existing.timezone,
           currency: existing.currency,
         }),
         after: JSON.stringify(updates),
       })
 
-      return {
-        id: updated.id as string,
-        name: updated.name as string,
-        slug: updated.slug as string,
-        email: updated.email as string,
-        phone: updated.phone as string | null,
-        website: updated.website as string | null,
-        industry: updated.industry as string | null,
-        country: updated.country as string,
-        timezone: updated.timezone as string,
-        currency: updated.currency as string | null,
-      }
+      return mapOrganizationPublicFields(updated as Record<string, unknown>)
     })
   }
 

@@ -52,6 +52,25 @@ export function isValidWebsiteUrl(value: string): boolean {
   }
 }
 
+/** Indian PAN: 5 letters, 4 digits, 1 letter. */
+export const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]$/
+
+/** Indian GSTIN: 15 chars (state + PAN + entity + Z + check). */
+export const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/
+
+export function normalizeTaxId(value: string): string {
+  return value.trim().replace(/\s+/g, '').toUpperCase()
+}
+
+export function isValidPan(value: string): boolean {
+  return PAN_REGEX.test(normalizeTaxId(value))
+}
+
+export function isValidGstin(value: string): boolean {
+  const normalized = normalizeTaxId(value)
+  return normalized.length > 0 && GSTIN_REGEX.test(normalized)
+}
+
 export function savePendingOnboardingContact(input: {
   email: string
   phone: string
@@ -145,9 +164,13 @@ export function buildCreateOrganizationPayload(input: {
   name: string
   slug: string
   email: string
-  phone?: string
+  phone: string
   website?: string
   industry?: string
+  organizationType: 'company' | 'partnership' | 'sole_proprietorship' | 'other'
+  address: string
+  pan: string
+  gstin?: string
   country: string
   timezone: string
   currency?: string
@@ -156,28 +179,36 @@ export function buildCreateOrganizationPayload(input: {
     name: string
     slug: string
     email: string
+    phone: string
     country: string
     timezone: string
-    phone?: string
+    organizationType: 'company' | 'partnership' | 'sole_proprietorship' | 'other'
+    address: string
+    pan: string
     website?: string
     industry?: string
+    gstin?: string
     currency?: string
   } = {
     name: input.name.trim(),
     slug: input.slug.trim(),
     email: input.email.trim(),
+    phone: input.phone.trim(),
+    organizationType: input.organizationType,
+    address: input.address.trim(),
+    pan: normalizeTaxId(input.pan),
     country: input.country.trim(),
     timezone: input.timezone.trim(),
   }
-
-  const phone = input.phone?.trim()
-  if (phone) payload.phone = phone
 
   const website = input.website?.trim()
   if (website) payload.website = website
 
   const industry = input.industry?.trim()
   if (industry) payload.industry = industry
+
+  const gstin = input.gstin ? normalizeTaxId(input.gstin) : ''
+  if (gstin) payload.gstin = gstin
 
   const currency = input.currency?.trim()
   if (currency) payload.currency = currency

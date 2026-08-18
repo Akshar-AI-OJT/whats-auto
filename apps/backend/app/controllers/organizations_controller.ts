@@ -16,7 +16,7 @@ export default class OrganizationsController {
    * @description Creates the org, makes the caller owner, and sets it as the active organization on the current session.
    * @tag Organizations
    * @security BearerAuth
-   * @requestBody { "name": "Acme Inc", "slug": "acme", "email": "ops@acme.com", "country": "US", "timezone": "America/New_York" }
+   * @requestBody { "name": "Acme Inc", "slug": "acme", "email": "ops@acme.com", "phone": "+919876543210", "organizationType": "company", "address": "221B Baker Street, Mumbai", "pan": "AAAAA0000A", "country": "IN", "timezone": "Asia/Kolkata" }
    * @responseBody 200 - { "data": { "id": "uuid", "name": "Acme Inc", "slug": "acme", "role": "owner" } }
    * @responseHeader 200 - set-auth-jwt - Reminted access token for the new organization - @type(string)
    * @responseBody 401 - { "error": "Missing or invalid session" }
@@ -78,7 +78,7 @@ export default class OrganizationsController {
   /**
    * @update
    * @summary Update an organization
-   * @description Path `:id` must match the session active organization. Editable fields: name, phone, website, industry, timezone, currency. Slug and email cannot be changed.
+   * @description Path `:id` must match the session active organization. Editable fields: name, phone, website, industry, organizationType, address, pan, gstin, timezone, currency. Slug and email cannot be changed.
    * @tag Organizations
    * @security BearerAuth
    * @paramPath id - Organization id - @type(string)

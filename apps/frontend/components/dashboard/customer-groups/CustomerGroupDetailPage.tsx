@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useLocale, useTranslations } from 'next-intl'
 import { ArrowLeft, Loader2, Plus, Search, Trash2, UserMinus } from 'lucide-react'
-import { api, type ApiError, type ContactSummary, type CustomerGroupStatus } from '@/lib/api'
+import { api, type ContactSummary, type CustomerGroupStatus } from '@/lib/api'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
@@ -24,12 +24,14 @@ import {
   customerGroupQueryKeys,
   deleteCustomerGroup,
   getCustomerGroup,
+  listCustomerGroupContacts,
   removeCustomerGroupContact,
-  resolveGroupContacts,
   updateCustomerGroup,
+  type CustomerGroupWriteResult,
 } from './customer-group-service'
 import {
   contactDisplayName,
+  customerGroupErrorMessage,
   formatGroupDate,
   initialsFromContact,
   unwrapContacts,
@@ -67,9 +69,15 @@ export function CustomerGroupDetailPage({ groupId }: CustomerGroupDetailPageProp
     queryFn: () => getCustomerGroup(tenantOrganizationId, groupId),
   })
 
+  const membersQuery = useQuery({
+    queryKey: customerGroupQueryKeys.members(tenantOrganizationId, groupId),
+    enabled: Boolean(tenantOrganizationId) && canViewContacts && !orgsLoading,
+    queryFn: () => listCustomerGroupContacts(tenantOrganizationId, groupId),
+  })
+
   const contactsQuery = useQuery({
     queryKey: [...customerGroupQueryKeys.all, 'contacts', tenantOrganizationId],
-    enabled: Boolean(tenantOrganizationId) && canViewContacts && !orgsLoading,
+    enabled: Boolean(tenantOrganizationId) && canViewContacts && !orgsLoading && formOpen,
     queryFn: async () => {
       const { data } = await api.contacts.list()
       return unwrapContacts(data)
@@ -77,10 +85,7 @@ export function CustomerGroupDetailPage({ groupId }: CustomerGroupDetailPageProp
   })
 
   const group = groupQuery.data ?? null
-  const members = useMemo(
-    () => resolveGroupContacts(group, contactsQuery.data ?? []),
-    [group, contactsQuery.data]
-  )
+  const members = useMemo(() => membersQuery.data ?? [], [membersQuery.data])
   const filteredMembers = useMemo(() => {
     const needle = memberQuery.trim().toLowerCase()
     if (!needle) return members
@@ -103,15 +108,25 @@ export function CustomerGroupDetailPage({ groupId }: CustomerGroupDetailPageProp
       description: string
       status: CustomerGroupStatus
       contactIds: string[]
-    }) => updateCustomerGroup(tenantOrganizationId, groupId, values),
-    onSuccess: async () => {
+    }): Promise<CustomerGroupWriteResult> =>
+      updateCustomerGroup(tenantOrganizationId, groupId, values),
+    onSuccess: async (result) => {
+      await invalidateGroups()
+      if (result.failedAssignments > 0) {
+        setFormError(
+          t('errors.membersPartialFailed', {
+            failed: result.failedAssignments,
+            total: result.attemptedAssignments,
+          })
+        )
+        return
+      }
       setFormOpen(false)
       setFormError(null)
       showToast(t('toast.updated'), 'success')
-      await invalidateGroups()
     },
     onError: (err) => {
-      setFormError((err as Error).message || t('errors.saveFailed'))
+      setFormError(customerGroupErrorMessage(err, t, 'errors.saveFailed'))
     },
   })
 
@@ -124,7 +139,7 @@ export function CustomerGroupDetailPage({ groupId }: CustomerGroupDetailPageProp
       await invalidateGroups()
     },
     onError: (err) => {
-      setRemoveError((err as Error).message || t('errors.removeFailed'))
+      setRemoveError(customerGroupErrorMessage(err, t, 'errors.removeFailed'))
     },
   })
 
@@ -137,7 +152,7 @@ export function CustomerGroupDetailPage({ groupId }: CustomerGroupDetailPageProp
       router.push('/dashboard/customer-groups')
     },
     onError: (err) => {
-      setDeleteError((err as Error).message || t('errors.deleteFailed'))
+      setDeleteError(customerGroupErrorMessage(err, t, 'errors.deleteFailed'))
     },
   })
 
@@ -164,7 +179,7 @@ export function CustomerGroupDetailPage({ groupId }: CustomerGroupDetailPageProp
     return (
       <DashboardPanel as="section" className="space-y-4 px-4 py-6">
         <p role="alert" className="text-sm text-negative">
-          {(groupQuery.error as Error)?.message || t('errors.notFound')}
+          {customerGroupErrorMessage(groupQuery.error, t, 'errors.notFound')}
         </p>
         <Button type="button" variant="outline" size="xs" onClick={() => void groupQuery.refetch()}>
           {t('retry')}
@@ -206,6 +221,7 @@ export function CustomerGroupDetailPage({ groupId }: CustomerGroupDetailPageProp
                 type="button"
                 variant="outline"
                 className="gap-2"
+                disabled={!membersQuery.isSuccess}
                 onClick={() => {
                   setFormError(null)
                   setFormOpen(true)
@@ -242,13 +258,16 @@ export function CustomerGroupDetailPage({ groupId }: CustomerGroupDetailPageProp
           <div>
             <h2 className="font-display text-lg text-ink">{t('detail.membersTitle')}</h2>
             <p className="text-sm text-body">
-              {t('detail.membersCount', { count: members.length })}
+              {t('detail.membersCount', {
+                count: membersQuery.isSuccess ? members.length : group.contactCount,
+              })}
             </p>
           </div>
           {canEdit ? (
             <Button
               type="button"
               className="gap-2 self-start"
+              disabled={!membersQuery.isSuccess}
               onClick={() => {
                 setFormError(null)
                 setFormOpen(true)
@@ -277,21 +296,20 @@ export function CustomerGroupDetailPage({ groupId }: CustomerGroupDetailPageProp
           </div>
         ) : null}
 
-        {contactsQuery.isLoading ? (
+        {membersQuery.isLoading ? (
           <div className="mt-8 flex items-center justify-center gap-2 py-16 text-sm text-body">
             <Loader2 className="size-4 animate-spin" aria-hidden />
             {t('picker.loading')}
           </div>
-        ) : contactsQuery.isError ? (
+        ) : membersQuery.isError ? (
           <div
             role="alert"
             className="mt-8 flex flex-col gap-3 rounded-xl border border-negative/25 bg-negative/5 px-4 py-3 text-sm text-negative sm:flex-row sm:items-center sm:justify-between"
           >
             <p>
-              {(contactsQuery.error as unknown as ApiError | undefined)?.message ||
-                t('picker.loadFailed')}
+              {customerGroupErrorMessage(membersQuery.error, t, 'picker.loadFailed')}
             </p>
-            <Button type="button" variant="outline" size="xs" onClick={() => void contactsQuery.refetch()}>
+            <Button type="button" variant="outline" size="xs" onClick={() => void membersQuery.refetch()}>
               {t('retry')}
             </Button>
           </div>
@@ -347,13 +365,21 @@ export function CustomerGroupDetailPage({ groupId }: CustomerGroupDetailPageProp
       <CustomerGroupFormDialog
         open={formOpen}
         mode="edit"
-        group={group}
+        group={
+          group
+            ? {
+                ...group,
+                contactIds: members.map((contact) => contact.id),
+                contactCount: members.length,
+                updatedAt: String(membersQuery.dataUpdatedAt),
+              }
+            : group
+        }
         contacts={contactsQuery.data ?? []}
         contactsLoading={contactsQuery.isLoading}
         contactsError={
           contactsQuery.isError
-            ? (contactsQuery.error as unknown as ApiError | undefined)?.message ||
-              t('picker.loadFailed')
+            ? customerGroupErrorMessage(contactsQuery.error, t, 'picker.loadFailed')
             : null
         }
         onRetryContacts={() => {

@@ -17,6 +17,7 @@
 /.next/
 /out/
 /.dev-cache/
+.next-route-fingerprint
 
 # production
 /build
