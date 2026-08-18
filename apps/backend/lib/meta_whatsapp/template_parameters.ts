@@ -221,3 +221,37 @@ export function mapNamedParametersToMetaComponents(params: {
 
   return components
 }
+
+/**
+ * Pick only the schema-required parameter values.
+ * Extra candidate keys are ignored (unlike mapNamedParametersToMetaComponents).
+ * Missing or empty required values throw TemplateParameterError.
+ */
+export function pickRequiredParameterValues(params: {
+  schema: TemplateParameterSchema
+  values: Record<string, string>
+}): Record<string, string> {
+  const { schema, values } = params
+
+  if (!schema.sendable) {
+    throw new TemplateParameterError(
+      schema.unsupportedReason ?? 'Template is not sendable with the current parameter schema'
+    )
+  }
+
+  const required = [...schema.headerNames, ...schema.bodyNames]
+  const picked: Record<string, string> = {}
+
+  for (const name of required) {
+    const value = values[name]
+    if (value === undefined) {
+      throw new TemplateParameterError(`Missing required template parameter "${name}"`)
+    }
+    if (typeof value !== 'string' || value.trim() === '') {
+      throw new TemplateParameterError(`Template parameter "${name}" must be a non-empty string`)
+    }
+    picked[name] = value
+  }
+
+  return picked
+}

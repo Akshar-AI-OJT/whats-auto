@@ -148,6 +148,8 @@ test.group('CampaignExecutionService', (group) => {
         await db.from('conversations').where('organizationId', organizationId).delete()
         await db.from('broadcasts').where('organizationId', organizationId).delete()
         await db.from('message_templates').where('organizationId', organizationId).delete()
+        await db.from('contact_tags').where('organizationId', organizationId).delete()
+        await db.from('tags').where('organizationId', organizationId).delete()
         await db.from('contacts').where('organizationId', organizationId).delete()
         await db.from('whatsapp_configs').where('organizationId', organizationId).delete()
         await db.from('media_asset_references').where('organizationId', organizationId).delete()

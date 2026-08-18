@@ -3,7 +3,12 @@ import db from '@adonisjs/lucid/services/db'
 import logger from '@adonisjs/core/services/logger'
 import CampaignException from '#exceptions/campaign_exception'
 import { MediaAssetReferenceRepository } from '#repositories/media_asset_reference_repository'
-import { parseParameterSchema } from '#lib/meta_whatsapp/template_parameters'
+import {
+  deriveParameterSchema,
+  parseParameterSchema,
+  pickRequiredParameterValues,
+  TemplateParameterError,
+} from '#lib/meta_whatsapp/template_parameters'
 import type { TemplateParameterSchema } from '#lib/meta_whatsapp/types'
 import {
   assertApprovedTemplate,
@@ -130,6 +135,7 @@ export type CampaignPreviewDto = {
 }
 
 const SORT_FIELD_SET = new Set<string>(CAMPAIGN_SORT_FIELDS)
+const RECIPIENT_INSERT_BATCH_SIZE = 5_000
 
 /** Postgres foreign_key_violation, including Knex/Lucid-wrapped errors. */
 function isForeignKeyViolation(error: unknown): boolean {
@@ -209,6 +215,62 @@ function toVariableMap(raw: unknown): Record<string, string> {
     out[key] = String(value)
   }
   return out
+}
+
+function contactTemplateValueCandidates(contact: {
+  name: string | null
+  email: string | null
+  company: string | null
+  phone: string
+  customFields: unknown
+}): Record<string, string> {
+  const out: Record<string, string> = {}
+  const set = (key: string, value: unknown) => {
+    if (typeof value !== 'string') return
+    const trimmed = value.trim()
+    if (!trimmed) return
+    out[key] = trimmed
+  }
+
+  set('name', contact.name)
+  set('first_name', contact.name)
+  set('customer_name', contact.name)
+  set('email', contact.email)
+  set('company', contact.company)
+  set('phone', contact.phone)
+
+  for (const [key, value] of Object.entries(toVariableMap(contact.customFields))) {
+    set(key, value)
+  }
+
+  return out
+}
+
+function resolveRecipientParameterValues(params: {
+  schema: TemplateParameterSchema
+  contact: {
+    name: string | null
+    email: string | null
+    company: string | null
+    phone: string
+    customFields: unknown
+  } | null
+  overrides?: Record<string, string> | null
+}): Record<string, string> {
+  try {
+    return pickRequiredParameterValues({
+      schema: params.schema,
+      values: {
+        ...(params.contact ? contactTemplateValueCandidates(params.contact) : {}),
+        ...(params.overrides ?? {}),
+      },
+    })
+  } catch (error) {
+    if (error instanceof TemplateParameterError) {
+      throw CampaignException.missingTemplateParameters(error.message)
+    }
+    throw error
+  }
 }
 
 /**
@@ -346,6 +408,304 @@ export class CampaignService {
     }
   }
 
+  protected campaignTemplateSchema(template: Record<string, unknown>): TemplateParameterSchema {
+    const stored = parseParameterSchema(parseJsonField(template.parameterSchema))
+    if (stored.sendable || stored.unsupportedReason) {
+      return stored
+    }
+
+    return deriveParameterSchema({
+      headerType: (template.headerType as string | null) ?? null,
+      headerContent: (template.headerContent as string | null) ?? null,
+      bodyText: (template.bodyText as string) ?? '',
+      buttons: parseJsonField(template.buttons),
+    })
+  }
+
+  protected async loadCampaignTemplateSchema(params: {
+    organizationId: string
+    messageTemplateId: string
+  }): Promise<TemplateParameterSchema> {
+    const template = await db
+      .from('message_templates')
+      .where('id', params.messageTemplateId)
+      .where('organizationId', params.organizationId)
+      .whereNot('status', 'deleted')
+      .select('id', 'headerType', 'headerContent', 'bodyText', 'buttons', 'parameterSchema')
+      .first()
+
+    if (!template) {
+      throw CampaignException.messageTemplateNotFound()
+    }
+
+    const schema = this.campaignTemplateSchema(template)
+    if (!schema.sendable) {
+      throw CampaignException.templateNotSendable(schema.unsupportedReason)
+    }
+    return schema
+  }
+
+  protected async loadContactsByIds(params: {
+    organizationId: string
+    contactIds: string[]
+  }): Promise<
+    Map<
+      string,
+      {
+        id: string
+        name: string | null
+        email: string | null
+        company: string | null
+        phone: string
+        customFields: unknown
+      }
+    >
+  > {
+    const contacts = new Map<
+      string,
+      {
+        id: string
+        name: string | null
+        email: string | null
+        company: string | null
+        phone: string
+        customFields: unknown
+      }
+    >()
+
+    for (let i = 0; i < params.contactIds.length; i += RECIPIENT_INSERT_BATCH_SIZE) {
+      const batch = params.contactIds.slice(i, i + RECIPIENT_INSERT_BATCH_SIZE)
+      const rows = await db
+        .from('contacts')
+        .where('organizationId', params.organizationId)
+        .whereIn('id', batch)
+        .select('id', 'name', 'email', 'company', 'phone', 'customFields')
+
+      for (const row of rows) {
+        contacts.set(row.id as string, {
+          id: row.id as string,
+          name: (row.name as string | null) ?? null,
+          email: (row.email as string | null) ?? null,
+          company: (row.company as string | null) ?? null,
+          phone: row.phone as string,
+          customFields: row.customFields,
+        })
+      }
+    }
+
+    return contacts
+  }
+
+  protected async assertRecipientVariablesReady(params: {
+    organizationId: string
+    campaignId: string
+    messageTemplateId: string
+  }): Promise<void> {
+    const schema = await this.loadCampaignTemplateSchema(params)
+    const required = [...schema.headerNames, ...schema.bodyNames]
+    if (required.length === 0) {
+      return
+    }
+
+    const recipients = await db
+      .from('broadcast_recipients as r')
+      .leftJoin('contacts as c', 'c.id', 'r.contactId')
+      .where('r.organizationId', params.organizationId)
+      .where('r.broadcastId', params.campaignId)
+      .select('r.id', 'r.variables', 'c.name', 'c.email', 'c.company', 'c.phone', 'c.customFields')
+
+    for (const row of recipients) {
+      resolveRecipientParameterValues({
+        schema,
+        contact: row.phone
+          ? {
+              name: (row.name as string | null) ?? null,
+              email: (row.email as string | null) ?? null,
+              company: (row.company as string | null) ?? null,
+              phone: row.phone as string,
+              customFields: row.customFields,
+            }
+          : null,
+        overrides: toVariableMap(row.variables),
+      })
+    }
+  }
+
+  protected async resolveTagAudienceContactIds(
+    organizationId: string,
+    tagId: string
+  ): Promise<string[]> {
+    const tag = await db
+      .from('tags')
+      .where('id', tagId)
+      .where('organizationId', organizationId)
+      .select('id')
+      .first()
+    if (!tag) {
+      throw CampaignException.tagNotFound()
+    }
+
+    const rows = await db
+      .from('contact_tags as ct')
+      .innerJoin('contacts as c', 'c.id', 'ct.contactId')
+      .where('ct.tagId', tagId)
+      .where('ct.organizationId', organizationId)
+      .where('c.organizationId', organizationId)
+      .whereNull('c.deletedAt')
+      .select('c.id')
+
+    return [...new Set(rows.map((row) => row.id as string))]
+  }
+
+  protected campaignTemplateSchema(template: Record<string, unknown>): TemplateParameterSchema {
+    const stored = parseParameterSchema(parseJsonField(template.parameterSchema))
+    if (stored.sendable || stored.unsupportedReason) {
+      return stored
+    }
+
+    return deriveParameterSchema({
+      headerType: (template.headerType as string | null) ?? null,
+      headerContent: (template.headerContent as string | null) ?? null,
+      bodyText: (template.bodyText as string) ?? '',
+      buttons: parseJsonField(template.buttons),
+    })
+  }
+
+  protected async loadCampaignTemplateSchema(params: {
+    organizationId: string
+    messageTemplateId: string
+  }): Promise<TemplateParameterSchema> {
+    const template = await db
+      .from('message_templates')
+      .where('id', params.messageTemplateId)
+      .where('organizationId', params.organizationId)
+      .whereNot('status', 'deleted')
+      .select('id', 'headerType', 'headerContent', 'bodyText', 'buttons', 'parameterSchema')
+      .first()
+
+    if (!template) {
+      throw CampaignException.messageTemplateNotFound()
+    }
+
+    const schema = this.campaignTemplateSchema(template)
+    if (!schema.sendable) {
+      throw CampaignException.templateNotSendable(schema.unsupportedReason)
+    }
+    return schema
+  }
+
+  protected async loadContactsByIds(params: {
+    organizationId: string
+    contactIds: string[]
+  }): Promise<
+    Map<
+      string,
+      {
+        id: string
+        name: string | null
+        email: string | null
+        company: string | null
+        phone: string
+        customFields: unknown
+      }
+    >
+  > {
+    const contacts = new Map<
+      string,
+      {
+        id: string
+        name: string | null
+        email: string | null
+        company: string | null
+        phone: string
+        customFields: unknown
+      }
+    >()
+
+    for (let i = 0; i < params.contactIds.length; i += RECIPIENT_INSERT_BATCH_SIZE) {
+      const batch = params.contactIds.slice(i, i + RECIPIENT_INSERT_BATCH_SIZE)
+      const rows = await db
+        .from('contacts')
+        .where('organizationId', params.organizationId)
+        .whereIn('id', batch)
+        .select('id', 'name', 'email', 'company', 'phone', 'customFields')
+
+      for (const row of rows) {
+        contacts.set(row.id as string, {
+          id: row.id as string,
+          name: (row.name as string | null) ?? null,
+          email: (row.email as string | null) ?? null,
+          company: (row.company as string | null) ?? null,
+          phone: row.phone as string,
+          customFields: row.customFields,
+        })
+      }
+    }
+
+    return contacts
+  }
+
+  protected async assertRecipientVariablesReady(params: {
+    organizationId: string
+    campaignId: string
+    messageTemplateId: string
+  }): Promise<void> {
+    const schema = await this.loadCampaignTemplateSchema(params)
+    const required = [...schema.headerNames, ...schema.bodyNames]
+    if (required.length === 0) {
+      return
+    }
+
+    const recipients = await db
+      .from('broadcast_recipients as r')
+      .leftJoin('contacts as c', 'c.id', 'r.contactId')
+      .where('r.organizationId', params.organizationId)
+      .where('r.broadcastId', params.campaignId)
+      .select('r.id', 'r.variables', 'c.name', 'c.email', 'c.company', 'c.phone', 'c.customFields')
+
+    for (const row of recipients) {
+      resolveRecipientParameterValues({
+        schema,
+        contact: row.phone
+          ? {
+              name: (row.name as string | null) ?? null,
+              email: (row.email as string | null) ?? null,
+              company: (row.company as string | null) ?? null,
+              phone: row.phone as string,
+              customFields: row.customFields,
+            }
+          : null,
+        overrides: toVariableMap(row.variables),
+      })
+    }
+  }
+
+  protected async resolveTagAudienceContactIds(
+    organizationId: string,
+    tagId: string
+  ): Promise<string[]> {
+    const tag = await db
+      .from('tags')
+      .where('id', tagId)
+      .where('organizationId', organizationId)
+      .select('id')
+      .first()
+    if (!tag) {
+      throw CampaignException.tagNotFound()
+    }
+
+    const rows = await db
+      .from('contact_tags as ct')
+      .innerJoin('contacts as c', 'c.id', 'ct.contactId')
+      .where('ct.tagId', tagId)
+      .where('ct.organizationId', organizationId)
+      .where('c.organizationId', organizationId)
+      .whereNull('c.deletedAt')
+      .select('c.id')
+
+    return [...new Set(rows.map((row) => row.id as string))]
+  }
+
   /**
    * Fetch one campaign by id for the active organization.
    * Soft-deleted campaigns are not returned (404).
@@ -356,6 +716,113 @@ export class CampaignService {
   }): Promise<CampaignDto> {
     const row = await this.findCampaignRowOrFail(params)
     return mapCampaignRow(row)
+  }
+
+  /**
+   * Replace the recipient snapshot for a draft or scheduled campaign.
+   * `tagId` resolves live tagged contacts; `contactIds` follows All Contacts rules.
+   */
+  async replaceRecipients(params: {
+    organizationId: string
+    campaignId: string
+    contactIds?: string[]
+    tagId?: string
+    variables?: Record<string, string>
+  }): Promise<CampaignDto> {
+    const campaign = await this.findCampaignRowOrFail({
+      campaignId: params.campaignId,
+      organizationId: params.organizationId,
+    })
+    const status = campaign.status as string
+    if (status !== CAMPAIGN_DRAFT_STATUS && status !== CAMPAIGN_SCHEDULED_STATUS) {
+      throw CampaignException.notEditable(status)
+    }
+
+    let uniqueIds: string[]
+    if (params.tagId) {
+      uniqueIds = await this.resolveTagAudienceContactIds(params.organizationId, params.tagId)
+    } else {
+      uniqueIds = [...new Set(params.contactIds ?? [])]
+
+      let foundCount = 0
+      for (let i = 0; i < uniqueIds.length; i += RECIPIENT_INSERT_BATCH_SIZE) {
+        const batch = uniqueIds.slice(i, i + RECIPIENT_INSERT_BATCH_SIZE)
+        const found = await db
+          .from('contacts')
+          .where('organizationId', params.organizationId)
+          .whereIn('id', batch)
+          .count('* as total')
+          .first()
+        foundCount += Number((found as { total: number } | undefined)?.total ?? 0)
+      }
+
+      if (foundCount !== uniqueIds.length) {
+        throw CampaignException.invalidReference()
+      }
+    }
+
+    const messageTemplateId = campaign.messageTemplateId as string | null
+    const schema = messageTemplateId
+      ? await this.loadCampaignTemplateSchema({
+          organizationId: params.organizationId,
+          messageTemplateId,
+        })
+      : null
+    const contacts = schema
+      ? await this.loadContactsByIds({
+          organizationId: params.organizationId,
+          contactIds: uniqueIds,
+        })
+      : null
+
+    const now = new Date()
+    await db.transaction(async (trx) => {
+      await trx
+        .from('broadcast_recipients')
+        .where('organizationId', params.organizationId)
+        .where('broadcastId', params.campaignId)
+        .delete()
+
+      if (uniqueIds.length === 0) {
+        await trx
+          .from('broadcasts')
+          .where('id', params.campaignId)
+          .where('organizationId', params.organizationId)
+          .update({ totalRecipients: 0 })
+        return
+      }
+
+      for (let i = 0; i < uniqueIds.length; i += RECIPIENT_INSERT_BATCH_SIZE) {
+        const batch = uniqueIds.slice(i, i + RECIPIENT_INSERT_BATCH_SIZE)
+        await trx.table('broadcast_recipients').insert(
+          batch.map((contactId) => ({
+            organizationId: params.organizationId,
+            broadcastId: params.campaignId,
+            contactId,
+            status: 'pending',
+            variables: schema
+              ? resolveRecipientParameterValues({
+                  schema,
+                  contact: contacts?.get(contactId) ?? null,
+                  overrides: params.variables,
+                })
+              : (params.variables ?? null),
+            createdAt: now,
+          }))
+        )
+      }
+
+      await trx
+        .from('broadcasts')
+        .where('id', params.campaignId)
+        .where('organizationId', params.organizationId)
+        .update({ totalRecipients: uniqueIds.length })
+    })
+
+    return this.getCampaignById({
+      campaignId: params.campaignId,
+      organizationId: params.organizationId,
+    })
   }
 
   /**
@@ -757,6 +1224,14 @@ export class CampaignService {
       throw CampaignException.scheduledAtMustBeFuture()
     }
 
+    if (existing.messageTemplateId) {
+      await this.assertRecipientVariablesReady({
+        organizationId: params.organizationId,
+        campaignId: params.campaignId,
+        messageTemplateId: existing.messageTemplateId as string,
+      })
+    }
+
     // Conditional update avoids scheduling a campaign that left draft/scheduled mid-request.
     const [row] = await db
       .from('broadcasts')
@@ -933,6 +1408,12 @@ export class CampaignService {
     if (existing.headerMediaAssetId) {
       await assertReadyMediaAsset(params.organizationId, existing.headerMediaAssetId as string)
     }
+
+    await this.assertRecipientVariablesReady({
+      organizationId: params.organizationId,
+      campaignId: params.campaignId,
+      messageTemplateId: existing.messageTemplateId as string,
+    })
 
     // Conditional update prevents racing a second send into `sending`.
     const [row] = await db

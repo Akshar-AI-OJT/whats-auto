@@ -106,6 +106,14 @@ export const changeCampaignStatusValidator = vine.create(
   })
 )
 
+export const replaceCampaignRecipientsValidator = vine.create(
+  vine.object({
+    contactIds: vine.array(vine.string().trim().uuid()).optional(),
+    tagId: vine.string().trim().uuid().optional(),
+    variables: vine.record(vine.string()).optional(),
+  })
+)
+
 /** Editable campaign fields only — counters, org, creator, and timestamps are immutable. */
 export const updateCampaignValidator = vine.create(
   vine.object({
@@ -115,14 +123,5 @@ export const updateCampaignValidator = vine.create(
     headerMediaAssetId: vine.string().trim().uuid().nullable().optional(),
     scheduledAt: vine.date().nullable().optional(),
     status: vine.enum(CAMPAIGN_CREATE_STATUSES).optional(),
-  })
-)
-
-/** Replace recipient snapshot before schedule/send. */
-export const replaceCampaignRecipientsValidator = vine.create(
-  vine.object({
-    contactIds: vine.array(vine.string().trim().uuid()).minLength(1).maxLength(5000),
-    /** Optional shared template variables applied to every recipient. */
-    variables: vine.record(vine.string()).optional(),
   })
 )
