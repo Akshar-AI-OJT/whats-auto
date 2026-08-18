@@ -181,6 +181,48 @@ export class AiUsageLogSchema extends BaseModel {
   declare totalTokens: number
 }
 
+export class ApiKeySchema extends BaseModel {
+  static $columns = [
+    'createdAt',
+    'createdByUserId',
+    'expiresAt',
+    'id',
+    'keyHash',
+    'keyPrefix',
+    'lastUsedAt',
+    'name',
+    'organizationId',
+    'revokedAt',
+    'scopes',
+    'updatedAt',
+  ] as const
+  $columns = ApiKeySchema.$columns
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare createdByUserId: string | null
+  @column.dateTime()
+  declare expiresAt: DateTime | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare keyHash: string
+  @column()
+  declare keyPrefix: string
+  @column.dateTime()
+  declare lastUsedAt: DateTime | null
+  @column()
+  declare name: string
+  @column()
+  declare organizationId: string
+  @column.dateTime()
+  declare revokedAt: DateTime | null
+  @column()
+  declare scopes: any
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+}
+
 export class AuthorizationAuditSchema extends BaseModel {
   static $columns = [
     'actorUserId',
@@ -213,7 +255,7 @@ export class AuthorizationAuditSchema extends BaseModel {
   @column({ isPrimary: true })
   declare id: string
   @column()
-  declare organizationId: string
+  declare organizationId: string | null
   @column()
   declare permissionId: string | null
   @column()
@@ -609,6 +651,90 @@ export class ConversationSchema extends BaseModel {
   declare updatedAt: DateTime | null
   @column()
   declare whatsappConfigId: string
+}
+
+export class IntegrationConnectionSchema extends BaseModel {
+  static $columns = [
+    'config',
+    'createdAt',
+    'displayName',
+    'encryptedSecret',
+    'externalAccountId',
+    'id',
+    'lastErrorCode',
+    'lastErrorMessage',
+    'lastSyncAt',
+    'organizationId',
+    'provider',
+    'status',
+    'updatedAt',
+  ] as const
+  $columns = IntegrationConnectionSchema.$columns
+  @column()
+  declare config: any
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare displayName: string
+  @column()
+  declare encryptedSecret: string | null
+  @column()
+  declare externalAccountId: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare lastErrorCode: string | null
+  @column()
+  declare lastErrorMessage: string | null
+  @column.dateTime()
+  declare lastSyncAt: DateTime | null
+  @column()
+  declare organizationId: string
+  @column()
+  declare provider: string
+  @column()
+  declare status: string
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+}
+
+export class IntegrationEventSchema extends BaseModel {
+  static $columns = [
+    'connectionId',
+    'errorCode',
+    'eventType',
+    'externalEventId',
+    'id',
+    'organizationId',
+    'payload',
+    'processedAt',
+    'provider',
+    'receivedAt',
+    'status',
+  ] as const
+  $columns = IntegrationEventSchema.$columns
+  @column()
+  declare connectionId: string | null
+  @column()
+  declare errorCode: string | null
+  @column()
+  declare eventType: string
+  @column()
+  declare externalEventId: string
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare organizationId: string
+  @column()
+  declare payload: any
+  @column.dateTime()
+  declare processedAt: DateTime | null
+  @column()
+  declare provider: string
+  @column.dateTime()
+  declare receivedAt: DateTime
+  @column()
+  declare status: string
 }
 
 export class InvoiceLineItemSchema extends BaseModel {
