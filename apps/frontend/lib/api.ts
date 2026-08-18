@@ -286,8 +286,9 @@ export type CreateContactBody = {
 }
 
 /**
- * Customer Groups contract for the future `/api/v1/customer-groups` APIs.
- * HTTP methods are not called yet — see `customer-group-service.ts`.
+ * UI model for Customer Groups. Backed by `/api/v1/tags` — see `api.tags`
+ * and `customer-group-service.ts`. Fields the Tags API does not persist
+ * (description, status, type, campaign usage) stay as UI defaults.
  */
 export type CustomerGroupStatus = 'active' | 'inactive'
 
@@ -303,10 +304,42 @@ export type CustomerGroup = {
   status: CustomerGroupStatus
   contactIds: string[]
   contactCount: number
-  /** Campaign usage from a future backend. `null` means not available yet. */
+  /** Campaign usage is not returned by Tags. `null` means not available. */
   usedInCampaigns: number | null
   createdAt: string
   updatedAt: string | null
+}
+
+/** Raw `/api/v1/tags` record. */
+export type TagRecord = {
+  id: string
+  organizationId: string
+  createdByUserId: string | null
+  name: string
+  color: string | null
+  createdAt: string
+  contactCount: number
+}
+
+export type TagAssignmentRecord = {
+  id: string
+  organizationId: string
+  tagId: string
+  contactId: string
+}
+
+export type CreateTagBody = {
+  name: string
+  color?: string | null
+}
+
+export type UpdateTagBody = {
+  name?: string
+  color?: string | null
+}
+
+export type AssignTagContactBody = {
+  contactId: string
 }
 
 export type CustomerGroupSummaryStats = {
@@ -1408,6 +1441,58 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(body),
       }),
+  },
+
+  tags: {
+    list: () =>
+      protectedRequest<{ data?: TagRecord[] } | TagRecord[]>('/api/v1/tags', {
+        method: 'GET',
+      }),
+
+    get: (tagId: string) =>
+      protectedRequest<{ data?: TagRecord } & TagRecord>(`/api/v1/tags/${tagId}`, {
+        method: 'GET',
+      }),
+
+    create: (body: CreateTagBody) =>
+      protectedRequest<{ data?: TagRecord } & TagRecord>('/api/v1/tags', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+
+    update: (tagId: string, body: UpdateTagBody) =>
+      protectedRequest<{ data?: TagRecord } & TagRecord>(`/api/v1/tags/${tagId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+
+    delete: (tagId: string) =>
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(`/api/v1/tags/${tagId}`, {
+        method: 'DELETE',
+      }),
+
+    contacts: {
+      list: (tagId: string) =>
+        protectedRequest<{ data?: ContactSummary[] } | ContactSummary[]>(
+          `/api/v1/tags/${tagId}/contacts`,
+          { method: 'GET' }
+        ),
+
+      add: (tagId: string, body: AssignTagContactBody) =>
+        protectedRequest<{ data?: TagAssignmentRecord } & TagAssignmentRecord>(
+          `/api/v1/tags/${tagId}/contacts`,
+          {
+            method: 'POST',
+            body: JSON.stringify(body),
+          }
+        ),
+
+      remove: (tagId: string, contactId: string) =>
+        protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+          `/api/v1/tags/${tagId}/contacts/${contactId}`,
+          { method: 'DELETE' }
+        ),
+    },
   },
 
   inbox: {

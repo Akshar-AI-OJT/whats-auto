@@ -1933,7 +1933,11 @@
         "saveFailed": "Couldn’t save this group. Please try again.",
         "deleteFailed": "Couldn’t delete this group. Please try again.",
         "removeFailed": "Couldn’t remove this contact from the group.",
-        "notFound": "This customer group could not be found."
+        "notFound": "This customer group could not be found.",
+        "nameExists": "A group with this name already exists.",
+        "alreadyMember": "This contact is already in the group.",
+        "invalidContact": "That contact could not be found in this workspace.",
+        "membersPartialFailed": "Couldn’t add {failed} of {total} contacts to the group. The group was saved — try adding the remaining contacts again."
       }
     },
     "inbox": {
