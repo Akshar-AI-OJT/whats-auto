@@ -1,36 +1,30 @@
 /**
- * Customer Groups data adapter.
+ * Customer Groups adapter over the existing Tags APIs.
  *
- * Future HTTP contract (do not call these endpoints until the backend exists):
- *   GET    /api/v1/customer-groups
- *   POST   /api/v1/customer-groups
- *   GET    /api/v1/customer-groups/:id
- *   PATCH  /api/v1/customer-groups/:id
- *   DELETE /api/v1/customer-groups/:id
- *   GET    /api/v1/customer-groups/:id/contacts
- *   POST   /api/v1/customer-groups/:id/contacts
- *   DELETE /api/v1/customer-groups/:id/contacts/:contactId
+ *   GET    /api/v1/tags
+ *   POST   /api/v1/tags
+ *   GET    /api/v1/tags/:id
+ *   PATCH  /api/v1/tags/:id
+ *   DELETE /api/v1/tags/:id
+ *   GET    /api/v1/tags/:id/contacts
+ *   POST   /api/v1/tags/:id/contacts        body: { contactId }
+ *   DELETE /api/v1/tags/:id/contacts/:contactId
  *
- * Components should import this module — not the in-memory store.
+ * The product UI says "Customer Group"; the HTTP resource is Tag.
  */
 
-import type { ContactSummary } from '@/lib/api'
-import type {
-  CreateCustomerGroupBody,
-  CustomerGroup,
-  CustomerGroupSummaryStats,
-  ListCustomerGroupsParams,
-  UpdateCustomerGroupBody,
-} from '@/lib/api'
 import {
-  getStoredGroup,
-  insertStoredGroup,
-  listStoredGroups,
-  removeStoredGroup,
-  replaceStoredGroup,
-} from './customer-group-store'
-
-const MOCK_LATENCY_MS = 80
+  api,
+  type ApiError,
+  type ContactSummary,
+  type CreateCustomerGroupBody,
+  type CustomerGroup,
+  type CustomerGroupSummaryStats,
+  type ListCustomerGroupsParams,
+  type TagRecord,
+  type UpdateCustomerGroupBody,
+} from '@/lib/api'
+import { remapTagErrorMessage, unwrapContacts } from './customer-group-utils'
 
 export const customerGroupQueryKeys = {
   all: ['customer-groups'] as const,
@@ -40,17 +34,26 @@ export const customerGroupQueryKeys = {
     [...customerGroupQueryKeys.all, 'summary', organizationId ?? 'none'] as const,
   detail: (organizationId: string | null | undefined, id: string) =>
     [...customerGroupQueryKeys.all, 'detail', organizationId ?? 'none', id] as const,
+  members: (organizationId: string | null | undefined, id: string) =>
+    [...customerGroupQueryKeys.all, 'members', organizationId ?? 'none', id] as const,
 }
 
 export class CustomerGroupServiceError extends Error {
-  constructor(message: string) {
+  status?: number
+  code?: string
+
+  constructor(message: string, options?: { status?: number; code?: string }) {
     super(message)
     this.name = 'CustomerGroupServiceError'
+    this.status = options?.status
+    this.code = options?.code
   }
 }
 
-function delay() {
-  return new Promise((resolve) => setTimeout(resolve, MOCK_LATENCY_MS))
+export type CustomerGroupWriteResult = {
+  group: CustomerGroup
+  failedAssignments: number
+  attemptedAssignments: number
 }
 
 function requireOrganizationId(organizationId: string | null | undefined): string {
@@ -64,55 +67,145 @@ function normalizeName(value: string) {
   return value.trim().replace(/\s+/g, ' ')
 }
 
-function assertUniqueName(
-  organizationId: string,
-  name: string,
-  excludeId?: string
-) {
-  const needle = name.toLowerCase()
-  const clash = listStoredGroups(organizationId).some(
-    (group) => group.id !== excludeId && group.name.toLowerCase() === needle
+function uniqueIds(ids: string[]) {
+  return [...new Set(ids.filter(Boolean))]
+}
+
+function isApiError(error: unknown): error is ApiError {
+  return Boolean(
+    error &&
+      typeof error === 'object' &&
+      'message' in error &&
+      typeof (error as ApiError).message === 'string' &&
+      'status' in error &&
+      typeof (error as ApiError).status === 'number'
   )
-  if (clash) {
-    throw new CustomerGroupServiceError('A group with this name already exists.')
+}
+
+function throwMapped(error: unknown): never {
+  if (isApiError(error)) {
+    throw new CustomerGroupServiceError(remapTagErrorMessage(error), {
+      status: error.status,
+      code: error.code,
+    })
+  }
+  if (error instanceof CustomerGroupServiceError) {
+    throw error
+  }
+  if (error instanceof Error) {
+    throw new CustomerGroupServiceError(error.message)
+  }
+  throw new CustomerGroupServiceError('Request failed')
+}
+
+function unwrapTag(payload: unknown): TagRecord {
+  if (!payload || typeof payload !== 'object') {
+    throw new CustomerGroupServiceError('Customer group not found.', {
+      status: 404,
+      code: 'E_TAG_NOT_FOUND',
+    })
+  }
+  const wrapped = payload as { data?: TagRecord } & Partial<TagRecord>
+  const tag = wrapped.data && wrapped.data.id ? wrapped.data : (wrapped as TagRecord)
+  if (!tag?.id) {
+    throw new CustomerGroupServiceError('Customer group not found.', {
+      status: 404,
+      code: 'E_TAG_NOT_FOUND',
+    })
+  }
+  return tag
+}
+
+function unwrapTagList(payload: unknown): TagRecord[] {
+  if (Array.isArray(payload)) return payload
+  if (payload && typeof payload === 'object' && Array.isArray((payload as { data?: TagRecord[] }).data)) {
+    return (payload as { data: TagRecord[] }).data
+  }
+  return []
+}
+
+function mapTagToCustomerGroup(tag: TagRecord, contactIds?: string[]): CustomerGroup {
+  const hasLoadedMembers = contactIds !== undefined
+  return {
+    id: tag.id,
+    organizationId: tag.organizationId,
+    name: tag.name,
+    description: '',
+    type: 'static',
+    status: 'active',
+    contactIds: contactIds ?? [],
+    contactCount: hasLoadedMembers ? contactIds.length : Number(tag.contactCount ?? 0),
+    usedInCampaigns: null,
+    createdAt: typeof tag.createdAt === 'string' ? tag.createdAt : String(tag.createdAt ?? ''),
+    updatedAt: null,
   }
 }
 
-function uniqueIds(ids: string[]) {
-  return [...new Set(ids.filter(Boolean))]
+function isAlreadyAssigned(error: unknown): boolean {
+  if (!isApiError(error)) return false
+  return error.status === 409 || error.code === 'E_TAG_ASSIGNMENT_EXISTS'
+}
+
+function isAssignmentMissing(error: unknown): boolean {
+  if (!isApiError(error)) return false
+  return error.status === 404 || error.code === 'E_TAG_ASSIGNMENT_NOT_FOUND'
+}
+
+async function assignContactsOneByOne(tagId: string, contactIds: string[]): Promise<number> {
+  let failed = 0
+  for (const contactId of contactIds) {
+    try {
+      await api.tags.contacts.add(tagId, { contactId })
+    } catch (error) {
+      if (isAlreadyAssigned(error)) continue
+      failed += 1
+    }
+  }
+  return failed
+}
+
+async function removeContactsOneByOne(tagId: string, contactIds: string[]): Promise<number> {
+  let failed = 0
+  for (const contactId of contactIds) {
+    try {
+      await api.tags.contacts.remove(tagId, contactId)
+    } catch (error) {
+      if (isAssignmentMissing(error)) continue
+      failed += 1
+    }
+  }
+  return failed
 }
 
 export async function listCustomerGroups(
   organizationId: string | null | undefined,
   params: ListCustomerGroupsParams = {}
 ): Promise<CustomerGroup[]> {
-  await delay()
-  const orgId = requireOrganizationId(organizationId)
-  const search = params.search?.trim().toLowerCase() ?? ''
-  const status = params.status ?? 'all'
+  requireOrganizationId(organizationId)
+  try {
+    const { data } = await api.tags.list()
+    const search = params.search?.trim().toLowerCase() ?? ''
+    const status = params.status ?? 'all'
 
-  return listStoredGroups(orgId).filter((group) => {
-    if (status !== 'all' && group.status !== status) return false
-    if (!search) return true
-    const haystack = `${group.name} ${group.description}`.toLowerCase()
-    return haystack.includes(search)
-  })
+    return unwrapTagList(data)
+      .map((tag) => mapTagToCustomerGroup(tag))
+      .filter((group) => {
+        if (status !== 'all' && group.status !== status) return false
+        if (!search) return true
+        return group.name.toLowerCase().includes(search)
+      })
+  } catch (error) {
+    throwMapped(error)
+  }
 }
 
 export async function getCustomerGroupSummary(
   organizationId: string | null | undefined
 ): Promise<CustomerGroupSummaryStats> {
-  await delay()
-  const orgId = requireOrganizationId(organizationId)
-  const groups = listStoredGroups(orgId)
-  const uniqueContacts = new Set<string>()
-  for (const group of groups) {
-    for (const contactId of group.contactIds) uniqueContacts.add(contactId)
-  }
-
+  const groups = await listCustomerGroups(organizationId)
   return {
     totalGroups: groups.length,
-    totalContacts: uniqueContacts.size,
+    totalContacts: groups.reduce((sum, group) => sum + group.contactCount, 0),
     usedInCampaigns: null,
     engagementRate: null,
   }
@@ -122,81 +215,127 @@ export async function getCustomerGroup(
   organizationId: string | null | undefined,
   groupId: string
 ): Promise<CustomerGroup> {
-  await delay()
-  const orgId = requireOrganizationId(organizationId)
-  const group = getStoredGroup(orgId, groupId)
-  if (!group) {
-    throw new CustomerGroupServiceError('Customer group not found.')
+  requireOrganizationId(organizationId)
+  try {
+    const { data } = await api.tags.get(groupId)
+    return mapTagToCustomerGroup(unwrapTag(data))
+  } catch (error) {
+    throwMapped(error)
   }
-  return group
+}
+
+export async function getCustomerGroupWithMembers(
+  organizationId: string | null | undefined,
+  groupId: string
+): Promise<CustomerGroup> {
+  const group = await getCustomerGroup(organizationId, groupId)
+  const contacts = await listCustomerGroupContacts(organizationId, groupId)
+  const contactIds = contacts.map((contact) => contact.id)
+  return {
+    ...group,
+    contactIds,
+    contactCount: contactIds.length,
+  }
 }
 
 export async function createCustomerGroup(
   organizationId: string | null | undefined,
   body: CreateCustomerGroupBody
-): Promise<CustomerGroup> {
-  await delay()
-  const orgId = requireOrganizationId(organizationId)
+): Promise<CustomerGroupWriteResult> {
+  requireOrganizationId(organizationId)
   const name = normalizeName(body.name)
   if (!name) {
-    throw new CustomerGroupServiceError('Group name is required.')
+    throw new CustomerGroupServiceError('Group name is required.', { status: 422 })
   }
-  assertUniqueName(orgId, name)
 
-  const now = new Date().toISOString()
-  return insertStoredGroup(orgId, {
-    id: crypto.randomUUID(),
-    organizationId: orgId,
-    name,
-    description: body.description?.trim() ?? '',
-    type: 'static',
-    status: body.status ?? 'active',
-    contactIds: uniqueIds(body.contactIds ?? []),
-    usedInCampaigns: null,
-    createdAt: now,
-    updatedAt: now,
-  })
+  let tag: TagRecord
+  try {
+    const { data } = await api.tags.create({ name })
+    tag = unwrapTag(data)
+  } catch (error) {
+    throwMapped(error)
+  }
+
+  const contactIds = uniqueIds(body.contactIds ?? [])
+  const failedAssignments =
+    contactIds.length > 0 ? await assignContactsOneByOne(tag.id, contactIds) : 0
+  const members = contactIds.length
+    ? await listCustomerGroupContacts(organizationId, tag.id)
+    : []
+
+  return {
+    group: mapTagToCustomerGroup(tag, members.map((contact) => contact.id)),
+    failedAssignments,
+    attemptedAssignments: contactIds.length,
+  }
 }
 
 export async function updateCustomerGroup(
   organizationId: string | null | undefined,
   groupId: string,
   body: UpdateCustomerGroupBody
-): Promise<CustomerGroup> {
-  await delay()
-  const orgId = requireOrganizationId(organizationId)
-  const existing = getStoredGroup(orgId, groupId)
-  if (!existing) {
-    throw new CustomerGroupServiceError('Customer group not found.')
-  }
+): Promise<CustomerGroupWriteResult> {
+  requireOrganizationId(organizationId)
+  const existing = await getCustomerGroupWithMembers(organizationId, groupId)
 
   const name = body.name !== undefined ? normalizeName(body.name) : existing.name
   if (!name) {
-    throw new CustomerGroupServiceError('Group name is required.')
-  }
-  if (name !== existing.name) {
-    assertUniqueName(orgId, name, groupId)
+    throw new CustomerGroupServiceError('Group name is required.', { status: 422 })
   }
 
-  return replaceStoredGroup(orgId, {
-    ...existing,
-    name,
-    description: body.description !== undefined ? body.description.trim() : existing.description,
-    status: body.status ?? existing.status,
-    contactIds: body.contactIds !== undefined ? uniqueIds(body.contactIds) : existing.contactIds,
-    updatedAt: new Date().toISOString(),
-  })
+  let tagId = existing.id
+  if (name !== existing.name) {
+    try {
+      const { data } = await api.tags.update(groupId, { name })
+      tagId = unwrapTag(data).id
+    } catch (error) {
+      throwMapped(error)
+    }
+  }
+
+  let failedAssignments = 0
+  let attemptedAssignments = 0
+  if (body.contactIds !== undefined) {
+    const nextIds = uniqueIds(body.contactIds)
+    const current = new Set(existing.contactIds)
+    const next = new Set(nextIds)
+    const toAdd = nextIds.filter((id) => !current.has(id))
+    const toRemove = existing.contactIds.filter((id) => !next.has(id))
+    attemptedAssignments = toAdd.length + toRemove.length
+    if (toAdd.length) failedAssignments += await assignContactsOneByOne(tagId, toAdd)
+    if (toRemove.length) failedAssignments += await removeContactsOneByOne(tagId, toRemove)
+  }
+
+  const group = await getCustomerGroupWithMembers(organizationId, tagId)
+  return {
+    group,
+    failedAssignments,
+    attemptedAssignments,
+  }
 }
 
 export async function deleteCustomerGroup(
   organizationId: string | null | undefined,
   groupId: string
 ): Promise<void> {
-  await delay()
-  const orgId = requireOrganizationId(organizationId)
-  const removed = removeStoredGroup(orgId, groupId)
-  if (!removed) {
-    throw new CustomerGroupServiceError('Customer group not found.')
+  requireOrganizationId(organizationId)
+  try {
+    await api.tags.delete(groupId)
+  } catch (error) {
+    throwMapped(error)
+  }
+}
+
+export async function listCustomerGroupContacts(
+  organizationId: string | null | undefined,
+  groupId: string
+): Promise<ContactSummary[]> {
+  requireOrganizationId(organizationId)
+  try {
+    const { data } = await api.tags.contacts.list(groupId)
+    return unwrapContacts(data)
+  } catch (error) {
+    throwMapped(error)
   }
 }
 
@@ -204,26 +343,24 @@ export async function listCustomerGroupContactIds(
   organizationId: string | null | undefined,
   groupId: string
 ): Promise<string[]> {
-  const group = await getCustomerGroup(organizationId, groupId)
-  return [...group.contactIds]
+  const contacts = await listCustomerGroupContacts(organizationId, groupId)
+  return contacts.map((contact) => contact.id)
 }
 
 export async function addCustomerGroupContacts(
   organizationId: string | null | undefined,
   groupId: string,
   contactIds: string[]
-): Promise<CustomerGroup> {
-  await delay()
-  const orgId = requireOrganizationId(organizationId)
-  const existing = getStoredGroup(orgId, groupId)
-  if (!existing) {
-    throw new CustomerGroupServiceError('Customer group not found.')
+): Promise<CustomerGroupWriteResult> {
+  requireOrganizationId(organizationId)
+  const ids = uniqueIds(contactIds)
+  const failedAssignments = ids.length ? await assignContactsOneByOne(groupId, ids) : 0
+  const group = await getCustomerGroupWithMembers(organizationId, groupId)
+  return {
+    group,
+    failedAssignments,
+    attemptedAssignments: ids.length,
   }
-  return replaceStoredGroup(orgId, {
-    ...existing,
-    contactIds: uniqueIds([...existing.contactIds, ...contactIds]),
-    updatedAt: new Date().toISOString(),
-  })
 }
 
 export async function removeCustomerGroupContact(
@@ -231,24 +368,11 @@ export async function removeCustomerGroupContact(
   groupId: string,
   contactId: string
 ): Promise<CustomerGroup> {
-  await delay()
-  const orgId = requireOrganizationId(organizationId)
-  const existing = getStoredGroup(orgId, groupId)
-  if (!existing) {
-    throw new CustomerGroupServiceError('Customer group not found.')
+  requireOrganizationId(organizationId)
+  try {
+    await api.tags.contacts.remove(groupId, contactId)
+  } catch (error) {
+    throwMapped(error)
   }
-  return replaceStoredGroup(orgId, {
-    ...existing,
-    contactIds: existing.contactIds.filter((id) => id !== contactId),
-    updatedAt: new Date().toISOString(),
-  })
-}
-
-export function resolveGroupContacts(
-  group: CustomerGroup | null | undefined,
-  contacts: ContactSummary[]
-): ContactSummary[] {
-  if (!group) return []
-  const allowed = new Set(group.contactIds)
-  return contacts.filter((contact) => allowed.has(contact.id))
+  return getCustomerGroupWithMembers(organizationId, groupId)
 }

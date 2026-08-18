@@ -89,6 +89,7 @@ export const DASHBOARD_NAV_HREFS: Partial<Record<DashboardNavKey, string>> = {
   templates: '/dashboard/templates',
   media: '/dashboard/templates/media',
   knowledge: '/dashboard/knowledge',
+  analytics: '/dashboard/analytics',
   team: '/dashboard/team',
   billing: '/dashboard/billing',
   notifications: '/dashboard/notifications',
@@ -136,6 +137,7 @@ export const DASHBOARD_NAV_PERMISSION: Partial<Record<DashboardNavKey, string>> 
   templates: PERMISSIONS.TEMPLATES_VIEW,
   media: PERMISSIONS.MEDIA_VIEW,
   knowledge: PERMISSIONS.AI_KB_VIEW,
+  analytics: PERMISSIONS.ANALYTICS_VIEW,
   billing: PERMISSIONS.BILLING_VIEW,
   settings: PERMISSIONS.ORG_VIEW,
 }

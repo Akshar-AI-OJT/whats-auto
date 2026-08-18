@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useLocale, useTranslations } from 'next-intl'
 import {
@@ -18,7 +19,7 @@ import {
   Trash2,
   Users,
 } from 'lucide-react'
-import { api, type ApiError, type CustomerGroup, type CustomerGroupStatus } from '@/lib/api'
+import { api, type CustomerGroup, type CustomerGroupStatus } from '@/lib/api'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
@@ -40,11 +41,14 @@ import {
   customerGroupQueryKeys,
   deleteCustomerGroup,
   getCustomerGroupSummary,
+  getCustomerGroupWithMembers,
   listCustomerGroups,
   updateCustomerGroup,
+  type CustomerGroupWriteResult,
 } from './customer-group-service'
 import {
   CUSTOMER_GROUPS_PAGE_SIZE,
+  customerGroupErrorMessage,
   formatGroupDate,
   groupAccentClass,
   groupInitials,
@@ -82,12 +86,14 @@ export function CustomerGroupsPage() {
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [page, setPage] = useState(1)
   const [menuId, setMenuId] = useState<string | null>(null)
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create')
   const [editingGroup, setEditingGroup] = useState<CustomerGroup | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<CustomerGroup | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [editLoadingId, setEditLoadingId] = useState<string | null>(null)
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebouncedSearch(search), 250)
@@ -104,6 +110,7 @@ export function CustomerGroupsPage() {
   useEffect(() => {
     function onDocClick() {
       setMenuId(null)
+      setMenuAnchor(null)
     }
     if (menuId) {
       document.addEventListener('click', onDocClick)
@@ -144,6 +151,8 @@ export function CustomerGroupsPage() {
     return groups.slice(start, start + CUSTOMER_GROUPS_PAGE_SIZE)
   }, [groups, currentPage])
 
+  const menuGroup = menuId ? groups.find((group) => group.id === menuId) ?? null : null
+
   const hasFilters = Boolean(debouncedSearch.trim()) || statusFilter !== 'all'
   const summary = summaryQuery.data
   const loading = listQuery.isLoading || orgsLoading
@@ -158,21 +167,32 @@ export function CustomerGroupsPage() {
       description: string
       status: CustomerGroupStatus
       contactIds: string[]
-    }) => {
+    }): Promise<CustomerGroupWriteResult> => {
       if (formMode === 'edit' && editingGroup) {
         return updateCustomerGroup(tenantOrganizationId, editingGroup.id, values)
       }
       return createCustomerGroup(tenantOrganizationId, values)
     },
-    onSuccess: async () => {
+    onSuccess: async (result) => {
+      await invalidateGroups()
+      if (result.failedAssignments > 0) {
+        setFormMode('edit')
+        setEditingGroup(result.group)
+        setFormError(
+          t('errors.membersPartialFailed', {
+            failed: result.failedAssignments,
+            total: result.attemptedAssignments,
+          })
+        )
+        return
+      }
       setFormOpen(false)
       setEditingGroup(null)
       setFormError(null)
       showToast(formMode === 'edit' ? t('toast.updated') : t('toast.created'), 'success')
-      await invalidateGroups()
     },
     onError: (err) => {
-      setFormError((err as Error).message || t('errors.saveFailed'))
+      setFormError(customerGroupErrorMessage(err, t, 'errors.saveFailed'))
     },
   })
 
@@ -187,9 +207,26 @@ export function CustomerGroupsPage() {
       await invalidateGroups()
     },
     onError: (err) => {
-      setDeleteError((err as Error).message || t('errors.deleteFailed'))
+      setDeleteError(customerGroupErrorMessage(err, t, 'errors.deleteFailed'))
     },
   })
+
+  async function openEdit(group: CustomerGroup) {
+    setMenuId(null)
+    setMenuAnchor(null)
+    setFormMode('edit')
+    setFormError(null)
+    setEditLoadingId(group.id)
+    try {
+      const full = await getCustomerGroupWithMembers(tenantOrganizationId, group.id)
+      setEditingGroup(full)
+      setFormOpen(true)
+    } catch (err) {
+      showToast(customerGroupErrorMessage(err, t, 'errors.loadFailed'), 'error')
+    } finally {
+      setEditLoadingId(null)
+    }
+  }
 
   if (!orgsLoading && !canViewContacts) {
     return (
@@ -351,7 +388,7 @@ export function CustomerGroupsPage() {
             className="mt-8 flex flex-col gap-3 rounded-xl border border-negative/25 bg-negative/5 px-4 py-3 text-sm text-negative sm:flex-row sm:items-center sm:justify-between"
           >
             <p>
-              {(listQuery.error as Error)?.message || t('errors.loadFailed')}
+              {customerGroupErrorMessage(listQuery.error, t, 'errors.loadFailed')}
             </p>
             <Button type="button" variant="outline" size="xs" onClick={() => void listQuery.refetch()}>
               {t('retry')}
@@ -439,63 +476,25 @@ export function CustomerGroupsPage() {
                             label={t(`status.${group.status}`)}
                           />
                         </td>
-                        <td className="relative px-4 py-3 text-right">
+                        <td className="px-4 py-3 text-right">
                           <button
                             type="button"
                             className="inline-flex size-8 items-center justify-center rounded-lg text-mute hover:bg-dash-surface hover:text-ink"
                             aria-label={t('actions.openMenu')}
+                            aria-expanded={menuId === group.id}
                             onClick={(e) => {
                               e.stopPropagation()
-                              setMenuId((id) => (id === group.id ? null : group.id))
+                              if (menuId === group.id) {
+                                setMenuId(null)
+                                setMenuAnchor(null)
+                                return
+                              }
+                              setMenuAnchor(e.currentTarget)
+                              setMenuId(group.id)
                             }}
                           >
                             <MoreVertical className="size-4" />
                           </button>
-                          {menuId === group.id ? (
-                            <div
-                              className="absolute right-4 z-20 mt-1 w-44 overflow-hidden rounded-xl border border-dash-border bg-canvas py-1 shadow-lg"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <button
-                                type="button"
-                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
-                                onClick={() => router.push(`/dashboard/customer-groups/${group.id}`)}
-                              >
-                                <Eye className="size-3.5" />
-                                {t('actions.view')}
-                              </button>
-                              {canEdit ? (
-                                <button
-                                  type="button"
-                                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
-                                  onClick={() => {
-                                    setMenuId(null)
-                                    setFormMode('edit')
-                                    setEditingGroup(group)
-                                    setFormError(null)
-                                    setFormOpen(true)
-                                  }}
-                                >
-                                  <FileEdit className="size-3.5" />
-                                  {t('actions.edit')}
-                                </button>
-                              ) : null}
-                              {canDelete ? (
-                                <button
-                                  type="button"
-                                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-negative hover:bg-negative/5"
-                                  onClick={() => {
-                                    setMenuId(null)
-                                    setDeleteError(null)
-                                    setDeleteTarget(group)
-                                  }}
-                                >
-                                  <Trash2 className="size-3.5" />
-                                  {t('actions.delete')}
-                                </button>
-                              ) : null}
-                            </div>
-                          ) : null}
                         </td>
                       </tr>
                     ))}
@@ -596,6 +595,34 @@ export function CustomerGroupsPage() {
         </div>
       </DashboardPanel>
 
+      <CustomerGroupRowMenu
+        open={Boolean(menuId && menuGroup && menuAnchor)}
+        anchor={menuAnchor}
+        canEdit={canEdit}
+        canDelete={canDelete}
+        editPending={menuGroup ? editLoadingId === menuGroup.id : false}
+        viewLabel={t('actions.view')}
+        editLabel={t('actions.edit')}
+        deleteLabel={t('actions.delete')}
+        onView={() => {
+          if (!menuGroup) return
+          setMenuId(null)
+          setMenuAnchor(null)
+          router.push(`/dashboard/customer-groups/${menuGroup.id}`)
+        }}
+        onEdit={() => {
+          if (!menuGroup) return
+          void openEdit(menuGroup)
+        }}
+        onDelete={() => {
+          if (!menuGroup) return
+          setMenuId(null)
+          setMenuAnchor(null)
+          setDeleteError(null)
+          setDeleteTarget(menuGroup)
+        }}
+      />
+
       <CustomerGroupFormDialog
         open={formOpen}
         mode={formMode}
@@ -604,8 +631,7 @@ export function CustomerGroupsPage() {
         contactsLoading={contactsQuery.isLoading}
         contactsError={
           contactsQuery.isError
-            ? (contactsQuery.error as unknown as ApiError | undefined)?.message ||
-              t('picker.loadFailed')
+            ? customerGroupErrorMessage(contactsQuery.error, t, 'picker.loadFailed')
             : null
         }
         onRetryContacts={() => {
@@ -639,5 +665,123 @@ export function CustomerGroupsPage() {
         }}
       />
     </div>
+  )
+}
+
+const ROW_MENU_WIDTH = 176
+const ROW_MENU_PAD = 8
+const ROW_MENU_GAP = 4
+
+type CustomerGroupRowMenuProps = {
+  open: boolean
+  anchor: HTMLElement | null
+  canEdit: boolean
+  canDelete: boolean
+  editPending: boolean
+  viewLabel: string
+  editLabel: string
+  deleteLabel: string
+  onView: () => void
+  onEdit: () => void
+  onDelete: () => void
+}
+
+function CustomerGroupRowMenu({
+  open,
+  anchor,
+  canEdit,
+  canDelete,
+  editPending,
+  viewLabel,
+  editLabel,
+  deleteLabel,
+  onView,
+  onEdit,
+  onDelete,
+}: CustomerGroupRowMenuProps) {
+  const menuRef = useRef<HTMLDivElement>(null)
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null)
+
+  useLayoutEffect(() => {
+    if (!open || !anchor) return
+    const menuAnchor = anchor
+
+    function update() {
+      if (!menuRef.current) return
+      const rect = menuAnchor.getBoundingClientRect()
+      const height = menuRef.current.offsetHeight || 140
+      const spaceBelow = window.innerHeight - rect.bottom - ROW_MENU_PAD
+      const openAbove = spaceBelow < height && rect.top - ROW_MENU_PAD > spaceBelow
+      let top = openAbove ? rect.top - ROW_MENU_GAP - height : rect.bottom + ROW_MENU_GAP
+      let left = rect.right - ROW_MENU_WIDTH
+      top = Math.min(
+        Math.max(ROW_MENU_PAD, top),
+        Math.max(ROW_MENU_PAD, window.innerHeight - height - ROW_MENU_PAD)
+      )
+      left = Math.min(
+        Math.max(ROW_MENU_PAD, left),
+        Math.max(ROW_MENU_PAD, window.innerWidth - ROW_MENU_WIDTH - ROW_MENU_PAD)
+      )
+      setCoords({ top, left })
+    }
+
+    const frame = window.requestAnimationFrame(update)
+    window.addEventListener('resize', update)
+    window.addEventListener('scroll', update, true)
+    return () => {
+      window.cancelAnimationFrame(frame)
+      window.removeEventListener('resize', update)
+      window.removeEventListener('scroll', update, true)
+    }
+  }, [open, anchor])
+
+  if (!open || !anchor || typeof document === 'undefined') return null
+
+  return createPortal(
+    <div
+      ref={menuRef}
+      role="menu"
+      className={cn(
+        'fixed z-80 w-44 overflow-hidden rounded-xl border border-dash-border bg-canvas py-1 shadow-lg',
+        !coords && 'invisible'
+      )}
+      style={coords ? { top: coords.top, left: coords.left } : { top: 0, left: 0 }}
+      onClick={(event) => event.stopPropagation()}
+      onMouseDown={(event) => event.stopPropagation()}
+    >
+      <button
+        type="button"
+        role="menuitem"
+        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
+        onClick={onView}
+      >
+        <Eye className="size-3.5" />
+        {viewLabel}
+      </button>
+      {canEdit ? (
+        <button
+          type="button"
+          role="menuitem"
+          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
+          disabled={editPending}
+          onClick={onEdit}
+        >
+          <FileEdit className="size-3.5" />
+          {editLabel}
+        </button>
+      ) : null}
+      {canDelete ? (
+        <button
+          type="button"
+          role="menuitem"
+          className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-negative hover:bg-negative/5"
+          onClick={onDelete}
+        >
+          <Trash2 className="size-3.5" />
+          {deleteLabel}
+        </button>
+      ) : null}
+    </div>,
+    document.body
   )
 }

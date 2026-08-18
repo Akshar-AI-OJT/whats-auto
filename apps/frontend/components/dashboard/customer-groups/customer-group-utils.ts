@@ -1,4 +1,53 @@
-import type { ContactSummary } from '@/lib/api'
+import type { ApiError, ContactSummary } from '@/lib/api'
+
+const TAG_ERROR_CODE_KEYS: Record<string, string> = {
+  E_TAG_NOT_FOUND: 'errors.notFound',
+  E_TAG_NAME_EXISTS: 'errors.nameExists',
+  E_TAG_ASSIGNMENT_EXISTS: 'errors.alreadyMember',
+  E_TAG_ASSIGNMENT_NOT_FOUND: 'errors.removeFailed',
+  E_TAG_INVALID_CONTACT: 'errors.invalidContact',
+  E_TAG_EMPTY_UPDATE: 'errors.saveFailed',
+  PERMISSION_DENIED: 'errors.permissionDenied',
+}
+
+function isApiErrorLike(error: unknown): error is ApiError {
+  return Boolean(error && typeof error === 'object' && 'message' in error)
+}
+
+/** Replace backend "tag" wording so the product UI stays on Customer Group. */
+export function remapTagErrorMessage(error: Pick<ApiError, 'message' | 'code'> | string): string {
+  const raw = typeof error === 'string' ? error : error.message
+  const code = typeof error === 'string' ? undefined : error.code
+  if (code === 'E_TAG_NOT_FOUND') return 'This customer group could not be found.'
+  if (code === 'E_TAG_NAME_EXISTS') return 'A group with this name already exists.'
+  if (code === 'E_TAG_ASSIGNMENT_EXISTS') return 'This contact is already in the group.'
+  if (code === 'E_TAG_ASSIGNMENT_NOT_FOUND') return 'This contact is not in the group.'
+  if (code === 'E_TAG_INVALID_CONTACT') return 'That contact could not be found in this workspace.'
+  if (code === 'E_TAG_EMPTY_UPDATE') return 'No changes were provided.'
+  return raw
+    .replace(/\btag assignment\b/gi, 'group membership')
+    .replace(/\bthe tag\b/gi, 'the group')
+    .replace(/\ba tag\b/gi, 'a group')
+    .replace(/\btags\b/gi, 'groups')
+    .replace(/\btag\b/gi, 'group')
+    .replace(/\bTag\b/g, 'Group')
+}
+
+export function customerGroupErrorMessage(
+  error: unknown,
+  t: (key: string) => string,
+  fallbackKey: string
+): string {
+  const err = isApiErrorLike(error) ? error : null
+  if (err?.code && TAG_ERROR_CODE_KEYS[err.code]) {
+    return t(TAG_ERROR_CODE_KEYS[err.code]!)
+  }
+  if (err?.status === 401 || err?.status === 403) return t('errors.permissionDenied')
+  if (err?.status === 404) return t('errors.notFound')
+  if (err?.message?.trim()) return remapTagErrorMessage(err)
+  if (error instanceof Error && error.message.trim()) return remapTagErrorMessage(error.message)
+  return t(fallbackKey)
+}
 
 export const CUSTOMER_GROUPS_PAGE_SIZE = 8
 

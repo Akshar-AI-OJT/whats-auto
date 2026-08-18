@@ -1229,14 +1229,14 @@
         "plan": "Plan"
       },
       "ownerNote": "You become the Owner automatically when you create this organization. Owner is never selected manually.",
-      "name": "Organization Name",
+      "name": "Business / Organization Name",
       "namePlaceholder": "Acme Workspace",
       "slug": "Organization Slug",
       "slugPlaceholder": "acme-workspace",
       "slugHint": "Lowercase letters, numbers, and hyphens only. Auto-generated from the name — you can edit it.",
-      "email": "Organization Email",
+      "email": "Business Email",
       "emailPlaceholder": "ops@acme.com",
-      "phone": "Organization Phone Number",
+      "phone": "Mobile Number",
       "phonePlaceholder": "+91 98765 43210",
       "website": "Website",
       "websitePlaceholder": "https://acme.com",
@@ -1258,6 +1258,20 @@
         "logoEmpty": "No logo uploaded",
         "logoHint": "PNG, JPG, or WebP. Optional — you can add this later.",
         "logoRemove": "Remove logo",
+        "organizationType": "Organization Type",
+        "organizationTypePlaceholder": "Select organization type",
+        "organizationTypes": {
+          "company": "Company",
+          "partnership": "Partnership",
+          "sole_proprietorship": "Sole Proprietorship",
+          "other": "Other"
+        },
+        "address": "Business Address",
+        "addressPlaceholder": "Street, city, state, PIN",
+        "pan": "PAN",
+        "panPlaceholder": "AAAAA0000A",
+        "gstin": "GSTIN",
+        "gstinPlaceholder": "27AAAAA0000A1Z5",
         "industry": "Industry",
         "industryPlaceholder": "Select industry",
         "companySize": "Company Size",
@@ -1366,8 +1380,15 @@
         "slugInvalid": "Use lowercase letters, numbers, and hyphens only (2–100 characters).",
         "emailRequired": "Organization email is required.",
         "emailInvalid": "Enter a valid email address.",
+        "phoneRequired": "Mobile number is required.",
         "phoneInvalid": "Enter a valid phone number.",
         "websiteInvalid": "Enter a valid website URL (https://…).",
+        "organizationTypeRequired": "Select an organization type.",
+        "addressRequired": "Business address is required.",
+        "addressTooShort": "Enter a complete business address (at least 8 characters).",
+        "panRequired": "PAN is required.",
+        "panInvalid": "Enter a valid PAN (for example AAAAA0000A).",
+        "gstinInvalid": "Enter a valid GSTIN (15 characters), or leave it blank.",
         "industryRequired": "Select an industry.",
         "companySizeRequired": "Select a company size.",
         "countryRequired": "Select a country.",
@@ -1933,7 +1954,11 @@
         "saveFailed": "Couldn’t save this group. Please try again.",
         "deleteFailed": "Couldn’t delete this group. Please try again.",
         "removeFailed": "Couldn’t remove this contact from the group.",
-        "notFound": "This customer group could not be found."
+        "notFound": "This customer group could not be found.",
+        "nameExists": "A group with this name already exists.",
+        "alreadyMember": "This contact is already in the group.",
+        "invalidContact": "That contact could not be found in this workspace.",
+        "membersPartialFailed": "Couldn’t add {failed} of {total} contacts to the group. The group was saved — try adding the remaining contacts again."
       }
     },
     "inbox": {
@@ -2409,7 +2434,7 @@
       "identityTitle": "Workspace identity",
       "identityDescription": "Set when the workspace was created. Slug, email, and country cannot be changed here.",
       "detailsTitle": "Editable details",
-      "detailsDescription": "Update the fields your workspace API allows: name, phone, website, industry, timezone, and currency.",
+      "detailsDescription": "Update organization details including contact, type, address, PAN, GSTIN, timezone, and currency.",
       "readOnlyNotice": "You can view this workspace, but you need permission to edit organization settings.",
       "fields": {
         "slug": "Slug",
@@ -2420,11 +2445,20 @@
         "countryHint": "Set at creation. Not included in the update endpoint.",
         "name": "Organization name",
         "nameHint": "Required. 2–200 characters.",
-        "phone": "Phone",
-        "phoneHint": "Optional business phone number.",
+        "phone": "Mobile number",
+        "phoneHint": "Required business mobile number.",
         "website": "Website",
         "websitePlaceholder": "https://example.com",
         "websiteHint": "Optional. Must be a valid URL (https:// is added if missing).",
+        "organizationType": "Organization type",
+        "organizationTypePlaceholder": "Select organization type",
+        "address": "Business address",
+        "addressPlaceholder": "Street, city, state, PIN",
+        "pan": "PAN",
+        "panPlaceholder": "AAAAA0000A",
+        "gstin": "GSTIN",
+        "gstinPlaceholder": "27AAAAA0000A1Z5",
+        "gstinHint": "Optional. 15-character Indian GSTIN.",
         "industry": "Industry",
         "industryPlaceholder": "Select industry",
         "industryHint": "Optional.",
@@ -2446,8 +2480,15 @@
       "errors": {
         "nameRequired": "Enter an organization name (at least 2 characters).",
         "nameTooLong": "Organization name must be at most 200 characters.",
+        "phoneRequired": "Mobile number is required.",
         "phoneInvalid": "Enter a valid phone number.",
         "websiteInvalid": "Enter a valid website URL.",
+        "organizationTypeRequired": "Select an organization type.",
+        "addressRequired": "Business address is required.",
+        "addressTooShort": "Enter a complete business address (at least 8 characters).",
+        "panRequired": "PAN is required.",
+        "panInvalid": "Enter a valid PAN (for example AAAAA0000A).",
+        "gstinInvalid": "Enter a valid GSTIN (15 characters), or leave it blank.",
         "timezoneRequired": "Select a timezone.",
         "currencyInvalid": "Currency must be at most 10 characters.",
         "noWorkspace": "No active workspace selected.",
@@ -2741,6 +2782,165 @@
         "description": "A live trail of workspace events.",
         "emptyTitle": "No activity yet",
         "emptyDescription": "Workspace events will show up here as your team starts using Whats-Auto."
+      }
+    },
+    "analytics": {
+      "eyebrow": "Insights",
+      "title": "Organization Analytics",
+      "subtitle": "Track contacts, campaigns, conversations, WhatsApp connections, templates, customer groups, and audit activity using your live workspace data.",
+      "retry": "Retry",
+      "unavailable": "Data unavailable",
+      "kpis": {
+        "totalContacts": "Total Contacts",
+        "totalCampaigns": "Total Campaigns",
+        "sentMessages": "Sent Messages",
+        "deliveredMessages": "Delivered Messages",
+        "failedMessages": "Failed Messages",
+        "deliveryRate": "Delivery Rate",
+        "totalConversations": "Total Conversations",
+        "connectedWhatsappNumbers": "Connected WhatsApp Numbers"
+      },
+      "loading": {
+        "contacts": "Loading contact analytics…",
+        "campaigns": "Loading campaign analytics…",
+        "conversations": "Loading conversation analytics…",
+        "whatsapp": "Loading WhatsApp analytics…",
+        "templates": "Loading template analytics…",
+        "groups": "Loading customer group analytics…",
+        "audit": "Loading audit activity…"
+      },
+      "errors": {
+        "contacts": "Couldn’t load contact analytics. Please try again.",
+        "campaigns": "Couldn’t load campaign analytics. Please try again.",
+        "conversations": "Couldn’t load conversation analytics. Please try again.",
+        "whatsapp": "Couldn’t load WhatsApp analytics. Please try again.",
+        "templates": "Couldn’t load template analytics. Please try again.",
+        "groups": "Couldn’t load customer group analytics. Please try again.",
+        "audit": "Couldn’t load audit activity. Please try again."
+      },
+      "contacts": {
+        "title": "Contact Analytics",
+        "description": "Contact totals and monthly growth over the last 6 months.",
+        "totalContacts": "Contacts in workspace",
+        "monthsTracked": "Months shown",
+        "emptyTitle": "No contacts yet",
+        "emptyDescription": "Contacts will appear here once your team starts adding or importing them.",
+        "emptyChart": "No contact growth data yet."
+      },
+      "campaignStatus": {
+        "title": "Campaign Status",
+        "description": "Distribution of campaign lifecycle states and recipient volume.",
+        "totalRecipients": "Total Recipients",
+        "completedCount": "Completed Campaigns",
+        "emptyTitle": "No campaigns yet",
+        "emptyDescription": "Campaign analytics will appear after your first campaign is created.",
+        "emptyChart": "No campaign status data yet."
+      },
+      "messagePerformance": {
+        "title": "Message Performance",
+        "description": "Aggregate campaign message outcomes from existing campaign counters.",
+        "emptyTitle": "No message performance yet",
+        "emptyDescription": "Message performance appears after campaigns begin sending."
+      },
+      "conversations": {
+        "title": "Conversation Analytics",
+        "description": "Conversation totals, unread counts, and status distribution.",
+        "totalConversations": "Total Conversations",
+        "unreadMessages": "Unread Count",
+        "emptyTitle": "No conversations yet",
+        "emptyDescription": "Conversation analytics will appear after customers start messaging your workspace.",
+        "emptyChart": "No conversation status data yet."
+      },
+      "campaignPerformance": {
+        "title": "Campaign Performance",
+        "description": "Recent campaign metrics from the existing campaign API.",
+        "emptyTitle": "No campaign performance yet",
+        "emptyDescription": "Launch a campaign to start seeing delivery performance here.",
+        "columns": {
+          "name": "Campaign",
+          "status": "Status",
+          "recipients": "Recipients",
+          "sent": "Sent",
+          "delivered": "Delivered",
+          "read": "Read",
+          "replies": "Replies",
+          "failed": "Failed",
+          "created": "Created"
+        }
+      },
+      "whatsapp": {
+        "title": "WhatsApp Analytics",
+        "description": "Connection status across the WhatsApp numbers linked to this workspace.",
+        "connectedNumbers": "Connected Numbers",
+        "emptyTitle": "No WhatsApp numbers yet",
+        "emptyDescription": "Connect a WhatsApp Business number to start tracking status here.",
+        "emptyChart": "No WhatsApp status data yet."
+      },
+      "templates": {
+        "title": "Template Analytics",
+        "description": "Template counts, status/category distribution, and campaign-driven usage.",
+        "totalTemplates": "Total Templates",
+        "statusDistribution": "Status Distribution",
+        "categoryDistribution": "Category Distribution",
+        "usageTitle": "Top Template Usage",
+        "emptyTitle": "No templates yet",
+        "emptyDescription": "Create or sync templates to see analytics here.",
+        "emptyChart": "No template analytics yet."
+      },
+      "groups": {
+        "title": "Customer Groups",
+        "description": "Customer Group totals and largest groups using existing Tags data.",
+        "totalGroups": "Total Customer Groups",
+        "contactsCount": "{count, plural, one {# contact} other {# contacts}}",
+        "emptyTitle": "No customer groups yet",
+        "emptyDescription": "Create Customer Groups to organize contacts and see group size analytics."
+      },
+      "audit": {
+        "title": "Recent Audit Activity",
+        "description": "Latest authorization and audit events for this workspace.",
+        "emptyTitle": "No audit activity yet",
+        "emptyDescription": "Audit events will appear here when permissioned actions are performed.",
+        "noDetails": "No additional details"
+      },
+      "labels": {
+        "campaignStatus": {
+          "draft": "Draft",
+          "scheduled": "Scheduled",
+          "sending": "Sending",
+          "completed": "Completed",
+          "failed": "Failed",
+          "cancelled": "Cancelled"
+        },
+        "conversationStatus": {
+          "open": "Open",
+          "pending": "Pending",
+          "closed": "Closed"
+        },
+        "whatsappStatus": {
+          "connected": "Connected",
+          "disconnected": "Disconnected",
+          "error": "Error"
+        },
+        "templateStatus": {
+          "approved": "Approved",
+          "pending": "Pending",
+          "rejected": "Rejected",
+          "draft": "Draft",
+          "deleted": "Deleted",
+          "paused": "Paused",
+          "disabled": "Disabled"
+        },
+        "templateCategory": {
+          "marketing": "Marketing",
+          "utility": "Utility",
+          "authentication": "Authentication"
+        },
+        "messagePerformance": {
+          "sent": "Sent",
+          "delivered": "Delivered",
+          "read": "Read",
+          "failed": "Failed"
+        }
       }
     },
     "campaigns": {
@@ -4035,17 +4235,72 @@
       "eyebrow": "Analytics",
       "title": "Platform Analytics",
       "subtitle": "Track growth, revenue, engagement, and subscription mix across the platform.",
-      "charts": {
-        "activeOrganizations": {
-          "title": "Active Organizations",
-          "description": "Monthly trend of currently active tenant organizations.",
-          "ariaLabel": "Line chart of active organizations by month"
+      "retry": "Retry",
+      "kpis": {
+        "totalOrganizations": "Total Organizations",
+        "activeOrganizations": "Active Organizations",
+        "inactiveOrganizations": "Suspended / Inactive Organizations",
+        "trialOrganizations": "Trial Organizations",
+        "thisMonthRevenue": "This-Month Revenue",
+        "paidRevenue": "Paid Revenue",
+        "pendingOverdueInvoices": "Pending + Overdue Invoices"
+      },
+      "loading": {
+        "organizations": "Loading organization analytics…",
+        "subscriptions": "Loading subscription analytics…",
+        "revenue": "Loading revenue summary…",
+        "audit": "Loading audit activity…"
+      },
+      "errors": {
+        "organizations": "Couldn’t load organizations. Please try again.",
+        "subscriptions": "Couldn’t load subscriptions or plans. Please try again.",
+        "revenue": "Couldn’t load invoice summary. Please try again.",
+        "audit": "Couldn’t load audit activity. Please try again."
+      },
+      "sections": {
+        "organizationGrowth": {
+          "title": "Organization Growth",
+          "description": "Cumulative organization growth for the last 6 months using creation dates.",
+          "emptyTitle": "No organizations yet",
+          "emptyDescription": "Organization growth will appear when organizations are created.",
+          "emptyChart": "No growth data available."
         },
-        "messageVolume": {
-          "title": "Message Volume",
-          "description": "Monthly outbound message volume across all organizations.",
-          "ariaLabel": "Bar chart of monthly message volume. Peak near {max}."
+        "activeInactive": {
+          "title": "Active vs Inactive Organizations",
+          "description": "Current status distribution of organizations.",
+          "active": "Active organizations",
+          "inactive": "Inactive organizations",
+          "emptyChart": "No status distribution available."
+        },
+        "revenueSummary": {
+          "title": "Revenue Summary",
+          "description": "Current invoice summary values from the existing summary API.",
+          "thisMonthAmount": "This-Month Amount",
+          "paidAmount": "Paid Amount",
+          "pendingOverdue": "Pending + Overdue",
+          "emptyTitle": "Revenue data unavailable",
+          "emptyDescription": "Invoice summary did not return data."
+        },
+        "subscriptionMix": {
+          "title": "Subscription by Plan",
+          "description": "Current subscription distribution grouped by plan.",
+          "emptyTitle": "No subscriptions yet",
+          "emptyDescription": "Plan distribution appears after subscriptions are created.",
+          "emptyChart": "No subscription distribution available."
         }
+      },
+      "labels": {
+        "activeInactive": {
+          "active": "Active",
+          "inactive": "Inactive"
+        }
+      },
+      "audit": {
+        "title": "Recent Audit Activity",
+        "description": "Latest authorization and audit events across the platform.",
+        "emptyTitle": "No audit events yet",
+        "emptyDescription": "Audit events appear after permissioned actions are performed.",
+        "noDetails": "No additional details"
       }
     }
   }
