@@ -28,7 +28,7 @@ export class ShopenupEventMapperService {
           throw IntegrationException.unmappedEvent()
         }
         return {
-          externalEventId: requireEventId(data.orderId ?? data.id),
+          externalEventId: commerceExternalEventId(input.eventType, data),
           type: cod ? 'commerce.order_placed' : 'commerce.order_paid',
           occurredAt,
           subject,
@@ -37,7 +37,7 @@ export class ShopenupEventMapperService {
       }
       case 'order.fulfillment_created':
         return {
-          externalEventId: requireEventId(data.orderId ?? data.id),
+          externalEventId: commerceExternalEventId(input.eventType, data),
           type: 'commerce.order_shipped',
           occurredAt,
           subject,
@@ -45,8 +45,16 @@ export class ShopenupEventMapperService {
         }
       case 'order.delivered':
         return {
-          externalEventId: requireEventId(data.orderId ?? data.id),
+          externalEventId: commerceExternalEventId(input.eventType, data),
           type: 'commerce.order_delivered',
+          occurredAt,
+          subject,
+          payload: data,
+        }
+      case 'payment.captured':
+        return {
+          externalEventId: commerceExternalEventId(input.eventType, data),
+          type: 'commerce.order_paid',
           occurredAt,
           subject,
           payload: data,
@@ -70,6 +78,17 @@ function requireEventId(value: unknown): string {
     throw IntegrationException.missingEventId()
   }
   return value.trim()
+}
+
+/**
+ * Ledger uniqueness is (org, provider, externalEventId). Shopenup posts the
+ * same order id for placed / shipped / delivered, so the event type (and
+ * optional fulfillment id) must be part of the key or later steps are dropped.
+ */
+function commerceExternalEventId(eventType: string, data: Record<string, unknown>): string {
+  const orderId = requireEventId(data.orderId ?? data.id)
+  const extra = asString(data.fulfillmentId) ?? asString(data.paymentId)
+  return extra ? `${eventType}:${orderId}:${extra}` : `${eventType}:${orderId}`
 }
 
 function classifyCod(data: Record<string, unknown>): boolean | null {

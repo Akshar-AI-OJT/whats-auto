@@ -187,6 +187,47 @@ test.group('Integration ingress HTTP', () => {
     assert.isNotNull(rows[1].connectionId)
   })
 
+  test('accepts shipped and delivered after placed for the same order id', async ({
+    client,
+    assert,
+  }) => {
+    const organizationId = await createOrg()
+    const key = await seedKey(organizationId)
+    const orderId = `ord_lifecycle_${randomUUID().slice(0, 8)}`
+    const body = {
+      orderId,
+      isCod: true,
+      customerPhone: '+919111111111',
+      fulfillmentId: 'ful_1',
+    }
+
+    const placed = await client
+      .post('/api/v1/integrations/shopenup/events')
+      .header('Authorization', `Bearer ${key.rawToken}`)
+      .json({ eventType: 'order.placed', data: body })
+    placed.assertStatus(200)
+
+    const shipped = await client
+      .post('/api/v1/integrations/shopenup/events')
+      .header('Authorization', `Bearer ${key.rawToken}`)
+      .json({ eventType: 'order.fulfillment_created', data: body })
+    shipped.assertStatus(200)
+
+    const delivered = await client
+      .post('/api/v1/integrations/shopenup/events')
+      .header('Authorization', `Bearer ${key.rawToken}`)
+      .json({ eventType: 'order.delivered', data: body })
+    delivered.assertStatus(200)
+
+    assert.notEqual(placed.body().data.eventId, shipped.body().data.eventId)
+    assert.notEqual(shipped.body().data.eventId, delivered.body().data.eventId)
+
+    const rows = await runWithTenant(organizationId, async () => {
+      return db.from('integration_events').where('organizationId', organizationId)
+    })
+    assert.equal(rows.length, 3)
+  })
+
   test('rejects unknown Shopenup event types', async ({ client, assert }) => {
     const organizationId = await createOrg()
     const key = await seedKey(organizationId)
