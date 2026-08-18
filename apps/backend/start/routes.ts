@@ -171,12 +171,15 @@ const requestBodySchemas: Record<string, JsonSchema> = {
     {
       name: { type: 'string', example: 'VIP' },
       color: { type: 'string', example: '#22C55E', nullable: true },
+      description: { type: 'string', example: 'Wholesale buyers', nullable: true },
     },
     ['name']
   ),
   'patch /api/v1/tags/{id}': bodySchema({
     name: { type: 'string', example: 'Wholesale' },
     color: { type: 'string', example: '#000000', nullable: true },
+    description: { type: 'string', example: 'B2B accounts', nullable: true },
+    status: { type: 'string', example: 'active', enum: ['active', 'inactive'] },
   }),
   'post /api/v1/tags/{id}/contacts': bodySchema({ contactId: { type: 'string', format: 'uuid' } }, [
     'contactId',

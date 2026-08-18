@@ -967,7 +967,7 @@ export class SessionSchema extends BaseModel {
 }
 
 export class TagSchema extends BaseModel {
-  static $columns = ['color', 'createdAt', 'createdByUserId', 'id', 'name', 'organizationId'] as const
+  static $columns = ['color', 'createdAt', 'createdByUserId', 'description', 'id', 'name', 'organizationId', 'status'] as const
   $columns = TagSchema.$columns
   @column()
   declare color: string | null
@@ -975,12 +975,16 @@ export class TagSchema extends BaseModel {
   declare createdAt: DateTime
   @column()
   declare createdByUserId: string | null
+  @column()
+  declare description: string | null
   @column({ isPrimary: true })
   declare id: string
   @column()
   declare name: string
   @column()
   declare organizationId: string
+  @column()
+  declare status: string
 }
 
 export class UnmatchedProviderReceiptSchema extends BaseModel {

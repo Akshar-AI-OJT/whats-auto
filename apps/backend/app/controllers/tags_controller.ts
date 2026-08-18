@@ -16,7 +16,7 @@ export default class TagsController {
    * @description RLS-scoped grouping tags. contactCount counts non-deleted assigned contacts.
    * @tag Contacts
    * @security BearerAuth
-   * @responseBody 200 - { "data": [{ "id": "uuid", "name": "VIP", "color": "#22C55E", "contactCount": 0, "createdAt": "2026-08-13T12:00:00.000Z" }] }
+   * @responseBody 200 - { "data": [{ "id": "uuid", "name": "VIP", "color": "#22C55E", "description": null, "status": "active", "contactCount": 0, "usedInCampaigns": 0, "createdAt": "2026-08-13T12:00:00.000Z" }] }
    * @responseBody 403 - { "error": "Permission denied: contacts:view", "code": "PERMISSION_DENIED" }
    */
   async index({ request, serialize }: HttpContext) {
@@ -29,8 +29,8 @@ export default class TagsController {
    * @summary Create a contact tag in the active organization
    * @tag Contacts
    * @security BearerAuth
-   * @requestBody { "name": "VIP", "color": "#22C55E" }
-   * @responseBody 200 - { "data": { "id": "uuid", "name": "VIP", "color": "#22C55E", "contactCount": 0 } }
+   * @requestBody { "name": "VIP", "color": "#22C55E", "description": "Wholesale buyers" }
+   * @responseBody 200 - { "data": { "id": "uuid", "name": "VIP", "color": "#22C55E", "description": "Wholesale buyers", "status": "active", "contactCount": 0, "usedInCampaigns": 0 } }
    * @responseBody 403 - { "error": "Permission denied: contacts:create", "code": "PERMISSION_DENIED" }
    * @responseBody 409 - { "error": "A tag with this name already exists", "code": "E_TAG_NAME_EXISTS" }
    */
@@ -42,6 +42,7 @@ export default class TagsController {
       actorUserId: request.authUser!.id,
       name: payload.name,
       color: payload.color,
+      description: payload.description,
     })
     return serialize(tag)
   }
@@ -52,7 +53,7 @@ export default class TagsController {
    * @tag Contacts
    * @security BearerAuth
    * @paramPath id - Tag id - @type(string)
-   * @responseBody 200 - { "data": { "id": "uuid", "name": "VIP", "color": "#22C55E", "contactCount": 1 } }
+   * @responseBody 200 - { "data": { "id": "uuid", "name": "VIP", "color": "#22C55E", "description": null, "status": "active", "contactCount": 1, "usedInCampaigns": 0 } }
    * @responseBody 404 - { "error": "Tag not found", "code": "E_TAG_NOT_FOUND" }
    */
   async show({ request, params, serialize }: HttpContext) {
@@ -70,15 +71,15 @@ export default class TagsController {
   /**
    * @update
    * @summary Update a contact tag
-   * @description Partial update. Provide at least one of name or color.
+   * @description Partial update. Provide at least one of name, color, description, or status.
    * @tag Contacts
    * @security BearerAuth
    * @paramPath id - Tag id - @type(string)
-   * @requestBody { "name": "Wholesale", "color": "#000000" }
-   * @responseBody 200 - { "data": { "id": "uuid", "name": "Wholesale", "color": "#000000" } }
+   * @requestBody { "name": "Wholesale", "color": "#000000", "description": "B2B accounts", "status": "active" }
+   * @responseBody 200 - { "data": { "id": "uuid", "name": "Wholesale", "color": "#000000", "description": "B2B accounts", "status": "active" } }
    * @responseBody 404 - { "error": "Tag not found", "code": "E_TAG_NOT_FOUND" }
    * @responseBody 409 - { "error": "A tag with this name already exists", "code": "E_TAG_NAME_EXISTS" }
-   * @responseBody 422 - { "error": "Provide at least one of name or color", "code": "E_TAG_EMPTY_UPDATE" }
+   * @responseBody 422 - { "error": "Provide at least one of name, color, description, or status", "code": "E_TAG_EMPTY_UPDATE" }
    */
   async update({ request, params, serialize }: HttpContext) {
     const { id } = await request.validateUsing(tagIdParamValidator, {
@@ -91,6 +92,8 @@ export default class TagsController {
       tagId: id,
       name: payload.name,
       color: payload.color,
+      description: payload.description,
+      status: payload.status,
     })
     return serialize(tag)
   }

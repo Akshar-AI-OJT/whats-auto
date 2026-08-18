@@ -57,6 +57,38 @@ async function seedContact(organizationId: string, opts: { deletedAt?: Date | nu
   })
 }
 
+async function seedBroadcast(
+  organizationId: string,
+  contactIds: string[],
+  status = 'draft'
+) {
+  return runWithTenant(organizationId, async () => {
+    const [broadcast] = await db
+      .table('broadcasts')
+      .insert({
+        organizationId,
+        name: `Campaign ${randomUUID().slice(0, 8)}`,
+        status,
+        totalRecipients: contactIds.length,
+      })
+      .returning(['id'])
+
+    if (contactIds.length > 0) {
+      await db.table('broadcast_recipients').insert(
+        contactIds.map((contactId) => ({
+          organizationId,
+          broadcastId: broadcast.id,
+          contactId,
+          status: 'pending',
+          createdAt: new Date(),
+        }))
+      )
+    }
+
+    return broadcast.id as string
+  })
+}
+
 test.group('TagService', (group) => {
   const orgIds: string[] = []
   const userIds: string[] = []
@@ -64,6 +96,8 @@ test.group('TagService', (group) => {
   group.teardown(async () => {
     for (const organizationId of orgIds) {
       await runWithTenant(organizationId, async () => {
+        await db.from('broadcast_recipients').where('organizationId', organizationId).delete()
+        await db.from('broadcasts').where('organizationId', organizationId).delete()
         await db.from('contact_tags').where('organizationId', organizationId).delete()
         await db.from('tags').where('organizationId', organizationId).delete()
         await db.from('contacts').where('organizationId', organizationId).delete()
@@ -96,6 +130,9 @@ test.group('TagService', (group) => {
     assert.equal(created.organizationId, organizationId)
     assert.equal(created.createdByUserId, actorUserId)
     assert.equal(created.contactCount, 0)
+    assert.equal(created.usedInCampaigns, 0)
+    assert.isNull(created.description)
+    assert.equal(created.status, 'active')
 
     const listed = await runWithTenant(organizationId, () => tags.listTags(organizationId))
     assert.lengthOf(listed, 1)
@@ -387,5 +424,246 @@ test.group('TagService', (group) => {
     } catch (error) {
       assert.equal((error as TagException).code, 'E_TAG_EMPTY_UPDATE')
     }
+  })
+
+  test('creates with optional description and defaults status to active', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const actorUserId = await seedUser()
+    userIds.push(actorUserId)
+    const tags = new TagService()
+
+    const created = await runWithTenant(organizationId, () =>
+      tags.createTag({
+        organizationId,
+        actorUserId,
+        name: 'Described',
+        description: '  Wholesale buyers  ',
+      })
+    )
+
+    assert.equal(created.description, 'Wholesale buyers')
+    assert.equal(created.status, 'active')
+
+    const listed = await runWithTenant(organizationId, () => tags.listTags(organizationId))
+    assert.equal(listed[0]!.description, 'Wholesale buyers')
+    assert.equal(listed[0]!.status, 'active')
+  })
+
+  test('updates description-only and status-only without changing name or color', async ({
+    assert,
+  }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const actorUserId = await seedUser()
+    userIds.push(actorUserId)
+    const tags = new TagService()
+
+    const tag = await runWithTenant(organizationId, () =>
+      tags.createTag({
+        organizationId,
+        actorUserId,
+        name: 'Keep',
+        color: '#22C55E',
+      })
+    )
+
+    const described = await runWithTenant(organizationId, () =>
+      tags.updateTag({
+        organizationId,
+        tagId: tag.id,
+        description: 'B2B accounts',
+      })
+    )
+    assert.equal(described.name, 'Keep')
+    assert.equal(described.color, '#22C55E')
+    assert.equal(described.description, 'B2B accounts')
+    assert.equal(described.status, 'active')
+
+    const inactivated = await runWithTenant(organizationId, () =>
+      tags.updateTag({
+        organizationId,
+        tagId: tag.id,
+        status: 'inactive',
+      })
+    )
+    assert.equal(inactivated.name, 'Keep')
+    assert.equal(inactivated.color, '#22C55E')
+    assert.equal(inactivated.description, 'B2B accounts')
+    assert.equal(inactivated.status, 'inactive')
+
+    const cleared = await runWithTenant(organizationId, () =>
+      tags.updateTag({
+        organizationId,
+        tagId: tag.id,
+        description: null,
+      })
+    )
+    assert.isNull(cleared.description)
+    assert.equal(cleared.status, 'inactive')
+  })
+
+  test('usedInCampaigns is 0 when the tag has no overlapping campaign recipients', async ({
+    assert,
+  }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const actorUserId = await seedUser()
+    userIds.push(actorUserId)
+    const contactId = await seedContact(organizationId)
+    const tags = new TagService()
+
+    const tag = await runWithTenant(organizationId, () =>
+      tags.createTag({ organizationId, actorUserId, name: 'Unused' })
+    )
+    await runWithTenant(organizationId, () =>
+      tags.assignContact({ organizationId, tagId: tag.id, contactId })
+    )
+    await seedBroadcast(organizationId, [await seedContact(organizationId)])
+
+    const fetched = await runWithTenant(organizationId, () =>
+      tags.getTagById({ organizationId, tagId: tag.id })
+    )
+    assert.equal(fetched.usedInCampaigns, 0)
+    assert.equal(fetched.contactCount, 1)
+  })
+
+  test('usedInCampaigns is 1 when one campaign includes a live tag member', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const actorUserId = await seedUser()
+    userIds.push(actorUserId)
+    const contactId = await seedContact(organizationId)
+    const tags = new TagService()
+
+    const tag = await runWithTenant(organizationId, () =>
+      tags.createTag({ organizationId, actorUserId, name: 'Once' })
+    )
+    await runWithTenant(organizationId, () =>
+      tags.assignContact({ organizationId, tagId: tag.id, contactId })
+    )
+    await seedBroadcast(organizationId, [contactId])
+
+    const fetched = await runWithTenant(organizationId, () =>
+      tags.getTagById({ organizationId, tagId: tag.id })
+    )
+    assert.equal(fetched.usedInCampaigns, 1)
+  })
+
+  test('usedInCampaigns counts a campaign once when several tag members are recipients', async ({
+    assert,
+  }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const actorUserId = await seedUser()
+    userIds.push(actorUserId)
+    const contactA = await seedContact(organizationId)
+    const contactB = await seedContact(organizationId)
+    const tags = new TagService()
+
+    const tag = await runWithTenant(organizationId, () =>
+      tags.createTag({ organizationId, actorUserId, name: 'Overlap' })
+    )
+    await runWithTenant(organizationId, () =>
+      tags.assignContact({ organizationId, tagId: tag.id, contactId: contactA })
+    )
+    await runWithTenant(organizationId, () =>
+      tags.assignContact({ organizationId, tagId: tag.id, contactId: contactB })
+    )
+    await seedBroadcast(organizationId, [contactA, contactB])
+
+    const fetched = await runWithTenant(organizationId, () =>
+      tags.getTagById({ organizationId, tagId: tag.id })
+    )
+    assert.equal(fetched.usedInCampaigns, 1)
+  })
+
+  test('usedInCampaigns counts distinct campaigns across current tag members', async ({
+    assert,
+  }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const actorUserId = await seedUser()
+    userIds.push(actorUserId)
+    const contactA = await seedContact(organizationId)
+    const contactB = await seedContact(organizationId)
+    const contactC = await seedContact(organizationId)
+    const tags = new TagService()
+
+    const tag = await runWithTenant(organizationId, () =>
+      tags.createTag({ organizationId, actorUserId, name: 'Multi' })
+    )
+    for (const contactId of [contactA, contactB, contactC]) {
+      await runWithTenant(organizationId, () =>
+        tags.assignContact({ organizationId, tagId: tag.id, contactId })
+      )
+    }
+    await seedBroadcast(organizationId, [contactA, contactB])
+    await seedBroadcast(organizationId, [contactC])
+    await seedBroadcast(organizationId, [contactA])
+
+    const listed = await runWithTenant(organizationId, () => tags.listTags(organizationId))
+    const fetched = await runWithTenant(organizationId, () =>
+      tags.getTagById({ organizationId, tagId: tag.id })
+    )
+    assert.equal(fetched.usedInCampaigns, 3)
+    assert.equal(listed[0]!.usedInCampaigns, 3)
+  })
+
+  test('usedInCampaigns ignores soft-deleted contacts and soft-deleted campaigns', async ({
+    assert,
+  }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const actorUserId = await seedUser()
+    userIds.push(actorUserId)
+    const liveId = await seedContact(organizationId)
+    const deletedId = await seedContact(organizationId)
+    const tags = new TagService()
+
+    const tag = await runWithTenant(organizationId, () =>
+      tags.createTag({ organizationId, actorUserId, name: 'LiveOnly' })
+    )
+    await runWithTenant(organizationId, () =>
+      tags.assignContact({ organizationId, tagId: tag.id, contactId: liveId })
+    )
+    await runWithTenant(organizationId, () =>
+      tags.assignContact({ organizationId, tagId: tag.id, contactId: deletedId })
+    )
+    await runWithTenant(organizationId, async () => {
+      await db.from('contacts').where('id', deletedId).update({ deletedAt: new Date() })
+    })
+    await seedBroadcast(organizationId, [deletedId])
+    await seedBroadcast(organizationId, [liveId], 'deleted')
+
+    const fetched = await runWithTenant(organizationId, () =>
+      tags.getTagById({ organizationId, tagId: tag.id })
+    )
+    assert.equal(fetched.usedInCampaigns, 0)
+    assert.equal(fetched.contactCount, 1)
+  })
+
+  test('usedInCampaigns does not include another organization campaign', async ({ assert }) => {
+    const orgA = await createOrg()
+    const orgB = await createOrg()
+    orgIds.push(orgA, orgB)
+    const actorUserId = await seedUser()
+    userIds.push(actorUserId)
+    const contactA = await seedContact(orgA)
+    const contactB = await seedContact(orgB)
+    const tags = new TagService()
+
+    const tagA = await runWithTenant(orgA, () =>
+      tags.createTag({ organizationId: orgA, actorUserId, name: 'North' })
+    )
+    await runWithTenant(orgA, () =>
+      tags.assignContact({ organizationId: orgA, tagId: tagA.id, contactId: contactA })
+    )
+    await seedBroadcast(orgB, [contactB])
+
+    const fetched = await runWithTenant(orgA, () =>
+      tags.getTagById({ organizationId: orgA, tagId: tagA.id })
+    )
+    assert.equal(fetched.usedInCampaigns, 0)
   })
 })
