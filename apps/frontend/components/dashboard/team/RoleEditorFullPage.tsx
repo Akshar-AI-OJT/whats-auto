@@ -478,7 +478,7 @@ export function RoleEditorFullPage({
   )
 
   return (
-    <div className="mx-auto w-full max-w-[1160px]">
+    <div className="w-full min-w-0">
       <form
         className="flex min-w-0 flex-col gap-5"
         onSubmit={handleSubmit}

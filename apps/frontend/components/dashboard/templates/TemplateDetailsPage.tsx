@@ -58,7 +58,7 @@ export function TemplateDetailsPage({ templateId }: { templateId: string }) {
 
   if (!orgsLoading && !canViewTemplates) {
     return (
-      <DashboardPanel className="mx-auto max-w-[1200px] px-4 py-5">
+      <DashboardPanel className="w-full min-w-0 px-4 py-5">
         <p className="text-sm text-negative">{t('errors.permissionDenied')}</p>
       </DashboardPanel>
     )
@@ -66,7 +66,7 @@ export function TemplateDetailsPage({ templateId }: { templateId: string }) {
 
   if (detailQuery.isLoading || orgsLoading) {
     return (
-      <div className="mx-auto flex w-full max-w-[1200px] items-center justify-center gap-2 py-24 text-sm text-body">
+      <div className="flex w-full min-w-0 items-center justify-center gap-2 py-24 text-sm text-body">
         <Loader2 className="size-4 animate-spin" aria-hidden />
         {t('loading')}
       </div>
@@ -75,7 +75,7 @@ export function TemplateDetailsPage({ templateId }: { templateId: string }) {
 
   if (detailQuery.isError || !detailQuery.data) {
     return (
-      <DashboardPanel className="mx-auto max-w-[1200px] px-4 py-5">
+      <DashboardPanel className="w-full min-w-0 px-4 py-5">
         <p className="text-sm text-negative">
           {(detailQuery.error as unknown as ApiError)?.message || t('errors.loadFailed')}
         </p>
@@ -111,7 +111,7 @@ export function TemplateDetailsPage({ templateId }: { templateId: string }) {
   const isLocalDraft = statusKey === 'draft' && !template.metaTemplateId
 
   return (
-    <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5">
+    <div className="flex w-full min-w-0 flex-col gap-5">
       <DashboardPanel as="section" className="p-4 sm:p-5 md:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">

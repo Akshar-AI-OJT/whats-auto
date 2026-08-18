@@ -165,7 +165,7 @@ export function CampaignsListPage() {
 
   if (!orgsLoading && !canViewCampaigns) {
     return (
-      <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5">
+      <div className="flex w-full min-w-0 flex-col gap-5">
         <DashboardPanel as="section" className="px-4 py-5 sm:px-6 sm:py-6">
           <p className="text-sm font-semibold tracking-wide text-positive-deep uppercase">
             {t('eyebrow')}
@@ -185,7 +185,7 @@ export function CampaignsListPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 sm:gap-6">
+    <div className="flex w-full min-w-0 flex-col gap-5 sm:gap-6">
       <DashboardPanel as="section" className="px-4 py-5 sm:px-6 sm:py-6 md:px-7 md:py-7">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>

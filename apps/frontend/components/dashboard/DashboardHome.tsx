@@ -20,7 +20,7 @@ export function DashboardHome() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 sm:gap-6 xl:gap-7">
+    <div className="flex w-full min-w-0 flex-col gap-5 sm:gap-6 xl:gap-7">
       <WelcomeSection />
       <OnboardingChecklist />
       <ConnectWhatsappCard />
