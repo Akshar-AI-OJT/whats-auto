@@ -2965,6 +2965,7 @@
       "subtitle": "Manage organizations, subscriptions, and platform users",
       "logout": "Logout"
     },
+    "checkingAccess": "Checking access…",
     "home": {
       "eyebrow": "Platform overview",
       "title": "Admin dashboard",
