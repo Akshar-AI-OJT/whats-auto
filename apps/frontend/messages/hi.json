@@ -4192,17 +4192,72 @@
       "eyebrow": "एनालिटिक्स",
       "title": "प्लेटफ़ॉर्म एनालिटिक्स",
       "subtitle": "प्लेटफ़ॉर्म में ग्रोथ, राजस्व, एंगेजमेंट और सब्सक्रिप्शन मिश्रण ट्रैक करें।",
-      "charts": {
-        "activeOrganizations": {
-          "title": "सक्रिय संगठन",
-          "description": "वर्तमान सक्रिय टेनेंट संगठनों का मासिक ट्रेंड।",
-          "ariaLabel": "महीने के अनुसार सक्रिय संगठनों का लाइन चार्ट"
+      "retry": "फिर कोशिश करें",
+      "kpis": {
+        "totalOrganizations": "कुल संगठन",
+        "activeOrganizations": "सक्रिय संगठन",
+        "inactiveOrganizations": "निष्क्रिय / निलंबित संगठन",
+        "trialOrganizations": "ट्रायल संगठन",
+        "thisMonthRevenue": "इस महीने का राजस्व",
+        "paidRevenue": "प्राप्त भुगतान राजस्व",
+        "pendingOverdueInvoices": "लंबित + ओवरड्यू इनवॉइस"
+      },
+      "loading": {
+        "organizations": "संगठन एनालिटिक्स लोड हो रहा है…",
+        "subscriptions": "सब्सक्रिप्शन एनालिटिक्स लोड हो रहा है…",
+        "revenue": "राजस्व सारांश लोड हो रहा है…",
+        "audit": "ऑडिट गतिविधि लोड हो रही है…"
+      },
+      "errors": {
+        "organizations": "संगठन लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+        "subscriptions": "सब्सक्रिप्शन या प्लान लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+        "revenue": "इनवॉइस सारांश लोड नहीं हो सका। कृपया फिर कोशिश करें।",
+        "audit": "ऑडिट गतिविधि लोड नहीं हो सकी। कृपया फिर कोशिश करें।"
+      },
+      "sections": {
+        "organizationGrowth": {
+          "title": "संगठन ग्रोथ",
+          "description": "createdAt के आधार पर पिछले 6 महीनों की cumulative संगठन वृद्धि।",
+          "emptyTitle": "अभी कोई संगठन नहीं",
+          "emptyDescription": "संगठन बनने पर ग्रोथ यहाँ दिखाई देगी।",
+          "emptyChart": "ग्रोथ डेटा उपलब्ध नहीं है।"
         },
-        "messageVolume": {
-          "title": "संदेश वॉल्यूम",
-          "description": "सभी संगठनों में मासिक आउटबाउंड संदेश वॉल्यूम।",
-          "ariaLabel": "मासिक संदेश वॉल्यूम का बार चार्ट। शिखर लगभग {max}।"
+        "activeInactive": {
+          "title": "सक्रिय बनाम निष्क्रिय संगठन",
+          "description": "संगठनों की वर्तमान स्थिति का वितरण।",
+          "active": "सक्रिय संगठन",
+          "inactive": "निष्क्रिय संगठन",
+          "emptyChart": "स्थिति वितरण उपलब्ध नहीं है।"
+        },
+        "revenueSummary": {
+          "title": "राजस्व सारांश",
+          "description": "मौजूदा invoice summary API से वर्तमान मान।",
+          "thisMonthAmount": "इस महीने की राशि",
+          "paidAmount": "प्राप्त भुगतान राशि",
+          "pendingOverdue": "लंबित + ओवरड्यू",
+          "emptyTitle": "राजस्व डेटा उपलब्ध नहीं है",
+          "emptyDescription": "इनवॉइस सारांश API से डेटा प्राप्त नहीं हुआ।"
+        },
+        "subscriptionMix": {
+          "title": "प्लान के अनुसार सब्सक्रिप्शन",
+          "description": "प्लान के आधार पर वर्तमान सब्सक्रिप्शन वितरण।",
+          "emptyTitle": "अभी कोई सब्सक्रिप्शन नहीं",
+          "emptyDescription": "सब्सक्रिप्शन बनने के बाद प्लान वितरण दिखेगा।",
+          "emptyChart": "सब्सक्रिप्शन वितरण उपलब्ध नहीं है।"
         }
+      },
+      "labels": {
+        "activeInactive": {
+          "active": "सक्रिय",
+          "inactive": "निष्क्रिय"
+        }
+      },
+      "audit": {
+        "title": "हाल की ऑडिट गतिविधि",
+        "description": "प्लेटफ़ॉर्म भर के नवीनतम authorization और audit events।",
+        "emptyTitle": "अभी कोई ऑडिट इवेंट नहीं",
+        "emptyDescription": "permissioned actions होने पर ऑडिट इवेंट यहाँ दिखेंगे।",
+        "noDetails": "कोई अतिरिक्त विवरण नहीं"
       }
     }
   }

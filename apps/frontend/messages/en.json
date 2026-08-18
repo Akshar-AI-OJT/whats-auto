@@ -4198,17 +4198,72 @@
       "eyebrow": "Analytics",
       "title": "Platform Analytics",
       "subtitle": "Track growth, revenue, engagement, and subscription mix across the platform.",
-      "charts": {
-        "activeOrganizations": {
-          "title": "Active Organizations",
-          "description": "Monthly trend of currently active tenant organizations.",
-          "ariaLabel": "Line chart of active organizations by month"
+      "retry": "Retry",
+      "kpis": {
+        "totalOrganizations": "Total Organizations",
+        "activeOrganizations": "Active Organizations",
+        "inactiveOrganizations": "Suspended / Inactive Organizations",
+        "trialOrganizations": "Trial Organizations",
+        "thisMonthRevenue": "This-Month Revenue",
+        "paidRevenue": "Paid Revenue",
+        "pendingOverdueInvoices": "Pending + Overdue Invoices"
+      },
+      "loading": {
+        "organizations": "Loading organization analytics…",
+        "subscriptions": "Loading subscription analytics…",
+        "revenue": "Loading revenue summary…",
+        "audit": "Loading audit activity…"
+      },
+      "errors": {
+        "organizations": "Couldn’t load organizations. Please try again.",
+        "subscriptions": "Couldn’t load subscriptions or plans. Please try again.",
+        "revenue": "Couldn’t load invoice summary. Please try again.",
+        "audit": "Couldn’t load audit activity. Please try again."
+      },
+      "sections": {
+        "organizationGrowth": {
+          "title": "Organization Growth",
+          "description": "Cumulative organization growth for the last 6 months using creation dates.",
+          "emptyTitle": "No organizations yet",
+          "emptyDescription": "Organization growth will appear when organizations are created.",
+          "emptyChart": "No growth data available."
         },
-        "messageVolume": {
-          "title": "Message Volume",
-          "description": "Monthly outbound message volume across all organizations.",
-          "ariaLabel": "Bar chart of monthly message volume. Peak near {max}."
+        "activeInactive": {
+          "title": "Active vs Inactive Organizations",
+          "description": "Current status distribution of organizations.",
+          "active": "Active organizations",
+          "inactive": "Inactive organizations",
+          "emptyChart": "No status distribution available."
+        },
+        "revenueSummary": {
+          "title": "Revenue Summary",
+          "description": "Current invoice summary values from the existing summary API.",
+          "thisMonthAmount": "This-Month Amount",
+          "paidAmount": "Paid Amount",
+          "pendingOverdue": "Pending + Overdue",
+          "emptyTitle": "Revenue data unavailable",
+          "emptyDescription": "Invoice summary did not return data."
+        },
+        "subscriptionMix": {
+          "title": "Subscription by Plan",
+          "description": "Current subscription distribution grouped by plan.",
+          "emptyTitle": "No subscriptions yet",
+          "emptyDescription": "Plan distribution appears after subscriptions are created.",
+          "emptyChart": "No subscription distribution available."
         }
+      },
+      "labels": {
+        "activeInactive": {
+          "active": "Active",
+          "inactive": "Inactive"
+        }
+      },
+      "audit": {
+        "title": "Recent Audit Activity",
+        "description": "Latest authorization and audit events across the platform.",
+        "emptyTitle": "No audit events yet",
+        "emptyDescription": "Audit events appear after permissioned actions are performed.",
+        "noDetails": "No additional details"
       }
     }
   }
