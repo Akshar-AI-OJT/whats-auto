@@ -143,7 +143,10 @@ test.group('Tags HTTP', (group) => {
     assert.equal(tag.name, name)
     assert.equal(tag.color, '#22C55E')
     assert.equal(tag.contactCount, 0)
+    assert.equal(tag.usedInCampaigns, 0)
     assert.equal(tag.organizationId, FIXTURE_IDS.orgs.northstar)
+    assert.isNull(tag.description)
+    assert.equal(tag.status, 'active')
 
     const listed = await client.get('/api/v1/tags').header('Authorization', `Bearer ${token}`)
     listed.assertStatus(200)
@@ -253,5 +256,58 @@ test.group('Tags HTTP', (group) => {
       .json({ contactId: FIXTURE_IDS.contacts.northstarDeleted })
     assign.assertStatus(422)
     assert.equal(errorBody(assign).code, 'E_TAG_INVALID_CONTACT')
+  })
+
+  test('owner can set description and status through existing create/patch endpoints', async ({
+    client,
+    assert,
+  }) => {
+    const token = await mintDemoToken(DEMO_USERS.northstarOwner)
+    const name = `Group-${Date.now()}`
+
+    const created = await client
+      .post('/api/v1/tags')
+      .header('Authorization', `Bearer ${token}`)
+      .json({ name, description: 'VIP wholesale' })
+    created.assertStatus(200)
+    assert.equal(created.body().data.description, 'VIP wholesale')
+    assert.equal(created.body().data.status, 'active')
+
+    const described = await client
+      .patch(`/api/v1/tags/${created.body().data.id}`)
+      .header('Authorization', `Bearer ${token}`)
+      .json({ description: 'Updated note' })
+    described.assertStatus(200)
+    assert.equal(described.body().data.name, name)
+    assert.equal(described.body().data.description, 'Updated note')
+    assert.equal(described.body().data.status, 'active')
+
+    const inactivated = await client
+      .patch(`/api/v1/tags/${created.body().data.id}`)
+      .header('Authorization', `Bearer ${token}`)
+      .json({ status: 'inactive' })
+    inactivated.assertStatus(200)
+    assert.equal(inactivated.body().data.status, 'inactive')
+    assert.equal(inactivated.body().data.description, 'Updated note')
+
+    const listed = await client.get('/api/v1/tags').header('Authorization', `Bearer ${token}`)
+    const row = (
+      listed.body().data as { id: string; status: string; description: string | null }[]
+    ).find((item) => item.id === created.body().data.id)
+    assert.equal(row?.status, 'inactive')
+    assert.equal(row?.description, 'Updated note')
+
+    const empty = await client
+      .patch(`/api/v1/tags/${created.body().data.id}`)
+      .header('Authorization', `Bearer ${token}`)
+      .json({})
+    empty.assertStatus(422)
+    assert.equal(errorBody(empty).code, 'E_TAG_EMPTY_UPDATE')
+
+    const invalidStatus = await client
+      .patch(`/api/v1/tags/${created.body().data.id}`)
+      .header('Authorization', `Bearer ${token}`)
+      .json({ status: 'archived' })
+    invalidStatus.assertStatus(422)
   })
 })

@@ -1740,9 +1740,11 @@ export class TagSchema extends BaseModel {
     'color',
     'createdAt',
     'createdByUserId',
+    'description',
     'id',
     'name',
     'organizationId',
+    'status',
   ] as const
   $columns = TagSchema.$columns
   @column()
@@ -1751,12 +1753,16 @@ export class TagSchema extends BaseModel {
   declare createdAt: DateTime
   @column()
   declare createdByUserId: string | null
+  @column()
+  declare description: string | null
   @column({ isPrimary: true })
   declare id: string
   @column()
   declare name: string
   @column()
   declare organizationId: string
+  @column()
+  declare status: string
 }
 
 export class UnmatchedProviderReceiptSchema extends BaseModel {
