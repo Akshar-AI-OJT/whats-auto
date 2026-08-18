@@ -14,7 +14,9 @@ import {
   clearLegacyOrganizationCache,
   clearPendingOnboardingContact,
   isValidEmail,
+  isValidGstin,
   isValidOrganizationSlug,
+  isValidPan,
   isValidPhone,
   isValidWebsiteUrl,
   markOnboardingChecklistVisible,
@@ -50,6 +52,7 @@ import type {
   OrganizationWizardCompanyErrors,
   OrganizationWizardPreferencesErrors,
   OrganizationWizardState,
+  OrganizationTypeOption,
   OrgWizardStep,
 } from './organization-wizard-types'
 
@@ -64,6 +67,10 @@ function createInitialState(): OrganizationWizardState {
     slugTouched: false,
     logoFileName: '',
     logoPreviewUrl: null,
+    organizationType: '',
+    address: '',
+    pan: '',
+    gstin: '',
     industry: '',
     companySize: '',
     country: '',
@@ -173,8 +180,9 @@ export function OrganizationRegistrationForm({
       next.email = t('errors.emailInvalid')
     }
 
-    // Phone is optional in the API; validate format only when provided.
-    if (state.phone.trim() && !isValidPhone(state.phone)) {
+    if (!state.phone.trim()) {
+      next.phone = t('errors.phoneRequired')
+    } else if (!isValidPhone(state.phone)) {
       next.phone = t('errors.phoneInvalid')
     }
 
@@ -187,6 +195,23 @@ export function OrganizationRegistrationForm({
 
   function validateCompany(): OrganizationWizardCompanyErrors {
     const next: OrganizationWizardCompanyErrors = {}
+    if (!state.organizationType) {
+      next.organizationType = t('errors.organizationTypeRequired')
+    }
+    const trimmedAddress = state.address.trim()
+    if (!trimmedAddress) {
+      next.address = t('errors.addressRequired')
+    } else if (trimmedAddress.length < 8) {
+      next.address = t('errors.addressTooShort')
+    }
+    if (!state.pan.trim()) {
+      next.pan = t('errors.panRequired')
+    } else if (!isValidPan(state.pan)) {
+      next.pan = t('errors.panInvalid')
+    }
+    if (state.gstin.trim() && !isValidGstin(state.gstin)) {
+      next.gstin = t('errors.gstinInvalid')
+    }
     if (!state.industry) next.industry = t('errors.industryRequired')
     if (!state.companySize) next.companySize = t('errors.companySizeRequired')
     if (!state.country.trim() || state.country.trim().length < 2) {
@@ -236,6 +261,10 @@ export function OrganizationRegistrationForm({
         phone: state.phone,
         website: state.website,
         industry: state.industry || undefined,
+        organizationType: state.organizationType as OrganizationTypeOption,
+        address: state.address,
+        pan: state.pan,
+        gstin: state.gstin || undefined,
         country: state.country,
         timezone: state.timezone,
         currency: state.currency || undefined,
@@ -281,9 +310,24 @@ export function OrganizationRegistrationForm({
       } else if (/email/i.test(message)) {
         setBasicsErrors((prev) => ({ ...prev, email: message }))
         setStep(1)
+      } else if (/phone/i.test(message)) {
+        setBasicsErrors((prev) => ({ ...prev, phone: message }))
+        setStep(1)
       } else if (/website/i.test(message)) {
         setBasicsErrors((prev) => ({ ...prev, website: message }))
         setStep(1)
+      } else if (/organizationType|organization type/i.test(message)) {
+        setCompanyErrors((prev) => ({ ...prev, organizationType: message }))
+        setStep(2)
+      } else if (/address/i.test(message)) {
+        setCompanyErrors((prev) => ({ ...prev, address: message }))
+        setStep(2)
+      } else if (/\bpan\b/i.test(message)) {
+        setCompanyErrors((prev) => ({ ...prev, pan: message }))
+        setStep(2)
+      } else if (/gstin/i.test(message)) {
+        setCompanyErrors((prev) => ({ ...prev, gstin: message }))
+        setStep(2)
       } else if (/country/i.test(message)) {
         setCompanyErrors((prev) => ({ ...prev, country: message }))
         setStep(2)
