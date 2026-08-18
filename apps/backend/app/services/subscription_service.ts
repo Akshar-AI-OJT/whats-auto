@@ -1,4 +1,5 @@
 import SubscriptionException from '#exceptions/subscription_exception'
+import { insertAuthorizationAudit } from '#lib/authorization_audit'
 import OrganizationSubscription from '#models/organization_subscription'
 import { runWithTenant } from '#services/tenant_context'
 import { SUBSCRIPTION_SOFT_DELETED_STATUS } from '#validators/subscription_crud'
@@ -86,7 +87,7 @@ export class SubscriptionService {
    * Create a subscription for an organization (Super Admin).
    * Uses runWithTenant so RLS WITH CHECK passes for the target organization.
    */
-  async createSubscription(data: CreateSubscriptionInput) {
+  async createSubscription(data: CreateSubscriptionInput, actorUserId?: string | null) {
     const start = toDateTime(data.currentPeriodStart)
     const end = toDateTime(data.currentPeriodEnd)
 
@@ -125,6 +126,15 @@ export class SubscriptionService {
         })
         .returning('*')
 
+      await insertAuthorizationAudit({
+        organizationId: data.organizationId,
+        actorUserId: actorUserId ?? null,
+        targetType: 'subscription',
+        targetId: created.id,
+        eventType: 'subscription.created',
+        after: { planId: created.planId, status: created.status },
+      })
+
       return created
     })
   }
@@ -133,7 +143,11 @@ export class SubscriptionService {
    * Partial update for Super Admin. Only provided fields are changed.
    * Uses runWithTenant so RLS passes for the subscription's organization.
    */
-  async updateSubscription(subscriptionId: string, patch: UpdateSubscriptionInput) {
+  async updateSubscription(
+    subscriptionId: string,
+    patch: UpdateSubscriptionInput,
+    actorUserId?: string | null
+  ) {
     const existing = await this.findSubscriptionOrFail(subscriptionId)
 
     if (patch.planId !== undefined) {
@@ -182,6 +196,15 @@ export class SubscriptionService {
         .update(updates)
         .returning('*')
 
+      await insertAuthorizationAudit({
+        organizationId: existing.organizationId,
+        actorUserId: actorUserId ?? null,
+        targetType: 'subscription',
+        targetId: updated.id,
+        eventType: 'subscription.updated',
+        after: { planId: updated.planId, status: updated.status },
+      })
+
       return updated
     })
   }
@@ -190,7 +213,7 @@ export class SubscriptionService {
    * Soft-delete a subscription without removing the row.
    * Uses status = cancelled and sets cancelAt (this table has no deletedAt column).
    */
-  async softDeleteSubscription(subscriptionId: string) {
+  async softDeleteSubscription(subscriptionId: string, actorUserId?: string | null) {
     const subscription = await this.findSubscriptionIncludingDeleted(subscriptionId)
 
     if (subscription.status === SUBSCRIPTION_SOFT_DELETED_STATUS) {
@@ -201,6 +224,15 @@ export class SubscriptionService {
       await db.from('organization_subscriptions').where('id', subscriptionId).update({
         status: SUBSCRIPTION_SOFT_DELETED_STATUS,
         cancelAt: DateTime.utc().toJSDate(),
+      })
+
+      await insertAuthorizationAudit({
+        organizationId: subscription.organizationId,
+        actorUserId: actorUserId ?? null,
+        targetType: 'subscription',
+        targetId: subscriptionId,
+        eventType: 'subscription.cancelled',
+        after: { status: SUBSCRIPTION_SOFT_DELETED_STATUS },
       })
     })
   }

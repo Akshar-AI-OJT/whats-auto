@@ -1,5 +1,6 @@
 import db from '@adonisjs/lucid/services/db'
 import logger from '@adonisjs/core/services/logger'
+import { insertAuthorizationAudit } from '#lib/authorization_audit'
 import {
   OrganizationSubscriptionRepository,
   type OrganizationSubscriptionRow,
@@ -439,6 +440,14 @@ export class SubscriptionMutationService {
 
       // Hard cancel only — skip cancel-at-period-end and already-cancelled retries.
       if (subscription.status !== 'cancelled') {
+        await insertAuthorizationAudit({
+          organizationId,
+          actorUserId: null,
+          targetType: 'subscription',
+          targetId: subscription.id,
+          eventType: 'subscription.cancelled',
+          after: { status: 'cancelled' },
+        })
         await this.#notifyOwnerBestEffort({
           organizationId,
           type: 'billing_subscription_cancelled',
