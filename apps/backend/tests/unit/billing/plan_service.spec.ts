@@ -33,6 +33,7 @@ function fakeRazorpay(overrides: Partial<RazorpayClient> = {}): RazorpayClient {
 test.group('PlanService', () => {
   test('create syncs Razorpay plan and stores gatewayPlanId', async ({ assert }) => {
     const code = `svc_${randomUUID().slice(0, 8)}`
+    const gatewayPlanId = `plan_rzp_${randomUUID().slice(0, 8)}`
     let createdAmount: number | null = null
     const service = new PlanService(
       new PlanRepository(),
@@ -40,7 +41,7 @@ test.group('PlanService', () => {
         createPlan: async (params) => {
           createdAmount = params.item.amount
           return {
-            id: 'plan_rzp_synced',
+            id: gatewayPlanId,
             period: params.period,
             interval: params.interval,
             item: params.item,
@@ -63,7 +64,7 @@ test.group('PlanService', () => {
     })
 
     assert.equal(plan.gateway, 'razorpay')
-    assert.equal(plan.gatewayPlanId, 'plan_rzp_synced')
+    assert.equal(plan.gatewayPlanId, gatewayPlanId)
     assert.equal(createdAmount, 249900)
     assert.equal(plan.status, 'active')
     assert.equal(plan.limits.users, 10)
