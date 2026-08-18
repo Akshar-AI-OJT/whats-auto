@@ -3,19 +3,18 @@
  * Listeners for Automation/SSE attach here; failures are logged only and must
  * never retry sends, reverse durable message state, or throw into emitters.
  */
+import app from '@adonisjs/core/services/app'
 import emitter from '@adonisjs/core/services/emitter'
 import logger from '@adonisjs/core/services/logger'
+import AiDebounceService from '#services/ai/ai_debounce_service'
 import InboxMessageFailed from '#events/inbox_message_failed'
 import InboxMessageQueued from '#events/inbox_message_queued'
 import InboxMessageReceived from '#events/inbox_message_received'
 import InboxMessageSent from '#events/inbox_message_sent'
 import InboxStatusUpdated from '#events/inbox_status_updated'
+import { inboxSseBus } from '#services/inbox_sse_bus'
 
-function logListenerFailure(
-  eventName: string,
-  payload: Record<string, unknown>,
-  error: unknown
-) {
+function logListenerFailure(eventName: string, payload: Record<string, unknown>, error: unknown) {
   logger.error(
     {
       ...payload,
@@ -25,9 +24,23 @@ function logListenerFailure(
   )
 }
 
+function publishSafely(
+  type:
+    'message.received' | 'message.queued' | 'message.sent' | 'message.failed' | 'status.updated',
+  organizationId: string,
+  payload: Record<string, unknown>
+) {
+  try {
+    inboxSseBus.publish({ type, organizationId, payload })
+  } catch (error) {
+    logListenerFailure(`inbox.${type}_sse_failed`, payload, error)
+  }
+}
+
 emitter.on(InboxMessageQueued, (event) => {
   try {
     logger.info(event.payload, 'inbox.message.queued')
+    publishSafely('message.queued', event.payload.organizationId, event.payload)
   } catch (error) {
     logListenerFailure('inbox.message.queued_listener_failed', event.payload, error)
   }
@@ -36,6 +49,7 @@ emitter.on(InboxMessageQueued, (event) => {
 emitter.on(InboxMessageSent, (event) => {
   try {
     logger.info(event.payload, 'inbox.message.sent')
+    publishSafely('message.sent', event.payload.organizationId, event.payload)
   } catch (error) {
     logListenerFailure('inbox.message.sent_listener_failed', event.payload, error)
   }
@@ -44,14 +58,24 @@ emitter.on(InboxMessageSent, (event) => {
 emitter.on(InboxMessageFailed, (event) => {
   try {
     logger.info(event.payload, 'inbox.message.failed')
+    publishSafely('message.failed', event.payload.organizationId, event.payload)
   } catch (error) {
     logListenerFailure('inbox.message.failed_listener_failed', event.payload, error)
   }
 })
 
-emitter.on(InboxMessageReceived, (event) => {
+emitter.on(InboxMessageReceived, async (event) => {
   try {
     logger.info(event.payload, 'inbox.message.received')
+    publishSafely('message.received', event.payload.organizationId, event.payload)
+    const debounce = await app.container.make(AiDebounceService)
+    await debounce.scheduleFromInbound({
+      organizationId: event.payload.organizationId,
+      conversationId: event.payload.conversationId,
+      contactId: event.payload.contactId,
+      messageId: event.payload.messageId,
+      contentText: event.payload.contentText,
+    })
   } catch (error) {
     logListenerFailure('inbox.message.received_listener_failed', event.payload, error)
   }
@@ -60,6 +84,7 @@ emitter.on(InboxMessageReceived, (event) => {
 emitter.on(InboxStatusUpdated, (event) => {
   try {
     logger.info(event.payload, 'inbox.status.updated')
+    publishSafely('status.updated', event.payload.organizationId, event.payload)
   } catch (error) {
     logListenerFailure('inbox.status.updated_listener_failed', event.payload, error)
   }

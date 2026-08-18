@@ -62,9 +62,16 @@ export default await Env.create(new URL('../', import.meta.url), {
 
   META_GRAPH_API_VERSION: Env.schema.string(),
 
-  // Job queue (pgboss | null; redis reserved for a future driver)
-  JOB_QUEUE_DRIVER: Env.schema.enum.optional(['pgboss', 'null'] as const),
-  JOB_QUEUE_PGBOSS_SCHEMA: Env.schema.string.optional(),
+  // Secrets only — model/debounce knobs live on platform_ai_configs.
+  OPENAI_API_KEY: Env.schema.secret.optional(),
+  GOOGLE_AI_API_KEY: Env.schema.secret.optional(),
+  MISTRAL_API_KEY: Env.schema.secret.optional(),
+
+  // Job queue — all jobs run on BullMQ (or null in tests). REDIS_URL required when driver=bullmq.
+  JOB_QUEUE_DRIVER: Env.schema.enum.optional(['bullmq', 'null'] as const),
+  JOB_QUEUE_BULLMQ_PREFIX: Env.schema.string.optional(),
+  // Keep optional so NODE_ENV=test with null driver still boots; config asserts when bullmq.
+  REDIS_URL: Env.schema.string.optional(),
 
   // Comma-separated hostnames allowed for outbound media public URLs (optional)
   OUTBOUND_MEDIA_ALLOWED_HOSTS: Env.schema.string.optional(),
@@ -79,4 +86,9 @@ export default await Env.create(new URL('../', import.meta.url), {
   S3_BUCKET: Env.schema.string(),
   DRIVE_DISK: Env.schema.enum(['s3'] as const),
   MEDIA_PUBLIC_BASE_URL: Env.schema.string({ format: 'url', tld: false }),
+  /**
+   * @deprecated New uploads always use v2 organization keys.
+   * Kept optional so existing .env files do not fail validation.
+   */
+  MEDIA_STORAGE_NAMESPACE_V2: Env.schema.boolean.optional(),
 })

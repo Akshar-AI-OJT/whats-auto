@@ -90,9 +90,8 @@ function capturedBody(organizationId: string, paymentId: string, gatewaySubscrip
 test.group('Billing Razorpay webhook HTTP', (group) => {
   group.each.setup(async () => {
     const manager = await app.container.make(JobQueueManager)
-    const driver = manager.use('null') as NullJobQueueDriver
+    const driver = (await manager.ensureStarted()) as NullJobQueueDriver
     driver.clearEnqueued()
-    await manager.start('null')
   })
 
   test('POST accepts valid signature and inserts ledger row', async ({ client, assert }) => {
@@ -121,7 +120,7 @@ test.group('Billing Razorpay webhook HTTP', (group) => {
     assert.equal(row?.provider, 'razorpay')
 
     const manager = await app.container.make(JobQueueManager)
-    const driver = manager.use('null') as NullJobQueueDriver
+    const driver = (await manager.ensureStarted()) as NullJobQueueDriver
     assert.isAtLeast(driver.enqueued.length, 1)
     assert.equal(driver.enqueued[0]?.name, JOB_NAMES.BILLING_PAYMENT_WEBHOOK_PROCESS)
   })

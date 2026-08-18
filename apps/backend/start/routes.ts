@@ -18,6 +18,8 @@ const AuthController = () => import('#controllers/auth_controller')
 const PreSignupController = () => import('#controllers/pre_signup_controller')
 const VerifySignupController = () => import('#controllers/verify_signup_controller')
 const ContactsController = () => import('#controllers/contacts_controller')
+const TagsController = () => import('#controllers/tags_controller')
+const CampaignsController = () => import('#controllers/campaigns_controller')
 const ConversationsController = () => import('#controllers/conversations_controller')
 const OrganizationsController = () => import('#controllers/organizations_controller')
 const InvitationsController = () => import('#controllers/invitations_controller')
@@ -26,6 +28,9 @@ const SuperAdminOrganizationsController = () =>
   import('#controllers/super_admin_organizations_controller')
 const SuperAdminSubscriptionsController = () =>
   import('#controllers/super_admin_subscriptions_controller')
+const SuperAdminPlansController = () => import('#controllers/super_admin_plans_controller')
+const SuperAdminInvoicesController = () => import('#controllers/super_admin_invoices_controller')
+const SuperAdminAiConfigController = () => import('#controllers/super_admin_ai_config_controller')
 const OrganizationAdminUsersController = () =>
   import('#controllers/organization_admin_users_controller')
 const WhatsappWebhookController = () => import('#controllers/whatsapp_webhook_controller')
@@ -34,11 +39,16 @@ const WhatsappEmbeddedSignupController = () =>
 const WhatsappConfigsController = () => import('#controllers/whatsapp_configs_controller')
 const MessageTemplatesController = () => import('#controllers/message_templates_controller')
 const MessagesController = () => import('#controllers/messages_controller')
+const ConversationAiController = () => import('#controllers/conversation_ai_controller')
 const ConversationNotesController = () => import('#controllers/conversation_notes_controller')
 const MediaUploadsController = () => import('#controllers/media_uploads_controller')
+const MediaAssetsController = () => import('#controllers/media_assets_controller')
+const KnowledgeDocumentsController = () => import('#controllers/knowledge_documents_controller')
 const BillingController = () => import('#controllers/billing_controller')
 const BillingRazorpayWebhookController = () =>
   import('#controllers/billing_razorpay_webhook_controller')
+const InboxEventsController = () => import('#controllers/inbox_events_controller')
+const NotificationsController = () => import('#controllers/notifications_controller')
 
 type JsonSchema = {
   type: 'object'
@@ -143,6 +153,87 @@ const requestBodySchemas: Record<string, JsonSchema> = {
     currentPeriodStart: { type: 'string', format: 'date-time' },
     currentPeriodEnd: { type: 'string', format: 'date-time' },
   }),
+  'post /api/v1/super-admin/invoices': bodySchema(
+    {
+      organizationId: { type: 'string', format: 'uuid' },
+      planName: { type: 'string', example: 'Growth' },
+      billingPeriod: { type: 'string', example: 'monthly' },
+      periodStart: { type: 'string', format: 'date-time' },
+      periodEnd: { type: 'string', format: 'date-time' },
+      issueDate: { type: 'string', format: 'date' },
+      dueDate: { type: 'string', format: 'date' },
+      organizationName: { type: 'string', example: 'Acme Corp' },
+      organizationEmail: { type: 'string', format: 'email' },
+      lineItems: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            description: { type: 'string' },
+            quantity: { type: 'number' },
+            unitPrice: { type: 'number' },
+            amount: { type: 'number' },
+          },
+        },
+      },
+    },
+    [
+      'organizationId',
+      'planName',
+      'billingPeriod',
+      'periodStart',
+      'periodEnd',
+      'issueDate',
+      'dueDate',
+      'organizationName',
+      'organizationEmail',
+      'lineItems',
+    ]
+  ),
+  'post /api/v1/super-admin/invoices/{id}/mark-paid': bodySchema({
+    paymentMethod: { type: 'string', example: 'Manual' },
+    paymentTransactionId: { type: 'string', format: 'uuid' },
+  }),
+  'patch /api/v1/super-admin/ai-config': bodySchema({
+    isEnabled: { type: 'boolean', example: true },
+    chatProvider: { type: 'string', example: 'openai' },
+    chatModel: { type: 'string', example: 'gpt-4o-mini' },
+    summaryModel: { type: 'string', example: 'gpt-4o-mini' },
+    modelName: { type: 'string', example: 'gpt-4o-mini' },
+    temperature: { type: 'number', example: 0.2 },
+    campaignAttributionWindowHours: { type: 'integer', example: 48 },
+    minConfidenceScore: { type: 'number', example: 0.7 },
+    debounceDelaySeconds: { type: 'integer', example: 4 },
+    systemPrompt: { type: 'string', example: 'You are a grounded support agent.' },
+    handoverKeywords: {
+      type: 'array',
+      items: { type: 'string' },
+      example: ['agent', 'human', 'representative'],
+    },
+    workingSetSize: { type: 'integer', example: 6 },
+    summaryTurnThreshold: { type: 'integer', example: 10 },
+    embeddingProvider: { type: 'string', example: 'openai' },
+    embeddingModel: { type: 'string', example: 'text-embedding-3-small' },
+    activeEmbeddingSpaceId: {
+      type: 'string',
+      example: 'openai:text-embedding-3-small:1024:v1',
+    },
+    maxOutputTokens: { type: 'integer', example: 1024 },
+  }),
+  'post /api/v1/ai/knowledge-documents': bodySchema(
+    {
+      title: { type: 'string', example: 'Store hours' },
+      sourceType: {
+        type: 'string',
+        example: 'FILE_PDF',
+        enum: ['FILE_PDF', 'FILE_DOCX', 'FILE_TXT'],
+      },
+      fileName: { type: 'string', example: 'policy.pdf' },
+      mimeType: { type: 'string', example: 'application/pdf' },
+      fileSize: { type: 'integer', example: 12480 },
+    },
+    ['title', 'sourceType', 'fileName', 'mimeType', 'fileSize']
+  ),
   'post /api/v1/whatsapp/embedded-signup/complete': bodySchema(
     {
       code: { type: 'string', example: 'AQB...' },
@@ -162,6 +253,82 @@ const requestBodySchemas: Record<string, JsonSchema> = {
   'post /api/v1/contacts': bodySchema({ phone: { type: 'string', example: '+919876543210' } }, [
     'phone',
   ]),
+  'post /api/v1/tags': bodySchema(
+    {
+      name: { type: 'string', example: 'VIP' },
+      color: { type: 'string', example: '#22C55E', nullable: true },
+    },
+    ['name']
+  ),
+  'patch /api/v1/tags/{id}': bodySchema({
+    name: { type: 'string', example: 'Wholesale' },
+    color: { type: 'string', example: '#000000', nullable: true },
+  }),
+  'post /api/v1/tags/{id}/contacts': bodySchema({ contactId: { type: 'string', format: 'uuid' } }, [
+    'contactId',
+  ]),
+  'post /api/v1/campaigns': bodySchema(
+    {
+      name: { type: 'string', example: 'July Product Launch' },
+      whatsappConfigId: { type: 'string', format: 'uuid' },
+      messageTemplateId: { type: 'string', format: 'uuid' },
+      scheduledAt: { type: 'string', format: 'date-time', example: '2026-08-07T10:00:00.000Z' },
+      status: { type: 'string', example: 'draft', enum: ['draft', 'scheduled'] },
+    },
+    ['name']
+  ),
+  'post /api/v1/campaigns/{id}/preview': bodySchema({
+    variables: {
+      type: 'object',
+      additionalProperties: { type: 'string' },
+      example: { customer_name: 'Priya' },
+    },
+  }),
+  'post /api/v1/campaigns/{id}/schedule': bodySchema(
+    {
+      scheduledAt: {
+        type: 'string',
+        format: 'date-time',
+        example: '2026-08-07T10:00:00.000Z',
+      },
+    },
+    ['scheduledAt']
+  ),
+  'patch /api/v1/campaigns/{id}/status': bodySchema(
+    {
+      status: {
+        type: 'string',
+        example: 'sent',
+        enum: ['draft', 'scheduled', 'sending', 'sent', 'failed', 'cancelled'],
+      },
+    },
+    ['status']
+  ),
+  'patch /api/v1/campaigns/{id}': bodySchema({
+    name: { type: 'string', example: 'July Product Launch v2' },
+    whatsappConfigId: { type: 'string', format: 'uuid', nullable: true },
+    messageTemplateId: { type: 'string', format: 'uuid', nullable: true },
+    scheduledAt: {
+      type: 'string',
+      format: 'date-time',
+      example: '2026-08-07T10:00:00.000Z',
+      nullable: true,
+    },
+    status: { type: 'string', example: 'scheduled', enum: ['draft', 'scheduled'] },
+  }),
+  'put /api/v1/campaigns/{id}/recipients': bodySchema({
+    contactIds: {
+      type: 'array',
+      items: { type: 'string', format: 'uuid' },
+      example: ['00000000-0000-0000-0000-000000000001'],
+    },
+    tagId: { type: 'string', format: 'uuid' },
+    variables: {
+      type: 'object',
+      additionalProperties: { type: 'string' },
+      example: { customer_name: 'Priya' },
+    },
+  }),
   'post /api/v1/inbox/conversations': bodySchema(
     {
       contactId: { type: 'string', format: 'uuid' },
@@ -304,7 +471,7 @@ router.any('/api/auth/*', async (ctx) => {
 
 /*
 |--------------------------------------------------------------------------
-| Platform inbound webhooks (public — Meta / future providers)
+| Platform inbound webhooks (public â€” Meta / future providers)
 | No jwtAuth / tenant. Auth = verify token (GET) + HMAC signature (POST).
 |--------------------------------------------------------------------------
 */
@@ -319,46 +486,24 @@ router
 /*
 |--------------------------------------------------------------------------
 | Tenant WhatsApp product APIs (Phase 2+)
-| Embedded Signup + whatsapp_configs — jwtAuth + tenant + whatsapp:* perms
+| Embedded Signup + whatsapp_configs â€” jwtAuth + tenant + whatsapp:* perms
 |--------------------------------------------------------------------------
 */
 router
   .group(() => {
-    router
-      .get('/embedded-signup/session', [WhatsappEmbeddedSignupController, 'session'])
-      .use(middleware.requirePermission({ permission: 'whatsapp:connect' }))
-    router
-      .post('/embedded-signup/complete', [WhatsappEmbeddedSignupController, 'complete'])
-      .use(middleware.requirePermission({ permission: 'whatsapp:connect' }))
+    router.get('/embedded-signup/session', [WhatsappEmbeddedSignupController, 'session'])
+    router.post('/embedded-signup/complete', [WhatsappEmbeddedSignupController, 'complete'])
 
-    router
-      .get('/configs', [WhatsappConfigsController, 'index'])
-      .use(middleware.requirePermission({ permission: 'whatsapp:view' }))
-    router
-      .get('/configs/:id', [WhatsappConfigsController, 'show'])
-      .use(middleware.requirePermission({ permission: 'whatsapp:view' }))
-    router
-      .delete('/configs/:id', [WhatsappConfigsController, 'destroy'])
-      .use(middleware.requirePermission({ permission: 'whatsapp:connect' }))
-    router
-      .post('/configs/:id/test', [WhatsappConfigsController, 'test'])
-      .use(middleware.requirePermission({ permission: 'whatsapp:manage' }))
+    router.get('/configs', [WhatsappConfigsController, 'index'])
+    router.get('/configs/:id', [WhatsappConfigsController, 'show'])
+    router.delete('/configs/:id', [WhatsappConfigsController, 'destroy'])
+    router.post('/configs/:id/test', [WhatsappConfigsController, 'test'])
 
-    router
-      .get('/templates', [MessageTemplatesController, 'index'])
-      .use(middleware.requirePermission({ permission: 'whatsapp:view' }))
-    router
-      .get('/templates/:id', [MessageTemplatesController, 'show'])
-      .use(middleware.requirePermission({ permission: 'whatsapp:view' }))
-    router
-      .post('/templates', [MessageTemplatesController, 'store'])
-      .use(middleware.requirePermission({ permission: 'whatsapp:manage' }))
-    router
-      .post('/templates/sync', [MessageTemplatesController, 'sync'])
-      .use(middleware.requirePermission({ permission: 'whatsapp:manage' }))
-    router
-      .delete('/templates/:id', [MessageTemplatesController, 'destroy'])
-      .use(middleware.requirePermission({ permission: 'whatsapp:manage' }))
+    router.get('/templates', [MessageTemplatesController, 'index'])
+    router.get('/templates/:id', [MessageTemplatesController, 'show'])
+    router.post('/templates', [MessageTemplatesController, 'store'])
+    router.post('/templates/sync', [MessageTemplatesController, 'sync'])
+    router.delete('/templates/:id', [MessageTemplatesController, 'destroy'])
   })
   .prefix('/api/v1/whatsapp')
   .use([middleware.jwtAuth(), middleware.tenant()])
@@ -387,35 +532,38 @@ router
 // super admin — platform scope (no active organization required)
 router
   .group(() => {
-    router
-      .get('/organizations', [SuperAdminOrganizationsController, 'index'])
-      .use(middleware.requirePermission({ permission: 'platform:tenants_view' }))
-    router
-      .patch('/organizations/:id', [SuperAdminOrganizationsController, 'update'])
-      .use(middleware.requirePermission({ permission: 'platform:tenants_update' }))
-    router
-      .delete('/organizations/:id', [SuperAdminOrganizationsController, 'softDelete'])
-      .use(middleware.requirePermission({ permission: 'platform:tenants_delete' }))
-    router
-      .get('/subscriptions', [SuperAdminSubscriptionsController, 'index'])
-      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
-    router
-      .post('/subscriptions', [SuperAdminSubscriptionsController, 'store'])
-      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
-    router
-      .get('/subscriptions/:id', [SuperAdminSubscriptionsController, 'show'])
-      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
-    router
-      .patch('/subscriptions/:id', [SuperAdminSubscriptionsController, 'update'])
-      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
-    router
-      .delete('/subscriptions/:id', [SuperAdminSubscriptionsController, 'softDelete'])
-      .use(middleware.requirePermission({ permission: 'platform:tenants_billing' }))
+    router.get('/organizations', [SuperAdminOrganizationsController, 'index'])
+    router.patch('/organizations/:id', [SuperAdminOrganizationsController, 'update'])
+    router.delete('/organizations/:id', [SuperAdminOrganizationsController, 'softDelete'])
+
+    router.get('/subscriptions', [SuperAdminSubscriptionsController, 'index'])
+    router.post('/subscriptions', [SuperAdminSubscriptionsController, 'store'])
+    router.get('/subscriptions/:id', [SuperAdminSubscriptionsController, 'show'])
+    router.patch('/subscriptions/:id', [SuperAdminSubscriptionsController, 'update'])
+    router.delete('/subscriptions/:id', [SuperAdminSubscriptionsController, 'softDelete'])
+
+    router.get('/plans', [SuperAdminPlansController, 'index'])
+    router.post('/plans', [SuperAdminPlansController, 'store'])
+    router.get('/plans/:id', [SuperAdminPlansController, 'show'])
+    router.patch('/plans/:id', [SuperAdminPlansController, 'update'])
+    router.delete('/plans/:id', [SuperAdminPlansController, 'softDelete'])
+
+    router.get('/invoices/summary', [SuperAdminInvoicesController, 'summary'])
+    router.get('/invoices', [SuperAdminInvoicesController, 'index'])
+    router.post('/invoices', [SuperAdminInvoicesController, 'store'])
+    router.get('/invoices/:id', [SuperAdminInvoicesController, 'show'])
+    router.post('/invoices/:id/mark-paid', [SuperAdminInvoicesController, 'markPaid'])
+    router.post('/invoices/:id/regenerate', [SuperAdminInvoicesController, 'regenerate'])
+    router.post('/invoices/:id/send', [SuperAdminInvoicesController, 'send'])
+    router.get('/invoices/:id/download', [SuperAdminInvoicesController, 'download'])
+
+    router.get('/ai-config', [SuperAdminAiConfigController, 'show'])
+    router.patch('/ai-config', [SuperAdminAiConfigController, 'update'])
   })
   .prefix('/api/v1/super-admin')
   .use([middleware.jwtAuth(), middleware.platform()])
 
-// organization admin — active-org scoped (admin/owner role enforced in controller)
+// organization admin — active-org scoped (admin/owner role enforced via OrganizationAdminUserPolicy)
 router
   .group(() => {
     router.get('/users', [OrganizationAdminUsersController, 'index'])
@@ -435,15 +583,9 @@ router
 
 router
   .group(() => {
-    router
-      .patch('/:id', [OrganizationsController, 'update'])
-      .use(middleware.requirePermission({ permission: 'org:settings_manage' }))
-    router
-      .delete('/:id', [OrganizationsController, 'destroy'])
-      .use(middleware.requirePermission({ permission: 'org:delete' }))
-    router
-      .post('/:id/invitations', [InvitationsController, 'store'])
-      .use(middleware.requirePermission({ permission: 'team:invite' }))
+    router.patch('/:id', [OrganizationsController, 'update'])
+    router.delete('/:id', [OrganizationsController, 'destroy'])
+    router.post('/:id/invitations', [InvitationsController, 'store'])
   })
   .prefix('/api/v1/organizations')
   .use([middleware.jwtAuth(), middleware.tenant()])
@@ -451,11 +593,7 @@ router
 // invitations — list stays active-org scoped; accept/reject/cancel use invitation :id
 router
   .get('/api/v1/invitations', [InvitationsController, 'index'])
-  .use([
-    middleware.jwtAuth(),
-    middleware.tenant(),
-    middleware.requirePermission({ permission: 'team:view' }),
-  ])
+  .use([middleware.jwtAuth(), middleware.tenant()])
 
 router.get('/api/v1/invitations/:id', [InvitationsController, 'show'])
 router
@@ -465,11 +603,7 @@ router
 router.post('/api/v1/invitations/:id/reject', [InvitationsController, 'reject'])
 router
   .post('/api/v1/invitations/:id/cancel', [InvitationsController, 'cancel'])
-  .use([
-    middleware.jwtAuth(),
-    middleware.tenant(),
-    middleware.requirePermission({ permission: 'team:invite' }),
-  ])
+  .use([middleware.jwtAuth(), middleware.tenant()])
 
 //  Access context (frontend polls this after login/org switch)
 router
@@ -483,124 +617,129 @@ router.get('/api/v1/onboarding/state', [OnboardingController, 'show']).use([midd
 router
   .group(() => {
     router.get('/', [controllers.Roles, 'index'])
-    router
-      .post('/', [controllers.Roles, 'create'])
-      .use(middleware.requirePermission({ permission: 'roles:manage' }))
-    router
-      .post('/:roleKey/preview', [controllers.Roles, 'preview'])
-      .use(middleware.requirePermission({ permission: 'roles:manage' }))
-    router
-      .put('/:roleKey', [controllers.Roles, 'update'])
-      .use(middleware.requirePermission({ permission: 'roles:manage' }))
-    router
-      .post('/:roleKey/reset', [controllers.Roles, 'reset'])
-      .use(middleware.requirePermission({ permission: 'roles:manage' }))
-    router
-      .delete('/:roleKey', [controllers.Roles, 'destroy'])
-      .use(middleware.requirePermission({ permission: 'roles:manage' }))
+    router.post('/', [controllers.Roles, 'create'])
+    router.post('/:roleKey/preview', [controllers.Roles, 'preview'])
+    router.put('/:roleKey', [controllers.Roles, 'update'])
+    router.post('/:roleKey/reset', [controllers.Roles, 'reset'])
+    router.delete('/:roleKey', [controllers.Roles, 'destroy'])
   })
   .prefix('/api/v1/roles')
-  .use([
-    middleware.jwtAuth(),
-    middleware.tenant(),
-    middleware.requirePermission({ permission: 'team:view' }),
-  ])
+  .use([middleware.jwtAuth(), middleware.tenant()])
 
-//members
+// members
 router
   .group(() => {
     // Team UI lists members here; org-admin/users is the paginated Owner/Admin admin API.
     router.get('/', [controllers.Members, 'index'])
-    router
-      .patch('/:memberId/role', [controllers.Members, 'assignRole'])
-      .use(middleware.requirePermission({ permission: 'team:role_assign' }))
-    router
-      .delete('/:memberId', [controllers.Members, 'remove'])
-      .use(middleware.requirePermission({ permission: 'team:remove' }))
+    router.patch('/:memberId/role', [controllers.Members, 'assignRole'])
+    router.delete('/:memberId', [controllers.Members, 'remove'])
   })
   .prefix('/api/v1/members')
-  .use([
-    middleware.jwtAuth(),
-    middleware.tenant(),
-    middleware.requirePermission({ permission: 'team:view' }),
-  ])
+  .use([middleware.jwtAuth(), middleware.tenant()])
 
-//ownership transfer
+// ownership transfer
 router
   .post('/api/v1/ownership/transfer', [controllers.Ownership, 'transfer'])
   .use([middleware.jwtAuth(), middleware.tenant()])
 
-//audit history
+// audit history — dual-mode: Super Admin is platform-scoped, tenants stay org-scoped via AuditPolicy
 router
   .get('/api/v1/audit', [controllers.Audit, 'index'])
-  .use([
-    middleware.jwtAuth(),
-    middleware.tenant(),
-    middleware.requirePermission({ permission: 'team:view' }),
-  ])
+  .use([middleware.jwtAuth(), middleware.auditAccess()])
 
-// contacts — sample RLS business table (tenant isolation demo)
+// contacts — tenant isolation
 router
   .group(() => {
-    router
-      .get('/', [ContactsController, 'index'])
-      .use(middleware.requirePermission({ permission: 'contacts:view' }))
-    router
-      .post('/', [ContactsController, 'store'])
-      .use(middleware.requirePermission({ permission: 'contacts:create' }))
+    router.get('/', [ContactsController, 'index'])
+    router.post('/', [ContactsController, 'store'])
   })
   .prefix('/api/v1/contacts')
   .use([middleware.jwtAuth(), middleware.tenant()])
 
-// media uploads — direct-to-S3 pending → ready lifecycle
+// contact tags — grouping via existing tags / contact_tags tables
 router
   .group(() => {
-    router
-      .post('/uploads', [MediaUploadsController, 'store'])
-      .use(middleware.requirePermission({ permission: 'media:upload' }))
-    router
-      .post('/uploads/:id/complete', [MediaUploadsController, 'complete'])
-      .use(middleware.requirePermission({ permission: 'media:upload' }))
+    router.get('/', [TagsController, 'index'])
+    router.post('/', [TagsController, 'store'])
+    router.get('/:id/contacts', [TagsController, 'contacts'])
+    router.post('/:id/contacts', [TagsController, 'assignContact'])
+    router.delete('/:id/contacts/:contactId', [TagsController, 'removeContact'])
+    router.get('/:id', [TagsController, 'show'])
+    router.patch('/:id', [TagsController, 'update'])
+    router.delete('/:id', [TagsController, 'destroy'])
+  })
+  .prefix('/api/v1/tags')
+  .use([middleware.jwtAuth(), middleware.tenant()])
+
+// media uploads — direct-to-S3 pending → ready lifecycle + Media Library
+router
+  .group(() => {
+    router.get('/', [MediaAssetsController, 'index'])
+    router.get('/quota', [MediaAssetsController, 'quota'])
+    router.get('/:id', [MediaAssetsController, 'show'])
+    router.post('/uploads', [MediaUploadsController, 'store'])
+    router.post('/uploads/:id/complete', [MediaUploadsController, 'complete'])
+    router.delete('/:id', [MediaAssetsController, 'destroy'])
+    router.post('/:id/restore', [MediaAssetsController, 'restore'])
+    router.post('/:id/purge', [MediaAssetsController, 'purge'])
   })
   .prefix('/api/v1/media')
+  .use([middleware.jwtAuth(), middleware.tenant()])
+
+// AI knowledge base — files live in the knowledge_base S3 namespace
+router
+  .group(() => {
+    router.get('/', [KnowledgeDocumentsController, 'index'])
+    router.post('/', [KnowledgeDocumentsController, 'store'])
+    router.get('/:id', [KnowledgeDocumentsController, 'show'])
+    router.post('/:id/complete-upload', [KnowledgeDocumentsController, 'completeUpload'])
+    router.delete('/:id', [KnowledgeDocumentsController, 'destroy'])
+    router.post('/:id/restore', [KnowledgeDocumentsController, 'restore'])
+    router.post('/:id/purge', [KnowledgeDocumentsController, 'purge'])
+  })
+  .prefix('/api/v1/ai/knowledge-documents')
+  .use([middleware.jwtAuth(), middleware.tenant()])
+
+// campaigns — outbound broadcasts (product: Campaign)
+router
+  .group(() => {
+    router.get('/', [CampaignsController, 'index'])
+    router.post('/:id/preview', [CampaignsController, 'preview'])
+    router.post('/:id/send', [CampaignsController, 'send'])
+    router.post('/:id/schedule', [CampaignsController, 'schedule'])
+    router.patch('/:id/cancel', [CampaignsController, 'cancel'])
+    router.post('/:id/duplicate', [CampaignsController, 'duplicate'])
+    router.patch('/:id/status', [CampaignsController, 'changeStatus'])
+    router.get('/:id', [CampaignsController, 'show'])
+    router.post('/', [CampaignsController, 'store'])
+    router.patch('/:id', [CampaignsController, 'update'])
+    router.put('/:id/recipients', [CampaignsController, 'replaceRecipients'])
+    router.delete('/:id', [CampaignsController, 'softDelete'])
+  })
+  .prefix('/api/v1/campaigns')
+  .use([middleware.jwtAuth(), middleware.tenant()])
+
+// inbox realtime — SSE stream (must be registered before /conversations/:id)
+router
+  .get('/api/v1/inbox/events', [InboxEventsController, 'stream'])
   .use([middleware.jwtAuth(), middleware.tenant()])
 
 // inbox conversations — lifecycle APIs
 router
   .group(() => {
-    router
-      .get('/', [ConversationsController, 'index'])
-      .use(middleware.requirePermission({ permission: 'inbox:view' }))
-    router
-      .post('/', [ConversationsController, 'store'])
-      .use(middleware.requirePermission({ permission: 'inbox:view' }))
-    router
-      .get('/:id', [ConversationsController, 'show'])
-      .use(middleware.requirePermission({ permission: 'inbox:view' }))
-    router
-      .patch('/:id', [ConversationsController, 'update'])
-      .use(middleware.requirePermission({ permission: 'inbox:view' }))
-    router
-      .post('/:id/assign', [ConversationsController, 'assign'])
-      .use(middleware.requirePermission({ permission: 'inbox:assign' }))
-    router
-      .post('/:id/close', [ConversationsController, 'close'])
-      .use(middleware.requirePermission({ permission: 'inbox:close' }))
-    router
-      .post('/:id/reopen', [ConversationsController, 'reopen'])
-      .use(middleware.requirePermission({ permission: 'inbox:close' }))
-    router
-      .get('/:id/messages', [MessagesController, 'index'])
-      .use(middleware.requirePermission({ permission: 'inbox:view' }))
-    router
-      .post('/:id/messages', [MessagesController, 'store'])
-      .use(middleware.requirePermission({ permission: 'inbox:reply' }))
-    router
-      .get('/:id/notes', [ConversationNotesController, 'index'])
-      .use(middleware.requirePermission({ permission: 'inbox:view' }))
-    router
-      .post('/:id/notes', [ConversationNotesController, 'store'])
-      .use(middleware.requirePermission({ permission: 'inbox:reply' }))
+    router.get('/', [ConversationsController, 'index'])
+    router.post('/', [ConversationsController, 'store'])
+    router.get('/:id', [ConversationsController, 'show'])
+    router.patch('/:id', [ConversationsController, 'update'])
+    router.post('/:id/assign', [ConversationsController, 'assign'])
+    router.post('/:id/close', [ConversationsController, 'close'])
+    router.post('/:id/reopen', [ConversationsController, 'reopen'])
+    router.get('/:id/messages', [MessagesController, 'index'])
+    router.post('/:id/messages', [MessagesController, 'store'])
+    router.post('/:id/ai/takeover', [ConversationAiController, 'takeover'])
+    router.post('/:id/ai/resume', [ConversationAiController, 'resume'])
+    router.get('/:id/notes', [ConversationNotesController, 'index'])
+    router.post('/:id/notes', [ConversationNotesController, 'store'])
   })
   .prefix('/api/v1/inbox/conversations')
   .use([middleware.jwtAuth(), middleware.tenant()])
@@ -608,12 +747,19 @@ router
 // Platform billing (tenant) — Razorpay SaaS checkout + subscription read
 router
   .group(() => {
-    router
-      .get('/subscription', [BillingController, 'showSubscription'])
-      .use(middleware.requirePermission({ permission: 'billing:view' }))
-    router
-      .post('/checkout', [BillingController, 'checkout'])
-      .use(middleware.requirePermission({ permission: 'billing:manage' }))
+    router.get('/subscription', [BillingController, 'showSubscription'])
+    router.post('/checkout', [BillingController, 'checkout'])
   })
   .prefix('/api/v1/billing')
+  .use([middleware.jwtAuth(), middleware.tenant()])
+
+// notifications — personal in-app feed (org + user scoped; not notifications:manage config)
+router
+  .group(() => {
+    router.get('/', [NotificationsController, 'index'])
+    // Static path before :id so "read-all" is not captured as an id
+    router.patch('/read-all', [NotificationsController, 'markAllAsRead'])
+    router.patch('/:id/read', [NotificationsController, 'markAsRead'])
+  })
+  .prefix('/api/v1/notifications')
   .use([middleware.jwtAuth(), middleware.tenant()])

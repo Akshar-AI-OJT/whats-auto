@@ -1,9 +1,11 @@
 import db from '@adonisjs/lucid/services/db'
+import logger from '@adonisjs/core/services/logger'
 import {
   OrganizationSubscriptionRepository,
   type OrganizationSubscriptionRow,
 } from '#repositories/organization_subscription_repository'
 import { PaymentTransactionRepository } from '#repositories/payment_transaction_repository'
+import { NotificationService } from '#services/notification_service'
 import { runWithTenant } from '#services/tenant_context'
 
 export const HANDLED_RAZORPAY_EVENTS = [
@@ -208,6 +210,12 @@ export class SubscriptionMutationService {
 
     const subscription = await this.#findSubscriptionForPayment(organizationId, payload, payment)
 
+    const existingPayment = await this.payments.findByGatewayPaymentId({
+      gateway: 'razorpay',
+      gatewayPaymentId,
+    })
+    const alreadyFailed = existingPayment?.status === 'failed'
+
     await this.payments.upsertByGatewayPaymentId({
       organizationId,
       subscriptionId: subscription?.id ?? null,
@@ -232,6 +240,23 @@ export class SubscriptionMutationService {
           lastPaymentStatus: 'failed',
           lastPaymentAt: new Date(),
         },
+      })
+
+      await this.#notifyOwnerBestEffort({
+        organizationId,
+        type: 'billing_subscription_past_due',
+        title: 'Subscription past due',
+        body: 'Your subscription is past due. Renew payment to restore full access.',
+      })
+    }
+
+    // Webhook retries for the same gateway payment id must not re-notify.
+    if (!alreadyFailed) {
+      await this.#notifyOwnerBestEffort({
+        organizationId,
+        type: 'billing_payment_failed',
+        title: 'Payment failed',
+        body: 'A subscription payment failed. Update your payment method to avoid interruption.',
       })
     }
 
@@ -325,6 +350,13 @@ export class SubscriptionMutationService {
       return { outcome: 'ignored', reason: 'subscription_not_found' }
     }
 
+    const wasAlreadyPastDue = subscription.status === 'past_due'
+    const priorMetadata =
+      typeof subscription.metadata === 'object' && subscription.metadata
+        ? (subscription.metadata as Record<string, unknown>)
+        : {}
+    const wasAlreadyHalted = priorMetadata.halted === true
+
     await this.subscriptions.updateById({
       organizationId,
       subscriptionId: subscription.id,
@@ -333,13 +365,29 @@ export class SubscriptionMutationService {
         lastPaymentStatus: 'failed',
         lastPaymentAt: new Date(),
         metadata: {
-          ...(typeof subscription.metadata === 'object' && subscription.metadata
-            ? subscription.metadata
-            : {}),
+          ...priorMetadata,
           halted: true,
         },
       },
     })
+
+    if (!wasAlreadyPastDue) {
+      await this.#notifyOwnerBestEffort({
+        organizationId,
+        type: 'billing_subscription_past_due',
+        title: 'Subscription past due',
+        body: 'Your subscription is past due. Renew payment to restore full access.',
+      })
+    }
+
+    if (!wasAlreadyHalted) {
+      await this.#notifyOwnerBestEffort({
+        organizationId,
+        type: 'billing_subscription_halted',
+        title: 'Subscription halted',
+        body: 'Your subscription was halted by the payment provider after repeated failures.',
+      })
+    }
 
     return { outcome: 'applied', organizationId, subscriptionId: subscription.id }
   }
@@ -388,6 +436,16 @@ export class SubscriptionMutationService {
           cancelAtPeriodEnd: false,
         },
       })
+
+      // Hard cancel only — skip cancel-at-period-end and already-cancelled retries.
+      if (subscription.status !== 'cancelled') {
+        await this.#notifyOwnerBestEffort({
+          organizationId,
+          type: 'billing_subscription_cancelled',
+          title: 'Subscription cancelled',
+          body: 'Your subscription has been cancelled.',
+        })
+      }
     }
 
     return { outcome: 'applied', organizationId, subscriptionId: subscription.id }
@@ -489,5 +547,59 @@ export class SubscriptionMutationService {
       return null
     }
     return new Date(value * 1000)
+  }
+
+  /**
+   * Resolve the org owner userId via organization_members ⋈ roles.name = 'owner'.
+   */
+  async #resolveOwnerUserId(organizationId: string): Promise<string | null> {
+    const row = await db
+      .from('organization_members')
+      .join('roles', 'roles.id', 'organization_members.roleId')
+      .where('organization_members.organizationId', organizationId)
+      .where('roles.name', 'owner')
+      .where('organization_members.isDeleted', false)
+      .select('organization_members.userId')
+      .first()
+
+    return (row?.userId as string | undefined) ?? null
+  }
+
+  /**
+   * Best-effort owner notification. Never throws — billing mutations must not fail on notify.
+   */
+  async #notifyOwnerBestEffort(params: {
+    organizationId: string
+    type: string
+    title: string
+    body: string
+  }): Promise<void> {
+    try {
+      const ownerUserId = await this.#resolveOwnerUserId(params.organizationId)
+      if (!ownerUserId) {
+        logger.warn(
+          { organizationId: params.organizationId, type: params.type },
+          'billing.notification_skipped_no_owner'
+        )
+        return
+      }
+
+      await new NotificationService().createNotification({
+        organizationId: params.organizationId,
+        userId: ownerUserId,
+        type: params.type,
+        title: params.title,
+        body: params.body,
+      })
+    } catch (error) {
+      logger.error(
+        {
+          organizationId: params.organizationId,
+          type: params.type,
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'billing.notification_failed'
+      )
+    }
   }
 }

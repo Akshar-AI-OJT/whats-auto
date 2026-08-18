@@ -174,7 +174,7 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
         <SheetContent
           side="left"
           showCloseButton
-          className="w-[min(280px,85vw)] border-dash-border bg-canvas p-0 sm:max-w-[280px]"
+          className="w-[min(320px,85vw)] border-dash-border bg-canvas p-0 sm:max-w-[320px]"
         >
           <SheetHeader className="sr-only">
             <SheetTitle>{t('brand')}</SheetTitle>
@@ -338,8 +338,14 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
             }}
             onSignOut={handleSignOut}
             onSelectItem={(id) => {
+              if (id === 'profile') {
+                router.push('/dashboard/profile')
+              }
               if (id === 'workspace' || id === 'settings') {
                 router.push('/dashboard/settings')
+              }
+              if (id === 'billing') {
+                router.push('/dashboard/billing')
               }
             }}
           />

@@ -99,7 +99,7 @@ test.group('Demo seeder functional', (group) => {
 
     const jwksResponse = await client.get('/api/auth/jwks')
     jwksResponse.assertStatus(200)
-    const body = jwksResponse.body() as { keys?: unknown[] }
+    const body = jwksResponse.body() as unknown as { keys?: unknown[] }
     assert.isArray(body.keys)
     assert.isAbove(body.keys!.length, 0)
   })

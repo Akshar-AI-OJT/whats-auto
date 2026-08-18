@@ -6,6 +6,8 @@ node_modules
 build
 dist
 .turbo
+.next
+**/.next/
 
 # Secrets
 .env
@@ -43,3 +45,5 @@ todo.md
 .agents/
 skills-lock.json
 *.xlsx
+.code-review-graph/
+.mcp.json

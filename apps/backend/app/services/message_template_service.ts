@@ -1,9 +1,11 @@
 import db from '@adonisjs/lucid/services/db'
+import logger from '@adonisjs/core/services/logger'
 import MessageTemplateException from '#exceptions/message_template_exception'
 import { decryptWhatsappAccessToken } from '#lib/meta_whatsapp/access_token_crypto'
 import { createMetaGraphClient, type MetaGraphClient } from '#lib/meta_whatsapp/graph_client'
 import { deriveParameterSchema, parseParameterSchema } from '#lib/meta_whatsapp/template_parameters'
 import type { MetaTemplateComponent, TemplateParameterSchema } from '#lib/meta_whatsapp/types'
+import { NotificationService } from '#services/notification_service'
 
 export type MessageTemplateDto = {
   id: string
@@ -235,7 +237,17 @@ export class MessageTemplateService {
       }
 
       if (existing) {
+        const previousStatus = String(existing.status ?? '').toLowerCase()
         await db.from('message_templates').where('id', existing.id).update(payload)
+
+        await this.#notifyTemplateStatusTransitionBestEffort({
+          organizationId,
+          createdByUserId: (existing.createdByUserId as string | null) ?? null,
+          templateName: metaTpl.name,
+          previousStatus,
+          nextStatus: payload.status,
+          rejectionReason: payload.rejectionReason,
+        })
       } else {
         await db.table('message_templates').insert({
           ...payload,
@@ -245,6 +257,66 @@ export class MessageTemplateService {
     }
 
     return { syncedCount: templates.length }
+  }
+
+  /**
+   * Best-effort notify on Meta sync status transitions into approved/rejected.
+   * Recipient: existing createdByUserId only (no invented owner fallback). Never throws.
+   */
+  async #notifyTemplateStatusTransitionBestEffort(params: {
+    organizationId: string
+    createdByUserId: string | null
+    templateName: string
+    previousStatus: string
+    nextStatus: string
+    rejectionReason: string | null
+  }): Promise<void> {
+    const becameApproved = params.previousStatus !== 'approved' && params.nextStatus === 'approved'
+    const becameRejected = params.previousStatus !== 'rejected' && params.nextStatus === 'rejected'
+
+    if (!becameApproved && !becameRejected) return
+
+    const type = becameApproved ? 'message_template_approved' : 'message_template_rejected'
+    const title = becameApproved ? 'Message template approved' : 'Message template rejected'
+
+    if (!params.createdByUserId) {
+      logger.warn(
+        {
+          organizationId: params.organizationId,
+          type,
+          templateName: params.templateName,
+        },
+        'message_templates.notification_skipped_no_recipient'
+      )
+      return
+    }
+
+    try {
+      const body = becameApproved
+        ? `Your message template "${params.templateName}" was approved.`
+        : params.rejectionReason
+          ? `Your message template "${params.templateName}" was rejected: ${params.rejectionReason}.`
+          : `Your message template "${params.templateName}" was rejected.`
+
+      await new NotificationService().createNotification({
+        organizationId: params.organizationId,
+        userId: params.createdByUserId,
+        type,
+        title,
+        body,
+        actorUserId: null,
+      })
+    } catch (error) {
+      logger.error(
+        {
+          organizationId: params.organizationId,
+          userId: params.createdByUserId,
+          type,
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'message_templates.notification_failed'
+      )
+    }
   }
 
   /**

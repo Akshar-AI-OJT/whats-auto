@@ -7,15 +7,17 @@ import type { WhatsappMessageTemplate } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { TemplateStatusBadge } from './TemplateStatusBadge'
 import {
+  formatHeaderType,
   formatRelativeDate,
   formatTemplateCategory,
   formatTemplateLanguage,
+  truncatePreview,
 } from './template-utils'
 
 type TemplateTableProps = {
   templates: WhatsappMessageTemplate[]
   onView: (template: WhatsappMessageTemplate) => void
-  onEdit: (template: WhatsappMessageTemplate) => void
+  onDuplicate: (template: WhatsappMessageTemplate) => void
   onDelete: (template: WhatsappMessageTemplate) => void
   canManage: boolean
 }
@@ -33,12 +35,12 @@ function useStatusLabel(status: string) {
 function RowActions({
   canManage,
   onView,
-  onEdit,
+  onDuplicate,
   onDelete,
 }: {
   canManage: boolean
   onView: () => void
-  onEdit: () => void
+  onDuplicate: () => void
   onDelete: () => void
 }) {
   const t = useTranslations('dashboard.templates.actions')
@@ -99,10 +101,10 @@ function RowActions({
               className="block w-full px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
               onClick={() => {
                 setOpen(false)
-                onEdit()
+                onDuplicate()
               }}
             >
-              {t('edit')}
+              {t('duplicate')}
             </button>
           ) : null}
           {canManage ? (
@@ -128,15 +130,16 @@ function TemplateRow({
   template,
   canManage,
   onView,
-  onEdit,
+  onDuplicate,
   onDelete,
 }: {
   template: WhatsappMessageTemplate
   canManage: boolean
   onView: () => void
-  onEdit: () => void
+  onDuplicate: () => void
   onDelete: () => void
 }) {
+  const t = useTranslations('dashboard.templates')
   const statusLabel = useStatusLabel(template.status)
 
   return (
@@ -148,20 +151,31 @@ function TemplateRow({
           </span>
           <span className="min-w-0">
             <span className="block font-semibold text-ink">{template.name}</span>
-            <span className="mt-0.5 line-clamp-1 block text-xs text-mute">{template.bodyText}</span>
+            <span className="mt-0.5 line-clamp-1 block text-xs text-mute">
+              {truncatePreview(template.bodyText, 80)}
+            </span>
           </span>
         </button>
       </td>
       <td className="px-4 py-3.5 text-body">{formatTemplateCategory(String(template.category))}</td>
       <td className="px-4 py-3.5 text-body">{formatTemplateLanguage(template.language)}</td>
+      <td className="px-4 py-3.5 text-body">{formatHeaderType(template.headerType)}</td>
       <td className="px-4 py-3.5">
         <TemplateStatusBadge status={template.status} label={statusLabel} />
+      </td>
+      <td className="px-4 py-3.5 text-body">
+        {template.qualityScore ? template.qualityScore : t('table.qualityEmpty')}
       </td>
       <td className="px-4 py-3.5 text-body">
         {formatRelativeDate(template.updatedAt ?? template.createdAt)}
       </td>
       <td className="px-4 py-3.5 text-right">
-        <RowActions canManage={canManage} onView={onView} onEdit={onEdit} onDelete={onDelete} />
+        <RowActions
+          canManage={canManage}
+          onView={onView}
+          onDuplicate={onDuplicate}
+          onDelete={onDelete}
+        />
       </td>
     </tr>
   )
@@ -170,7 +184,7 @@ function TemplateRow({
 export function TemplateTable({
   templates,
   onView,
-  onEdit,
+  onDuplicate,
   onDelete,
   canManage,
 }: TemplateTableProps) {
@@ -184,7 +198,9 @@ export function TemplateTable({
             <th className="px-4 py-3 font-semibold">{t('table.template')}</th>
             <th className="px-4 py-3 font-semibold">{t('table.category')}</th>
             <th className="px-4 py-3 font-semibold">{t('table.language')}</th>
+            <th className="px-4 py-3 font-semibold">{t('table.header')}</th>
             <th className="px-4 py-3 font-semibold">{t('table.status')}</th>
+            <th className="px-4 py-3 font-semibold">{t('table.quality')}</th>
             <th className="px-4 py-3 font-semibold">{t('table.updated')}</th>
             <th className="px-4 py-3 font-semibold">
               <span className="sr-only">{t('table.actions')}</span>
@@ -198,7 +214,7 @@ export function TemplateTable({
               template={template}
               canManage={canManage}
               onView={() => onView(template)}
-              onEdit={() => onEdit(template)}
+              onDuplicate={() => onDuplicate(template)}
               onDelete={() => onDelete(template)}
             />
           ))}

@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import MediaAssetPolicy from '#policies/media_asset_policy'
 import { MediaAssetService } from '#services/media_asset_service'
 import { initiateMediaUploadValidator, mediaUploadIdParamValidator } from '#validators/media'
 import '#types/http'
@@ -15,7 +16,9 @@ export default class MediaUploadsController {
    * @responseBody 422 - { "error": "MIME type is not supported for WhatsApp media", "code": "E_MEDIA_MIME_UNSUPPORTED" }
    * @responseBody 403 - { "error": "Permission denied: media:upload", "code": "PERMISSION_DENIED" }
    */
-  async store({ request, serialize }: HttpContext) {
+  async store({ bouncer, request, serialize }: HttpContext) {
+    await bouncer.with(MediaAssetPolicy).authorize('upload')
+
     const payload = await request.validateUsing(initiateMediaUploadValidator)
 
     const result = await new MediaAssetService().initiateUpload({
@@ -40,7 +43,9 @@ export default class MediaUploadsController {
    * @responseBody 404 - { "error": "Media asset not found", "code": "E_MEDIA_NOT_FOUND" }
    * @responseBody 422 - { "error": "Uploaded object was not found in storage", "code": "E_MEDIA_UPLOAD_INCOMPLETE" }
    */
-  async complete({ request, params, serialize }: HttpContext) {
+  async complete({ bouncer, request, params, serialize }: HttpContext) {
+    await bouncer.with(MediaAssetPolicy).authorize('upload')
+
     const { id } = await request.validateUsing(mediaUploadIdParamValidator, {
       data: params,
     })

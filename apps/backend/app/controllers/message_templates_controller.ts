@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import MessageTemplatePolicy from '#policies/message_template_policy'
 import { MessageTemplateService } from '#services/message_template_service'
 import {
   createMessageTemplateValidator,
@@ -23,7 +24,9 @@ export default class MessageTemplatesController {
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 403 - { "error": "Permission denied: whatsapp:view", "code": "PERMISSION_DENIED" }
    */
-  async index({ request, serialize }: HttpContext) {
+  async index({ bouncer, request, serialize }: HttpContext) {
+    await bouncer.with(MessageTemplatePolicy).authorize('viewList')
+
     const params = await request.validateUsing(listMessageTemplatesValidator, {
       data: request.qs(),
     })
@@ -43,9 +46,14 @@ export default class MessageTemplatesController {
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 404 - { "error": "Message template not found", "code": "E_MESSAGE_TEMPLATE_NOT_FOUND" }
    */
-  async show({ request, params, serialize }: HttpContext) {
+  async show({ bouncer, request, params, serialize }: HttpContext) {
     const { id } = await request.validateUsing(templateIdParamValidator, {
       data: params,
+    })
+
+    await bouncer.with(MessageTemplatePolicy).authorize('view', {
+      organizationId: request.activeMember?.organizationId ?? request.activeOrganizationId!,
+      id,
     })
 
     const template = await new MessageTemplateService().getTemplateById(id)
@@ -63,7 +71,9 @@ export default class MessageTemplatesController {
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 409 - { "error": "Template \"order_confirmation_v2\" (en_US) already exists", "code": "E_MESSAGE_TEMPLATE_DUPLICATE" }
    */
-  async store({ request, serialize }: HttpContext) {
+  async store({ bouncer, request, serialize }: HttpContext) {
+    await bouncer.with(MessageTemplatePolicy).authorize('create')
+
     const payload = await request.validateUsing(createMessageTemplateValidator)
 
     const template = await new MessageTemplateService().createTemplate({
@@ -85,7 +95,9 @@ export default class MessageTemplatesController {
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 422 - { "error": "No connected WhatsApp configuration found", "code": "E_WA_CONFIG_NOT_FOUND" }
    */
-  async sync({ request, serialize }: HttpContext) {
+  async sync({ bouncer, request, serialize }: HttpContext) {
+    await bouncer.with(MessageTemplatePolicy).authorize('sync')
+
     const result = await new MessageTemplateService().syncTemplatesFromMeta(
       request.activeOrganizationId!
     )
@@ -103,9 +115,14 @@ export default class MessageTemplatesController {
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 404 - { "error": "Message template not found", "code": "E_MESSAGE_TEMPLATE_NOT_FOUND" }
    */
-  async destroy({ request, params, serialize }: HttpContext) {
+  async destroy({ bouncer, request, params, serialize }: HttpContext) {
     const { id } = await request.validateUsing(templateIdParamValidator, {
       data: params,
+    })
+
+    await bouncer.with(MessageTemplatePolicy).authorize('destroy', {
+      organizationId: request.activeMember?.organizationId ?? request.activeOrganizationId!,
+      id,
     })
 
     const result = await new MessageTemplateService().deleteTemplate(id)

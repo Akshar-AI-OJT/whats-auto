@@ -19,14 +19,17 @@ import {
   isValidWebsiteUrl,
   markOnboardingChecklistVisible,
   readPendingOnboardingContact,
+  savePendingWorkspacePlan,
   savePendingWorkspacePreferences,
 } from '@/lib/onboarding'
 import { ORG_SETUP_PATH } from '@/lib/onboarding'
 import {
   acceptInvitationPath,
+  isAcceptInvitationPath,
   normalizeAppPath,
   readPendingInvitationId,
   resolvePostAuthPath,
+  SUPER_ADMIN_HOME_PATH,
 } from '@/lib/post-auth-redirect'
 import { Button } from '@/components/ui/button'
 import { Field, FieldGroup } from '@/components/ui/field'
@@ -39,6 +42,7 @@ import { AuthBranding } from '@/components/auth/auth-branding'
 import { useRouter } from '@/i18n/navigation'
 import { OrganizationBasicsStep } from './OrganizationBasicsStep'
 import { CompanyInformationStep } from './CompanyInformationStep'
+import { SubscriptionPlanSelectionStep, type PlanId } from './SubscriptionPlanSelectionStep'
 import { WorkspacePreferencesStep } from './WorkspacePreferencesStep'
 import { OrganizationStepper } from './OrganizationStepper'
 import type {
@@ -74,8 +78,8 @@ function createInitialState(): OrganizationWizardState {
 }
 
 /**
- * Organization onboarding wizard (3 steps).
- * Final submit creates the organization via POST /api/v1/organizations.
+ * Organization onboarding wizard (4 steps).
+ * Step 3 creates the organization via POST /api/v1/organizations.
  * Non-API fields (logo, company size, preferences) are kept in session for later settings.
  */
 export function OrganizationRegistrationForm({
@@ -89,10 +93,12 @@ export function OrganizationRegistrationForm({
 
   const [step, setStep] = useState<OrgWizardStep>(1)
   const [state, setState] = useState<OrganizationWizardState>(createInitialState)
+  const [selectedPlan, setSelectedPlan] = useState<PlanId | null>(null)
   const [basicsErrors, setBasicsErrors] = useState<OrganizationWizardBasicsErrors>({})
   const [guardingInvite, setGuardingInvite] = useState(true)
 
-  // Invitees / platform superadmins must never stay on create-org.
+  // Only bounce invitees / platform superadmins. Users who already have a
+  // workspace (Create workspace from the switcher) must stay on this page.
   useEffect(() => {
     let cancelled = false
     ;(async () => {
@@ -102,7 +108,12 @@ export function OrganizationRegistrationForm({
           fallback: ORG_SETUP_PATH,
         })
         if (cancelled) return
-        if (normalizeAppPath(nextPath) !== ORG_SETUP_PATH) {
+        const normalized = normalizeAppPath(nextPath)
+        if (
+          isAcceptInvitationPath(normalized) ||
+          normalized === SUPER_ADMIN_HOME_PATH ||
+          normalized.startsWith('/admin')
+        ) {
           router.replace(nextPath)
           return
         }
@@ -251,7 +262,8 @@ export function OrganizationRegistrationForm({
 
       clearPendingOnboardingContact()
       markOnboardingChecklistVisible()
-      router.push('/dashboard')
+      // Go to final plan selection before entering the dashboard.
+      setStep(4)
       router.refresh()
     } catch (err) {
       const apiError = err as ApiError
@@ -305,13 +317,29 @@ export function OrganizationRegistrationForm({
       return
     }
 
-    await handleCreateWorkspace()
+    if (step === 3) {
+      await handleCreateWorkspace()
+      return
+    }
+
+    if (step === 4) {
+      if (!selectedPlan) {
+        setError(t('errors.planRequired'))
+        return
+      }
+
+      // UI-only: persist plan selection and proceed to dashboard.
+      savePendingWorkspacePlan(selectedPlan)
+      router.push('/dashboard')
+      return
+    }
   }
 
   const stepperSteps = [
     { id: 1 as const, label: t('steps.basics') },
     { id: 2 as const, label: t('steps.company') },
     { id: 3 as const, label: t('steps.preferences') },
+    { id: 4 as const, label: t('steps.plan') },
   ]
 
   if (guardingInvite) {
@@ -338,7 +366,7 @@ export function OrganizationRegistrationForm({
         <FieldGroup className="gap-7">
           <div className="flex flex-col gap-4 text-left">
             <p className="text-xs font-semibold tracking-wide text-positive-deep uppercase">
-              {t('eyebrow', { step, total: 3 })}
+              {t('eyebrow', { step, total: 4 })}
             </p>
             <OrganizationStepper currentStep={step} steps={stepperSteps} />
           </div>
@@ -379,6 +407,17 @@ export function OrganizationRegistrationForm({
             />
           ) : null}
 
+          {step === 4 ? (
+            <SubscriptionPlanSelectionStep
+              selectedPlan={selectedPlan}
+              pending={pending}
+              onSelect={(plan) => {
+                setSelectedPlan(plan)
+                setError(null)
+              }}
+            />
+          ) : null}
+
           {error ? (
             <div
               id={formErrorId}
@@ -404,6 +443,8 @@ export function OrganizationRegistrationForm({
                   </>
                 ) : step === 3 ? (
                   t('createWorkspace')
+                ) : step === 4 ? (
+                  t('continueToDashboard')
                 ) : (
                   t('continue')
                 )}
@@ -417,7 +458,7 @@ export function OrganizationRegistrationForm({
                   className={cn(authOutlineButtonClassName, 'sm:flex-1')}
                   onClick={() => {
                     setError(null)
-                    setStep((prev) => (prev === 3 ? 2 : 1))
+                    setStep((prev) => (prev > 1 ? ((prev - 1) as OrgWizardStep) : prev))
                   }}
                 >
                   <ArrowLeft className="size-4" aria-hidden />

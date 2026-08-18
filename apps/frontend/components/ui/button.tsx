@@ -46,8 +46,13 @@ function Button({
   className,
   variant = 'default',
   size = 'default',
+  // Not supported by Base UI Button — strip so it never reaches the DOM.
+  asChild: _asChild,
   ...props
-}: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+}: ButtonPrimitive.Props &
+  VariantProps<typeof buttonVariants> & {
+    asChild?: boolean
+  }) {
   return (
     <ButtonPrimitive
       data-slot="button"

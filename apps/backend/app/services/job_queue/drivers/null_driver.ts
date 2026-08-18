@@ -22,6 +22,7 @@ export default class NullJobQueueDriver implements JobQueueDriver {
     data?: Record<string, unknown>
     options?: { key?: string }
   }> = []
+  readonly removed: Array<{ name: string; singletonKey: string }> = []
 
   async start(): Promise<void> {
     this.#started = true
@@ -52,6 +53,10 @@ export default class NullJobQueueDriver implements JobQueueDriver {
     options?: { key?: string }
   ): Promise<void> {
     this.scheduled.push({ name, cron, data, options })
+  }
+
+  async remove(name: string, singletonKey: string): Promise<void> {
+    this.removed.push({ name, singletonKey })
   }
 
   get started() {

@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { ArrowLeft } from 'lucide-react'
 import {
@@ -18,16 +18,13 @@ import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { InboxConversationHeader } from './InboxConversationHeader'
 import { InboxMessageList } from './InboxMessageList'
 import { InboxReplyComposer } from './InboxReplyComposer'
-import { InboxThreadNotes } from './InboxThreadNotes'
-import {
-  InboxThreadHeaderSkeleton,
-  InboxThreadMessagesSkeleton,
-} from './InboxThreadSkeleton'
+import { InboxThreadHeaderSkeleton, InboxThreadMessagesSkeleton } from './InboxThreadSkeleton'
+import { useLatestRef } from '@/hooks/useLatestRef'
+import { useInboxWorkspace } from './InboxWorkspaceContext'
+import { applyInboxSseToConversation, applyInboxSseToMessages } from './apply-inbox-sse'
 import { contactLabel, unwrapPaginated, unwrapSingle, mergeConversationUpdate } from './inbox-utils'
 
 const MESSAGE_PAGE_LIMIT = 100
-
-type ThreadPanel = 'messages' | 'notes'
 
 function unwrapMembers(data: unknown): OrganizationMember[] {
   if (!data) return []
@@ -73,6 +70,8 @@ export function InboxConversationThread({
   const t = useTranslations('dashboard.inbox.thread')
   const tInbox = useTranslations('dashboard.inbox')
   const { tenantOrganizationId, canViewInbox, isLoading: orgsLoading } = useOrganizations()
+  const workspace = useInboxWorkspace()
+  const subscribeInboxEvents = workspace.subscribeInboxEvents
 
   const [conversation, setConversation] = useState<InboxConversation | null>(null)
   const [messages, setMessages] = useState<InboxMessage[]>([])
@@ -80,12 +79,14 @@ export function InboxConversationThread({
   const [conversationLoading, setConversationLoading] = useState(true)
   const [messagesLoading, setMessagesLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [panel, setPanel] = useState<ThreadPanel>('messages')
 
-  const organizationIdRef = useRef(tenantOrganizationId)
-  const conversationIdRef = useRef(conversationId)
-  organizationIdRef.current = tenantOrganizationId
-  conversationIdRef.current = conversationId
+  const organizationIdRef = useLatestRef(tenantOrganizationId)
+  const conversationIdRef = useLatestRef(conversationId)
+
+  const setWorkspaceConversation = workspace.setConversation
+  const setWorkspaceConversationId = workspace.setConversationId
+  const setWorkspaceMembers = workspace.setMembers
+  const mergeWorkspaceConversation = workspace.mergeConversation
 
   const agentNameByUserId = useMemo(() => {
     const map = new Map<string, string>()
@@ -110,7 +111,8 @@ export function InboxConversationThread({
       setError(null)
       setConversation(null)
       setMessages([])
-      setPanel('messages')
+      setWorkspaceConversationId(activeConversationId)
+      setWorkspaceConversation(null)
 
       try {
         const [conversationRes, membersRes, messageItems] = await Promise.all([
@@ -132,9 +134,12 @@ export function InboxConversationThread({
           return
         }
 
+        const nextMembers = unwrapMembers(membersRes.data)
         setConversation(detail)
-        setMembers(unwrapMembers(membersRes.data))
+        setMembers(nextMembers)
         setMessages(messageItems)
+        setWorkspaceConversation(detail)
+        setWorkspaceMembers(nextMembers)
       } catch (err) {
         if (
           organizationId !== organizationIdRef.current ||
@@ -153,13 +158,20 @@ export function InboxConversationThread({
         }
       }
     },
-    [canViewInbox, t]
+    [canViewInbox, conversationIdRef, organizationIdRef, setWorkspaceConversation, setWorkspaceConversationId, setWorkspaceMembers, t]
   )
 
   useEffect(() => {
-    if (orgsLoading) return
-    if (!tenantOrganizationId) return
-    void loadThread(tenantOrganizationId, conversationId)
+    if (orgsLoading || !tenantOrganizationId) return
+    let cancelled = false
+    const scheduled = Promise.resolve().then(() => {
+      if (cancelled) return
+      return loadThread(tenantOrganizationId, conversationId)
+    })
+    return () => {
+      cancelled = true
+      void scheduled
+    }
   }, [orgsLoading, tenantOrganizationId, conversationId, loadThread])
 
   const agentLabel = useMemo(() => {
@@ -180,10 +192,48 @@ export function InboxConversationThread({
       const messageItems = await fetchAllMessages(conversationId)
       if (conversationIdRef.current !== conversationId) return
       setMessages(messageItems)
+      // Refresh conversation for unread/last message fields
+      const res = await api.inbox.getConversation(conversationId)
+      const detail = unwrapSingle<InboxConversation>(res.data)
+      if (detail && conversationIdRef.current === conversationId) {
+        setConversation((prev) => (prev ? mergeConversationUpdate(prev, detail) : detail))
+        setWorkspaceConversation(detail)
+      }
     } catch {
       // Keep existing messages; composer surfaces send errors via toast.
     }
-  }, [canViewInbox, conversationId, tenantOrganizationId])
+  }, [canViewInbox, conversationId, conversationIdRef, setWorkspaceConversation, tenantOrganizationId])
+
+  useEffect(() => {
+    if (!canViewInbox) return
+    return subscribeInboxEvents((event) => {
+      if (event.payload.conversationId !== conversationIdRef.current) return
+
+      let missingMessage = false
+      let conversationPatch: InboxConversation | null = null
+
+      setMessages((prev) => {
+        const result = applyInboxSseToMessages(prev, event, conversationIdRef.current)
+        missingMessage = result.missingMessage
+        return result.messages
+      })
+
+      setConversation((prev) => {
+        if (!prev) return prev
+        const next = applyInboxSseToConversation(prev, event)
+        if (next !== prev) conversationPatch = next
+        return next
+      })
+
+      if (conversationPatch) {
+        mergeWorkspaceConversation(conversationPatch)
+      }
+
+      if (missingMessage) {
+        void refreshMessages()
+      }
+    })
+  }, [canViewInbox, conversationIdRef, mergeWorkspaceConversation, refreshMessages, subscribeInboxEvents])
 
   const handleRetry = () => {
     if (tenantOrganizationId) {
@@ -191,9 +241,13 @@ export function InboxConversationThread({
     }
   }
 
-  const handleConversationUpdated = useCallback((patch: Partial<InboxConversation>) => {
-    setConversation((prev) => (prev ? mergeConversationUpdate(prev, patch) : prev))
-  }, [])
+  const handleConversationUpdated = useCallback(
+    (patch: Partial<InboxConversation>) => {
+      setConversation((prev) => (prev ? mergeConversationUpdate(prev, patch) : prev))
+      mergeWorkspaceConversation(patch)
+    },
+    [mergeWorkspaceConversation]
+  )
 
   if (!orgsLoading && !canViewInbox) {
     return (
@@ -210,7 +264,8 @@ export function InboxConversationThread({
       as="section"
       className={cn(
         'flex h-full min-h-[24rem] flex-col overflow-hidden rounded-[18px]',
-        'border border-dash-border shadow-[0_1px_3px_rgb(15_23_42/0.06)]'
+        'border border-dash-border shadow-[0_1px_3px_rgb(15_23_42/0.06)]',
+        'lg:rounded-l-none'
       )}
     >
       {showMobileBack ? (
@@ -253,53 +308,17 @@ export function InboxConversationThread({
             members={members}
             onConversationUpdated={handleConversationUpdated}
           />
-          <div
-            role="tablist"
-            aria-label={t('panelsLabel')}
-            className="flex shrink-0 gap-1 border-b border-dash-border px-4 pt-2 sm:px-5"
-          >
-            {([
-              { id: 'messages' as const, label: t('panels.messages') },
-              { id: 'notes' as const, label: t('panels.notes') },
-            ]).map((tab) => {
-              const selected = panel === tab.id
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={selected}
-                  className={cn(
-                    'rounded-t-lg px-3 py-2 text-sm font-medium transition-colors',
-                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
-                    selected
-                      ? 'border-b-2 border-primary text-ink'
-                      : 'text-mute hover:text-ink'
-                  )}
-                  onClick={() => setPanel(tab.id)}
-                >
-                  {tab.label}
-                </button>
-              )
-            })}
-          </div>
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            {panel === 'messages' ? (
-              <>
-                <InboxMessageList
-                  messages={messages}
-                  contactName={contactName}
-                  loading={messagesLoading}
-                />
-                <InboxReplyComposer
-                  conversationId={conversationId}
-                  conversationStatus={conversation.status}
-                  onSent={refreshMessages}
-                />
-              </>
-            ) : (
-              <InboxThreadNotes conversationId={conversationId} active={panel === 'notes'} />
-            )}
+            <InboxMessageList
+              messages={messages}
+              contactName={contactName}
+              loading={messagesLoading}
+            />
+            <InboxReplyComposer
+              conversationId={conversationId}
+              conversationStatus={conversation.status}
+              onSent={refreshMessages}
+            />
           </div>
         </>
       ) : null}

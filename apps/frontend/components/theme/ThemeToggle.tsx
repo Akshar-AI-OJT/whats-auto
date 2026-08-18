@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { Moon, Sun } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
@@ -18,7 +19,15 @@ const toggleButtonClassName = cn(
 export function ThemeToggle({ className }: ThemeToggleProps) {
   const t = useTranslations('dashboard.theme')
   const { resolvedTheme, toggleTheme } = useTheme()
-  const isDark = resolvedTheme === 'dark'
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // SSR + first client paint stay icon-stable; avoid hydration mismatch when
+  // localStorage/theme script resolved dark before React hydrates.
+  const isDark = mounted && resolvedTheme === 'dark'
 
   return (
     <button

@@ -198,13 +198,10 @@ export class SubscriptionService {
     }
 
     return runWithTenant(subscription.organizationId, async () => {
-      await db
-        .from('organization_subscriptions')
-        .where('id', subscriptionId)
-        .update({
-          status: SUBSCRIPTION_SOFT_DELETED_STATUS,
-          cancelAt: DateTime.utc().toJSDate(),
-        })
+      await db.from('organization_subscriptions').where('id', subscriptionId).update({
+        status: SUBSCRIPTION_SOFT_DELETED_STATUS,
+        cancelAt: DateTime.utc().toJSDate(),
+      })
     })
   }
 }

@@ -52,6 +52,135 @@ export class AccountSchema extends BaseModel {
   declare userId: string
 }
 
+export class AiKnowledgeChunkSchema extends BaseModel {
+  static $columns = [
+    'chunkIndex',
+    'content',
+    'contentHash',
+    'createdAt',
+    'documentId',
+    'embedding',
+    'embeddingSpaceId',
+    'id',
+    'metadata',
+    'organizationId',
+    'updatedAt',
+  ] as const
+  $columns = AiKnowledgeChunkSchema.$columns
+  @column()
+  declare chunkIndex: number
+  @column()
+  declare content: string
+  @column()
+  declare contentHash: string
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare documentId: string
+  @column()
+  declare embedding: any
+  @column()
+  declare embeddingSpaceId: string
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare metadata: any | null
+  @column()
+  declare organizationId: string
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+}
+
+export class AiKnowledgeDocumentSchema extends BaseModel {
+  static $columns = [
+    'chunkCount',
+    'createdAt',
+    'deletedAt',
+    'documentHash',
+    'embeddingModel',
+    'errorMessage',
+    'id',
+    'mediaAssetId',
+    'organizationId',
+    'sourceType',
+    'status',
+    'title',
+    'updatedAt',
+  ] as const
+  $columns = AiKnowledgeDocumentSchema.$columns
+  @column()
+  declare chunkCount: number
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column.dateTime()
+  declare deletedAt: DateTime | null
+  @column()
+  declare documentHash: string | null
+  @column()
+  declare embeddingModel: string
+  @column()
+  declare errorMessage: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare mediaAssetId: string | null
+  @column()
+  declare organizationId: string
+  @column()
+  declare sourceType: string
+  @column()
+  declare status: string
+  @column()
+  declare title: string
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+}
+
+export class AiUsageLogSchema extends BaseModel {
+  static $columns = [
+    'completionTokens',
+    'conversationId',
+    'createdAt',
+    'decision',
+    'estimatedCostUsd',
+    'id',
+    'latencyMs',
+    'messageId',
+    'modelName',
+    'organizationId',
+    'promptTokens',
+    'retrievalScore',
+    'totalTokens',
+  ] as const
+  $columns = AiUsageLogSchema.$columns
+  @column()
+  declare completionTokens: number
+  @column()
+  declare conversationId: string
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare decision: string
+  @column()
+  declare estimatedCostUsd: string
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare latencyMs: number
+  @column()
+  declare messageId: string | null
+  @column()
+  declare modelName: string
+  @column()
+  declare organizationId: string
+  @column()
+  declare promptTokens: number
+  @column()
+  declare retrievalScore: string | null
+  @column()
+  declare totalTokens: number
+}
+
 export class AuthorizationAuditSchema extends BaseModel {
   static $columns = [
     'actorUserId',
@@ -144,10 +273,13 @@ export class BroadcastRecipientSchema extends BaseModel {
 
 export class BroadcastSchema extends BaseModel {
   static $columns = [
+    'cancelledAt',
     'createdAt',
     'createdByUserId',
     'deliveredCount',
     'failedCount',
+    'finalizedAt',
+    'headerMediaAssetId',
     'id',
     'messageTemplateId',
     'name',
@@ -163,6 +295,8 @@ export class BroadcastSchema extends BaseModel {
   ] as const
   $columns = BroadcastSchema.$columns
   @column.dateTime()
+  declare cancelledAt: DateTime | null
+  @column.dateTime()
   declare createdAt: DateTime
   @column()
   declare createdByUserId: string | null
@@ -170,6 +304,10 @@ export class BroadcastSchema extends BaseModel {
   declare deliveredCount: number
   @column()
   declare failedCount: number
+  @column.dateTime()
+  declare finalizedAt: DateTime | null
+  @column()
+  declare headerMediaAssetId: string | null
   @column({ isPrimary: true })
   declare id: string
   @column()
@@ -418,7 +556,11 @@ export class ConversationNoteSchema extends BaseModel {
 
 export class ConversationSchema extends BaseModel {
   static $columns = [
+    'aiHandoverReason',
+    'aiMode',
+    'aiSummary',
     'assignedAgentId',
+    'attributedCampaignId',
     'closedAt',
     'contactId',
     'createdAt',
@@ -434,7 +576,15 @@ export class ConversationSchema extends BaseModel {
   ] as const
   $columns = ConversationSchema.$columns
   @column()
+  declare aiHandoverReason: string | null
+  @column()
+  declare aiMode: string
+  @column()
+  declare aiSummary: string | null
+  @column()
   declare assignedAgentId: string | null
+  @column()
+  declare attributedCampaignId: string | null
   @column.dateTime()
   declare closedAt: DateTime | null
   @column()
@@ -459,6 +609,144 @@ export class ConversationSchema extends BaseModel {
   declare updatedAt: DateTime | null
   @column()
   declare whatsappConfigId: string
+}
+
+export class InvoiceLineItemSchema extends BaseModel {
+  static $columns = [
+    'amount',
+    'createdAt',
+    'description',
+    'detail',
+    'id',
+    'invoiceId',
+    'organizationId',
+    'quantity',
+    'sortOrder',
+    'unitPrice',
+  ] as const
+  $columns = InvoiceLineItemSchema.$columns
+  @column()
+  declare amount: string
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare description: string
+  @column()
+  declare detail: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare invoiceId: string
+  @column()
+  declare organizationId: string
+  @column()
+  declare quantity: string
+  @column()
+  declare sortOrder: number
+  @column()
+  declare unitPrice: string
+}
+
+export class InvoiceSchema extends BaseModel {
+  static $columns = [
+    'billingPeriod',
+    'billToAddress',
+    'billToEmail',
+    'billToGstin',
+    'billToName',
+    'billToPhone',
+    'cancelledAt',
+    'createdAt',
+    'currency',
+    'discount',
+    'dueDate',
+    'id',
+    'invoiceNumber',
+    'issueDate',
+    'metadata',
+    'notes',
+    'organizationId',
+    'paidAt',
+    'paymentMethod',
+    'paymentTransactionId',
+    'periodEnd',
+    'periodStart',
+    'planId',
+    'planName',
+    'sourceInvoiceId',
+    'status',
+    'subscriptionId',
+    'subtotal',
+    'tax',
+    'taxRate',
+    'total',
+    'updatedAt',
+  ] as const
+  $columns = InvoiceSchema.$columns
+  @column()
+  declare billingPeriod: string
+  @column()
+  declare billToAddress: string | null
+  @column()
+  declare billToEmail: string
+  @column()
+  declare billToGstin: string | null
+  @column()
+  declare billToName: string
+  @column()
+  declare billToPhone: string | null
+  @column.dateTime()
+  declare cancelledAt: DateTime | null
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare currency: string
+  @column()
+  declare discount: string
+  @column.date()
+  declare dueDate: DateTime
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare invoiceNumber: string
+  @column.date()
+  declare issueDate: DateTime
+  @column()
+  declare metadata: any
+  @column()
+  declare notes: string | null
+  @column()
+  declare organizationId: string
+  @column.dateTime()
+  declare paidAt: DateTime | null
+  @column()
+  declare paymentMethod: string | null
+  @column()
+  declare paymentTransactionId: string | null
+  @column.dateTime()
+  declare periodEnd: DateTime
+  @column.dateTime()
+  declare periodStart: DateTime
+  @column()
+  declare planId: string | null
+  @column()
+  declare planName: string
+  @column()
+  declare sourceInvoiceId: string | null
+  @column()
+  declare status: string
+  @column()
+  declare subscriptionId: string | null
+  @column()
+  declare subtotal: string
+  @column()
+  declare tax: string
+  @column()
+  declare taxRate: string
+  @column()
+  declare total: string
+  @column.dateTime()
+  declare updatedAt: DateTime | null
 }
 
 export class JwkSchema extends BaseModel {
@@ -488,6 +776,36 @@ export class JwkSchema extends BaseModel {
   declare publicKey: string
 }
 
+export class MediaAssetReferenceSchema extends BaseModel {
+  static $columns = [
+    'createdAt',
+    'id',
+    'mediaAssetId',
+    'organizationId',
+    'ownerId',
+    'ownerType',
+    'protectedUntil',
+    'updatedAt',
+  ] as const
+  $columns = MediaAssetReferenceSchema.$columns
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare mediaAssetId: string
+  @column()
+  declare organizationId: string
+  @column()
+  declare ownerId: string
+  @column()
+  declare ownerType: string
+  @column.dateTime()
+  declare protectedUntil: DateTime | null
+  @column.dateTime()
+  declare updatedAt: DateTime
+}
+
 export class MediaAssetSchema extends BaseModel {
   static $columns = [
     'checksum',
@@ -503,6 +821,7 @@ export class MediaAssetSchema extends BaseModel {
     'state',
     'storageDisk',
     'storageKey',
+    'storageObjectId',
     'updatedAt',
     'uploadedAt',
     'uploadedBy',
@@ -534,6 +853,8 @@ export class MediaAssetSchema extends BaseModel {
   declare storageDisk: string
   @column()
   declare storageKey: string
+  @column()
+  declare storageObjectId: string | null
   @column.dateTime()
   declare updatedAt: DateTime
   @column.dateTime()
@@ -678,7 +999,7 @@ export class MessageSchema extends BaseModel {
   @column()
   declare metadata: any
   @column.dateTime()
-  declare occurredAt: DateTime | null
+  declare occurredAt: DateTime
   @column()
   declare organizationId: string
   @column()
@@ -699,6 +1020,45 @@ export class MessageSchema extends BaseModel {
   declare status: string
   @column.dateTime()
   declare updatedAt: DateTime | null
+}
+
+export class NotificationSchema extends BaseModel {
+  static $columns = [
+    'actorUserId',
+    'body',
+    'contactId',
+    'conversationId',
+    'createdAt',
+    'id',
+    'organizationId',
+    'readAt',
+    'title',
+    'type',
+    'userId',
+  ] as const
+  $columns = NotificationSchema.$columns
+  @column()
+  declare actorUserId: string | null
+  @column()
+  declare body: string | null
+  @column()
+  declare contactId: string | null
+  @column()
+  declare conversationId: string | null
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare organizationId: string
+  @column.dateTime()
+  declare readAt: DateTime | null
+  @column()
+  declare title: string
+  @column()
+  declare type: string
+  @column()
+  declare userId: string
 }
 
 export class OrganizationInvitationSchema extends BaseModel {
@@ -774,6 +1134,99 @@ export class OrganizationRolePermissionSchema extends BaseModel {
   declare permissionId: string
   @column()
   declare roleId: string
+}
+
+export class OrganizationStorageObjectSchema extends BaseModel {
+  static $columns = [
+    'checksum',
+    'createdAt',
+    'deleteAttempts',
+    'deletedAt',
+    'id',
+    'keyVersion',
+    'lastDeleteError',
+    'lastDeleteErrorAt',
+    'mimeType',
+    'namespace',
+    'organizationId',
+    'ownerId',
+    'ownerType',
+    'provenance',
+    'purgeAfter',
+    'purgedAt',
+    'retentionPolicy',
+    'sizeBytes',
+    'state',
+    'storageDisk',
+    'storageKey',
+    'updatedAt',
+  ] as const
+  $columns = OrganizationStorageObjectSchema.$columns
+  @column()
+  declare checksum: string | null
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare deleteAttempts: number
+  @column.dateTime()
+  declare deletedAt: DateTime | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare keyVersion: number
+  @column()
+  declare lastDeleteError: string | null
+  @column.dateTime()
+  declare lastDeleteErrorAt: DateTime | null
+  @column()
+  declare mimeType: string
+  @column()
+  declare namespace: string
+  @column()
+  declare organizationId: string
+  @column()
+  declare ownerId: string | null
+  @column()
+  declare ownerType: string
+  @column()
+  declare provenance: string
+  @column.dateTime()
+  declare purgeAfter: DateTime | null
+  @column.dateTime()
+  declare purgedAt: DateTime | null
+  @column()
+  declare retentionPolicy: string
+  @column()
+  declare sizeBytes: bigint | number
+  @column()
+  declare state: string
+  @column()
+  declare storageDisk: string
+  @column()
+  declare storageKey: string
+  @column.dateTime()
+  declare updatedAt: DateTime
+}
+
+export class OrganizationStorageUsageSchema extends BaseModel {
+  static $columns = [
+    'createdAt',
+    'organizationId',
+    'readyBytes',
+    'reservedBytes',
+    'updatedAt',
+  ] as const
+  $columns = OrganizationStorageUsageSchema.$columns
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column({ isPrimary: true })
+  declare organizationId: string
+  @column()
+  declare readyBytes: bigint | number
+  @column()
+  declare reservedBytes: bigint | number
+  @column.dateTime()
+  declare updatedAt: DateTime
 }
 
 export class OrganizationSubscriptionSchema extends BaseModel {
@@ -1136,6 +1589,93 @@ export class PlanSchema extends BaseModel {
   declare trialDays: number
   @column.dateTime()
   declare updatedAt: DateTime | null
+}
+
+export class PlatformAiConfigSchema extends BaseModel {
+  static $columns = [
+    'activeEmbeddingSpaceId',
+    'campaignAttributionWindowHours',
+    'chatModel',
+    'chatProvider',
+    'createdAt',
+    'debounceDelaySeconds',
+    'embeddingModel',
+    'embeddingProvider',
+    'handoverKeywords',
+    'id',
+    'isEnabled',
+    'maxOutputTokens',
+    'minConfidenceScore',
+    'modelName',
+    'reindexEmbeddingModel',
+    'reindexEmbeddingProvider',
+    'reindexFromSpaceId',
+    'reindexStatus',
+    'reindexToSpaceId',
+    'singletonKey',
+    'summaryModel',
+    'summaryTurnThreshold',
+    'systemPrompt',
+    'temperature',
+    'updatedAt',
+    'updatedByUserId',
+    'workingSetSize',
+  ] as const
+  $columns = PlatformAiConfigSchema.$columns
+  @column()
+  declare activeEmbeddingSpaceId: string
+  @column()
+  declare campaignAttributionWindowHours: number
+  @column()
+  declare chatModel: string
+  @column()
+  declare chatProvider: string
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare debounceDelaySeconds: number
+  @column()
+  declare embeddingModel: string
+  @column()
+  declare embeddingProvider: string
+  @column()
+  declare handoverKeywords: any
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare isEnabled: boolean
+  @column()
+  declare maxOutputTokens: number
+  @column()
+  declare minConfidenceScore: string
+  @column()
+  declare modelName: string
+  @column()
+  declare reindexEmbeddingModel: string | null
+  @column()
+  declare reindexEmbeddingProvider: string | null
+  @column()
+  declare reindexFromSpaceId: string | null
+  @column()
+  declare reindexStatus: string
+  @column()
+  declare reindexToSpaceId: string | null
+  @column()
+  declare singletonKey: string
+  @column()
+  declare summaryModel: string | null
+  @column()
+  declare summaryTurnThreshold: number
+  @column()
+  declare systemPrompt: string | null
+  @column()
+  declare temperature: string
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+  @column()
+  declare updatedByUserId: string | null
+  @column()
+  declare workingSetSize: number
 }
 
 export class RolePermissionSchema extends BaseModel {

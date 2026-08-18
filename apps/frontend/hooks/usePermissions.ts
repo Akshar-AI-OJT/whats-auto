@@ -13,7 +13,7 @@ import {
  * Does not introduce a separate auth store.
  */
 export function usePermissions() {
-  const { accessContext, isLoading } = useOrganizations()
+  const { accessContext, isResolvingAccess } = useOrganizations()
   const permissions = accessContext?.permissions ?? []
 
   const hasPermission = useCallback(
@@ -33,12 +33,12 @@ export function usePermissions() {
 
   return useMemo(
     () => ({
-      isLoading,
+      isLoading: isResolvingAccess,
       permissions,
       hasPermission,
       hasAnyPermission,
       hasAllPermissions,
     }),
-    [isLoading, permissions, hasPermission, hasAnyPermission, hasAllPermissions]
+    [isResolvingAccess, permissions, hasPermission, hasAnyPermission, hasAllPermissions]
   )
 }

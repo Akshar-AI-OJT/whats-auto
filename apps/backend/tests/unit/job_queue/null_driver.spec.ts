@@ -83,9 +83,8 @@ test.group('WhatsappOutboundDispatchHandler', () => {
 test.group('WhatsappOutboundRecoveryHandler', () => {
   test('calls recoverStuckDispatches with optional org and limit', async ({ assert }) => {
     const calls: unknown[] = []
-    const { createWhatsappOutboundRecoveryHandler } = await import(
-      '#services/job_queue/handlers/whatsapp_outbound_recovery_handler'
-    )
+    const { createWhatsappOutboundRecoveryHandler } =
+      await import('#services/job_queue/handlers/whatsapp_outbound_recovery_handler')
     const handler = createWhatsappOutboundRecoveryHandler({
       recoverStuckDispatches: async (params: unknown) => {
         calls.push(params)

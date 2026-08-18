@@ -62,6 +62,18 @@ const dbConfig = defineConfig({
         password: env.get('PG_PASSWORD').release(),
         database: env.get('PG_DB_NAME'),
         ssl: env.get('PG_SSL') ? { rejectUnauthorized: false } : false,
+        // @ts-expect-error Lucid PostgresConnectionNode omits node-pg keepAlive
+        keepAlive: true,
+        keepAliveInitialDelayMillis: 10_000,
+      },
+
+      pool: {
+        min: 0,
+        max: 10,
+        // Recycle before typical AWS/NAT idle drop (~350s)
+        idleTimeoutMillis: 20000,
+        createTimeoutMillis: 30000,
+        acquireTimeoutMillis: 30000,
       },
       migrations: {
         naturalSort: true,

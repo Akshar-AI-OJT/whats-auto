@@ -34,12 +34,18 @@ import {
   TemplateParameterError,
 } from '#lib/meta_whatsapp/template_parameters'
 import {
+  MediaAssetReferenceRepository,
+  type MediaAssetReferenceOwnerType,
+} from '#repositories/media_asset_reference_repository'
+import {
   WhatsappOutboundRepository,
   type OutboundDispatchPayload,
   type OutboundDispatchRow,
 } from '#repositories/whatsapp_outbound_repository'
+import { MemoryWorkingSetService } from '#services/ai/contracts/memory_working_set_service'
 import JobQueueManager from '#services/job_queue/job_queue_manager'
 import { JOB_NAMES } from '#services/job_queue/job_names'
+import { NotificationService } from '#services/notification_service'
 import { runWithTenant } from '#services/tenant_context'
 import { WhatsappConfigService } from '#services/whatsapp_config_service'
 
@@ -57,6 +63,7 @@ type ConversationContext = {
   conversationId: string
   whatsappConfigId: string
   to: string
+  conversationStatus: string
   lastInboundMessageAt: Date | null
 }
 
@@ -91,7 +98,8 @@ export default class WhatsappOutboundService {
   constructor(
     protected graphClient: MetaGraphClient = createMetaGraphClient(),
     protected outboundRepo: WhatsappOutboundRepository = new WhatsappOutboundRepository(),
-    protected configService: WhatsappConfigService = new WhatsappConfigService()
+    protected configService: WhatsappConfigService = new WhatsappConfigService(),
+    protected mediaReferences: MediaAssetReferenceRepository = new MediaAssetReferenceRepository()
   ) {}
 
   /**
@@ -103,6 +111,7 @@ export default class WhatsappOutboundService {
     text: string
     actorUserId?: string | null
     idempotencyKey?: string | null
+    senderType?: 'agent' | 'system' | 'ai'
   }): Promise<QueueOutboundResult> {
     const text = params.text.trim()
     if (!text) {
@@ -125,6 +134,7 @@ export default class WhatsappOutboundService {
           conversationId: params.conversationId,
           whatsappConfigId: ctx.whatsappConfigId,
           actorUserId: params.actorUserId,
+          senderType: params.senderType,
           contentType: 'text',
           contentText: text,
           messageTemplateId: null,
@@ -146,13 +156,20 @@ export default class WhatsappOutboundService {
         dispatchId: queued.dispatchId,
       })
 
+      await this.#appendAssistantTurn({
+        organizationId: params.organizationId,
+        conversationId: params.conversationId,
+        messageId: queued.messageId,
+        content: text,
+      })
+
       return queued
     })
   }
 
   /**
    * Queue a free-form media send after validating the organization-owned public asset.
-   * Tenant channel: images only. System/integration channel: image | document.
+   * Tenant and system channels: image | document.
    */
   async queueMedia(params: {
     organizationId: string
@@ -191,7 +208,7 @@ export default class WhatsappOutboundService {
       const previewText = caption || `[${params.mediaType}] ${mediaAsset.fileName}`
 
       const queued = await db.transaction(async (trx) => {
-        return this.#queueOutbound(trx, {
+        const result = await this.#queueOutbound(trx, {
           organizationId: params.organizationId,
           conversationId: params.conversationId,
           whatsappConfigId: ctx.whatsappConfigId,
@@ -205,6 +222,15 @@ export default class WhatsappOutboundService {
           mediaUrl: mediaAsset.filePath,
           clientIdempotencyKey: params.idempotencyKey,
         })
+
+        await this.#registerMediaReference(trx, {
+          organizationId: params.organizationId,
+          mediaAssetId: mediaAsset.id,
+          ownerType: 'message',
+          ownerId: result.messageId,
+        })
+
+        return result
       })
 
       await this.#emitInboxMessageQueued({
@@ -327,7 +353,7 @@ export default class WhatsappOutboundService {
       }
 
       const queued = await db.transaction(async (trx) => {
-        return this.#queueOutbound(trx, {
+        const result = await this.#queueOutbound(trx, {
           organizationId: params.organizationId,
           conversationId: params.conversationId,
           whatsappConfigId: ctx.whatsappConfigId,
@@ -341,6 +367,17 @@ export default class WhatsappOutboundService {
           mediaUrl,
           clientIdempotencyKey: params.idempotencyKey,
         })
+
+        if (mediaAssetId) {
+          await this.#registerMediaReference(trx, {
+            organizationId: params.organizationId,
+            mediaAssetId,
+            ownerType: 'message',
+            ownerId: result.messageId,
+          })
+        }
+
+        return result
       })
 
       await this.#emitInboxMessageQueued({
@@ -372,11 +409,25 @@ export default class WhatsappOutboundService {
   }): Promise<ExecuteDispatchResult> {
     return runWithTenant(params.organizationId, async () => {
       const claim = await db.transaction(async (trx) => {
-        return this.outboundRepo.claimDispatch(trx, {
+        const claimed = await this.outboundRepo.claimDispatch(trx, {
           organizationId: params.organizationId,
           dispatchId: params.dispatchId,
           lockOwner: params.lockOwner,
         })
+
+        if (claimed.outcome === 'claimed') {
+          await trx
+            .from('messages')
+            .where('id', claimed.dispatch.messageId)
+            .where('organizationId', params.organizationId)
+            .where('status', 'queued')
+            .update({
+              status: 'queued',
+              updatedAt: new Date(),
+            })
+        }
+
+        return claimed
       })
 
       if (claim.outcome === 'already_sent') {
@@ -388,6 +439,20 @@ export default class WhatsappOutboundService {
       }
 
       const dispatch = claim.dispatch
+
+      try {
+        await this.#revalidateBeforeSend({
+          organizationId: params.organizationId,
+          dispatch,
+        })
+      } catch (error) {
+        return this.#handleSendFailure({
+          organizationId: params.organizationId,
+          dispatch,
+          error,
+          forceTerminal: true,
+        })
+      }
 
       let providerMessageId: string
       let reconcile: Awaited<ReturnType<WhatsappOutboundRepository['markSentAndReconcile']>>
@@ -532,13 +597,16 @@ export default class WhatsappOutboundService {
     organizationId: string
     dispatch: OutboundDispatchRow
     error: unknown
+    forceTerminal?: boolean
   }): Promise<ExecuteDispatchResult> {
     const { errorMessage, errorCode } = serializeOutboundError(params.error)
-    const retryable = isRetryableOutboundError(params.error)
-    const terminal = isTerminalOutboundFailure({
-      attempts: params.dispatch.attempts,
-      retryable,
-    })
+    const retryable = params.forceTerminal ? false : isRetryableOutboundError(params.error)
+    const terminal =
+      params.forceTerminal === true ||
+      isTerminalOutboundFailure({
+        attempts: params.dispatch.attempts,
+        retryable,
+      })
 
     logger.warn(
       {
@@ -575,6 +643,13 @@ export default class WhatsappOutboundService {
           providerMessageId: null,
         })
       }
+
+      // After terminal failed state is persisted — best-effort in-app notify.
+      await this.#notifyTerminalMessageFailedBestEffort({
+        organizationId: params.organizationId,
+        messageId: params.dispatch.messageId,
+        errorMessage,
+      })
 
       return {
         outcome: 'failed',
@@ -670,6 +745,84 @@ export default class WhatsappOutboundService {
     return (row?.conversationId as string | undefined) ?? null
   }
 
+  /**
+   * Best-effort in-app notification when outbound reaches terminal failed.
+   * Recipient: message.senderId, else conversation.assignedAgentId. Skips system/campaign with no user.
+   * Never throws.
+   */
+  async #notifyTerminalMessageFailedBestEffort(params: {
+    organizationId: string
+    messageId: string
+    errorMessage: string
+  }): Promise<void> {
+    try {
+      const message = await db
+        .from('messages')
+        .where('id', params.messageId)
+        .where('organizationId', params.organizationId)
+        .select('id', 'senderId', 'conversationId')
+        .first()
+
+      if (!message?.conversationId) return
+
+      const conversation = await db
+        .from('conversations as c')
+        .leftJoin('contacts as ct', 'ct.id', 'c.contactId')
+        .where('c.id', message.conversationId)
+        .where('c.organizationId', params.organizationId)
+        .select(
+          'c.contactId',
+          'c.assignedAgentId',
+          'ct.name as contactName',
+          'ct.phone as contactPhone'
+        )
+        .first()
+
+      const recipientUserId =
+        (message.senderId as string | null) ??
+        (conversation?.assignedAgentId as string | null) ??
+        null
+
+      if (!recipientUserId) {
+        logger.warn(
+          {
+            organizationId: params.organizationId,
+            messageId: params.messageId,
+            type: 'inbox_message_failed',
+          },
+          'inbox.notification_skipped_no_recipient'
+        )
+        return
+      }
+
+      const contactLabel =
+        (conversation?.contactName as string | undefined)?.trim() ||
+        (conversation?.contactPhone as string | undefined) ||
+        'a contact'
+
+      await new NotificationService().createNotification({
+        organizationId: params.organizationId,
+        userId: recipientUserId,
+        type: 'inbox_message_failed',
+        title: 'Message failed to send',
+        body: `Your message to ${contactLabel} failed to send: ${params.errorMessage}`,
+        conversationId: message.conversationId as string,
+        contactId: (conversation?.contactId as string | null) ?? null,
+        actorUserId: null,
+      })
+    } catch (error) {
+      logger.error(
+        {
+          organizationId: params.organizationId,
+          messageId: params.messageId,
+          type: 'inbox_message_failed',
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'inbox.notification_failed'
+      )
+    }
+  }
+
   async #emitInboxMessageQueued(params: {
     organizationId: string
     conversationId: string
@@ -694,6 +847,33 @@ export default class WhatsappOutboundService {
           err: error instanceof Error ? error.message : 'unknown',
         },
         'whatsapp.outbound.inbox_message_queued_event_failed'
+      )
+    }
+  }
+
+  async #appendAssistantTurn(params: {
+    organizationId: string
+    conversationId: string
+    messageId: string
+    content: string
+  }): Promise<void> {
+    try {
+      const memory = await app.container.make(MemoryWorkingSetService)
+      await memory.appendTurn(params.organizationId, params.conversationId, {
+        role: 'assistant',
+        content: params.content,
+        timestamp: new Date().toISOString(),
+        messageId: params.messageId,
+      })
+    } catch (error) {
+      logger.warn(
+        {
+          organizationId: params.organizationId,
+          conversationId: params.conversationId,
+          messageId: params.messageId,
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'whatsapp.outbound.memory_append_failed'
       )
     }
   }
@@ -830,25 +1010,31 @@ export default class WhatsappOutboundService {
 
     const to = String(conversation.contactPhone ?? '').replace(/\D/g, '')
     if (!to) {
-      throw WhatsappOutboundException.conversationNotFound()
+      throw new WhatsappOutboundException('Contact phone number is missing', {
+        status: 422,
+        code: 'E_OUTBOUND_CONTACT_PHONE_MISSING',
+      })
     }
 
-    const lastInboundMessage = await db
+    const lastInbound = await db
       .from('messages')
       .where('organizationId', organizationId)
       .where('conversationId', conversationId)
       .where('senderType', 'contact')
-      .orderBy('createdAt', 'desc')
-      .select('createdAt')
+      .orderBy('occurredAt', 'desc')
+      .select('occurredAt')
       .first()
+
+    const lastInboundMessageAt = lastInbound?.occurredAt
+      ? new Date(lastInbound.occurredAt as string | Date)
+      : null
 
     return {
       conversationId: conversation.conversationId as string,
       whatsappConfigId: conversation.whatsappConfigId as string,
       to,
-      lastInboundMessageAt: lastInboundMessage?.createdAt
-        ? new Date(lastInboundMessage.createdAt as string | Date)
-        : null,
+      conversationStatus: conversation.conversationStatus as string,
+      lastInboundMessageAt,
     }
   }
 
@@ -955,6 +1141,7 @@ export default class WhatsappOutboundService {
       conversationId: string
       whatsappConfigId: string
       actorUserId?: string | null
+      senderType?: 'agent' | 'system' | 'ai'
       contentType: string
       contentText: string | null
       messageTemplateId: string | null
@@ -969,7 +1156,7 @@ export default class WhatsappOutboundService {
       organizationId: params.organizationId,
       whatsappConfigId: params.whatsappConfigId,
       conversationId: params.conversationId,
-      senderType: params.actorUserId ? 'agent' : 'system',
+      senderType: params.senderType ?? (params.actorUserId ? 'agent' : 'system'),
       senderId: params.actorUserId ?? null,
       contentType: params.contentType,
       contentText: params.contentText,
@@ -1004,6 +1191,103 @@ export default class WhatsappOutboundService {
     )
 
     return queued
+  }
+
+  async #registerMediaReference(
+    trx: TransactionClientContract,
+    params: {
+      organizationId: string
+      mediaAssetId: string
+      ownerType: MediaAssetReferenceOwnerType
+      ownerId: string
+      protectedUntil?: Date | null
+    }
+  ): Promise<void> {
+    // Message refs stay live after conversation close (no clear on close).
+    await this.mediaReferences.upsert(
+      {
+        organizationId: params.organizationId,
+        mediaAssetId: params.mediaAssetId,
+        ownerType: params.ownerType,
+        ownerId: params.ownerId,
+        protectedUntil: params.protectedUntil ?? null,
+      },
+      trx
+    )
+  }
+
+  /**
+   * Re-check delivery conditions at wake time (especially for scheduled sends).
+   */
+  async #revalidateBeforeSend(params: {
+    organizationId: string
+    dispatch: OutboundDispatchRow
+  }): Promise<void> {
+    const payload =
+      typeof params.dispatch.payload === 'string'
+        ? (JSON.parse(params.dispatch.payload) as OutboundDispatchPayload)
+        : params.dispatch.payload
+
+    const conversationId = await this.#loadMessageConversationId({
+      organizationId: params.organizationId,
+      messageId: params.dispatch.messageId,
+    })
+    if (!conversationId) {
+      throw WhatsappOutboundException.conversationNotFound()
+    }
+
+    const ctx = await this.#loadConversationContext(params.organizationId, conversationId)
+
+    if (payload.kind === 'text' || payload.kind === 'media') {
+      this.#assertSessionWindow(ctx.lastInboundMessageAt)
+    }
+
+    if (payload.kind === 'media') {
+      const mediaAsset = await this.#loadMediaAsset({
+        organizationId: params.organizationId,
+        mediaAssetId: payload.mediaAssetId,
+      })
+      this.#assertMediaAsset({ mediaType: payload.mediaType, mediaAsset })
+    }
+
+    if (payload.kind === 'template') {
+      const template = await db
+        .from('message_templates')
+        .where('id', payload.templateId)
+        .where('organizationId', params.organizationId)
+        .first()
+
+      if (!template) {
+        throw WhatsappOutboundException.templateNotFound()
+      }
+      if (String(template.status).toLowerCase() !== 'approved') {
+        throw WhatsappOutboundException.templateNotApproved()
+      }
+
+      const schema = parseParameterSchema(
+        typeof template.parameterSchema === 'string'
+          ? JSON.parse(template.parameterSchema)
+          : template.parameterSchema
+      )
+      if (schema.headerMediaType) {
+        const message = await db
+          .from('messages')
+          .where('id', params.dispatch.messageId)
+          .where('organizationId', params.organizationId)
+          .select('mediaAssetId')
+          .first()
+        if (!message?.mediaAssetId) {
+          throw WhatsappOutboundException.invalidTemplateParameters(
+            `Header media asset is required for ${schema.headerMediaType} header templates`
+          )
+        }
+        const mediaAsset = await this.#loadMediaAsset({
+          organizationId: params.organizationId,
+          mediaAssetId: message.mediaAssetId as string,
+        })
+        this.#assertMediaAsset({ mediaType: schema.headerMediaType, mediaAsset })
+      }
+    }
   }
 }
 

@@ -1,11 +1,12 @@
 import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { Exception } from '@adonisjs/core/exceptions'
+import logger from '@adonisjs/core/services/logger'
 import { DateTime } from 'luxon'
-import Organization from '#models/organization'
 import InvitationException from '#exceptions/invitation_exception'
 import { getGlobalRoleIdByName, resolveAssignableRoleForOrg } from '#services/role_service'
 import { bumpAllOrgMembersPermissionVersion } from '#lib/permission_version_bumps'
+import { NotificationService } from '#services/notification_service'
 
 export type CreateOrganizationInput = {
   name: string
@@ -391,6 +392,62 @@ export class OrganizationService {
         .where('activeOrganizationId', organizationId)
         .update({ activeOrganizationId: null })
     })
+
+    // After soft-delete commits — best-effort fan-out must not roll back deletion.
+    await this.#notifyMembersOrganizationSoftDeleted({
+      organizationId,
+      actorUserId,
+    })
+  }
+
+  /**
+   * Best-effort in-app notifications for all active org members after soft-delete.
+   */
+  async #notifyMembersOrganizationSoftDeleted(params: {
+    organizationId: string
+    actorUserId: string
+  }): Promise<void> {
+    try {
+      const members = await db
+        .from('organization_members')
+        .where('organizationId', params.organizationId)
+        .where('isDeleted', false)
+        .select('userId')
+
+      const notifications = new NotificationService()
+      for (const member of members) {
+        const userId = member.userId as string
+        try {
+          await notifications.createNotification({
+            organizationId: params.organizationId,
+            userId,
+            type: 'organization_soft_deleted',
+            title: 'Workspace unavailable',
+            body: 'This workspace has been deleted and is no longer available.',
+            actorUserId: params.actorUserId,
+          })
+        } catch (error) {
+          logger.error(
+            {
+              organizationId: params.organizationId,
+              userId,
+              type: 'organization_soft_deleted',
+              err: error instanceof Error ? error.message : 'unknown',
+            },
+            'organization.notification_failed'
+          )
+        }
+      }
+    } catch (error) {
+      logger.error(
+        {
+          organizationId: params.organizationId,
+          type: 'organization_soft_deleted',
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'organization.notification_failed'
+      )
+    }
   }
 
   /**
@@ -425,7 +482,7 @@ export class OrganizationService {
     )
     const ownerRoleId = await getGlobalRoleIdByName('owner')
 
-    await db.transaction(async (trx) => {
+    const newOwnerUserId = await db.transaction(async (trx) => {
       const [current, target] = await Promise.all([
         trx.rawQuery(
           `SELECT m.*, r."name" as "roleName"
@@ -496,6 +553,51 @@ export class OrganizationService {
         }),
         reason,
       })
+
+      return targetUserId
     })
+
+    // After ownership transfer commits — best-effort notify must not roll back transfer.
+    const org = await db.from('organizations').where('id', organizationId).select('name').first()
+    const workspaceName = (org?.name as string | undefined) ?? null
+    await this.#notifyOwnershipTransferredBestEffort({
+      organizationId,
+      userId: newOwnerUserId,
+      actorUserId,
+      workspaceName,
+    })
+  }
+
+  /**
+   * Best-effort in-app notification for the new owner after ownership transfer. Never throws.
+   */
+  async #notifyOwnershipTransferredBestEffort(params: {
+    organizationId: string
+    userId: string
+    actorUserId: string
+    workspaceName: string | null
+  }): Promise<void> {
+    try {
+      await new NotificationService().createNotification({
+        organizationId: params.organizationId,
+        userId: params.userId,
+        type: 'team_ownership_transferred',
+        title: 'You are now the workspace owner',
+        body: params.workspaceName
+          ? `Ownership of ${params.workspaceName} has been transferred to you.`
+          : 'Ownership of this workspace has been transferred to you.',
+        actorUserId: params.actorUserId,
+      })
+    } catch (error) {
+      logger.error(
+        {
+          organizationId: params.organizationId,
+          userId: params.userId,
+          type: 'team_ownership_transferred',
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'team.notification_failed'
+      )
+    }
   }
 }

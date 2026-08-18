@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import InvitationPolicy from '#policies/invitation_policy'
 import { InvitationService } from '#services/invitation_service'
 import { mapRbacError } from '#lib/map_rbac_error'
 import { attachRemintedAccessToken } from '#lib/access_token_response'
@@ -13,7 +14,8 @@ export default class InvitationsController {
    * @security BearerAuth
    * @responseBody 200 - { "data": [{ "id": "uuid", "email": "a@b.com", "role": "agent", "inviterName": "Ada", "expiresAt": "2026-07-28T12:00:00.000Z" }] }
    */
-  async index({ request, serialize }: HttpContext) {
+  async index({ bouncer, request, serialize }: HttpContext) {
+    await bouncer.with(InvitationPolicy).authorize('viewAny')
     const invitations = await new InvitationService().listInvitations(
       request.activeMember!.organizationId
     )
@@ -33,13 +35,8 @@ export default class InvitationsController {
    * @responseBody 409 - { "error": "A pending invitation already exists for this email", "code": "E_INVITE_ALREADY_PENDING" }
    * @responseBody 502 - { "error": "Failed to send invite email", "code": "E_INVITE_EMAIL_FAILED" }
    */
-  async store({ request, params, response, serialize }: HttpContext) {
-    if (params.id !== request.activeMember!.organizationId) {
-      return response.forbidden({
-        error: 'Organization id does not match the active organization. Call set-active first.',
-        code: 'ORG_ID_MISMATCH',
-      })
-    }
+  async store({ bouncer, request, params, response, serialize }: HttpContext) {
+    await bouncer.with(InvitationPolicy).authorize('store', params.id)
 
     const payload = await request.validateUsing(createInvitationValidator)
 
@@ -127,7 +124,8 @@ export default class InvitationsController {
    * @responseBody 200 - { "data": { "ok": true } }
    * @responseBody 403 - { "error": "Permission denied: team:invite", "code": "PERMISSION_DENIED" }
    */
-  async cancel({ request, params, response, serialize }: HttpContext) {
+  async cancel({ bouncer, request, params, response, serialize }: HttpContext) {
+    await bouncer.with(InvitationPolicy).authorize('cancel')
     try {
       await new InvitationService().cancelInvitation({
         invitationId: params.id,

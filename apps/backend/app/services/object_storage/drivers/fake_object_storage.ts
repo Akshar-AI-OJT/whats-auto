@@ -51,6 +51,10 @@ export default class FakeObjectStorage extends ObjectStorage {
     this.objects.set(key, { body, contentType })
   }
 
+  async writeObject(params: { key: string; body: Uint8Array; contentType: string }): Promise<void> {
+    this.putObject(params.key, Buffer.from(params.body), params.contentType)
+  }
+
   async headObject(key: string): Promise<ObjectHeadResult | null> {
     const object = this.objects.get(key)
     if (!object) return null
@@ -59,6 +63,12 @@ export default class FakeObjectStorage extends ObjectStorage {
       contentType: object.contentType,
       eTag: `"fake-${object.body.byteLength}"`,
     }
+  }
+
+  async getObjectPrefix(params: { key: string; maxBytes: number }): Promise<Uint8Array | null> {
+    const object = this.objects.get(params.key)
+    if (!object) return null
+    return new Uint8Array(object.body.subarray(0, params.maxBytes))
   }
 
   async deleteObject(key: string): Promise<void> {

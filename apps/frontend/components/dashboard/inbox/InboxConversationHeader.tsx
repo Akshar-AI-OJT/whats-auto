@@ -1,10 +1,15 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
+import { PanelRight } from 'lucide-react'
 import type { InboxConversation, InboxConversationStatus, OrganizationMember } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
 import { WorkspaceAvatar } from '@/components/dashboard/WorkspaceSwitcher'
 import { InboxConversationActions } from './InboxConversationActions'
+import { InboxAiModePill } from './InboxAiModePill'
+import { InboxAiHandoverBanner } from './InboxAiHandoverBanner'
+import { useInboxWorkspace } from './InboxWorkspaceContext'
 import {
   contactInitials,
   contactLabel,
@@ -51,6 +56,8 @@ export function InboxConversationHeader({
   onConversationUpdated,
 }: InboxConversationHeaderProps) {
   const t = useTranslations('dashboard.inbox')
+  const tDetails = useTranslations('dashboard.inbox.details')
+  const { setDetailsOpen } = useInboxWorkspace()
   const contact = conversation.contact
   const updated =
     conversation.lastMessageAt || conversation.updatedAt || conversation.createdAt
@@ -64,8 +71,9 @@ export function InboxConversationHeader({
     .join(' · ')
 
   return (
-    <header className="sticky top-0 z-10 border-b border-dash-border bg-canvas/95 px-4 py-3.5 backdrop-blur-sm sm:px-5">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+    <header className="sticky top-0 z-10 border-b border-dash-border bg-canvas/95 backdrop-blur-sm">
+      <div className="px-4 py-3.5 sm:px-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 items-start gap-3">
           <WorkspaceAvatar
             initials={contactInitials(conversation)}
@@ -78,6 +86,7 @@ export function InboxConversationHeader({
                 {contactLabel(conversation)}
               </h2>
               <StatusBadge status={conversation.status} label={statusLabel} />
+              <InboxAiModePill conversation={conversation} />
             </div>
             {secondaryContact ? (
               <p className="mt-0.5 truncate text-sm text-mute">{secondaryContact}</p>
@@ -95,12 +104,26 @@ export function InboxConversationHeader({
           </div>
         </div>
 
-        <InboxConversationActions
-          conversation={conversation}
-          members={members}
-          onUpdated={onConversationUpdated}
-        />
+        <div className="flex flex-col items-stretch gap-2 sm:items-end">
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            className="gap-1.5 xl:hidden"
+            onClick={() => setDetailsOpen(true)}
+          >
+            <PanelRight className="size-3.5" aria-hidden />
+            {tDetails('openPanel')}
+          </Button>
+          <InboxConversationActions
+            conversation={conversation}
+            members={members}
+            onUpdated={onConversationUpdated}
+          />
+        </div>
+        </div>
       </div>
+      <InboxAiHandoverBanner conversation={conversation} />
     </header>
   )
 }

@@ -68,7 +68,21 @@ export type MetaWebhookError = {
 }
 
 export type MetaWebhookMessageType =
-  'text' | 'image' | 'video' | 'document' | 'location' | 'interactive' | string
+  'text' | 'image' | 'video' | 'document' | 'audio' | 'location' | 'interactive' | string
+
+export type MetaWebhookContext = {
+  id?: string
+  from?: string
+}
+
+export type MetaWebhookReferral = {
+  source_url?: string
+  source_type?: string
+  source_id?: string
+  headline?: string
+  body?: string
+  ctwa_clid?: string
+}
 
 export type MetaWebhookMessage = {
   from: string
@@ -77,10 +91,13 @@ export type MetaWebhookMessage = {
   type: MetaWebhookMessageType
   text?: MetaWebhookText
   image?: MetaWebhookMedia
+  audio?: MetaWebhookMedia
   video?: MetaWebhookMedia
   document?: MetaWebhookMedia
   location?: MetaWebhookLocation
   interactive?: MetaWebhookInteractive
+  context?: MetaWebhookContext
+  referral?: MetaWebhookReferral
   errors?: MetaWebhookError[]
 }
 
@@ -142,11 +159,28 @@ export type MessageMetadataError = {
   details?: string
 }
 
+export type MessageMetadataContext = {
+  id?: string
+  from?: string
+}
+
+export type MessageMetadataReferral = {
+  sourceUrl?: string
+  sourceType?: string
+  sourceId?: string
+  headline?: string
+  body?: string
+  ctwaClid?: string
+}
+
 export type MessageMetadata = {
   media?: MessageMetadataMedia
   location?: MessageMetadataLocation
   interactive?: MessageMetadataInteractive
   errors?: MessageMetadataError[]
+  context?: MessageMetadataContext
+  referral?: MessageMetadataReferral
+  [key: string]: unknown
 }
 
 export type MetaTokenExchangeResult = {
