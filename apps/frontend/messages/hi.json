@@ -2649,6 +2649,165 @@
         "emptyDescription": "टीम Whats-Auto का उपयोग शुरू करने पर वर्कस्पेस इवेंट यहाँ दिखेंगे।"
       }
     },
+    "analytics": {
+      "eyebrow": "इनसाइट्स",
+      "title": "ऑर्गनाइज़ेशन एनालिटिक्स",
+      "subtitle": "अपने लाइव वर्कस्पेस डेटा से contacts, campaigns, conversations, WhatsApp connections, templates, customer groups और audit activity ट्रैक करें।",
+      "retry": "फिर कोशिश करें",
+      "unavailable": "डेटा उपलब्ध नहीं है",
+      "kpis": {
+        "totalContacts": "कुल संपर्क",
+        "totalCampaigns": "कुल कैंपेन",
+        "sentMessages": "भेजे गए संदेश",
+        "deliveredMessages": "डिलीवर संदेश",
+        "failedMessages": "विफल संदेश",
+        "deliveryRate": "डिलीवरी दर",
+        "totalConversations": "कुल बातचीत",
+        "connectedWhatsappNumbers": "कनेक्टेड WhatsApp नंबर"
+      },
+      "loading": {
+        "contacts": "संपर्क एनालिटिक्स लोड हो रहे हैं…",
+        "campaigns": "कैंपेन एनालिटिक्स लोड हो रहे हैं…",
+        "conversations": "बातचीत एनालिटिक्स लोड हो रहे हैं…",
+        "whatsapp": "WhatsApp एनालिटिक्स लोड हो रहे हैं…",
+        "templates": "टेम्पलेट एनालिटिक्स लोड हो रहे हैं…",
+        "groups": "कस्टमर ग्रुप एनालिटिक्स लोड हो रहे हैं…",
+        "audit": "ऑडिट गतिविधि लोड हो रही है…"
+      },
+      "errors": {
+        "contacts": "संपर्क एनालिटिक्स लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+        "campaigns": "कैंपेन एनालिटिक्स लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+        "conversations": "बातचीत एनालिटिक्स लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+        "whatsapp": "WhatsApp एनालिटिक्स लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+        "templates": "टेम्पलेट एनालिटिक्स लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+        "groups": "कस्टमर ग्रुप एनालिटिक्स लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+        "audit": "ऑडिट गतिविधि लोड नहीं हो सकी। कृपया फिर कोशिश करें।"
+      },
+      "contacts": {
+        "title": "संपर्क एनालिटिक्स",
+        "description": "पिछले 6 महीनों का संपर्क कुल और मासिक वृद्धि।",
+        "totalContacts": "वर्कस्पेस में संपर्क",
+        "monthsTracked": "दिखाए गए महीने",
+        "emptyTitle": "अभी कोई संपर्क नहीं",
+        "emptyDescription": "जब आपकी टीम संपर्क जोड़ना या इम्पोर्ट करना शुरू करेगी, यहाँ डेटा दिखेगा।",
+        "emptyChart": "अभी संपर्क वृद्धि डेटा नहीं है।"
+      },
+      "campaignStatus": {
+        "title": "कैंपेन स्थिति",
+        "description": "कैंपेन lifecycle स्थिति और recipient volume का वितरण।",
+        "totalRecipients": "कुल प्राप्तकर्ता",
+        "completedCount": "पूर्ण कैंपेन",
+        "emptyTitle": "अभी कोई कैंपेन नहीं",
+        "emptyDescription": "पहला कैंपेन बनने के बाद कैंपेन एनालिटिक्स यहाँ दिखेगा।",
+        "emptyChart": "अभी कैंपेन स्थिति डेटा नहीं है।"
+      },
+      "messagePerformance": {
+        "title": "मैसेज परफॉर्मेंस",
+        "description": "मौजूदा campaign counters से aggregated message outcomes।",
+        "emptyTitle": "अभी कोई मैसेज परफॉर्मेंस नहीं",
+        "emptyDescription": "कैंपेन भेजना शुरू होने पर मैसेज परफॉर्मेंस यहाँ दिखेगी।"
+      },
+      "conversations": {
+        "title": "बातचीत एनालिटिक्स",
+        "description": "बातचीत का कुल, unread count और status distribution।",
+        "totalConversations": "कुल बातचीत",
+        "unreadMessages": "अनरीड काउंट",
+        "emptyTitle": "अभी कोई बातचीत नहीं",
+        "emptyDescription": "जब ग्राहक आपके वर्कस्पेस को संदेश भेजना शुरू करेंगे, यहाँ analytics दिखेगी।",
+        "emptyChart": "अभी बातचीत स्थिति डेटा नहीं है।"
+      },
+      "campaignPerformance": {
+        "title": "कैंपेन परफॉर्मेंस",
+        "description": "मौजूदा campaign API से हाल की campaign metrics।",
+        "emptyTitle": "अभी कोई कैंपेन परफॉर्मेंस नहीं",
+        "emptyDescription": "डिलीवरी परफॉर्मेंस देखने के लिए एक कैंपेन लॉन्च करें।",
+        "columns": {
+          "name": "कैंपेन",
+          "status": "स्थिति",
+          "recipients": "प्राप्तकर्ता",
+          "sent": "भेजे गए",
+          "delivered": "डिलीवर",
+          "read": "पढ़े गए",
+          "replies": "जवाब",
+          "failed": "विफल",
+          "created": "बनाया गया"
+        }
+      },
+      "whatsapp": {
+        "title": "WhatsApp एनालिटिक्स",
+        "description": "इस वर्कस्पेस से जुड़े WhatsApp नंबरों की connection status।",
+        "connectedNumbers": "कनेक्टेड नंबर",
+        "emptyTitle": "अभी कोई WhatsApp नंबर नहीं",
+        "emptyDescription": "स्थिति ट्रैक करने के लिए एक WhatsApp Business नंबर कनेक्ट करें।",
+        "emptyChart": "अभी WhatsApp status डेटा नहीं है।"
+      },
+      "templates": {
+        "title": "टेम्पलेट एनालिटिक्स",
+        "description": "टेम्पलेट count, status/category distribution और campaign-driven usage।",
+        "totalTemplates": "कुल टेम्पलेट",
+        "statusDistribution": "स्थिति वितरण",
+        "categoryDistribution": "श्रेणी वितरण",
+        "usageTitle": "टॉप टेम्पलेट उपयोग",
+        "emptyTitle": "अभी कोई टेम्पलेट नहीं",
+        "emptyDescription": "यहाँ analytics देखने के लिए templates बनाएँ या sync करें।",
+        "emptyChart": "अभी टेम्पलेट एनालिटिक्स नहीं है।"
+      },
+      "groups": {
+        "title": "कस्टमर ग्रुप्स",
+        "description": "मौजूदा Tags डेटा से Customer Group totals और सबसे बड़े groups।",
+        "totalGroups": "कुल कस्टमर ग्रुप्स",
+        "contactsCount": "{count, plural, one {# संपर्क} other {# संपर्क}}",
+        "emptyTitle": "अभी कोई कस्टमर ग्रुप नहीं",
+        "emptyDescription": "संपर्क व्यवस्थित करने और group size analytics देखने के लिए Customer Groups बनाएँ।"
+      },
+      "audit": {
+        "title": "हाल की ऑडिट गतिविधि",
+        "description": "इस वर्कस्पेस के लिए नवीनतम authorization और audit events।",
+        "emptyTitle": "अभी कोई ऑडिट गतिविधि नहीं",
+        "emptyDescription": "जब permissioned actions किए जाएँगे, audit events यहाँ दिखेंगे।",
+        "noDetails": "कोई अतिरिक्त विवरण नहीं"
+      },
+      "labels": {
+        "campaignStatus": {
+          "draft": "ड्राफ्ट",
+          "scheduled": "अनुसूचित",
+          "sending": "भेजा जा रहा है",
+          "completed": "पूर्ण",
+          "failed": "विफल",
+          "cancelled": "रद्द"
+        },
+        "conversationStatus": {
+          "open": "खुला",
+          "pending": "पेंडिंग",
+          "closed": "बंद"
+        },
+        "whatsappStatus": {
+          "connected": "कनेक्टेड",
+          "disconnected": "डिस्कनेक्टेड",
+          "error": "त्रुटि"
+        },
+        "templateStatus": {
+          "approved": "स्वीकृत",
+          "pending": "पेंडिंग",
+          "rejected": "अस्वीकृत",
+          "draft": "ड्राफ्ट",
+          "deleted": "हटाया गया",
+          "paused": "रुका हुआ",
+          "disabled": "डिसेबल"
+        },
+        "templateCategory": {
+          "marketing": "मार्केटिंग",
+          "utility": "यूटिलिटी",
+          "authentication": "ऑथेंटिकेशन"
+        },
+        "messagePerformance": {
+          "sent": "भेजे गए",
+          "delivered": "डिलीवर",
+          "read": "पढ़े गए",
+          "failed": "विफल"
+        }
+      }
+    },
     "campaigns": {
       "eyebrow": "आउटरीच",
       "title": "कैंपेन",

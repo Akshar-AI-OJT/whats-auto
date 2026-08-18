@@ -2747,6 +2747,165 @@
         "emptyDescription": "Workspace events will show up here as your team starts using Whats-Auto."
       }
     },
+    "analytics": {
+      "eyebrow": "Insights",
+      "title": "Organization Analytics",
+      "subtitle": "Track contacts, campaigns, conversations, WhatsApp connections, templates, customer groups, and audit activity using your live workspace data.",
+      "retry": "Retry",
+      "unavailable": "Data unavailable",
+      "kpis": {
+        "totalContacts": "Total Contacts",
+        "totalCampaigns": "Total Campaigns",
+        "sentMessages": "Sent Messages",
+        "deliveredMessages": "Delivered Messages",
+        "failedMessages": "Failed Messages",
+        "deliveryRate": "Delivery Rate",
+        "totalConversations": "Total Conversations",
+        "connectedWhatsappNumbers": "Connected WhatsApp Numbers"
+      },
+      "loading": {
+        "contacts": "Loading contact analytics…",
+        "campaigns": "Loading campaign analytics…",
+        "conversations": "Loading conversation analytics…",
+        "whatsapp": "Loading WhatsApp analytics…",
+        "templates": "Loading template analytics…",
+        "groups": "Loading customer group analytics…",
+        "audit": "Loading audit activity…"
+      },
+      "errors": {
+        "contacts": "Couldn’t load contact analytics. Please try again.",
+        "campaigns": "Couldn’t load campaign analytics. Please try again.",
+        "conversations": "Couldn’t load conversation analytics. Please try again.",
+        "whatsapp": "Couldn’t load WhatsApp analytics. Please try again.",
+        "templates": "Couldn’t load template analytics. Please try again.",
+        "groups": "Couldn’t load customer group analytics. Please try again.",
+        "audit": "Couldn’t load audit activity. Please try again."
+      },
+      "contacts": {
+        "title": "Contact Analytics",
+        "description": "Contact totals and monthly growth over the last 6 months.",
+        "totalContacts": "Contacts in workspace",
+        "monthsTracked": "Months shown",
+        "emptyTitle": "No contacts yet",
+        "emptyDescription": "Contacts will appear here once your team starts adding or importing them.",
+        "emptyChart": "No contact growth data yet."
+      },
+      "campaignStatus": {
+        "title": "Campaign Status",
+        "description": "Distribution of campaign lifecycle states and recipient volume.",
+        "totalRecipients": "Total Recipients",
+        "completedCount": "Completed Campaigns",
+        "emptyTitle": "No campaigns yet",
+        "emptyDescription": "Campaign analytics will appear after your first campaign is created.",
+        "emptyChart": "No campaign status data yet."
+      },
+      "messagePerformance": {
+        "title": "Message Performance",
+        "description": "Aggregate campaign message outcomes from existing campaign counters.",
+        "emptyTitle": "No message performance yet",
+        "emptyDescription": "Message performance appears after campaigns begin sending."
+      },
+      "conversations": {
+        "title": "Conversation Analytics",
+        "description": "Conversation totals, unread counts, and status distribution.",
+        "totalConversations": "Total Conversations",
+        "unreadMessages": "Unread Count",
+        "emptyTitle": "No conversations yet",
+        "emptyDescription": "Conversation analytics will appear after customers start messaging your workspace.",
+        "emptyChart": "No conversation status data yet."
+      },
+      "campaignPerformance": {
+        "title": "Campaign Performance",
+        "description": "Recent campaign metrics from the existing campaign API.",
+        "emptyTitle": "No campaign performance yet",
+        "emptyDescription": "Launch a campaign to start seeing delivery performance here.",
+        "columns": {
+          "name": "Campaign",
+          "status": "Status",
+          "recipients": "Recipients",
+          "sent": "Sent",
+          "delivered": "Delivered",
+          "read": "Read",
+          "replies": "Replies",
+          "failed": "Failed",
+          "created": "Created"
+        }
+      },
+      "whatsapp": {
+        "title": "WhatsApp Analytics",
+        "description": "Connection status across the WhatsApp numbers linked to this workspace.",
+        "connectedNumbers": "Connected Numbers",
+        "emptyTitle": "No WhatsApp numbers yet",
+        "emptyDescription": "Connect a WhatsApp Business number to start tracking status here.",
+        "emptyChart": "No WhatsApp status data yet."
+      },
+      "templates": {
+        "title": "Template Analytics",
+        "description": "Template counts, status/category distribution, and campaign-driven usage.",
+        "totalTemplates": "Total Templates",
+        "statusDistribution": "Status Distribution",
+        "categoryDistribution": "Category Distribution",
+        "usageTitle": "Top Template Usage",
+        "emptyTitle": "No templates yet",
+        "emptyDescription": "Create or sync templates to see analytics here.",
+        "emptyChart": "No template analytics yet."
+      },
+      "groups": {
+        "title": "Customer Groups",
+        "description": "Customer Group totals and largest groups using existing Tags data.",
+        "totalGroups": "Total Customer Groups",
+        "contactsCount": "{count, plural, one {# contact} other {# contacts}}",
+        "emptyTitle": "No customer groups yet",
+        "emptyDescription": "Create Customer Groups to organize contacts and see group size analytics."
+      },
+      "audit": {
+        "title": "Recent Audit Activity",
+        "description": "Latest authorization and audit events for this workspace.",
+        "emptyTitle": "No audit activity yet",
+        "emptyDescription": "Audit events will appear here when permissioned actions are performed.",
+        "noDetails": "No additional details"
+      },
+      "labels": {
+        "campaignStatus": {
+          "draft": "Draft",
+          "scheduled": "Scheduled",
+          "sending": "Sending",
+          "completed": "Completed",
+          "failed": "Failed",
+          "cancelled": "Cancelled"
+        },
+        "conversationStatus": {
+          "open": "Open",
+          "pending": "Pending",
+          "closed": "Closed"
+        },
+        "whatsappStatus": {
+          "connected": "Connected",
+          "disconnected": "Disconnected",
+          "error": "Error"
+        },
+        "templateStatus": {
+          "approved": "Approved",
+          "pending": "Pending",
+          "rejected": "Rejected",
+          "draft": "Draft",
+          "deleted": "Deleted",
+          "paused": "Paused",
+          "disabled": "Disabled"
+        },
+        "templateCategory": {
+          "marketing": "Marketing",
+          "utility": "Utility",
+          "authentication": "Authentication"
+        },
+        "messagePerformance": {
+          "sent": "Sent",
+          "delivered": "Delivered",
+          "read": "Read",
+          "failed": "Failed"
+        }
+      }
+    },
     "campaigns": {
       "eyebrow": "Outreach",
       "title": "Campaigns",
