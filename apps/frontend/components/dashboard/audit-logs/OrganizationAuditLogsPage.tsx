@@ -6,11 +6,11 @@ import { useTranslations } from 'next-intl'
 import { Loader2, RefreshCw, ScrollText, Search } from 'lucide-react'
 import { api, type ApiError, type AuthorizationAuditEvent } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
-import { listSuperAdminOrganizations } from '@/components/admin/organizations/organization-api'
 import {
   Dialog,
   DialogContent,
@@ -72,10 +72,6 @@ function actorLabel(event: AuthorizationAuditEvent, empty: string) {
   return event.actorName || event.actorEmail || event.actorUserId || empty
 }
 
-function organizationLabel(event: AuthorizationAuditEvent, empty: string) {
-  return event.organizationName || event.organizationId || empty
-}
-
 function auditStatus(granted: boolean | null | undefined): AuditStatus {
   if (granted === true) return 'granted'
   if (granted === false) return 'revoked'
@@ -95,10 +91,10 @@ const selectClassName = cn(
   'focus-visible:border-primary/55 focus-visible:ring-2 focus-visible:ring-primary/30'
 )
 
-export function PlatformAuditLogsPage() {
-  const t = useTranslations('admin.auditLogs')
+export function OrganizationAuditLogsPage() {
+  const t = useTranslations('dashboard.auditLogs')
+  const { tenantOrganizationId, activeOrganization } = useOrganizations()
   const [limit, setLimit] = useState<(typeof LIMIT_OPTIONS)[number]>(50)
-  const [organizationId, setOrganizationId] = useState('')
   const [search, setSearch] = useState('')
   const [eventFilter, setEventFilter] = useState('all')
   const [actorFilter, setActorFilter] = useState('all')
@@ -107,21 +103,13 @@ export function PlatformAuditLogsPage() {
   const [dateTo, setDateTo] = useState('')
   const [selected, setSelected] = useState<AuthorizationAuditEvent | null>(null)
 
-  const orgsQuery = useQuery({
-    queryKey: ['admin-audit-log-organizations'],
-    queryFn: async () => {
-      const { items } = await listSuperAdminOrganizations({ page: 1, perPage: 100 })
-      return items
-    },
-  })
+  const workspaceLabel = activeOrganization?.name || t('thisWorkspace')
 
   const auditQuery = useQuery({
-    queryKey: ['admin-audit-logs', limit, organizationId],
+    queryKey: ['org-audit-logs', tenantOrganizationId, limit],
+    enabled: Boolean(tenantOrganizationId),
     queryFn: async () => {
-      const { data } = await api.superAdmin.auditLogs.list({
-        limit,
-        organizationId: organizationId || undefined,
-      })
+      const { data } = await api.audit.list({ limit })
       return unwrapAuditEvents(data)
     },
   })
@@ -173,8 +161,6 @@ export function PlatformAuditLogsPage() {
         event.actorUserId,
         event.actorName,
         event.actorEmail,
-        event.organizationId,
-        event.organizationName,
       ]
         .filter(Boolean)
         .join(' ')
@@ -206,7 +192,7 @@ export function PlatformAuditLogsPage() {
               {t('title')}
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-body sm:text-base sm:leading-7">
-              {t('subtitle')}
+              {t('subtitle', { workspace: workspaceLabel })}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -254,7 +240,7 @@ export function PlatformAuditLogsPage() {
 
         <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <div className="relative min-w-0 sm:col-span-2 xl:col-span-1">
-            <label htmlFor="audit-search" className="sr-only">
+            <label htmlFor="org-audit-search" className="sr-only">
               {t('filters.search')}
             </label>
             <Search
@@ -262,7 +248,7 @@ export function PlatformAuditLogsPage() {
               aria-hidden
             />
             <Input
-              id="audit-search"
+              id="org-audit-search"
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
@@ -301,20 +287,6 @@ export function PlatformAuditLogsPage() {
 
           <select
             className={selectClassName}
-            value={organizationId}
-            aria-label={t('filters.organization')}
-            onChange={(event) => setOrganizationId(event.target.value)}
-          >
-            <option value="">{t('filters.allOrganizations')}</option>
-            {(orgsQuery.data ?? []).map((org) => (
-              <option key={org.id} value={org.id}>
-                {org.name}
-              </option>
-            ))}
-          </select>
-
-          <select
-            className={selectClassName}
             value={entityFilter}
             aria-label={t('filters.entityType')}
             onChange={(event) => setEntityFilter(event.target.value)}
@@ -345,7 +317,7 @@ export function PlatformAuditLogsPage() {
           </div>
         </div>
 
-        {auditQuery.isLoading ? (
+        {auditQuery.isLoading || !tenantOrganizationId ? (
           <div className="mt-8 flex items-center justify-center gap-2 py-16 text-sm text-body">
             <Loader2 className="size-4 animate-spin" aria-hidden />
             {t('loading')}
@@ -375,7 +347,7 @@ export function PlatformAuditLogsPage() {
           <>
             <div className="mt-5 hidden overflow-hidden rounded-2xl border border-dash-border md:block">
               <div className="overflow-x-auto">
-                <table className="w-full min-w-270 border-collapse text-left">
+                <table className="w-full min-w-225 border-collapse text-left">
                   <thead>
                     <tr className="border-b border-dash-border bg-dash-surface">
                       <th className="px-4 py-3.5 text-sm font-semibold text-ink sm:px-5">
@@ -386,9 +358,6 @@ export function PlatformAuditLogsPage() {
                       </th>
                       <th className="px-4 py-3.5 text-sm font-semibold text-ink">
                         {t('columns.target')}
-                      </th>
-                      <th className="px-4 py-3.5 text-sm font-semibold text-ink">
-                        {t('columns.organization')}
                       </th>
                       <th className="px-4 py-3.5 text-sm font-semibold text-ink">
                         {t('columns.timestamp')}
@@ -426,9 +395,6 @@ export function PlatformAuditLogsPage() {
                                 {event.targetId}
                               </span>
                             ) : null}
-                          </td>
-                          <td className="px-4 py-3.5 text-sm text-body">
-                            {organizationLabel(event, t('emptyValue'))}
                           </td>
                           <td className="px-4 py-3.5 text-sm tabular-nums text-body">
                             {formatTimestamp(event.createdAt)}
@@ -490,9 +456,6 @@ export function PlatformAuditLogsPage() {
                         {event.targetId ? ` · ${event.targetId}` : ''}
                       </p>
                       <p>
-                        {t('columns.organization')}: {organizationLabel(event, t('emptyValue'))}
-                      </p>
-                      <p>
                         {t('columns.status')}: {t(`status.${status}`)}
                       </p>
                     </div>
@@ -534,10 +497,8 @@ export function PlatformAuditLogsPage() {
                   </dd>
                 </div>
                 <div className="flex justify-between gap-3">
-                  <dt className="text-mute">{t('columns.organization')}</dt>
-                  <dd className="max-w-[70%] break-all text-right text-ink">
-                    {organizationLabel(selected, t('emptyValue'))}
-                  </dd>
+                  <dt className="text-mute">{t('columns.workspace')}</dt>
+                  <dd className="max-w-[70%] break-all text-right text-ink">{workspaceLabel}</dd>
                 </div>
                 <div className="flex justify-between gap-3">
                   <dt className="text-mute">{t('columns.event')}</dt>

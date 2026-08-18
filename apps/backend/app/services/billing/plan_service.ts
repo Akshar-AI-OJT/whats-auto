@@ -1,4 +1,5 @@
 import PlanException from '#exceptions/plan_exception'
+import { insertAuthorizationAudit } from '#lib/authorization_audit'
 import { createRazorpayClient, RazorpayApiError } from '#lib/razorpay/razorpay_client'
 import type { RazorpayClient, RazorpayPlanPeriod } from '#lib/razorpay/types'
 import { PlanRepository } from '#repositories/plan_repository'
@@ -133,7 +134,10 @@ export class PlanService {
     return transformPlan(row)
   }
 
-  async createPlan(input: CreateSuperAdminPlanInput): Promise<SuperAdminPlan> {
+  async createPlan(
+    input: CreateSuperAdminPlanInput,
+    actorUserId?: string | null
+  ): Promise<SuperAdminPlan> {
     const billingPeriod = input.billingPeriod
     const customPricing = input.price === null || billingPeriod === 'custom'
     const price = customPricing ? 0 : Number(input.price)
@@ -179,10 +183,23 @@ export class PlanService {
       }),
     })
 
-    return transformPlan(row)
+    const plan = transformPlan(row)
+    await insertAuthorizationAudit({
+      organizationId: null,
+      actorUserId: actorUserId ?? null,
+      targetType: 'plan',
+      targetId: plan.id,
+      eventType: 'plan.created',
+      after: { name: plan.name, status: plan.status, code: plan.code },
+    })
+    return plan
   }
 
-  async updatePlan(planId: string, patch: UpdateSuperAdminPlanInput): Promise<SuperAdminPlan> {
+  async updatePlan(
+    planId: string,
+    patch: UpdateSuperAdminPlanInput,
+    actorUserId?: string | null
+  ): Promise<SuperAdminPlan> {
     const existing = await this.plans.findById(planId)
     if (!existing) throw PlanException.notFound()
 
@@ -270,10 +287,19 @@ export class PlanService {
     })
 
     if (!updated) throw PlanException.notFound()
-    return transformPlan(updated)
+    const plan = transformPlan(updated)
+    await insertAuthorizationAudit({
+      organizationId: null,
+      actorUserId: actorUserId ?? null,
+      targetType: 'plan',
+      targetId: plan.id,
+      eventType: 'plan.updated',
+      after: { name: plan.name, status: plan.status, code: plan.code },
+    })
+    return plan
   }
 
-  async archivePlan(planId: string): Promise<SuperAdminPlan> {
+  async archivePlan(planId: string, actorUserId?: string | null): Promise<SuperAdminPlan> {
     const existing = await this.plans.findById(planId)
     if (!existing) throw PlanException.notFound()
 
@@ -293,7 +319,16 @@ export class PlanService {
     })
 
     if (!updated) throw PlanException.notFound()
-    return transformPlan(updated)
+    const plan = transformPlan(updated)
+    await insertAuthorizationAudit({
+      organizationId: null,
+      actorUserId: actorUserId ?? null,
+      targetType: 'plan',
+      targetId: plan.id,
+      eventType: 'plan.updated',
+      after: { name: plan.name, status: plan.status },
+    })
+    return plan
   }
 
   async #allocateCode(desired: string, excludeId?: string): Promise<string> {

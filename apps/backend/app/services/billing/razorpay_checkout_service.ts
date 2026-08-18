@@ -1,5 +1,6 @@
 import BillingException from '#exceptions/billing_exception'
 import { inject } from '@adonisjs/core'
+import { insertAuthorizationAudit } from '#lib/authorization_audit'
 import { createRazorpayClient, RazorpayApiError } from '#lib/razorpay/razorpay_client'
 import type { RazorpayClient } from '#lib/razorpay/types'
 import { PlanRepository, type PlanRow } from '#repositories/plan_repository'
@@ -17,6 +18,7 @@ const DEFAULT_TOTAL_COUNT = 120
 export type StartCheckoutParams = {
   organizationId: string
   planId: string
+  actorUserId?: string | null
 }
 
 export type StartCheckoutResult = {
@@ -115,6 +117,15 @@ export class RazorpayCheckoutService {
           checkoutPending: true,
           razorpayStatus: gatewaySubscription.status,
         },
+      })
+
+      await insertAuthorizationAudit({
+        organizationId: params.organizationId,
+        actorUserId: params.actorUserId ?? null,
+        targetType: 'subscription',
+        targetId: subscription.id,
+        eventType: 'subscription.created',
+        after: { planId: plan.id, status: subscription.status },
       })
 
       return {

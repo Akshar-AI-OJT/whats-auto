@@ -7,6 +7,7 @@ import {
   LLM_PROVIDER_API_KEY_ENV,
 } from '#enums/llm_chat_provider'
 import PlatformAiConfigException from '#exceptions/platform_ai_config_exception'
+import { insertAuthorizationAudit } from '#lib/authorization_audit'
 import { DEFAULT_EMBEDDING_SPACE_ID, buildEmbeddingSpaceId } from '#services/ai/embedding_space'
 import {
   catalogForProvider,
@@ -273,7 +274,20 @@ export default class PlatformAiConfigService {
       }
     }
 
-    return this.get()
+    const snapshot = await this.get()
+    await insertAuthorizationAudit({
+      organizationId: null,
+      actorUserId,
+      targetType: 'ai_config',
+      targetId: snapshot.id,
+      eventType: 'ai_config.updated',
+      after: {
+        chatProvider: snapshot.chatProvider,
+        chatModel: snapshot.chatModel,
+        isEnabled: snapshot.isEnabled,
+      },
+    })
+    return snapshot
   }
 
   async completeReindex(): Promise<{ fromSpaceId: string; toSpaceId: string }> {

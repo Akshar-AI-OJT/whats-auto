@@ -128,7 +128,20 @@ export class AiUsageLogSchema extends BaseModel {
 }
 
 export class ApiKeySchema extends BaseModel {
-  static $columns = ['createdAt', 'createdByUserId', 'expiresAt', 'id', 'keyHash', 'keyPrefix', 'lastUsedAt', 'name', 'organizationId', 'revokedAt', 'scopes', 'updatedAt'] as const
+  static $columns = [
+    'createdAt',
+    'createdByUserId',
+    'expiresAt',
+    'id',
+    'keyHash',
+    'keyPrefix',
+    'lastUsedAt',
+    'name',
+    'organizationId',
+    'revokedAt',
+    'scopes',
+    'updatedAt',
+  ] as const
   $columns = ApiKeySchema.$columns
   @column.dateTime()
   declare createdAt: DateTime
@@ -174,7 +187,7 @@ export class AuthorizationAuditSchema extends BaseModel {
   @column({ isPrimary: true })
   declare id: string
   @column()
-  declare organizationId: string
+  declare organizationId: string | null
   @column()
   declare permissionId: string | null
   @column()
@@ -458,7 +471,21 @@ export class ConversationSchema extends BaseModel {
 }
 
 export class IntegrationConnectionSchema extends BaseModel {
-  static $columns = ['config', 'createdAt', 'displayName', 'encryptedSecret', 'externalAccountId', 'id', 'lastErrorCode', 'lastErrorMessage', 'lastSyncAt', 'organizationId', 'provider', 'status', 'updatedAt'] as const
+  static $columns = [
+    'config',
+    'createdAt',
+    'displayName',
+    'encryptedSecret',
+    'externalAccountId',
+    'id',
+    'lastErrorCode',
+    'lastErrorMessage',
+    'lastSyncAt',
+    'organizationId',
+    'provider',
+    'status',
+    'updatedAt',
+  ] as const
   $columns = IntegrationConnectionSchema.$columns
   @column()
   declare config: any
@@ -489,7 +516,19 @@ export class IntegrationConnectionSchema extends BaseModel {
 }
 
 export class IntegrationEventSchema extends BaseModel {
-  static $columns = ['connectionId', 'errorCode', 'eventType', 'externalEventId', 'id', 'organizationId', 'payload', 'processedAt', 'provider', 'receivedAt', 'status'] as const
+  static $columns = [
+    'connectionId',
+    'errorCode',
+    'eventType',
+    'externalEventId',
+    'id',
+    'organizationId',
+    'payload',
+    'processedAt',
+    'provider',
+    'receivedAt',
+    'status',
+  ] as const
   $columns = IntegrationEventSchema.$columns
   @column()
   declare connectionId: string | null
