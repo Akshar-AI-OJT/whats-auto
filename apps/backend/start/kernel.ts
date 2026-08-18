@@ -52,6 +52,5 @@ export const middleware = router.named({
   tenant: () => import('#middleware/tenant_middleware'),
   platform: () => import('#middleware/platform_middleware'),
   requirePermission: () => import('#middleware/require_permission_middleware'),
-  auditAccess: () => import('#middleware/audit_access_middleware'),
   apiKeyAuth: () => import('#middleware/api_key_auth_middleware'),
 })

@@ -198,13 +198,19 @@ export type ProfileUser = {
   updatedAt: string | null
 }
 
+export type OrganizationType = 'company' | 'partnership' | 'sole_proprietorship' | 'other'
+
 export type CreateOrganizationBody = {
   name: string
   slug: string
   email: string
-  phone?: string
+  phone: string
   website?: string
   industry?: string
+  organizationType: OrganizationType
+  address: string
+  pan: string
+  gstin?: string
   country: string
   timezone: string
   currency?: string
@@ -225,6 +231,10 @@ export type OrganizationSummary = {
   phone?: string | null
   website?: string | null
   industry?: string | null
+  organizationType?: OrganizationType | null
+  address?: string | null
+  pan?: string | null
+  gstin?: string | null
   country: string
   timezone: string
   currency?: string | null
@@ -237,6 +247,10 @@ export type UpdateOrganizationBody = {
   phone?: string
   website?: string
   industry?: string
+  organizationType?: OrganizationType
+  address?: string
+  pan?: string
+  gstin?: string
   timezone?: string
   currency?: string
 }
@@ -249,6 +263,10 @@ export type OrganizationDetails = {
   phone: string | null
   website: string | null
   industry: string | null
+  organizationType: OrganizationType | null
+  address: string | null
+  pan: string | null
+  gstin: string | null
   country: string
   timezone: string
   currency: string | null
@@ -286,8 +304,9 @@ export type CreateContactBody = {
 }
 
 /**
- * Customer Groups contract for the future `/api/v1/customer-groups` APIs.
- * HTTP methods are not called yet — see `customer-group-service.ts`.
+ * UI model for Customer Groups. Backed by `/api/v1/tags` — see `api.tags`
+ * and `customer-group-service.ts`. Fields the Tags API does not persist
+ * (description, status, type, campaign usage) stay as UI defaults.
  */
 export type CustomerGroupStatus = 'active' | 'inactive'
 
@@ -303,10 +322,42 @@ export type CustomerGroup = {
   status: CustomerGroupStatus
   contactIds: string[]
   contactCount: number
-  /** Campaign usage from a future backend. `null` means not available yet. */
+  /** Campaign usage is not returned by Tags. `null` means not available. */
   usedInCampaigns: number | null
   createdAt: string
   updatedAt: string | null
+}
+
+/** Raw `/api/v1/tags` record. */
+export type TagRecord = {
+  id: string
+  organizationId: string
+  createdByUserId: string | null
+  name: string
+  color: string | null
+  createdAt: string
+  contactCount: number
+}
+
+export type TagAssignmentRecord = {
+  id: string
+  organizationId: string
+  tagId: string
+  contactId: string
+}
+
+export type CreateTagBody = {
+  name: string
+  color?: string | null
+}
+
+export type UpdateTagBody = {
+  name?: string
+  color?: string | null
+}
+
+export type AssignTagContactBody = {
+  contactId: string
 }
 
 export type CustomerGroupSummaryStats = {
@@ -835,6 +886,26 @@ export type PaginationMeta = {
   firstPage?: number
 }
 
+/** Row from GET /api/v1/notifications */
+export type Notification = {
+  id: string
+  organizationId: string
+  userId: string
+  type: string
+  conversationId: string | null
+  contactId: string | null
+  actorUserId: string | null
+  title: string
+  body: string | null
+  readAt: string | null
+  createdAt: string
+}
+
+export type ListNotificationsParams = {
+  page?: number
+  limit?: number
+}
+
 export type Paginated<T> = {
   data: T[]
   meta: PaginationMeta
@@ -867,7 +938,7 @@ export type AuthorizationAuditEvent = {
 export type ListAuditParams = {
   /** 1–100, backend default 50 */
   limit?: number
-  /** Super Admin only — omit for platform-wide events. Tenant callers are always org-scoped. */
+  /** Super Admin platform list only — omit for platform-wide events. */
   organizationId?: string
 }
 
@@ -943,6 +1014,10 @@ export type SuperAdminOrganization = {
   phone?: string | null
   website?: string | null
   industry?: string | null
+  organizationType?: OrganizationType | null
+  address?: string | null
+  pan?: string | null
+  gstin?: string | null
   country: string
   timezone: string
   currency?: string | null
@@ -958,6 +1033,10 @@ export type UpdateSuperAdminOrganizationBody = {
   phone?: string
   website?: string
   industry?: string
+  organizationType?: OrganizationType
+  address?: string
+  pan?: string
+  gstin?: string
   timezone?: string
   currency?: string
 }
@@ -1447,6 +1526,58 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(body),
       }),
+  },
+
+  tags: {
+    list: () =>
+      protectedRequest<{ data?: TagRecord[] } | TagRecord[]>('/api/v1/tags', {
+        method: 'GET',
+      }),
+
+    get: (tagId: string) =>
+      protectedRequest<{ data?: TagRecord } & TagRecord>(`/api/v1/tags/${tagId}`, {
+        method: 'GET',
+      }),
+
+    create: (body: CreateTagBody) =>
+      protectedRequest<{ data?: TagRecord } & TagRecord>('/api/v1/tags', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+
+    update: (tagId: string, body: UpdateTagBody) =>
+      protectedRequest<{ data?: TagRecord } & TagRecord>(`/api/v1/tags/${tagId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+
+    delete: (tagId: string) =>
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(`/api/v1/tags/${tagId}`, {
+        method: 'DELETE',
+      }),
+
+    contacts: {
+      list: (tagId: string) =>
+        protectedRequest<{ data?: ContactSummary[] } | ContactSummary[]>(
+          `/api/v1/tags/${tagId}/contacts`,
+          { method: 'GET' }
+        ),
+
+      add: (tagId: string, body: AssignTagContactBody) =>
+        protectedRequest<{ data?: TagAssignmentRecord } & TagAssignmentRecord>(
+          `/api/v1/tags/${tagId}/contacts`,
+          {
+            method: 'POST',
+            body: JSON.stringify(body),
+          }
+        ),
+
+      remove: (tagId: string, contactId: string) =>
+        protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+          `/api/v1/tags/${tagId}/contacts/${contactId}`,
+          { method: 'DELETE' }
+        ),
+    },
   },
 
   inbox: {
@@ -1943,6 +2074,34 @@ export const api = {
       ),
   },
 
+  notifications: {
+    list: (params: ListNotificationsParams = {}) => {
+      const qs = new URLSearchParams()
+      if (params.page != null) qs.set('page', String(params.page))
+      if (params.limit != null) qs.set('limit', String(params.limit))
+      const query = qs.toString()
+      return protectedRequest<
+        | Paginated<Notification>
+        | { data?: Notification[]; meta?: PaginationMeta }
+        | { data?: { data?: Notification[]; meta?: PaginationMeta } }
+      >(`/api/v1/notifications${query ? `?${query}` : ''}`, {
+        method: 'GET',
+      })
+    },
+
+    markAsRead: (notificationId: string) =>
+      protectedRequest<{ data?: Notification } & Notification>(
+        `/api/v1/notifications/${notificationId}/read`,
+        { method: 'PATCH' }
+      ),
+
+    markAllAsRead: () =>
+      protectedRequest<{ data?: { updatedCount: number } } & { updatedCount: number }>(
+        '/api/v1/notifications/read-all',
+        { method: 'PATCH' }
+      ),
+  },
+
   members: {
     list: () =>
       protectedRequest<{ data?: OrganizationMember[] } | OrganizationMember[]>('/api/v1/members', {
@@ -1982,13 +2141,12 @@ export const api = {
 
   audit: {
     /**
-     * Authorization audit events (newest first).
-     * Tenant: active-organization scoped. Super Admin: platform-wide, optional organizationId filter.
+     * Tenant authorization audit events (newest first).
+     * Active-organization scoped. Requires audit:view.
      */
     list: (params: ListAuditParams = {}) => {
       const qs = new URLSearchParams()
       if (params.limit != null) qs.set('limit', String(params.limit))
-      if (params.organizationId) qs.set('organizationId', params.organizationId)
       const query = qs.toString()
       return protectedRequest<
         { data?: AuthorizationAuditEvent[] } | AuthorizationAuditEvent[]
@@ -2316,6 +2474,20 @@ export const api = {
             body: JSON.stringify(body),
           }
         ),
+    },
+
+    auditLogs: {
+      list: (params: ListAuditParams = {}) => {
+        const qs = new URLSearchParams()
+        if (params.limit != null) qs.set('limit', String(params.limit))
+        if (params.organizationId) qs.set('organizationId', params.organizationId)
+        const query = qs.toString()
+        return protectedRequest<
+          { data?: AuthorizationAuditEvent[] } | AuthorizationAuditEvent[]
+        >(`/api/v1/super-admin/audit-logs${query ? `?${query}` : ''}`, {
+          method: 'GET',
+        })
+      },
     },
   },
 }

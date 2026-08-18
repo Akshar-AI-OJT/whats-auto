@@ -86,7 +86,7 @@ export default class SuperAdminInvoicesController {
     await bouncer.with(SuperAdminPolicy).authorize('manageBilling')
 
     const payload = await request.validateUsing(createSuperAdminInvoiceValidator)
-    const invoice = await invoices.createInvoice(payload)
+    const invoice = await invoices.createInvoice(payload, request.authUser!.id)
     return serialize(invoice)
   }
 
@@ -123,7 +123,7 @@ export default class SuperAdminInvoicesController {
 
     const { id } = await request.validateUsing(invoiceIdParamValidator, { data: params })
     const payload = await request.validateUsing(markSuperAdminInvoicePaidValidator)
-    const invoice = await invoices.markInvoicePaid(id, payload)
+    const invoice = await invoices.markInvoicePaid(id, payload, request.authUser!.id)
     return serialize(invoice)
   }
 
@@ -141,7 +141,7 @@ export default class SuperAdminInvoicesController {
 
     const { id } = await request.validateUsing(invoiceIdParamValidator, { data: params })
     const payload = await request.validateUsing(regenerateSuperAdminInvoiceValidator)
-    const invoice = await invoices.regenerateInvoice(id, payload)
+    const invoice = await invoices.regenerateInvoice(id, payload, request.authUser!.id)
     return serialize(invoice)
   }
 
