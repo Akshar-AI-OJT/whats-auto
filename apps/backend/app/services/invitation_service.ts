@@ -1,14 +1,94 @@
 import db from '@adonisjs/lucid/services/db'
 import logger from '@adonisjs/core/services/logger'
 import { DateTime } from 'luxon'
-import app from '@adonisjs/core/services/app'
 import env from '#start/env'
-import { resend } from '#lib/mail'
+import mail from '@adonisjs/mail/services/main'
 import InvitationException from '#exceptions/invitation_exception'
 import { resolveAssignableRoleForOrg } from '#services/role_service'
 import { NotificationService } from '#services/notification_service'
 
 const INVITE_TTL_HOURS = 24
+
+function inviteFrontendBase(): string {
+  return (
+    env.get('CORS_ORIGIN', '').split(',')[0]?.trim().replace(/\/$/, '') || 'http://localhost:3000'
+  )
+}
+
+function buildInvitationEmailHtml(params: {
+  orgName: string
+  inviterName: string
+  role: string
+  inviteLink: string
+}): string {
+  const { orgName, inviterName, role, inviteLink } = params
+
+  return `
+          <div style="margin:0; padding:40px 20px; background-color:#f4f6f8; font-family:Arial,Helvetica,sans-serif;">
+            <div style="max-width:560px; margin:0 auto; background:#ffffff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden;">
+      
+              <!-- Header -->
+              <div style="padding:28px 32px; border-bottom:1px solid #e5e7eb;">
+                <div style="font-size:22px; font-weight:700; color:#111827;">
+                  Whats-Auto
+                </div>
+              </div>
+      
+              <!-- Content -->
+              <div style="padding:32px;">
+                <h1 style="margin:0 0 16px; font-size:24px; line-height:32px; color:#111827;">
+                  You're invited!
+                </h1>
+      
+                <p style="margin:0 0 16px; font-size:15px; line-height:24px; color:#4b5563;">
+                  Hi,
+                </p>
+      
+                <p style="margin:0 0 24px; font-size:15px; line-height:24px; color:#4b5563;">
+                  <strong>${inviterName}</strong> has invited you to join
+                  <strong>${orgName}</strong> as a <strong>${role}</strong>.
+                </p>
+      
+                <!-- CTA -->
+                <div style="margin:0 0 24px;">
+                  <a
+                    href="${inviteLink}"
+                    style="
+                      display:inline-block;
+                      padding:12px 22px;
+                      background-color:#111827;
+                      color:#ffffff;
+                      text-decoration:none;
+                      font-size:15px;
+                      font-weight:600;
+                      border-radius:8px;
+                    "
+                  >
+                    Accept Invitation
+                  </a>
+                </div>
+      
+                <p style="margin:0 0 16px; font-size:13px; line-height:20px; color:#6b7280;">
+                  This invitation will expire in
+                  <strong>${INVITE_TTL_HOURS} hours</strong>.
+                </p>
+      
+                <p style="margin:0; font-size:13px; line-height:20px; color:#6b7280;">
+                  If you weren't expecting this invitation, you can safely ignore this email.
+                </p>
+              </div>
+      
+              <!-- Footer -->
+              <div style="padding:20px 32px; background:#f9fafb; border-top:1px solid #e5e7eb;">
+                <p style="margin:0; font-size:12px; line-height:18px; color:#9ca3af; text-align:center;">
+                  This is an automated email from Whats-Auto. Please do not reply to this email.
+                </p>
+              </div>
+      
+            </div>
+          </div>
+        `
+}
 
 function toIso(value: unknown): string {
   if (value instanceof Date) return value.toISOString()
@@ -119,48 +199,16 @@ export class InvitationService {
       throw error
     }
 
-    const inviteLink = `${env.get('CORS_ORIGIN')}/accept-invitation/${invitation.id}`
-    const softFailEmail = !app.inProduction
-    try {
-      const { error } = await resend.emails.send({
-        from: env.get('EMAIL_FROM'),
-        to: normalizedEmail,
-        subject: `You've been invited to ${org.name}`,
-        html: `
-        <p>${inviter.name} invited you to join <strong>${org.name}</strong> as <strong>${role}</strong>.</p>
-        <p><a href="${inviteLink}">Accept Invitation</a> — link expires in ${INVITE_TTL_HOURS} hours.</p>
-      `,
-      })
-      if (error) {
-        // Resend test domain (onboarding@resend.dev) only delivers to the account email.
-        // Mirror pre_signup OTP: keep invites usable outside production by logging the link.
-        if (softFailEmail) {
-          console.warn(`[DEV] Resend failed for invite ${normalizedEmail}: ${error.message}`)
-          console.warn(`[DEV] Invitation link: ${inviteLink}`)
-        } else {
-          throw InvitationException.emailSendFailed(error.message)
-        }
-      } else if (softFailEmail) {
-        console.info(`[DEV] Invite email sent to ${normalizedEmail}. Link: ${inviteLink}`)
-      }
-    } catch (error) {
-      if (error instanceof InvitationException) {
-        // Do not leave a pending invite that the recipient never received.
-        await db.from('organization_invitations').where('id', invitation.id).delete()
-        throw error
-      }
-      if (softFailEmail) {
-        console.warn(
-          `[DEV] Invite email threw for ${normalizedEmail}: ${error instanceof Error ? error.message : error}`
-        )
-        console.warn(`[DEV] Invitation link: ${inviteLink}`)
-      } else {
-        await db.from('organization_invitations').where('id', invitation.id).delete()
-        throw InvitationException.emailSendFailed(
-          error instanceof Error ? error.message : undefined
-        )
-      }
-    }
+    const inviteLink = `${inviteFrontendBase()}/accept-invitation/${invitation.id}`
+
+    await this.#sendInviteEmailOrRollback({
+      invitationId: invitation.id,
+      to: normalizedEmail,
+      orgName: org.name as string,
+      inviterName: inviter.name as string,
+      role,
+      inviteLink,
+    })
 
     // After invitation is successfully created (and kept) — best-effort notify existing users only.
     await this.#notifyInviteeInvitationCreatedBestEffort({
@@ -178,6 +226,44 @@ export class InvitationService {
       status: invitation.status as string,
       expiresAt: toIso(invitation.expiresAt),
       createdAt: toIso(invitation.createdAt),
+    }
+  }
+
+  /**
+   * Send the invite email. Roll back the invitation when delivery fails so
+   * the frontend never lists an invite the recipient did not receive.
+   */
+  async #sendInviteEmailOrRollback(params: {
+    invitationId: string
+    to: string
+    orgName: string
+    inviterName: string
+    role: string
+    inviteLink: string
+  }): Promise<void> {
+    try {
+      await mail.send((message) => {
+        message
+          .to(params.to)
+          .subject(`You've been invited to ${params.orgName}`)
+          .html(
+            buildInvitationEmailHtml({
+              orgName: params.orgName,
+              inviterName: params.inviterName,
+              role: params.role,
+              inviteLink: params.inviteLink,
+            })
+          )
+      })
+    } catch (error) {
+      await db.from('organization_invitations').where('id', params.invitationId).delete()
+
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      logger.error(
+        { email: params.to, invitationId: params.invitationId, err: errorMessage },
+        'invite.email_send_failed'
+      )
+      throw InvitationException.emailSendFailed(errorMessage)
     }
   }
 
