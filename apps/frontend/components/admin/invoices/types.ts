@@ -116,7 +116,7 @@ export type InvoiceSummary = {
 }
 
 export type InvoiceActionResult =
-  | { ok: true; invoice: Invoice; messageKey?: string }
+  | { ok: true; invoice?: Invoice; messageKey?: string }
   | { ok: false; reason: 'not_found' | 'unavailable' | 'invalid'; messageKey: string }
 
 /** Static platform “From” block for invoice documents (mock until billing settings API exists). */

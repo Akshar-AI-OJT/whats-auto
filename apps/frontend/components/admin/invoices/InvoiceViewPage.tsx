@@ -76,8 +76,10 @@ export function InvoiceViewPage({ invoiceId }: InvoiceViewPageProps) {
     if (!invoice) return
     setDownloadPending(true)
     try {
-      const result = await downloadInvoice(invoice.id)
-      setBanner(t(result.messageKey ?? 'actions.downloadSoon'))
+      const result = await downloadInvoice(invoice.id, invoice.invoiceNumber)
+      setBanner(t(result.ok ? (result.messageKey ?? 'toast.downloaded') : result.messageKey))
+    } catch {
+      setBanner(t('errors.downloadFailed'))
     } finally {
       setDownloadPending(false)
     }

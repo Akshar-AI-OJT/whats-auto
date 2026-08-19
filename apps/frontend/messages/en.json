@@ -2596,12 +2596,8 @@
         "cancelled": "Cancelled"
       },
       "checkout": {
-        "title": "Start checkout",
-        "description": "Checkout requires a plan UUID from the billing catalog. There is no public plan list API yet, so enter the plan ID directly.",
-        "planId": "Plan ID",
-        "planIdPlaceholder": "00000000-0000-0000-0000-000000000000",
-        "planIdHint": "Must be a valid UUID accepted by POST /api/v1/billing/checkout.",
-        "planIdInvalid": "Enter a valid plan UUID.",
+        "title": "Confirm plan",
+        "description": "Review the selected plan before starting checkout.",
         "cancel": "Cancel",
         "confirm": "Continue to checkout",
         "starting": "Starting…",
@@ -3281,8 +3277,8 @@
       "charts": {
         "orgGrowth": {
           "title": "Organization Growth",
-          "description": "New and cumulative organizations over the last 6 months.",
-          "ariaLabel": "Line chart of organization growth by month"
+          "description": "Cumulative total organizations over the last 6 months.",
+          "ariaLabel": "Line chart of cumulative organization count by month"
         },
         "subscriptions": {
           "title": "Subscription Distribution",
@@ -3298,13 +3294,15 @@
         },
         "revenue": {
           "title": "Revenue Trend",
-          "description": "Monthly recurring revenue for the last 6 months.",
-          "ariaLabel": "Bar chart of monthly revenue. Peak near {max}."
+          "description": "Monthly paid revenue from invoices for the last 6 months.",
+          "ariaLabel": "Bar chart of monthly paid revenue. Peak near {max}."
         }
       },
       "activity": {
         "title": "Recent Activity",
         "description": "Latest platform events across tenants.",
+        "emptyTitle": "No recent activity",
+        "error": "Couldn't load recent activity. Please try again.",
         "items": {
           "orgCreated": "New organization created",
           "orgCreatedDetail": "Nova Retail joined Whats-Auto on the Growth plan.",
@@ -4057,13 +4055,16 @@
         "created": "Invoice generated.",
         "markedPaid": "Invoice marked as paid.",
         "regenerated": "Invoice regenerated.",
-        "sent": "Invoice sent."
+        "sent": "Invoice sent.",
+        "downloaded": "Invoice download started."
       },
       "errors": {
         "loadFailed": "Failed to load invoices. Please try again.",
         "createFailed": "Failed to generate invoice.",
         "notFound": "Invoice not found.",
         "cannotMarkCancelledPaid": "Cancelled invoices cannot be marked as paid.",
+        "sendFailed": "Failed to send invoice. Please try again.",
+        "downloadFailed": "Failed to download invoice. Please try again.",
         "organizationRequired": "Select an organization.",
         "planRequired": "Select a plan.",
         "datesRequired": "All date fields are required.",
@@ -4311,6 +4312,7 @@
       "title": "Platform Analytics",
       "subtitle": "Track growth, revenue, engagement, and subscription mix across the platform.",
       "retry": "Retry",
+      "unavailable": "Data unavailable",
       "kpis": {
         "totalOrganizations": "Total Organizations",
         "activeOrganizations": "Active Organizations",
