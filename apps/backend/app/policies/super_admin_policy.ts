@@ -39,4 +39,8 @@ export default class SuperAdminPolicy extends BasePolicy {
   manageAiConfig(user: AuthzPrincipal): boolean {
     return user.memberPermissions?.has('platform:config_manage') ?? false
   }
+
+  viewAuditLogs(user: AuthzPrincipal): boolean {
+    return user.memberPermissions?.has('platform:audit_view') ?? false
+  }
 }

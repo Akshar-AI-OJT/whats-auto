@@ -1,4 +1,5 @@
 import InvoiceException from '#exceptions/invoice_exception'
+import { insertAuthorizationAudit } from '#lib/authorization_audit'
 import {
   InvoiceRepository,
   type InsertInvoiceLineItemParams,
@@ -94,7 +95,10 @@ export class InvoiceService {
     return transformInvoice(invoice, lineItems, { gatewayPaymentId })
   }
 
-  async createInvoice(data: CreateInvoiceInput): Promise<SuperAdminInvoice> {
+  async createInvoice(
+    data: CreateInvoiceInput,
+    actorUserId?: string | null
+  ): Promise<SuperAdminInvoice> {
     if (!data.lineItems.length) {
       throw InvoiceException.invalidLineItems()
     }
@@ -197,6 +201,18 @@ export class InvoiceService {
           trx
         )
 
+        await insertAuthorizationAudit(
+          {
+            organizationId: data.organizationId,
+            actorUserId: actorUserId ?? null,
+            targetType: 'invoice',
+            targetId: invoice.id,
+            eventType: 'invoice.created',
+            after: { invoiceNumber, status: invoice.status },
+          },
+          trx
+        )
+
         return transformInvoice(invoice, lineItemRows)
       })
     })
@@ -204,7 +220,8 @@ export class InvoiceService {
 
   async markInvoicePaid(
     invoiceId: string,
-    input: { paymentMethod?: string; paymentTransactionId?: string }
+    input: { paymentMethod?: string; paymentTransactionId?: string },
+    actorUserId?: string | null
   ): Promise<SuperAdminInvoice> {
     const existing = await this.invoices.findById(invoiceId)
     if (!existing) {
@@ -245,13 +262,23 @@ export class InvoiceService {
       const lineItems = await this.invoices.listLineItemsForInvoice(invoiceId)
       const gatewayPaymentId = await this.#resolveGatewayPaymentId(updated.paymentTransactionId)
 
+      await insertAuthorizationAudit({
+        organizationId: existing.organizationId,
+        actorUserId: actorUserId ?? null,
+        targetType: 'invoice',
+        targetId: updated.id,
+        eventType: 'invoice.marked_paid',
+        after: { invoiceNumber: updated.invoiceNumber, status: updated.status },
+      })
+
       return transformInvoice(updated, lineItems, { gatewayPaymentId })
     })
   }
 
   async regenerateInvoice(
     invoiceId: string,
-    input: { issueDate?: DateTime | Date; dueDate?: DateTime | Date } = {}
+    input: { issueDate?: DateTime | Date; dueDate?: DateTime | Date } = {},
+    actorUserId?: string | null
   ): Promise<SuperAdminInvoice> {
     const existing = await this.invoices.findById(invoiceId)
     if (!existing) {
@@ -314,6 +341,18 @@ export class InvoiceService {
             unitPrice: Number(item.unitPrice),
             amount: Number(item.amount),
           })),
+          trx
+        )
+
+        await insertAuthorizationAudit(
+          {
+            organizationId: existing.organizationId,
+            actorUserId: actorUserId ?? null,
+            targetType: 'invoice',
+            targetId: invoice.id,
+            eventType: 'invoice.created',
+            after: { invoiceNumber, status: invoice.status, sourceInvoiceId: existing.id },
+          },
           trx
         )
 

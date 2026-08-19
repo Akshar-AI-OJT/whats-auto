@@ -190,6 +190,7 @@ export function OrganizationBasicsStep({
       <Field data-invalid={errors.phone ? true : undefined} className="gap-2">
         <FieldLabel htmlFor={phoneId} className="text-sm font-medium leading-5 text-ink">
           {t('phone')}
+          <RequiredAsterisk />
         </FieldLabel>
         <div className="relative">
           <Phone
@@ -203,6 +204,7 @@ export function OrganizationBasicsStep({
             inputMode="tel"
             autoComplete="tel"
             placeholder={t('phonePlaceholder')}
+            required
             disabled={pending}
             aria-invalid={Boolean(errors.phone)}
             aria-describedby={errors.phone ? phoneErrorId : undefined}
@@ -214,9 +216,6 @@ export function OrganizationBasicsStep({
             }}
           />
         </div>
-        <FieldDescription className="text-xs leading-4 text-mute">
-          {t('optionalHint')}
-        </FieldDescription>
         {errors.phone ? (
           <FieldError id={phoneErrorId} className="text-xs leading-4 text-negative">
             {errors.phone}

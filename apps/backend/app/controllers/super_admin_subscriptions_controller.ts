@@ -56,7 +56,7 @@ export default class SuperAdminSubscriptionsController {
 
     const payload = await request.validateUsing(createSuperAdminSubscriptionValidator)
 
-    const subscription = await subscriptions.createSubscription(payload)
+    const subscription = await subscriptions.createSubscription(payload, request.authUser!.id)
 
     return serialize(subscription)
   }
@@ -113,7 +113,7 @@ export default class SuperAdminSubscriptionsController {
     })
     const payload = await request.validateUsing(updateSuperAdminSubscriptionValidator)
 
-    const subscription = await subscriptions.updateSubscription(id, payload)
+    const subscription = await subscriptions.updateSubscription(id, payload, request.authUser!.id)
 
     return serialize(subscription)
   }
@@ -141,7 +141,7 @@ export default class SuperAdminSubscriptionsController {
       data: params,
     })
 
-    await subscriptions.softDeleteSubscription(id)
+    await subscriptions.softDeleteSubscription(id, request.authUser!.id)
 
     return serialize({ ok: true })
   }

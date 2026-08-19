@@ -1,9 +1,11 @@
 import db from '@adonisjs/lucid/services/db'
+import { eventTypesForScope, type AuditListScope } from '#abilities/audit_events'
 
 const DEFAULT_LIMIT = 50
 const MAX_LIMIT = 100
 
 export type ListAuditEventsOptions = {
+  scope: AuditListScope
   /** When set, restrict to that tenant. When omitted/null, list across organizations. */
   organizationId?: string | null
   limit?: number
@@ -12,17 +14,19 @@ export type ListAuditEventsOptions = {
 export class AuditService {
   /**
    * List authorization audit events, newest first.
-   * Tenant callers pass organizationId. Super Admin may omit it for platform-wide results.
+   * Scope is server-derived: platform vs tenant event catalogs never mix.
    * Includes createdAt (event time). Does not set id/createdAt on writes — DB defaults.
    */
-  async listEvents(options: ListAuditEventsOptions = {}) {
+  async listEvents(options: ListAuditEventsOptions) {
     const requested = options.limit ?? DEFAULT_LIMIT
     const limit = Math.min(Math.max(Math.trunc(requested), 1), MAX_LIMIT)
+    const eventTypes = eventTypesForScope(options.scope)
 
     const query = db
       .from('authorization_audits as a')
       .leftJoin('users as u', 'u.id', 'a.actorUserId')
       .leftJoin('organizations as o', 'o.id', 'a.organizationId')
+      .whereIn('a.eventType', [...eventTypes])
       .select(
         'a.id',
         'a.organizationId',

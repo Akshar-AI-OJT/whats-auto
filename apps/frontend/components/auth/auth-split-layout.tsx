@@ -23,7 +23,7 @@ export function AuthSplitLayout({
   return (
     <div
       className={cn(
-        'relative flex min-h-svh w-full items-center justify-center overflow-x-clip px-4 sm:px-6 md:px-8',
+        'auth-palette relative flex min-h-svh w-full items-center justify-center overflow-x-clip px-4 sm:px-6 md:px-8',
         compact ? 'py-4 sm:py-5 md:py-6' : 'py-6 sm:py-8 md:py-10',
         className
       )}

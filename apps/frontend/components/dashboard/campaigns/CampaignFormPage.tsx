@@ -22,8 +22,8 @@ import { CAMPAIGN_RECIPIENT_MAX, unwrapCampaign, isEditableCampaignStatus } from
 import { unwrapTemplateList } from '@/components/dashboard/templates/template-utils'
 import {
   customerGroupQueryKeys,
+  listCustomerGroupContacts,
   listCustomerGroups,
-  resolveGroupContacts,
 } from '@/components/dashboard/customer-groups/customer-group-service'
 import { datetimeLocalToVineDate } from '@/lib/vine-date'
 import { CampaignRecipientList } from './CampaignRecipientList'
@@ -135,6 +135,18 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
     queryFn: () => listCustomerGroups(tenantOrganizationId, { status: 'active' }),
   })
 
+  const groupMembersQuery = useQuery({
+    queryKey: customerGroupQueryKeys.members(tenantOrganizationId, selectedGroupId),
+    enabled:
+      Boolean(tenantOrganizationId) &&
+      canViewContacts &&
+      canSubmit &&
+      !orgsLoading &&
+      form.audienceLabel === 'customer-group' &&
+      Boolean(selectedGroupId),
+    queryFn: () => listCustomerGroupContacts(tenantOrganizationId, selectedGroupId),
+  })
+
   // Hydrate form when source campaign loads (render-time — avoids setState-in-effect).
   const source = sourceQuery.data
   const sourceKey = source
@@ -166,8 +178,8 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
   )
   const selectedGroupContacts = useMemo(() => {
     if (form.audienceLabel !== 'customer-group') return []
-    return resolveGroupContacts(selectedGroup, allContacts ?? [])
-  }, [form.audienceLabel, selectedGroup, allContacts])
+    return groupMembersQuery.data ?? []
+  }, [form.audienceLabel, groupMembersQuery.data])
   const selectedContacts = useMemo(() => {
     if (form.audienceLabel !== 'all-contacts') return []
     const list = allContacts ?? []
@@ -188,6 +200,11 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
     excludedContactIds.length === 0 &&
     selectedContacts.length > 0
   const isCustomerGroupAudience = form.audienceLabel === 'customer-group'
+  const groupMembersLoading =
+    isCustomerGroupAudience &&
+    Boolean(selectedGroupId) &&
+    (groupMembersQuery.isLoading || (groupMembersQuery.isFetching && !groupMembersQuery.data))
+  const groupMembersError = isCustomerGroupAudience && Boolean(selectedGroupId) && groupMembersQuery.isError
 
   function handleAudienceChange(value: string) {
     setForm((prev) => ({ ...prev, audienceLabel: value }))
@@ -302,8 +319,10 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
         next.audience = t('form.errors.groupLoadFailed')
       } else if (!selectedGroupId) {
         next.audience = t('form.errors.groupRequired')
-      } else if (contactsQuery.isError) {
+      } else if (groupMembersQuery.isError) {
         next.audience = t('form.errors.groupMembersLoadFailed')
+      } else if (groupMembersLoading) {
+        next.audience = t('form.recipients.loading')
       } else if (groupContactIds.length === 0) {
         next.audience = t('form.errors.groupEmpty')
       } else if (groupContactIds.length > CAMPAIGN_RECIPIENT_MAX) {
@@ -529,18 +548,15 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
                     isAllContacts={false}
                     allowRemove={false}
                     emptyMessage={t('form.recipients.emptyGroup')}
-                    loading={
-                      Boolean(selectedGroupId) &&
-                      (contactsQuery.isLoading || (contactsQuery.isFetching && !allContacts))
-                    }
+                    loading={groupMembersLoading}
                     error={
-                      selectedGroupId && contactsQuery.isError
-                        ? (contactsQuery.error as unknown as ApiError | undefined)?.message ||
+                      groupMembersError
+                        ? (groupMembersQuery.error as unknown as ApiError | undefined)?.message ||
                           t('form.errors.groupMembersLoadFailed')
                         : null
                     }
                     onRetry={() => {
-                      void contactsQuery.refetch()
+                      void groupMembersQuery.refetch()
                     }}
                     onRemove={() => undefined}
                   />
@@ -632,14 +648,18 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
                   <dt className="text-mute">{t('summary.audience')}</dt>
                   <dd className="text-right font-medium text-ink">
                     {form.audienceLabel === 'customer-group'
-                      ? selectedGroup
-                        ? t('form.recipients.groupSummary', {
-                            name: selectedGroup.name,
-                            count: selectedGroupContacts.length,
-                          })
-                        : selectedGroupId
-                          ? t('form.recipients.groupsLoading')
-                          : '—'
+                      ? !selectedGroupId
+                        ? '—'
+                        : groupMembersLoading
+                          ? t('form.recipients.loading')
+                          : groupMembersError
+                            ? t('form.errors.groupMembersLoadFailed')
+                            : selectedGroup
+                              ? t('form.recipients.groupSummary', {
+                                  name: selectedGroup.name,
+                                  count: selectedGroupContacts.length,
+                                })
+                              : t('form.recipients.groupsLoading')
                       : form.audienceLabel !== 'all-contacts'
                         ? '—'
                         : contactsQuery.isError
@@ -669,21 +689,23 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
                   emptyMessage={
                     isCustomerGroupAudience ? t('form.recipients.emptyGroup') : undefined
                   }
-                  loading={
-                    isCustomerGroupAudience
-                      ? Boolean(selectedGroupId) &&
-                        (contactsQuery.isLoading || (contactsQuery.isFetching && !allContacts))
-                      : contactsQuery.isLoading || (contactsQuery.isFetching && !allContacts)
-                  }
+                  loading={isCustomerGroupAudience ? groupMembersLoading : contactsQuery.isLoading || (contactsQuery.isFetching && !allContacts)}
                   error={
-                    contactsQuery.isError
-                      ? (contactsQuery.error as unknown as ApiError | undefined)?.message ||
-                        (isCustomerGroupAudience
-                          ? t('form.errors.groupMembersLoadFailed')
-                          : t('form.recipients.loadFailed'))
-                      : null
+                    isCustomerGroupAudience
+                      ? groupMembersError
+                        ? (groupMembersQuery.error as unknown as ApiError | undefined)?.message ||
+                          t('form.errors.groupMembersLoadFailed')
+                        : null
+                      : contactsQuery.isError
+                        ? (contactsQuery.error as unknown as ApiError | undefined)?.message ||
+                          t('form.recipients.loadFailed')
+                        : null
                   }
                   onRetry={() => {
+                    if (isCustomerGroupAudience) {
+                      void groupMembersQuery.refetch()
+                      return
+                    }
                     void contactsQuery.refetch()
                   }}
                   onRemove={handleRemoveRecipient}
@@ -720,8 +742,8 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
                   (groupsQuery.isLoading ||
                     groupsQuery.isError ||
                     !selectedGroupId ||
-                    contactsQuery.isLoading ||
-                    contactsQuery.isError ||
+                    groupMembersLoading ||
+                    groupMembersQuery.isError ||
                     groupContactIds.length === 0 ||
                     groupContactIds.length > CAMPAIGN_RECIPIENT_MAX))
               }

@@ -13,12 +13,17 @@ import {
 } from '@/lib/api'
 import {
   getTimezoneOptions,
+  isValidGstin,
+  isValidPan,
   isValidPhone,
+  normalizeTaxId,
   ORG_SETUP_PATH,
 } from '@/lib/onboarding'
 import {
   INDUSTRY_OPTIONS,
+  ORGANIZATION_TYPE_OPTIONS,
   type IndustryOption,
+  type OrganizationTypeOption,
 } from '@/components/onboarding/organization-wizard-types'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
@@ -57,6 +62,10 @@ type FormState = {
   phone: string
   website: string
   industry: string
+  organizationType: OrganizationTypeOption | ''
+  address: string
+  pan: string
+  gstin: string
   timezone: string
   currency: string
 }
@@ -64,11 +73,19 @@ type FormState = {
 type FieldErrors = Partial<Record<keyof FormState, string>>
 
 function detailsFromOrg(org: OrganizationSummary | null): FormState {
+  const organizationType = org?.organizationType
   return {
     name: org?.name ?? '',
     phone: org?.phone ?? '',
     website: org?.website ?? '',
     industry: org?.industry ?? '',
+    organizationType:
+      organizationType && ORGANIZATION_TYPE_OPTIONS.includes(organizationType)
+        ? organizationType
+        : '',
+    address: org?.address ?? '',
+    pan: org?.pan ?? '',
+    gstin: org?.gstin ?? '',
     timezone: org?.timezone || getTimezoneOptions()[0] || 'UTC',
     currency: org?.currency || 'INR',
   }
@@ -101,11 +118,16 @@ function normalizeWebsite(value: string): string | undefined {
 }
 
 function buildUpdateBody(form: FormState): UpdateOrganizationBody {
+  const gstin = normalizeTaxId(form.gstin)
   return {
     name: form.name.trim(),
-    phone: form.phone.trim() || undefined,
+    phone: form.phone.trim(),
     website: normalizeWebsite(form.website),
     industry: form.industry.trim() || undefined,
+    organizationType: form.organizationType || undefined,
+    address: form.address.trim(),
+    pan: normalizeTaxId(form.pan),
+    gstin: gstin || undefined,
     timezone: form.timezone.trim(),
     currency: form.currency.trim().slice(0, CURRENCY_MAX) || undefined,
   }
@@ -125,6 +147,7 @@ function RequiredMark({ label }: { label: string }) {
 export function WorkspaceSettingsPage() {
   const t = useTranslations('dashboard.settings')
   const tIndustries = useTranslations('onboarding.organization.step2.industries')
+  const tOrgTypes = useTranslations('onboarding.organization.step2.organizationTypes')
   const router = useRouter()
   const {
     activeOrganization,
@@ -148,6 +171,10 @@ export function WorkspaceSettingsPage() {
   const nameId = useId()
   const phoneId = useId()
   const websiteId = useId()
+  const organizationTypeId = useId()
+  const addressId = useId()
+  const panId = useId()
+  const gstinId = useId()
   const industryId = useId()
   const timezoneId = useId()
   const currencyId = useId()
@@ -182,11 +209,30 @@ export function WorkspaceSettingsPage() {
     } else if (name.length > NAME_MAX) {
       next.name = t('errors.nameTooLong')
     }
-    if (form.phone.trim() && !isValidPhone(form.phone)) {
+    if (!form.phone.trim()) {
+      next.phone = t('errors.phoneRequired')
+    } else if (!isValidPhone(form.phone)) {
       next.phone = t('errors.phoneInvalid')
     }
     if (form.website.trim() && !isValidWebsite(form.website)) {
       next.website = t('errors.websiteInvalid')
+    }
+    if (!form.organizationType) {
+      next.organizationType = t('errors.organizationTypeRequired')
+    }
+    const address = form.address.trim()
+    if (!address) {
+      next.address = t('errors.addressRequired')
+    } else if (address.length < 8) {
+      next.address = t('errors.addressTooShort')
+    }
+    if (!form.pan.trim()) {
+      next.pan = t('errors.panRequired')
+    } else if (!isValidPan(form.pan)) {
+      next.pan = t('errors.panInvalid')
+    }
+    if (form.gstin.trim() && !isValidGstin(form.gstin)) {
+      next.gstin = t('errors.gstinInvalid')
     }
     if (!form.timezone.trim()) {
       next.timezone = t('errors.timezoneRequired')
@@ -229,6 +275,14 @@ export function WorkspaceSettingsPage() {
           phone: updated.phone ?? '',
           website: updated.website ?? '',
           industry: updated.industry ?? '',
+          organizationType:
+            updated.organizationType &&
+            ORGANIZATION_TYPE_OPTIONS.includes(updated.organizationType)
+              ? updated.organizationType
+              : '',
+          address: updated.address ?? '',
+          pan: updated.pan ?? '',
+          gstin: updated.gstin ?? '',
           timezone: updated.timezone,
           currency: updated.currency || 'INR',
         })
@@ -473,10 +527,138 @@ export function WorkspaceSettingsPage() {
               ) : null}
             </Field>
 
+            <Field
+              data-invalid={fieldErrors.organizationType ? true : undefined}
+              className="gap-2"
+            >
+              <FieldLabel htmlFor={organizationTypeId} className="text-sm font-medium text-ink">
+                <RequiredMark label={t('fields.organizationType')} />
+              </FieldLabel>
+              <select
+                id={organizationTypeId}
+                name="organizationType"
+                required
+                disabled={pending || readOnly}
+                value={form.organizationType}
+                aria-invalid={Boolean(fieldErrors.organizationType)}
+                aria-required
+                className={selectClassName}
+                onChange={(e) => {
+                  patchForm({
+                    organizationType: e.target.value as FormState['organizationType'],
+                  })
+                  setFieldErrors((prev) => ({ ...prev, organizationType: undefined }))
+                  setSuccess(null)
+                }}
+              >
+                <option value="">{t('fields.organizationTypePlaceholder')}</option>
+                {ORGANIZATION_TYPE_OPTIONS.map((value) => (
+                  <option key={value} value={value}>
+                    {tOrgTypes(value)}
+                  </option>
+                ))}
+              </select>
+              {fieldErrors.organizationType ? (
+                <FieldError className="text-xs text-negative">
+                  {fieldErrors.organizationType}
+                </FieldError>
+              ) : null}
+            </Field>
+
+            <Field data-invalid={fieldErrors.address ? true : undefined} className="gap-2">
+              <FieldLabel htmlFor={addressId} className="text-sm font-medium text-ink">
+                <RequiredMark label={t('fields.address')} />
+              </FieldLabel>
+              <textarea
+                id={addressId}
+                name="address"
+                required
+                rows={3}
+                maxLength={500}
+                disabled={pending || readOnly}
+                placeholder={t('fields.addressPlaceholder')}
+                value={form.address}
+                aria-invalid={Boolean(fieldErrors.address)}
+                aria-required
+                className={cn(selectClassName, 'h-auto min-h-[5.5rem] resize-y py-3 leading-5')}
+                onChange={(e) => {
+                  patchForm({ address: e.target.value })
+                  setFieldErrors((prev) => ({ ...prev, address: undefined }))
+                  setSuccess(null)
+                }}
+              />
+              {fieldErrors.address ? (
+                <FieldError className="text-xs text-negative">{fieldErrors.address}</FieldError>
+              ) : null}
+            </Field>
+
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+              <Field data-invalid={fieldErrors.pan ? true : undefined} className="gap-2">
+                <FieldLabel htmlFor={panId} className="text-sm font-medium text-ink">
+                  <RequiredMark label={t('fields.pan')} />
+                </FieldLabel>
+                <Input
+                  id={panId}
+                  name="pan"
+                  type="text"
+                  required
+                  maxLength={10}
+                  autoCapitalize="characters"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  disabled={pending || readOnly}
+                  placeholder={t('fields.panPlaceholder')}
+                  value={form.pan}
+                  aria-invalid={Boolean(fieldErrors.pan)}
+                  aria-required
+                  className={selectClassName}
+                  onChange={(e) => {
+                    patchForm({ pan: normalizeTaxId(e.target.value).slice(0, 10) })
+                    setFieldErrors((prev) => ({ ...prev, pan: undefined }))
+                    setSuccess(null)
+                  }}
+                />
+                {fieldErrors.pan ? (
+                  <FieldError className="text-xs text-negative">{fieldErrors.pan}</FieldError>
+                ) : null}
+              </Field>
+
+              <Field data-invalid={fieldErrors.gstin ? true : undefined} className="gap-2">
+                <FieldLabel htmlFor={gstinId} className="text-sm font-medium text-ink">
+                  {t('fields.gstin')}
+                </FieldLabel>
+                <Input
+                  id={gstinId}
+                  name="gstin"
+                  type="text"
+                  maxLength={15}
+                  autoCapitalize="characters"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  disabled={pending || readOnly}
+                  placeholder={t('fields.gstinPlaceholder')}
+                  value={form.gstin}
+                  aria-invalid={Boolean(fieldErrors.gstin)}
+                  className={selectClassName}
+                  onChange={(e) => {
+                    patchForm({ gstin: normalizeTaxId(e.target.value).slice(0, 15) })
+                    setFieldErrors((prev) => ({ ...prev, gstin: undefined }))
+                    setSuccess(null)
+                  }}
+                />
+                <FieldDescription className="text-xs text-mute">
+                  {t('fields.gstinHint')}
+                </FieldDescription>
+                {fieldErrors.gstin ? (
+                  <FieldError className="text-xs text-negative">{fieldErrors.gstin}</FieldError>
+                ) : null}
+              </Field>
+            </div>
+
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               <Field data-invalid={fieldErrors.phone ? true : undefined} className="gap-2">
                 <FieldLabel htmlFor={phoneId} className="text-sm font-medium text-ink">
-                  {t('fields.phone')}
+                  <RequiredMark label={t('fields.phone')} />
                 </FieldLabel>
                 <div className="relative">
                   <Phone

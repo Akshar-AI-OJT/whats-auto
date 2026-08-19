@@ -26,6 +26,14 @@ export const COMPANY_SIZE_OPTIONS = [
 ] as const
 export type CompanySizeOption = (typeof COMPANY_SIZE_OPTIONS)[number]
 
+export const ORGANIZATION_TYPE_OPTIONS = [
+  'company',
+  'partnership',
+  'sole_proprietorship',
+  'other',
+] as const
+export type OrganizationTypeOption = (typeof ORGANIZATION_TYPE_OPTIONS)[number]
+
 export const COUNTRY_OPTIONS = [
   { code: 'IN', labelKey: 'IN' },
   { code: 'US', labelKey: 'US' },
@@ -76,17 +84,21 @@ export const NOTIFICATION_OPTIONS = [
 export type NotificationOption = (typeof NOTIFICATION_OPTIONS)[number]
 
 export type OrganizationWizardState = {
-  // Step 1 — basics (API: name, slug, email required; phone, website optional)
+  // Step 1 — basics (API: name, slug, email, phone required; website optional)
   name: string
   slug: string
   email: string
   phone: string
   website: string
   slugTouched: boolean
-  // Step 2 — company (API: country, timezone required; industry, currency optional)
-  // logo + companySize are UX-only (session), not sent to create-org
+  // Step 2 — company (API: organizationType, address, pan, country, timezone required)
+  // gstin optional. logo + companySize are UX-only (session), not sent to create-org
   logoFileName: string
   logoPreviewUrl: string | null
+  organizationType: OrganizationTypeOption | ''
+  address: string
+  pan: string
+  gstin: string
   industry: IndustryOption | ''
   companySize: CompanySizeOption | ''
   country: string
@@ -109,6 +121,10 @@ export type OrganizationWizardBasicsErrors = {
 }
 
 export type OrganizationWizardCompanyErrors = {
+  organizationType?: string
+  address?: string
+  pan?: string
+  gstin?: string
   industry?: string
   companySize?: string
   country?: string

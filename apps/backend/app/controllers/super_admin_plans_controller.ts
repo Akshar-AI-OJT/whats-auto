@@ -52,7 +52,7 @@ export default class SuperAdminPlansController {
     await bouncer.with(SuperAdminPolicy).authorize('manageBilling')
 
     const payload = await request.validateUsing(createSuperAdminPlanValidator)
-    const plan = await plans.createPlan(payload)
+    const plan = await plans.createPlan(payload, request.authUser!.id)
 
     return serialize(plan)
   }
@@ -94,7 +94,7 @@ export default class SuperAdminPlansController {
       data: params,
     })
     const payload = await request.validateUsing(updateSuperAdminPlanValidator)
-    const plan = await plans.updatePlan(id, payload)
+    const plan = await plans.updatePlan(id, payload, request.authUser!.id)
 
     return serialize(plan)
   }
@@ -117,7 +117,7 @@ export default class SuperAdminPlansController {
       data: params,
     })
 
-    const plan = await plans.archivePlan(id)
+    const plan = await plans.archivePlan(id, request.authUser!.id)
     return serialize(plan)
   }
 }

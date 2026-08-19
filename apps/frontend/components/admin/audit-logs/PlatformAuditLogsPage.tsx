@@ -118,7 +118,7 @@ export function PlatformAuditLogsPage() {
   const auditQuery = useQuery({
     queryKey: ['admin-audit-logs', limit, organizationId],
     queryFn: async () => {
-      const { data } = await api.audit.list({
+      const { data } = await api.superAdmin.auditLogs.list({
         limit,
         organizationId: organizationId || undefined,
       })
@@ -126,7 +126,7 @@ export function PlatformAuditLogsPage() {
     },
   })
 
-  const events = auditQuery.data ?? []
+  const events = useMemo(() => auditQuery.data ?? [], [auditQuery.data])
 
   const eventOptions = useMemo(
     () => [...new Set(events.map((event) => event.eventType).filter(Boolean))].sort(),
@@ -183,15 +183,12 @@ export function PlatformAuditLogsPage() {
     })
   }, [actorFilter, dateFrom, dateTo, entityFilter, eventFilter, events, search, t])
 
-  const selectedBefore = useMemo(
-    () => (selected ? formatJson(selected.before) : null),
-    [selected]
-  )
+  const selectedBefore = useMemo(() => (selected ? formatJson(selected.before) : null), [selected])
   const selectedAfter = useMemo(() => (selected ? formatJson(selected.after) : null), [selected])
   const selectedStatus = selected ? auditStatus(selected.granted) : null
 
   return (
-    <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 sm:gap-6">
+    <div className="mx-auto flex w-full max-w-300 flex-col gap-5 sm:gap-6">
       <DashboardPanel
         as="section"
         className="relative overflow-hidden px-4 py-5 sm:px-6 sm:py-6 md:px-7 md:py-7"
@@ -358,9 +355,7 @@ export function PlatformAuditLogsPage() {
             role="alert"
             className="mt-8 space-y-2 rounded-xl border border-negative/25 bg-negative/5 px-4 py-3 text-sm text-negative"
           >
-            <p>
-              {(auditQuery.error as unknown as ApiError)?.message || t('errors.loadFailed')}
-            </p>
+            <p>{(auditQuery.error as unknown as ApiError)?.message || t('errors.loadFailed')}</p>
             <p className="text-body">{t('errors.loadFailedHint')}</p>
           </div>
         ) : events.length === 0 ? (
@@ -380,7 +375,7 @@ export function PlatformAuditLogsPage() {
           <>
             <div className="mt-5 hidden overflow-hidden rounded-2xl border border-dash-border md:block">
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[1080px] border-collapse text-left">
+                <table className="w-full min-w-270 border-collapse text-left">
                   <thead>
                     <tr className="border-b border-dash-border bg-dash-surface">
                       <th className="px-4 py-3.5 text-sm font-semibold text-ink sm:px-5">
@@ -516,7 +511,7 @@ export function PlatformAuditLogsPage() {
         }}
       >
         <DialogContent
-          className="h-[min(88vh,800px)] max-h-[88vh] w-[min(94vw,880px)] max-w-[880px] gap-0 overflow-hidden p-0"
+          className="h-[min(88vh,800px)] max-h-[88vh] w-[min(94vw,880px)] max-w-220 gap-0 overflow-hidden p-0"
           showCloseButton
         >
           <DialogHeader className="shrink-0 border-b border-dash-border px-6 py-5 text-left sm:px-8">
@@ -577,7 +572,7 @@ export function PlatformAuditLogsPage() {
                   <p className="text-xs font-semibold tracking-wide text-mute uppercase">
                     {t('details.before')}
                   </p>
-                  <pre className="mt-2 min-h-[12rem] overflow-auto rounded-xl border border-dash-border bg-dash-surface/50 p-4 font-mono text-sm leading-6 text-ink">
+                  <pre className="mt-2 min-h-48 overflow-auto rounded-xl border border-dash-border bg-dash-surface/50 p-4 font-mono text-sm leading-6 text-ink">
                     {selectedBefore}
                   </pre>
                 </div>
@@ -588,7 +583,7 @@ export function PlatformAuditLogsPage() {
                   <p className="text-xs font-semibold tracking-wide text-mute uppercase">
                     {t('details.after')}
                   </p>
-                  <pre className="mt-2 min-h-[12rem] overflow-auto rounded-xl border border-dash-border bg-dash-surface/50 p-4 font-mono text-sm leading-6 text-ink">
+                  <pre className="mt-2 min-h-48 overflow-auto rounded-xl border border-dash-border bg-dash-surface/50 p-4 font-mono text-sm leading-6 text-ink">
                     {selectedAfter}
                   </pre>
                 </div>
