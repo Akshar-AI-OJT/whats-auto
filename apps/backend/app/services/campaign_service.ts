@@ -319,7 +319,9 @@ const BROADCAST_COLUMNS = [
 
 @inject()
 export class CampaignService {
-  constructor(protected mediaReferences: MediaAssetReferenceRepository) {}
+  constructor(
+    protected mediaReferences: MediaAssetReferenceRepository = new MediaAssetReferenceRepository()
+  ) {}
 
   /**
    * Load an active campaign row for the active org or throw not found.
@@ -406,155 +408,6 @@ export class CampaignService {
     if (!asset) {
       throw CampaignException.invalidReference()
     }
-  }
-
-  protected campaignTemplateSchema(template: Record<string, unknown>): TemplateParameterSchema {
-    const stored = parseParameterSchema(parseJsonField(template.parameterSchema))
-    if (stored.sendable || stored.unsupportedReason) {
-      return stored
-    }
-
-    return deriveParameterSchema({
-      headerType: (template.headerType as string | null) ?? null,
-      headerContent: (template.headerContent as string | null) ?? null,
-      bodyText: (template.bodyText as string) ?? '',
-      buttons: parseJsonField(template.buttons),
-    })
-  }
-
-  protected async loadCampaignTemplateSchema(params: {
-    organizationId: string
-    messageTemplateId: string
-  }): Promise<TemplateParameterSchema> {
-    const template = await db
-      .from('message_templates')
-      .where('id', params.messageTemplateId)
-      .where('organizationId', params.organizationId)
-      .whereNot('status', 'deleted')
-      .select('id', 'headerType', 'headerContent', 'bodyText', 'buttons', 'parameterSchema')
-      .first()
-
-    if (!template) {
-      throw CampaignException.messageTemplateNotFound()
-    }
-
-    const schema = this.campaignTemplateSchema(template)
-    if (!schema.sendable) {
-      throw CampaignException.templateNotSendable(schema.unsupportedReason)
-    }
-    return schema
-  }
-
-  protected async loadContactsByIds(params: {
-    organizationId: string
-    contactIds: string[]
-  }): Promise<
-    Map<
-      string,
-      {
-        id: string
-        name: string | null
-        email: string | null
-        company: string | null
-        phone: string
-        customFields: unknown
-      }
-    >
-  > {
-    const contacts = new Map<
-      string,
-      {
-        id: string
-        name: string | null
-        email: string | null
-        company: string | null
-        phone: string
-        customFields: unknown
-      }
-    >()
-
-    for (let i = 0; i < params.contactIds.length; i += RECIPIENT_INSERT_BATCH_SIZE) {
-      const batch = params.contactIds.slice(i, i + RECIPIENT_INSERT_BATCH_SIZE)
-      const rows = await db
-        .from('contacts')
-        .where('organizationId', params.organizationId)
-        .whereIn('id', batch)
-        .select('id', 'name', 'email', 'company', 'phone', 'customFields')
-
-      for (const row of rows) {
-        contacts.set(row.id as string, {
-          id: row.id as string,
-          name: (row.name as string | null) ?? null,
-          email: (row.email as string | null) ?? null,
-          company: (row.company as string | null) ?? null,
-          phone: row.phone as string,
-          customFields: row.customFields,
-        })
-      }
-    }
-
-    return contacts
-  }
-
-  protected async assertRecipientVariablesReady(params: {
-    organizationId: string
-    campaignId: string
-    messageTemplateId: string
-  }): Promise<void> {
-    const schema = await this.loadCampaignTemplateSchema(params)
-    const required = [...schema.headerNames, ...schema.bodyNames]
-    if (required.length === 0) {
-      return
-    }
-
-    const recipients = await db
-      .from('broadcast_recipients as r')
-      .leftJoin('contacts as c', 'c.id', 'r.contactId')
-      .where('r.organizationId', params.organizationId)
-      .where('r.broadcastId', params.campaignId)
-      .select('r.id', 'r.variables', 'c.name', 'c.email', 'c.company', 'c.phone', 'c.customFields')
-
-    for (const row of recipients) {
-      resolveRecipientParameterValues({
-        schema,
-        contact: row.phone
-          ? {
-              name: (row.name as string | null) ?? null,
-              email: (row.email as string | null) ?? null,
-              company: (row.company as string | null) ?? null,
-              phone: row.phone as string,
-              customFields: row.customFields,
-            }
-          : null,
-        overrides: toVariableMap(row.variables),
-      })
-    }
-  }
-
-  protected async resolveTagAudienceContactIds(
-    organizationId: string,
-    tagId: string
-  ): Promise<string[]> {
-    const tag = await db
-      .from('tags')
-      .where('id', tagId)
-      .where('organizationId', organizationId)
-      .select('id')
-      .first()
-    if (!tag) {
-      throw CampaignException.tagNotFound()
-    }
-
-    const rows = await db
-      .from('contact_tags as ct')
-      .innerJoin('contacts as c', 'c.id', 'ct.contactId')
-      .where('ct.tagId', tagId)
-      .where('ct.organizationId', organizationId)
-      .where('c.organizationId', organizationId)
-      .whereNull('c.deletedAt')
-      .select('c.id')
-
-    return [...new Set(rows.map((row) => row.id as string))]
   }
 
   protected campaignTemplateSchema(template: Record<string, unknown>): TemplateParameterSchema {

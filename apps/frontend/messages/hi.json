@@ -1224,14 +1224,14 @@
         "plan": "प्लान"
       },
       "ownerNote": "संगठन बनाते ही आप स्वतः Owner बन जाते हैं। Owner कभी मैन्युअली नहीं चुना जाता।",
-      "name": "संगठन का नाम",
+      "name": "व्यवसाय / संगठन का नाम",
       "namePlaceholder": "Acme Workspace",
       "slug": "संगठन स्लग",
       "slugPlaceholder": "acme-workspace",
       "slugHint": "केवल छोटे अक्षर, अंक और हाइफ़न। नाम से ऑटो-जनरेट — आप संपादित कर सकते हैं।",
-      "email": "संगठन ईमेल",
+      "email": "व्यवसाय ईमेल",
       "emailPlaceholder": "ops@acme.com",
-      "phone": "संगठन फ़ोन नंबर",
+      "phone": "मोबाइल नंबर",
       "phonePlaceholder": "+91 98765 43210",
       "website": "वेबसाइट",
       "websitePlaceholder": "https://acme.com",
@@ -1253,6 +1253,20 @@
         "logoEmpty": "कोई लोगो अपलोड नहीं हुआ",
         "logoHint": "PNG, JPG, या WebP। वैकल्पिक — बाद में जोड़ सकते हैं।",
         "logoRemove": "लोगो हटाएँ",
+        "organizationType": "संगठन का प्रकार",
+        "organizationTypePlaceholder": "संगठन का प्रकार चुनें",
+        "organizationTypes": {
+          "company": "कंपनी",
+          "partnership": "पार्टनरशिप",
+          "sole_proprietorship": "एकल स्वामित्व",
+          "other": "अन्य"
+        },
+        "address": "व्यवसाय का पता",
+        "addressPlaceholder": "सड़क, शहर, राज्य, पिन",
+        "pan": "PAN",
+        "panPlaceholder": "AAAAA0000A",
+        "gstin": "GSTIN",
+        "gstinPlaceholder": "27AAAAA0000A1Z5",
         "industry": "उद्योग",
         "industryPlaceholder": "उद्योग चुनें",
         "companySize": "कंपनी का आकार",
@@ -1361,8 +1375,15 @@
         "slugInvalid": "केवल छोटे अक्षर, अंक और हाइफ़न उपयोग करें (2–100 अक्षर)।",
         "emailRequired": "संगठन ईमेल आवश्यक है।",
         "emailInvalid": "सही ईमेल पता दर्ज करें।",
+        "phoneRequired": "मोबाइल नंबर आवश्यक है।",
         "phoneInvalid": "सही फ़ोन नंबर दर्ज करें।",
         "websiteInvalid": "सही वेबसाइट URL दर्ज करें (https://…).",
+        "organizationTypeRequired": "संगठन का प्रकार चुनें।",
+        "addressRequired": "व्यवसाय का पता आवश्यक है।",
+        "addressTooShort": "पूरा व्यवसाय पता दर्ज करें (कम से कम 8 अक्षर)।",
+        "panRequired": "PAN आवश्यक है।",
+        "panInvalid": "सही PAN दर्ज करें (उदाहरण: AAAAA0000A)।",
+        "gstinInvalid": "सही GSTIN दर्ज करें (15 अक्षर), या खाली छोड़ दें।",
         "industryRequired": "उद्योग चुनें।",
         "companySizeRequired": "कंपनी का आकार चुनें।",
         "countryRequired": "देश चुनें।",
@@ -1928,7 +1949,11 @@
         "saveFailed": "यह समूह सहेजा नहीं जा सका। कृपया फिर कोशिश करें।",
         "deleteFailed": "यह समूह हटाया नहीं जा सका। कृपया फिर कोशिश करें।",
         "removeFailed": "इस संपर्क को समूह से हटाया नहीं जा सका।",
-        "notFound": "यह ग्राहक समूह नहीं मिला।"
+        "notFound": "यह ग्राहक समूह नहीं मिला।",
+        "nameExists": "इस नाम का समूह पहले से मौजूद है।",
+        "alreadyMember": "यह संपर्क पहले से समूह में है।",
+        "invalidContact": "यह संपर्क इस वर्कस्पेस में नहीं मिला।",
+        "membersPartialFailed": "{total} में से {failed} संपर्क समूह में नहीं जुड़े। समूह सहेज लिया गया है — बाकी संपर्कों को फिर से जोड़ें।"
       }
     },
     "inbox": {
@@ -2404,7 +2429,7 @@
       "identityTitle": "वर्कस्पेस पहचान",
       "identityDescription": "वर्कस्पेस बनाते समय सेट होता है। स्लग, ईमेल और देश यहाँ नहीं बदले जा सकते।",
       "detailsTitle": "संपादन योग्य विवरण",
-      "detailsDescription": "वे फ़ील्ड अपडेट करें जो API अनुमति देता है: नाम, फ़ोन, वेबसाइट, उद्योग, समय क्षेत्र और मुद्रा।",
+      "detailsDescription": "संगठन विवरण अपडेट करें: संपर्क, प्रकार, पता, PAN, GSTIN, समय क्षेत्र और मुद्रा।",
       "readOnlyNotice": "आप यह वर्कस्पेस देख सकते हैं, लेकिन संगठन सेटिंग्स संपादित करने की अनुमति आवश्यक है।",
       "fields": {
         "slug": "स्लग",
@@ -2415,11 +2440,20 @@
         "countryHint": "बनाते समय सेट होता है। अपडेट एंडपॉइंट में शामिल नहीं है।",
         "name": "संगठन का नाम",
         "nameHint": "आवश्यक। 2–200 अक्षर।",
-        "phone": "फ़ोन",
-        "phoneHint": "वैकल्पिक व्यावसायिक फ़ोन नंबर।",
+        "phone": "मोबाइल नंबर",
+        "phoneHint": "आवश्यक व्यावसायिक मोबाइल नंबर।",
         "website": "वेबसाइट",
         "websitePlaceholder": "https://example.com",
         "websiteHint": "वैकल्पिक। मान्य URL होना चाहिए (यदि नहीं है तो https:// जोड़ा जाता है)।",
+        "organizationType": "संगठन का प्रकार",
+        "organizationTypePlaceholder": "संगठन का प्रकार चुनें",
+        "address": "व्यवसाय का पता",
+        "addressPlaceholder": "सड़क, शहर, राज्य, पिन",
+        "pan": "PAN",
+        "panPlaceholder": "AAAAA0000A",
+        "gstin": "GSTIN",
+        "gstinPlaceholder": "27AAAAA0000A1Z5",
+        "gstinHint": "वैकल्पिक। 15-अक्षर का भारतीय GSTIN।",
         "industry": "उद्योग",
         "industryPlaceholder": "उद्योग चुनें",
         "industryHint": "वैकल्पिक।",
@@ -2441,8 +2475,15 @@
       "errors": {
         "nameRequired": "संगठन का नाम दर्ज करें (कम से कम 2 अक्षर)।",
         "nameTooLong": "संगठन का नाम अधिकतम 200 अक्षर का होना चाहिए।",
+        "phoneRequired": "मोबाइल नंबर आवश्यक है।",
         "phoneInvalid": "सही फ़ोन नंबर दर्ज करें।",
         "websiteInvalid": "सही वेबसाइट URL दर्ज करें।",
+        "organizationTypeRequired": "संगठन का प्रकार चुनें।",
+        "addressRequired": "व्यवसाय का पता आवश्यक है।",
+        "addressTooShort": "पूरा व्यवसाय पता दर्ज करें (कम से कम 8 अक्षर)।",
+        "panRequired": "PAN आवश्यक है।",
+        "panInvalid": "सही PAN दर्ज करें (उदाहरण: AAAAA0000A)।",
+        "gstinInvalid": "सही GSTIN दर्ज करें (15 अक्षर), या खाली छोड़ दें।",
         "timezoneRequired": "समय क्षेत्र चुनें।",
         "currencyInvalid": "मुद्रा अधिकतम 10 अक्षर की होनी चाहिए।",
         "noWorkspace": "कोई सक्रिय वर्कस्पेस चयनित नहीं है।",
@@ -2643,6 +2684,165 @@
         "description": "वर्कस्पेस इवेंट्स का लाइव ट्रेल्स।",
         "emptyTitle": "अभी कोई गतिविधि नहीं",
         "emptyDescription": "टीम Whats-Auto का उपयोग शुरू करने पर वर्कस्पेस इवेंट यहाँ दिखेंगे।"
+      }
+    },
+    "analytics": {
+      "eyebrow": "इनसाइट्स",
+      "title": "ऑर्गनाइज़ेशन एनालिटिक्स",
+      "subtitle": "अपने लाइव वर्कस्पेस डेटा से contacts, campaigns, conversations, WhatsApp connections, templates, customer groups और audit activity ट्रैक करें।",
+      "retry": "फिर कोशिश करें",
+      "unavailable": "डेटा उपलब्ध नहीं है",
+      "kpis": {
+        "totalContacts": "कुल संपर्क",
+        "totalCampaigns": "कुल कैंपेन",
+        "sentMessages": "भेजे गए संदेश",
+        "deliveredMessages": "डिलीवर संदेश",
+        "failedMessages": "विफल संदेश",
+        "deliveryRate": "डिलीवरी दर",
+        "totalConversations": "कुल बातचीत",
+        "connectedWhatsappNumbers": "कनेक्टेड WhatsApp नंबर"
+      },
+      "loading": {
+        "contacts": "संपर्क एनालिटिक्स लोड हो रहे हैं…",
+        "campaigns": "कैंपेन एनालिटिक्स लोड हो रहे हैं…",
+        "conversations": "बातचीत एनालिटिक्स लोड हो रहे हैं…",
+        "whatsapp": "WhatsApp एनालिटिक्स लोड हो रहे हैं…",
+        "templates": "टेम्पलेट एनालिटिक्स लोड हो रहे हैं…",
+        "groups": "कस्टमर ग्रुप एनालिटिक्स लोड हो रहे हैं…",
+        "audit": "ऑडिट गतिविधि लोड हो रही है…"
+      },
+      "errors": {
+        "contacts": "संपर्क एनालिटिक्स लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+        "campaigns": "कैंपेन एनालिटिक्स लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+        "conversations": "बातचीत एनालिटिक्स लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+        "whatsapp": "WhatsApp एनालिटिक्स लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+        "templates": "टेम्पलेट एनालिटिक्स लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+        "groups": "कस्टमर ग्रुप एनालिटिक्स लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+        "audit": "ऑडिट गतिविधि लोड नहीं हो सकी। कृपया फिर कोशिश करें।"
+      },
+      "contacts": {
+        "title": "संपर्क एनालिटिक्स",
+        "description": "पिछले 6 महीनों का संपर्क कुल और मासिक वृद्धि।",
+        "totalContacts": "वर्कस्पेस में संपर्क",
+        "monthsTracked": "दिखाए गए महीने",
+        "emptyTitle": "अभी कोई संपर्क नहीं",
+        "emptyDescription": "जब आपकी टीम संपर्क जोड़ना या इम्पोर्ट करना शुरू करेगी, यहाँ डेटा दिखेगा।",
+        "emptyChart": "अभी संपर्क वृद्धि डेटा नहीं है।"
+      },
+      "campaignStatus": {
+        "title": "कैंपेन स्थिति",
+        "description": "कैंपेन lifecycle स्थिति और recipient volume का वितरण।",
+        "totalRecipients": "कुल प्राप्तकर्ता",
+        "completedCount": "पूर्ण कैंपेन",
+        "emptyTitle": "अभी कोई कैंपेन नहीं",
+        "emptyDescription": "पहला कैंपेन बनने के बाद कैंपेन एनालिटिक्स यहाँ दिखेगा।",
+        "emptyChart": "अभी कैंपेन स्थिति डेटा नहीं है।"
+      },
+      "messagePerformance": {
+        "title": "मैसेज परफॉर्मेंस",
+        "description": "मौजूदा campaign counters से aggregated message outcomes।",
+        "emptyTitle": "अभी कोई मैसेज परफॉर्मेंस नहीं",
+        "emptyDescription": "कैंपेन भेजना शुरू होने पर मैसेज परफॉर्मेंस यहाँ दिखेगी।"
+      },
+      "conversations": {
+        "title": "बातचीत एनालिटिक्स",
+        "description": "बातचीत का कुल, unread count और status distribution।",
+        "totalConversations": "कुल बातचीत",
+        "unreadMessages": "अनरीड काउंट",
+        "emptyTitle": "अभी कोई बातचीत नहीं",
+        "emptyDescription": "जब ग्राहक आपके वर्कस्पेस को संदेश भेजना शुरू करेंगे, यहाँ analytics दिखेगी।",
+        "emptyChart": "अभी बातचीत स्थिति डेटा नहीं है।"
+      },
+      "campaignPerformance": {
+        "title": "कैंपेन परफॉर्मेंस",
+        "description": "मौजूदा campaign API से हाल की campaign metrics।",
+        "emptyTitle": "अभी कोई कैंपेन परफॉर्मेंस नहीं",
+        "emptyDescription": "डिलीवरी परफॉर्मेंस देखने के लिए एक कैंपेन लॉन्च करें।",
+        "columns": {
+          "name": "कैंपेन",
+          "status": "स्थिति",
+          "recipients": "प्राप्तकर्ता",
+          "sent": "भेजे गए",
+          "delivered": "डिलीवर",
+          "read": "पढ़े गए",
+          "replies": "जवाब",
+          "failed": "विफल",
+          "created": "बनाया गया"
+        }
+      },
+      "whatsapp": {
+        "title": "WhatsApp एनालिटिक्स",
+        "description": "इस वर्कस्पेस से जुड़े WhatsApp नंबरों की connection status।",
+        "connectedNumbers": "कनेक्टेड नंबर",
+        "emptyTitle": "अभी कोई WhatsApp नंबर नहीं",
+        "emptyDescription": "स्थिति ट्रैक करने के लिए एक WhatsApp Business नंबर कनेक्ट करें।",
+        "emptyChart": "अभी WhatsApp status डेटा नहीं है।"
+      },
+      "templates": {
+        "title": "टेम्पलेट एनालिटिक्स",
+        "description": "टेम्पलेट count, status/category distribution और campaign-driven usage।",
+        "totalTemplates": "कुल टेम्पलेट",
+        "statusDistribution": "स्थिति वितरण",
+        "categoryDistribution": "श्रेणी वितरण",
+        "usageTitle": "टॉप टेम्पलेट उपयोग",
+        "emptyTitle": "अभी कोई टेम्पलेट नहीं",
+        "emptyDescription": "यहाँ analytics देखने के लिए templates बनाएँ या sync करें।",
+        "emptyChart": "अभी टेम्पलेट एनालिटिक्स नहीं है।"
+      },
+      "groups": {
+        "title": "कस्टमर ग्रुप्स",
+        "description": "मौजूदा Tags डेटा से Customer Group totals और सबसे बड़े groups।",
+        "totalGroups": "कुल कस्टमर ग्रुप्स",
+        "contactsCount": "{count, plural, one {# संपर्क} other {# संपर्क}}",
+        "emptyTitle": "अभी कोई कस्टमर ग्रुप नहीं",
+        "emptyDescription": "संपर्क व्यवस्थित करने और group size analytics देखने के लिए Customer Groups बनाएँ।"
+      },
+      "audit": {
+        "title": "हाल की ऑडिट गतिविधि",
+        "description": "इस वर्कस्पेस के लिए नवीनतम authorization और audit events।",
+        "emptyTitle": "अभी कोई ऑडिट गतिविधि नहीं",
+        "emptyDescription": "जब permissioned actions किए जाएँगे, audit events यहाँ दिखेंगे।",
+        "noDetails": "कोई अतिरिक्त विवरण नहीं"
+      },
+      "labels": {
+        "campaignStatus": {
+          "draft": "ड्राफ्ट",
+          "scheduled": "अनुसूचित",
+          "sending": "भेजा जा रहा है",
+          "completed": "पूर्ण",
+          "failed": "विफल",
+          "cancelled": "रद्द"
+        },
+        "conversationStatus": {
+          "open": "खुला",
+          "pending": "पेंडिंग",
+          "closed": "बंद"
+        },
+        "whatsappStatus": {
+          "connected": "कनेक्टेड",
+          "disconnected": "डिस्कनेक्टेड",
+          "error": "त्रुटि"
+        },
+        "templateStatus": {
+          "approved": "स्वीकृत",
+          "pending": "पेंडिंग",
+          "rejected": "अस्वीकृत",
+          "draft": "ड्राफ्ट",
+          "deleted": "हटाया गया",
+          "paused": "रुका हुआ",
+          "disabled": "डिसेबल"
+        },
+        "templateCategory": {
+          "marketing": "मार्केटिंग",
+          "utility": "यूटिलिटी",
+          "authentication": "ऑथेंटिकेशन"
+        },
+        "messagePerformance": {
+          "sent": "भेजे गए",
+          "delivered": "डिलीवर",
+          "read": "पढ़े गए",
+          "failed": "विफल"
+        }
       }
     },
     "campaigns": {
@@ -2898,6 +3098,64 @@
         "workspaces": "वर्कस्पेस सीमा"
       }
     },
+    "auditLogs": {
+      "eyebrow": "वर्कस्पेस एक्सेस",
+      "title": "ऑडिट लॉग",
+      "subtitle": "{workspace} में भूमिका, सदस्य और आमंत्रण बदलाव। इवेंट इसी संगठन तक सीमित रहते हैं।",
+      "thisWorkspace": "इस वर्कस्पेस",
+      "tableTitle": "हाल के एक्सेस इवेंट",
+      "tableDescription": "{count, plural, one {# इवेंट} other {# इवेंट}}",
+      "tableDescriptionLoading": "इवेंट लोड हो रहे हैं…",
+      "limitLabel": "सीमा",
+      "refresh": "रिफ़्रेश",
+      "loading": "ऑडिट इवेंट लोड हो रहे हैं…",
+      "searchPlaceholder": "इवेंट, टीम सदस्य, भूमिका या टारगेट खोजें…",
+      "emptyTitle": "कोई ऑडिट इवेंट नहीं",
+      "emptyDescription": "इस वर्कस्पेस के भूमिका, सदस्य और आमंत्रण बदलाव यहाँ दिखेंगे।",
+      "emptyFilteredTitle": "कोई मेल खाता इवेंट नहीं",
+      "emptyFilteredDescription": "कोई दूसरी खोज, टीम सदस्य या दिनांक सीमा आज़माएँ।",
+      "emptyValue": "—",
+      "viewDetails": "विवरण",
+      "filters": {
+        "search": "खोज",
+        "event": "एक्शन / इवेंट",
+        "actor": "एक्टर / टीम सदस्य",
+        "entityType": "एंटिटी प्रकार",
+        "dateFrom": "प्रारंभ तिथि",
+        "dateTo": "समाप्ति तिथि",
+        "allEvents": "सभी इवेंट",
+        "allActors": "सभी टीम सदस्य",
+        "allEntityTypes": "सभी एंटिटी प्रकार"
+      },
+      "status": {
+        "granted": "अनुमत",
+        "revoked": "रद्द",
+        "recorded": "दर्ज"
+      },
+      "columns": {
+        "event": "इवेंट",
+        "actor": "एक्टर",
+        "target": "टारगेट",
+        "workspace": "वर्कस्पेस",
+        "timestamp": "दिनांक और समय",
+        "status": "स्थिति",
+        "reason": "कारण",
+        "actions": "क्रियाएँ"
+      },
+      "details": {
+        "title": "ऑडिट इवेंट विवरण",
+        "fallbackEvent": "ऑडिट इवेंट",
+        "targetType": "टारगेट प्रकार",
+        "targetId": "टारगेट ID",
+        "before": "पहले",
+        "after": "बाद में",
+        "close": "बंद करें"
+      },
+      "errors": {
+        "loadFailed": "ऑडिट इवेंट लोड नहीं हो सके।",
+        "loadFailedHint": "यह पृष्ठ सक्रिय वर्कस्पेस के भूमिका, सदस्य और आमंत्रण इवेंट दिखाता है। ऑडिट देखने की अनुमति आवश्यक है।"
+      }
+    },
     "profile": {
       "eyebrow": "खाता",
       "title": "मेरा प्रोफ़ाइल",
@@ -2960,6 +3218,7 @@
       "subtitle": "संगठन, सब्सक्रिप्शन और प्लेटफ़ॉर्म उपयोगकर्ता प्रबंधित करें",
       "logout": "लॉगआउट"
     },
+    "checkingAccess": "एक्सेस जाँच हो रही है…",
     "home": {
       "eyebrow": "प्लेटफ़ॉर्म ओवरव्यू",
       "title": "एडमिन डैशबोर्ड",
@@ -3824,7 +4083,7 @@
     "auditLogs": {
       "eyebrow": "अनुपालन",
       "title": "ऑडिट लॉग",
-      "subtitle": "GET /api/v1/audit से प्लेटफ़ॉर्म-व्यापी प्राधिकरण इवेंट। सुपर एडमिन को सक्रिय संगठन की आवश्यकता नहीं है।",
+      "subtitle": "प्लेटफ़ॉर्म संगठन, बिलिंग, प्लान और AI कॉन्फ़िगरेशन इवेंट। सुपर एडमिन को सक्रिय संगठन की आवश्यकता नहीं है।",
       "tableTitle": "हाल के ऑडिट इवेंट",
       "tableDescription": "{count, plural, one {# इवेंट} other {# इवेंट}}",
       "tableDescriptionLoading": "इवेंट लोड हो रहे हैं…",
@@ -3833,7 +4092,7 @@
       "loading": "ऑडिट इवेंट लोड हो रहे हैं…",
       "searchPlaceholder": "इवेंट, एक्टर, संगठन या टारगेट खोजें…",
       "emptyTitle": "कोई ऑडिट इवेंट नहीं",
-      "emptyDescription": "प्लेटफ़ॉर्म के लिए कोई प्राधिकरण ऑडिट इवेंट नहीं मिला।",
+      "emptyDescription": "प्लेटफ़ॉर्म के लिए कोई ऑडिट इवेंट नहीं मिला।",
       "emptyFilteredTitle": "कोई मेल खाता इवेंट नहीं",
       "emptyFilteredDescription": "कोई दूसरा खोज, संगठन या दिनांक सीमा आज़माएँ।",
       "emptyValue": "—",
@@ -3877,7 +4136,7 @@
       },
       "errors": {
         "loadFailed": "ऑडिट इवेंट लोड नहीं हो सके।",
-        "loadFailedHint": "सुपर एडमिन के लिए GET /api/v1/audit प्लेटफ़ॉर्म-व्यापी इवेंट लौटाता है। सक्रिय संगठन आवश्यक नहीं है।"
+        "loadFailedHint": "GET /api/v1/super-admin/audit-logs संगठन, बिलिंग, प्लान और AI इवेंट लौटाता है। सक्रिय संगठन आवश्यक नहीं है।"
       }
     },
     "aiSettings": {
@@ -4029,17 +4288,72 @@
       "eyebrow": "एनालिटिक्स",
       "title": "प्लेटफ़ॉर्म एनालिटिक्स",
       "subtitle": "प्लेटफ़ॉर्म में ग्रोथ, राजस्व, एंगेजमेंट और सब्सक्रिप्शन मिश्रण ट्रैक करें।",
-      "charts": {
-        "activeOrganizations": {
-          "title": "सक्रिय संगठन",
-          "description": "वर्तमान सक्रिय टेनेंट संगठनों का मासिक ट्रेंड।",
-          "ariaLabel": "महीने के अनुसार सक्रिय संगठनों का लाइन चार्ट"
+      "retry": "फिर कोशिश करें",
+      "kpis": {
+        "totalOrganizations": "कुल संगठन",
+        "activeOrganizations": "सक्रिय संगठन",
+        "inactiveOrganizations": "निष्क्रिय / निलंबित संगठन",
+        "trialOrganizations": "ट्रायल संगठन",
+        "thisMonthRevenue": "इस महीने का राजस्व",
+        "paidRevenue": "प्राप्त भुगतान राजस्व",
+        "pendingOverdueInvoices": "लंबित + ओवरड्यू इनवॉइस"
+      },
+      "loading": {
+        "organizations": "संगठन एनालिटिक्स लोड हो रहा है…",
+        "subscriptions": "सब्सक्रिप्शन एनालिटिक्स लोड हो रहा है…",
+        "revenue": "राजस्व सारांश लोड हो रहा है…",
+        "audit": "ऑडिट गतिविधि लोड हो रही है…"
+      },
+      "errors": {
+        "organizations": "संगठन लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+        "subscriptions": "सब्सक्रिप्शन या प्लान लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+        "revenue": "इनवॉइस सारांश लोड नहीं हो सका। कृपया फिर कोशिश करें।",
+        "audit": "ऑडिट गतिविधि लोड नहीं हो सकी। कृपया फिर कोशिश करें।"
+      },
+      "sections": {
+        "organizationGrowth": {
+          "title": "संगठन ग्रोथ",
+          "description": "createdAt के आधार पर पिछले 6 महीनों की cumulative संगठन वृद्धि।",
+          "emptyTitle": "अभी कोई संगठन नहीं",
+          "emptyDescription": "संगठन बनने पर ग्रोथ यहाँ दिखाई देगी।",
+          "emptyChart": "ग्रोथ डेटा उपलब्ध नहीं है।"
         },
-        "messageVolume": {
-          "title": "संदेश वॉल्यूम",
-          "description": "सभी संगठनों में मासिक आउटबाउंड संदेश वॉल्यूम।",
-          "ariaLabel": "मासिक संदेश वॉल्यूम का बार चार्ट। शिखर लगभग {max}।"
+        "activeInactive": {
+          "title": "सक्रिय बनाम निष्क्रिय संगठन",
+          "description": "संगठनों की वर्तमान स्थिति का वितरण।",
+          "active": "सक्रिय संगठन",
+          "inactive": "निष्क्रिय संगठन",
+          "emptyChart": "स्थिति वितरण उपलब्ध नहीं है।"
+        },
+        "revenueSummary": {
+          "title": "राजस्व सारांश",
+          "description": "मौजूदा invoice summary API से वर्तमान मान।",
+          "thisMonthAmount": "इस महीने की राशि",
+          "paidAmount": "प्राप्त भुगतान राशि",
+          "pendingOverdue": "लंबित + ओवरड्यू",
+          "emptyTitle": "राजस्व डेटा उपलब्ध नहीं है",
+          "emptyDescription": "इनवॉइस सारांश API से डेटा प्राप्त नहीं हुआ।"
+        },
+        "subscriptionMix": {
+          "title": "प्लान के अनुसार सब्सक्रिप्शन",
+          "description": "प्लान के आधार पर वर्तमान सब्सक्रिप्शन वितरण।",
+          "emptyTitle": "अभी कोई सब्सक्रिप्शन नहीं",
+          "emptyDescription": "सब्सक्रिप्शन बनने के बाद प्लान वितरण दिखेगा।",
+          "emptyChart": "सब्सक्रिप्शन वितरण उपलब्ध नहीं है।"
         }
+      },
+      "labels": {
+        "activeInactive": {
+          "active": "सक्रिय",
+          "inactive": "निष्क्रिय"
+        }
+      },
+      "audit": {
+        "title": "हाल की ऑडिट गतिविधि",
+        "description": "प्लेटफ़ॉर्म भर के नवीनतम authorization और audit events।",
+        "emptyTitle": "अभी कोई ऑडिट इवेंट नहीं",
+        "emptyDescription": "permissioned actions होने पर ऑडिट इवेंट यहाँ दिखेंगे।",
+        "noDetails": "कोई अतिरिक्त विवरण नहीं"
       }
     }
   }

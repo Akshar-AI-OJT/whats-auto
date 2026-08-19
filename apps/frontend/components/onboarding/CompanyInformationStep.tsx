@@ -4,13 +4,14 @@ import { useId, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { ImagePlus, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { getTimezoneOptions } from '@/lib/onboarding'
+import { getTimezoneOptions, normalizeTaxId } from '@/lib/onboarding'
 import {
   Field,
   FieldDescription,
   FieldError,
   FieldLabel,
 } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
 import { authInputClassName } from '@/components/auth/auth-field-styles'
 import { RequiredAsterisk } from './required-asterisk'
 import {
@@ -18,6 +19,7 @@ import {
   COUNTRY_OPTIONS,
   CURRENCY_OPTIONS,
   INDUSTRY_OPTIONS,
+  ORGANIZATION_TYPE_OPTIONS,
   type OrganizationWizardCompanyErrors,
   type OrganizationWizardState,
 } from './organization-wizard-types'
@@ -45,11 +47,19 @@ export function CompanyInformationStep({
   const t = useTranslations('onboarding.organization')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const logoId = useId()
+  const organizationTypeId = useId()
+  const addressId = useId()
+  const panId = useId()
+  const gstinId = useId()
   const industryId = useId()
   const sizeId = useId()
   const countryId = useId()
   const timezoneId = useId()
   const currencyId = useId()
+  const organizationTypeErrorId = useId()
+  const addressErrorId = useId()
+  const panErrorId = useId()
+  const gstinErrorId = useId()
   const industryErrorId = useId()
   const sizeErrorId = useId()
   const countryErrorId = useId()
@@ -140,6 +150,137 @@ export function CompanyInformationStep({
           />
         </div>
       </Field>
+
+      <Field data-invalid={errors.organizationType ? true : undefined} className="gap-2">
+        <FieldLabel htmlFor={organizationTypeId} className="text-sm font-medium leading-5 text-ink">
+          {t('step2.organizationType')}
+          <RequiredAsterisk />
+        </FieldLabel>
+        <select
+          id={organizationTypeId}
+          name="organizationType"
+          required
+          disabled={pending}
+          value={state.organizationType}
+          aria-invalid={Boolean(errors.organizationType)}
+          aria-describedby={errors.organizationType ? organizationTypeErrorId : undefined}
+          className={selectClassName}
+          onChange={(e) => {
+            onChange({
+              organizationType: e.target.value as OrganizationWizardState['organizationType'],
+            })
+            onClearError('organizationType')
+          }}
+        >
+          <option value="">{t('step2.organizationTypePlaceholder')}</option>
+          {ORGANIZATION_TYPE_OPTIONS.map((value) => (
+            <option key={value} value={value}>
+              {t(`step2.organizationTypes.${value}`)}
+            </option>
+          ))}
+        </select>
+        {errors.organizationType ? (
+          <FieldError id={organizationTypeErrorId} className="text-xs leading-4 text-negative">
+            {errors.organizationType}
+          </FieldError>
+        ) : null}
+      </Field>
+
+      <Field data-invalid={errors.address ? true : undefined} className="gap-2">
+        <FieldLabel htmlFor={addressId} className="text-sm font-medium leading-5 text-ink">
+          {t('step2.address')}
+          <RequiredAsterisk />
+        </FieldLabel>
+        <textarea
+          id={addressId}
+          name="address"
+          required
+          rows={3}
+          maxLength={500}
+          disabled={pending}
+          placeholder={t('step2.addressPlaceholder')}
+          aria-invalid={Boolean(errors.address)}
+          aria-describedby={errors.address ? addressErrorId : undefined}
+          className={cn(selectClassName, 'h-auto min-h-[5.5rem] resize-y py-3 leading-5')}
+          value={state.address}
+          onChange={(e) => {
+            onChange({ address: e.target.value })
+            onClearError('address')
+          }}
+        />
+        {errors.address ? (
+          <FieldError id={addressErrorId} className="text-xs leading-4 text-negative">
+            {errors.address}
+          </FieldError>
+        ) : null}
+      </Field>
+
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+        <Field data-invalid={errors.pan ? true : undefined} className="gap-2">
+          <FieldLabel htmlFor={panId} className="text-sm font-medium leading-5 text-ink">
+            {t('step2.pan')}
+            <RequiredAsterisk />
+          </FieldLabel>
+          <Input
+            id={panId}
+            name="pan"
+            type="text"
+            required
+            maxLength={10}
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
+            disabled={pending}
+            placeholder={t('step2.panPlaceholder')}
+            aria-invalid={Boolean(errors.pan)}
+            aria-describedby={errors.pan ? panErrorId : undefined}
+            className={selectClassName}
+            value={state.pan}
+            onChange={(e) => {
+              onChange({ pan: normalizeTaxId(e.target.value).slice(0, 10) })
+              onClearError('pan')
+            }}
+          />
+          {errors.pan ? (
+            <FieldError id={panErrorId} className="text-xs leading-4 text-negative">
+              {errors.pan}
+            </FieldError>
+          ) : null}
+        </Field>
+
+        <Field data-invalid={errors.gstin ? true : undefined} className="gap-2">
+          <FieldLabel htmlFor={gstinId} className="text-sm font-medium leading-5 text-ink">
+            {t('step2.gstin')}
+          </FieldLabel>
+          <Input
+            id={gstinId}
+            name="gstin"
+            type="text"
+            maxLength={15}
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
+            disabled={pending}
+            placeholder={t('step2.gstinPlaceholder')}
+            aria-invalid={Boolean(errors.gstin)}
+            aria-describedby={errors.gstin ? gstinErrorId : undefined}
+            className={selectClassName}
+            value={state.gstin}
+            onChange={(e) => {
+              onChange({ gstin: normalizeTaxId(e.target.value).slice(0, 15) })
+              onClearError('gstin')
+            }}
+          />
+          <FieldDescription className="text-xs leading-4 text-mute">
+            {t('optionalHint')}
+          </FieldDescription>
+          {errors.gstin ? (
+            <FieldError id={gstinErrorId} className="text-xs leading-4 text-negative">
+              {errors.gstin}
+            </FieldError>
+          ) : null}
+        </Field>
+      </div>
 
       <Field data-invalid={errors.industry ? true : undefined} className="gap-2">
         <FieldLabel htmlFor={industryId} className="text-sm font-medium leading-5 text-ink">

@@ -24,6 +24,8 @@
 [locale]/dashboard/campaigns/create/page.tsx
 [locale]/dashboard/campaigns/page.tsx
 [locale]/dashboard/contacts/page.tsx
+[locale]/dashboard/customer-groups/[id]/page.tsx
+[locale]/dashboard/customer-groups/page.tsx
 [locale]/dashboard/inbox/[conversationId]/page.tsx
 [locale]/dashboard/inbox/page.tsx
 [locale]/dashboard/knowledge/page.tsx

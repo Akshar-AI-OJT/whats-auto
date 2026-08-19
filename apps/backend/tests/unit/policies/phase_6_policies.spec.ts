@@ -50,6 +50,7 @@ test.group('Phase 6 Policies - SuperAdminPolicy', () => {
         'platform:tenants_billing',
         'platform:config_view',
         'platform:config_manage',
+        'platform:audit_view',
       ],
     })
     const unprivileged = makePrincipal({ role: 'agent', permissions: [] })
@@ -71,25 +72,33 @@ test.group('Phase 6 Policies - SuperAdminPolicy', () => {
 
     assert.isTrue(policy.manageAiConfig(admin))
     assert.isFalse(policy.manageAiConfig(unprivileged))
+
+    assert.isTrue(policy.viewAuditLogs(admin))
+    assert.isFalse(policy.viewAuditLogs(unprivileged))
   })
 })
 
 test.group('Phase 6 Policies - AuditPolicy', () => {
   const policy = new AuditPolicy()
 
-  test('platform auditor can view global and any tenant audit log', ({ assert }) => {
+  test('platform auditor cannot use the tenant audit policy', ({ assert }) => {
     const auditor = makePrincipal({
       role: 'superadmin',
       permissions: ['platform:audit_view'],
     })
 
-    assert.isTrue(policy.view(auditor, null))
-    assert.isTrue(policy.view(auditor, 'org-any'))
+    assert.isFalse(policy.view(auditor, null))
+    assert.isFalse(policy.view(auditor, 'org-any'))
   })
 
-  test('tenant member can view own org audit log with team:view', ({ assert }) => {
+  test('tenant member can view own org audit log with audit:view', ({ assert }) => {
     const member = makePrincipal({
       role: 'admin',
+      orgId: 'org-1',
+      permissions: ['audit:view'],
+    })
+    const teamOnly = makePrincipal({
+      role: 'agent',
       orgId: 'org-1',
       permissions: ['team:view'],
     })
@@ -101,6 +110,7 @@ test.group('Phase 6 Policies - AuditPolicy', () => {
 
     assert.isTrue(policy.view(member, 'org-1'))
     assert.isFalse(policy.view(member, 'org-2'))
+    assert.isFalse(policy.view(teamOnly, 'org-1'))
     assert.isFalse(policy.view(unprivileged, 'org-1'))
   })
 })

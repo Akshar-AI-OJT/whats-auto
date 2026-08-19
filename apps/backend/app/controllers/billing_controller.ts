@@ -25,6 +25,7 @@ export default class BillingController {
     const result = await checkout.startCheckout({
       organizationId: request.activeMember!.organizationId,
       planId: payload.planId,
+      actorUserId: request.authUser!.id,
     })
 
     return serialize({
