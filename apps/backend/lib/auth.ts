@@ -58,6 +58,15 @@ export const auth = betterAuth({
     database: {
       generateId: 'uuid',
     },
+    ...(env.get('NODE_ENV') === 'production'
+      ? {
+          defaultCookieAttributes: {
+            sameSite: 'none' as const,
+            secure: true,
+            partitioned: true,
+          },
+        }
+      : {}),
   },
 
   // ─── Table name overrides (migrations use plural names) ───────────────
