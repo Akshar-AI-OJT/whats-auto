@@ -303,6 +303,7 @@ export type CreateContactBody = {
   company?: string
 }
 
+<<<<<<< HEAD
 /**
  * UI model for Customer Groups. Backed by `/api/v1/tags` — see `api.tags`
  * and `customer-group-service.ts`. Fields the Tags API does not persist
@@ -330,10 +331,16 @@ export type CustomerGroup = {
 
 /** Raw `/api/v1/tags` record. */
 export type TagRecord = {
+=======
+export type CampaignStatus = 'draft' | 'scheduled' | 'sending' | 'sent' | 'failed'
+
+export type CampaignSummary = {
+>>>>>>> feature/campaign-module
   id: string
   organizationId: string
   createdByUserId: string | null
   name: string
+<<<<<<< HEAD
   color: string | null
   createdAt: string
   contactCount: number
@@ -388,6 +395,47 @@ export type UpdateCustomerGroupBody = {
 
 export type AddCustomerGroupContactsBody = {
   contactIds: string[]
+=======
+  whatsappConfigId: string | null
+  messageTemplateId: string | null
+  /** Canonical UTC ISO instant. Format with `formatCampaignScheduledAt` + org timezone. */
+  scheduledAt: string | null
+  status: CampaignStatus | string
+  totalRecipients: number
+  sentCount: number
+  deliveredCount: number
+  readCount: number
+  repliedCount: number
+  failedCount: number
+  createdAt: string
+  updatedAt: string | null
+}
+
+export type CreateCampaignBody = {
+  name: string
+  whatsappConfigId?: string
+  messageTemplateId?: string
+  /** Naive org-local datetime or timezone-aware ISO instant. Use `toCampaignScheduledAtPayload`. */
+  scheduledAt?: string
+  status?: 'draft' | 'scheduled'
+}
+
+export type UpdateCampaignBody = {
+  name?: string
+  whatsappConfigId?: string | null
+  messageTemplateId?: string | null
+  scheduledAt?: string | null
+  status?: 'draft' | 'scheduled'
+}
+
+export type ListCampaignsParams = {
+  page?: number
+  limit?: number
+  search?: string
+  status?: CampaignStatus
+  sortBy?: string
+  sortOrder?: 'asc' | 'desc'
+>>>>>>> feature/campaign-module
 }
 
 export type InboxConversationStatus = 'open' | 'pending' | 'closed'
@@ -1489,6 +1537,7 @@ export const api = {
       }),
   },
 
+<<<<<<< HEAD
   tags: {
     list: () =>
       protectedRequest<{ data?: TagRecord[] } | TagRecord[]>('/api/v1/tags', {
@@ -1502,10 +1551,37 @@ export const api = {
 
     create: (body: CreateTagBody) =>
       protectedRequest<{ data?: TagRecord } & TagRecord>('/api/v1/tags', {
+=======
+  campaigns: {
+    list: (params: ListCampaignsParams = {}) => {
+      const qs = new URLSearchParams()
+      if (params.page != null) qs.set('page', String(params.page))
+      if (params.limit != null) qs.set('limit', String(params.limit))
+      if (params.search?.trim()) qs.set('search', params.search.trim())
+      if (params.status) qs.set('status', params.status)
+      if (params.sortBy) qs.set('sortBy', params.sortBy)
+      if (params.sortOrder) qs.set('sortOrder', params.sortOrder)
+      const query = qs.toString()
+      return protectedRequest<Paginated<CampaignSummary> | { data?: CampaignSummary[]; meta?: PaginationMeta }>(
+        `/api/v1/campaigns${query ? `?${query}` : ''}`,
+        { method: 'GET' }
+      )
+    },
+
+    get: (campaignId: string) =>
+      protectedRequest<{ data?: CampaignSummary } & CampaignSummary>(
+        `/api/v1/campaigns/${campaignId}`,
+        { method: 'GET' }
+      ),
+
+    create: (body: CreateCampaignBody) =>
+      protectedRequest<{ data?: CampaignSummary } & CampaignSummary>('/api/v1/campaigns', {
+>>>>>>> feature/campaign-module
         method: 'POST',
         body: JSON.stringify(body),
       }),
 
+<<<<<<< HEAD
     update: (tagId: string, body: UpdateTagBody) =>
       protectedRequest<{ data?: TagRecord } & TagRecord>(`/api/v1/tags/${tagId}`, {
         method: 'PATCH',
@@ -1539,6 +1615,25 @@ export const api = {
           { method: 'DELETE' }
         ),
     },
+=======
+    update: (campaignId: string, body: UpdateCampaignBody) =>
+      protectedRequest<{ data?: CampaignSummary } & CampaignSummary>(
+        `/api/v1/campaigns/${campaignId}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    schedule: (campaignId: string, scheduledAt: string) =>
+      protectedRequest<{ data?: CampaignSummary } & CampaignSummary>(
+        `/api/v1/campaigns/${campaignId}/schedule`,
+        {
+          method: 'POST',
+          body: JSON.stringify({ scheduledAt }),
+        }
+      ),
+>>>>>>> feature/campaign-module
   },
 
   inbox: {

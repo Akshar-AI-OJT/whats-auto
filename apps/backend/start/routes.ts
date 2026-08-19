@@ -278,6 +278,25 @@ const requestBodySchemas: Record<string, JsonSchema> = {
       messageTemplateId: { type: 'string', format: 'uuid' },
       scheduledAt: { type: 'string', format: 'date-time', example: '2026-08-07T10:00:00.000Z' },
       status: { type: 'string', example: 'draft', enum: ['draft', 'scheduled'] },
+      variableMappings: {
+        type: 'object',
+        additionalProperties: {
+          type: 'object',
+          properties: {
+            source: {
+              type: 'string',
+              enum: ['contact_field', 'custom_field', 'static'],
+            },
+            field: { type: 'string' },
+            value: { type: 'string' },
+          },
+        },
+        example: {
+          customer_name: { source: 'contact_field', field: 'name' },
+          order_id: { source: 'custom_field', field: 'order_id' },
+          promo_code: { source: 'static', value: 'SUMMER26' },
+        },
+      },
     },
     ['name']
   ),
@@ -319,6 +338,24 @@ const requestBodySchemas: Record<string, JsonSchema> = {
       nullable: true,
     },
     status: { type: 'string', example: 'scheduled', enum: ['draft', 'scheduled'] },
+    variableMappings: {
+      type: 'object',
+      nullable: true,
+      additionalProperties: {
+        type: 'object',
+        properties: {
+          source: {
+            type: 'string',
+            enum: ['contact_field', 'custom_field', 'static'],
+          },
+          field: { type: 'string' },
+          value: { type: 'string' },
+        },
+      },
+      example: {
+        customer_name: { source: 'contact_field', field: 'name' },
+      },
+    },
   }),
   'put /api/v1/campaigns/{id}/recipients': bodySchema({
     contactIds: {
