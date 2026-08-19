@@ -50,6 +50,11 @@ export const auth = betterAuth({
 
   // DB columns are Postgres `uuid`. better-auth's default nanoid IDs are not valid UUIDs.
   advanced: {
+    defaultCookieAttributes: {
+      sameSite: env.get('NODE_ENV') === 'production' ? 'none' : 'lax',
+      secure: env.get('NODE_ENV') === 'production',
+      partitioned: env.get('NODE_ENV') === 'production',
+    },
     database: {
       generateId: 'uuid',
     },
