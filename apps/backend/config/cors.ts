@@ -15,10 +15,18 @@ const corsConfig = defineConfig({
   enabled: true,
 
   /**
-   * In development, allow every origin to simplify local front/backend setup.
-   * In production, allow the configured frontend origin.
+   * In development, allow every origin to simplify local front/backend setup and tunnels.
+   * In production, allow the configured frontend origin(s).
    */
-  origin: app.inDev ? true : [env.get('CORS_ORIGIN').replace(/\/$/, '')],
+  origin: (requestOrigin) => {
+    if (app.inDev) return true
+    const allowed = env
+      .get('CORS_ORIGIN', '')
+      .split(',')
+      .map((o) => o.trim().replace(/\/$/, ''))
+      .filter(Boolean)
+    return allowed.length === 0 || allowed.includes(requestOrigin)
+  },
 
   /**
    * HTTP methods accepted for cross-origin requests.
