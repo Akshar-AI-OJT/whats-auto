@@ -16,7 +16,7 @@ async function loadInvitationPreview(id: string): Promise<{
   preview: InvitationPreview | null
   errorKey: 'notFound' | 'loadFailed' | null
 }> {
-  // Prefer API origin; fall back to app origin so SSR hits Next `/api` rewrite.
+  // Prefer the API origin. Local fallback is the Next app (dev rewrite).
   const base = (
     process.env.NEXT_PUBLIC_API_URL ||
     process.env.NEXT_PUBLIC_APP_URL ||
