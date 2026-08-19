@@ -21,7 +21,6 @@ import {
   ORG_SETUP_PATH,
   type OnboardingCheckoutSession,
 } from '@/lib/onboarding'
-import { isPlanId } from '@/lib/plan-config'
 import {
   OnboardingPaymentView,
   type OnboardingPaymentViewState,
@@ -83,7 +82,6 @@ function viewFromSession(
 
 export function OnboardingPaymentPage() {
   const t = useTranslations('onboarding.organization')
-  const tPlans = useTranslations('admin.subscriptions.plans')
   const router = useRouter()
   const [session, setSession] = useState<OnboardingCheckoutSession | null>(null)
   const [ready, setReady] = useState(false)
@@ -140,8 +138,7 @@ export function OnboardingPaymentPage() {
   })
 
   const view = viewFromSession(session, subscriptionQuery.data ?? null)
-  const planName =
-    session && isPlanId(session.planId) ? tPlans(`${session.planId}.name`) : ''
+  const planName = session?.planName ?? ''
 
   function handleCompletePayment() {
     const url = session?.checkoutUrl

@@ -321,6 +321,7 @@ export type OnboardingCheckoutPhase =
 export type OnboardingCheckoutSession = {
   planId: string
   checkoutPlanId: string
+  planName?: string
   subscriptionId?: string
   checkoutUrl?: string | null
   phase: OnboardingCheckoutPhase

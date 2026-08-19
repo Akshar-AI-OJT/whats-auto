@@ -47,10 +47,12 @@ import { AuthBranding } from '@/components/auth/auth-branding'
 import { useRouter } from '@/i18n/navigation'
 import { BillingCheckoutDialog } from '@/components/dashboard/billing/BillingCheckoutDialog'
 import { startOrResumeBillingCheckout } from '@/components/dashboard/billing/billing-utils'
-import { getPlanById } from '@/lib/plan-config'
 import { OrganizationBasicsStep } from './OrganizationBasicsStep'
 import { CompanyInformationStep } from './CompanyInformationStep'
-import { SubscriptionPlanSelectionStep, type PlanId } from './SubscriptionPlanSelectionStep'
+import {
+  SubscriptionPlanSelectionStep,
+  type OnboardingCheckoutablePlanSelection,
+} from './SubscriptionPlanSelectionStep'
 import { WorkspacePreferencesStep } from './WorkspacePreferencesStep'
 import { OrganizationStepper } from './OrganizationStepper'
 import type {
@@ -100,14 +102,13 @@ export function OrganizationRegistrationForm({
   ...props
 }: React.ComponentProps<'form'>) {
   const t = useTranslations('onboarding.organization')
-  const tPlans = useTranslations('admin.subscriptions.plans')
   const router = useRouter()
   const queryClient = useQueryClient()
   const formErrorId = useId()
 
   const [step, setStep] = useState<OrgWizardStep>(1)
   const [state, setState] = useState<OrganizationWizardState>(createInitialState)
-  const [selectedPlan, setSelectedPlan] = useState<PlanId | null>(null)
+  const [selectedPlan, setSelectedPlan] = useState<OnboardingCheckoutablePlanSelection | null>(null)
   const [basicsErrors, setBasicsErrors] = useState<OrganizationWizardBasicsErrors>({})
   const [guardingInvite, setGuardingInvite] = useState(true)
 
@@ -391,8 +392,7 @@ export function OrganizationRegistrationForm({
         return
       }
 
-      const plan = getPlanById(selectedPlan)
-      if (!plan?.checkoutPlanId) {
+      if (!selectedPlan.checkoutable) {
         setError(t('errors.planNotCheckoutable'))
         return
       }
@@ -407,8 +407,7 @@ export function OrganizationRegistrationForm({
     if (checkoutPending || checkoutLockRef.current) return
     if (!selectedPlan) return
 
-    const plan = getPlanById(selectedPlan)
-    if (!plan?.checkoutPlanId) {
+    if (!selectedPlan.checkoutable) {
       setCheckoutError(t('errors.planNotCheckoutable'))
       return
     }
@@ -418,11 +417,13 @@ export function OrganizationRegistrationForm({
     setCheckoutError(null)
 
     try {
-      savePendingWorkspacePlan(selectedPlan)
-      const result = await startOrResumeBillingCheckout(plan.checkoutPlanId)
+      // Persist the real backend plan UUID so other screens can resume/refresh state.
+      savePendingWorkspacePlan(selectedPlan.id)
+      const result = await startOrResumeBillingCheckout(selectedPlan.id)
       saveOnboardingCheckoutSession({
-        planId: selectedPlan,
-        checkoutPlanId: plan.checkoutPlanId,
+        planId: selectedPlan.id,
+        checkoutPlanId: selectedPlan.id,
+        planName: selectedPlan.name,
         subscriptionId: result.subscriptionId,
         checkoutUrl: result.checkoutUrl ?? null,
         phase: result.checkoutUrl ? 'awaiting_gateway' : 'success',
@@ -519,7 +520,7 @@ export function OrganizationRegistrationForm({
 
           {step === 4 ? (
             <SubscriptionPlanSelectionStep
-              selectedPlan={selectedPlan}
+              selectedPlanId={selectedPlan?.id ?? null}
               pending={pending || checkoutPending}
               onSelect={(plan) => {
                 setSelectedPlan(plan)
@@ -584,7 +585,7 @@ export function OrganizationRegistrationForm({
         open={confirmOpen}
         pending={checkoutPending}
         error={checkoutError}
-        planName={selectedPlan ? tPlans(`${selectedPlan}.name`) : ''}
+        planName={selectedPlan ? selectedPlan.name : ''}
         onOpenChange={(next) => {
           if (!checkoutPending) {
             setConfirmOpen(next)

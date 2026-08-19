@@ -1365,6 +1365,11 @@
       "step4": {
         "title": "Choose a subscription plan",
         "subtitle": "Pick the plan that fits your workspace today. You can update billing anytime from the Dashboard.",
+        "loadingPlans": "Loading plans…",
+        "loadingPlansFailed": "Couldn't load plans. Please try again.",
+        "retry": "Retry",
+        "emptyTitle": "No plans available",
+        "emptyDescription": "No active monthly plans are available right now.",
         "chooseCta": "Choose plan",
         "selectedCta": "Selected",
         "enterpriseCta": "Contact sales",
@@ -1415,7 +1420,7 @@
         "timeFormatRequired": "Select a time format.",
         "themeRequired": "Select a theme preference.",
         "planRequired": "Please select a subscription plan.",
-        "planNotCheckoutable": "This plan isn't available for checkout. Choose Starter, Growth, or Scale.",
+        "planNotCheckoutable": "This plan isn't available for checkout. Please choose a different plan.",
         "checkoutFailed": "Couldn't start checkout. Please try again."
       }
     }

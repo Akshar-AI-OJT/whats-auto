@@ -31,18 +31,23 @@ export function InvoiceViewPage({ invoiceId }: InvoiceViewPageProps) {
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
-    setError(null)
-    void getInvoice(invoiceId).then((result) => {
-      if (cancelled) return
-      if (!result) {
-        setInvoice(null)
-        setError(t('errors.notFound'))
-      } else {
-        setInvoice(result)
+    void (async () => {
+      try {
+        const result = await getInvoice(invoiceId)
+        if (cancelled) return
+        if (!result) {
+          setInvoice(null)
+          setError(t('errors.notFound'))
+        } else {
+          setInvoice(result)
+          setError(null)
+        }
+      } catch {
+        if (!cancelled) setError(t('errors.notFound'))
+      } finally {
+        if (!cancelled) setLoading(false)
       }
-      setLoading(false)
-    })
+    })()
     return () => {
       cancelled = true
     }
