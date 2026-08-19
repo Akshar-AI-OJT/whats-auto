@@ -5,7 +5,15 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["build/**", ".adonisjs/**", ".next/**"],
-      "env": ["NODE_ENV", "APP_KEY", "HOST", "PORT", "LOG_LEVEL"]
+      "env": [
+        "NODE_ENV",
+        "APP_KEY",
+        "HOST",
+        "PORT",
+        "LOG_LEVEL",
+        "NEXT_PUBLIC_API_URL",
+        "NEXT_PUBLIC_APP_URL"
+      ]
     },
     "dev": {
       "cache": false,
