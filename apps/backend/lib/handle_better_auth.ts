@@ -26,9 +26,24 @@ export async function handleBetterAuth({ request, response }: HttpContext) {
 
   response.status(webResponse.status)
 
+  const setCookieHeaders =
+    typeof (webResponse.headers as unknown as { getSetCookie?: () => string[] }).getSetCookie ===
+    'function'
+      ? (webResponse.headers as unknown as { getSetCookie: () => string[] }).getSetCookie()
+      : null
+
+  if (setCookieHeaders && setCookieHeaders.length > 0) {
+    for (const cookie of setCookieHeaders) {
+      response.append('Set-Cookie', cookie)
+    }
+  }
+
   webResponse.headers.forEach((value, key) => {
-    if (key.toLowerCase() === 'set-cookie') {
-      response.append('Set-Cookie', value)
+    const lowerKey = key.toLowerCase()
+    if (lowerKey === 'set-cookie') {
+      if (!setCookieHeaders) {
+        response.append('Set-Cookie', value)
+      }
     } else {
       response.header(key, value)
     }
