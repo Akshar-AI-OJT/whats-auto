@@ -32,6 +32,8 @@ const SuperAdminPlansController = () => import('#controllers/super_admin_plans_c
 const SuperAdminInvoicesController = () => import('#controllers/super_admin_invoices_controller')
 const SuperAdminAiConfigController = () => import('#controllers/super_admin_ai_config_controller')
 const SuperAdminAuditController = () => import('#controllers/super_admin_audit_controller')
+const SuperAdminPlatformUsersController = () =>
+  import('#controllers/super_admin_platform_users_controller')
 const OrganizationAdminUsersController = () =>
   import('#controllers/organization_admin_users_controller')
 const WhatsappWebhookController = () => import('#controllers/whatsapp_webhook_controller')
@@ -564,6 +566,7 @@ router
     router.get('/ai-config', [SuperAdminAiConfigController, 'show'])
     router.patch('/ai-config', [SuperAdminAiConfigController, 'update'])
     router.get('/audit-logs', [SuperAdminAuditController, 'index'])
+    router.get('/platform-users', [SuperAdminPlatformUsersController, 'index'])
   })
   .prefix('/api/v1/super-admin')
   .use([middleware.jwtAuth(), middleware.platform()])
