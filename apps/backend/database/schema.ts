@@ -101,7 +101,7 @@ export class BroadcastRecipientSchema extends BaseModel {
 }
 
 export class BroadcastSchema extends BaseModel {
-  static $columns = ['createdAt', 'createdByUserId', 'deliveredCount', 'failedCount', 'id', 'messageTemplateId', 'name', 'organizationId', 'readCount', 'repliedCount', 'scheduledAt', 'sentCount', 'status', 'totalRecipients', 'updatedAt', 'whatsappConfigId'] as const
+  static $columns = ['createdAt', 'createdByUserId', 'deliveredCount', 'failedCount', 'id', 'messageTemplateId', 'name', 'organizationId', 'readCount', 'repliedCount', 'scheduledAt', 'sentCount', 'status', 'totalRecipients', 'updatedAt', 'variableMappings', 'whatsappConfigId'] as const
   $columns = BroadcastSchema.$columns
   @column.dateTime()
   declare createdAt: DateTime
@@ -133,6 +133,8 @@ export class BroadcastSchema extends BaseModel {
   declare totalRecipients: number
   @column.dateTime()
   declare updatedAt: DateTime | null
+  @column()
+  declare variableMappings: any | null
   @column()
   declare whatsappConfigId: string | null
 }

@@ -10,6 +10,7 @@ import {
   replaceCampaignRecipientsValidator,
   scheduleCampaignValidator,
   updateCampaignValidator,
+  type CampaignVariableMappings,
 } from '#validators/campaign'
 import '#types/http'
 
@@ -294,6 +295,7 @@ export default class CampaignsController {
       messageTemplateId: payload.messageTemplateId,
       scheduledAt: payload.scheduledAt,
       status: payload.status,
+      variableMappings: payload.variableMappings as CampaignVariableMappings | undefined,
     })
 
     return serialize(campaign)
@@ -323,6 +325,7 @@ export default class CampaignsController {
       campaignId: id,
       organizationId: request.activeMember!.organizationId,
       ...payload,
+      variableMappings: payload.variableMappings as CampaignVariableMappings | null | undefined,
     })
 
     return serialize(campaign)

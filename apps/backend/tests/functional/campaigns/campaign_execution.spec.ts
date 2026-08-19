@@ -5,7 +5,6 @@ import db from '@adonisjs/lucid/services/db'
 import CampaignException from '#exceptions/campaign_exception'
 import { encryptWhatsappAccessToken } from '#lib/meta_whatsapp/access_token_crypto'
 import type { MetaGraphClient } from '#lib/meta_whatsapp/graph_client'
-import { MediaAssetReferenceRepository } from '#repositories/media_asset_reference_repository'
 import { WhatsappWebhookRepository } from '#repositories/whatsapp_webhook_repository'
 import NullJobQueueDriver from '#services/job_queue/drivers/null_driver'
 import JobQueueManager from '#services/job_queue/job_queue_manager'
@@ -109,13 +108,14 @@ function fakeGraph(): MetaGraphClient {
 }
 
 function makeCampaignServices(outbound?: WhatsappOutboundService) {
-  const mediaReferences = new MediaAssetReferenceRepository()
-  const campaigns = new CampaignService(mediaReferences)
+  const campaigns = new CampaignService()
+  const outboundService = outbound ?? new WhatsappOutboundService(fakeGraph())
+  const webhookRepo = new WhatsappWebhookRepository()
   const execution = new CampaignExecutionService(
     campaigns,
-    outbound ?? new WhatsappOutboundService(fakeGraph()),
-    new WhatsappWebhookRepository(),
-    mediaReferences
+    outboundService,
+    webhookRepo,
+    undefined as ConstructorParameters<typeof CampaignExecutionService>[3]
   )
   return { campaigns, execution }
 }

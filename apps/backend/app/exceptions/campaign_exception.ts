@@ -82,6 +82,13 @@ export default class CampaignException extends Exception {
     })
   }
 
+  static invalidScheduledAt() {
+    return new this('scheduledAt is not a valid datetime', {
+      status: 422,
+      code: 'E_CAMPAIGN_INVALID_SCHEDULED_AT',
+    })
+  }
+
   static invalidReference() {
     return new this('One or more campaign references are invalid', {
       status: 422,

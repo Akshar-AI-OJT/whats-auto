@@ -1,6 +1,12 @@
 import db from '@adonisjs/lucid/services/db'
 import CampaignException from '#exceptions/campaign_exception'
 import {
+  InvalidScheduledAtError,
+  parseScheduledAt,
+  resolveIanaTimeZone,
+  toUtcIso,
+} from '#lib/scheduled_at'
+import {
   deriveParameterSchema,
   parseParameterSchema,
   pickRequiredParameterValues,
@@ -16,6 +22,8 @@ import {
   CAMPAIGN_SOFT_DELETED_STATUS,
   CAMPAIGN_SORT_FIELDS,
   type CAMPAIGN_STATUSES,
+  type CampaignVariableMapping,
+  type CampaignVariableMappings,
 } from '#validators/campaign'
 import type { DateTime } from 'luxon'
 
@@ -60,6 +68,7 @@ export type CampaignDto = {
   failedCount: number
   createdAt: string
   updatedAt: string | null
+  variableMappings: CampaignVariableMappings | null
 }
 
 export type CreateCampaignInput = {
@@ -68,8 +77,9 @@ export type CreateCampaignInput = {
   name: string
   whatsappConfigId?: string
   messageTemplateId?: string
-  scheduledAt?: DateTime | Date
+  scheduledAt?: DateTime | Date | string
   status?: 'draft' | 'scheduled'
+  variableMappings?: CampaignVariableMappings
 }
 
 export type ListCampaignsInput = {
@@ -89,8 +99,9 @@ export type UpdateCampaignInput = {
   name?: string
   whatsappConfigId?: string | null
   messageTemplateId?: string | null
-  scheduledAt?: DateTime | Date | null
+  scheduledAt?: DateTime | Date | string | null
   status?: 'draft' | 'scheduled'
+  variableMappings?: CampaignVariableMappings | null
 }
 
 export type PreviewCampaignInput = {
@@ -133,15 +144,21 @@ function isForeignKeyViolation(error: unknown): boolean {
   return false
 }
 
-function toJsDate(value: DateTime | Date): Date {
-  return value instanceof Date ? value : value.toJSDate()
-}
-
 function toIso(value: DateTime | Date | string | null | undefined): string | null {
   if (!value) return null
-  if (typeof value === 'string') return new Date(value).toISOString()
-  if (value instanceof Date) return value.toISOString()
-  return value.toISO()
+  try {
+    return toUtcIso(value)
+  } catch {
+    return null
+  }
+}
+
+function parseVariableMappings(raw: unknown): CampaignVariableMappings | null {
+  const parsed = parseJsonField(raw)
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return null
+  }
+  return parsed as CampaignVariableMappings
 }
 
 function mapCampaignRow(row: Record<string, unknown>): CampaignDto {
@@ -162,6 +179,7 @@ function mapCampaignRow(row: Record<string, unknown>): CampaignDto {
     failedCount: Number(row.failedCount ?? 0),
     createdAt: toIso(row.createdAt as DateTime | Date | string)!,
     updatedAt: toIso(row.updatedAt as DateTime | Date | string | null),
+    variableMappings: parseVariableMappings(row.variableMappings),
   }
 }
 
@@ -191,19 +209,26 @@ function toVariableMap(raw: unknown): Record<string, string> {
   return out
 }
 
-function contactTemplateValueCandidates(contact: {
+function usableTemplateString(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  return trimmed ? trimmed : undefined
+}
+
+type CampaignContactValues = {
   name: string | null
   email: string | null
   company: string | null
   phone: string
   customFields: unknown
-}): Record<string, string> {
+}
+
+function contactTemplateValueCandidates(contact: CampaignContactValues): Record<string, string> {
   const out: Record<string, string> = {}
   const set = (key: string, value: unknown) => {
-    if (typeof value !== 'string') return
-    const trimmed = value.trim()
-    if (!trimmed) return
-    out[key] = trimmed
+    const usable = usableTemplateString(value)
+    if (!usable) return
+    out[key] = usable
   }
 
   set('name', contact.name)
@@ -220,24 +245,98 @@ function contactTemplateValueCandidates(contact: {
   return out
 }
 
+/** Existing contact columns (plus the same name aliases used by automatic resolution). */
+function readMappedContactField(
+  contact: CampaignContactValues,
+  field: string
+): string | undefined {
+  switch (field) {
+    case 'name':
+    case 'first_name':
+    case 'customer_name':
+      return usableTemplateString(contact.name)
+    case 'email':
+      return usableTemplateString(contact.email)
+    case 'company':
+      return usableTemplateString(contact.company)
+    case 'phone':
+      return usableTemplateString(contact.phone)
+    default:
+      return undefined
+  }
+}
+
+function valuesFromVariableMappings(params: {
+  contact: CampaignContactValues | null
+  mappings?: CampaignVariableMappings | null
+}): Record<string, string> {
+  const out: Record<string, string> = {}
+  if (!params.mappings) return out
+
+  const customFields = params.contact ? toVariableMap(params.contact.customFields) : {}
+
+  for (const [param, mapping] of Object.entries(params.mappings)) {
+    const resolved = resolveMappedValue(mapping, params.contact, customFields)
+    if (resolved !== undefined) {
+      out[param] = resolved
+    }
+  }
+
+  return out
+}
+
+function resolveMappedValue(
+  mapping: CampaignVariableMapping | Record<string, unknown> | null | undefined,
+  contact: CampaignContactValues | null,
+  customFields: Record<string, string>
+): string | undefined {
+  if (!mapping || typeof mapping !== 'object' || Array.isArray(mapping)) {
+    return undefined
+  }
+
+  const source = (mapping as { source?: unknown }).source
+  if (source === 'contact_field') {
+    const field = usableTemplateString((mapping as { field?: unknown }).field)
+    if (!field || !contact) return undefined
+    return readMappedContactField(contact, field)
+  }
+
+  if (source === 'custom_field') {
+    const field = usableTemplateString((mapping as { field?: unknown }).field)
+    if (!field) return undefined
+    return usableTemplateString(customFields[field])
+  }
+
+  if (source === 'static') {
+    return usableTemplateString((mapping as { value?: unknown }).value)
+  }
+
+  return undefined
+}
+
 function resolveRecipientParameterValues(params: {
   schema: TemplateParameterSchema
-  contact: {
-    name: string | null
-    email: string | null
-    company: string | null
-    phone: string
-    customFields: unknown
-  } | null
+  contact: CampaignContactValues | null
+  mappings?: CampaignVariableMappings | null
   overrides?: Record<string, string> | null
 }): Record<string, string> {
+  const values: Record<string, string> = {
+    ...(params.contact ? contactTemplateValueCandidates(params.contact) : {}),
+  }
+
+  if (params.mappings) {
+    for (const param of Object.keys(params.mappings)) {
+      delete values[param]
+    }
+    Object.assign(values, valuesFromVariableMappings(params))
+  }
+
+  Object.assign(values, params.overrides ?? {})
+
   try {
     return pickRequiredParameterValues({
       schema: params.schema,
-      values: {
-        ...(params.contact ? contactTemplateValueCandidates(params.contact) : {}),
-        ...(params.overrides ?? {}),
-      },
+      values,
     })
   } catch (error) {
     if (error instanceof TemplateParameterError) {
@@ -281,6 +380,7 @@ const BROADCAST_COLUMNS = [
   'failedCount',
   'createdAt',
   'updatedAt',
+  'variableMappings',
 ] as const
 
 export class CampaignService {
@@ -327,6 +427,39 @@ export class CampaignService {
     }
 
     return row
+  }
+
+  protected async getOrganizationTimezone(organizationId: string): Promise<string> {
+    const row = await db
+      .from('organizations')
+      .where('id', organizationId)
+      .select('timezone')
+      .first()
+    return resolveIanaTimeZone(
+      typeof row?.timezone === 'string' ? row.timezone : null
+    )
+  }
+
+  /**
+   * Date/DateTime values are already absolute instants.
+   * Strings are parsed once: offset/Z as instants, naive as organization-local.
+   */
+  protected async resolveScheduledAt(
+    organizationId: string,
+    value: DateTime | Date | string
+  ): Promise<Date> {
+    try {
+      if (typeof value !== 'string') {
+        return parseScheduledAt(value, 'UTC')
+      }
+      const timeZone = await this.getOrganizationTimezone(organizationId)
+      return parseScheduledAt(value, timeZone)
+    } catch (error) {
+      if (error instanceof InvalidScheduledAtError) {
+        throw CampaignException.invalidScheduledAt()
+      }
+      throw error
+    }
   }
 
   protected async assertWhatsappConfigInOrg(organizationId: string, whatsappConfigId: string) {
@@ -447,6 +580,7 @@ export class CampaignService {
     organizationId: string
     campaignId: string
     messageTemplateId: string
+    mappings?: CampaignVariableMappings | null
   }): Promise<void> {
     const schema = await this.loadCampaignTemplateSchema(params)
     const required = [...schema.headerNames, ...schema.bodyNames]
@@ -473,6 +607,7 @@ export class CampaignService {
               customFields: row.customFields,
             }
           : null,
+        mappings: params.mappings,
         overrides: toVariableMap(row.variables),
       })
     }
@@ -572,6 +707,7 @@ export class CampaignService {
           contactIds: uniqueIds,
         })
       : null
+    const mappings = schema ? parseVariableMappings(campaign.variableMappings) : null
 
     const now = new Date()
     await db.transaction(async (trx) => {
@@ -602,6 +738,7 @@ export class CampaignService {
               ? resolveRecipientParameterValues({
                   schema,
                   contact: contacts?.get(contactId) ?? null,
+                  mappings,
                   overrides: params.variables,
                 })
               : (params.variables ?? null),
@@ -717,19 +854,23 @@ export class CampaignService {
     }
 
     if (input.scheduledAt !== undefined) {
-      updates.scheduledAt = input.scheduledAt ? toJsDate(input.scheduledAt) : null
+      updates.scheduledAt = input.scheduledAt
+        ? await this.resolveScheduledAt(input.organizationId, input.scheduledAt)
+        : null
     }
 
     if (input.status !== undefined) {
       updates.status = input.status
     }
 
+    if (input.variableMappings !== undefined) {
+      updates.variableMappings = input.variableMappings
+    }
+
     const nextStatus = (updates.status as string | undefined) ?? (existing.status as string)
     const nextScheduledAt =
       input.scheduledAt !== undefined
-        ? input.scheduledAt
-          ? toJsDate(input.scheduledAt)
-          : null
+        ? ((updates.scheduledAt as Date | null | undefined) ?? null)
         : existing.scheduledAt
           ? new Date(existing.scheduledAt as string | Date)
           : null
@@ -823,7 +964,9 @@ export class CampaignService {
    */
   async createCampaign(input: CreateCampaignInput): Promise<CampaignDto> {
     const name = input.name.trim()
-    const scheduledAt = input.scheduledAt ? toJsDate(input.scheduledAt) : null
+    const scheduledAt = input.scheduledAt
+      ? await this.resolveScheduledAt(input.organizationId, input.scheduledAt)
+      : null
     const status = input.status ?? (scheduledAt ? 'scheduled' : 'draft')
 
     if (status === 'scheduled' && !scheduledAt) {
@@ -848,6 +991,7 @@ export class CampaignService {
           name,
           whatsappConfigId: input.whatsappConfigId ?? null,
           messageTemplateId: input.messageTemplateId ?? null,
+          variableMappings: input.variableMappings ?? null,
           scheduledAt,
           status,
           totalRecipients: 0,
@@ -885,6 +1029,7 @@ export class CampaignService {
 
     const whatsappConfigId = (source.whatsappConfigId as string | null) ?? null
     const messageTemplateId = (source.messageTemplateId as string | null) ?? null
+    const variableMappings = parseVariableMappings(source.variableMappings)
 
     if (whatsappConfigId) {
       await this.assertWhatsappConfigInOrg(params.organizationId, whatsappConfigId)
@@ -904,6 +1049,7 @@ export class CampaignService {
           name: source.name as string,
           whatsappConfigId,
           messageTemplateId,
+          variableMappings,
           scheduledAt: null,
           status: CAMPAIGN_DRAFT_STATUS,
           totalRecipients: 0,
@@ -932,7 +1078,7 @@ export class CampaignService {
   async scheduleCampaign(params: {
     campaignId: string
     organizationId: string
-    scheduledAt: DateTime | Date
+    scheduledAt: DateTime | Date | string
   }): Promise<CampaignDto> {
     const existing = await this.findCampaignRowOrFail({
       campaignId: params.campaignId,
@@ -944,7 +1090,10 @@ export class CampaignService {
       throw CampaignException.notEligibleToSchedule(currentStatus)
     }
 
-    const scheduledAt = toJsDate(params.scheduledAt)
+    const scheduledAt = await this.resolveScheduledAt(
+      params.organizationId,
+      params.scheduledAt
+    )
     if (scheduledAt.getTime() <= Date.now()) {
       throw CampaignException.scheduledAtMustBeFuture()
     }
@@ -954,6 +1103,7 @@ export class CampaignService {
         organizationId: params.organizationId,
         campaignId: params.campaignId,
         messageTemplateId: existing.messageTemplateId as string,
+        mappings: parseVariableMappings(existing.variableMappings),
       })
     }
 
@@ -1082,6 +1232,7 @@ export class CampaignService {
       organizationId: params.organizationId,
       campaignId: params.campaignId,
       messageTemplateId: existing.messageTemplateId as string,
+      mappings: parseVariableMappings(existing.variableMappings),
     })
 
     // Conditional update prevents racing a second send into `sending`.
