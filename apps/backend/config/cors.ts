@@ -2,8 +2,6 @@ import app from '@adonisjs/core/services/app'
 import { defineConfig } from '@adonisjs/cors'
 import env from '#start/env'
 
-const frontendOrigin = env.get('CORS_ORIGIN').replace(/\/$/, '')
-
 /**
  * Configuration options to tweak the CORS policy. The following
  * options are documented on the official documentation website.
@@ -17,10 +15,10 @@ const corsConfig = defineConfig({
   enabled: true,
 
   /**
-   * Local/test: allow any origin (Next rewrite or direct :3333).
-   * Production: browser calls Railway from the Vercel origin in CORS_ORIGIN.
+   * In development, allow every origin to simplify local front/backend setup.
+   * In production, allow the configured frontend origin.
    */
-  origin: app.inProduction ? frontendOrigin : true,
+  origin: app.inDev ? true : [env.get('CORS_ORIGIN').replace(/\/$/, '')],
 
   /**
    * HTTP methods accepted for cross-origin requests.
