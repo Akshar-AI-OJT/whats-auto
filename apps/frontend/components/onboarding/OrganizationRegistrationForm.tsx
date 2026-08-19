@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useId, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { ArrowLeft, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -21,10 +21,13 @@ import {
   isValidWebsiteUrl,
   markOnboardingChecklistVisible,
   readPendingOnboardingContact,
+  saveOnboardingCheckoutSession,
   savePendingWorkspacePlan,
   savePendingWorkspacePreferences,
+  readOnboardingCheckoutSession,
+  ONBOARDING_PAYMENT_PATH,
+  ORG_SETUP_PATH,
 } from '@/lib/onboarding'
-import { ORG_SETUP_PATH } from '@/lib/onboarding'
 import {
   acceptInvitationPath,
   isAcceptInvitationPath,
@@ -42,6 +45,9 @@ import {
 import { AuthLayout } from '@/components/auth/auth-layout'
 import { AuthBranding } from '@/components/auth/auth-branding'
 import { useRouter } from '@/i18n/navigation'
+import { BillingCheckoutDialog } from '@/components/dashboard/billing/BillingCheckoutDialog'
+import { startOrResumeBillingCheckout } from '@/components/dashboard/billing/billing-utils'
+import { getPlanById } from '@/lib/plan-config'
 import { OrganizationBasicsStep } from './OrganizationBasicsStep'
 import { CompanyInformationStep } from './CompanyInformationStep'
 import { SubscriptionPlanSelectionStep, type PlanId } from './SubscriptionPlanSelectionStep'
@@ -94,6 +100,7 @@ export function OrganizationRegistrationForm({
   ...props
 }: React.ComponentProps<'form'>) {
   const t = useTranslations('onboarding.organization')
+  const tPlans = useTranslations('admin.subscriptions.plans')
   const router = useRouter()
   const queryClient = useQueryClient()
   const formErrorId = useId()
@@ -139,11 +146,22 @@ export function OrganizationRegistrationForm({
     }
   }, [router])
 
+  useEffect(() => {
+    if (guardingInvite) return
+    if (readOnboardingCheckoutSession()) {
+      router.replace(ONBOARDING_PAYMENT_PATH)
+    }
+  }, [guardingInvite, router])
+
   const [companyErrors, setCompanyErrors] = useState<OrganizationWizardCompanyErrors>({})
   const [preferencesErrors, setPreferencesErrors] =
     useState<OrganizationWizardPreferencesErrors>({})
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
+  const [checkoutPending, setCheckoutPending] = useState(false)
+  const [checkoutError, setCheckoutError] = useState<string | null>(null)
+  const checkoutLockRef = useRef(false)
 
   useEffect(() => {
     return () => {
@@ -367,15 +385,63 @@ export function OrganizationRegistrationForm({
     }
 
     if (step === 4) {
+      if (checkoutPending) return
       if (!selectedPlan) {
         setError(t('errors.planRequired'))
         return
       }
 
-      // UI-only: persist plan selection and proceed to dashboard.
-      savePendingWorkspacePlan(selectedPlan)
-      router.push('/dashboard')
+      const plan = getPlanById(selectedPlan)
+      if (!plan?.checkoutPlanId) {
+        setError(t('errors.planNotCheckoutable'))
+        return
+      }
+
+      setCheckoutError(null)
+      setConfirmOpen(true)
       return
+    }
+  }
+
+  async function handleCheckoutConfirm() {
+    if (checkoutPending || checkoutLockRef.current) return
+    if (!selectedPlan) return
+
+    const plan = getPlanById(selectedPlan)
+    if (!plan?.checkoutPlanId) {
+      setCheckoutError(t('errors.planNotCheckoutable'))
+      return
+    }
+
+    checkoutLockRef.current = true
+    setCheckoutPending(true)
+    setCheckoutError(null)
+
+    try {
+      savePendingWorkspacePlan(selectedPlan)
+      const result = await startOrResumeBillingCheckout(plan.checkoutPlanId)
+      saveOnboardingCheckoutSession({
+        planId: selectedPlan,
+        checkoutPlanId: plan.checkoutPlanId,
+        subscriptionId: result.subscriptionId,
+        checkoutUrl: result.checkoutUrl ?? null,
+        phase: result.checkoutUrl ? 'awaiting_gateway' : 'success',
+      })
+      setConfirmOpen(false)
+      router.replace(ONBOARDING_PAYMENT_PATH)
+    } catch (err) {
+      checkoutLockRef.current = false
+      const apiError = err as ApiError
+
+      if (apiError.status === 401) {
+        setCheckoutError(t('errors.sessionExpired'))
+        router.replace('/login')
+        return
+      }
+
+      setCheckoutError(apiError.message || t('errors.checkoutFailed'))
+    } finally {
+      setCheckoutPending(false)
     }
   }
 
@@ -403,7 +469,7 @@ export function OrganizationRegistrationForm({
         className={cn('flex w-full min-w-0 flex-col', className)}
         onSubmit={handleSubmit}
         noValidate
-        aria-busy={pending}
+        aria-busy={pending || checkoutPending}
         aria-describedby={error ? formErrorId : undefined}
         {...props}
       >
@@ -454,7 +520,7 @@ export function OrganizationRegistrationForm({
           {step === 4 ? (
             <SubscriptionPlanSelectionStep
               selectedPlan={selectedPlan}
-              pending={pending}
+              pending={pending || checkoutPending}
               onSelect={(plan) => {
                 setSelectedPlan(plan)
                 setError(null)
@@ -476,8 +542,8 @@ export function OrganizationRegistrationForm({
             <div className={cn('flex flex-col gap-2.5', step > 1 && 'sm:flex-row-reverse')}>
               <Button
                 type="submit"
-                disabled={pending}
-                aria-busy={pending}
+                disabled={pending || checkoutPending}
+                aria-busy={pending || checkoutPending}
                 className={cn(authPrimaryButtonClassName, step > 1 && 'sm:flex-1')}
               >
                 {pending ? (
@@ -488,7 +554,7 @@ export function OrganizationRegistrationForm({
                 ) : step === 3 ? (
                   t('createWorkspace')
                 ) : step === 4 ? (
-                  t('continueToDashboard')
+                  t('proceedToCheckout')
                 ) : (
                   t('continue')
                 )}
@@ -498,7 +564,7 @@ export function OrganizationRegistrationForm({
                 <Button
                   type="button"
                   variant="outline"
-                  disabled={pending}
+                  disabled={pending || checkoutPending}
                   className={cn(authOutlineButtonClassName, 'sm:flex-1')}
                   onClick={() => {
                     setError(null)
@@ -513,6 +579,22 @@ export function OrganizationRegistrationForm({
           </Field>
         </FieldGroup>
       </form>
+
+      <BillingCheckoutDialog
+        open={confirmOpen}
+        pending={checkoutPending}
+        error={checkoutError}
+        planName={selectedPlan ? tPlans(`${selectedPlan}.name`) : ''}
+        onOpenChange={(next) => {
+          if (!checkoutPending) {
+            setConfirmOpen(next)
+            if (!next) setCheckoutError(null)
+          }
+        }}
+        onConfirm={() => {
+          void handleCheckoutConfirm()
+        }}
+      />
     </AuthLayout>
   )
 }

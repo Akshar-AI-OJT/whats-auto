@@ -1240,6 +1240,7 @@
       "back": "वापस",
       "createWorkspace": "वर्कस्पेस बनाएँ",
       "continueToDashboard": "डैशबोर्ड पर जाएँ",
+      "proceedToCheckout": "चेकआउट जारी रखें",
       "creating": "वर्कस्पेस बनाया जा रहा है…",
       "step1": {
         "title": "अपना संगठन बनाएँ",
@@ -1364,7 +1365,23 @@
         "enterpriseCta": "सेल्स से संपर्क करें",
         "enterpriseCustomPrice": "कस्टम",
         "summaryLabel": "चयनित प्लान",
-        "summaryNote": "यह अभी UI-only ऑनबोर्डिंग चयन है।"
+        "summaryNote": "डैशबोर्ड में जाने से पहले आप इस प्लान की पुष्टि करेंगे और Razorpay से भुगतान पूरा करेंगे।"
+      },
+      "payment": {
+        "redirectingTitle": "Razorpay पर भेजा जा रहा है",
+        "redirectingSubtitle": "आपके चुने हुए प्लान के लिए सुरक्षित चेकआउट पृष्ठ खोला जा रहा है।",
+        "pendingTitle": "आपका भुगतान पुष्टि हो रहा है",
+        "pendingSubtitle": "यदि आपने चेकआउट पूरा कर लिया है, तो यह पृष्ठ अपने आप अपडेट होगा। भुगतान पूरा करने के लिए Razorpay फिर से खोल सकते हैं।",
+        "successTitle": "भुगतान सफल",
+        "successSubtitle": "आपकी सदस्यता पुष्टि हो गई है। तैयार होने पर वर्कस्पेस डैशबोर्ड पर जाएँ।",
+        "failedTitle": "भुगतान असफल",
+        "failedSubtitle": "हम आपका भुगतान पुष्टि नहीं कर सके। ऑनबोर्डिंग छोड़े बिना फिर से कोशिश कर सकते हैं।",
+        "cancelledTitle": "चेकआउट रद्द हुआ",
+        "cancelledSubtitle": "कोई भुगतान पूरा नहीं हुआ। चुने हुए प्लान के लिए Razorpay चेकआउट फिर से शुरू कर सकते हैं।",
+        "planLabel": "चयनित प्लान",
+        "continueToDashboard": "डैशबोर्ड पर जाएँ",
+        "completePayment": "भुगतान पूरा करें",
+        "refreshStatus": "स्थिति रीफ़्रेश करें"
       },
       "errors": {
         "generic": "कुछ गलत हो गया। कृपया फिर से कोशिश करें।",
@@ -1392,7 +1409,9 @@
         "dateFormatRequired": "दिनांक प्रारूप चुनें।",
         "timeFormatRequired": "समय प्रारूप चुनें।",
         "themeRequired": "थीम वरीयता चुनें।",
-        "planRequired": "कृपया सब्सक्रिप्शन प्लान चुनें।"
+        "planRequired": "कृपया सब्सक्रिप्शन प्लान चुनें।",
+        "planNotCheckoutable": "यह प्लान चेकआउट के लिए उपलब्ध नहीं है। Starter, Growth या Scale चुनें।",
+        "checkoutFailed": "चेकआउट शुरू नहीं हो सका। कृपया फिर से कोशिश करें।"
       }
     }
   },

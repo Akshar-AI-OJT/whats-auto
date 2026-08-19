@@ -128,7 +128,7 @@ function StatusBadge({ status, label }: { status: string; label: string }) {
   return (
     <span className={cn('inline-flex rounded-lg px-2 py-0.5 text-xs font-semibold ring-1', tone)}>
       {label}
-    </span>
+        </span>
   )
 }
 
@@ -409,8 +409,8 @@ export function SubscriptionsPage() {
           </div>
         </div>
       </div>
-    )
-  }
+  )
+}
 
   const rangeStart = total === 0 ? 0 : (page - 1) * PER_PAGE + 1
   const rangeEnd = Math.min(page * PER_PAGE, total)

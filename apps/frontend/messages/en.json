@@ -1245,6 +1245,7 @@
       "back": "Back",
       "createWorkspace": "Create Workspace",
       "continueToDashboard": "Continue to dashboard",
+      "proceedToCheckout": "Continue to checkout",
       "creating": "Creating workspace…",
       "step1": {
         "title": "Create your organization",
@@ -1369,7 +1370,23 @@
         "enterpriseCta": "Contact sales",
         "enterpriseCustomPrice": "Custom",
         "summaryLabel": "Selected plan",
-        "summaryNote": "This is a UI-only onboarding selection for now."
+        "summaryNote": "You'll confirm this plan and complete Razorpay checkout before entering the dashboard."
+      },
+      "payment": {
+        "redirectingTitle": "Redirecting to Razorpay",
+        "redirectingSubtitle": "We're opening the secure checkout page for your selected plan.",
+        "pendingTitle": "Confirming your payment",
+        "pendingSubtitle": "If you completed checkout, this page updates automatically. You can also reopen Razorpay to finish payment.",
+        "successTitle": "Payment successful",
+        "successSubtitle": "Your subscription is confirmed. Continue to your workspace dashboard when you're ready.",
+        "failedTitle": "Payment unsuccessful",
+        "failedSubtitle": "We couldn't confirm your payment. You can try again without leaving onboarding.",
+        "cancelledTitle": "Checkout cancelled",
+        "cancelledSubtitle": "No payment was completed. You can resume Razorpay checkout for the selected plan.",
+        "planLabel": "Selected plan",
+        "continueToDashboard": "Continue to dashboard",
+        "completePayment": "Complete payment",
+        "refreshStatus": "Refresh status"
       },
       "errors": {
         "generic": "Something went wrong. Please try again.",
@@ -1397,7 +1414,9 @@
         "dateFormatRequired": "Select a date format.",
         "timeFormatRequired": "Select a time format.",
         "themeRequired": "Select a theme preference.",
-        "planRequired": "Please select a subscription plan."
+        "planRequired": "Please select a subscription plan.",
+        "planNotCheckoutable": "This plan isn't available for checkout. Choose Starter, Growth, or Scale.",
+        "checkoutFailed": "Couldn't start checkout. Please try again."
       }
     }
   },
