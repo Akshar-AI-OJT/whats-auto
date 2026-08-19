@@ -35,6 +35,8 @@ const mailConfig = defineConfig({
       host: env.get('SMTP_HOST'),
       port: env.get('SMTP_PORT'),
       secure: env.get('SMTP_PORT') === 465,
+      connectionTimeout: 15_000,
+      greetingTimeout: 15_000,
       auth: {
         type: 'login',
         user: env.get('SMTP_USERNAME'),
