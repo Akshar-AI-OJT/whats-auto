@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
+import { useSearchParams } from 'next/navigation'
+import { useRouter, usePathname } from '@/i18n/navigation'
 import { Loader2, Search, UserPlus, Users } from 'lucide-react'
 import {
   api,
@@ -45,6 +47,9 @@ function formatCreatedAt(value: string) {
 
 export function ContactsPage() {
   const t = useTranslations('dashboard.contacts')
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
   const {
     tenantOrganizationId,
     canViewContacts,
@@ -52,11 +57,14 @@ export function ContactsPage() {
     isLoading: orgsLoading,
   } = useOrganizations()
 
+  const addFromQuery = searchParams.get('add') === '1'
+  const [addForced, setAddForced] = useState(false)
+  const addOpen = canCreateContacts && (addFromQuery || addForced)
+
   const [contacts, setContacts] = useState<ContactSummary[]>([])
   const [listLoading, setListLoading] = useState(true)
   const [listError, setListError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
-  const [addOpen, setAddOpen] = useState(false)
   const organizationIdRef = useRef(tenantOrganizationId)
   organizationIdRef.current = tenantOrganizationId
 
@@ -100,6 +108,23 @@ export function ContactsPage() {
     }
     void loadContacts(tenantOrganizationId)
   }, [orgsLoading, tenantOrganizationId, loadContacts])
+
+  useEffect(() => {
+    if (orgsLoading || canCreateContacts || !addFromQuery) return
+    router.replace(pathname)
+  }, [orgsLoading, canCreateContacts, addFromQuery, pathname, router])
+
+  function handleAddOpenChange(open: boolean) {
+    if (open) {
+      if (!canCreateContacts) return
+      setAddForced(true)
+      return
+    }
+    setAddForced(false)
+    if (addFromQuery) {
+      router.replace(pathname)
+    }
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -159,7 +184,7 @@ export function ContactsPage() {
             <Button
               type="button"
               className="shrink-0 gap-2"
-              onClick={() => setAddOpen(true)}
+              onClick={() => handleAddOpenChange(true)}
             >
               <UserPlus className="size-4" aria-hidden />
               {t('addCta')}
@@ -214,7 +239,7 @@ export function ContactsPage() {
               <Button
                 type="button"
                 className="mt-2 gap-2"
-                onClick={() => setAddOpen(true)}
+                onClick={() => handleAddOpenChange(true)}
               >
                 <UserPlus className="size-4" aria-hidden />
                 {t('addCta')}
@@ -259,7 +284,7 @@ export function ContactsPage() {
       {canCreateContacts ? (
         <AddContactSheet
           open={addOpen}
-          onOpenChange={setAddOpen}
+          onOpenChange={handleAddOpenChange}
           onCreated={() => {
             if (tenantOrganizationId) void loadContacts(tenantOrganizationId)
           }}

@@ -2706,6 +2706,8 @@
       "searchLabel": "Search workspace",
       "searchPlaceholder": "Find contacts, conversations, campaigns, or templates…",
       "searchPlaceholderShort": "Search workspace…",
+      "searchUnavailablePlaceholder": "Global search requires a backend API…",
+      "searchUnavailableHint": "Global search is not available yet. A backend search endpoint is required before this field can query your workspace.",
       "searchShortcutLabel": "Focus search ({shortcut})",
       "notifications": "Notifications",
       "profile": "Profile",
@@ -2775,17 +2777,28 @@
         },
         "conversations": {
           "label": "Active Conversations",
-          "hint": "coming soon"
+          "hint": "in your inbox"
         },
         "campaigns": {
           "label": "Campaigns Sent",
-          "hint": "coming soon"
+          "hint": "in this workspace"
         },
         "delivery": {
           "label": "Delivery Rate",
-          "hint": "coming soon"
+          "hint": "delivered / sent messages"
         }
       },
+      "loading": {
+        "conversations": "Loading recent conversations…",
+        "campaigns": "Loading recent campaigns…",
+        "activity": "Loading recent activity…"
+      },
+      "errors": {
+        "conversations": "Couldn’t load recent conversations. Please try again.",
+        "campaigns": "Couldn’t load recent campaigns. Please try again.",
+        "activity": "Couldn’t load recent activity. Please try again."
+      },
+      "retry": "Retry",
       "conversations": {
         "title": "Recent Conversations",
         "description": "Latest chats across your connected numbers.",
@@ -2832,6 +2845,8 @@
         "addContactDesc": "Create or import contacts into your list.",
         "createTemplate": "Create Template",
         "createTemplateDesc": "Design a reusable WhatsApp message template.",
+        "inbox": "Inbox",
+        "inboxDesc": "View your latest customer conversations.",
         "broadcastMessage": "Broadcast Message",
         "broadcastMessageDesc": "Send a one-time message to your audience."
       },
@@ -2839,7 +2854,8 @@
         "title": "Recent Activity",
         "description": "A live trail of workspace events.",
         "emptyTitle": "No activity yet",
-        "emptyDescription": "Workspace events will show up here as your team starts using Whats-Auto."
+        "emptyDescription": "Workspace events will show up here as your team starts using Whats-Auto.",
+        "noDetails": "No additional details"
       }
     },
     "analytics": {

@@ -75,7 +75,6 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
   const [profileOpen, setProfileOpen] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const searchId = useId()
-  const [searchQuery, setSearchQuery] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
   const isMac = useSyncExternalStore(subscribeNoop, detectMac, () => false)
   const isLg = useSyncExternalStore(subscribeLg, getIsLg, () => false)
@@ -262,13 +261,14 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
           ref={searchInputRef}
           id={searchId}
           type="search"
-          value={searchQuery}
+          value=""
+          readOnly
           placeholder={
-            isLg ? t('topbar.searchPlaceholder') : t('topbar.searchPlaceholderShort')
+            isLg ? t('topbar.searchUnavailablePlaceholder') : t('topbar.searchPlaceholderShort')
           }
           autoComplete="off"
-          aria-describedby={`${searchId}-hint`}
-          onChange={(event) => setSearchQuery(event.target.value)}
+          aria-describedby={`${searchId}-hint ${searchId}-status`}
+          title={t('topbar.searchUnavailableHint')}
           onFocus={() => setSearchFocused(true)}
           onBlur={() => setSearchFocused(false)}
           className={cn(
@@ -278,9 +278,12 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
             'transition-[border-color,box-shadow,background-color] duration-200',
             'hover:border-dash-border-strong',
             'focus-visible:border-primary/55 focus-visible:bg-canvas focus-visible:ring-2 focus-visible:ring-primary/30',
-            'cursor-text'
+            'cursor-not-allowed opacity-90'
           )}
         />
+        <p id={`${searchId}-status`} className="sr-only">
+          {t('topbar.searchUnavailableHint')}
+        </p>
         <kbd
           id={`${searchId}-hint`}
           className={cn(
