@@ -10,6 +10,11 @@
 */
 
 await import('reflect-metadata')
+import dns from 'node:dns'
+
+// Railway has no outbound IPv6; prefer IPv4 for SMTP and other outbound connections.
+dns.setDefaultResultOrder('ipv4first')
+
 const { Ignitor, prettyPrintError } = await import('@adonisjs/core')
 
 /**
