@@ -333,6 +333,7 @@ export class BroadcastSchema extends BaseModel {
     'status',
     'totalRecipients',
     'updatedAt',
+    'variableMappings',
     'whatsappConfigId',
   ] as const
   $columns = BroadcastSchema.$columns
@@ -372,6 +373,8 @@ export class BroadcastSchema extends BaseModel {
   declare totalRecipients: number
   @column.dateTime()
   declare updatedAt: DateTime | null
+  @column()
+  declare variableMappings: any | null
   @column()
   declare whatsappConfigId: string | null
 }

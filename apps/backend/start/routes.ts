@@ -32,6 +32,8 @@ const SuperAdminPlansController = () => import('#controllers/super_admin_plans_c
 const SuperAdminInvoicesController = () => import('#controllers/super_admin_invoices_controller')
 const SuperAdminAiConfigController = () => import('#controllers/super_admin_ai_config_controller')
 const SuperAdminAuditController = () => import('#controllers/super_admin_audit_controller')
+const SuperAdminPlatformUsersController = () =>
+  import('#controllers/super_admin_platform_users_controller')
 const OrganizationAdminUsersController = () =>
   import('#controllers/organization_admin_users_controller')
 const WhatsappWebhookController = () => import('#controllers/whatsapp_webhook_controller')
@@ -283,6 +285,25 @@ const requestBodySchemas: Record<string, JsonSchema> = {
       messageTemplateId: { type: 'string', format: 'uuid' },
       scheduledAt: { type: 'string', format: 'date-time', example: '2026-08-07T10:00:00.000Z' },
       status: { type: 'string', example: 'draft', enum: ['draft', 'scheduled'] },
+      variableMappings: {
+        type: 'object',
+        additionalProperties: {
+          type: 'object',
+          properties: {
+            source: {
+              type: 'string',
+              enum: ['contact_field', 'custom_field', 'static'],
+            },
+            field: { type: 'string' },
+            value: { type: 'string' },
+          },
+        },
+        example: {
+          customer_name: { source: 'contact_field', field: 'name' },
+          order_id: { source: 'custom_field', field: 'order_id' },
+          promo_code: { source: 'static', value: 'SUMMER26' },
+        },
+      },
     },
     ['name']
   ),
@@ -324,6 +345,24 @@ const requestBodySchemas: Record<string, JsonSchema> = {
       nullable: true,
     },
     status: { type: 'string', example: 'scheduled', enum: ['draft', 'scheduled'] },
+    variableMappings: {
+      type: 'object',
+      nullable: true,
+      additionalProperties: {
+        type: 'object',
+        properties: {
+          source: {
+            type: 'string',
+            enum: ['contact_field', 'custom_field', 'static'],
+          },
+          field: { type: 'string' },
+          value: { type: 'string' },
+        },
+      },
+      example: {
+        customer_name: { source: 'contact_field', field: 'name' },
+      },
+    },
   }),
   'put /api/v1/campaigns/{id}/recipients': bodySchema({
     contactIds: {
@@ -627,6 +666,7 @@ router
     router.get('/ai-config', [SuperAdminAiConfigController, 'show'])
     router.patch('/ai-config', [SuperAdminAiConfigController, 'update'])
     router.get('/audit-logs', [SuperAdminAuditController, 'index'])
+    router.get('/platform-users', [SuperAdminPlatformUsersController, 'index'])
   })
   .prefix('/api/v1/super-admin')
   .use([middleware.jwtAuth(), middleware.platform()])
