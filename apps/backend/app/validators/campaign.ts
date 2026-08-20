@@ -110,12 +110,8 @@ export const createCampaignValidator = vine.create(
     name: vine.string().trim().minLength(1).maxLength(200),
     whatsappConfigId: vine.string().trim().uuid().optional(),
     messageTemplateId: vine.string().trim().uuid().optional(),
-<<<<<<< HEAD
     headerMediaAssetId: vine.string().trim().uuid().optional(),
-    scheduledAt: vine.date().optional(),
-=======
     scheduledAt: scheduledAtString.optional(),
->>>>>>> feature/campaign-module
     status: vine.enum(CAMPAIGN_CREATE_STATUSES).optional(),
     variableMappings: campaignVariableMappingsSchema.optional(),
   })
@@ -179,12 +175,8 @@ export const updateCampaignValidator = vine.create(
     name: vine.string().trim().minLength(1).maxLength(200).optional(),
     whatsappConfigId: vine.string().trim().uuid().nullable().optional(),
     messageTemplateId: vine.string().trim().uuid().nullable().optional(),
-<<<<<<< HEAD
     headerMediaAssetId: vine.string().trim().uuid().nullable().optional(),
-    scheduledAt: vine.date().nullable().optional(),
-=======
     scheduledAt: scheduledAtString.nullable().optional(),
->>>>>>> feature/campaign-module
     status: vine.enum(CAMPAIGN_CREATE_STATUSES).optional(),
     variableMappings: campaignVariableMappingsSchema.nullable().optional(),
   })

@@ -99,11 +99,6 @@ test.group('Demo seeder functional', (group) => {
 
     const jwksResponse = await client.get('/api/auth/jwks')
     jwksResponse.assertStatus(200)
-<<<<<<< HEAD
-    const body = jwksResponse.body() as unknown as { keys?: unknown[] }
-    assert.isArray(body.keys)
-    assert.isAbove(body.keys!.length, 0)
-=======
     const parsed: unknown = JSON.parse(jwksResponse.text())
     if (
       typeof parsed !== 'object' ||
@@ -115,7 +110,6 @@ test.group('Demo seeder functional', (group) => {
       return
     }
     assert.isAbove(parsed.keys.length, 0)
->>>>>>> feature/campaign-module
   })
 
   test('RLS isolates contacts and messages between orgs', async ({ assert }) => {

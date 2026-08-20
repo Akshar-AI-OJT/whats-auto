@@ -26,18 +26,14 @@ import { NotificationService } from '#services/notification_service'
 import type { CAMPAIGN_STATUSES } from '#validators/campaign'
 import {
   CAMPAIGN_SORT_FIELDS,
-<<<<<<< HEAD
   CAMPAIGN_SOFT_DELETED_STATUS,
   CAMPAIGN_SCHEDULABLE_STATUSES,
   CAMPAIGN_SENDABLE_STATUSES,
   CAMPAIGN_DRAFT_STATUS,
   CAMPAIGN_SCHEDULED_STATUS,
   CAMPAIGN_SENDING_STATUS,
-=======
-  type CAMPAIGN_STATUSES,
   type CampaignVariableMapping,
   type CampaignVariableMappings,
->>>>>>> feature/campaign-module
 } from '#validators/campaign'
 import type { DateTime } from 'luxon'
 
@@ -94,12 +90,8 @@ export type CreateCampaignInput = {
   name: string
   whatsappConfigId?: string
   messageTemplateId?: string
-<<<<<<< HEAD
   headerMediaAssetId?: string
-  scheduledAt?: DateTime | Date
-=======
   scheduledAt?: DateTime | Date | string
->>>>>>> feature/campaign-module
   status?: 'draft' | 'scheduled'
   variableMappings?: CampaignVariableMappings
 }
@@ -121,12 +113,8 @@ export type UpdateCampaignInput = {
   name?: string
   whatsappConfigId?: string | null
   messageTemplateId?: string | null
-<<<<<<< HEAD
   headerMediaAssetId?: string | null
-  scheduledAt?: DateTime | Date | null
-=======
   scheduledAt?: DateTime | Date | string | null
->>>>>>> feature/campaign-module
   status?: 'draft' | 'scheduled'
   variableMappings?: CampaignVariableMappings | null
 }
@@ -173,19 +161,6 @@ function isForeignKeyViolation(error: unknown): boolean {
 
 function toIso(value: DateTime | Date | string | null | undefined): string | null {
   if (!value) return null
-<<<<<<< HEAD
-  if (typeof value === 'string') {
-    const date = new Date(value)
-    return Number.isNaN(date.getTime()) ? null : date.toISOString()
-  }
-  if (value instanceof Date) {
-    return Number.isNaN(value.getTime()) ? null : value.toISOString()
-  }
-  const iso = value.toISO()
-  if (!iso) return null
-  const parsed = new Date(iso)
-  return Number.isNaN(parsed.getTime()) ? null : iso
-=======
   try {
     return toUtcIso(value)
   } catch {
@@ -199,7 +174,6 @@ function parseVariableMappings(raw: unknown): CampaignVariableMappings | null {
     return null
   }
   return parsed as CampaignVariableMappings
->>>>>>> feature/campaign-module
 }
 
 function mapCampaignRow(row: Record<string, unknown>): CampaignDto {
@@ -1108,11 +1082,8 @@ export class CampaignService {
           name,
           whatsappConfigId,
           messageTemplateId: input.messageTemplateId ?? null,
-<<<<<<< HEAD
           headerMediaAssetId: input.headerMediaAssetId ?? null,
-=======
           variableMappings: input.variableMappings ?? null,
->>>>>>> feature/campaign-module
           scheduledAt,
           status,
           totalRecipients: 0,
@@ -1150,11 +1121,8 @@ export class CampaignService {
 
     const whatsappConfigId = (source.whatsappConfigId as string | null) ?? null
     const messageTemplateId = (source.messageTemplateId as string | null) ?? null
-<<<<<<< HEAD
     const headerMediaAssetId = (source.headerMediaAssetId as string | null) ?? null
-=======
     const variableMappings = parseVariableMappings(source.variableMappings)
->>>>>>> feature/campaign-module
 
     if (whatsappConfigId) {
       await this.assertWhatsappConfigInOrg(params.organizationId, whatsappConfigId)
@@ -1177,11 +1145,8 @@ export class CampaignService {
           name: source.name as string,
           whatsappConfigId,
           messageTemplateId,
-<<<<<<< HEAD
           headerMediaAssetId,
-=======
           variableMappings,
->>>>>>> feature/campaign-module
           scheduledAt: null,
           status: CAMPAIGN_DRAFT_STATUS,
           totalRecipients: 0,
@@ -1226,7 +1191,6 @@ export class CampaignService {
       throw CampaignException.notEligibleToSchedule(currentStatus)
     }
 
-<<<<<<< HEAD
     if (Number(existing.totalRecipients ?? 0) < 1) {
       throw CampaignException.recipientsRequired()
     }
@@ -1246,13 +1210,10 @@ export class CampaignService {
       await assertReadyMediaAsset(params.organizationId, existing.headerMediaAssetId as string)
     }
 
-    const scheduledAt = toJsDate(params.scheduledAt)
-=======
     const scheduledAt = await this.resolveScheduledAt(
       params.organizationId,
       params.scheduledAt
     )
->>>>>>> feature/campaign-module
     if (scheduledAt.getTime() <= Date.now()) {
       throw CampaignException.scheduledAtMustBeFuture()
     }

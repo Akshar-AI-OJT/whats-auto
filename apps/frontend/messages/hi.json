@@ -1422,6 +1422,7 @@
       "campaigns": "कैंपेन",
       "templates": "टेम्पलेट्स",
       "knowledge": "नॉलेज बेस",
+      "integrations": "इंटीग्रेशन",
       "notifications": "सूचनाएँ",
       "analytics": "एनालिटिक्स",
       "billing": "बिलिंग",
@@ -2211,6 +2212,55 @@
         "notConnected": "यह WhatsApp नंबर कनेक्ट नहीं है।",
         "metaGraph": "Meta Graph API त्रुटि। कृपया फिर कोशिश करें।",
         "testToRequired": "टेस्ट भेजने के लिए प्राप्तकर्ता फ़ोन नंबर दर्ज करें।"
+      }
+    },
+    "integrations": {
+      "eyebrow": "कनेक्ट",
+      "title": "इंटीग्रेशन",
+      "subtitle": "Shopenup कनेक्ट करें ताकि स्टोर इवेंट संपर्क बना सकें और WhatsApp टेम्पलेट भेज सकें।",
+      "refresh": "रीफ़्रेश",
+      "loading": "इंटीग्रेशन लोड हो रहे हैं…",
+      "shopenupTitle": "Shopenup",
+      "shopenupDescription": "अपने Shopenup स्टोर से ऑर्डर और कैटलॉग इवेंट प्राप्त करें।",
+      "connectCta": "Shopenup कनेक्ट करें",
+      "disconnect": "डिस्कनेक्ट",
+      "webhookLabel": "वेबहुक URL",
+      "webhookHint": "यह URL Shopenup में इवेंट एंडपॉइंट के रूप में पेस्ट करें।",
+      "copyWebhook": "URL कॉपी करें",
+      "copied": "कॉपी हो गया",
+      "keysTitle": "API कुंजियाँ",
+      "keysDescription": "Shopenup एक वर्कस्पेस API कुंजी से प्रमाणित होता है। सीक्रेट केवल एक बार दिखता है।",
+      "generateCta": "कुंजी बनाएँ",
+      "revoke": "रद्द करें",
+      "prefix": "प्रीफ़िक्स: {prefix}",
+      "lastUsed": "अंतिम उपयोग {date}",
+      "neverUsed": "कभी उपयोग नहीं हुई",
+      "noKeysTitle": "अभी कोई API कुंजी नहीं",
+      "noKeysDescription": "एक कुंजी बनाएँ, सीक्रेट कॉपी करें, फिर उसे Shopenup में पेस्ट करें।",
+      "secretTitle": "यह API कुंजी कॉपी करें",
+      "secretDescription": "यह सीक्रेट केवल एक बार दिखता है। इसे अभी Shopenup में सेव करें — बाद में नहीं देखा जा सकता।",
+      "secretLabel": "API कुंजी",
+      "copySecret": "कुंजी कॉपी करें",
+      "secretDone": "मैंने सेव कर लिया",
+      "status": {
+        "connected": "कनेक्टेड",
+        "disconnected": "कनेक्ट नहीं",
+        "error": "त्रुटि"
+      },
+      "toasts": {
+        "connected": "Shopenup कनेक्ट हो गया।",
+        "disconnected": "Shopenup डिस्कनेक्ट हो गया।",
+        "keyCreated": "API कुंजी बन गई। सीक्रेट अभी कॉपी करें।",
+        "keyRevoked": "API कुंजी रद्द कर दी गई।",
+        "webhookCopied": "वेबहुक URL कॉपी हो गया।",
+        "secretCopied": "API कुंजी कॉपी हो गई।"
+      },
+      "errors": {
+        "generic": "कुछ गलत हो गया। कृपया फिर कोशिश करें।",
+        "sessionExpired": "आपका सत्र समाप्त हो गया। कृपया फिर साइन इन करें।",
+        "permissionDenied": "आपको इस वर्कस्पेस में इंटीग्रेशन प्रबंधित करने की अनुमति नहीं है।",
+        "secretMissing": "API कुंजी बन गई, लेकिन सीक्रेट नहीं मिला। नई कुंजी बनाएँ।",
+        "clipboard": "कॉपी नहीं हो सका। टेक्स्ट चुनकर मैन्युअल कॉपी करें।"
       }
     },
     "templates": {

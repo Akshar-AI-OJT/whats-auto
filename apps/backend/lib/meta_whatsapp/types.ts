@@ -221,21 +221,38 @@ export type MetaSendTemplateDocumentParameter = {
 export type MetaSendTemplateParameter =
   MetaSendTemplateTextParameter | MetaSendTemplateImageParameter | MetaSendTemplateDocumentParameter
 
-export type MetaSendTemplateComponent = {
+export type MetaSendTemplateHeaderOrBodyComponent = {
   type: 'header' | 'body'
   parameters: MetaSendTemplateParameter[]
 }
 
+export type MetaSendTemplateUrlButtonComponent = {
+  type: 'button'
+  sub_type: 'url'
+  index: string
+  parameters: MetaSendTemplateTextParameter[]
+}
+
+export type MetaSendTemplateComponent =
+  MetaSendTemplateHeaderOrBodyComponent | MetaSendTemplateUrlButtonComponent
+
 /** Tenant-sendable header media is image-only; document is reserved for integrations. */
 export type TemplateHeaderMediaType = 'image' | 'document'
+
+export type TemplateUrlButtonParam = {
+  name: string
+  index: number
+}
 
 /**
  * Normalized named-variable contract stored on message_templates.parameterSchema.
  * Media headers set headerMediaType and leave headerNames empty.
+ * Named URL-button vars live in urlButtons (Meta index + parameter name).
  */
 export type TemplateParameterSchema = {
   headerNames: string[]
   bodyNames: string[]
+  urlButtons?: TemplateUrlButtonParam[]
   sendable: boolean
   unsupportedReason?: string
   headerMediaType?: TemplateHeaderMediaType
