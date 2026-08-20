@@ -4154,26 +4154,48 @@
     "platformUsers": {
       "eyebrow": "Access management",
       "title": "Platform Users",
-      "subtitle": "Manage internal users who operate the Super Admin console.",
+      "subtitle": "View all users across every organization on the platform.",
       "tableTitle": "All platform users",
       "tableDescription": "{count, plural, one {# user} other {# users}}",
+      "tableDescriptionLoading": "Loading users…",
+      "loading": "Loading platform users…",
+      "refresh": "Refresh",
+      "retry": "Try again",
+      "searchPlaceholder": "Search by name or email…",
+      "emptyTitle": "No platform users",
+      "emptyDescription": "No users were returned for this platform.",
+      "emptyFilteredTitle": "No matching users",
+      "emptyFilteredDescription": "Try a different search or status filter.",
+      "emptyValue": "—",
+      "moreOrganizations": "+{count} more",
+      "filters": {
+        "search": "Search",
+        "status": "Status",
+        "allStatuses": "All statuses"
+      },
+      "pagination": {
+        "previous": "Previous",
+        "next": "Next",
+        "pageOf": "Page {page} of {lastPage} · {total} total"
+      },
       "columns": {
         "name": "Name",
         "email": "Email",
         "role": "Role",
+        "organizations": "Organizations",
         "status": "Status",
         "created": "Created Date"
       },
       "roles": {
-        "superAdmin": "Super Admin",
-        "platformAdmin": "Platform Admin",
-        "support": "Support",
-        "finance": "Finance"
+        "superadmin": "Super Admin",
+        "user": "User"
       },
       "statuses": {
         "active": "Active",
-        "invited": "Invited",
         "inactive": "Inactive"
+      },
+      "errors": {
+        "loadFailed": "Couldn't load platform users. Please try again."
       }
     },
     "auditLogs": {

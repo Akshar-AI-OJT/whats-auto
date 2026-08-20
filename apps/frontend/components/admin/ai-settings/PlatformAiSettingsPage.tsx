@@ -6,7 +6,7 @@ export async function PlatformAiSettingsPage() {
   const t = await getTranslations('admin.aiSettings')
 
   return (
-    <div className="mx-auto flex w-full max-w-[min(100%,60rem)] flex-col gap-5 sm:gap-6">
+    <div className="flex w-full min-w-0 flex-col gap-5 sm:gap-6">
       <DashboardPanel as="section" className="px-4 py-5 sm:px-6 sm:py-6 md:px-7 md:py-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-6">
           <div className="min-w-0">

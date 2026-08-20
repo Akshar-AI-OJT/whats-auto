@@ -1015,6 +1015,42 @@ export type RoleUpdatePreview = {
   affectedMembers: Array<{ id: string; userId: string }>
 }
 
+/** Nested org membership from GET /api/v1/super-admin/platform-users */
+export type SuperAdminPlatformUserOrganization = {
+  memberId: string
+  organizationId: string
+  organizationName: string
+  organizationSlug: string
+  organizationStatus: boolean
+  role: string
+  roleId: string
+}
+
+/** Row from GET /api/v1/super-admin/platform-users */
+export type SuperAdminPlatformUser = {
+  id: string
+  name: string
+  firstname: string
+  lastname: string
+  email: string
+  isActive: boolean
+  status: 'active' | 'inactive'
+  emailVerified: boolean
+  createdAt: string
+  updatedAt: string | null
+  platformRole: 'superadmin' | null
+  organizations: SuperAdminPlatformUserOrganization[]
+}
+
+export type ListSuperAdminPlatformUsersParams = {
+  page?: number
+  perPage?: number
+  search?: string
+  status?: 'active' | 'inactive' | 'all'
+  organizationId?: string
+  role?: string
+}
+
 /** Row from GET /api/v1/super-admin/organizations */
 export type SuperAdminOrganization = {
   id: string
@@ -2483,6 +2519,25 @@ export const api = {
         return protectedRequest<
           { data?: AuthorizationAuditEvent[] } | AuthorizationAuditEvent[]
         >(`/api/v1/super-admin/audit-logs${query ? `?${query}` : ''}`, {
+          method: 'GET',
+        })
+      },
+    },
+
+    platformUsers: {
+      list: (params: ListSuperAdminPlatformUsersParams = {}) => {
+        const qs = new URLSearchParams()
+        if (params.page != null) qs.set('page', String(params.page))
+        if (params.perPage != null) qs.set('perPage', String(params.perPage))
+        if (params.search?.trim()) qs.set('search', params.search.trim())
+        if (params.status && params.status !== 'all') qs.set('status', params.status)
+        if (params.organizationId) qs.set('organizationId', params.organizationId)
+        if (params.role?.trim()) qs.set('role', params.role.trim())
+        const query = qs.toString()
+        return protectedRequest<
+          | Paginated<SuperAdminPlatformUser>
+          | { data?: SuperAdminPlatformUser[]; meta?: PaginationMeta }
+        >(`/api/v1/super-admin/platform-users${query ? `?${query}` : ''}`, {
           method: 'GET',
         })
       },

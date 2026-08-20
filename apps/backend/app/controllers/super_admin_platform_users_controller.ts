@@ -18,7 +18,7 @@ export default class SuperAdminPlatformUsersController {
    * @paramQuery status - active|inactive|all - @type(string)
    * @paramQuery organizationId - Filter to users with a live membership in this organization - @type(string)
    * @paramQuery role - Filter by live organization membership role name - @type(string)
-   * @responseBody 200 - { "data": [{ "id": "uuid", "name": "Ada Agent", "email": "agent@example.com", "isActive": true, "status": "active", "platformRole": null, "organizations": [] }], "meta": { "total": 1, "perPage": 20, "currentPage": 1, "lastPage": 1 } }
+   * @responseBody 200 - { "data": [{ "id": "uuid", "name": "Ada Agent", "email": "agent@example.com", "isActive": true, "status": "active", "platformRole": "superadmin", "organizations": [] }], "meta": { "total": 1, "perPage": 20, "currentPage": 1, "lastPage": 1 } }
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 403 - { "error": "Permission denied: platform:tenants_view", "code": "PERMISSION_DENIED" }
    */

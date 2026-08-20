@@ -4149,26 +4149,48 @@
     "platformUsers": {
       "eyebrow": "एक्सेस प्रबंधन",
       "title": "प्लेटफ़ॉर्म उपयोगकर्ता",
-      "subtitle": "सुपर एडमिन कंसोल चलाने वाले आंतरिक उपयोगकर्ताओं को प्रबंधित करें।",
+      "subtitle": "प्लेटफ़ॉर्म पर हर संगठन के सभी उपयोगकर्ताओं को देखें।",
       "tableTitle": "सभी प्लेटफ़ॉर्म उपयोगकर्ता",
       "tableDescription": "{count, plural, one {# उपयोगकर्ता} other {# उपयोगकर्ता}}",
+      "tableDescriptionLoading": "उपयोगकर्ता लोड हो रहे हैं…",
+      "loading": "प्लेटफ़ॉर्म उपयोगकर्ता लोड हो रहे हैं…",
+      "refresh": "रिफ़्रेश",
+      "retry": "फिर से कोशिश करें",
+      "searchPlaceholder": "नाम या ईमेल से खोजें…",
+      "emptyTitle": "कोई प्लेटफ़ॉर्म उपयोगकर्ता नहीं",
+      "emptyDescription": "इस प्लेटफ़ॉर्म के लिए कोई उपयोगकर्ता नहीं मिला।",
+      "emptyFilteredTitle": "कोई मेल खाता उपयोगकर्ता नहीं",
+      "emptyFilteredDescription": "कोई दूसरा खोज या स्थिति फ़िल्टर आज़माएँ।",
+      "emptyValue": "—",
+      "moreOrganizations": "+{count} और",
+      "filters": {
+        "search": "खोज",
+        "status": "स्थिति",
+        "allStatuses": "सभी स्थितियाँ"
+      },
+      "pagination": {
+        "previous": "पिछला",
+        "next": "अगला",
+        "pageOf": "पृष्ठ {page} / {lastPage} · कुल {total}"
+      },
       "columns": {
         "name": "नाम",
         "email": "ईमेल",
         "role": "भूमिका",
+        "organizations": "संगठन",
         "status": "स्थिति",
         "created": "निर्माण तिथि"
       },
       "roles": {
-        "superAdmin": "सुपर एडमिन",
-        "platformAdmin": "प्लेटफ़ॉर्म एडमिन",
-        "support": "सपोर्ट",
-        "finance": "फाइनेंस"
+        "superadmin": "सुपर एडमिन",
+        "user": "उपयोगकर्ता"
       },
       "statuses": {
         "active": "सक्रिय",
-        "invited": "आमंत्रित",
         "inactive": "निष्क्रिय"
+      },
+      "errors": {
+        "loadFailed": "प्लेटफ़ॉर्म उपयोगकर्ता लोड नहीं हो सके। कृपया फिर से कोशिश करें।"
       }
     },
     "auditLogs": {
