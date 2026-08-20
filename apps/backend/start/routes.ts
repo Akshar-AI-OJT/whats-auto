@@ -50,6 +50,11 @@ const BillingRazorpayWebhookController = () =>
   import('#controllers/billing_razorpay_webhook_controller')
 const InboxEventsController = () => import('#controllers/inbox_events_controller')
 const NotificationsController = () => import('#controllers/notifications_controller')
+const ApiKeysController = () => import('#controllers/api_keys_controller')
+const IntegrationConnectionsController = () =>
+  import('#controllers/integration_connections_controller')
+const ExternalEventsController = () => import('#controllers/external_events_controller')
+const ShopenupIntegrationsController = () => import('#controllers/shopenup_integrations_controller')
 
 type JsonSchema = {
   type: 'object'
@@ -417,6 +422,48 @@ const requestBodySchemas: Record<string, JsonSchema> = {
     },
     ['replacementRole']
   ),
+  'post /api/v1/api-keys': bodySchema(
+    {
+      name: { type: 'string', example: 'Shopenup Production' },
+      scopes: {
+        type: 'array',
+        items: { type: 'string' },
+        example: ['events:write'],
+      },
+    },
+    ['name']
+  ),
+  'put /api/v1/integrations/{provider}': bodySchema(
+    {
+      displayName: { type: 'string', example: 'Shopenup Production' },
+      externalAccountId: { type: 'string', example: 'store_1' },
+      config: {
+        type: 'object',
+        example: { storeUrl: 'https://shop.example.com' },
+      },
+    },
+    ['displayName']
+  ),
+  'post /api/v1/integrations/events': bodySchema(
+    {
+      externalEventId: { type: 'string', example: 'crm_1' },
+      type: { type: 'string', example: 'crm.contact_upserted' },
+      occurredAt: { type: 'string', example: '2026-08-17T12:00:00.000Z' },
+      payload: { type: 'object', example: { phone: '+919999999999' } },
+    },
+    ['externalEventId', 'type', 'occurredAt', 'payload']
+  ),
+  'post /api/v1/integrations/shopenup/events': bodySchema(
+    {
+      eventType: { type: 'string', example: 'order.placed' },
+      timestamp: { type: 'string', example: '2026-08-17T12:00:00.000Z' },
+      data: {
+        type: 'object',
+        example: { orderId: 'ord_1', isCod: true, customerPhone: '+919999999999' },
+      },
+    },
+    ['eventType', 'data']
+  ),
 }
 
 //  Swagger UI + JSON spec
@@ -486,6 +533,22 @@ router
     router.post('/billing/razorpay', [BillingRazorpayWebhookController, 'receive'])
   })
   .prefix('/api/v1/webhooks')
+
+/*
+|--------------------------------------------------------------------------
+| Public integration ingress (API key — no jwtAuth / tenant)
+|--------------------------------------------------------------------------
+*/
+router
+  .group(() => {
+    router.post('/events', [ExternalEventsController, 'store'])
+    router.post('/shopenup/events', [ShopenupIntegrationsController, 'store'])
+  })
+  .prefix('/api/v1/integrations')
+  .use([
+    middleware.rateLimit({ max: 120, windowMs: 60 * 1000, name: 'integration-events' }),
+    middleware.apiKeyAuth(),
+  ])
 
 /*
 |--------------------------------------------------------------------------
@@ -674,6 +737,27 @@ router
     router.delete('/:id', [TagsController, 'destroy'])
   })
   .prefix('/api/v1/tags')
+  .use([middleware.jwtAuth(), middleware.tenant()])
+
+// tenant API keys — hashed secrets for public integration ingress
+router
+  .group(() => {
+    router.get('/', [ApiKeysController, 'index'])
+    router.post('/', [ApiKeysController, 'store'])
+    router.post('/:id/revoke', [ApiKeysController, 'revoke'])
+  })
+  .prefix('/api/v1/api-keys')
+  .use([middleware.jwtAuth(), middleware.tenant()])
+
+// tenant integration connections — v1 Shopenup only
+router
+  .group(() => {
+    router.get('/', [IntegrationConnectionsController, 'index'])
+    router.get('/:provider', [IntegrationConnectionsController, 'show'])
+    router.put('/:provider', [IntegrationConnectionsController, 'upsert'])
+    router.delete('/:provider', [IntegrationConnectionsController, 'destroy'])
+  })
+  .prefix('/api/v1/integrations')
   .use([middleware.jwtAuth(), middleware.tenant()])
 
 // media uploads — direct-to-S3 pending → ready lifecycle + Media Library

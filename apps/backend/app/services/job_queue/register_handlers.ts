@@ -11,6 +11,7 @@ import { createAiProcessDocumentHandler } from '#services/job_queue/handlers/ai_
 import { createAiDebounceTurnHandler } from '#services/job_queue/handlers/ai_debounce_turn_handler'
 import { createAiSummarizeConversationHandler } from '#services/job_queue/handlers/ai_summarize_conversation_handler'
 import { createAiReindexAllDocumentsHandler } from '#services/job_queue/handlers/ai_reindex_all_documents_handler'
+import { createIntegrationEventsRecoveryHandler } from '#services/job_queue/handlers/integration_events_recovery_handler'
 import app from '@adonisjs/core/services/app'
 import { CampaignExecutionService } from '#services/campaign_execution_service'
 
@@ -34,4 +35,5 @@ export async function registerJobHandlers(driver: JobQueueDriver): Promise<void>
   await driver.work(JOB_NAMES.AI_DEBOUNCE_TURN, createAiDebounceTurnHandler())
   await driver.work(JOB_NAMES.AI_SUMMARIZE_CONVERSATION, createAiSummarizeConversationHandler())
   await driver.work(JOB_NAMES.AI_REINDEX_ALL_DOCUMENTS, createAiReindexAllDocumentsHandler())
+  await driver.work(JOB_NAMES.INTEGRATION_EVENTS_RECOVERY, createIntegrationEventsRecoveryHandler())
 }

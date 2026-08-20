@@ -88,6 +88,12 @@ export default await Env.create(new URL('../', import.meta.url), {
    */
   MEDIA_STORAGE_NAMESPACE_V2: Env.schema.boolean.optional(),
 
+  /**
+   * Optional smoke-test only. When the mapped shopenup_* template is missing
+   * or not approved, send this approved name instead (e.g. hello_world).
+   * Unset after real templates are approved.
+   */
+  INTEGRATION_COMMERCE_TEMPLATE_FALLBACK: Env.schema.string.optional(),
   /*
   |----------------------------------------------------------
   | Variables for configuring the mail package

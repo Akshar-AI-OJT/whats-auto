@@ -173,6 +173,23 @@ export class WhatsappWebhookRepository {
   }
 
   /**
+   * Connected WhatsApp config for the tenant, if any.
+   */
+  async findConnectedConfigId(
+    trx: TransactionClientContract,
+    organizationId: string
+  ): Promise<string | null> {
+    const row = await trx
+      .from('whatsapp_configs')
+      .where('organizationId', organizationId)
+      .where('status', 'connected')
+      .select('id')
+      .first()
+
+    return row ? (row.id as string) : null
+  }
+
+  /**
    * Insert inbound message idempotently by providerMessageId (wamid).
    * Conversation counters/reopen only run when the insert succeeds.
    * Meta extras go only into metadata — interactivePayload stays null.

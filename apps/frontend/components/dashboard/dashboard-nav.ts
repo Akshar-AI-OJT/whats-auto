@@ -10,6 +10,7 @@ import {
   Settings,
   UsersRound,
   BookOpen,
+  Plug,
   Image as ImageIcon,
   ScrollText,
   type LucideIcon,
@@ -37,6 +38,7 @@ export const DASHBOARD_NAV_KEYS = [
   'templates',
   'media',
   'knowledge',
+  'integrations',
   'analytics',
   'team',
   'auditLogs',
@@ -75,11 +77,12 @@ export const DASHBOARD_NAV_ICONS: Record<DashboardNavKey, LucideIcon> = {
   templates: FileText,
   media: ImageIcon,
   knowledge: BookOpen,
+  integrations: Plug,
+  notifications: Bell,
   analytics: BarChart3,
   team: UsersRound,
   auditLogs: ScrollText,
   billing: CreditCard,
-  notifications: Bell,
   settings: Settings,
 }
 
@@ -92,11 +95,12 @@ export const DASHBOARD_NAV_HREFS: Partial<Record<DashboardNavKey, string>> = {
   templates: '/dashboard/templates',
   media: '/dashboard/templates/media',
   knowledge: '/dashboard/knowledge',
+  integrations: '/dashboard/integrations',
+  notifications: '/dashboard/notifications',
   analytics: '/dashboard/analytics',
   team: '/dashboard/team',
   auditLogs: '/dashboard/audit-logs',
   billing: '/dashboard/billing',
-  notifications: '/dashboard/notifications',
   settings: '/dashboard/settings',
 }
 
@@ -108,9 +112,7 @@ export type DashboardNavChild = {
 }
 
 /** Nested items under Team Management and Contacts & Audience. */
-export const DASHBOARD_NAV_CHILDREN: Partial<
-  Record<DashboardNavKey, DashboardNavChild[]>
-> = {
+export const DASHBOARD_NAV_CHILDREN: Partial<Record<DashboardNavKey, DashboardNavChild[]>> = {
   team: [
     { key: 'teamMembers', href: '/dashboard/team', permission: PERMISSIONS.TEAM_VIEW },
     {
@@ -141,6 +143,7 @@ export const DASHBOARD_NAV_PERMISSION: Partial<Record<DashboardNavKey, string>> 
   templates: PERMISSIONS.TEMPLATES_VIEW,
   media: PERMISSIONS.MEDIA_VIEW,
   knowledge: PERMISSIONS.AI_KB_VIEW,
+  integrations: PERMISSIONS.INTEGRATIONS_VIEW,
   auditLogs: PERMISSIONS.AUDIT_VIEW,
   analytics: PERMISSIONS.ANALYTICS_VIEW,
   billing: PERMISSIONS.BILLING_VIEW,
