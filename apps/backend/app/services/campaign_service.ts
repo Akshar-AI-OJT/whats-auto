@@ -1,5 +1,8 @@
+import logger from '@adonisjs/core/services/logger'
 import db from '@adonisjs/lucid/services/db'
 import CampaignException from '#exceptions/campaign_exception'
+import { enqueueCampaignWake, removeCampaignWake } from '#services/campaign_queue'
+import { NotificationService } from '#services/notification_service'
 import {
   InvalidScheduledAtError,
   parseScheduledAt,
@@ -1090,6 +1093,10 @@ export class CampaignService {
       throw CampaignException.notEligibleToSchedule(currentStatus)
     }
 
+    const previousScheduledAt = existing.scheduledAt
+      ? new Date(existing.scheduledAt as string | Date)
+      : null
+
     const scheduledAt = await this.resolveScheduledAt(
       params.organizationId,
       params.scheduledAt
@@ -1127,26 +1134,49 @@ export class CampaignService {
       throw CampaignException.notEligibleToSchedule(latest.status as string)
     }
 
-    await this.registerCampaignSchedule({
-      organizationId: params.organizationId,
-      campaignId: params.campaignId,
-      scheduledAt,
-    })
+    try {
+      await this.registerCampaignSchedule({
+        organizationId: params.organizationId,
+        campaignId: params.campaignId,
+        scheduledAt,
+      })
+    } catch (error) {
+      await db
+        .from('broadcasts')
+        .where('id', params.campaignId)
+        .where('organizationId', params.organizationId)
+        .where('status', CAMPAIGN_SCHEDULED_STATUS)
+        .update({
+          status: currentStatus,
+          scheduledAt: previousScheduledAt,
+        })
+      logger.error(
+        {
+          campaignId: params.campaignId,
+          organizationId: params.organizationId,
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'campaigns.enqueue_failed'
+      )
+      throw error
+    }
 
     return mapCampaignRow(row)
   }
 
   /**
-   * Placeholder for future campaign scheduler integration.
-   * Job queue (pg-boss) exists for WhatsApp outbound / billing, but there is no
-   * campaign schedule job yet. Hook registration here when `JOB_NAMES` gains one.
+   * Enqueue a delayed CAMPAIGN_EXECUTE wake for the canonical scheduledAt instant.
    */
-  protected async registerCampaignSchedule(_params: {
+  protected async registerCampaignSchedule(params: {
     organizationId: string
     campaignId: string
     scheduledAt: Date
   }): Promise<void> {
-    // Future: register a delayed job to call sendCampaign (or fan-out) at scheduledAt.
+    await enqueueCampaignWake({
+      organizationId: params.organizationId,
+      campaignId: params.campaignId,
+      runAt: params.scheduledAt,
+    })
   }
 
   /**
@@ -1191,19 +1221,21 @@ export class CampaignService {
   }
 
   /**
-   * Placeholder for removing a future campaign schedule job.
-   * No campaign schedule job exists yet — hook unschedule/cancel here when wired.
+   * Best-effort removal of the delayed CAMPAIGN_EXECUTE wake.
    */
-  protected async unregisterCampaignSchedule(_params: {
+  protected async unregisterCampaignSchedule(params: {
     organizationId: string
     campaignId: string
   }): Promise<void> {
-    // Future: cancel/remove the delayed job registered by registerCampaignSchedule.
+    await removeCampaignWake({
+      organizationId: params.organizationId,
+      campaignId: params.campaignId,
+    })
   }
 
   /**
-   * Kick off campaign send: mark as `sending` ("running") when eligible.
-   * Does not deliver WhatsApp messages yet — broadcast fan-out is a future queue job.
+   * Kick off campaign send: mark as `sending` ("running") when eligible,
+   * then enqueue an immediate CAMPAIGN_EXECUTE wake. Delivery happens in the worker.
    * Soft-deleted campaigns are treated as not found (404).
    */
   async sendCampaign(params: { campaignId: string; organizationId: string }): Promise<CampaignDto> {
@@ -1249,25 +1281,43 @@ export class CampaignService {
       throw CampaignException.notEligibleToSend(latest.status as string)
     }
 
-    await this.enqueueCampaignSend({
-      organizationId: params.organizationId,
-      campaignId: params.campaignId,
-    })
+    try {
+      await this.enqueueCampaignSend({
+        organizationId: params.organizationId,
+        campaignId: params.campaignId,
+      })
+    } catch (error) {
+      await db
+        .from('broadcasts')
+        .where('id', params.campaignId)
+        .where('organizationId', params.organizationId)
+        .where('status', CAMPAIGN_SENDING_STATUS)
+        .update({ status: currentStatus })
+      logger.error(
+        {
+          campaignId: params.campaignId,
+          organizationId: params.organizationId,
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'campaigns.enqueue_failed'
+      )
+      throw error
+    }
 
     return mapCampaignRow(row)
   }
 
   /**
-   * Placeholder for future campaign broadcast queue integration.
-   * Per-conversation outbound (`WhatsappOutboundService` + pg-boss) exists, but there is
-   * no campaign/broadcast fan-out job yet. Hook enqueue here when `JOB_NAMES` gains one.
+   * Enqueue an immediate CAMPAIGN_EXECUTE wake for manual launch.
    */
-  protected async enqueueCampaignSend(_params: {
+  protected async enqueueCampaignSend(params: {
     organizationId: string
     campaignId: string
   }): Promise<void> {
-    // Future: enqueue campaign broadcast worker to process `broadcast_recipients`
-    // via WhatsappOutboundService.queueTemplate (or equivalent) per recipient.
+    await enqueueCampaignWake({
+      organizationId: params.organizationId,
+      campaignId: params.campaignId,
+    })
   }
 
   /**
@@ -1329,6 +1379,41 @@ export class CampaignService {
       bodyPreview: applyTemplateVariables(bodyText, variables)!,
       footerPreview: applyTemplateVariables(footerText, variables),
       buttons: parseJsonField(template.buttons) ?? null,
+    }
+  }
+
+  /**
+   * Best-effort lifecycle notification for the campaign creator.
+   * Skips when createdByUserId is null. Never throws — campaign flow must not fail on notify.
+   */
+  async notifyCreatorBestEffort(params: {
+    organizationId: string
+    createdByUserId: string | null
+    type: string
+    title: string
+    body: string
+    campaignId: string
+  }): Promise<void> {
+    if (!params.createdByUserId) return
+
+    try {
+      await new NotificationService().createNotification({
+        organizationId: params.organizationId,
+        userId: params.createdByUserId,
+        type: params.type,
+        title: params.title,
+        body: params.body,
+      })
+    } catch (error) {
+      logger.error(
+        {
+          campaignId: params.campaignId,
+          organizationId: params.organizationId,
+          type: params.type,
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'campaigns.notification_failed'
+      )
     }
   }
 }
