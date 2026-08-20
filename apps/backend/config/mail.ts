@@ -1,47 +1,48 @@
 import env from '#start/env'
 import { defineConfig, transports } from '@adonisjs/mail'
 
-const mailConfig = defineConfig({
-  default: env.get('MAIL_MAILER'),
+const mailer = env.get('MAIL_MAILER')
 
-  /**
-   * The mailers object can be used to configure multiple mailers
-   * each using a different transport or same transport with different
-   * options.
-   */
+if (mailer === 'smtp') {
+  for (const key of ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USERNAME', 'SMTP_PASSWORD'] as const) {
+    if (!env.get(key)) {
+      throw new Error(`${key} is required when MAIL_MAILER=smtp`)
+    }
+  }
+}
+
+if (mailer === 'brevo' && !env.get('BREVO_API')) {
+  throw new Error('BREVO_API is required when MAIL_MAILER=brevo')
+}
+
+const mailConfig = defineConfig({
+  default: mailer,
+
   from: {
     address: env.get('MAIL_FROM_ADDRESS'),
     name: env.get('MAIL_FROM_NAME'),
   },
 
-  /**
-   * The globals are shared with all the templates rendered using the
-   * configured template engine.
-   *
-   * This could be a nice place to define the logo URL, links base URL
-   * the brand name to be used within the emails
-   */
   globals: {
     brandName: 'WhatsAuto',
   },
 
-  /**
-   * The mailers object can be used to configure multiple mailers
-   * each using a different transport or same transport with different
-   * options.
-   */
   mailers: {
     smtp: transports.smtp({
-      host: env.get('SMTP_HOST'),
-      port: env.get('SMTP_PORT'),
-      secure: env.get('SMTP_PORT') === 465,
+      host: env.get('SMTP_HOST', 'localhost'),
+      port: env.get('SMTP_PORT', 1025),
+      secure: env.get('SMTP_PORT', 1025) === 465,
       connectionTimeout: 15_000,
       greetingTimeout: 15_000,
       auth: {
         type: 'login',
-        user: env.get('SMTP_USERNAME'),
-        pass: env.get('SMTP_PASSWORD').release(),
+        user: env.get('SMTP_USERNAME', ''),
+        pass: env.get('SMTP_PASSWORD')?.release() ?? '',
       },
+    }),
+    brevo: transports.brevo({
+      key: env.get('BREVO_API')?.release() ?? '',
+      baseUrl: 'https://api.brevo.com/v3',
     }),
   },
 })
