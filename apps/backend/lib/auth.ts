@@ -75,13 +75,24 @@ export const auth = betterAuth({
   // DB columns are Postgres `uuid`. better-auth's default nanoid IDs are not valid UUIDs.
   advanced: {
     defaultCookieAttributes: {
+      // Cross-origin SPA (Vercel) → API (Railway): SameSite=None; Secure is required.
+      // Do NOT set Partitioned (CHIPS): the OAuth state cookie is set during a
+      // cross-site fetch from the frontend, then read on a top-level Google
+      // redirect to BETTER_AUTH_URL. Partitioned cookies are keyed by top-level
+      // site, so the callback would omit the cookie → state_mismatch / state_security_mismatch.
+      // See better-auth#5871 and better-auth.com/docs/reference/errors/state_mismatch.
       sameSite: env.get('NODE_ENV') === 'production' ? ('none' as const) : ('lax' as const),
       secure: env.get('NODE_ENV') === 'production',
-      partitioned: env.get('NODE_ENV') === 'production',
+      partitioned: false,
     },
     database: {
       generateId: 'uuid',
     },
+  },
+
+  // Prefer frontend when OAuth state cannot be recovered (missing cookie, etc.).
+  onAPIError: {
+    errorURL: `${parseOrigins(env.get('CORS_ORIGIN'))[0] ?? 'http://localhost:3000'}/login?error=oauth_failed`,
   },
 
   // ─── Table name overrides (migrations use plural names) ───────────────
