@@ -3065,6 +3065,35 @@
         "confirmSend": "सहेजें और भेजें",
         "confirmSchedule": "सहेजें और शेड्यूल करें",
         "saving": "सहेजा जा रहा है…",
+        "variableMappings": {
+          "title": "वेरिएबल मैपिंग",
+          "hint": "भेजने या शेड्यूल करने से पहले प्रत्येक टेम्पलेट वेरिएबल को संपर्क फ़ील्ड, कस्टम फ़ील्ड या स्थिर मान से मैप करें।",
+          "source": "स्रोत",
+          "sourcePlaceholder": "स्रोत चुनें",
+          "sources": {
+            "contact_field": "संपर्क फ़ील्ड",
+            "custom_field": "कस्टम फ़ील्ड",
+            "static": "स्थिर मान"
+          },
+          "contactField": "फ़ील्ड",
+          "customField": "कस्टम फ़ील्ड कुंजी",
+          "customFieldPlaceholder": "उदा. order_id",
+          "staticValue": "मान",
+          "staticValuePlaceholder": "खाली न छोड़ें",
+          "contactFields": {
+            "name": "नाम",
+            "first_name": "पहला नाम",
+            "customer_name": "ग्राहक नाम",
+            "email": "ईमेल",
+            "company": "कंपनी",
+            "phone": "फ़ोन"
+          },
+          "statusMapped": "मैप किया गया",
+          "statusUnmapped": "मैप नहीं",
+          "progressComplete": "सभी {total} वेरिएबल मैप हो गए",
+          "progressIncomplete": "{total} में से {mapped} वेरिएबल मैप",
+          "notSendable": "यह टेम्पलेट भेजा नहीं जा सकता"
+        },
         "errors": {
           "nameRequired": "कैंपेन नाम आवश्यक है।",
           "nameTooLong": "कैंपेन नाम 200 अक्षरों से अधिक नहीं होना चाहिए।",
@@ -3077,7 +3106,9 @@
           "groupMembersLoadFailed": "इस समूह के संपर्क लोड नहीं हो सके। कृपया फिर कोशिश करें।",
           "audienceTooLarge": "इस दर्शक में {max} से अधिक संपर्क हैं। भेजने से पहले समूह का आकार घटाएँ।",
           "scheduledAtRequired": "शेड्यूल तिथि और समय चुनें।",
-          "scheduledAtFuture": "शेड्यूल समय भविष्य में होना चाहिए।"
+          "scheduledAtFuture": "शेड्यूल समय भविष्य में होना चाहिए।",
+          "variablesUnmapped": "भेजने या शेड्यूल से पहले सभी टेम्पलेट वेरिएबल मैप करें: {variables}",
+          "templateNotSendable": "वर्तमान पैरामीटर स्कीमा के साथ यह टेम्पलेट भेजा नहीं जा सकता।"
         }
       },
       "summary": {
@@ -3085,6 +3116,7 @@
         "name": "नाम",
         "type": "प्रकार",
         "template": "टेम्पलेट",
+        "mappings": "वेरिएबल",
         "audience": "दर्शक",
         "schedule": "अनुसूची"
       },

@@ -783,6 +783,14 @@ export type CampaignStatus =
   | 'cancelled'
   | string
 
+/** Maps a template parameter to a contact field, custom field, or static value. */
+export type CampaignVariableMapping =
+  | { source: 'contact_field'; field: string }
+  | { source: 'custom_field'; field: string }
+  | { source: 'static'; value: string }
+
+export type CampaignVariableMappings = Record<string, CampaignVariableMapping>
+
 export type Campaign = {
   id: string
   organizationId: string
@@ -801,6 +809,8 @@ export type Campaign = {
   readCount: number
   repliedCount?: number
   failedCount: number
+  /** Named template param → source mapping (resolved into recipient.variables on send). */
+  variableMappings?: CampaignVariableMappings | null
   createdAt?: string
   updatedAt?: string | null
 }
@@ -822,6 +832,7 @@ export type CreateCampaignBody = {
   headerMediaAssetId?: string
   scheduledAt?: string
   status?: 'draft' | 'scheduled'
+  variableMappings?: CampaignVariableMappings
 }
 
 export type UpdateCampaignBody = {
@@ -831,6 +842,7 @@ export type UpdateCampaignBody = {
   headerMediaAssetId?: string | null
   scheduledAt?: string | null
   status?: 'draft' | 'scheduled'
+  variableMappings?: CampaignVariableMappings | null
 }
 
 export type ReplaceCampaignRecipientsBody = {

@@ -3217,6 +3217,35 @@
         "confirmSend": "Save & send",
         "confirmSchedule": "Save & schedule",
         "saving": "Saving…",
+        "variableMappings": {
+          "title": "Variable mapping",
+          "hint": "Map each template variable to a contact field, custom field, or static value before sending or scheduling.",
+          "source": "Source",
+          "sourcePlaceholder": "Select source",
+          "sources": {
+            "contact_field": "Contact field",
+            "custom_field": "Custom field",
+            "static": "Static value"
+          },
+          "contactField": "Field",
+          "customField": "Custom field key",
+          "customFieldPlaceholder": "e.g. order_id",
+          "staticValue": "Value",
+          "staticValuePlaceholder": "Enter a non-empty value",
+          "contactFields": {
+            "name": "Name",
+            "first_name": "First name",
+            "customer_name": "Customer name",
+            "email": "Email",
+            "company": "Company",
+            "phone": "Phone"
+          },
+          "statusMapped": "Mapped",
+          "statusUnmapped": "Not mapped",
+          "progressComplete": "All {total} variables mapped",
+          "progressIncomplete": "{mapped} of {total} variables mapped",
+          "notSendable": "This template cannot be sent"
+        },
         "errors": {
           "nameRequired": "Campaign name is required.",
           "nameTooLong": "Campaign name must be 200 characters or fewer.",
@@ -3229,7 +3258,9 @@
           "groupMembersLoadFailed": "Couldn’t load this group’s contacts. Please try again.",
           "audienceTooLarge": "This audience has more than {max} contacts. Reduce the group size before sending.",
           "scheduledAtRequired": "Choose a schedule date and time.",
-          "scheduledAtFuture": "Schedule time must be in the future."
+          "scheduledAtFuture": "Schedule time must be in the future.",
+          "variablesUnmapped": "Map all template variables before send or schedule: {variables}",
+          "templateNotSendable": "This template cannot be sent with the current parameter schema."
         }
       },
       "summary": {
@@ -3237,6 +3268,7 @@
         "name": "Name",
         "type": "Type",
         "template": "Template",
+        "mappings": "Variables",
         "audience": "Audience",
         "schedule": "Schedule"
       },
