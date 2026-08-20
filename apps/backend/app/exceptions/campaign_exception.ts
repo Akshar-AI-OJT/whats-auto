@@ -166,7 +166,6 @@ export default class CampaignException extends Exception {
     return this.notEligibleToCancel(status)
   }
 
-
   static templateNotSendable(reason?: string) {
     return new this(reason || 'Campaign template is not sendable', {
       status: 422,

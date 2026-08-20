@@ -47,10 +47,7 @@ function requireValid(dt: DateTime): DateTime {
  * Date / DateTime inputs are already instants and are not re-zoned.
  * Strings with Z/offset are instants. Naive strings use `timeZone`.
  */
-export function parseScheduledAt(
-  value: string | Date | DateTime,
-  timeZone: string
-): Date {
+export function parseScheduledAt(value: string | Date | DateTime, timeZone: string): Date {
   if (value instanceof Date) {
     if (Number.isNaN(value.getTime())) {
       throw new InvalidScheduledAtError()
@@ -70,7 +67,9 @@ export function parseScheduledAt(
   const zone = resolveIanaTimeZone(timeZone)
 
   if (HAS_EXPLICIT_OFFSET.test(raw)) {
-    return requireValid(DateTime.fromISO(raw, { setZone: true })).toUTC().toJSDate()
+    return requireValid(DateTime.fromISO(raw, { setZone: true }))
+      .toUTC()
+      .toJSDate()
   }
 
   if (raw.includes('T')) {
