@@ -1,12 +1,14 @@
 'use client'
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import {
   ChevronLeft,
   ChevronRight,
   Loader2,
   Mail,
+  Pencil,
   Search,
   Trash2,
   UserPlus,
@@ -31,7 +33,9 @@ import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
 import { InviteMemberSheet } from '@/components/dashboard/team/InviteMemberSheet'
+import { EditOrgAdminUserDialog } from '@/components/dashboard/team/EditOrgAdminUserDialog'
 import { WorkspaceAvatar } from '@/components/dashboard/WorkspaceSwitcher'
+import { queryKeys } from '@/lib/query-keys'
 
 const DEFAULT_PER_PAGE = 20
 
@@ -157,6 +161,7 @@ export function TeamMembersPage() {
   const removeDescId = useId()
   const cancelTitleId = useId()
   const cancelDescId = useId()
+  const queryClient = useQueryClient()
   const {
     tenantOrganizationId,
     accessContext,
@@ -183,6 +188,7 @@ export function TeamMembersPage() {
   const [cancelTarget, setCancelTarget] = useState<PendingInvitation | null>(null)
   const [cancelPending, setCancelPending] = useState(false)
   const [cancelError, setCancelError] = useState<string | null>(null)
+  const [editUserId, setEditUserId] = useState<string | null>(null)
 
   const [page, setPage] = useState(1)
   const [perPage] = useState(DEFAULT_PER_PAGE)
@@ -363,10 +369,19 @@ export function TeamMembersPage() {
     setRemoveError(null)
     setRemovePending(true)
     try {
-      await api.members.remove(removeTarget.memberId)
+      // Prefer org-admin soft-delete (by userId) when the list came from that API;
+      // otherwise fall back to membership remove (team:remove).
+      if (paginatedSource) {
+        await api.organizationAdmin.softDeleteUser(removeTarget.userId)
+      } else {
+        await api.members.remove(removeTarget.memberId)
+      }
       setMembers((prev) => prev.filter((row) => row.memberId !== removeTarget.memberId))
       setRemoveTarget(null)
       setActionError(null)
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.team.all(tenantOrganizationId),
+      })
       if (tenantOrganizationId && paginatedSource) {
         const generation = ++loadGenerationRef.current
         void loadTeam(tenantOrganizationId, page, generation)
@@ -559,6 +574,8 @@ export function TeamMembersPage() {
                 const canEditRole =
                   canAssignRole && !isOwner && !isSelf && isAssignableRole(member.role)
                 const canRemove = canRemoveMember && !isOwner && !isSelf
+                // Profile edit/deactivate uses organization-admin APIs (Owner/Admin list path).
+                const canEditProfile = paginatedSource
                 const roleBusy = rolePendingId === member.memberId
 
                 return (
@@ -621,6 +638,21 @@ export function TeamMembersPage() {
                           {roleKey === 'other' ? member.role : t(`roles.${roleKey}`)}
                         </span>
                       )}
+
+                      {canEditProfile ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="size-9"
+                          aria-label={t('editAria', {
+                            name: member.name.trim() || member.email,
+                          })}
+                          onClick={() => setEditUserId(member.userId)}
+                        >
+                          <Pencil className="size-4" aria-hidden />
+                        </Button>
+                      ) : null}
 
                       {canRemove ? (
                         <Button
@@ -746,9 +778,29 @@ export function TeamMembersPage() {
             if (!tenantOrganizationId) return
             const generation = ++loadGenerationRef.current
             void loadTeam(tenantOrganizationId, page, generation)
+            void queryClient.invalidateQueries({
+              queryKey: queryKeys.team.all(tenantOrganizationId),
+            })
           }}
         />
       ) : null}
+
+      <EditOrgAdminUserDialog
+        open={Boolean(editUserId)}
+        userId={editUserId}
+        onOpenChange={(next) => {
+          if (!next) setEditUserId(null)
+        }}
+        onUpdated={(user) => {
+          setMembers((prev) =>
+            prev.map((row) => (row.userId === user.id ? fromAdminUser(user) : row))
+          )
+          if (tenantOrganizationId) {
+            const generation = ++loadGenerationRef.current
+            void loadTeam(tenantOrganizationId, page, generation)
+          }
+        }}
+      />
 
       {removeTarget ? (
         <div

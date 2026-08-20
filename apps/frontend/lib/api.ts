@@ -938,6 +938,14 @@ export type ListOrganizationAdminUsersParams = {
   perPage?: number
 }
 
+/** PATCH /api/v1/organization-admin/users/:id */
+export type UpdateOrganizationAdminUserBody = {
+  firstname?: string
+  lastname?: string
+  email?: string
+  isActive?: boolean
+}
+
 /** Row from GET /api/v1/audit */
 export type AuthorizationAuditEvent = {
   id: string
@@ -2190,7 +2198,7 @@ export const api = {
 
   organizationAdmin: {
     /**
-     * Paginated org users — Owner/Admin only.
+     * Paginated org users — Owner/Admin only (`accessOrgAdmin`).
      * Role changes still go through PATCH /api/v1/members/:memberId/role.
      */
     listUsers: (params: ListOrganizationAdminUsersParams = {}) => {
@@ -2204,6 +2212,33 @@ export const api = {
         method: 'GET',
       })
     },
+
+    /** GET /api/v1/organization-admin/users/:userId — Owner/Admin only. */
+    getUser: (userId: string) =>
+      protectedRequest<{ data?: OrganizationAdminUser } & OrganizationAdminUser>(
+        `/api/v1/organization-admin/users/${userId}`,
+        { method: 'GET' }
+      ),
+
+    /** PATCH /api/v1/organization-admin/users/:userId — profile + isActive. */
+    updateUser: (userId: string, body: UpdateOrganizationAdminUserBody) =>
+      protectedRequest<{ data?: OrganizationAdminUser } & OrganizationAdminUser>(
+        `/api/v1/organization-admin/users/${userId}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    /**
+     * DELETE /api/v1/organization-admin/users/:userId —
+     * soft-deletes the org membership (does not delete the user account).
+     */
+    softDeleteUser: (userId: string) =>
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/organization-admin/users/${userId}`,
+        { method: 'DELETE' }
+      ),
   },
 
   invitations: {

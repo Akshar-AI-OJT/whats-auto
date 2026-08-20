@@ -1596,6 +1596,7 @@
       "pendingInvitedBy": "Invited by {name}",
       "you": "you",
       "changeRoleAria": "Change role for {name}",
+      "editAria": "Edit {name}",
       "removeAria": "Remove {name}",
       "removeConfirmTitle": "Remove this member?",
       "removeConfirmBody": "“{name}” will lose access to this workspace immediately.",
@@ -1613,6 +1614,30 @@
         "admin": "Admin",
         "agent": "Agent",
         "viewer": "Viewer"
+      },
+      "editUser": {
+        "title": "Edit member",
+        "subtitle": "Update profile details for this workspace member.",
+        "loading": "Loading member…",
+        "firstname": "First name",
+        "lastname": "Last name",
+        "email": "Email",
+        "isActive": "Active account",
+        "isActiveHint": "Inactive users remain members but are marked inactive.",
+        "cancel": "Cancel",
+        "retry": "Retry",
+        "save": "Save changes",
+        "saving": "Saving…",
+        "errors": {
+          "loadFailed": "Couldn’t load this member.",
+          "saveFailed": "Couldn’t save member changes.",
+          "notFound": "This member was not found in the workspace.",
+          "firstnameRequired": "First name is required.",
+          "lastnameRequired": "Last name is required.",
+          "emailRequired": "Email is required.",
+          "emailInvalid": "Enter a valid email address.",
+          "emailExists": "An account with this email already exists."
+        }
       },
       "errors": {
         "loadFailed": "Couldn’t load team members. Please try again.",
