@@ -31,6 +31,7 @@ export default defineConfig({
     () => import('@adonisjs/session/commands'),
     () => import('@adonisjs/bouncer/commands'),
     () => import('@tuyau/core/commands'),
+    () => import('@adonisjs/mail/commands'),
   ],
 
   /*
@@ -65,6 +66,7 @@ export default defineConfig({
     () => import('#providers/object_storage_provider'),
     () => import('#providers/content_inspection_provider'),
     () => import('@adonisjs/drive/drive_provider'),
+    () => import('@adonisjs/mail/mail_provider'),
   ],
 
   /*
