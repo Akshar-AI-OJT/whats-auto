@@ -124,7 +124,7 @@ export function PlansPage() {
       }
       setActionMessage(t('toast.archived'))
       setArchiveTarget(null)
-      await queryClient.invalidateQueries({ queryKey: ['admin', 'plans'] })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.admin.plansRoot })
     } finally {
       setArchivePending(false)
     }

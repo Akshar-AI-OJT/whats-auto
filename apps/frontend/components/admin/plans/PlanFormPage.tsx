@@ -239,12 +239,12 @@ export function PlanFormPage({ mode, planId }: PlanFormPageProps) {
           setError(t(result.messageKey))
           return
         }
-        await queryClient.invalidateQueries({ queryKey: ['admin', 'plans'] })
+        await queryClient.invalidateQueries({ queryKey: queryKeys.admin.plansRoot })
         router.push('/admin/plans?updated=1')
         return
       }
       await createPlan(payload)
-      await queryClient.invalidateQueries({ queryKey: ['admin', 'plans'] })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.admin.plansRoot })
       router.push('/admin/plans?created=1')
     } catch {
       setError(mode === 'edit' ? t('errors.updateFailed') : t('errors.createFailed'))

@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { Loader2, RefreshCw, ScrollText, Search } from 'lucide-react'
 import { api, type ApiError, type AuthorizationAuditEvent } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { queryKeys } from '@/lib/query-keys'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -106,7 +107,7 @@ export function OrganizationAuditLogsPage() {
   const workspaceLabel = activeOrganization?.name || t('thisWorkspace')
 
   const auditQuery = useQuery({
-    queryKey: ['org-audit-logs', tenantOrganizationId, limit],
+    queryKey: queryKeys.audit.org(tenantOrganizationId, limit),
     enabled: Boolean(tenantOrganizationId),
     queryFn: async () => {
       const { data } = await api.audit.list({ limit })

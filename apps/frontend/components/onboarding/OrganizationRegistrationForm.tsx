@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 import { api, type ApiError } from '@/lib/api'
 import { authClient } from '@/lib/auth-client'
 import { getValidAccessToken } from '@/lib/access-token'
-import { organizationQueryKeys } from '@/components/dashboard/OrganizationsProvider'
+import { queryKeys } from '@/lib/query-keys'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   buildCreateOrganizationPayload,
@@ -294,7 +294,7 @@ export function OrganizationRegistrationForm({
       // Backend sets the new org active and remints JWT; align shared session before dashboard.
       await authClient.getSession({ query: { disableCookieCache: true } })
       await getValidAccessToken()
-      await queryClient.invalidateQueries({ queryKey: organizationQueryKeys.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.organizations.all })
 
       clearLegacyOrganizationCache()
 

@@ -81,7 +81,7 @@ export function PlanViewPage({ planId }: PlanViewPageProps) {
         return
       }
       queryClient.setQueryData<SubscriptionPlan>(queryKeys.admin.planDetail(planId), result.plan)
-      await queryClient.invalidateQueries({ queryKey: ['admin', 'plans'] })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.admin.plansRoot })
       setArchiveOpen(false)
       setActionMessage(t('toast.archived'))
     } finally {

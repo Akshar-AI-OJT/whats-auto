@@ -7,6 +7,7 @@ import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 
 import { api, type SuperAdminPlan } from '@/lib/api'
+import { queryKeys } from '@/lib/query-keys'
 
 export type OnboardingCheckoutablePlanSelection = {
   id: string
@@ -35,7 +36,7 @@ export function SubscriptionPlanSelectionStep({
   const tSubs = useTranslations('admin.subscriptions')
 
   const { data, isLoading, isError, error, refetch } = useQuery({
-    queryKey: ['onboarding', 'plans'],
+    queryKey: queryKeys.onboarding.plans,
     queryFn: async (): Promise<SuperAdminPlan[]> => {
       const { data } = await api.superAdmin.plans.list({ status: 'active' })
       type ListPayload = { data?: { items?: SuperAdminPlan[] }; items?: SuperAdminPlan[] }

@@ -12,8 +12,8 @@ import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSecti
 import { cn } from '@/lib/utils'
 import { BillingCheckoutDialog } from './BillingCheckoutDialog'
 import { PLANS, isPlanId, type PlanId, planKeyFromCheckoutPlanId, getPlanById } from '@/lib/plan-config'
+import { queryKeys } from '@/lib/query-keys'
 import {
-  billingQueryKeys,
   billingStatusTone,
   formatBillingDate,
   isSubscriptionNotFound,
@@ -77,7 +77,7 @@ export function BillingPage() {
   const [checkoutSuccess, setCheckoutSuccess] = useState<string | null>(null)
 
   const subscriptionQuery = useQuery({
-    queryKey: billingQueryKeys.subscription(tenantOrganizationId),
+    queryKey: queryKeys.billing.subscription(tenantOrganizationId),
     enabled: Boolean(tenantOrganizationId) && canViewBilling && !orgsLoading,
     queryFn: async (): Promise<BillingSubscription | null> => {
       try {
@@ -101,7 +101,7 @@ export function BillingPage() {
       setCheckoutError(null)
       setConfirmOpen(false)
       setCheckoutSuccess(t('checkout.success'))
-      await queryClient.invalidateQueries({ queryKey: billingQueryKeys.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.billing.all })
       if (result.checkoutUrl) {
         window.location.assign(result.checkoutUrl)
       }

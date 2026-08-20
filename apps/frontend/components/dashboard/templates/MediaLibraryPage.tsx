@@ -16,10 +16,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
+import { queryKeys } from '@/lib/query-keys'
 import {
   formatBytes,
   MEDIA_UPLOAD_ACCEPT,
-  mediaQueryKeys,
   resolveUploadMimeType,
   unwrapMediaList,
   unwrapMediaQuota,
@@ -58,7 +58,7 @@ export function MediaLibraryPage() {
   )
 
   const listQuery = useQuery({
-    queryKey: mediaQueryKeys.list(tenantOrganizationId, listParams),
+    queryKey: queryKeys.media.list(tenantOrganizationId, listParams),
     enabled: Boolean(tenantOrganizationId) && canView && !orgsLoading,
     queryFn: async () => {
       const { data } = await api.media.list(listParams)
@@ -67,7 +67,7 @@ export function MediaLibraryPage() {
   })
 
   const quotaQuery = useQuery({
-    queryKey: mediaQueryKeys.quota(tenantOrganizationId),
+    queryKey: queryKeys.media.quota(tenantOrganizationId),
     enabled: Boolean(tenantOrganizationId) && canView && !orgsLoading,
     queryFn: async () => {
       const { data } = await api.media.quota()
@@ -118,7 +118,7 @@ export function MediaLibraryPage() {
     },
     onSuccess: async () => {
       setUploadError(null)
-      await queryClient.invalidateQueries({ queryKey: mediaQueryKeys.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.media.all })
     },
     onError: (err) => {
       setUploadError((err as Error).message || t('errors.uploadFailed'))
@@ -129,7 +129,7 @@ export function MediaLibraryPage() {
     mutationFn: (id: string) => api.media.softDelete(id),
     onSuccess: async () => {
       setActionError(null)
-      await queryClient.invalidateQueries({ queryKey: mediaQueryKeys.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.media.all })
     },
     onError: (err) => {
       const apiErr = err as unknown as ApiError
@@ -145,7 +145,7 @@ export function MediaLibraryPage() {
     mutationFn: (id: string) => api.media.restore(id),
     onSuccess: async () => {
       setActionError(null)
-      await queryClient.invalidateQueries({ queryKey: mediaQueryKeys.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.media.all })
     },
     onError: (err) => {
       setActionError((err as unknown as ApiError).message || t('errors.restoreFailed'))
@@ -156,7 +156,7 @@ export function MediaLibraryPage() {
     mutationFn: (id: string) => api.media.purge(id),
     onSuccess: async () => {
       setActionError(null)
-      await queryClient.invalidateQueries({ queryKey: mediaQueryKeys.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.media.all })
     },
     onError: (err) => {
       setActionError((err as unknown as ApiError).message || t('errors.purgeFailed'))

@@ -37,9 +37,7 @@ import {
   type TemplateViewMode,
   unwrapTemplateList,
 } from './template-utils'
-import { templateQueryKeys } from '@/lib/query-keys'
-
-export { templateQueryKeys }
+import { queryKeys } from '@/lib/query-keys'
 
 export function TemplatesListPage() {
   const t = useTranslations('dashboard.templates')
@@ -87,7 +85,7 @@ export function TemplatesListPage() {
   )
 
   const templatesQuery = useQuery({
-    queryKey: templateQueryKeys.list(tenantOrganizationId, listParams),
+    queryKey: queryKeys.templates.list(tenantOrganizationId, listParams),
     enabled: Boolean(tenantOrganizationId) && canViewTemplates && !orgsLoading,
     queryFn: async () => {
       const { data } = await api.whatsapp.listTemplates(listParams)
@@ -96,7 +94,7 @@ export function TemplatesListPage() {
   })
 
   const whatsappQuery = useQuery({
-    queryKey: templateQueryKeys.whatsappConnected(tenantOrganizationId),
+    queryKey: queryKeys.templates.whatsappConnected(tenantOrganizationId),
     enabled: Boolean(tenantOrganizationId) && canViewTemplates && !orgsLoading,
     queryFn: async () => {
       const { data } = await api.whatsapp.listConfigs()
@@ -116,7 +114,7 @@ export function TemplatesListPage() {
     onSuccess: async () => {
       setDeleteTarget(null)
       setDeleteError(null)
-      await queryClient.invalidateQueries({ queryKey: templateQueryKeys.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.templates.all })
     },
     onError: (err) => {
       setDeleteError((err as unknown as ApiError).message || t('errors.deleteFailed'))
@@ -142,7 +140,7 @@ export function TemplatesListPage() {
       setSyncedCount(count)
       completeProgress()
       setSyncPending(false)
-      await queryClient.invalidateQueries({ queryKey: templateQueryKeys.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.templates.all })
     },
     onError: (err) => {
       setSyncError((err as unknown as ApiError).message || t('errors.syncFailed'))

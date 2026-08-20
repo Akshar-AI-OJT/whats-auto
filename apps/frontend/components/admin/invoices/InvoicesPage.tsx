@@ -124,7 +124,7 @@ export function InvoicesPage() {
   const listError = listQuery.error || summaryQuery.error ? t('errors.loadFailed') : null
 
   async function refreshInvoices() {
-    await Promise.all([queryClient.invalidateQueries({ queryKey: ['admin', 'invoices'] })])
+    await Promise.all([queryClient.invalidateQueries({ queryKey: queryKeys.admin.invoicesRoot })])
   }
 
   const closeMenu = useCallback(() => {

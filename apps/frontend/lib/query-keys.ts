@@ -1,8 +1,22 @@
 /**
  * Central query-key factory for tenant-scoped and platform-admin caches.
  * Prefer these keys for all useQuery / invalidateQueries call sites.
+ * Prefix strings are kept stable for cache continuity with prior colocated keys.
  */
 export const queryKeys = {
+  organizations: {
+    all: ['organizations'] as const,
+    list: (userId?: string | null) =>
+      [...queryKeys.organizations.all, userId ?? 'anonymous', 'list'] as const,
+    accessContext: (userId?: string | null) =>
+      [...queryKeys.organizations.all, userId ?? 'anonymous', 'access-context'] as const,
+    ownershipMembers: (orgId?: string | null) =>
+      [...queryKeys.organizations.all, 'ownership-members', orgId ?? null] as const,
+  },
+  profile: {
+    all: ['account-profile'] as const,
+    detail: () => [...queryKeys.profile.all, 'detail'] as const,
+  },
   contacts: {
     all: (orgId?: string | null) => ['contacts', orgId ?? 'none'] as const,
     list: (orgId?: string | null, query?: string) =>
@@ -26,6 +40,11 @@ export const queryKeys = {
     list: (orgId?: string | null, page?: number) =>
       [...queryKeys.notifications.all(orgId), 'list', { page: page ?? 1 }] as const,
   },
+  billing: {
+    all: ['billing'] as const,
+    subscription: (orgId?: string | null) =>
+      [...queryKeys.billing.all, 'subscription', orgId ?? 'none'] as const,
+  },
   whatsapp: {
     configs: (orgId?: string | null) => ['whatsapp-configs', orgId ?? 'none'] as const,
     templates: (orgId?: string | null) => ['whatsapp-templates', orgId ?? 'none'] as const,
@@ -38,6 +57,33 @@ export const queryKeys = {
     detail: (id: string) => [...queryKeys.templates.all, 'detail', id] as const,
     whatsappConnected: (orgId?: string | null) =>
       [...queryKeys.templates.all, 'whatsapp-connected', orgId ?? 'none'] as const,
+  },
+  media: {
+    all: ['media-library'] as const,
+    list: (orgId?: string | null, params?: Record<string, string | number>) =>
+      [...queryKeys.media.all, 'list', orgId ?? 'none', params ?? {}] as const,
+    quota: (orgId?: string | null) =>
+      [...queryKeys.media.all, 'quota', orgId ?? 'none'] as const,
+  },
+  knowledge: {
+    all: ['knowledge-documents'] as const,
+    list: (orgId?: string | null, params?: Record<string, string | number>) =>
+      [...queryKeys.knowledge.all, 'list', orgId ?? 'none', params ?? {}] as const,
+    quota: (orgId?: string | null) =>
+      [...queryKeys.knowledge.all, 'quota', orgId ?? 'none'] as const,
+  },
+  customerGroups: {
+    all: ['customer-groups'] as const,
+    list: (organizationId?: string | null) =>
+      [...queryKeys.customerGroups.all, 'list', organizationId ?? 'none'] as const,
+    summary: (organizationId?: string | null) =>
+      [...queryKeys.customerGroups.all, 'summary', organizationId ?? 'none'] as const,
+    detail: (organizationId?: string | null, id?: string) =>
+      [...queryKeys.customerGroups.all, 'detail', organizationId ?? 'none', id ?? 'none'] as const,
+    members: (organizationId?: string | null, id?: string) =>
+      [...queryKeys.customerGroups.all, 'members', organizationId ?? 'none', id ?? 'none'] as const,
+    contacts: (organizationId?: string | null) =>
+      [...queryKeys.customerGroups.all, 'contacts', organizationId ?? null] as const,
   },
   campaigns: {
     all: ['campaigns'] as const,
@@ -70,21 +116,61 @@ export const queryKeys = {
       [...queryKeys.integrations.all(orgId), 'connections'] as const,
     apiKeys: (orgId?: string | null) => [...queryKeys.integrations.all(orgId), 'api-keys'] as const,
   },
+  analytics: {
+    all: ['tenant-analytics'] as const,
+    contacts: ['tenant-analytics', 'contacts'] as const,
+    campaigns: ['tenant-analytics', 'campaigns'] as const,
+    templates: ['tenant-analytics', 'templates'] as const,
+    configs: ['tenant-analytics', 'configs'] as const,
+    conversations: ['tenant-analytics', 'conversations'] as const,
+    tags: ['tenant-analytics', 'tags'] as const,
+    audit: ['tenant-analytics', 'audit'] as const,
+  },
+  overview: {
+    all: ['dashboard-overview'] as const,
+    contacts: (organizationId?: string | null) =>
+      ['dashboard-overview', 'contacts', organizationId ?? null] as const,
+    conversations: (organizationId?: string | null) =>
+      ['dashboard-overview', 'conversations', organizationId ?? null] as const,
+    campaigns: (organizationId?: string | null) =>
+      ['dashboard-overview', 'campaigns', organizationId ?? null] as const,
+    audit: (organizationId?: string | null) =>
+      ['dashboard-overview', 'audit', organizationId ?? null] as const,
+  },
+  audit: {
+    org: (orgId?: string | null, limit?: number) =>
+      ['org-audit-logs', orgId ?? null, limit ?? 50] as const,
+  },
+  onboarding: {
+    plans: ['onboarding', 'plans'] as const,
+    billingSubscription: ['onboarding', 'billing', 'subscription'] as const,
+  },
   admin: {
     organizations: (params?: Record<string, unknown>) =>
       ['admin', 'organizations', params ?? {}] as const,
+    organizationActivity: (organizationId?: string | null) =>
+      ['admin-org-activity', organizationId ?? null] as const,
+    /** Prefix for invalidating all plan list/detail queries. */
+    plansRoot: ['admin', 'plans'] as const,
     plans: (params?: Record<string, unknown>) => ['admin', 'plans', params ?? {}] as const,
     planDetail: (planId?: string | null) => ['admin', 'plans', 'detail', planId ?? 'none'] as const,
     subscriptions: (params?: Record<string, unknown>) =>
       ['admin', 'subscriptions', params ?? {}] as const,
+    /** Prefix for invalidating all invoice list/summary queries. */
+    invoicesRoot: ['admin', 'invoices'] as const,
     invoices: (params?: Record<string, unknown>) => ['admin', 'invoices', params ?? {}] as const,
     invoiceSummary: (params?: Record<string, unknown>) =>
       ['admin', 'invoices', 'summary', params ?? {}] as const,
+    auditLogs: (limit?: number, organizationId?: string | null) =>
+      ['admin-audit-logs', limit ?? 50, organizationId ?? null] as const,
+    auditLogOrganizations: ['admin-audit-log-organizations'] as const,
+    analytics: {
+      all: ['super-admin-analytics'] as const,
+      organizations: ['super-admin-analytics', 'organizations'] as const,
+      subscriptions: ['super-admin-analytics', 'subscriptions'] as const,
+      plans: ['super-admin-analytics', 'plans'] as const,
+      invoiceSummary: ['super-admin-analytics', 'invoice-summary'] as const,
+      audit: ['super-admin-analytics', 'audit'] as const,
+    },
   },
 } as const
-
-/** @deprecated Prefer `queryKeys.campaigns` — re-exported for gradual migration. */
-export const campaignQueryKeys = queryKeys.campaigns
-
-/** @deprecated Prefer `queryKeys.templates` — re-exported for gradual migration. */
-export const templateQueryKeys = queryKeys.templates

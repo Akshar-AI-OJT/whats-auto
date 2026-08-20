@@ -5,12 +5,6 @@ import {
   type BillingSubscription,
 } from '@/lib/api'
 
-export const billingQueryKeys = {
-  all: ['billing'] as const,
-  subscription: (orgId: string | null | undefined) =>
-    [...billingQueryKeys.all, 'subscription', orgId ?? 'none'] as const,
-}
-
 export function unwrapBillingSubscription(data: unknown): BillingSubscription | null {
   if (!data) return null
   if (typeof data === 'object' && data !== null && 'id' in data && 'planId' in data) {
