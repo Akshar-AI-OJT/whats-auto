@@ -18,6 +18,8 @@
 [locale]/admin/subscriptions/page.tsx
 [locale]/book-demo/page.tsx
 [locale]/contact/page.tsx
+[locale]/dashboard/analytics/page.tsx
+[locale]/dashboard/audit-logs/page.tsx
 [locale]/dashboard/billing/page.tsx
 [locale]/dashboard/campaigns/[id]/edit/page.tsx
 [locale]/dashboard/campaigns/[id]/page.tsx
