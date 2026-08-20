@@ -174,6 +174,9 @@ export const queryKeys = {
       plans: ['super-admin-analytics', 'plans'] as const,
       invoiceSummary: ['super-admin-analytics', 'invoice-summary'] as const,
       audit: ['super-admin-analytics', 'audit'] as const,
+      monthlyRevenue: (locale: string, months = 6) =>
+        ['super-admin-analytics', 'monthly-revenue', locale, months] as const,
     },
+    aiConfig: ['admin', 'ai-config'] as const,
   },
 } as const
