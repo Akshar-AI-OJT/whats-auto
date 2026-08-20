@@ -264,10 +264,7 @@ function contactTemplateValueCandidates(contact: CampaignContactValues): Record<
 }
 
 /** Existing contact columns (plus the same name aliases used by automatic resolution). */
-function readMappedContactField(
-  contact: CampaignContactValues,
-  field: string
-): string | undefined {
+function readMappedContactField(contact: CampaignContactValues, field: string): string | undefined {
   switch (field) {
     case 'name':
     case 'first_name':
@@ -466,9 +463,7 @@ export class CampaignService {
       .where('id', organizationId)
       .select('timezone')
       .first()
-    return resolveIanaTimeZone(
-      typeof row?.timezone === 'string' ? row.timezone : null
-    )
+    return resolveIanaTimeZone(typeof row?.timezone === 'string' ? row.timezone : null)
   }
 
   /**
@@ -1210,10 +1205,7 @@ export class CampaignService {
       await assertReadyMediaAsset(params.organizationId, existing.headerMediaAssetId as string)
     }
 
-    const scheduledAt = await this.resolveScheduledAt(
-      params.organizationId,
-      params.scheduledAt
-    )
+    const scheduledAt = await this.resolveScheduledAt(params.organizationId, params.scheduledAt)
     if (scheduledAt.getTime() <= Date.now()) {
       throw CampaignException.scheduledAtMustBeFuture()
     }

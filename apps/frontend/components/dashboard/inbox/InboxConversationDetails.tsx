@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { Loader2, PanelRightClose, StickyNote } from 'lucide-react'
 import {
@@ -9,16 +10,16 @@ import {
   type InboxConversation,
   type InboxConversationStatus,
   type OrganizationMember,
-  type WhatsappConfigSummary,
 } from '@/lib/api'
+import { queryKeys } from '@/lib/query-keys'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
+import { useWhatsappConfigs } from '@/hooks/useWhatsappConfigs'
 import { InboxThreadNotes } from './InboxThreadNotes'
 import { InboxAiModePill } from './InboxAiModePill'
-import { useLatestRef } from '@/hooks/useLatestRef'
 import { useInboxWorkspace } from './InboxWorkspaceContext'
-import { formatMessageTime, unwrapList, unwrapSingle } from './inbox-utils'
+import { formatMessageTime, unwrapSingle } from './inbox-utils'
 
 function unwrapMembers(data: unknown): OrganizationMember[] {
   if (!data) return []
@@ -52,7 +53,12 @@ export function InboxConversationDetails({
 }: InboxConversationDetailsProps) {
   const t = useTranslations('dashboard.inbox')
   const tDetails = useTranslations('dashboard.inbox.details')
-  const { tenantOrganizationId, canViewInbox, isLoading: orgsLoading } = useOrganizations()
+  const {
+    tenantOrganizationId,
+    canViewInbox,
+    canViewWhatsapp,
+    isLoading: orgsLoading,
+  } = useOrganizations()
   const workspace = useInboxWorkspace()
   const setWorkspaceConversationId = workspace.setConversationId
   const setWorkspaceConversation = workspace.setConversation
@@ -61,17 +67,66 @@ export function InboxConversationDetails({
   const workspaceConversation = workspace.conversation
   const workspaceMembers = workspace.members
 
-  const [localConversation, setLocalConversation] = useState<InboxConversation | null>(null)
-  const [whatsappConfigs, setWhatsappConfigs] = useState<WhatsappConfigSummary[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [tabState, setTabState] = useState<{ conversationId: string; tab: 'info' | 'notes' }>({
     conversationId,
     tab: 'info',
   })
 
-  const organizationIdRef = useLatestRef(tenantOrganizationId)
-  const conversationIdRef = useLatestRef(conversationId)
+  const detailsEnabled =
+    !orgsLoading && Boolean(tenantOrganizationId) && canViewInbox && Boolean(conversationId)
+
+  const detailKey = queryKeys.inbox.detail(tenantOrganizationId, conversationId)
+  const membersKey = queryKeys.team.members(tenantOrganizationId)
+
+  const conversationQuery = useQuery({
+    queryKey: detailKey,
+    queryFn: async () => {
+      const conversationRes = await api.inbox.getConversation(conversationId)
+      const detail = unwrapSingle<InboxConversation>(conversationRes.data)
+      if (!detail) {
+        throw new Error(t('thread.errors.notFound'))
+      }
+      return detail
+    },
+    enabled: detailsEnabled,
+    staleTime: 15_000,
+  })
+
+  const membersQuery = useQuery({
+    queryKey: membersKey,
+    queryFn: async () => {
+      const membersRes = await api.members.list()
+      return unwrapMembers(membersRes.data)
+    },
+    enabled: detailsEnabled,
+    staleTime: 60_000,
+  })
+
+  const whatsappQuery = useWhatsappConfigs({
+    enabled: detailsEnabled && canViewWhatsapp,
+  })
+
+  const localConversation = conversationQuery.data ?? null
+  const members = useMemo(() => membersQuery.data ?? [], [membersQuery.data])
+  const whatsappConfigs = useMemo(
+    () => whatsappQuery.data?.configs ?? [],
+    [whatsappQuery.data?.configs]
+  )
+  const loading = conversationQuery.isLoading || orgsLoading
+  const error = conversationQuery.error
+    ? (conversationQuery.error as unknown as ApiError).message || t('thread.errors.loadFailed')
+    : null
+
+  // Seed workspace from query cache without fighting Thread SSE merges.
+  if (workspaceConversationId !== conversationId) {
+    setWorkspaceConversationId(conversationId)
+    setWorkspaceConversation(null)
+  } else if (localConversation && !workspaceConversation) {
+    setWorkspaceConversation(localConversation)
+  }
+  if (membersQuery.isSuccess && workspaceMembers !== members) {
+    setWorkspaceMembers(members)
+  }
 
   const conversation =
     workspaceConversationId === conversationId && workspaceConversation
@@ -89,77 +144,6 @@ export function InboxConversationDetails({
     }
     return map
   }, [workspaceMembers])
-
-  const loadDetails = useCallback(
-    async (organizationId: string, activeId: string) => {
-      if (!canViewInbox) {
-        setLocalConversation(null)
-        setLoading(false)
-        return
-      }
-
-      setLoading(true)
-      setError(null)
-
-      try {
-        const [conversationRes, membersRes, configsRes] = await Promise.all([
-          api.inbox.getConversation(activeId),
-          api.members.list(),
-          api.whatsapp.listConfigs().catch(() => ({ data: [] as WhatsappConfigSummary[] })),
-        ])
-
-        if (
-          organizationId !== organizationIdRef.current ||
-          activeId !== conversationIdRef.current
-        ) {
-          return
-        }
-
-        const detail = unwrapSingle<InboxConversation>(conversationRes.data)
-        if (!detail) {
-          setError(t('thread.errors.notFound'))
-          setLocalConversation(null)
-          return
-        }
-
-        setLocalConversation(detail)
-        setWorkspaceConversationId(activeId)
-        setWorkspaceConversation(detail)
-        setWorkspaceMembers(unwrapMembers(membersRes.data))
-        setWhatsappConfigs(unwrapList<WhatsappConfigSummary>(configsRes.data))
-      } catch (err) {
-        if (
-          organizationId !== organizationIdRef.current ||
-          activeId !== conversationIdRef.current
-        ) {
-          return
-        }
-        setError((err as ApiError).message || t('thread.errors.loadFailed'))
-        setLocalConversation(null)
-      } finally {
-        if (
-          organizationId === organizationIdRef.current &&
-          activeId === conversationIdRef.current
-        ) {
-          setLoading(false)
-        }
-      }
-    },
-    [canViewInbox, conversationIdRef, organizationIdRef, setWorkspaceConversation, setWorkspaceConversationId, setWorkspaceMembers, t]
-  )
-
-  useEffect(() => {
-    if (orgsLoading || !tenantOrganizationId) return
-    let cancelled = false
-    const scheduled = Promise.resolve().then(() => {
-      if (cancelled) return
-      return loadDetails(tenantOrganizationId, conversationId)
-    })
-    return () => {
-      cancelled = true
-      void scheduled
-    }
-  }, [orgsLoading, tenantOrganizationId, conversationId, loadDetails])
 
   const whatsappLabel = useMemo(() => {
     if (!whatsappConfigId) return null
@@ -257,7 +241,8 @@ export function InboxConversationDetails({
             variant="outline"
             size="sm"
             onClick={() => {
-              if (tenantOrganizationId) void loadDetails(tenantOrganizationId, conversationId)
+              void conversationQuery.refetch()
+              void membersQuery.refetch()
             }}
           >
             {t('retry')}

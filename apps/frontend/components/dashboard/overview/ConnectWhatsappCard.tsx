@@ -1,53 +1,26 @@
 'use client'
 
-import { useEffect, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { FaWhatsapp } from 'react-icons/fa'
 import { Link } from '@/i18n/navigation'
-import { api, type WhatsappConfigSummary } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { buttonVariants } from '@/components/ui/button'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
-import { unwrapList } from '@/components/dashboard/inbox/inbox-utils'
+import { useWhatsappConfigs } from '@/hooks/useWhatsappConfigs'
 
 export function ConnectWhatsappCard({ className }: { className?: string }) {
   const t = useTranslations('dashboard.home.connectWhatsapp')
   const { tenantOrganizationId, canViewWhatsapp, isLoading: orgsLoading } = useOrganizations()
-  const [isWhatsappConnected, setIsWhatsappConnected] = useState(false)
-  const [checked, setChecked] = useState(false)
+  const configsQuery = useWhatsappConfigs()
 
-  useEffect(() => {
-    if (orgsLoading) return
-    if (!tenantOrganizationId || !canViewWhatsapp) {
-      setIsWhatsappConnected(false)
-      setChecked(true)
-      return
-    }
-
-    let cancelled = false
-    const handle = window.setTimeout(() => {
-      void (async () => {
-        try {
-          const { data } = await api.whatsapp.listConfigs()
-          if (cancelled) return
-          const configs = unwrapList<WhatsappConfigSummary>(data)
-          setIsWhatsappConnected(configs.some((c) => c.status === 'connected'))
-        } catch {
-          if (!cancelled) setIsWhatsappConnected(false)
-        } finally {
-          if (!cancelled) setChecked(true)
-        }
-      })()
-    }, 0)
-
-    return () => {
-      cancelled = true
-      window.clearTimeout(handle)
-    }
-  }, [orgsLoading, tenantOrganizationId, canViewWhatsapp])
-
-  if (!checked || isWhatsappConnected) return null
+  const shouldHide =
+    orgsLoading ||
+    !tenantOrganizationId ||
+    !canViewWhatsapp ||
+    !configsQuery.isFetched ||
+    Boolean(configsQuery.data?.isConnected)
+  if (shouldHide) return null
 
   return (
     <DashboardPanel

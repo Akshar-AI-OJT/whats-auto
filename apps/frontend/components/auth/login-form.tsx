@@ -8,6 +8,7 @@ import { FcGoogle } from 'react-icons/fc'
 import { cn } from '@/lib/utils'
 import type { ApiError } from '@/lib/api'
 import { authClient, formatBetterAuthError } from '@/lib/auth-client'
+import { buildLocalizedAppUrl } from '@/lib/app-origin'
 import { getValidAccessToken } from '@/lib/access-token'
 import { Button } from '@/components/ui/button'
 import {
@@ -58,6 +59,11 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
   const router = useRouter()
   const searchParams = useSearchParams()
   const callbackPath = safeCallbackPath(searchParams.get('callbackURL'))
+  const oauthErrorParam = searchParams.get('error')
+  const oauthFailed =
+    oauthErrorParam === 'oauth_failed' ||
+    oauthErrorParam === 'state_mismatch' ||
+    oauthErrorParam === 'state_security_mismatch'
   const formErrorId = useId()
   const emailId = useId()
   const passwordId = useId()
@@ -73,6 +79,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState<'idle' | 'email' | 'google'>('idle')
   const isPending = pending !== 'idle'
+  const displayError = error ?? (oauthFailed ? t('errors.oauthFailed') : null)
 
   useEffect(() => {
     const inviteId = invitationIdFromPath(callbackPath)
@@ -127,12 +134,13 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
     setPending('google')
 
     try {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL
       const redirectPath = callbackPath ?? '/dashboard'
-      const callbackURL = `${appUrl}/${locale}${redirectPath}`
+      const callbackURL = buildLocalizedAppUrl(locale, redirectPath)
+      const errorCallbackURL = buildLocalizedAppUrl(locale, '/login?error=oauth_failed')
       const { error: authErr } = await authClient.signIn.social({
         provider: 'google',
         callbackURL,
+        errorCallbackURL,
       })
       if (authErr) throw formatBetterAuthError(authErr)
       // Successful social auth redirects the browser; keep pending if we somehow stay.
@@ -147,7 +155,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
     }
   }
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
 
@@ -189,7 +197,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
       onSubmit={handleSubmit}
       noValidate
       aria-busy={isPending}
-      aria-describedby={error ? formErrorId : undefined}
+      aria-describedby={displayError ? formErrorId : undefined}
       {...props}
     >
       <FieldGroup className="gap-8">
@@ -312,13 +320,13 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
           </Link>
         </div>
 
-        {error ? (
+        {displayError ? (
           <div
             id={formErrorId}
             role="alert"
             className="rounded-xl border border-negative/25 bg-negative/5 px-4 py-3 text-left text-sm leading-5 text-negative"
           >
-            {error}
+            {displayError}
           </div>
         ) : null}
 

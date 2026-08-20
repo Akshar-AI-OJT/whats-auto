@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { useCallback, useId, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import {
   Loader2,
@@ -14,7 +15,6 @@ import { FaWhatsapp } from 'react-icons/fa'
 import {
   api,
   type ApiError,
-  type WhatsappConfigSummary,
   type WhatsappEmbeddedSignupSession,
 } from '@/lib/api'
 import {
@@ -24,6 +24,8 @@ import {
 } from '@/lib/meta-fb-sdk'
 import { hasPermission, PERMISSIONS } from '@/lib/rbac'
 import { cn } from '@/lib/utils'
+import { queryKeys } from '@/lib/query-keys'
+import { useWhatsappConfigs } from '@/hooks/useWhatsappConfigs'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -32,7 +34,7 @@ import {
   DashboardToast,
   useDashboardToast,
 } from '@/components/dashboard/ui/use-dashboard-toast'
-import { unwrapList, unwrapSingle } from '@/components/dashboard/inbox/inbox-utils'
+import { unwrapSingle } from '@/components/dashboard/inbox/inbox-utils'
 
 function formatConnectedAt(value: string | null | undefined) {
   if (!value) return null
@@ -80,6 +82,7 @@ function StatusBadge({
 
 export function WhatsappConnectionPage() {
   const t = useTranslations('dashboard.whatsapp')
+  const queryClient = useQueryClient()
   const {
     tenantOrganizationId,
     permissions,
@@ -93,54 +96,24 @@ export function WhatsappConnectionPage() {
   const { toast, showToast, clearToast } = useDashboardToast()
   const testInputId = useId()
 
-  const [configs, setConfigs] = useState<WhatsappConfigSummary[]>([])
-  const [loading, setLoading] = useState(true)
+  const configsQuery = useWhatsappConfigs()
+  const configs = configsQuery.data?.configs ?? []
+  const loading = configsQuery.isFetching || orgsLoading
+  const listError = configsQuery.error
+    ? mapWhatsappError(configsQuery.error as unknown as ApiError, t)
+    : null
+
   const [connecting, setConnecting] = useState(false)
   const [actionId, setActionId] = useState<string | null>(null)
   const [testToByConfig, setTestToByConfig] = useState<Record<string, string>>({})
-  const [listError, setListError] = useState<string | null>(null)
 
-  const organizationIdRef = useRef(tenantOrganizationId)
   const sessionInfoRef = useRef<EmbeddedSignupSessionInfo | null>(null)
 
-  useEffect(() => {
-    organizationIdRef.current = tenantOrganizationId
-  }, [tenantOrganizationId])
-
-  const loadConfigs = useCallback(async () => {
-    if (!canView) {
-      setConfigs([])
-      setLoading(false)
-      return
-    }
-
-    setLoading(true)
-    setListError(null)
-    try {
-      const { data } = await api.whatsapp.listConfigs()
-      if (!organizationIdRef.current) return
-      setConfigs(unwrapList<WhatsappConfigSummary>(data))
-    } catch (err) {
-      if (!organizationIdRef.current) return
-      setConfigs([])
-      setListError(mapWhatsappError(err as ApiError, t))
-    } finally {
-      if (organizationIdRef.current) setLoading(false)
-    }
-  }, [canView, t])
-
-  useEffect(() => {
-    if (orgsLoading) return
-    if (!tenantOrganizationId) {
-      setConfigs([])
-      setLoading(false)
-      return
-    }
-    const handle = window.setTimeout(() => {
-      void loadConfigs()
-    }, 0)
-    return () => window.clearTimeout(handle)
-  }, [orgsLoading, tenantOrganizationId, loadConfigs])
+  const refreshConfigs = useCallback(async () => {
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.whatsapp.configs(tenantOrganizationId),
+    })
+  }, [queryClient, tenantOrganizationId])
 
   const handleConnect = useCallback(async () => {
     if (!canConnect || connecting) return
@@ -222,7 +195,7 @@ export function WhatsappConnectionPage() {
       })
 
       showToast(t('toasts.connected'), 'success')
-      await loadConfigs()
+      await refreshConfigs()
     } catch (err) {
       const message =
         err && typeof err === 'object' && 'status' in err
@@ -235,7 +208,7 @@ export function WhatsappConnectionPage() {
       window.removeEventListener('message', onMessage)
       setConnecting(false)
     }
-  }, [canConnect, clearToast, connecting, loadConfigs, showToast, t])
+  }, [canConnect, clearToast, connecting, refreshConfigs, showToast, t])
 
   const handleDisconnect = useCallback(
     async (configId: string) => {
@@ -245,14 +218,14 @@ export function WhatsappConnectionPage() {
       try {
         await api.whatsapp.disconnectConfig(configId)
         showToast(t('toasts.disconnected'), 'success')
-        await loadConfigs()
+        await refreshConfigs()
       } catch (err) {
         showToast(mapWhatsappError(err as ApiError, t), 'error')
       } finally {
         setActionId(null)
       }
     },
-    [actionId, canConnect, clearToast, loadConfigs, showToast, t]
+    [actionId, canConnect, clearToast, refreshConfigs, showToast, t]
   )
 
   const handleTest = useCallback(
@@ -320,7 +293,7 @@ export function WhatsappConnectionPage() {
               size="sm"
               className="gap-2"
               disabled={loading || orgsLoading}
-              onClick={() => void loadConfigs()}
+              onClick={() => void refreshConfigs()}
             >
               <RefreshCw className={cn('size-3.5', loading && 'animate-spin')} aria-hidden />
               {t('refresh')}

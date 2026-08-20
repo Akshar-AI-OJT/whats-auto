@@ -2,36 +2,33 @@
 
 import type { LucideIcon } from 'lucide-react'
 import { ArrowUpRight } from 'lucide-react'
+import { Link } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
 
 export type QuickActionCardProps = {
   title: string
   description: string
   icon: LucideIcon
+  href?: string
   className?: string
   onClick?: () => void
 }
 
-export function QuickActionCard({
+const cardClassName = cn(
+  'group relative flex h-full w-full items-start gap-3 overflow-hidden rounded-2xl border border-dash-border bg-dash-surface/70 p-4 text-left',
+  'transition-[background-color,border-color,box-shadow,transform] duration-200 ease-out',
+  'hover:-translate-y-1 hover:border-primary/45 hover:bg-canvas',
+  'hover:dash-elevated-shadow',
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-dash-bg'
+)
+
+function QuickActionCardContent({
   title,
   description,
   icon: Icon,
-  className,
-  onClick,
-}: QuickActionCardProps) {
+}: Pick<QuickActionCardProps, 'title' | 'description' | 'icon'>) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        'group relative flex h-full w-full items-start gap-3 overflow-hidden rounded-2xl border border-dash-border bg-dash-surface/70 p-4 text-left',
-        'transition-[background-color,border-color,box-shadow,transform] duration-200 ease-out',
-        'hover:-translate-y-1 hover:border-primary/45 hover:bg-canvas',
-        'hover:dash-elevated-shadow',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-dash-bg',
-        className
-      )}
-    >
+    <>
       <span
         aria-hidden
         className={cn(
@@ -71,6 +68,29 @@ export function QuickActionCard({
           {description}
         </span>
       </span>
+    </>
+  )
+}
+
+export function QuickActionCard({
+  title,
+  description,
+  icon,
+  href,
+  className,
+  onClick,
+}: QuickActionCardProps) {
+  if (href) {
+    return (
+      <Link href={href} className={cn(cardClassName, className)}>
+        <QuickActionCardContent title={title} description={description} icon={icon} />
+      </Link>
+    )
+  }
+
+  return (
+    <button type="button" onClick={onClick} className={cn(cardClassName, className)}>
+      <QuickActionCardContent title={title} description={description} icon={icon} />
     </button>
   )
 }

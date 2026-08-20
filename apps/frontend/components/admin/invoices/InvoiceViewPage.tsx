@@ -31,18 +31,23 @@ export function InvoiceViewPage({ invoiceId }: InvoiceViewPageProps) {
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
-    setError(null)
-    void getInvoice(invoiceId).then((result) => {
-      if (cancelled) return
-      if (!result) {
-        setInvoice(null)
-        setError(t('errors.notFound'))
-      } else {
-        setInvoice(result)
+    void (async () => {
+      try {
+        const result = await getInvoice(invoiceId)
+        if (cancelled) return
+        if (!result) {
+          setInvoice(null)
+          setError(t('errors.notFound'))
+        } else {
+          setInvoice(result)
+          setError(null)
+        }
+      } catch {
+        if (!cancelled) setError(t('errors.notFound'))
+      } finally {
+        if (!cancelled) setLoading(false)
       }
-      setLoading(false)
-    })
+    })()
     return () => {
       cancelled = true
     }
@@ -76,8 +81,10 @@ export function InvoiceViewPage({ invoiceId }: InvoiceViewPageProps) {
     if (!invoice) return
     setDownloadPending(true)
     try {
-      const result = await downloadInvoice(invoice.id)
-      setBanner(t(result.messageKey ?? 'actions.downloadSoon'))
+      const result = await downloadInvoice(invoice.id, invoice.invoiceNumber)
+      setBanner(t(result.ok ? (result.messageKey ?? 'toast.downloaded') : result.messageKey))
+    } catch {
+      setBanner(t('errors.downloadFailed'))
     } finally {
       setDownloadPending(false)
     }

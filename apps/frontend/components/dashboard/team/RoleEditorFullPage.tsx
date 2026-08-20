@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 'use client'
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
@@ -395,15 +396,14 @@ export function RoleEditorFullPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [grantable])
 
-  useEffect(() => {
-    if (filteredGroups.length === 0) {
-      setOpenResource(null)
-      return
-    }
-    if (!openResource || !filteredGroups.some((g) => g.resource === openResource)) {
-      setOpenResource(filteredGroups[0]!.resource)
-    }
-  }, [filteredGroups, openResource])
+  // Derive the visible resource accordion: auto-select the first group when the
+  // stored openResource is filtered out, without a useEffect.
+  const activeResource: string | null =
+    filteredGroups.length === 0
+      ? null
+      : openResource && filteredGroups.some((g) => g.resource === openResource)
+        ? openResource
+        : filteredGroups[0]!.resource
 
   const title =
     mode === 'create'
@@ -466,7 +466,7 @@ export function RoleEditorFullPage({
   }
 
   const activeGroup =
-    filteredGroups.find((group) => group.resource === openResource) ?? filteredGroups[0]
+    filteredGroups.find((group) => group.resource === activeResource) ?? filteredGroups[0]
   const enabledInActive = activeGroup
     ? activeGroup.permissions.filter((p) => selected.has(p)).length
     : 0
@@ -667,7 +667,7 @@ export function RoleEditorFullPage({
                       const enabledInGroup = group.permissions.filter((p) =>
                         selected.has(p)
                       ).length
-                      const active = group.resource === openResource
+                      const active = group.resource === activeResource
                       return (
                         <button
                           key={group.resource}

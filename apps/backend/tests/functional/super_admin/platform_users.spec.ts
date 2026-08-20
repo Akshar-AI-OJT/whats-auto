@@ -150,7 +150,9 @@ test.group('Super Admin Platform Users HTTP', (group) => {
     assert.isTrue(
       northstar?.organizations.some((org) => org.organizationId === FIXTURE_IDS.orgs.northstar)
     )
-    assert.isTrue(harbor?.organizations.some((org) => org.organizationId === FIXTURE_IDS.orgs.harbor))
+    assert.isTrue(
+      harbor?.organizations.some((org) => org.organizationId === FIXTURE_IDS.orgs.harbor)
+    )
   })
 
   test('list does not depend on the superadmin active organization', async ({ client, assert }) => {
@@ -290,7 +292,9 @@ test.group('Super Admin Platform Users HTTP', (group) => {
         .header('Authorization', `Bearer ${token}`)
       inactive.assertStatus(200)
       const inactiveItems = unwrapList(inactive.body()).items
-      assert.isTrue(inactiveItems.every((user) => user.isActive === false && user.status === 'inactive'))
+      assert.isTrue(
+        inactiveItems.every((user) => user.isActive === false && user.status === 'inactive')
+      )
       assert.isTrue(inactiveItems.some((user) => user.id === FIXTURE_IDS.users.northstarSupport))
 
       const active = await client
@@ -371,9 +375,7 @@ test.group('Super Admin Platform Users HTTP', (group) => {
     assert.isTrue(ids.has(FIXTURE_IDS.users.northstarOwner))
     assert.isTrue(ids.has(FIXTURE_IDS.users.harborOwner))
     assert.isFalse(ids.has(FIXTURE_IDS.users.northstarAgent))
-    assert.isTrue(
-      items.every((user) => user.organizations.some((org) => org.role === 'owner'))
-    )
+    assert.isTrue(items.every((user) => user.organizations.some((org) => org.role === 'owner')))
   })
 
   test('pagination returns the correct meta and page size', async ({ client, assert }) => {

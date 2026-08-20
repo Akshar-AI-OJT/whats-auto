@@ -3,10 +3,7 @@ import { DateTime } from 'luxon'
 import { randomUUID } from 'node:crypto'
 import db from '@adonisjs/lucid/services/db'
 import { CampaignService } from '#services/campaign_service'
-import {
-  createCampaignValidator,
-  scheduleCampaignValidator,
-} from '#validators/campaign'
+import { createCampaignValidator, scheduleCampaignValidator } from '#validators/campaign'
 import { runWithTenant } from '#services/tenant_context'
 
 async function createOrg(timezone: string) {
@@ -223,7 +220,10 @@ test.group('Campaign scheduledAt timezone', (group) => {
     })
 
     assert.equal(created.scheduledAt, '2099-08-20T02:55:00.000Z')
-    assert.equal(wallClock(created.scheduledAt!, 'America/New_York').toFormat('hh:mm a'), '10:55 PM')
+    assert.equal(
+      wallClock(created.scheduledAt!, 'America/New_York').toFormat('hh:mm a'),
+      '10:55 PM'
+    )
   })
 
   test('validators accept naive local and timezone-aware ISO scheduledAt', async ({ assert }) => {

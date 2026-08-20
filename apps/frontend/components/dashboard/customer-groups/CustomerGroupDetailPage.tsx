@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { WorkspaceAvatar } from '@/components/dashboard/WorkspaceSwitcher'
 import { DashboardToast, useDashboardToast } from '@/components/dashboard/ui/use-dashboard-toast'
+import { queryKeys } from '@/lib/query-keys'
 import { CustomerGroupDeleteDialog } from './CustomerGroupDeleteDialog'
 import { CustomerGroupFormDialog } from './CustomerGroupFormDialog'
 import {
@@ -21,7 +22,6 @@ import {
   CustomerGroupTypeBadge,
 } from './CustomerGroupStatusBadge'
 import {
-  customerGroupQueryKeys,
   deleteCustomerGroup,
   getCustomerGroup,
   listCustomerGroupContacts,
@@ -64,19 +64,19 @@ export function CustomerGroupDetailPage({ groupId }: CustomerGroupDetailPageProp
   const [removeError, setRemoveError] = useState<string | null>(null)
 
   const groupQuery = useQuery({
-    queryKey: customerGroupQueryKeys.detail(tenantOrganizationId, groupId),
+    queryKey: queryKeys.customerGroups.detail(tenantOrganizationId, groupId),
     enabled: Boolean(tenantOrganizationId) && canViewContacts && !orgsLoading,
     queryFn: () => getCustomerGroup(tenantOrganizationId, groupId),
   })
 
   const membersQuery = useQuery({
-    queryKey: customerGroupQueryKeys.members(tenantOrganizationId, groupId),
+    queryKey: queryKeys.customerGroups.members(tenantOrganizationId, groupId),
     enabled: Boolean(tenantOrganizationId) && canViewContacts && !orgsLoading,
     queryFn: () => listCustomerGroupContacts(tenantOrganizationId, groupId),
   })
 
   const contactsQuery = useQuery({
-    queryKey: [...customerGroupQueryKeys.all, 'contacts', tenantOrganizationId],
+    queryKey: queryKeys.customerGroups.contacts(tenantOrganizationId),
     enabled: Boolean(tenantOrganizationId) && canViewContacts && !orgsLoading && formOpen,
     queryFn: async () => {
       const { data } = await api.contacts.list()
@@ -99,7 +99,7 @@ export function CustomerGroupDetailPage({ groupId }: CustomerGroupDetailPageProp
   }, [members, memberQuery])
 
   function invalidateGroups() {
-    return queryClient.invalidateQueries({ queryKey: customerGroupQueryKeys.all })
+    return queryClient.invalidateQueries({ queryKey: queryKeys.customerGroups.all })
   }
 
   const saveMutation = useMutation({

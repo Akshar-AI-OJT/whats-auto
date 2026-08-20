@@ -26,18 +26,6 @@ import {
 } from '@/lib/api'
 import { remapTagErrorMessage, unwrapContacts } from './customer-group-utils'
 
-export const customerGroupQueryKeys = {
-  all: ['customer-groups'] as const,
-  list: (organizationId: string | null | undefined) =>
-    [...customerGroupQueryKeys.all, 'list', organizationId ?? 'none'] as const,
-  summary: (organizationId: string | null | undefined) =>
-    [...customerGroupQueryKeys.all, 'summary', organizationId ?? 'none'] as const,
-  detail: (organizationId: string | null | undefined, id: string) =>
-    [...customerGroupQueryKeys.all, 'detail', organizationId ?? 'none', id] as const,
-  members: (organizationId: string | null | undefined, id: string) =>
-    [...customerGroupQueryKeys.all, 'members', organizationId ?? 'none', id] as const,
-}
-
 export class CustomerGroupServiceError extends Error {
   status?: number
   code?: string

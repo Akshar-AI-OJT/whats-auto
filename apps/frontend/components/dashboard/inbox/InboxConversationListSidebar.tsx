@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { ChevronLeft, ChevronRight, Loader2, Plus, RefreshCw, Search } from 'lucide-react'
 import {
@@ -11,6 +12,7 @@ import {
   type OrganizationMember,
   type PaginationMeta,
 } from '@/lib/api'
+import { queryKeys } from '@/lib/query-keys'
 import { cn } from '@/lib/utils'
 import { Link, useRouter } from '@/i18n/navigation'
 import { hasPermission, PERMISSIONS } from '@/lib/rbac'
@@ -20,7 +22,6 @@ import { Input } from '@/components/ui/input'
 import { WorkspaceAvatar } from '@/components/dashboard/WorkspaceSwitcher'
 import { InboxNewConversationSheet } from './InboxNewConversationSheet'
 import { InboxAiModePill } from './InboxAiModePill'
-import { useLatestRef } from '@/hooks/useLatestRef'
 import { useInboxWorkspace } from './InboxWorkspaceContext'
 import {
   applyInboxSseToList,
@@ -40,6 +41,11 @@ const PER_PAGE = 20
 const SEARCH_DEBOUNCE_MS = 350
 
 type StatusFilter = 'all' | InboxConversationStatus
+
+type InboxListData = {
+  items: InboxConversation[]
+  meta: PaginationMeta | null
+}
 
 const selectClassName = cn(
   'h-9 w-full min-w-0 rounded-lg border border-dash-border bg-canvas px-2.5 text-xs text-ink outline-none',
@@ -85,6 +91,7 @@ export function InboxConversationListSidebar({
 }: InboxConversationListSidebarProps) {
   const t = useTranslations('dashboard.inbox')
   const router = useRouter()
+  const queryClient = useQueryClient()
   const {
     tenantOrganizationId,
     canViewInbox,
@@ -98,35 +105,67 @@ export function InboxConversationListSidebar({
     hasPermission(permissions, PERMISSIONS.CONTACTS_VIEW) &&
     hasPermission(permissions, PERMISSIONS.WHATSAPP_VIEW)
 
-  const [conversations, setConversations] = useState<InboxConversation[]>([])
-  const [members, setMembers] = useState<OrganizationMember[]>([])
-  const [meta, setMeta] = useState<PaginationMeta | null>(null)
   const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [agentFilter, setAgentFilter] = useState('all')
   const [newOpen, setNewOpen] = useState(false)
 
-  const organizationIdRef = useLatestRef(tenantOrganizationId)
-  const filtersRef = useLatestRef<InboxListFilters>({
-    page,
-    search,
-    status: statusFilter,
-    assignedAgentId: agentFilter,
-  })
-  const inflightConversationFetches = useRef(new Set<string>())
   const searchId = useId()
 
-  const agentNameByUserId = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const member of members) {
-      map.set(member.userId, member.name || member.email)
-    }
-    return map
-  }, [members])
+  const listFilters = useMemo<InboxListFilters>(
+    () => ({
+      page,
+      search,
+      status: statusFilter,
+      assignedAgentId: agentFilter,
+    }),
+    [agentFilter, page, search, statusFilter]
+  )
+
+  const listKey = queryKeys.inbox.list(tenantOrganizationId, listFilters)
+
+  const listEnabled =
+    !orgsLoading && Boolean(tenantOrganizationId) && canViewInbox
+
+  const listQuery = useQuery({
+    queryKey: listKey,
+    queryFn: async (): Promise<InboxListData> => {
+      const conversationsRes = await api.inbox.listConversations({
+        page,
+        limit: PER_PAGE,
+        search: search || undefined,
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        assignedAgentId: agentFilter === 'all' ? undefined : agentFilter,
+      })
+      const { items, meta } = unwrapPaginated<InboxConversation>(conversationsRes.data)
+      return { items, meta }
+    },
+    enabled: listEnabled,
+    staleTime: 15_000,
+  })
+
+  const membersQuery = useQuery({
+    queryKey: queryKeys.team.members(tenantOrganizationId),
+    queryFn: async () => {
+      const membersRes = await api.members.list()
+      return unwrapMembers(membersRes.data)
+    },
+    enabled: listEnabled,
+    staleTime: 60_000,
+  })
+
+  const conversations = useMemo(
+    () => listQuery.data?.items ?? [],
+    [listQuery.data?.items]
+  )
+  const meta = listQuery.data?.meta ?? null
+  const members = useMemo(() => membersQuery.data ?? [], [membersQuery.data])
+  const loading = listQuery.isFetching
+  const error = listQuery.error
+    ? (listQuery.error as unknown as ApiError).message || t('errors.loadFailed')
+    : null
 
   useEffect(() => {
     const handle = window.setTimeout(() => {
@@ -136,95 +175,57 @@ export function InboxConversationListSidebar({
     return () => window.clearTimeout(handle)
   }, [searchInput])
 
-  const loadList = useCallback(
-    async (organizationId: string, nextPage: number) => {
-      if (!canViewInbox) {
-        setConversations([])
-        setLoading(false)
-        return
-      }
-
-      setLoading(true)
-      setError(null)
-      try {
-        const [conversationsRes, membersRes] = await Promise.all([
-          api.inbox.listConversations({
-            page: nextPage,
-            limit: PER_PAGE,
-            search: search || undefined,
-            status: statusFilter === 'all' ? undefined : statusFilter,
-            assignedAgentId: agentFilter === 'all' ? undefined : agentFilter,
-          }),
-          api.members.list(),
-        ])
-        if (organizationId !== organizationIdRef.current) return
-
-        const { items, meta: nextMeta } = unwrapPaginated<InboxConversation>(conversationsRes.data)
-        setConversations(items)
-        setMeta(nextMeta)
-        setPage(nextMeta?.currentPage ?? nextPage)
-        setMembers(unwrapMembers(membersRes.data))
-      } catch (err) {
-        if (organizationId !== organizationIdRef.current) return
-        setConversations([])
-        setMeta(null)
-        setError((err as ApiError).message || t('errors.loadFailed'))
-      } finally {
-        if (organizationId === organizationIdRef.current) {
-          setLoading(false)
-        }
-      }
-    },
-    [agentFilter, canViewInbox, organizationIdRef, search, statusFilter, t]
-  )
-
-  useEffect(() => {
-    if (orgsLoading || !tenantOrganizationId) return
-    let cancelled = false
-    const scheduled = Promise.resolve().then(() => {
-      if (cancelled) return
-      return loadList(tenantOrganizationId, page)
-    })
-    return () => {
-      cancelled = true
-      void scheduled
-    }
-  }, [orgsLoading, tenantOrganizationId, loadList, page])
-
   const fetchAndUpsertConversation = useCallback(
     async (conversationId: string) => {
-      if (!canViewInbox) return
-      if (inflightConversationFetches.current.has(conversationId)) return
-      inflightConversationFetches.current.add(conversationId)
+      if (!canViewInbox || !tenantOrganizationId) return
       try {
-        const res = await api.inbox.getConversation(conversationId)
-        if (organizationIdRef.current !== tenantOrganizationId) return
-        const detail = unwrapSingle<InboxConversation>(res.data)
-        if (!detail) return
-        setConversations((prev) => upsertConversationInList(prev, detail, filtersRef.current))
+        const detail = await queryClient.fetchQuery({
+          queryKey: queryKeys.inbox.detail(tenantOrganizationId, conversationId),
+          queryFn: async () => {
+            const res = await api.inbox.getConversation(conversationId)
+            const unwrapped = unwrapSingle<InboxConversation>(res.data)
+            if (!unwrapped) throw new Error('not found')
+            return unwrapped
+          },
+          staleTime: 15_000,
+        })
+        queryClient.setQueryData<InboxListData>(listKey, (prev) => {
+          if (!prev) return prev
+          return {
+            ...prev,
+            items: upsertConversationInList(prev.items, detail, listFilters),
+          }
+        })
       } catch {
         // Keep the current page; the next refresh or event can retry.
-      } finally {
-        inflightConversationFetches.current.delete(conversationId)
       }
     },
-    [canViewInbox, filtersRef, organizationIdRef, tenantOrganizationId]
+    [canViewInbox, listFilters, listKey, queryClient, tenantOrganizationId]
   )
 
   useEffect(() => {
     if (!canViewInbox) return
     return subscribeInboxEvents((event) => {
       let fetchConversationId: string | null = null
-      setConversations((prev) => {
-        const result = applyInboxSseToList(prev, event, filtersRef.current)
+      queryClient.setQueryData<InboxListData>(listKey, (prev) => {
+        if (!prev) return prev
+        const result = applyInboxSseToList(prev.items, event, listFilters)
         fetchConversationId = result.fetchConversationId
-        return result.conversations
+        return { ...prev, items: result.conversations }
       })
       if (fetchConversationId) {
         void fetchAndUpsertConversation(fetchConversationId)
       }
     })
-  }, [canViewInbox, fetchAndUpsertConversation, filtersRef, subscribeInboxEvents])
+  }, [canViewInbox, fetchAndUpsertConversation, listFilters, listKey, queryClient, subscribeInboxEvents])
+
+  const agentNameByUserId = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const member of members) {
+      map.set(member.userId, member.name || member.email)
+    }
+    return map
+  }, [members])
 
   const lastPage = meta?.lastPage ?? 1
   const visibleConversations = useMemo(() => {
@@ -240,7 +241,11 @@ export function InboxConversationListSidebar({
     )
   }, [conversations, tenantOrganizationId, workspaceConversation])
   const total = meta?.total ?? visibleConversations.length
-  const listBusy = orgsLoading || !tenantOrganizationId || loading
+  const listBusy = orgsLoading || !tenantOrganizationId || listQuery.isLoading
+
+  function refreshList() {
+    void queryClient.invalidateQueries({ queryKey: listKey })
+  }
 
   return (
     <aside
@@ -266,9 +271,7 @@ export function InboxConversationListSidebar({
               variant="ghost"
               size="icon-sm"
               disabled={listBusy}
-              onClick={() => {
-                if (tenantOrganizationId) void loadList(tenantOrganizationId, page)
-              }}
+              onClick={refreshList}
               aria-label={t('refresh')}
             >
               <RefreshCw className={cn('size-3.5', loading && 'animate-spin')} aria-hidden />
@@ -356,14 +359,7 @@ export function InboxConversationListSidebar({
             <p role="alert" className="text-sm text-negative">
               {error}
             </p>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                if (tenantOrganizationId) void loadList(tenantOrganizationId, page)
-              }}
-            >
+            <Button type="button" variant="outline" size="sm" onClick={refreshList}>
               {t('retry')}
             </Button>
           </div>
@@ -440,9 +436,7 @@ export function InboxConversationListSidebar({
             variant="ghost"
             size="icon-sm"
             disabled={page <= 1 || loading}
-            onClick={() => {
-              if (tenantOrganizationId) void loadList(tenantOrganizationId, page - 1)
-            }}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
             aria-label={t('prevPage')}
           >
             <ChevronLeft className="size-4" aria-hidden />
@@ -455,9 +449,7 @@ export function InboxConversationListSidebar({
             variant="ghost"
             size="icon-sm"
             disabled={page >= lastPage || loading}
-            onClick={() => {
-              if (tenantOrganizationId) void loadList(tenantOrganizationId, page + 1)
-            }}
+            onClick={() => setPage((p) => p + 1)}
             aria-label={t('nextPage')}
           >
             <ChevronRight className="size-4" aria-hidden />
@@ -470,7 +462,10 @@ export function InboxConversationListSidebar({
         onOpenChange={setNewOpen}
         onCreated={(conversationId) => {
           router.push(`/dashboard/inbox/${conversationId}`)
-          if (tenantOrganizationId) void loadList(tenantOrganizationId, 1)
+          setPage(1)
+          void queryClient.invalidateQueries({
+            queryKey: queryKeys.inbox.lists(tenantOrganizationId),
+          })
         }}
       />
     </aside>
