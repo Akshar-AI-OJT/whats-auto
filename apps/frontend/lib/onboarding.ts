@@ -6,6 +6,7 @@ const CHECKLIST_KEY = 'wa-onboarding-checklist'
 const PENDING_PLAN_KEY = 'wa-onboarding-plan'
 
 export const ORG_SETUP_PATH = '/onboarding/organization'
+export const ONBOARDING_PAYMENT_PATH = '/onboarding/payment'
 export const TEAM_MEMBERS_PATH = '/dashboard/team'
 export const ASSIGNABLE_ROLES = ['admin', 'agent', 'viewer'] as const
 export type AssignableRole = (typeof ASSIGNABLE_ROLES)[number]
@@ -303,6 +304,55 @@ export function clearPendingWorkspacePlan() {
   if (typeof window === 'undefined') return
   try {
     window.sessionStorage.removeItem(PENDING_PLAN_KEY)
+  } catch {
+    /* ignore */
+  }
+}
+
+const CHECKOUT_SESSION_KEY = 'wa-onboarding-checkout'
+
+export type OnboardingCheckoutPhase =
+  | 'awaiting_gateway'
+  | 'awaiting_return'
+  | 'success'
+  | 'failed'
+  | 'cancelled'
+
+export type OnboardingCheckoutSession = {
+  planId: string
+  checkoutPlanId: string
+  planName?: string
+  subscriptionId?: string
+  checkoutUrl?: string | null
+  phase: OnboardingCheckoutPhase
+}
+
+export function saveOnboardingCheckoutSession(session: OnboardingCheckoutSession) {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.setItem(CHECKOUT_SESSION_KEY, JSON.stringify(session))
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+export function readOnboardingCheckoutSession(): OnboardingCheckoutSession | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.sessionStorage.getItem(CHECKOUT_SESSION_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as OnboardingCheckoutSession
+    if (!parsed?.planId || !parsed?.checkoutPlanId || !parsed?.phase) return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+export function clearOnboardingCheckoutSession() {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.removeItem(CHECKOUT_SESSION_KEY)
   } catch {
     /* ignore */
   }

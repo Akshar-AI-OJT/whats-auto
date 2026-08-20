@@ -17,7 +17,7 @@ export default class TagsController {
    * @description RLS-scoped grouping tags. contactCount counts non-deleted assigned contacts.
    * @tag Contacts
    * @security BearerAuth
-   * @responseBody 200 - { "data": [{ "id": "uuid", "name": "VIP", "color": "#22C55E", "description": null, "status": "active", "contactCount": 0, "usedInCampaigns": 0, "createdAt": "2026-08-13T12:00:00.000Z" }] }
+   * @responseBody 200 - { "data": [{ "id": "uuid", "name": "VIP", "color": "#22C55E", "description": "string", "status": "active", "contactCount": 0, "usedInCampaigns": 0, "createdAt": "2026-08-13T12:00:00.000Z" }] }
    * @responseBody 403 - { "error": "Permission denied: contacts:view", "code": "PERMISSION_DENIED" }
    */
   async index({ bouncer, request, serialize }: HttpContext) {
@@ -58,7 +58,7 @@ export default class TagsController {
    * @tag Contacts
    * @security BearerAuth
    * @paramPath id - Tag id - @type(string)
-   * @responseBody 200 - { "data": { "id": "uuid", "name": "VIP", "color": "#22C55E", "description": null, "status": "active", "contactCount": 1, "usedInCampaigns": 0 } }
+   * @responseBody 200 - { "data": { "id": "uuid", "name": "VIP", "color": "#22C55E", "description": "string", "status": "active", "contactCount": 1, "usedInCampaigns": 0 } }
    * @responseBody 404 - { "error": "Tag not found", "code": "E_TAG_NOT_FOUND" }
    */
   async show({ bouncer, request, params, serialize }: HttpContext) {

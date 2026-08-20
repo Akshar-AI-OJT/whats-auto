@@ -175,6 +175,35 @@ function protectedRequest<T>(path: string, init: RequestInit = {}) {
   return request<T>(path, { ...init, authMode: 'protected' })
 }
 
+/**
+ * Like protectedRequest but returns the raw Blob instead of parsing JSON.
+ * Used for binary downloads (PDF, etc.) that carry a Bearer token.
+ */
+async function protectedBlobRequest(
+  path: string,
+  init: RequestInit = {}
+): Promise<{ blob: Blob; response: Response }> {
+  const headers = new Headers(init.headers)
+  const token = await getValidAccessToken()
+  headers.set('Authorization', `Bearer ${token}`)
+
+  const response = await fetch(`${getBaseUrl()}${path}`, {
+    ...init,
+    headers,
+    credentials: 'include',
+  })
+
+  applyAuthTokenHeaders(response)
+
+  if (!response.ok) {
+    const error = await parseError(response)
+    throw error
+  }
+
+  const blob = await response.blob()
+  return { blob, response }
+}
+
 export type SignupBody = {
   firstname: string
   lastname: string
@@ -2412,6 +2441,20 @@ export const api = {
             body: JSON.stringify({}),
           }
         ),
+
+      send: (invoiceId: string) =>
+        protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+          `/api/v1/super-admin/invoices/${invoiceId}/send`,
+          {
+            method: 'POST',
+            body: JSON.stringify({}),
+          }
+        ),
+
+      download: (invoiceId: string) =>
+        protectedBlobRequest(`/api/v1/super-admin/invoices/${invoiceId}/download`, {
+          method: 'GET',
+        }),
     },
 
     aiConfig: {

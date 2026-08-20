@@ -255,13 +255,41 @@ export async function markInvoicePaid(id: string): Promise<InvoiceActionResult> 
 }
 
 export async function sendInvoice(id: string): Promise<InvoiceActionResult> {
-  void id
-  return { ok: false, reason: 'unavailable', messageKey: 'actions.sendSoon' }
+  try {
+    await api.superAdmin.invoices.send(id)
+    return { ok: true, messageKey: 'toast.sent' }
+  } catch (error) {
+    return mapActionError(error)
+  }
 }
 
-export async function downloadInvoice(id: string): Promise<InvoiceActionResult> {
-  void id
-  return { ok: false, reason: 'unavailable', messageKey: 'actions.downloadSoon' }
+export async function downloadInvoice(
+  id: string,
+  invoiceNumber?: string
+): Promise<InvoiceActionResult> {
+  try {
+    const { blob, response } = await api.superAdmin.invoices.download(id)
+
+    const disposition = response.headers.get('content-disposition') ?? ''
+    const filenameMatch = /filename[^;=\n]*=["']?([^"'\n;]+)["']?/i.exec(disposition)
+    const filename =
+      filenameMatch?.[1]?.trim() ||
+      (invoiceNumber ? `invoice-${invoiceNumber}.pdf` : `invoice-${id}.pdf`)
+
+    const url = URL.createObjectURL(blob)
+    const anchor = document.createElement('a')
+    anchor.href = url
+    anchor.download = filename
+    anchor.style.display = 'none'
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
+    URL.revokeObjectURL(url)
+
+    return { ok: true, messageKey: 'toast.downloaded' }
+  } catch (error) {
+    return mapActionError(error)
+  }
 }
 
 export async function regenerateInvoice(id: string): Promise<InvoiceActionResult> {

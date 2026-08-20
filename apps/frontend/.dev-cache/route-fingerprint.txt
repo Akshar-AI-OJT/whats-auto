@@ -50,6 +50,7 @@
 [locale]/integrations/[slug]/page.tsx
 [locale]/login/page.tsx
 [locale]/onboarding/organization/page.tsx
+[locale]/onboarding/payment/page.tsx
 [locale]/page.tsx
 [locale]/pricing/page.tsx
 [locale]/privacy/page.tsx

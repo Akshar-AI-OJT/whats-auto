@@ -165,8 +165,15 @@ export function InvoicesPage() {
     setRowPendingId(invoice.id)
     closeMenu()
     try {
-      const result = await downloadInvoice(invoice.id)
-      showMessage(t(result.messageKey ?? 'actions.downloadSoon'))
+      const result = await downloadInvoice(invoice.id, invoice.invoiceNumber)
+      if (result.ok) showMessage(t(result.messageKey ?? 'toast.downloaded'))
+      else {
+        setActionError(null)
+        showMessage(t(result.messageKey))
+      }
+    } catch {
+      setActionError(t('errors.downloadFailed'))
+      setActionMessage(null)
     } finally {
       setRowPendingId(null)
     }
@@ -178,7 +185,13 @@ export function InvoicesPage() {
     try {
       const result = await sendInvoice(invoice.id)
       if (result.ok) showMessage(t(result.messageKey ?? 'toast.sent'))
-      else showMessage(t(result.messageKey))
+      else {
+        setActionError(null)
+        showMessage(t(result.messageKey))
+      }
+    } catch {
+      setActionError(t('errors.sendFailed'))
+      setActionMessage(null)
     } finally {
       setRowPendingId(null)
     }
@@ -213,7 +226,7 @@ export function InvoicesPage() {
       }
       showMessage(t(result.messageKey ?? 'toast.regenerated'))
       await load(1)
-      router.push(`/admin/invoices/${result.invoice.id}`)
+      if (result.invoice?.id) router.push(`/admin/invoices/${result.invoice.id}`)
     } finally {
       setRowPendingId(null)
     }

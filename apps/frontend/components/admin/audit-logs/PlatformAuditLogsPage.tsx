@@ -188,7 +188,7 @@ export function PlatformAuditLogsPage() {
   const selectedStatus = selected ? auditStatus(selected.granted) : null
 
   return (
-    <div className="mx-auto flex w-full max-w-300 flex-col gap-5 sm:gap-6">
+    <div className="flex w-full flex-col gap-5 sm:gap-6">
       <DashboardPanel
         as="section"
         className="relative overflow-hidden px-4 py-5 sm:px-6 sm:py-6 md:px-7 md:py-7"

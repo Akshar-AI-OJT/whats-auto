@@ -1,4 +1,9 @@
-import type { ApiError, BillingCheckoutResult, BillingSubscription } from '@/lib/api'
+import {
+  api,
+  type ApiError,
+  type BillingCheckoutResult,
+  type BillingSubscription,
+} from '@/lib/api'
 
 export const billingQueryKeys = {
   all: ['billing'] as const,
@@ -67,4 +72,67 @@ const UUID_RE =
 
 export function isValidPlanId(value: string) {
   return UUID_RE.test(value.trim())
+}
+
+export function isCheckoutInProgressError(error: unknown): boolean {
+  const apiError = error as ApiError | undefined
+  if (!apiError) return false
+  return apiError.status === 409 || apiError.code === 'E_BILLING_CHECKOUT_IN_PROGRESS'
+}
+
+function checkoutResultFromSubscription(
+  subscription: BillingSubscription
+): BillingCheckoutResult {
+  return {
+    subscriptionId: subscription.id,
+    planId: subscription.planId,
+    status: subscription.status,
+    checkoutUrl: subscription.checkoutUrl ?? null,
+    gatewaySubscriptionId: subscription.gatewaySubscriptionId ?? null,
+  }
+}
+
+/**
+ * POST /api/v1/billing/checkout with the internal plan UUID.
+ * If a hosted checkout is already open for the org, resume that checkoutUrl.
+ */
+export async function startOrResumeBillingCheckout(
+  planId: string
+): Promise<BillingCheckoutResult> {
+  try {
+    const { data } = await api.billing.checkout({ planId })
+    const result = unwrapBillingCheckout(data)
+    if (!result) {
+      throw new Error('Checkout did not return a subscription')
+    }
+    return result
+  } catch (error) {
+    if (!isCheckoutInProgressError(error)) throw error
+
+    try {
+      const { data } = await api.billing.getSubscription()
+      const subscription = unwrapBillingSubscription(data)
+      if (subscription?.checkoutUrl) {
+        return checkoutResultFromSubscription(subscription)
+      }
+    } catch {
+      /* fall through and rethrow the original 409 */
+    }
+
+    throw error
+  }
+}
+
+export function isCapturedPayment(subscription: BillingSubscription | null): boolean {
+  if (!subscription) return false
+  const last = subscription.lastPaymentStatus?.toLowerCase()
+  if (last === 'captured' || last === 'paid' || last === 'success') return true
+  const status = subscription.status.toLowerCase()
+  return (status === 'active' || status === 'authenticated') && !subscription.checkoutUrl
+}
+
+export function isFailedPayment(subscription: BillingSubscription | null): boolean {
+  if (!subscription) return false
+  const last = subscription.lastPaymentStatus?.toLowerCase()
+  return last === 'failed'
 }
