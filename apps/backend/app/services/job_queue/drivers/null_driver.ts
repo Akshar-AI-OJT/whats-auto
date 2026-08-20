@@ -42,6 +42,16 @@ export default class NullJobQueueDriver implements JobQueueDriver {
     return `null-${this.enqueued.length}`
   }
 
+  async remove(name: string, singletonKey: string): Promise<void> {
+    this.removed.push({ name, singletonKey })
+    for (let i = this.enqueued.length - 1; i >= 0; i--) {
+      const job = this.enqueued[i]
+      if (job.name === name && job.options?.singletonKey === singletonKey) {
+        this.enqueued.splice(i, 1)
+      }
+    }
+  }
+
   async work(name: string, handler: JobHandler): Promise<void> {
     this.handlers.set(name, handler)
   }
@@ -66,6 +76,10 @@ export default class NullJobQueueDriver implements JobQueueDriver {
   /** Test helper: drop recorded enqueues between cases. */
   clearEnqueued(): void {
     this.enqueued.length = 0
+  }
+
+  clearRemoved(): void {
+    this.removed.length = 0
   }
 
   clearScheduled(): void {

@@ -1260,11 +1260,8 @@ export class CampaignService {
         .where('organizationId', params.organizationId)
         .where('status', CAMPAIGN_SCHEDULED_STATUS)
         .update({
-          status:
-            currentStatus === CAMPAIGN_SCHEDULED_STATUS
-              ? CAMPAIGN_SCHEDULED_STATUS
-              : CAMPAIGN_DRAFT_STATUS,
-          scheduledAt: currentStatus === CAMPAIGN_SCHEDULED_STATUS ? previousScheduledAt : null,
+          status: currentStatus,
+          scheduledAt: previousScheduledAt,
         })
       logger.error(
         {
@@ -1296,7 +1293,7 @@ export class CampaignService {
   }
 
   /**
-   * Enqueue delayed campaign execute job for a future schedule.
+   * Enqueue a delayed CAMPAIGN_EXECUTE wake for the canonical scheduledAt instant.
    */
   protected async registerCampaignSchedule(params: {
     organizationId: string
@@ -1373,7 +1370,8 @@ export class CampaignService {
   }
 
   /**
-   * Kick off campaign send: mark as `sending` ("running") when eligible, then enqueue fan-out.
+   * Kick off campaign send: mark as `sending` ("running") when eligible,
+   * then enqueue an immediate CAMPAIGN_EXECUTE wake. Delivery happens in the worker.
    * Soft-deleted campaigns are treated as not found (404).
    * Requires an approved template and a connected WhatsApp configuration.
    */
@@ -1450,7 +1448,6 @@ export class CampaignService {
       )
       throw error
     }
-
     await this.#protectHeaderMedia({
       organizationId: params.organizationId,
       campaignId: params.campaignId,
@@ -1470,7 +1467,7 @@ export class CampaignService {
   }
 
   /**
-   * Enqueue immediate campaign execute fan-out via WhatsappOutboundService per recipient.
+   * Enqueue an immediate CAMPAIGN_EXECUTE wake for manual launch.
    */
   protected async enqueueCampaignSend(params: {
     organizationId: string

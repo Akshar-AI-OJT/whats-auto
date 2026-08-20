@@ -1,3 +1,4 @@
+import app from '@adonisjs/core/services/app'
 import type { JobQueueDriver } from '#services/job_queue/contracts/job_queue_driver'
 import { JOB_NAMES } from '#services/job_queue/job_names'
 import { createWhatsappOutboundDispatchHandler } from '#services/job_queue/handlers/whatsapp_outbound_dispatch_handler'
@@ -12,7 +13,6 @@ import { createAiDebounceTurnHandler } from '#services/job_queue/handlers/ai_deb
 import { createAiSummarizeConversationHandler } from '#services/job_queue/handlers/ai_summarize_conversation_handler'
 import { createAiReindexAllDocumentsHandler } from '#services/job_queue/handlers/ai_reindex_all_documents_handler'
 import { createIntegrationEventsRecoveryHandler } from '#services/job_queue/handlers/integration_events_recovery_handler'
-import app from '@adonisjs/core/services/app'
 import { CampaignExecutionService } from '#services/campaign_execution_service'
 
 /**
