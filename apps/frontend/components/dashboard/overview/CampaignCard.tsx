@@ -176,7 +176,7 @@ export function CampaignCard({
                         type="button"
                         role="menuitem"
                         className={cn(
-                          'flex w-full items-center gap-2 px-3 py-2 text-left text-sm font-medium',
+                          'flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm font-medium',
                           action.tone === 'danger'
                             ? 'text-negative hover:bg-dash-danger-soft'
                             : 'text-ink hover:bg-dash-surface'

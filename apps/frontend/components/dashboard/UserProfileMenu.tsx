@@ -163,7 +163,7 @@ export function UserProfileMenu({
                   type="button"
                   role="menuitem"
                   className={cn(
-                    'flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2.5 text-left text-sm font-medium text-ink',
+                    'flex w-full cursor-pointer items-center gap-2.5 rounded-xl px-2.5 py-2.5 text-left text-sm font-medium text-ink',
                     'transition-colors duration-150 hover:bg-dash-surface'
                   )}
                   onClick={() => void handleSelect(action.id)}
@@ -186,7 +186,7 @@ export function UserProfileMenu({
                   type="button"
                   role="menuitem"
                   className={cn(
-                    'flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2.5 text-left text-sm font-medium',
+                    'flex w-full cursor-pointer items-center gap-2.5 rounded-xl px-2.5 py-2.5 text-left text-sm font-medium',
                     'transition-colors duration-150',
                     action.tone === 'danger'
                       ? 'text-negative hover:bg-dash-danger-soft'

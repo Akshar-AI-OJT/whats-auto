@@ -34,7 +34,7 @@ const getStartedClassName = cn(
 
 function navItemClassName(active: boolean) {
   return cn(
-    'relative inline-flex h-9 items-center rounded-xl px-3 text-sm font-medium',
+    'relative inline-flex h-9 cursor-pointer items-center rounded-xl px-3 text-sm font-medium',
     'transition-[color,background-color,transform] duration-300',
     'hover:bg-[#F1F5F9] hover:text-ink',
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2',

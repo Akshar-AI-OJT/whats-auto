@@ -86,7 +86,7 @@ function CardActions({
           <button
             type="button"
             role="menuitem"
-            className="block w-full px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
+            className="block w-full cursor-pointer px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
             onClick={(e) => {
               e.stopPropagation()
               setOpen(false)
@@ -99,7 +99,7 @@ function CardActions({
             <button
               type="button"
               role="menuitem"
-              className="block w-full px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
+              className="block w-full cursor-pointer px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
               onClick={(e) => {
                 e.stopPropagation()
                 setOpen(false)
@@ -151,7 +151,7 @@ function TemplateCard({
       <div className="flex items-start justify-between gap-3">
         <button
           type="button"
-          className="flex min-w-0 flex-1 items-start gap-3 text-left"
+          className="flex min-w-0 flex-1 cursor-pointer items-start gap-3 text-left"
           onClick={onView}
         >
           <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary-pale text-positive-deep">

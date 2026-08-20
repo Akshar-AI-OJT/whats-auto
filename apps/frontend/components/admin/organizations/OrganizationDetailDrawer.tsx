@@ -235,7 +235,7 @@ function OverviewTab({
               website ? (
                 <a
                   href={website}
-                  className="text-positive-deep underline-offset-2 hover:underline"
+                  className="cursor-pointer text-positive-deep underline-offset-2 hover:underline"
                   target="_blank"
                   rel="noreferrer"
                 >
