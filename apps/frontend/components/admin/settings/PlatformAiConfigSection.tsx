@@ -40,6 +40,7 @@ type FormState = {
   summaryModel: string | null
   embeddingModel: string
   temperature: string
+  maxOutputTokens: number
   campaignAttributionWindowHours: string
   minConfidenceScore: string
   debounceDelaySeconds: string
@@ -80,6 +81,7 @@ function formFromConfig(config: PlatformAiConfig): FormState {
     summaryModel: config.summaryModel ?? null,
     embeddingModel: pendingEmbed || config.embeddingModel,
     temperature: String(config.temperature),
+    maxOutputTokens: Number(config.maxOutputTokens ?? 1024),
     campaignAttributionWindowHours: String(config.campaignAttributionWindowHours),
     minConfidenceScore: String(config.minConfidenceScore),
     debounceDelaySeconds: String(config.debounceDelaySeconds),
@@ -314,6 +316,12 @@ export function PlatformAiConfigSection() {
       PLATFORM_AI_LIMITS.temperature.max,
       false
     )
+    const maxOutputTokens = parseBoundedNumber(
+      String(form.maxOutputTokens),
+      PLATFORM_AI_LIMITS.maxOutputTokens.min,
+      PLATFORM_AI_LIMITS.maxOutputTokens.max,
+      true
+    )
     const campaignAttributionWindowHours = parseBoundedNumber(
       form.campaignAttributionWindowHours,
       PLATFORM_AI_LIMITS.campaignAttributionWindowHours.min,
@@ -347,6 +355,7 @@ export function PlatformAiConfigSection() {
 
     if (
       temperature == null ||
+      maxOutputTokens == null ||
       campaignAttributionWindowHours == null ||
       minConfidenceScore == null ||
       debounceDelaySeconds == null ||
@@ -373,6 +382,7 @@ export function PlatformAiConfigSection() {
       embeddingProvider: form.chatProvider,
       embeddingModel: form.embeddingModel,
       temperature,
+      maxOutputTokens,
       campaignAttributionWindowHours,
       minConfidenceScore,
       debounceDelaySeconds,
@@ -558,7 +568,7 @@ export function PlatformAiConfigSection() {
                 </FieldShell>
               </div>
 
-              <div className="grid grid-cols-1 gap-x-5 gap-y-5 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-x-5 gap-y-5 sm:grid-cols-2 lg:grid-cols-4">
                 <NumberField
                   id={`${formId}-temperature`}
                   label={t('fields.temperature')}
@@ -571,6 +581,30 @@ export function PlatformAiConfigSection() {
                   onChange={(value) =>
                     setForm((prev) => (prev ? { ...prev, temperature: value } : prev))
                   }
+                />
+
+                <NumberField
+                  id={`${formId}-max-output-tokens`}
+                  label={t('fields.maxOutputTokens')}
+                  hint={t('hints.maxOutputTokens')}
+                  value={String(form.maxOutputTokens)}
+                  disabled={saving}
+                  min={PLATFORM_AI_LIMITS.maxOutputTokens.min}
+                  max={PLATFORM_AI_LIMITS.maxOutputTokens.max}
+                  step="1"
+                  onChange={(value) => {
+                    const next = Number(value)
+                    setForm((prev) =>
+                      prev
+                        ? {
+                            ...prev,
+                            maxOutputTokens: Number.isFinite(next)
+                              ? Math.trunc(next)
+                              : prev.maxOutputTokens,
+                          }
+                        : prev
+                    )
+                  }}
                 />
 
                 <NumberField
