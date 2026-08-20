@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useId, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useId, useMemo, useState, type ReactNode } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { Loader2, X } from 'lucide-react'
 import {
@@ -9,6 +10,7 @@ import {
   type PlatformAiConfig,
   type UpdatePlatformAiConfigBody,
 } from '@/lib/api'
+import { queryKeys } from '@/lib/query-keys'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
@@ -221,14 +223,72 @@ function NumberField({
 export function PlatformAiConfigSection() {
   const t = useTranslations('admin.settings.ai')
   const formId = useId()
+  const queryClient = useQueryClient()
   const { toast, showToast, clearToast } = useDashboardToast()
 
-  const [form, setForm] = useState<FormState | null>(null)
-  const [reindexStatus, setReindexStatus] = useState<'idle' | 'running' | 'failed'>('idle')
+  const [draft, setDraft] = useState<FormState | null>(null)
   const [keywordDraft, setKeywordDraft] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [loadError, setLoadError] = useState<string | null>(null)
+
+  const configQuery = useQuery({
+    queryKey: queryKeys.admin.aiConfig,
+    queryFn: async (): Promise<PlatformAiConfig> => {
+      const { data } = await api.superAdmin.aiConfig.get()
+      const config = unwrapConfig(data)
+      if (!config) {
+        throw Object.assign(new Error('Platform AI config missing'), {
+          code: 'E_PLATFORM_AI_CONFIG_NOT_FOUND',
+        })
+      }
+      return config
+    },
+    refetchInterval: (query) =>
+      query.state.data && reindexStatusFromConfig(query.state.data) === 'running' ? 2000 : false,
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: async (payload: UpdatePlatformAiConfigBody): Promise<PlatformAiConfig> => {
+      const { data } = await api.superAdmin.aiConfig.update(payload)
+      const config = unwrapConfig(data)
+      if (!config) {
+        throw Object.assign(new Error('Platform AI config missing'), {
+          code: 'E_PLATFORM_AI_CONFIG_NOT_FOUND',
+        })
+      }
+      return config
+    },
+    onSuccess: (config) => {
+      queryClient.setQueryData(queryKeys.admin.aiConfig, config)
+      setDraft(formFromConfig(config))
+    },
+  })
+
+  const reindexStatus = configQuery.data
+    ? reindexStatusFromConfig(configQuery.data)
+    : ('idle' as const)
+  const saving = updateMutation.isPending
+  const loading = configQuery.isLoading && !configQuery.data
+  const loadError = configQuery.isError
+    ? (() => {
+        const key = mapAiConfigError(configQuery.error, 'load')
+        return key === 'raw'
+          ? (configQuery.error as unknown as ApiError).message
+          : t(`errors.${key}`)
+      })()
+    : null
+
+  // Prefer local edits; otherwise mirror the latest server config (incl. reindex polls).
+  const form = draft ?? (configQuery.data ? formFromConfig(configQuery.data) : null)
+
+  const patchForm = useCallback(
+    (updater: (prev: FormState) => FormState) => {
+      setDraft((prev) => {
+        const base = prev ?? (configQuery.data ? formFromConfig(configQuery.data) : null)
+        if (!base) return prev
+        return updater(base)
+      })
+    },
+    [configQuery.data]
+  )
 
   const catalog = useMemo(
     () => catalogForProvider(form?.chatProvider ?? 'openai'),
@@ -247,64 +307,32 @@ export function PlatformAiConfigSection() {
     [catalog.chat, form?.summaryModel]
   )
 
-  const loadConfig = useCallback(async () => {
-    setLoading(true)
-    setLoadError(null)
-    try {
-      const { data } = await api.superAdmin.aiConfig.get()
-      const config = unwrapConfig(data)
-      if (!config) {
-        setForm(null)
-        setLoadError(t('errors.loadFailed'))
-        return
-      }
-      setForm(formFromConfig(config))
-      setReindexStatus(reindexStatusFromConfig(config))
-    } catch (err) {
-      setForm(null)
-      const key = mapAiConfigError(err, 'load')
-      setLoadError(key === 'raw' ? (err as ApiError).message : t(`errors.${key}`))
-    } finally {
-      setLoading(false)
-    }
-  }, [t])
+  const addKeyword = useCallback(
+    (raw: string) => {
+      const keyword = normalizeKeyword(raw)
+      if (!keyword) return
+      patchForm((prev) => {
+        if (prev.handoverKeywords.length >= PLATFORM_AI_LIMITS.keywordMaxCount) return prev
+        const exists = prev.handoverKeywords.some(
+          (item) => item.toLowerCase() === keyword.toLowerCase()
+        )
+        if (exists) return prev
+        return { ...prev, handoverKeywords: [...prev.handoverKeywords, keyword] }
+      })
+      setKeywordDraft('')
+    },
+    [patchForm]
+  )
 
-  useEffect(() => {
-    let cancelled = false
-    const scheduled = Promise.resolve().then(() => {
-      if (cancelled) return
-      return loadConfig()
-    })
-    return () => {
-      cancelled = true
-      void scheduled
-    }
-  }, [loadConfig])
-
-  const addKeyword = useCallback((raw: string) => {
-    const keyword = normalizeKeyword(raw)
-    if (!keyword) return
-    setForm((prev) => {
-      if (!prev) return prev
-      if (prev.handoverKeywords.length >= PLATFORM_AI_LIMITS.keywordMaxCount) return prev
-      const exists = prev.handoverKeywords.some(
-        (item) => item.toLowerCase() === keyword.toLowerCase()
-      )
-      if (exists) return prev
-      return { ...prev, handoverKeywords: [...prev.handoverKeywords, keyword] }
-    })
-    setKeywordDraft('')
-  }, [])
-
-  const removeKeyword = useCallback((index: number) => {
-    setForm((prev) => {
-      if (!prev) return prev
-      return {
+  const removeKeyword = useCallback(
+    (index: number) => {
+      patchForm((prev) => ({
         ...prev,
         handoverKeywords: prev.handoverKeywords.filter((_, i) => i !== index),
-      }
-    })
-  }, [])
+      }))
+    },
+    [patchForm]
+  )
 
   const handleSave = useCallback(async () => {
     if (!form || saving) return
@@ -393,36 +421,22 @@ export function PlatformAiConfigSection() {
       ...(reindexStatus === 'failed' ? { confirmReindex: true } : {}),
     }
 
-    setSaving(true)
     try {
-      const persist = async (payload: UpdatePlatformAiConfigBody) => {
-        const { data } = await api.superAdmin.aiConfig.update(payload)
-        const config = unwrapConfig(data)
-        if (config) {
-          setForm(formFromConfig(config))
-          setReindexStatus(reindexStatusFromConfig(config))
-        }
-      }
-
       try {
-        await persist(body)
+        await updateMutation.mutateAsync(body)
       } catch (err) {
         const apiError = err as ApiError
         if (apiError.code !== 'E_PLATFORM_AI_REINDEX_REQUIRED') throw err
-        const confirmed = window.confirm(
-          t('reindexConfirm', { count: apiError.chunkCount ?? 0 })
-        )
+        const confirmed = window.confirm(t('reindexConfirm', { count: apiError.chunkCount ?? 0 }))
         if (!confirmed) return
-        await persist({ ...body, confirmReindex: true })
+        await updateMutation.mutateAsync({ ...body, confirmReindex: true })
       }
       showToast(t('saved'), 'success')
     } catch (err) {
       const key = mapAiConfigError(err, 'save')
       showToast(key === 'raw' ? (err as ApiError).message : t(`errors.${key}`), 'error')
-    } finally {
-      setSaving(false)
     }
-  }, [clearToast, form, reindexStatus, saving, showToast, t])
+  }, [clearToast, form, reindexStatus, saving, showToast, t, updateMutation])
 
   const embedLocked = reindexStatus === 'running'
 
@@ -444,7 +458,15 @@ export function PlatformAiConfigSection() {
           <p role="alert" className="text-sm text-negative">
             {loadError}
           </p>
-          <Button type="button" variant="outline" size="sm" onClick={() => void loadConfig()}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setDraft(null)
+              void configQuery.refetch()
+            }}
+          >
             {t('retry')}
           </Button>
         </div>
@@ -472,7 +494,7 @@ export function PlatformAiConfigSection() {
                   checked={form.isEnabled}
                   disabled={saving}
                   onChange={(event) =>
-                    setForm((prev) => (prev ? { ...prev, isEnabled: event.target.checked } : prev))
+                    patchForm((prev) => ({ ...prev, isEnabled: event.target.checked }))
                   }
                 />
                 <span className="min-w-0">
@@ -499,17 +521,13 @@ export function PlatformAiConfigSection() {
                     onChange={(event) => {
                       const nextProvider = event.target.value
                       const nextCatalog = catalogForProvider(nextProvider)
-                      setForm((prev) =>
-                        prev
-                          ? {
-                              ...prev,
-                              chatProvider: nextProvider,
-                              chatModel: nextCatalog.defaults.chatModel,
-                              summaryModel: nextCatalog.defaults.summaryModel,
-                              embeddingModel: nextCatalog.defaults.embeddingModel,
-                            }
-                          : prev
-                      )
+                      patchForm((prev) => ({
+                        ...prev,
+                        chatProvider: nextProvider,
+                        chatModel: nextCatalog.defaults.chatModel,
+                        summaryModel: nextCatalog.defaults.summaryModel,
+                        embeddingModel: nextCatalog.defaults.embeddingModel,
+                      }))
                     }}
                   >
                     {PLATFORM_AI_PROVIDERS.map((provider) => (
@@ -531,7 +549,7 @@ export function PlatformAiConfigSection() {
                     disabled={saving}
                     value={form.chatModel}
                     onChange={(event) =>
-                      setForm((prev) => (prev ? { ...prev, chatModel: event.target.value } : prev))
+                      patchForm((prev) => ({ ...prev, chatModel: event.target.value }))
                     }
                   >
                     {chatModels.map((model) => (
@@ -553,9 +571,7 @@ export function PlatformAiConfigSection() {
                     disabled={saving}
                     value={form.summaryModel ?? ''}
                     onChange={(event) =>
-                      setForm((prev) =>
-                        prev ? { ...prev, summaryModel: event.target.value || null } : prev
-                      )
+                      patchForm((prev) => ({ ...prev, summaryModel: event.target.value || null }))
                     }
                   >
                     <option value="">{t('sameAsMain')}</option>
@@ -578,9 +594,7 @@ export function PlatformAiConfigSection() {
                   min={PLATFORM_AI_LIMITS.temperature.min}
                   max={PLATFORM_AI_LIMITS.temperature.max}
                   step="0.1"
-                  onChange={(value) =>
-                    setForm((prev) => (prev ? { ...prev, temperature: value } : prev))
-                  }
+                  onChange={(value) => patchForm((prev) => ({ ...prev, temperature: value }))}
                 />
 
                 <NumberField
@@ -594,16 +608,12 @@ export function PlatformAiConfigSection() {
                   step="1"
                   onChange={(value) => {
                     const next = Number(value)
-                    setForm((prev) =>
-                      prev
-                        ? {
-                            ...prev,
-                            maxOutputTokens: Number.isFinite(next)
-                              ? Math.trunc(next)
-                              : prev.maxOutputTokens,
-                          }
-                        : prev
-                    )
+                    patchForm((prev) => ({
+                      ...prev,
+                      maxOutputTokens: Number.isFinite(next)
+                        ? Math.trunc(next)
+                        : prev.maxOutputTokens,
+                    }))
                   }}
                 />
 
@@ -617,7 +627,7 @@ export function PlatformAiConfigSection() {
                   max={PLATFORM_AI_LIMITS.debounceDelaySeconds.max}
                   step="1"
                   onChange={(value) =>
-                    setForm((prev) => (prev ? { ...prev, debounceDelaySeconds: value } : prev))
+                    patchForm((prev) => ({ ...prev, debounceDelaySeconds: value }))
                   }
                 />
 
@@ -631,9 +641,7 @@ export function PlatformAiConfigSection() {
                   max={PLATFORM_AI_LIMITS.campaignAttributionWindowHours.max}
                   step="1"
                   onChange={(value) =>
-                    setForm((prev) =>
-                      prev ? { ...prev, campaignAttributionWindowHours: value } : prev
-                    )
+                    patchForm((prev) => ({ ...prev, campaignAttributionWindowHours: value }))
                   }
                 />
               </div>
@@ -666,9 +674,7 @@ export function PlatformAiConfigSection() {
                   disabled={saving || embedLocked}
                   value={form.embeddingModel}
                   onChange={(event) =>
-                    setForm((prev) =>
-                      prev ? { ...prev, embeddingModel: event.target.value } : prev
-                    )
+                    patchForm((prev) => ({ ...prev, embeddingModel: event.target.value }))
                   }
                 >
                   {embeddingModels.map((model) => (
@@ -690,7 +696,7 @@ export function PlatformAiConfigSection() {
                   max={PLATFORM_AI_LIMITS.minConfidenceScore.max}
                   step="0.05"
                   onChange={(value) =>
-                    setForm((prev) => (prev ? { ...prev, minConfidenceScore: value } : prev))
+                    patchForm((prev) => ({ ...prev, minConfidenceScore: value }))
                   }
                 />
                 <NumberField
@@ -702,9 +708,7 @@ export function PlatformAiConfigSection() {
                   min={PLATFORM_AI_LIMITS.workingSetSize.min}
                   max={PLATFORM_AI_LIMITS.workingSetSize.max}
                   step="1"
-                  onChange={(value) =>
-                    setForm((prev) => (prev ? { ...prev, workingSetSize: value } : prev))
-                  }
+                  onChange={(value) => patchForm((prev) => ({ ...prev, workingSetSize: value }))}
                 />
                 <NumberField
                   id={`${formId}-summary`}
@@ -716,7 +720,7 @@ export function PlatformAiConfigSection() {
                   max={PLATFORM_AI_LIMITS.summaryTurnThreshold.max}
                   step="1"
                   onChange={(value) =>
-                    setForm((prev) => (prev ? { ...prev, summaryTurnThreshold: value } : prev))
+                    patchForm((prev) => ({ ...prev, summaryTurnThreshold: value }))
                   }
                 />
               </div>
@@ -741,7 +745,7 @@ export function PlatformAiConfigSection() {
                   value={form.systemPrompt}
                   placeholder={t('promptPlaceholder')}
                   onChange={(event) =>
-                    setForm((prev) => (prev ? { ...prev, systemPrompt: event.target.value } : prev))
+                    patchForm((prev) => ({ ...prev, systemPrompt: event.target.value }))
                   }
                 />
               </FieldShell>
