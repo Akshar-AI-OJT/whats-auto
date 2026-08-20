@@ -62,7 +62,7 @@ export const DASHBOARD_NAV_SECTIONS: readonly DashboardNavSection[] = [
   { id: 'overview', items: ['dashboard'] },
   { id: 'messaging', items: ['inbox', 'contacts'] },
   { id: 'campaignsContent', items: ['campaigns', 'templates', 'media'] },
-  { id: 'automationAi', items: ['knowledge'] },
+  { id: 'automationAi', items: ['knowledge', 'integrations'] },
   { id: 'insights', items: ['analytics'] },
   { id: 'teamAccess', items: ['team', 'auditLogs'] },
   { id: 'billing', items: ['billing'] },

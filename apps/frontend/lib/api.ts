@@ -1094,7 +1094,7 @@ export type PlatformAiConfig = {
   embeddingProvider: 'openai' | 'google' | 'mistral' | string
   embeddingModel: string
   activeEmbeddingSpaceId?: string
-  maxOutputTokens?: number
+  maxOutputTokens: number
   reindexStatus?: 'idle' | 'running' | 'failed'
   reindexFromSpaceId?: string | null
   reindexToSpaceId?: string | null
@@ -1121,6 +1121,7 @@ export type UpdatePlatformAiConfigBody = {
   summaryTurnThreshold?: number
   embeddingProvider?: string
   embeddingModel?: string
+  maxOutputTokens?: number
   confirmReindex?: boolean
 }
 
