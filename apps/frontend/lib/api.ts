@@ -1498,7 +1498,9 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({
           provider: 'google',
-          callbackURL: callbackURL ?? `${process.env.NEXT_PUBLIC_APP_URL}/onboarding/organization`,
+          callbackURL:
+            callbackURL ??
+            `${typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '')}/onboarding/organization`,
         }),
       }),
 

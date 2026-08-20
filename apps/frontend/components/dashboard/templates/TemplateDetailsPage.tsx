@@ -12,7 +12,7 @@ import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { TemplateStatusBadge } from './TemplateStatusBadge'
 import { TemplatePreview, templateToPreviewProps } from './TemplatePreview'
 import { TemplateDeleteDialog } from './TemplateDialogs'
-import { templateQueryKeys } from './TemplatesListPage'
+import { queryKeys } from '@/lib/query-keys'
 import {
   buildSubmissionHistory,
   extractBodyVariables,
@@ -35,7 +35,7 @@ export function TemplateDetailsPage({ templateId }: { templateId: string }) {
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const detailQuery = useQuery({
-    queryKey: templateQueryKeys.detail(templateId),
+    queryKey: queryKeys.templates.detail(templateId),
     enabled: Boolean(templateId) && canViewTemplates && !orgsLoading,
     queryFn: async () => {
       const { data } = await api.whatsapp.getTemplate(templateId)
@@ -48,7 +48,7 @@ export function TemplateDetailsPage({ templateId }: { templateId: string }) {
       await api.whatsapp.deleteTemplate(templateId)
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: templateQueryKeys.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.templates.all })
       router.push('/dashboard/templates')
     },
     onError: (err) => {

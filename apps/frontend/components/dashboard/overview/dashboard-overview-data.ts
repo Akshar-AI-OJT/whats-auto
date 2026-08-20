@@ -19,18 +19,6 @@ export const RECENT_CONVERSATIONS_LIMIT = 5
 export const RECENT_CAMPAIGNS_LIMIT = 5
 export const RECENT_ACTIVITY_LIMIT = 10
 
-export const dashboardOverviewQueryKeys = {
-  all: ['dashboard-overview'] as const,
-  contacts: (organizationId: string | null) =>
-    ['dashboard-overview', 'contacts', organizationId] as const,
-  conversations: (organizationId: string | null) =>
-    ['dashboard-overview', 'conversations', organizationId] as const,
-  campaigns: (organizationId: string | null) =>
-    ['dashboard-overview', 'campaigns', organizationId] as const,
-  audit: (organizationId: string | null) =>
-    ['dashboard-overview', 'audit', organizationId] as const,
-}
-
 export type DashboardOverviewKpis = {
   contactsCount: number
   conversationsCount: number

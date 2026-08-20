@@ -4,9 +4,9 @@ import { createContext, useCallback, useContext, useMemo, type ReactNode } from 
 import { useQuery } from '@tanstack/react-query'
 import type { AuthorizationAuditEvent, Campaign, InboxConversation } from '@/lib/api'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
+import { queryKeys } from '@/lib/query-keys'
 import {
   buildAuditActivityItems,
-  dashboardOverviewQueryKeys,
   fetchOverviewAudit,
   fetchOverviewCampaigns,
   fetchOverviewContacts,
@@ -51,25 +51,25 @@ export function DashboardOverviewProvider({
   const enabled = Boolean(tenantOrganizationId) && !orgsLoading
 
   const contactsQuery = useQuery({
-    queryKey: dashboardOverviewQueryKeys.contacts(tenantOrganizationId),
+    queryKey: queryKeys.overview.contacts(tenantOrganizationId),
     enabled,
     queryFn: () => fetchOverviewContacts(tenantOrganizationId!),
   })
 
   const conversationsQuery = useQuery({
-    queryKey: dashboardOverviewQueryKeys.conversations(tenantOrganizationId),
+    queryKey: queryKeys.overview.conversations(tenantOrganizationId),
     enabled,
     queryFn: fetchOverviewConversations,
   })
 
   const campaignsQuery = useQuery({
-    queryKey: dashboardOverviewQueryKeys.campaigns(tenantOrganizationId),
+    queryKey: queryKeys.overview.campaigns(tenantOrganizationId),
     enabled,
     queryFn: fetchOverviewCampaigns,
   })
 
   const auditQuery = useQuery({
-    queryKey: dashboardOverviewQueryKeys.audit(tenantOrganizationId),
+    queryKey: queryKeys.overview.audit(tenantOrganizationId),
     enabled,
     queryFn: fetchOverviewAudit,
   })

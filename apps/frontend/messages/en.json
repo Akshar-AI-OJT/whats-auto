@@ -1065,6 +1065,7 @@
       "signUp": "Create account",
       "errors": {
         "generic": "Something went wrong. Please try again.",
+        "oauthFailed": "Google sign-in failed. Please try again.",
         "emailExists": "An account with this email already exists. Please sign in with your password.",
         "emailRequired": "Email is required.",
         "emailInvalid": "Enter a valid email address.",
@@ -1113,6 +1114,7 @@
       "back": "Back",
       "errors": {
         "generic": "Something went wrong. Please try again.",
+        "oauthFailed": "Google sign-in failed. Please try again.",
         "emailExists": "An account with this email already exists. Please sign in with your password.",
         "passwordMismatch": "Passwords do not match.",
         "passwordLength": "Password must be at least 8 characters.",

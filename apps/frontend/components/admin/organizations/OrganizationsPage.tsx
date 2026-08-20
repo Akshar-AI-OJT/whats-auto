@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useId, useMemo, useState } from 'react'
+import { useCallback, useId, useMemo, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Archive,
   Building2,
@@ -15,6 +16,7 @@ import {
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
+import { queryKeys } from '@/lib/query-keys'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
@@ -40,10 +42,7 @@ import {
   OrganizationStatusBadge,
   type OrganizationActionId,
 } from './OrganizationActionsMenu'
-import {
-  OrganizationDetailDrawer,
-  type OrganizationRow,
-} from './OrganizationDetailDrawer'
+import { OrganizationDetailDrawer, type OrganizationRow } from './OrganizationDetailDrawer'
 
 type StatusFilter = 'all' | AdminOrganizationUiStatus
 type PlanFilter = 'all' | PlanId
@@ -89,8 +88,7 @@ function pickSubscription(
 ): SuperAdminSubscription | null {
   const matches = subscriptions.filter((row) => row.organizationId === organizationId)
   if (matches.length === 0) return null
-  const rank = (status: string) =>
-    status === 'active' ? 0 : status === 'trialing' ? 1 : 2
+  const rank = (status: string) => (status === 'active' ? 0 : status === 'trialing' ? 1 : 2)
   return [...matches].sort((a, b) => rank(String(a.status)) - rank(String(b.status)))[0]
 }
 
@@ -132,15 +130,39 @@ function editFormFromOrg(org: AdminOrganizationListItem): EditFormState {
 export function OrganizationsPage() {
   const t = useTranslations('admin.organizations')
   const router = useRouter()
+  const queryClient = useQueryClient()
   const deleteTitleId = useId()
   const deleteDescId = useId()
   const editTitleId = useId()
   const statusTitleId = useId()
 
-  const [organizations, setOrganizations] = useState<AdminOrganizationListItem[]>([])
-  const [subscriptions, setSubscriptions] = useState<SuperAdminSubscription[]>([])
-  const [listLoading, setListLoading] = useState(true)
-  const [listError, setListError] = useState<string | null>(null)
+  const orgsQueryKey = queryKeys.admin.organizations()
+  const orgsQuery = useQuery({
+    queryKey: orgsQueryKey,
+    queryFn: async () => {
+      const [orgs, subs] = await Promise.all([
+        listAllSuperAdminOrganizations(),
+        listAllSuperAdminSubscriptions().catch(() => [] as SuperAdminSubscription[]),
+      ])
+      return { organizations: orgs, subscriptions: subs }
+    },
+    staleTime: 60_000,
+  })
+
+  const organizations = useMemo(() => orgsQuery.data?.organizations ?? [], [orgsQuery.data])
+  const subscriptions = useMemo(() => orgsQuery.data?.subscriptions ?? [], [orgsQuery.data])
+  const listLoading = orgsQuery.isLoading
+  const listError = orgsQuery.error ? mapOrgApiError(orgsQuery.error, t('errors.loadFailed')) : null
+
+  function patchOrganizations(
+    updater: (prev: AdminOrganizationListItem[]) => AdminOrganizationListItem[]
+  ) {
+    queryClient.setQueryData<typeof orgsQuery.data>(orgsQueryKey, (old) => {
+      if (!old) return old
+      return { ...old, organizations: updater(old.organizations) }
+    })
+  }
+
   const [actionMessage, setActionMessage] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
@@ -162,29 +184,6 @@ export function OrganizationsPage() {
   const [editForm, setEditForm] = useState<EditFormState | null>(null)
   const [editPending, setEditPending] = useState(false)
   const [editError, setEditError] = useState<string | null>(null)
-
-  const loadOrganizations = useCallback(async () => {
-    setListLoading(true)
-    setListError(null)
-    try {
-      const [orgs, subs] = await Promise.all([
-        listAllSuperAdminOrganizations(),
-        listAllSuperAdminSubscriptions().catch(() => [] as SuperAdminSubscription[]),
-      ])
-      setOrganizations(orgs)
-      setSubscriptions(subs)
-    } catch (err) {
-      setOrganizations([])
-      setSubscriptions([])
-      setListError(mapOrgApiError(err, t('errors.loadFailed')))
-    } finally {
-      setListLoading(false)
-    }
-  }, [t])
-
-  useEffect(() => {
-    void loadOrganizations()
-  }, [loadOrganizations])
 
   const rows = useMemo(
     () => organizations.map((org) => toRow(org, subscriptions, t('filters.plan.unavailable'))),
@@ -229,9 +228,28 @@ export function OrganizationsPage() {
   const paged = filtered.slice((currentPage - 1) * PER_PAGE, currentPage * PER_PAGE)
   const selected = rows.find((org) => org.id === selectedId) ?? null
 
-  useEffect(() => {
+  // Reset page in event handlers rather than a useEffect to avoid
+  // the cascading re-render that set-state-in-effect produces.
+  function setSearchAndResetPage(value: string) {
+    setSearch(value)
     setPage(1)
-  }, [search, statusFilter, planFilter, dateFrom, dateTo])
+  }
+  function setStatusFilterAndResetPage(value: StatusFilter) {
+    setStatusFilter(value)
+    setPage(1)
+  }
+  function setPlanFilterAndResetPage(value: PlanFilter) {
+    setPlanFilter(value)
+    setPage(1)
+  }
+  function setDateFromAndResetPage(value: string) {
+    setDateFrom(value)
+    setPage(1)
+  }
+  function setDateToAndResetPage(value: string) {
+    setDateTo(value)
+    setPage(1)
+  }
 
   function resetFilters() {
     setSearch('')
@@ -278,7 +296,7 @@ export function OrganizationsPage() {
     setDeleteError(null)
     try {
       await deleteSuperAdminOrganization(deleteTarget.id)
-      setOrganizations((prev) =>
+      patchOrganizations((prev) =>
         prev.map((org) =>
           org.id === deleteTarget.id
             ? { ...org, deletedAt: new Date().toISOString(), status: false, uiStatus: 'archived' }
@@ -316,7 +334,7 @@ export function OrganizationsPage() {
         currency: editForm.currency.trim() || undefined,
       }
       const updated = await updateSuperAdminOrganization(editTarget.id, patch)
-      setOrganizations((prev) =>
+      patchOrganizations((prev) =>
         prev.map((org) => (org.id === updated.id ? { ...org, ...updated } : org))
       )
       setActionMessage(t('toast.updated', { name: updated.name }))
@@ -396,7 +414,7 @@ export function OrganizationsPage() {
                 id="org-search"
                 type="search"
                 value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                onChange={(event) => setSearchAndResetPage(event.target.value)}
                 placeholder={t('searchPlaceholder')}
                 className="h-11 rounded-xl border-dash-border bg-canvas pl-10 text-sm shadow-none"
               />
@@ -405,7 +423,7 @@ export function OrganizationsPage() {
             <select
               value={statusFilter}
               aria-label={t('statusFilterLabel')}
-              onChange={(event) => setStatusFilter(event.target.value as StatusFilter)}
+              onChange={(event) => setStatusFilterAndResetPage(event.target.value as StatusFilter)}
               className={selectClassName}
             >
               <option value="all">{t('filters.status.all')}</option>
@@ -418,7 +436,7 @@ export function OrganizationsPage() {
             <select
               value={planFilter}
               aria-label={t('planFilterLabel')}
-              onChange={(event) => setPlanFilter(event.target.value as PlanFilter)}
+              onChange={(event) => setPlanFilterAndResetPage(event.target.value as PlanFilter)}
               className={selectClassName}
             >
               <option value="all">{t('filters.plan.all')}</option>
@@ -438,12 +456,7 @@ export function OrganizationsPage() {
               <SlidersHorizontal className="size-4" aria-hidden />
               {t('filtersButton')}
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="h-11 gap-2"
-              onClick={resetFilters}
-            >
+            <Button type="button" variant="outline" className="h-11 gap-2" onClick={resetFilters}>
               <RotateCcw className="size-4" aria-hidden />
               {t('resetFilters')}
             </Button>
@@ -454,14 +467,14 @@ export function OrganizationsPage() {
               <Input
                 type="date"
                 value={dateFrom}
-                onChange={(event) => setDateFrom(event.target.value)}
+                onChange={(event) => setDateFromAndResetPage(event.target.value)}
                 aria-label={t('dateFrom')}
                 className="h-11 rounded-xl border-dash-border bg-canvas text-sm shadow-none"
               />
               <Input
                 type="date"
                 value={dateTo}
-                onChange={(event) => setDateTo(event.target.value)}
+                onChange={(event) => setDateToAndResetPage(event.target.value)}
                 aria-label={t('dateTo')}
                 className="h-11 rounded-xl border-dash-border bg-canvas text-sm shadow-none"
               />
@@ -493,7 +506,7 @@ export function OrganizationsPage() {
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => void loadOrganizations()}
+              onClick={() => void orgsQuery.refetch()}
             >
               {t('retry')}
             </Button>
@@ -563,9 +576,7 @@ export function OrganizationsPage() {
                                 <span className="block truncate text-sm font-semibold text-ink">
                                   {org.name}
                                 </span>
-                                <span className="block truncate text-xs text-mute">
-                                  {org.slug}
-                                </span>
+                                <span className="block truncate text-xs text-mute">{org.slug}</span>
                               </span>
                             </div>
                           </td>
@@ -591,10 +602,7 @@ export function OrganizationsPage() {
                             className="px-4 py-3.5 sm:px-5"
                             onClick={(event) => event.stopPropagation()}
                           >
-                            <OrganizationActionsMenu
-                              organization={org}
-                              onAction={handleAction}
-                            />
+                            <OrganizationActionsMenu organization={org} onAction={handleAction} />
                           </td>
                         </tr>
                       ))
@@ -631,10 +639,7 @@ export function OrganizationsPage() {
                           </div>
                         </div>
                         <div onClick={(event) => event.stopPropagation()}>
-                          <OrganizationActionsMenu
-                            organization={org}
-                            onAction={handleAction}
-                          />
+                          <OrganizationActionsMenu organization={org} onAction={handleAction} />
                         </div>
                       </div>
                       <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
@@ -840,10 +845,15 @@ export function OrganizationsPage() {
             <div className="flex shrink-0 items-start gap-3 border-b border-dash-border px-6 py-5 sm:px-8">
               <Pencil className="mt-1 size-5 shrink-0 text-mute" aria-hidden />
               <div>
-                <h2 id={editTitleId} className="font-display text-xl tracking-tight text-ink sm:text-2xl">
+                <h2
+                  id={editTitleId}
+                  className="font-display text-xl tracking-tight text-ink sm:text-2xl"
+                >
                   {t('editTitle')}
                 </h2>
-                <p className="mt-1 text-sm text-body">{t('editSubtitle', { name: editTarget.name })}</p>
+                <p className="mt-1 text-sm text-body">
+                  {t('editSubtitle', { name: editTarget.name })}
+                </p>
               </div>
             </div>
 

@@ -1,15 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
 import { useRouter, usePathname } from '@/i18n/navigation'
 import { Loader2, Search, UserPlus, Users } from 'lucide-react'
-import {
-  api,
-  type ApiError,
-  type ContactSummary,
-} from '@/lib/api'
+import { api, type ApiError, type ContactSummary } from '@/lib/api'
+import { queryKeys } from '@/lib/query-keys'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -50,6 +48,7 @@ export function ContactsPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
+  const queryClient = useQueryClient()
   const {
     tenantOrganizationId,
     canViewContacts,
@@ -60,59 +59,37 @@ export function ContactsPage() {
   const addFromQuery = searchParams.get('add') === '1'
   const [addForced, setAddForced] = useState(false)
   const addOpen = canCreateContacts && (addFromQuery || addForced)
-
-  const [contacts, setContacts] = useState<ContactSummary[]>([])
-  const [listLoading, setListLoading] = useState(true)
-  const [listError, setListError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
-  const organizationIdRef = useRef(tenantOrganizationId)
-  organizationIdRef.current = tenantOrganizationId
 
-  const loadContacts = useCallback(
-    async (organizationId: string) => {
-      if (!canViewContacts) {
-        setContacts([])
-        setListLoading(false)
-        return
-      }
-
-      setListLoading(true)
-      setListError(null)
-      try {
-        const { data } = await api.contacts.list()
-        // Ignore stale responses from a previous workspace switch.
-        if (organizationId !== organizationIdRef.current) return
-        const rows = unwrapList(data).filter((c) => c.organizationId === organizationId)
-        setContacts(rows)
-      } catch (err) {
-        if (organizationId !== organizationIdRef.current) return
-        setContacts([])
-        setListError((err as ApiError).message || t('errors.loadFailed'))
-      } finally {
-        if (organizationId === organizationIdRef.current) {
-          setListLoading(false)
-        }
-      }
+  const contactsQuery = useQuery({
+    queryKey: queryKeys.contacts.list(tenantOrganizationId),
+    queryFn: async () => {
+      const organizationId = tenantOrganizationId!
+      const { data } = await api.contacts.list()
+      return unwrapList(data).filter((c) => c.organizationId === organizationId)
     },
-    [canViewContacts, t]
-  )
+    enabled: !orgsLoading && Boolean(tenantOrganizationId) && canViewContacts,
+    staleTime: 2 * 60_000,
+  })
 
-  useEffect(() => {
-    if (orgsLoading) return
-    if (!tenantOrganizationId) {
-      setContacts([])
-      setQuery('')
-      setListLoading(true)
-      setListError(null)
-      return
-    }
-    void loadContacts(tenantOrganizationId)
-  }, [orgsLoading, tenantOrganizationId, loadContacts])
+  const contacts = useMemo(() => contactsQuery.data ?? [], [contactsQuery.data])
+  const listLoading = contactsQuery.isLoading || orgsLoading
+  const listError = contactsQuery.error
+    ? (contactsQuery.error as unknown as ApiError).message || t('errors.loadFailed')
+    : null
 
   useEffect(() => {
     if (orgsLoading || canCreateContacts || !addFromQuery) return
     router.replace(pathname)
   }, [orgsLoading, canCreateContacts, addFromQuery, pathname, router])
+
+  // Clear local search when the workspace changes.
+  const orgScope = tenantOrganizationId ?? ''
+  const [prevOrgScope, setPrevOrgScope] = useState(orgScope)
+  if (prevOrgScope !== orgScope) {
+    setPrevOrgScope(orgScope)
+    setQuery('')
+  }
 
   function handleAddOpenChange(open: boolean) {
     if (open) {
@@ -194,10 +171,7 @@ export function ContactsPage() {
       </DashboardPanel>
 
       <DashboardPanel as="section" className="p-4 sm:p-5 md:p-6">
-        <DashboardSectionHeader
-          title={t('listTitle')}
-          description={t('listDescription')}
-        />
+        <DashboardSectionHeader title={t('listTitle')} description={t('listDescription')} />
 
         {!showEmpty && !listError ? (
           <div className="relative mt-5 max-w-md">
@@ -216,7 +190,7 @@ export function ContactsPage() {
           </div>
         ) : null}
 
-        {listLoading || orgsLoading ? (
+        {listLoading ? (
           <div className="mt-8 flex items-center justify-center gap-2 py-16 text-sm text-body">
             <Loader2 className="size-4 animate-spin" aria-hidden />
             {t('loading')}
@@ -265,12 +239,8 @@ export function ContactsPage() {
                   </div>
                 </div>
                 <div className="flex min-w-0 flex-col gap-0.5 text-sm text-body sm:items-end">
-                  {contact.email ? (
-                    <p className="truncate">{contact.email}</p>
-                  ) : null}
-                  {contact.company ? (
-                    <p className="truncate text-mute">{contact.company}</p>
-                  ) : null}
+                  {contact.email ? <p className="truncate">{contact.email}</p> : null}
+                  {contact.company ? <p className="truncate text-mute">{contact.company}</p> : null}
                   <p className="text-xs text-mute">
                     {t('addedAt', { date: formatCreatedAt(contact.createdAt) })}
                   </p>
@@ -286,7 +256,9 @@ export function ContactsPage() {
           open={addOpen}
           onOpenChange={handleAddOpenChange}
           onCreated={() => {
-            if (tenantOrganizationId) void loadContacts(tenantOrganizationId)
+            void queryClient.invalidateQueries({
+              queryKey: queryKeys.contacts.all(tenantOrganizationId),
+            })
           }}
         />
       ) : null}

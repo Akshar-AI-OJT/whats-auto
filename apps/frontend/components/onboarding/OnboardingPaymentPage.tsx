@@ -5,6 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { Loader2 } from 'lucide-react'
 import { api, type ApiError, type BillingSubscription } from '@/lib/api'
+import { queryKeys } from '@/lib/query-keys'
 import { AuthBranding } from '@/components/auth/auth-branding'
 import { AuthLayout } from '@/components/auth/auth-layout'
 import {
@@ -118,7 +119,7 @@ export function OnboardingPaymentPage() {
   }, [router])
 
   const subscriptionQuery = useQuery({
-    queryKey: ['onboarding', 'billing', 'subscription'],
+    queryKey: queryKeys.onboarding.billingSubscription,
     enabled: ready,
     queryFn: async (): Promise<BillingSubscription | null> => {
       try {

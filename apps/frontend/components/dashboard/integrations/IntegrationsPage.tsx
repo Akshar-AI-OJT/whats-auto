@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { Check, Copy, KeyRound, Loader2, Plug, PlugZap, RefreshCw, Unplug } from 'lucide-react'
 import { getBaseUrl } from '@/lib/api-base'
@@ -10,6 +11,7 @@ import {
   type IntegrationApiKey,
   type IntegrationConnection,
 } from '@/lib/api'
+import { queryKeys } from '@/lib/query-keys'
 import { hasPermission, PERMISSIONS } from '@/lib/rbac'
 import { cn } from '@/lib/utils'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
@@ -84,8 +86,14 @@ function StatusBadge({ status, label }: { status: string; label: string }) {
   )
 }
 
+type IntegrationsData = {
+  connection: IntegrationConnection | null
+  keys: IntegrationApiKey[]
+}
+
 export function IntegrationsPage() {
   const t = useTranslations('dashboard.integrations')
+  const queryClient = useQueryClient()
   const {
     tenantOrganizationId,
     permissions,
@@ -97,10 +105,6 @@ export function IntegrationsPage() {
 
   const { toast, showToast, clearToast } = useDashboardToast()
 
-  const [connection, setConnection] = useState<IntegrationConnection | null>(null)
-  const [keys, setKeys] = useState<IntegrationApiKey[]>([])
-  const [loading, setLoading] = useState(true)
-  const [listError, setListError] = useState<string | null>(null)
   const [connecting, setConnecting] = useState(false)
   const [disconnecting, setDisconnecting] = useState(false)
   const [generating, setGenerating] = useState(false)
@@ -109,64 +113,51 @@ export function IntegrationsPage() {
   const [revealedSecret, setRevealedSecret] = useState<string | null>(null)
   const webhookUrl = shopenupWebhookUrl()
 
-  const organizationIdRef = useRef(tenantOrganizationId)
+  const integrationsKey = queryKeys.integrations.all(tenantOrganizationId)
 
-  useEffect(() => {
-    organizationIdRef.current = tenantOrganizationId
-  }, [tenantOrganizationId])
-
-  const load = useCallback(async (options?: { silent?: boolean }) => {
-    if (!canView) {
-      setConnection(null)
-      setKeys([])
-      setLoading(false)
-      return
-    }
-
-    if (!options?.silent) setLoading(true)
-    setListError(null)
-    try {
+  const integrationsQuery = useQuery({
+    queryKey: integrationsKey,
+    queryFn: async (): Promise<IntegrationsData> => {
       const [connectionsRes, keysRes] = await Promise.all([
         api.integrations.list(),
         api.apiKeys.list(),
       ])
-      if (!organizationIdRef.current) return
-
       const connections = unwrapList<IntegrationConnection>(connectionsRes.data)
       const listedKeys = unwrapList<IntegrationApiKey>(keysRes.data)
-      setConnection(connections.find((item) => item.provider === SHOPENUP_PROVIDER) ?? null)
-      setKeys(
-        listedKeys
+      return {
+        connection: connections.find((item) => item.provider === SHOPENUP_PROVIDER) ?? null,
+        keys: listedKeys
           .filter((key) => !key.revokedAt)
           .map((key) => {
             const listed = { ...key }
             delete listed.secretToken
             return listed
-          })
-      )
-    } catch (err) {
-      if (!organizationIdRef.current) return
-      setConnection(null)
-      setKeys([])
-      setListError(mapIntegrationsError(err as ApiError, t))
-    } finally {
-      if (organizationIdRef.current && !options?.silent) setLoading(false)
-    }
-  }, [canView, t])
-
-  useEffect(() => {
-    if (orgsLoading) return
-    const handle = window.setTimeout(() => {
-      if (!tenantOrganizationId) {
-        setConnection(null)
-        setKeys([])
-        setLoading(false)
-        return
+          }),
       }
-      void load()
-    }, 0)
-    return () => window.clearTimeout(handle)
-  }, [orgsLoading, tenantOrganizationId, load])
+    },
+    enabled: !orgsLoading && Boolean(tenantOrganizationId) && canView,
+    staleTime: 60_000,
+  })
+
+  const connection = integrationsQuery.data?.connection ?? null
+  const keys = integrationsQuery.data?.keys ?? []
+  const loading = integrationsQuery.isLoading || integrationsQuery.isFetching
+  const listError = integrationsQuery.error
+    ? mapIntegrationsError(integrationsQuery.error as unknown as ApiError, t)
+    : null
+
+  const refresh = useCallback(async () => {
+    await queryClient.invalidateQueries({ queryKey: integrationsKey })
+  }, [integrationsKey, queryClient])
+
+  const patchData = useCallback(
+    (updater: (prev: IntegrationsData) => IntegrationsData) => {
+      queryClient.setQueryData<IntegrationsData>(integrationsKey, (old) =>
+        updater(old ?? { connection: null, keys: [] })
+      )
+    },
+    [integrationsKey, queryClient]
+  )
 
   const connected = Boolean(connection)
   const status = connection?.status ?? 'disconnected'
@@ -185,15 +176,15 @@ export function IntegrationsPage() {
       const { data } = await api.integrations.upsert(SHOPENUP_PROVIDER, {
         displayName: DEFAULT_DISPLAY_NAME,
       })
-      if (!organizationIdRef.current) return
-      setConnection(unwrapSingle<IntegrationConnection>(data))
+      const next = unwrapSingle<IntegrationConnection>(data)
+      patchData((prev) => ({ ...prev, connection: next }))
       showToast(t('toasts.connected'), 'success')
     } catch (err) {
       showToast(mapIntegrationsError(err as ApiError, t))
     } finally {
       setConnecting(false)
     }
-  }, [canManage, connecting, clearToast, showToast, t])
+  }, [canManage, connecting, clearToast, patchData, showToast, t])
 
   const handleDisconnect = useCallback(async () => {
     if (!canManage || disconnecting) return
@@ -201,15 +192,14 @@ export function IntegrationsPage() {
     clearToast()
     try {
       await api.integrations.destroy(SHOPENUP_PROVIDER)
-      if (!organizationIdRef.current) return
-      setConnection(null)
+      patchData((prev) => ({ ...prev, connection: null }))
       showToast(t('toasts.disconnected'), 'success')
     } catch (err) {
       showToast(mapIntegrationsError(err as ApiError, t))
     } finally {
       setDisconnecting(false)
     }
-  }, [canManage, disconnecting, clearToast, showToast, t])
+  }, [canManage, disconnecting, clearToast, patchData, showToast, t])
 
   const handleGenerate = useCallback(async () => {
     if (!canManage || generating) return
@@ -221,18 +211,18 @@ export function IntegrationsPage() {
       const secret = created?.secretToken
       if (!secret) {
         showToast(t('errors.secretMissing'))
-        await load({ silent: true })
+        await refresh()
         return
       }
       setRevealedSecret(secret)
       showToast(t('toasts.keyCreated'), 'success')
-      await load({ silent: true })
+      await refresh()
     } catch (err) {
       showToast(mapIntegrationsError(err as ApiError, t))
     } finally {
       setGenerating(false)
     }
-  }, [canManage, generating, clearToast, showToast, t, load])
+  }, [canManage, generating, clearToast, showToast, t, refresh])
 
   const handleRevoke = useCallback(
     async (id: string) => {
@@ -241,8 +231,10 @@ export function IntegrationsPage() {
       clearToast()
       try {
         await api.apiKeys.revoke(id)
-        if (!organizationIdRef.current) return
-        setKeys((current) => current.filter((key) => key.id !== id))
+        patchData((prev) => ({
+          ...prev,
+          keys: prev.keys.filter((key) => key.id !== id),
+        }))
         showToast(t('toasts.keyRevoked'), 'success')
       } catch (err) {
         showToast(mapIntegrationsError(err as ApiError, t))
@@ -250,7 +242,7 @@ export function IntegrationsPage() {
         setRevokingId(null)
       }
     },
-    [canManage, revokingId, clearToast, showToast, t]
+    [canManage, revokingId, clearToast, patchData, showToast, t]
   )
 
   const handleCopy = useCallback(
@@ -309,7 +301,7 @@ export function IntegrationsPage() {
             size="sm"
             className="gap-2"
             disabled={loading || orgsLoading}
-            onClick={() => void load()}
+            onClick={() => void refresh()}
           >
             <RefreshCw className={cn('size-3.5', loading && 'animate-spin')} aria-hidden />
             {t('refresh')}
@@ -332,7 +324,7 @@ export function IntegrationsPage() {
           </p>
         ) : null}
 
-        {loading || orgsLoading ? (
+        {integrationsQuery.isLoading || orgsLoading ? (
           <div className="flex items-center gap-2 text-sm text-body">
             <Loader2 className="size-4 animate-spin" aria-hidden />
             {t('loading')}

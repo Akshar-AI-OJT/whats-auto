@@ -17,11 +17,10 @@ import { Link, useRouter } from '@/i18n/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
-import { campaignQueryKeys } from './CampaignsListPage'
+import { queryKeys } from '@/lib/query-keys'
 import { CAMPAIGN_RECIPIENT_MAX, unwrapCampaign, isEditableCampaignStatus } from './campaign-utils'
 import { unwrapTemplateList } from '@/components/dashboard/templates/template-utils'
 import {
-  customerGroupQueryKeys,
   listCustomerGroupContacts,
   listCustomerGroups,
 } from '@/components/dashboard/customer-groups/customer-group-service'
@@ -106,7 +105,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
   const canSubmit = mode === 'create' ? canCreateCampaigns : canEditCampaigns
 
   const sourceQuery = useQuery({
-    queryKey: campaignQueryKeys.detail(campaignId || fromId || 'none'),
+    queryKey: queryKeys.campaigns.detail(campaignId || fromId || 'none'),
     enabled:
       Boolean(tenantOrganizationId) && Boolean(campaignId || fromId) && !orgsLoading && canSubmit,
     queryFn: async () => {
@@ -118,7 +117,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
   })
 
   const templatesQuery = useQuery({
-    queryKey: [...campaignQueryKeys.all, 'form-templates', tenantOrganizationId],
+    queryKey: [...queryKeys.campaigns.all, 'form-templates', tenantOrganizationId],
     enabled: Boolean(tenantOrganizationId) && canSubmit && !orgsLoading,
     queryFn: async () => {
       const { data } = await api.whatsapp.listTemplates({
@@ -130,7 +129,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
   })
 
   const contactsQuery = useQuery({
-    queryKey: [...campaignQueryKeys.all, 'form-contacts', tenantOrganizationId],
+    queryKey: [...queryKeys.campaigns.all, 'form-contacts', tenantOrganizationId],
     enabled: Boolean(tenantOrganizationId) && canViewContacts && canSubmit && !orgsLoading,
     queryFn: async () => {
       const { data } = await api.contacts.list()
@@ -139,7 +138,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
   })
 
   const groupsQuery = useQuery({
-    queryKey: customerGroupQueryKeys.list(tenantOrganizationId),
+    queryKey: queryKeys.customerGroups.list(tenantOrganizationId),
     enabled:
       Boolean(tenantOrganizationId) &&
       canViewContacts &&
@@ -150,7 +149,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
   })
 
   const groupMembersQuery = useQuery({
-    queryKey: customerGroupQueryKeys.members(tenantOrganizationId, selectedGroupId),
+    queryKey: queryKeys.customerGroups.members(tenantOrganizationId, selectedGroupId),
     enabled:
       Boolean(tenantOrganizationId) &&
       canViewContacts &&
@@ -373,7 +372,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
       return campaign
     },
     onSuccess: async (campaign) => {
-      await queryClient.invalidateQueries({ queryKey: campaignQueryKeys.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.all })
       if (campaign?.id) {
         router.push(`/dashboard/campaigns/${campaign.id}`)
       } else {
