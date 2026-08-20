@@ -1094,7 +1094,7 @@ export type PlatformAiConfig = {
   embeddingProvider: 'openai' | 'google' | 'mistral' | string
   embeddingModel: string
   activeEmbeddingSpaceId?: string
-  maxOutputTokens?: number
+  maxOutputTokens: number
   reindexStatus?: 'idle' | 'running' | 'failed'
   reindexFromSpaceId?: string | null
   reindexToSpaceId?: string | null
@@ -1121,6 +1121,7 @@ export type UpdatePlatformAiConfigBody = {
   summaryTurnThreshold?: number
   embeddingProvider?: string
   embeddingModel?: string
+  maxOutputTokens?: number
   confirmReindex?: boolean
 }
 
@@ -1442,7 +1443,9 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({
           provider: 'google',
-          callbackURL: callbackURL ?? `${process.env.NEXT_PUBLIC_APP_URL}/onboarding/organization`,
+          callbackURL:
+            callbackURL ??
+            `${typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '')}/onboarding/organization`,
         }),
       }),
 

@@ -1065,6 +1065,7 @@
       "signUp": "Create account",
       "errors": {
         "generic": "Something went wrong. Please try again.",
+        "oauthFailed": "Google sign-in failed. Please try again.",
         "emailExists": "An account with this email already exists. Please sign in with your password.",
         "emailRequired": "Email is required.",
         "emailInvalid": "Enter a valid email address.",
@@ -1113,6 +1114,7 @@
       "back": "Back",
       "errors": {
         "generic": "Something went wrong. Please try again.",
+        "oauthFailed": "Google sign-in failed. Please try again.",
         "emailExists": "An account with this email already exists. Please sign in with your password.",
         "passwordMismatch": "Passwords do not match.",
         "passwordLength": "Password must be at least 8 characters.",
@@ -4342,6 +4344,7 @@
           "modelName": "Chat model",
           "embeddingModel": "Embedding model",
           "temperature": "Temperature",
+          "maxOutputTokens": "Max output tokens",
           "debounceDelaySeconds": "Debounce (s)",
           "campaignAttributionWindowHours": "Attribution window (hrs)",
           "minConfidenceScore": "Min confidence",
@@ -4357,6 +4360,7 @@
           "summaryModel": "Optional cheaper model for conversation summaries. Must be the same provider.",
           "embeddingModel": "1024-dimension models only. Changing provider or embedding model re-embeds the knowledge base after you confirm.",
           "temperature": "0 to 2.",
+          "maxOutputTokens": "1 to 8192. Caps tokens for auto-replies and conversation summaries.",
           "debounceDelaySeconds": "1 to 15. Delay before a grounded reply is generated.",
           "campaignAttributionWindowHours": "1 to 168.",
           "minConfidenceScore": "0 to 1. Retrieval below this score hands over.",

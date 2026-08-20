@@ -54,22 +54,27 @@ function subscribeSystemTheme(onStoreChange: () => void) {
   return () => media.removeEventListener('change', onStoreChange)
 }
 
+function subscribeStorageTheme(onStoreChange: () => void) {
+  window.addEventListener('storage', onStoreChange)
+  return () => window.removeEventListener('storage', onStoreChange)
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? '/'
-  // Always start as system on both server and client to avoid hydration mismatch;
-  // localStorage is applied after mount.
-  const [theme, setThemeState] = useState<ThemeMode>('system')
-  const [themeReady, setThemeReady] = useState(false)
-  const systemDark = useSyncExternalStore(
-    subscribeSystemTheme,
-    getSystemDark,
-    () => false
+  const systemDark = useSyncExternalStore(subscribeSystemTheme, getSystemDark, () => false)
+
+  // Always start as 'system' on the server; on the client, immediately read
+  // localStorage via useSyncExternalStore — no useEffect, no extra render.
+  const storedTheme = useSyncExternalStore(
+    subscribeStorageTheme,
+    readStoredTheme,
+    () => 'system' as ThemeMode
   )
 
-  useEffect(() => {
-    setThemeState(readStoredTheme())
-    setThemeReady(true)
-  }, [])
+  // Allow the user to temporarily override without persisting until setTheme is
+  // called (e.g. live preview). Falls back to the persisted stored value.
+  const [themeOverride, setThemeOverride] = useState<ThemeMode | null>(null)
+  const theme: ThemeMode = themeOverride ?? storedTheme
 
   const resolvedTheme: 'light' | 'dark' =
     theme === 'system' ? (systemDark ? 'dark' : 'light') : theme
@@ -78,12 +83,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const appearance: 'light' | 'dark' = allowDark ? resolvedTheme : 'light'
 
   useEffect(() => {
-    if (!themeReady) return
     applyThemeClass(appearance, allowDark ? 'app' : 'public')
-  }, [appearance, allowDark, themeReady])
+  }, [appearance, allowDark])
 
   const setTheme = useCallback((next: ThemeMode) => {
-    setThemeState(next)
+    setThemeOverride(next)
     try {
       window.localStorage.setItem(STORAGE_KEY, next)
     } catch {

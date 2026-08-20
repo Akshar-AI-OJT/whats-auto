@@ -17,4 +17,15 @@ test.group('extractKnowledgeText', () => {
       /Cannot extract text/
     )
   })
+
+  test('strips null bytes from FILE_TXT so Postgres UTF-8 insert can succeed', async ({
+    assert,
+  }) => {
+    const text = await extractKnowledgeText(
+      AiKnowledgeSourceType.FILE_TXT,
+      new TextEncoder().encode('Hello\u0000 world\u0000')
+    )
+    assert.equal(text, 'Hello world')
+    assert.notInclude(text, '\u0000')
+  })
 })

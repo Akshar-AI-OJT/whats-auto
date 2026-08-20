@@ -20,13 +20,7 @@ import {
   unwrapCampaignList,
 } from './campaign-utils'
 import { unwrapTemplateList } from '@/components/dashboard/templates/template-utils'
-
-export const campaignQueryKeys = {
-  all: ['campaigns'] as const,
-  list: (orgId: string | null | undefined, params: Record<string, string | number>) =>
-    [...campaignQueryKeys.all, 'list', orgId ?? 'none', params] as const,
-  detail: (id: string) => [...campaignQueryKeys.all, 'detail', id] as const,
-}
+import { queryKeys } from '@/lib/query-keys'
 
 export function CampaignsListPage() {
   const t = useTranslations('dashboard.campaigns')
@@ -66,7 +60,7 @@ export function CampaignsListPage() {
   )
 
   const campaignsQuery = useQuery({
-    queryKey: campaignQueryKeys.list(tenantOrganizationId, listParams),
+    queryKey: queryKeys.campaigns.list(tenantOrganizationId, listParams),
     enabled: Boolean(tenantOrganizationId) && canViewCampaigns && !orgsLoading,
     queryFn: async () => {
       const { data } = await api.campaigns.list(listParams)
@@ -75,7 +69,7 @@ export function CampaignsListPage() {
   })
 
   const templatesQuery = useQuery({
-    queryKey: [...campaignQueryKeys.all, 'template-names', tenantOrganizationId],
+    queryKey: [...queryKeys.campaigns.all, 'template-names', tenantOrganizationId],
     enabled: Boolean(tenantOrganizationId) && canViewCampaigns && !orgsLoading,
     queryFn: async () => {
       const { data } = await api.whatsapp.listTemplates({ perPage: 100 })
@@ -98,7 +92,7 @@ export function CampaignsListPage() {
     onSuccess: async () => {
       setDeleteTarget(null)
       setDeleteError(null)
-      await queryClient.invalidateQueries({ queryKey: campaignQueryKeys.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.all })
     },
     onError: (err) => {
       setDeleteError((err as unknown as ApiError).message || t('errors.deleteFailed'))
@@ -113,7 +107,7 @@ export function CampaignsListPage() {
     onSuccess: async () => {
       setCancelTarget(null)
       setCancelError(null)
-      await queryClient.invalidateQueries({ queryKey: campaignQueryKeys.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.all })
     },
     onError: (err) => {
       setCancelError((err as unknown as ApiError).message || t('errors.cancelFailed'))
@@ -127,7 +121,7 @@ export function CampaignsListPage() {
     },
     onSuccess: async (campaign) => {
       setListActionError(null)
-      await queryClient.invalidateQueries({ queryKey: campaignQueryKeys.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.all })
       if (campaign?.id) {
         router.push(`/dashboard/campaigns/${campaign.id}/edit`)
       }

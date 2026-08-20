@@ -151,18 +151,26 @@ export function useSyncProgress(active: boolean) {
   const [progress, setProgress] = useState(0)
 
   useEffect(() => {
-    if (!active) {
-      setProgress(0)
-      return
-    }
-    setProgress(12)
+    if (!active) return
+
+    // Start at 12% on the first interval tick then advance randomly.
+    let first = true
     const timer = window.setInterval(() => {
       setProgress((prev) => {
+        if (first) {
+          first = false
+          return 12
+        }
         if (prev >= 90) return prev
         return prev + Math.floor(Math.random() * 8) + 3
       })
     }, 450)
-    return () => window.clearInterval(timer)
+
+    return () => {
+      window.clearInterval(timer)
+      // Reset progress synchronously on cleanup (unmount or active→false).
+      setProgress(0)
+    }
   }, [active])
 
   return {

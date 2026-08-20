@@ -13,7 +13,7 @@ import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { useRouter } from '@/i18n/navigation'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { TemplateForm, type TemplateFormValues } from './TemplateForm'
-import { templateQueryKeys } from './TemplatesListPage'
+import { queryKeys } from '@/lib/query-keys'
 import { normalizeButtons, normalizeSampleValues, unwrapTemplate } from './template-utils'
 
 /** Avoid useSearchParams — hard refresh can stall pages that suspend on it. */
@@ -39,7 +39,7 @@ export function TemplateCreatePage() {
   const [error, setError] = useState<string | null>(null)
 
   const sourceQuery = useQuery({
-    queryKey: templateQueryKeys.detail(fromId ?? 'none'),
+    queryKey: queryKeys.templates.detail(fromId ?? 'none'),
     enabled: Boolean(fromId) && canCreateTemplates,
     queryFn: async () => {
       const { data } = await api.whatsapp.getTemplate(fromId!)
@@ -77,7 +77,7 @@ export function TemplateCreatePage() {
       return unwrapTemplate(data)
     },
     onSuccess: async (template) => {
-      await queryClient.invalidateQueries({ queryKey: templateQueryKeys.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.templates.all })
       if (template?.id) router.push(`/dashboard/templates/${template.id}`)
       else router.push('/dashboard/templates')
     },

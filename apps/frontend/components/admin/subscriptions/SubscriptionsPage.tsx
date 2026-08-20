@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useId, useMemo, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   CreditCard,
   Download,
@@ -14,6 +15,7 @@ import {
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
+import { queryKeys } from '@/lib/query-keys'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
@@ -134,18 +136,13 @@ function StatusBadge({ status, label }: { status: string; label: string }) {
 
 export function SubscriptionsPage() {
   const t = useTranslations('admin.subscriptions')
+  const queryClient = useQueryClient()
   const editTitleId = useId()
   const deleteTitleId = useId()
   const deleteDescId = useId()
   const searchId = useId()
 
-  const [subscriptions, setSubscriptions] = useState<SuperAdminSubscription[]>([])
-  const [organizations, setOrganizations] = useState<AdminOrganizationListItem[]>([])
   const [page, setPage] = useState(1)
-  const [lastPage, setLastPage] = useState(1)
-  const [total, setTotal] = useState(0)
-  const [listLoading, setListLoading] = useState(true)
-  const [listError, setListError] = useState<string | null>(null)
   const [actionMessage, setActionMessage] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
@@ -164,48 +161,63 @@ export function SubscriptionsPage() {
   const [deletePending, setDeletePending] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
+  const subsQueryKey = queryKeys.admin.subscriptions({ page, perPage: PER_PAGE })
+  const subsQuery = useQuery({
+    queryKey: subsQueryKey,
+    queryFn: async () => {
+      const { items, meta } = await listSuperAdminSubscriptions({
+        page,
+        perPage: PER_PAGE,
+      })
+      return {
+        items,
+        page: meta?.currentPage ?? page,
+        lastPage: meta?.lastPage ?? 1,
+        total: meta?.total ?? items.length,
+      }
+    },
+    staleTime: 60_000,
+    placeholderData: (previous) => previous,
+  })
+
+  const orgsQuery = useQuery({
+    queryKey: queryKeys.admin.organizations({ page: 1, perPage: 100 }),
+    queryFn: async () => {
+      const { items } = await listSuperAdminOrganizations({ page: 1, perPage: 100 })
+      return items
+    },
+    staleTime: 5 * 60_000,
+  })
+
+  const subscriptions = useMemo(
+    () => subsQuery.data?.items ?? [],
+    [subsQuery.data]
+  )
+  const organizations = useMemo(
+    () => orgsQuery.data ?? [],
+    [orgsQuery.data]
+  )
+  const lastPage = subsQuery.data?.lastPage ?? 1
+  const total = subsQuery.data?.total ?? 0
+  const listLoading = subsQuery.isLoading
+  const listError = subsQuery.error
+    ? mapSubscriptionApiError(subsQuery.error, t('errors.loadFailed'))
+    : null
+
+  function patchSubscriptions(
+    updater: (prev: SuperAdminSubscription[]) => SuperAdminSubscription[]
+  ) {
+    queryClient.setQueryData<typeof subsQuery.data>(subsQueryKey, (old) => {
+      if (!old) return old
+      return { ...old, items: updater(old.items) }
+    })
+  }
+
   const orgById = useMemo(() => {
     const map = new Map<string, AdminOrganizationListItem>()
     for (const org of organizations) map.set(org.id, org)
     return map
   }, [organizations])
-
-  const loadOrganizations = useCallback(async () => {
-    try {
-      const { items } = await listSuperAdminOrganizations({ page: 1, perPage: 100 })
-      setOrganizations(items)
-    } catch {
-      setOrganizations([])
-    }
-  }, [])
-
-  const loadSubscriptions = useCallback(
-    async (nextPage: number) => {
-      setListLoading(true)
-      setListError(null)
-      try {
-        const { items, meta } = await listSuperAdminSubscriptions({
-          page: nextPage,
-          perPage: PER_PAGE,
-        })
-        setSubscriptions(items)
-        setPage(meta?.currentPage ?? nextPage)
-        setLastPage(meta?.lastPage ?? 1)
-        setTotal(meta?.total ?? items.length)
-      } catch (err) {
-        setSubscriptions([])
-        setListError(mapSubscriptionApiError(err, t('errors.loadFailed')))
-      } finally {
-        setListLoading(false)
-      }
-    },
-    [t]
-  )
-
-  useEffect(() => {
-    void loadSubscriptions(1)
-    void loadOrganizations()
-  }, [loadSubscriptions, loadOrganizations])
 
   const visibleSubscriptions = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -269,7 +281,7 @@ export function SubscriptionsPage() {
         currentPeriodStart: dateInputToIso(editForm.startDate),
         currentPeriodEnd: dateInputToIso(editForm.endDate, true),
       })
-      setSubscriptions((prev) =>
+      patchSubscriptions((prev) =>
         prev.map((row) => (row.id === updated.id ? { ...row, ...updated } : row))
       )
       setActionMessage(t('toast.updated'))
@@ -289,8 +301,11 @@ export function SubscriptionsPage() {
     setDeleteError(null)
     try {
       await deleteSuperAdminSubscription(deleteTarget.id)
-      setSubscriptions((prev) => prev.filter((row) => row.id !== deleteTarget.id))
-      setTotal((prev) => Math.max(0, prev - 1))
+      patchSubscriptions((prev) => prev.filter((row) => row.id !== deleteTarget.id))
+      queryClient.setQueryData<typeof subsQuery.data>(subsQueryKey, (old) => {
+        if (!old) return old
+        return { ...old, total: Math.max(0, old.total - 1) }
+      })
       if (selectedId === deleteTarget.id) setSelectedId(null)
       setActionMessage(t('toast.deleted'))
       setActionError(null)
@@ -554,7 +569,7 @@ export function SubscriptionsPage() {
               <p role="alert" className="text-sm text-negative">
                 {listError}
               </p>
-              <Button type="button" variant="outline" size="sm" onClick={() => void loadSubscriptions(page)}>
+              <Button type="button" variant="outline" size="sm" onClick={() => void subsQuery.refetch()}>
                 {t('retry')}
               </Button>
             </div>
@@ -736,7 +751,7 @@ export function SubscriptionsPage() {
                       variant="outline"
                       size="sm"
                       disabled={page <= 1 || listLoading}
-                      onClick={() => void loadSubscriptions(page - 1)}
+                      onClick={() => setPage(page - 1)}
                     >
                       {t('prevPage')}
                     </Button>
@@ -745,7 +760,7 @@ export function SubscriptionsPage() {
                       variant="outline"
                       size="sm"
                       disabled={page >= lastPage || listLoading}
-                      onClick={() => void loadSubscriptions(page + 1)}
+                      onClick={() => setPage(page + 1)}
                     >
                       {t('nextPage')}
                     </Button>

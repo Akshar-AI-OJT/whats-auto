@@ -1,20 +1,20 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
-import {
-  api,
-  type ApiError,
-  type Notification,
-  type PaginationMeta,
-} from '@/lib/api'
+import { api, type ApiError, type Notification, type PaginationMeta } from '@/lib/api'
+import { queryKeys } from '@/lib/query-keys'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
-import {
-  unwrapNotification,
-  unwrapNotificationsPaginated,
-} from '../notification-utils'
+import { unwrapNotification, unwrapNotificationsPaginated } from '../notification-utils'
 
 const PER_PAGE = 20
+
+type NotificationsFeed = {
+  items: Notification[]
+  meta: PaginationMeta | null
+  page: number
+}
 
 type UseNotificationsOptions = {
   /** When false, skips automatic loading (e.g. bell panel closed). */
@@ -24,141 +24,185 @@ type UseNotificationsOptions = {
 export function useNotifications(options: UseNotificationsOptions = {}) {
   const { enabled = true } = options
   const t = useTranslations('dashboard.notifications')
+  const queryClient = useQueryClient()
   const { tenantOrganizationId, isLoading: orgsLoading } = useOrganizations()
 
-  const [items, setItems] = useState<Notification[]>([])
-  const [meta, setMeta] = useState<PaginationMeta | null>(null)
-  const [page, setPage] = useState(1)
-  const [loading, setLoading] = useState(false)
+  const feedKey = useMemo(
+    () => [...queryKeys.notifications.all(tenantOrganizationId), 'feed'] as const,
+    [tenantOrganizationId]
+  )
+  const allKey = queryKeys.notifications.all(tenantOrganizationId)
+
   const [loadingMore, setLoadingMore] = useState(false)
-  const [markingAll, setMarkingAll] = useState(false)
-  const [markingId, setMarkingId] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
 
-  const organizationIdRef = useRef(tenantOrganizationId)
-  organizationIdRef.current = tenantOrganizationId
+  const listQuery = useQuery({
+    queryKey: feedKey,
+    queryFn: async (): Promise<NotificationsFeed> => {
+      const res = await api.notifications.list({ page: 1, limit: PER_PAGE })
+      const parsed = unwrapNotificationsPaginated(res.data)
+      return {
+        items: parsed.items,
+        meta: parsed.meta,
+        page: parsed.meta?.currentPage ?? 1,
+      }
+    },
+    enabled: enabled && !orgsLoading && Boolean(tenantOrganizationId),
+    staleTime: 30_000,
+  })
 
+  const items = listQuery.data?.items ?? []
+  const meta = listQuery.data?.meta ?? null
+  const page = listQuery.data?.page ?? 1
   const unreadCount = items.filter((item) => !item.readAt).length
   const lastPage = meta?.lastPage ?? 1
   const total = meta?.total ?? items.length
   const hasMore = page < lastPage
 
-  const fetchPage = useCallback(
-    async (organizationId: string, nextPage: number, append: boolean) => {
-      if (append) {
-        setLoadingMore(true)
-      } else {
-        setLoading(true)
-      }
-      setError(null)
-
-      try {
-        const res = await api.notifications.list({
-          page: nextPage,
-          limit: PER_PAGE,
-        })
-
-        if (organizationId !== organizationIdRef.current) return
-
-        const { items: nextItems, meta: nextMeta } = unwrapNotificationsPaginated(res.data)
-        setItems((prev) => (append ? [...prev, ...nextItems] : nextItems))
-        setMeta(nextMeta)
-        setPage(nextMeta?.currentPage ?? nextPage)
-      } catch (err) {
-        if (organizationId !== organizationIdRef.current) return
-        setError((err as ApiError).message || t('loadFailed'))
-        if (!append) setItems([])
-      } finally {
-        if (organizationId === organizationIdRef.current) {
-          setLoading(false)
-          setLoadingMore(false)
-        }
-      }
-    },
-    [t]
-  )
-
   const refresh = useCallback(() => {
-    if (!tenantOrganizationId) return
-    void fetchPage(tenantOrganizationId, 1, false)
-  }, [fetchPage, tenantOrganizationId])
+    setActionError(null)
+    void queryClient.invalidateQueries({ queryKey: allKey })
+  }, [allKey, queryClient])
 
-  const loadMore = useCallback(() => {
-    if (!tenantOrganizationId || !hasMore || loadingMore) return
-    void fetchPage(tenantOrganizationId, page + 1, true)
-  }, [fetchPage, hasMore, loadingMore, page, tenantOrganizationId])
+  const loadMore = useCallback(async () => {
+    if (!tenantOrganizationId || !hasMore || loadingMore || listQuery.isFetching) return
+    const nextPage = page + 1
+    setLoadingMore(true)
+    setActionError(null)
+    try {
+      const res = await api.notifications.list({ page: nextPage, limit: PER_PAGE })
+      const parsed = unwrapNotificationsPaginated(res.data)
+      queryClient.setQueryData<NotificationsFeed>(feedKey, (old) => ({
+        items: [...(old?.items ?? []), ...parsed.items],
+        meta: parsed.meta,
+        page: parsed.meta?.currentPage ?? nextPage,
+      }))
+    } catch (err) {
+      setActionError((err as ApiError).message || t('loadFailed'))
+    } finally {
+      setLoadingMore(false)
+    }
+  }, [
+    feedKey,
+    hasMore,
+    listQuery.isFetching,
+    loadingMore,
+    page,
+    queryClient,
+    t,
+    tenantOrganizationId,
+  ])
 
   const goToPage = useCallback(
-    (nextPage: number) => {
+    async (nextPage: number) => {
       if (!tenantOrganizationId || nextPage < 1 || nextPage > lastPage) return
-      void fetchPage(tenantOrganizationId, nextPage, false)
+      setActionError(null)
+      try {
+        const res = await api.notifications.list({ page: nextPage, limit: PER_PAGE })
+        const parsed = unwrapNotificationsPaginated(res.data)
+        queryClient.setQueryData<NotificationsFeed>(feedKey, {
+          items: parsed.items,
+          meta: parsed.meta,
+          page: parsed.meta?.currentPage ?? nextPage,
+        })
+      } catch (err) {
+        setActionError((err as ApiError).message || t('loadFailed'))
+      }
     },
-    [fetchPage, lastPage, tenantOrganizationId]
+    [feedKey, lastPage, queryClient, t, tenantOrganizationId]
   )
 
-  useEffect(() => {
-    if (!enabled || orgsLoading) return
-    if (!tenantOrganizationId) {
-      setItems([])
-      setMeta(null)
-      setError(null)
-      return
-    }
-    void fetchPage(tenantOrganizationId, 1, false)
-  }, [enabled, orgsLoading, tenantOrganizationId, fetchPage])
+  const markAsReadMutation = useMutation({
+    mutationFn: (notificationId: string) => api.notifications.markAsRead(notificationId),
+    onMutate: async (notificationId) => {
+      setActionError(null)
+      await queryClient.cancelQueries({ queryKey: allKey })
+      const previous = queryClient.getQueryData<NotificationsFeed>(feedKey)
+      const optimisticReadAt = new Date().toISOString()
+      queryClient.setQueryData<NotificationsFeed>(feedKey, (old) => {
+        if (!old) return old
+        return {
+          ...old,
+          items: old.items.map((item) =>
+            item.id === notificationId ? { ...item, readAt: optimisticReadAt } : item
+          ),
+        }
+      })
+      return { previous }
+    },
+    onError: (err, _id, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(feedKey, context.previous)
+      }
+      setActionError((err as unknown as ApiError).message || t('markReadFailed'))
+    },
+    onSuccess: (res) => {
+      const updated = unwrapNotification(res.data)
+      if (!updated) return
+      queryClient.setQueryData<NotificationsFeed>(feedKey, (old) => {
+        if (!old) return old
+        return {
+          ...old,
+          items: old.items.map((entry) => (entry.id === updated.id ? updated : entry)),
+        }
+      })
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: allKey })
+    },
+  })
 
-  const markAllAsRead = useCallback(async () => {
-    if (markingAll || unreadCount === 0) return
-
-    setMarkingAll(true)
-    setError(null)
-    const readAt = new Date().toISOString()
-
-    try {
-      await api.notifications.markAllAsRead()
-      setItems((prev) =>
-        prev.map((item) => (item.readAt ? item : { ...item, readAt }))
-      )
-    } catch (err) {
-      setError((err as ApiError).message || t('markAllFailed'))
-    } finally {
-      setMarkingAll(false)
-    }
-  }, [markingAll, t, unreadCount])
+  const markAllAsReadMutation = useMutation({
+    mutationFn: () => api.notifications.markAllAsRead(),
+    onMutate: async () => {
+      setActionError(null)
+      await queryClient.cancelQueries({ queryKey: allKey })
+      const previous = queryClient.getQueryData<NotificationsFeed>(feedKey)
+      const readAt = new Date().toISOString()
+      queryClient.setQueryData<NotificationsFeed>(feedKey, (old) => {
+        if (!old) return old
+        return {
+          ...old,
+          items: old.items.map((item) => (item.readAt ? item : { ...item, readAt })),
+        }
+      })
+      return { previous }
+    },
+    onError: (err, _void, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(feedKey, context.previous)
+      }
+      setActionError((err as unknown as ApiError).message || t('markAllFailed'))
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: allKey })
+    },
+  })
 
   const markAsRead = useCallback(
     async (item: Notification) => {
-      if (item.readAt || markingId) return
-
-      setMarkingId(item.id)
-      const optimisticReadAt = new Date().toISOString()
-      setItems((prev) =>
-        prev.map((entry) =>
-          entry.id === item.id ? { ...entry, readAt: optimisticReadAt } : entry
-        )
-      )
-
+      if (item.readAt || markAsReadMutation.isPending) return
       try {
-        const res = await api.notifications.markAsRead(item.id)
-        const updated = unwrapNotification(res.data)
-        if (updated) {
-          setItems((prev) =>
-            prev.map((entry) => (entry.id === item.id ? updated : entry))
-          )
-        }
-      } catch (err) {
-        setItems((prev) =>
-          prev.map((entry) =>
-            entry.id === item.id ? { ...entry, readAt: null } : entry
-          )
-        )
-        setError((err as ApiError).message || t('markReadFailed'))
-      } finally {
-        setMarkingId(null)
+        await markAsReadMutation.mutateAsync(item.id)
+      } catch {
+        // surfaced via actionError
       }
     },
-    [markingId, t]
+    [markAsReadMutation]
   )
+
+  const markAllAsRead = useCallback(async () => {
+    if (markAllAsReadMutation.isPending || unreadCount === 0) return
+    try {
+      await markAllAsReadMutation.mutateAsync()
+    } catch {
+      // surfaced via actionError
+    }
+  }, [markAllAsReadMutation, unreadCount])
+
+  const listError = listQuery.error
+    ? (listQuery.error as unknown as ApiError).message || t('loadFailed')
+    : null
 
   return {
     items,
@@ -166,16 +210,20 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
     page,
     lastPage,
     total,
-    loading,
+    loading: listQuery.isLoading || (enabled && orgsLoading),
     loadingMore,
-    markingAll,
-    markingId,
-    error,
+    markingAll: markAllAsReadMutation.isPending,
+    markingId: markAsReadMutation.isPending ? (markAsReadMutation.variables ?? null) : null,
+    error: listError || actionError,
     unreadCount,
     hasMore,
     refresh,
-    loadMore,
-    goToPage,
+    loadMore: () => {
+      void loadMore()
+    },
+    goToPage: (nextPage: number) => {
+      void goToPage(nextPage)
+    },
     markAllAsRead,
     markAsRead,
   }

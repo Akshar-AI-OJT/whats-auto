@@ -23,4 +23,12 @@ test.group('chunkKnowledgeText', () => {
     assert.equal(chunks[1]!.chunkIndex, 1)
     assert.notEqual(chunks[0]!.contentHash, chunks[1]!.contentHash)
   })
+
+  test('strips null bytes before hashing chunks', async ({ assert }) => {
+    const chunks = await chunkKnowledgeText('Open\u0000 9-5\u0000 Monday')
+    assert.lengthOf(chunks, 1)
+    assert.equal(chunks[0]!.content, 'Open 9-5 Monday')
+    assert.equal(chunks[0]!.contentHash, sha256Hex('Open 9-5 Monday'))
+    assert.notInclude(chunks[0]!.content, '\u0000')
+  })
 })

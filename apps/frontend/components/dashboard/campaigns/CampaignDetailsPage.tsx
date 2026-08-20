@@ -16,7 +16,7 @@ import {
   CampaignPreviewDialog,
 } from './CampaignDialogs'
 import { CampaignStatusBadge } from './CampaignStatusBadge'
-import { campaignQueryKeys } from './CampaignsListPage'
+import { queryKeys } from '@/lib/query-keys'
 import {
   formatCampaignDate,
   isCancellableCampaignStatus,
@@ -56,7 +56,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
   const [previewError, setPreviewError] = useState<string | null>(null)
 
   const campaignQuery = useQuery({
-    queryKey: campaignQueryKeys.detail(campaignId),
+    queryKey: queryKeys.campaigns.detail(campaignId),
     enabled: Boolean(tenantOrganizationId) && canViewCampaigns && !orgsLoading,
     queryFn: async () => {
       const { data } = await api.campaigns.get(campaignId)
@@ -65,7 +65,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
   })
 
   const templatesQuery = useQuery({
-    queryKey: [...campaignQueryKeys.all, 'detail-templates', tenantOrganizationId],
+    queryKey: [...queryKeys.campaigns.all, 'detail-templates', tenantOrganizationId],
     enabled: Boolean(tenantOrganizationId) && canViewCampaigns && !orgsLoading,
     queryFn: async () => {
       const { data } = await api.whatsapp.listTemplates({ perPage: 100 })
@@ -78,7 +78,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
       await api.campaigns.delete(campaignId)
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: campaignQueryKeys.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.all })
       router.push('/dashboard/campaigns')
     },
     onError: (err) => {
@@ -94,7 +94,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
     onSuccess: async () => {
       setCancelOpen(false)
       setCancelError(null)
-      await queryClient.invalidateQueries({ queryKey: campaignQueryKeys.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.all })
     },
     onError: (err) => {
       setCancelError((err as unknown as ApiError).message || t('errors.cancelFailed'))
@@ -108,7 +108,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
     },
     onSuccess: async () => {
       setActionError(null)
-      await queryClient.invalidateQueries({ queryKey: campaignQueryKeys.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.all })
     },
     onError: (err) => {
       const apiErr = err as unknown as ApiError
@@ -130,7 +130,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
       return unwrapCampaign(data)
     },
     onSuccess: async (campaign) => {
-      await queryClient.invalidateQueries({ queryKey: campaignQueryKeys.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.all })
       if (campaign?.id) {
         router.push(`/dashboard/campaigns/${campaign.id}/edit`)
       }

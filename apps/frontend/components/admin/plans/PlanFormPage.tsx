@@ -1,10 +1,12 @@
 'use client'
 
-import { useEffect, useId, useMemo, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, ArrowRight, Check, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { Link, useRouter } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
+import { queryKeys } from '@/lib/query-keys'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
@@ -140,38 +142,49 @@ type PlanFormPageProps = {
 export function PlanFormPage({ mode, planId }: PlanFormPageProps) {
   const t = useTranslations('admin.plans')
   const router = useRouter()
+  const queryClient = useQueryClient()
   const nameId = useId()
   const [step, setStep] = useState<Step>(1)
   const [form, setForm] = useState<PlanFormState>(emptyForm)
-  const [loading, setLoading] = useState(mode === 'edit')
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [loadError, setLoadError] = useState<string | null>(null)
 
-  // Reset load state when switching edit targets (render-time — avoids setState-in-effect).
-  const [loadedPlanId, setLoadedPlanId] = useState<string | undefined>(planId)
-  if (mode === 'edit' && planId !== loadedPlanId) {
-    setLoadedPlanId(planId)
-    setLoading(true)
-    setLoadError(null)
+  const planQuery = useQuery({
+    queryKey: queryKeys.admin.planDetail(planId),
+    queryFn: async () => {
+      const plan = await getPlan(planId!)
+      if (!plan) throw new Error('not_found')
+      return plan
+    },
+    enabled: mode === 'edit' && Boolean(planId),
+    staleTime: 60_000,
+  })
+
+  // Reset when switching edit targets.
+  const [trackedPlanId, setTrackedPlanId] = useState(planId)
+  const [appliedPlanId, setAppliedPlanId] = useState<string | null>(null)
+  if (planId !== trackedPlanId) {
+    setTrackedPlanId(planId)
+    setAppliedPlanId(null)
+    setForm(emptyForm())
+    setStep(1)
+    setError(null)
   }
 
-  useEffect(() => {
-    if (mode !== 'edit' || !planId) return
-    let cancelled = false
-    void getPlan(planId).then((plan) => {
-      if (cancelled) return
-      if (!plan) {
-        setLoadError(t('errors.notFound'))
-      } else {
-        setForm(formFromPlan(plan))
-      }
-      setLoading(false)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [mode, planId, t])
+  // Hydrate form when edit plan loads.
+  const hydratedPlanId = planQuery.data?.id
+  if (mode === 'edit' && hydratedPlanId && hydratedPlanId !== appliedPlanId && planQuery.data) {
+    setAppliedPlanId(hydratedPlanId)
+    setForm(formFromPlan(planQuery.data))
+  }
+
+  const loading = mode === 'edit' && planQuery.isLoading
+  const loadError =
+    mode === 'edit' && planQuery.isError
+      ? planQuery.error instanceof Error && planQuery.error.message === 'not_found'
+        ? t('errors.notFound')
+        : t('errors.loadFailed')
+      : null
 
   const selectedCount = useMemo(
     () => Object.values(form.features).filter((item) => item.enabled).length,
@@ -226,10 +239,12 @@ export function PlanFormPage({ mode, planId }: PlanFormPageProps) {
           setError(t(result.messageKey))
           return
         }
+        await queryClient.invalidateQueries({ queryKey: queryKeys.admin.plansRoot })
         router.push('/admin/plans?updated=1')
         return
       }
       await createPlan(payload)
+      await queryClient.invalidateQueries({ queryKey: queryKeys.admin.plansRoot })
       router.push('/admin/plans?created=1')
     } catch {
       setError(mode === 'edit' ? t('errors.updateFailed') : t('errors.createFailed'))

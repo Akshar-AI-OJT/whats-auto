@@ -14,6 +14,7 @@ import { DashboardEmptyState } from '@/components/dashboard/overview/DashboardEm
 import { KPIStatCard } from '@/components/dashboard/overview/KPIStatCard'
 import { ActivityItem, type ActivityTone } from '@/components/dashboard/overview/ActivityItem'
 import type { TagRecord, WhatsappConfigSummary } from '@/lib/api'
+import { queryKeys } from '@/lib/query-keys'
 import {
   buildBreakdown,
   buildMonthlySeries,
@@ -29,7 +30,6 @@ import {
   normalizeLabel,
   sumCampaignMetrics,
   sumConversationMetrics,
-  tenantAnalyticsQueryKeys,
   type AnalyticsMonthPoint,
   type BreakdownItem,
 } from './tenant-analytics'
@@ -161,49 +161,49 @@ export function OrganizationAnalyticsPage() {
   const canViewAudit = hasPermission(PERMISSIONS.AUDIT_VIEW)
 
   const contactsQuery = useQuery({
-    queryKey: tenantAnalyticsQueryKeys.contacts,
+    queryKey: queryKeys.analytics.contacts,
     queryFn: fetchAnalyticsContacts,
     enabled: canViewContacts,
     staleTime: 60_000,
   })
 
   const campaignsQuery = useQuery({
-    queryKey: tenantAnalyticsQueryKeys.campaigns,
+    queryKey: queryKeys.analytics.campaigns,
     queryFn: fetchAnalyticsCampaigns,
     enabled: canViewCampaigns,
     staleTime: 60_000,
   })
 
   const configsQuery = useQuery({
-    queryKey: tenantAnalyticsQueryKeys.configs,
+    queryKey: queryKeys.analytics.configs,
     queryFn: fetchAnalyticsConfigs,
     enabled: canViewWhatsapp,
     staleTime: 60_000,
   })
 
   const templatesQuery = useQuery({
-    queryKey: tenantAnalyticsQueryKeys.templates,
+    queryKey: queryKeys.analytics.templates,
     queryFn: fetchAnalyticsTemplates,
     enabled: canViewTemplates,
     staleTime: 60_000,
   })
 
   const conversationsQuery = useQuery({
-    queryKey: tenantAnalyticsQueryKeys.conversations,
+    queryKey: queryKeys.analytics.conversations,
     queryFn: fetchAnalyticsConversations,
     enabled: canViewInbox,
     staleTime: 60_000,
   })
 
   const tagsQuery = useQuery({
-    queryKey: tenantAnalyticsQueryKeys.tags,
+    queryKey: queryKeys.analytics.tags,
     queryFn: fetchAnalyticsTags,
     enabled: canViewContacts,
     staleTime: 60_000,
   })
 
   const auditQuery = useQuery({
-    queryKey: tenantAnalyticsQueryKeys.audit,
+    queryKey: queryKeys.analytics.audit,
     queryFn: fetchAnalyticsAudit,
     enabled: canViewAudit,
     staleTime: 60_000,

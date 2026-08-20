@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import {
   ChevronLeft,
@@ -23,6 +24,7 @@ import {
   type PaginationMeta,
   type PendingInvitation,
 } from '@/lib/api'
+import { queryKeys } from '@/lib/query-keys'
 import { ASSIGNABLE_ROLES, type AssignableRole } from '@/lib/onboarding'
 import { cn } from '@/lib/utils'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
@@ -170,11 +172,8 @@ export function TeamMembersPage() {
   const inviteFromQuery = searchParams.get('invite') === '1'
   const [inviteForced, setInviteForced] = useState(false)
   const inviteOpen = canInviteMembers && (inviteFromQuery || inviteForced)
+  const queryClient = useQueryClient()
 
-  const [members, setMembers] = useState<TeamMemberRow[]>([])
-  const [pendingInvites, setPendingInvites] = useState<PendingInvitation[]>([])
-  const [listLoading, setListLoading] = useState(true)
-  const [listError, setListError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [rolePendingId, setRolePendingId] = useState<string | null>(null)
   const [removeTarget, setRemoveTarget] = useState<TeamMemberRow | null>(null)
@@ -185,116 +184,90 @@ export function TeamMembersPage() {
   const [cancelError, setCancelError] = useState<string | null>(null)
 
   const [page, setPage] = useState(1)
-  const [perPage] = useState(DEFAULT_PER_PAGE)
-  const [meta, setMeta] = useState<PaginationMeta | null>(null)
+  const perPage = DEFAULT_PER_PAGE
   const [searchQuery, setSearchQuery] = useState('')
   const [roleFilter, setRoleFilter] = useState<'all' | AssignableRole | 'owner'>('all')
-  const [paginatedSource, setPaginatedSource] = useState(false)
 
-  // Bumped when a newer load starts so stale responses are ignored.
-  const loadGenerationRef = useRef(0)
-
-  // Reset list/filter state when workspace changes (render-time — avoids setState-in-effect).
+  // Reset filter/pagination when workspace changes.
   const [listWorkspaceId, setListWorkspaceId] = useState(tenantOrganizationId)
   if (tenantOrganizationId !== listWorkspaceId) {
     setListWorkspaceId(tenantOrganizationId)
     setPage(1)
     setSearchQuery('')
     setRoleFilter('all')
-    setMembers([])
-    setPendingInvites([])
-    setMeta(null)
-    setPaginatedSource(false)
-    setListError(null)
-    setListLoading(true)
   }
 
-  const loadTeam = useCallback(
-    async (organizationId: string, pageToLoad: number, generation: number) => {
-      if (!canViewTeam) {
-        if (generation !== loadGenerationRef.current) return
-        setMembers([])
-        setPendingInvites([])
-        setMeta(null)
-        setPaginatedSource(false)
-        setListLoading(false)
-        return
-      }
+  const teamEnabled = !orgsLoading && Boolean(tenantOrganizationId) && canViewTeam
 
-      setListLoading(true)
-      setListError(null)
+  const membersQuery = useQuery({
+    queryKey: queryKeys.team.list(tenantOrganizationId, { page, perPage }),
+    queryFn: async () => {
       try {
-        const invitesPromise = api.invitations
-          .list()
-          .catch(() => ({ data: [] as PendingInvitation[] }))
-
-        // Prefer paginated org-admin users; fall back to members list on 403
-        // (endpoint is Owner/Admin on the backend — no frontend role-name check).
-        let usedPaginated = false
-        try {
-          const [usersResult, invitesResult] = await Promise.all([
-            api.organizationAdmin.listUsers({ page: pageToLoad, perPage }),
-            invitesPromise,
-          ])
-          if (generation !== loadGenerationRef.current) return
-
-          const { users, meta: nextMeta } = unwrapPaginatedUsers(usersResult.data)
-          setMembers(users.map(fromAdminUser))
-          setMeta(
-            nextMeta ?? {
+        const usersResult = await api.organizationAdmin.listUsers({ page, perPage })
+        const { users, meta: nextMeta } = unwrapPaginatedUsers(usersResult.data)
+        return {
+          members: users.map(fromAdminUser),
+          meta:
+            nextMeta ??
+            ({
               total: users.length,
               perPage,
-              currentPage: pageToLoad,
+              currentPage: page,
               lastPage: 1,
-            }
-          )
-          setPaginatedSource(true)
-          setPendingInvites(unwrapList(invitesResult.data))
-          usedPaginated = true
-        } catch (err) {
-          const apiError = err as ApiError
-          if (
-            apiError.status !== 403 &&
-            apiError.code !== 'NOT_ORGANIZATION_ADMIN' &&
-            apiError.code !== 'PERMISSION_DENIED'
-          ) {
-            throw err
-          }
-        }
-
-        if (!usedPaginated) {
-          const [membersResult, invitesResult] = await Promise.all([
-            api.members.list(),
-            invitesPromise,
-          ])
-          if (generation !== loadGenerationRef.current) return
-
-          setMembers(unwrapList(membersResult.data).map(fromMember))
-          setMeta(null)
-          setPaginatedSource(false)
-          setPendingInvites(unwrapList(invitesResult.data))
+            } satisfies PaginationMeta),
+          paginatedSource: true as const,
         }
       } catch (err) {
-        if (generation !== loadGenerationRef.current) return
-        setMembers([])
-        setPendingInvites([])
-        setMeta(null)
         const apiError = err as ApiError
-        setListError(apiError.message || t('errors.loadFailed'))
-      } finally {
-        if (generation === loadGenerationRef.current) {
-          setListLoading(false)
+        if (
+          apiError.status !== 403 &&
+          apiError.code !== 'NOT_ORGANIZATION_ADMIN' &&
+          apiError.code !== 'PERMISSION_DENIED'
+        ) {
+          throw err
+        }
+        const membersResult = await api.members.list()
+        return {
+          members: unwrapList(membersResult.data).map(fromMember),
+          meta: null,
+          paginatedSource: false as const,
         }
       }
     },
-    [canViewTeam, perPage, t]
-  )
+    enabled: teamEnabled,
+    staleTime: 60_000,
+    placeholderData: (previous) => previous,
+  })
 
-  useEffect(() => {
-    if (orgsLoading || !tenantOrganizationId) return
-    const generation = ++loadGenerationRef.current
-    void loadTeam(tenantOrganizationId, page, generation)
-  }, [orgsLoading, tenantOrganizationId, page, loadTeam])
+  const invitesQuery = useQuery({
+    queryKey: queryKeys.team.invites(tenantOrganizationId),
+    queryFn: async () => {
+      try {
+        const invitesResult = await api.invitations.list()
+        return unwrapList<PendingInvitation>(invitesResult.data)
+      } catch {
+        return [] as PendingInvitation[]
+      }
+    },
+    enabled: teamEnabled,
+    staleTime: 60_000,
+  })
+
+  const members = useMemo(() => membersQuery.data?.members ?? [], [membersQuery.data])
+  const pendingInvites = invitesQuery.data ?? []
+  const meta = membersQuery.data?.meta ?? null
+  const paginatedSource = membersQuery.data?.paginatedSource ?? false
+  const listLoading = membersQuery.isLoading || invitesQuery.isLoading || orgsLoading
+  const listError = membersQuery.error
+    ? (membersQuery.error as unknown as ApiError).message || t('errors.loadFailed')
+    : null
+
+  async function invalidateTeam() {
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.team.all(tenantOrganizationId),
+    })
+  }
+
   useEffect(() => {
     if (orgsLoading || canInviteMembers || !inviteFromQuery) return
     router.replace(pathname)
@@ -339,18 +312,32 @@ export function TeamMembersPage() {
 
     setActionError(null)
     setRolePendingId(member.memberId)
-    setMembers((prev) =>
-      prev.map((row) =>
-        row.memberId === member.memberId ? { ...row, role: nextRole } : row
-      )
+    queryClient.setQueryData(
+      queryKeys.team.list(tenantOrganizationId, { page, perPage }),
+      (old: typeof membersQuery.data) => {
+        if (!old) return old
+        return {
+          ...old,
+          members: old.members.map((row) =>
+            row.memberId === member.memberId ? { ...row, role: nextRole } : row
+          ),
+        }
+      }
     )
     try {
       await api.members.assignRole(member.memberId, nextRole)
     } catch (err) {
-      setMembers((prev) =>
-        prev.map((row) =>
-          row.memberId === member.memberId ? { ...row, role: member.role } : row
-        )
+      queryClient.setQueryData(
+        queryKeys.team.list(tenantOrganizationId, { page, perPage }),
+        (old: typeof membersQuery.data) => {
+          if (!old) return old
+          return {
+            ...old,
+            members: old.members.map((row) =>
+              row.memberId === member.memberId ? { ...row, role: member.role } : row
+            ),
+          }
+        }
       )
       setActionError(mapMemberActionError(err))
     } finally {
@@ -364,13 +351,9 @@ export function TeamMembersPage() {
     setRemovePending(true)
     try {
       await api.members.remove(removeTarget.memberId)
-      setMembers((prev) => prev.filter((row) => row.memberId !== removeTarget.memberId))
       setRemoveTarget(null)
       setActionError(null)
-      if (tenantOrganizationId && paginatedSource) {
-        const generation = ++loadGenerationRef.current
-        void loadTeam(tenantOrganizationId, page, generation)
-      }
+      await invalidateTeam()
     } catch (err) {
       setRemoveError(mapMemberActionError(err))
     } finally {
@@ -384,9 +367,11 @@ export function TeamMembersPage() {
     setCancelPending(true)
     try {
       await api.invitations.cancel(cancelTarget.id)
-      setPendingInvites((prev) => prev.filter((row) => row.id !== cancelTarget.id))
       setCancelTarget(null)
       setActionError(null)
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.team.invites(tenantOrganizationId),
+      })
     } catch (err) {
       setCancelError(mapMemberActionError(err))
     } finally {
@@ -409,8 +394,7 @@ export function TeamMembersPage() {
     })
   }, [members, searchQuery, roleFilter])
 
-  const showEmpty =
-    !listLoading && !listError && members.length === 0
+  const showEmpty = !listLoading && !listError && members.length === 0
   const showNoMatches =
     !listLoading && !listError && members.length > 0 && filteredMembers.length === 0
   const currentMemberId = accessContext?.memberId ?? null
@@ -460,11 +444,7 @@ export function TeamMembersPage() {
             </p>
           </div>
           {canInviteMembers ? (
-            <Button
-              type="button"
-              className="shrink-0 gap-2"
-              onClick={() => setInviteForced(true)}
-            >
+            <Button type="button" className="shrink-0 gap-2" onClick={() => setInviteForced(true)}>
               <UserPlus className="size-4" aria-hidden />
               {t('inviteCta')}
             </Button>
@@ -473,10 +453,7 @@ export function TeamMembersPage() {
       </DashboardPanel>
 
       <DashboardPanel as="section" className="p-4 sm:p-5 md:p-6">
-        <DashboardSectionHeader
-          title={t('membersTitle')}
-          description={t('membersDescription')}
-        />
+        <DashboardSectionHeader title={t('membersTitle')} description={t('membersDescription')} />
 
         {!listLoading && !listError ? (
           <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -496,9 +473,7 @@ export function TeamMembersPage() {
             <select
               className={filterSelectClassName}
               value={roleFilter}
-              onChange={(e) =>
-                setRoleFilter(e.target.value as 'all' | AssignableRole | 'owner')
-              }
+              onChange={(e) => setRoleFilter(e.target.value as 'all' | AssignableRole | 'owner')}
               aria-label={t('roleFilterAria')}
             >
               <option value="all">{t('roleFilterAll')}</option>
@@ -687,10 +662,7 @@ export function TeamMembersPage() {
 
       {!listLoading && !listError && pendingInvites.length > 0 ? (
         <DashboardPanel as="section" className="p-4 sm:p-5 md:p-6">
-          <DashboardSectionHeader
-            title={t('pendingTitle')}
-            description={t('pendingDescription')}
-          />
+          <DashboardSectionHeader title={t('pendingTitle')} description={t('pendingDescription')} />
           <ul className="mt-6 divide-y divide-dash-border overflow-hidden rounded-2xl border border-dash-border">
             {pendingInvites.map((invite) => {
               const roleKey = roleLabelKey(invite.role)
@@ -743,9 +715,7 @@ export function TeamMembersPage() {
           open={inviteOpen}
           onOpenChange={handleInviteOpenChange}
           onInvited={() => {
-            if (!tenantOrganizationId) return
-            const generation = ++loadGenerationRef.current
-            void loadTeam(tenantOrganizationId, page, generation)
+            void invalidateTeam()
           }}
         />
       ) : null}
