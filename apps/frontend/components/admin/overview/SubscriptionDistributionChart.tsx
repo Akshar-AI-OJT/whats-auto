@@ -1,21 +1,24 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
+import { queryKeys } from '@/lib/query-keys'
+import { cn } from '@/lib/utils'
 import {
   fetchAllSubscriptions,
   fetchAllPlans,
   computePlanDistribution,
   type BreakdownItem,
 } from '../analytics/super-admin-analytics'
-import { cn } from '@/lib/utils'
 
 const SIZE = 180
 const STROKE = 22
 const RADIUS = (SIZE - STROKE) / 2
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS
+const STALE_MS = 60_000
 
 const PLAN_COLORS: Record<string, string> = {
   starter: '#94a3b8',
@@ -35,28 +38,23 @@ function getColor(label: string, index: number): string {
 export function SubscriptionDistributionChart({ className }: { className?: string }) {
   const t = useTranslations('admin.home.charts.subscriptions')
   const tAnalytics = useTranslations('admin.analytics')
-  const [distribution, setDistribution] = useState<BreakdownItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    let cancelled = false
-    async function load() {
-      try {
-        const [subscriptions, plans] = await Promise.all([
-          fetchAllSubscriptions(),
-          fetchAllPlans(),
-        ])
-        if (!cancelled) setDistribution(computePlanDistribution(subscriptions, plans))
-      } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : tAnalytics('unavailable'))
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-    load()
-    return () => { cancelled = true }
-  }, [tAnalytics])
+  const subscriptionsQuery = useQuery({
+    queryKey: queryKeys.admin.analytics.subscriptions,
+    queryFn: fetchAllSubscriptions,
+    staleTime: STALE_MS,
+  })
+  const plansQuery = useQuery({
+    queryKey: queryKeys.admin.analytics.plans,
+    queryFn: fetchAllPlans,
+    staleTime: STALE_MS,
+  })
+
+  const distribution = useMemo(
+    () =>
+      computePlanDistribution(subscriptionsQuery.data ?? [], plansQuery.data ?? []),
+    [subscriptionsQuery.data, plansQuery.data]
+  )
 
   const { segments, total } = useMemo(() => {
     if (distribution.length === 0) return { segments: [], total: 0 }
@@ -78,6 +76,9 @@ export function SubscriptionDistributionChart({ className }: { className?: strin
     return { segments: segs, total: sum }
   }, [distribution])
 
+  const loading = subscriptionsQuery.isLoading || plansQuery.isLoading
+  const error = subscriptionsQuery.error ?? plansQuery.error
+
   return (
     <DashboardPanel
       as="section"
@@ -91,7 +92,9 @@ export function SubscriptionDistributionChart({ className }: { className?: strin
             <div className="size-6 animate-spin rounded-full border-2 border-dash-border border-t-primary" />
           </div>
         ) : error ? (
-          <p className="text-center text-sm text-mute">{error}</p>
+          <p className="text-center text-sm text-mute">
+            {error instanceof Error ? error.message : tAnalytics('unavailable')}
+          </p>
         ) : segments.length === 0 ? (
           <p className="text-center text-sm text-mute">{tAnalytics('unavailable')}</p>
         ) : (

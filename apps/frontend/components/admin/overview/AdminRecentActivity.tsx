@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import {
   Building2,
   CreditCard,
@@ -14,10 +15,16 @@ import { useTranslations } from 'next-intl'
 import { ActivityItem } from '@/components/dashboard/overview/ActivityItem'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
+import { queryKeys } from '@/lib/query-keys'
 import { fetchRecentAudit } from '../analytics/super-admin-analytics'
 import type { AuthorizationAuditEvent } from '@/lib/api'
 
-const EVENT_TYPE_MAP: Record<string, { icon: LucideIcon; tone: 'green' | 'blue' | 'amber' | 'neutral' }> = {
+const STALE_MS = 60_000
+
+const EVENT_TYPE_MAP: Record<
+  string,
+  { icon: LucideIcon; tone: 'green' | 'blue' | 'amber' | 'neutral' }
+> = {
   'organization.created': { icon: Building2, tone: 'green' },
   'organization.updated': { icon: Building2, tone: 'blue' },
   'organization.deleted': { icon: Building2, tone: 'amber' },
@@ -48,7 +55,10 @@ function mapAuditEvent(event: AuthorizationAuditEvent) {
     id: event.id,
     title,
     detail: detail || title,
-    timestamp: typeof event.createdAt === 'string' ? event.createdAt : new Date(event.createdAt).toISOString(),
+    timestamp:
+      typeof event.createdAt === 'string'
+        ? event.createdAt
+        : new Date(event.createdAt).toISOString(),
     tone: mapping.tone,
     icon: mapping.icon,
   }
@@ -56,36 +66,28 @@ function mapAuditEvent(event: AuthorizationAuditEvent) {
 
 export function AdminRecentActivity() {
   const t = useTranslations('admin.home.activity')
-  const [items, setItems] = useState<ReturnType<typeof mapAuditEvent>[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    let cancelled = false
-    async function load() {
-      try {
-        const events = await fetchRecentAudit()
-        if (!cancelled) setItems(events.map(mapAuditEvent))
-      } catch {
-        if (!cancelled) setError(t('error'))
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-    void load()
-    return () => { cancelled = true }
-  }, [t])
+  const auditQuery = useQuery({
+    queryKey: queryKeys.admin.analytics.audit,
+    queryFn: fetchRecentAudit,
+    staleTime: STALE_MS,
+  })
+
+  const items = useMemo(
+    () => (auditQuery.data ?? []).map(mapAuditEvent),
+    [auditQuery.data]
+  )
 
   return (
     <DashboardPanel as="section" className="flex h-full flex-col p-4 sm:p-5 md:p-6">
       <DashboardSectionHeader title={t('title')} description={t('description')} />
 
-      {loading ? (
+      {auditQuery.isLoading ? (
         <div className="mt-6 flex flex-1 items-center justify-center">
           <div className="size-6 animate-spin rounded-full border-2 border-dash-border border-t-primary" />
         </div>
-      ) : error ? (
-        <p className="mt-6 text-center text-sm text-mute">{error}</p>
+      ) : auditQuery.isError ? (
+        <p className="mt-6 text-center text-sm text-mute">{t('error')}</p>
       ) : items.length === 0 ? (
         <p className="mt-6 text-center text-sm text-mute">{t('emptyTitle')}</p>
       ) : (

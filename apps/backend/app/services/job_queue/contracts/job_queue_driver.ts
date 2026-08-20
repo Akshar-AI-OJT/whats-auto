@@ -35,6 +35,11 @@ export interface JobQueueDriver {
     data: Record<string, unknown>,
     options?: JobEnqueueOptions
   ): Promise<string | void>
+  /**
+   * Remove a delayed/waiting job by singleton key. Optional — campaign cancel
+   * is best-effort when the driver cannot unschedule.
+   */
+  remove?(name: string, singletonKey: string): Promise<void>
   work(name: string, handler: JobHandler): Promise<void>
   /**
    * Register a recurring cron wake. Optional on drivers that
@@ -46,6 +51,4 @@ export interface JobQueueDriver {
     data?: Record<string, unknown>,
     options?: JobScheduleOptions
   ): Promise<void>
-  /** Drop a delayed/waiting job by singleton key. Optional on drivers that cannot cancel. */
-  remove?(name: string, singletonKey: string): Promise<void>
 }

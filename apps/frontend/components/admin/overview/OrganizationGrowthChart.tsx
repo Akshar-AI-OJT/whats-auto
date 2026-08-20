@@ -1,16 +1,18 @@
 'use client'
 
-import { useEffect, useId, useMemo, useState } from 'react'
-import { useTranslations } from 'next-intl'
-import { useLocale } from 'next-intl'
+import { useId, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useLocale, useTranslations } from 'next-intl'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
-import { fetchAllOrganizations, buildOrganizationGrowth, type GrowthPoint } from '../analytics/super-admin-analytics'
+import { queryKeys } from '@/lib/query-keys'
 import { cn } from '@/lib/utils'
+import { fetchAllOrganizations, buildOrganizationGrowth } from '../analytics/super-admin-analytics'
 
 const WIDTH = 560
 const HEIGHT = 220
 const PAD = { top: 16, right: 16, bottom: 32, left: 40 }
+const STALE_MS = 60_000
 
 export function OrganizationGrowthChart({ className }: { className?: string }) {
   const t = useTranslations('admin.home.charts.orgGrowth')
@@ -18,25 +20,16 @@ export function OrganizationGrowthChart({ className }: { className?: string }) {
   const locale = useLocale()
   const gradientId = useId()
 
-  const [growthData, setGrowthData] = useState<GrowthPoint[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const orgQuery = useQuery({
+    queryKey: queryKeys.admin.analytics.organizations,
+    queryFn: fetchAllOrganizations,
+    staleTime: STALE_MS,
+  })
 
-  useEffect(() => {
-    let cancelled = false
-    async function load() {
-      try {
-        const { items } = await fetchAllOrganizations()
-        if (!cancelled) setGrowthData(buildOrganizationGrowth(items, locale))
-      } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : tAnalytics('unavailable'))
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-    load()
-    return () => { cancelled = true }
-  }, [locale, tAnalytics])
+  const growthData = useMemo(
+    () => buildOrganizationGrowth(orgQuery.data?.items ?? [], locale),
+    [orgQuery.data?.items, locale]
+  )
 
   const { points, path, area, yTicks } = useMemo(() => {
     if (growthData.length === 0) return { points: [], path: '', area: '', yTicks: [] }
@@ -71,6 +64,9 @@ export function OrganizationGrowthChart({ className }: { className?: string }) {
     return { points: coords, path: line, area: areaPath, yTicks: ticks }
   }, [growthData])
 
+  const loading = orgQuery.isLoading
+  const error = orgQuery.error
+
   return (
     <DashboardPanel
       as="section"
@@ -84,7 +80,9 @@ export function OrganizationGrowthChart({ className }: { className?: string }) {
             <div className="size-6 animate-spin rounded-full border-2 border-dash-border border-t-primary" />
           </div>
         ) : error ? (
-          <p className="text-center text-sm text-mute">{error}</p>
+          <p className="text-center text-sm text-mute">
+            {error instanceof Error ? error.message : tAnalytics('unavailable')}
+          </p>
         ) : growthData.length === 0 ? (
           <p className="text-center text-sm text-mute">{tAnalytics('unavailable')}</p>
         ) : (
