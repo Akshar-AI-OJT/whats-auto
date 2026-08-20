@@ -65,10 +65,6 @@ export default class NullJobQueueDriver implements JobQueueDriver {
     this.scheduled.push({ name, cron, data, options })
   }
 
-  async remove(name: string, singletonKey: string): Promise<void> {
-    this.removed.push({ name, singletonKey })
-  }
-
   get started() {
     return this.#started
   }

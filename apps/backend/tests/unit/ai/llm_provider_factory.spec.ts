@@ -20,8 +20,10 @@ test.group('LlmProviderFactory', () => {
     const llm = await factory.createCombined()
     assert.instanceOf(llm, FakeLlmProvider)
     assert.isFunction(llm.generateCompletion)
-    assert.isFunction((await factory.createChat()).generateCompletion)
-    assert.isFunction((await factory.createEmbedding()).embedTexts)
+    const chat = await factory.createChat()
+    const embedding = await factory.createEmbedding()
+    assert.isFunction(chat.generateCompletion)
+    assert.isFunction(embedding.embedTexts)
   })
 
   test('createEmbeddingFor returns FakeLlmProvider when NODE_ENV=test', async ({ assert }) => {

@@ -51,6 +51,4 @@ export interface JobQueueDriver {
     data?: Record<string, unknown>,
     options?: JobScheduleOptions
   ): Promise<void>
-  /** Drop a delayed/waiting job by singleton key. Optional on drivers that cannot cancel. */
-  remove?(name: string, singletonKey: string): Promise<void>
 }

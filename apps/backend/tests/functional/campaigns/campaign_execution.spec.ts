@@ -668,7 +668,6 @@ test.group('CampaignExecutionService', (group) => {
     assert.lengthOf(remainingWakes, 0)
   })
 
-
   test('changeCampaignStatus rejects terminal to draft', async ({ assert }) => {
     const organizationId = await createOrg()
     orgIds.push(organizationId)
