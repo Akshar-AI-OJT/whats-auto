@@ -21,7 +21,7 @@ export async function enqueueCampaignWake(params: {
       campaignId: params.campaignId,
     },
     {
-      runAt: params.runAt,
+      ...(params.runAt ? { runAt: params.runAt } : {}),
       singletonKey: params.campaignId,
     }
   )
