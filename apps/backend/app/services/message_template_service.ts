@@ -4,7 +4,11 @@ import MessageTemplateException from '#exceptions/message_template_exception'
 import { decryptWhatsappAccessToken } from '#lib/meta_whatsapp/access_token_crypto'
 import { createMetaGraphClient, type MetaGraphClient } from '#lib/meta_whatsapp/graph_client'
 import { deriveParameterSchema, parseParameterSchema } from '#lib/meta_whatsapp/template_parameters'
-import type { MetaTemplateComponent, TemplateParameterSchema } from '#lib/meta_whatsapp/types'
+import type {
+  MetaTemplateComponent,
+  MetaMessageTemplateItem,
+  TemplateParameterSchema,
+} from '#lib/meta_whatsapp/types'
 import { NotificationService } from '#services/notification_service'
 
 export type MessageTemplateDto = {
@@ -165,6 +169,8 @@ export class MessageTemplateService {
 
   /**
    * Sync message templates from Meta WABA account into local database.
+   * Uses GET /{waba-id}/message_templates and follows Graph cursor pagination
+   * until all pages are consumed (a single page alone can miss templates).
    */
   async syncTemplatesFromMeta(organizationId: string): Promise<{ syncedCount: number }> {
     const configRow = await db
@@ -177,16 +183,15 @@ export class MessageTemplateService {
       throw MessageTemplateException.noActiveWhatsappConfig()
     }
 
-    const accessToken = decryptWhatsappAccessToken(configRow.accessToken)
-    const result = this.graphClient.listMessageTemplates
-      ? await this.graphClient.listMessageTemplates({
-          wabaId: configRow.wabaId,
-          accessToken,
-          limit: 100,
-        })
-      : { data: [] }
+    if (!this.graphClient.listMessageTemplates) {
+      return { syncedCount: 0 }
+    }
 
-    const templates = result.data ?? []
+    const accessToken = decryptWhatsappAccessToken(configRow.accessToken)
+    const templates = await this.#listAllMessageTemplatesFromMeta({
+      wabaId: configRow.wabaId,
+      accessToken,
+    })
 
     for (const metaTpl of templates) {
       const headerComp = metaTpl.components?.find((c) => c.type === 'HEADER')
@@ -257,6 +262,42 @@ export class MessageTemplateService {
     }
 
     return { syncedCount: templates.length }
+  }
+
+  async #listAllMessageTemplatesFromMeta(params: {
+    wabaId: string
+    accessToken: string
+  }): Promise<MetaMessageTemplateItem[]> {
+    const pageLimit = 100
+    const maxPages = 50
+    const all: MetaMessageTemplateItem[] = []
+    let after: string | undefined
+    let pages = 0
+
+    while (pages < maxPages) {
+      const result = await this.graphClient.listMessageTemplates!({
+        wabaId: params.wabaId,
+        accessToken: params.accessToken,
+        limit: pageLimit,
+        after,
+      })
+      const page = result.data ?? []
+      all.push(...page)
+      pages += 1
+
+      after = result.paging?.cursors?.after
+      if (!after && result.paging?.next) {
+        try {
+          after = new URL(result.paging.next).searchParams.get('after') ?? undefined
+        } catch {
+          after = undefined
+        }
+      }
+
+      if (page.length === 0 || !after) break
+    }
+
+    return all
   }
 
   /**
