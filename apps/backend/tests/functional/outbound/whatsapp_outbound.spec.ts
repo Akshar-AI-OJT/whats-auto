@@ -1192,6 +1192,112 @@ test.group('WhatsApp outbound service', (group) => {
     })
   })
 
+  test('queueTemplate sends named URL-button templates', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const seeded = await seedConversation(organizationId)
+    const service = new WhatsappOutboundService(fakeGraph())
+
+    const template = await seedApprovedTemplate(organizationId, seeded.whatsappConfigId, {
+      name: 'order_cta',
+      bodyText: 'Hi {{name}}',
+      parameterSchema: {
+        headerNames: [],
+        bodyNames: ['name'],
+        urlButtons: [{ name: 'cta_url', index: 0 }],
+        sendable: true,
+      },
+    })
+
+    const queued = await service.queueTemplate({
+      organizationId,
+      conversationId: seeded.conversationId,
+      templateId: template.id,
+      parameters: { name: 'Ada', cta_url: 'blue-shirt' },
+      channel: 'system',
+    })
+
+    await runWithTenant(organizationId, async () => {
+      const dispatch = await db.from('outbound_dispatches').where('id', queued.dispatchId).first()
+      const payload =
+        typeof dispatch?.payload === 'string'
+          ? JSON.parse(dispatch.payload as string)
+          : dispatch?.payload
+      assert.equal(payload.kind, 'template')
+      assert.deepEqual(payload.components, [
+        {
+          type: 'body',
+          parameters: [{ type: 'text', parameter_name: 'name', text: 'Ada' }],
+        },
+        {
+          type: 'button',
+          sub_type: 'url',
+          index: '0',
+          parameters: [{ type: 'text', parameter_name: 'cta_url', text: 'blue-shirt' }],
+        },
+      ])
+    })
+  })
+
+  test('queueTemplate system channel accepts allowlisted headerMediaUrl', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const seeded = await seedConversation(organizationId)
+    const service = new WhatsappOutboundService(fakeGraph())
+    const remoteUrl = 'https://media.test.local/products/banner.jpg'
+
+    const template = await seedApprovedTemplate(organizationId, seeded.whatsappConfigId, {
+      name: 'product_created',
+      headerType: 'image',
+      bodyText: 'New {{sku}}',
+      parameterSchema: {
+        headerNames: [],
+        bodyNames: ['sku'],
+        sendable: true,
+        headerMediaType: 'image',
+      },
+    })
+
+    try {
+      await service.queueTemplate({
+        organizationId,
+        conversationId: seeded.conversationId,
+        templateId: template.id,
+        parameters: { sku: 'A1' },
+        headerMediaUrl: remoteUrl,
+        channel: 'tenant',
+      })
+      assert.fail('expected tenant remote URL rejection')
+    } catch (error) {
+      assert.equal((error as WhatsappOutboundException).code, 'E_OUTBOUND_TEMPLATE_PARAMS')
+    }
+
+    const queued = await service.queueTemplate({
+      organizationId,
+      conversationId: seeded.conversationId,
+      templateId: template.id,
+      parameters: { sku: 'A1' },
+      headerMediaUrl: remoteUrl,
+      channel: 'system',
+    })
+
+    await runWithTenant(organizationId, async () => {
+      const dispatch = await db.from('outbound_dispatches').where('id', queued.dispatchId).first()
+      const payload =
+        typeof dispatch?.payload === 'string'
+          ? JSON.parse(dispatch.payload as string)
+          : dispatch?.payload
+      assert.deepEqual(payload.components[0], {
+        type: 'header',
+        parameters: [{ type: 'image', image: { link: remoteUrl } }],
+      })
+
+      const message = await db.from('messages').where('id', queued.messageId).first()
+      assert.isNull(message?.mediaAssetId)
+      assert.equal(message?.mediaUrl, remoteUrl)
+    })
+  })
+
   test('queueMedia idempotency replays same message and conflicts on change', async ({
     assert,
   }) => {

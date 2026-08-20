@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useId, useState } from 'react'
+import { useId, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Building2, Globe, Loader2, Mail, MapPin, Phone, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -183,19 +183,25 @@ export function WorkspaceSettingsPage() {
   const countryId = useId()
   const formErrorId = useId()
   const successId = useId()
+
+  // Reset form when the active organization changes (e.g. workspace switch).
+  // Adjust state during render (React-recommended) instead of a syncing effect.
+  const activeOrgId = activeOrganization?.id ?? null
+  const [prevOrgId, setPrevOrgId] = useState(activeOrgId)
+  if (prevOrgId !== activeOrgId) {
+    setPrevOrgId(activeOrgId)
+    setForm(detailsFromOrg(activeOrganization))
+    setFieldErrors({})
+    setError(null)
+    setSuccess(null)
+  }
+
   const timezones = Array.from(
     new Set([form.timezone, ...getTimezoneOptions()].filter(Boolean))
   )
   const currencies = Array.from(
     new Set([form.currency, ...CURRENCY_OPTIONS].filter(Boolean))
   ) as string[]
-
-  useEffect(() => {
-    setForm(detailsFromOrg(activeOrganization))
-    setFieldErrors({})
-    setError(null)
-    setSuccess(null)
-  }, [activeOrganization])
 
   function patchForm(next: Partial<FormState>) {
     setForm((prev) => ({ ...prev, ...next }))

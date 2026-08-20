@@ -1065,6 +1065,7 @@
       "signUp": "Create account",
       "errors": {
         "generic": "Something went wrong. Please try again.",
+        "oauthFailed": "Google sign-in failed. Please try again.",
         "emailExists": "An account with this email already exists. Please sign in with your password.",
         "emailRequired": "Email is required.",
         "emailInvalid": "Enter a valid email address.",
@@ -1113,6 +1114,7 @@
       "back": "Back",
       "errors": {
         "generic": "Something went wrong. Please try again.",
+        "oauthFailed": "Google sign-in failed. Please try again.",
         "emailExists": "An account with this email already exists. Please sign in with your password.",
         "passwordMismatch": "Passwords do not match.",
         "passwordLength": "Password must be at least 8 characters.",
@@ -1245,6 +1247,7 @@
       "back": "Back",
       "createWorkspace": "Create Workspace",
       "continueToDashboard": "Continue to dashboard",
+      "proceedToCheckout": "Continue to checkout",
       "creating": "Creating workspace…",
       "step1": {
         "title": "Create your organization",
@@ -1364,12 +1367,33 @@
       "step4": {
         "title": "Choose a subscription plan",
         "subtitle": "Pick the plan that fits your workspace today. You can update billing anytime from the Dashboard.",
+        "loadingPlans": "Loading plans…",
+        "loadingPlansFailed": "Couldn't load plans. Please try again.",
+        "retry": "Retry",
+        "emptyTitle": "No plans available",
+        "emptyDescription": "No active monthly plans are available right now.",
         "chooseCta": "Choose plan",
         "selectedCta": "Selected",
         "enterpriseCta": "Contact sales",
         "enterpriseCustomPrice": "Custom",
         "summaryLabel": "Selected plan",
-        "summaryNote": "This is a UI-only onboarding selection for now."
+        "summaryNote": "You'll confirm this plan and complete Razorpay checkout before entering the dashboard."
+      },
+      "payment": {
+        "redirectingTitle": "Redirecting to Razorpay",
+        "redirectingSubtitle": "We're opening the secure checkout page for your selected plan.",
+        "pendingTitle": "Confirming your payment",
+        "pendingSubtitle": "If you completed checkout, this page updates automatically. You can also reopen Razorpay to finish payment.",
+        "successTitle": "Payment successful",
+        "successSubtitle": "Your subscription is confirmed. Continue to your workspace dashboard when you're ready.",
+        "failedTitle": "Payment unsuccessful",
+        "failedSubtitle": "We couldn't confirm your payment. You can try again without leaving onboarding.",
+        "cancelledTitle": "Checkout cancelled",
+        "cancelledSubtitle": "No payment was completed. You can resume Razorpay checkout for the selected plan.",
+        "planLabel": "Selected plan",
+        "continueToDashboard": "Continue to dashboard",
+        "completePayment": "Complete payment",
+        "refreshStatus": "Refresh status"
       },
       "errors": {
         "generic": "Something went wrong. Please try again.",
@@ -1397,7 +1421,9 @@
         "dateFormatRequired": "Select a date format.",
         "timeFormatRequired": "Select a time format.",
         "themeRequired": "Select a theme preference.",
-        "planRequired": "Please select a subscription plan."
+        "planRequired": "Please select a subscription plan.",
+        "planNotCheckoutable": "This plan isn't available for checkout. Please choose a different plan.",
+        "checkoutFailed": "Couldn't start checkout. Please try again."
       }
     }
   },
@@ -1427,6 +1453,7 @@
       "campaigns": "Campaigns",
       "templates": "Templates",
       "knowledge": "Knowledge Base",
+      "integrations": "Integrations",
       "notifications": "Notifications",
       "analytics": "Analytics",
       "billing": "Billing",
@@ -1571,6 +1598,7 @@
       "pendingInvitedBy": "Invited by {name}",
       "you": "you",
       "changeRoleAria": "Change role for {name}",
+      "editAria": "Edit {name}",
       "removeAria": "Remove {name}",
       "removeConfirmTitle": "Remove this member?",
       "removeConfirmBody": "“{name}” will lose access to this workspace immediately.",
@@ -1588,6 +1616,30 @@
         "admin": "Admin",
         "agent": "Agent",
         "viewer": "Viewer"
+      },
+      "editUser": {
+        "title": "Edit member",
+        "subtitle": "Update profile details for this workspace member.",
+        "loading": "Loading member…",
+        "firstname": "First name",
+        "lastname": "Last name",
+        "email": "Email",
+        "isActive": "Active account",
+        "isActiveHint": "Inactive users remain members but are marked inactive.",
+        "cancel": "Cancel",
+        "retry": "Retry",
+        "save": "Save changes",
+        "saving": "Saving…",
+        "errors": {
+          "loadFailed": "Couldn’t load this member.",
+          "saveFailed": "Couldn’t save member changes.",
+          "notFound": "This member was not found in the workspace.",
+          "firstnameRequired": "First name is required.",
+          "lastnameRequired": "Last name is required.",
+          "emailRequired": "Email is required.",
+          "emailInvalid": "Enter a valid email address.",
+          "emailExists": "An account with this email already exists."
+        }
       },
       "errors": {
         "loadFailed": "Couldn’t load team members. Please try again.",
@@ -2218,6 +2270,55 @@
         "testToRequired": "Enter a recipient phone number to send a test."
       }
     },
+    "integrations": {
+      "eyebrow": "Connect",
+      "title": "Integrations",
+      "subtitle": "Connect Shopenup so store events can create contacts and send WhatsApp templates.",
+      "refresh": "Refresh",
+      "loading": "Loading integrations…",
+      "shopenupTitle": "Shopenup",
+      "shopenupDescription": "Receive order and catalog events from your Shopenup store.",
+      "connectCta": "Connect Shopenup",
+      "disconnect": "Disconnect",
+      "webhookLabel": "Webhook URL",
+      "webhookHint": "Paste this URL in Shopenup as the events endpoint.",
+      "copyWebhook": "Copy URL",
+      "copied": "Copied",
+      "keysTitle": "API keys",
+      "keysDescription": "Shopenup authenticates with a workspace API key. The secret is shown only once.",
+      "generateCta": "Generate key",
+      "revoke": "Revoke",
+      "prefix": "Prefix: {prefix}",
+      "lastUsed": "Last used {date}",
+      "neverUsed": "Never used",
+      "noKeysTitle": "No API keys yet",
+      "noKeysDescription": "Generate a key, copy the secret, then paste it into Shopenup.",
+      "secretTitle": "Copy this API key",
+      "secretDescription": "This secret is shown once. Store it in Shopenup now — you cannot view it again.",
+      "secretLabel": "API key",
+      "copySecret": "Copy key",
+      "secretDone": "I've saved it",
+      "status": {
+        "connected": "Connected",
+        "disconnected": "Not connected",
+        "error": "Error"
+      },
+      "toasts": {
+        "connected": "Shopenup connected.",
+        "disconnected": "Shopenup disconnected.",
+        "keyCreated": "API key created. Copy the secret now.",
+        "keyRevoked": "API key revoked.",
+        "webhookCopied": "Webhook URL copied.",
+        "secretCopied": "API key copied."
+      },
+      "errors": {
+        "generic": "Something went wrong. Please try again.",
+        "sessionExpired": "Your session expired. Please sign in again.",
+        "permissionDenied": "You don’t have permission to manage integrations in this workspace.",
+        "secretMissing": "The API key was created, but the secret was not returned. Generate a new key.",
+        "clipboard": "Couldn’t copy. Select the text and copy it manually."
+      }
+    },
     "templates": {
       "eyebrow": "Messaging",
       "title": "Templates",
@@ -2596,12 +2697,8 @@
         "cancelled": "Cancelled"
       },
       "checkout": {
-        "title": "Start checkout",
-        "description": "Checkout requires a plan UUID from the billing catalog. There is no public plan list API yet, so enter the plan ID directly.",
-        "planId": "Plan ID",
-        "planIdPlaceholder": "00000000-0000-0000-0000-000000000000",
-        "planIdHint": "Must be a valid UUID accepted by POST /api/v1/billing/checkout.",
-        "planIdInvalid": "Enter a valid plan UUID.",
+        "title": "Confirm plan",
+        "description": "Review the selected plan before starting checkout.",
         "cancel": "Cancel",
         "confirm": "Continue to checkout",
         "starting": "Starting…",
@@ -2706,6 +2803,8 @@
       "searchLabel": "Search workspace",
       "searchPlaceholder": "Find contacts, conversations, campaigns, or templates…",
       "searchPlaceholderShort": "Search workspace…",
+      "searchUnavailablePlaceholder": "Global search requires a backend API…",
+      "searchUnavailableHint": "Global search is not available yet. A backend search endpoint is required before this field can query your workspace.",
       "searchShortcutLabel": "Focus search ({shortcut})",
       "notifications": "Notifications",
       "profile": "Profile",
@@ -2775,17 +2874,28 @@
         },
         "conversations": {
           "label": "Active Conversations",
-          "hint": "coming soon"
+          "hint": "in your inbox"
         },
         "campaigns": {
           "label": "Campaigns Sent",
-          "hint": "coming soon"
+          "hint": "in this workspace"
         },
         "delivery": {
           "label": "Delivery Rate",
-          "hint": "coming soon"
+          "hint": "delivered / sent messages"
         }
       },
+      "loading": {
+        "conversations": "Loading recent conversations…",
+        "campaigns": "Loading recent campaigns…",
+        "activity": "Loading recent activity…"
+      },
+      "errors": {
+        "conversations": "Couldn’t load recent conversations. Please try again.",
+        "campaigns": "Couldn’t load recent campaigns. Please try again.",
+        "activity": "Couldn’t load recent activity. Please try again."
+      },
+      "retry": "Retry",
       "conversations": {
         "title": "Recent Conversations",
         "description": "Latest chats across your connected numbers.",
@@ -2832,6 +2942,8 @@
         "addContactDesc": "Create or import contacts into your list.",
         "createTemplate": "Create Template",
         "createTemplateDesc": "Design a reusable WhatsApp message template.",
+        "inbox": "Inbox",
+        "inboxDesc": "View your latest customer conversations.",
         "broadcastMessage": "Broadcast Message",
         "broadcastMessageDesc": "Send a one-time message to your audience."
       },
@@ -2839,7 +2951,8 @@
         "title": "Recent Activity",
         "description": "A live trail of workspace events.",
         "emptyTitle": "No activity yet",
-        "emptyDescription": "Workspace events will show up here as your team starts using Whats-Auto."
+        "emptyDescription": "Workspace events will show up here as your team starts using Whats-Auto.",
+        "noDetails": "No additional details"
       }
     },
     "analytics": {
@@ -3131,6 +3244,35 @@
         "confirmSend": "Save & send",
         "confirmSchedule": "Save & schedule",
         "saving": "Saving…",
+        "variableMappings": {
+          "title": "Variable mapping",
+          "hint": "Map each template variable to a contact field, custom field, or static value before sending or scheduling.",
+          "source": "Source",
+          "sourcePlaceholder": "Select source",
+          "sources": {
+            "contact_field": "Contact field",
+            "custom_field": "Custom field",
+            "static": "Static value"
+          },
+          "contactField": "Field",
+          "customField": "Custom field key",
+          "customFieldPlaceholder": "e.g. order_id",
+          "staticValue": "Value",
+          "staticValuePlaceholder": "Enter a non-empty value",
+          "contactFields": {
+            "name": "Name",
+            "first_name": "First name",
+            "customer_name": "Customer name",
+            "email": "Email",
+            "company": "Company",
+            "phone": "Phone"
+          },
+          "statusMapped": "Mapped",
+          "statusUnmapped": "Not mapped",
+          "progressComplete": "All {total} variables mapped",
+          "progressIncomplete": "{mapped} of {total} variables mapped",
+          "notSendable": "This template cannot be sent"
+        },
         "errors": {
           "nameRequired": "Campaign name is required.",
           "nameTooLong": "Campaign name must be 200 characters or fewer.",
@@ -3143,7 +3285,9 @@
           "groupMembersLoadFailed": "Couldn’t load this group’s contacts. Please try again.",
           "audienceTooLarge": "This audience has more than {max} contacts. Reduce the group size before sending.",
           "scheduledAtRequired": "Choose a schedule date and time.",
-          "scheduledAtFuture": "Schedule time must be in the future."
+          "scheduledAtFuture": "Schedule time must be in the future.",
+          "variablesUnmapped": "Map all template variables before send or schedule: {variables}",
+          "templateNotSendable": "This template cannot be sent with the current parameter schema."
         }
       },
       "summary": {
@@ -3151,6 +3295,7 @@
         "name": "Name",
         "type": "Type",
         "template": "Template",
+        "mappings": "Variables",
         "audience": "Audience",
         "schedule": "Schedule"
       },
@@ -3265,8 +3410,8 @@
       "charts": {
         "orgGrowth": {
           "title": "Organization Growth",
-          "description": "New and cumulative organizations over the last 6 months.",
-          "ariaLabel": "Line chart of organization growth by month"
+          "description": "Cumulative total organizations over the last 6 months.",
+          "ariaLabel": "Line chart of cumulative organization count by month"
         },
         "subscriptions": {
           "title": "Subscription Distribution",
@@ -3282,13 +3427,15 @@
         },
         "revenue": {
           "title": "Revenue Trend",
-          "description": "Monthly recurring revenue for the last 6 months.",
-          "ariaLabel": "Bar chart of monthly revenue. Peak near {max}."
+          "description": "Monthly paid revenue from invoices for the last 6 months.",
+          "ariaLabel": "Bar chart of monthly paid revenue. Peak near {max}."
         }
       },
       "activity": {
         "title": "Recent Activity",
         "description": "Latest platform events across tenants.",
+        "emptyTitle": "No recent activity",
+        "error": "Couldn't load recent activity. Please try again.",
         "items": {
           "orgCreated": "New organization created",
           "orgCreatedDetail": "Nova Retail joined Whats-Auto on the Growth plan.",
@@ -4041,13 +4188,16 @@
         "created": "Invoice generated.",
         "markedPaid": "Invoice marked as paid.",
         "regenerated": "Invoice regenerated.",
-        "sent": "Invoice sent."
+        "sent": "Invoice sent.",
+        "downloaded": "Invoice download started."
       },
       "errors": {
         "loadFailed": "Failed to load invoices. Please try again.",
         "createFailed": "Failed to generate invoice.",
         "notFound": "Invoice not found.",
         "cannotMarkCancelledPaid": "Cancelled invoices cannot be marked as paid.",
+        "sendFailed": "Failed to send invoice. Please try again.",
+        "downloadFailed": "Failed to download invoice. Please try again.",
         "organizationRequired": "Select an organization.",
         "planRequired": "Select a plan.",
         "datesRequired": "All date fields are required.",
@@ -4063,26 +4213,48 @@
     "platformUsers": {
       "eyebrow": "Access management",
       "title": "Platform Users",
-      "subtitle": "Manage internal users who operate the Super Admin console.",
+      "subtitle": "View all users across every organization on the platform.",
       "tableTitle": "All platform users",
       "tableDescription": "{count, plural, one {# user} other {# users}}",
+      "tableDescriptionLoading": "Loading users…",
+      "loading": "Loading platform users…",
+      "refresh": "Refresh",
+      "retry": "Try again",
+      "searchPlaceholder": "Search by name or email…",
+      "emptyTitle": "No platform users",
+      "emptyDescription": "No users were returned for this platform.",
+      "emptyFilteredTitle": "No matching users",
+      "emptyFilteredDescription": "Try a different search or status filter.",
+      "emptyValue": "—",
+      "moreOrganizations": "+{count} more",
+      "filters": {
+        "search": "Search",
+        "status": "Status",
+        "allStatuses": "All statuses"
+      },
+      "pagination": {
+        "previous": "Previous",
+        "next": "Next",
+        "pageOf": "Page {page} of {lastPage} · {total} total"
+      },
       "columns": {
         "name": "Name",
         "email": "Email",
         "role": "Role",
+        "organizations": "Organizations",
         "status": "Status",
         "created": "Created Date"
       },
       "roles": {
-        "superAdmin": "Super Admin",
-        "platformAdmin": "Platform Admin",
-        "support": "Support",
-        "finance": "Finance"
+        "superadmin": "Super Admin",
+        "user": "User"
       },
       "statuses": {
         "active": "Active",
-        "invited": "Invited",
         "inactive": "Inactive"
+      },
+      "errors": {
+        "loadFailed": "Couldn't load platform users. Please try again."
       }
     },
     "auditLogs": {
@@ -4251,6 +4423,7 @@
           "modelName": "Chat model",
           "embeddingModel": "Embedding model",
           "temperature": "Temperature",
+          "maxOutputTokens": "Max output tokens",
           "debounceDelaySeconds": "Debounce (s)",
           "campaignAttributionWindowHours": "Attribution window (hrs)",
           "minConfidenceScore": "Min confidence",
@@ -4266,6 +4439,7 @@
           "summaryModel": "Optional cheaper model for conversation summaries. Must be the same provider.",
           "embeddingModel": "1024-dimension models only. Changing provider or embedding model re-embeds the knowledge base after you confirm.",
           "temperature": "0 to 2.",
+          "maxOutputTokens": "1 to 8192. Caps tokens for auto-replies and conversation summaries.",
           "debounceDelaySeconds": "1 to 15. Delay before a grounded reply is generated.",
           "campaignAttributionWindowHours": "1 to 168.",
           "minConfidenceScore": "0 to 1. Retrieval below this score hands over.",
@@ -4295,6 +4469,7 @@
       "title": "Platform Analytics",
       "subtitle": "Track growth, revenue, engagement, and subscription mix across the platform.",
       "retry": "Retry",
+      "unavailable": "Data unavailable",
       "kpis": {
         "totalOrganizations": "Total Organizations",
         "activeOrganizations": "Active Organizations",

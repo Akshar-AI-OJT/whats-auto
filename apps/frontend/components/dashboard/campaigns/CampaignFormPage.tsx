@@ -17,16 +17,27 @@ import { Link, useRouter } from '@/i18n/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
-import { campaignQueryKeys } from './CampaignsListPage'
+import { queryKeys } from '@/lib/query-keys'
 import { CAMPAIGN_RECIPIENT_MAX, unwrapCampaign, isEditableCampaignStatus } from './campaign-utils'
 import { unwrapTemplateList } from '@/components/dashboard/templates/template-utils'
 import {
-  customerGroupQueryKeys,
   listCustomerGroupContacts,
   listCustomerGroups,
 } from '@/components/dashboard/customer-groups/customer-group-service'
 import { datetimeLocalToVineDate } from '@/lib/vine-date'
 import { CampaignRecipientList } from './CampaignRecipientList'
+import { CampaignVariableMappingsSection } from './CampaignVariableMappingsSection'
+import {
+  buildVariableMappingsPayload,
+  draftsFromApiMappings,
+  extractTemplateVariableNames,
+  isTemplateSendable,
+  listUnmappedVariableNames,
+  reconcileMappingDrafts,
+  templateUnsupportedReason,
+  type CampaignVariableMappingDraft,
+  type CampaignVariableMappingDrafts,
+} from './campaign-variable-mappings'
 
 /** Avoid useSearchParams — it can stall the create page on hard refresh via Suspense. */
 function readDuplicateFromId(): string | null {
@@ -80,6 +91,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
 
   const [fromId] = useState(() => (mode === 'create' ? readDuplicateFromId() : null))
   const [form, setForm] = useState<FormState>(emptyForm)
+  const [mappingDrafts, setMappingDrafts] = useState<CampaignVariableMappingDrafts>({})
   const [excludedContactIds, setExcludedContactIds] = useState<string[]>([])
   const [selectedGroupId, setSelectedGroupId] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -87,12 +99,13 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
     name?: string
     template?: string
     audience?: string
+    mappings?: string
   }>({})
 
   const canSubmit = mode === 'create' ? canCreateCampaigns : canEditCampaigns
 
   const sourceQuery = useQuery({
-    queryKey: campaignQueryKeys.detail(campaignId || fromId || 'none'),
+    queryKey: queryKeys.campaigns.detail(campaignId || fromId || 'none'),
     enabled:
       Boolean(tenantOrganizationId) && Boolean(campaignId || fromId) && !orgsLoading && canSubmit,
     queryFn: async () => {
@@ -104,7 +117,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
   })
 
   const templatesQuery = useQuery({
-    queryKey: [...campaignQueryKeys.all, 'form-templates', tenantOrganizationId],
+    queryKey: [...queryKeys.campaigns.all, 'form-templates', tenantOrganizationId],
     enabled: Boolean(tenantOrganizationId) && canSubmit && !orgsLoading,
     queryFn: async () => {
       const { data } = await api.whatsapp.listTemplates({
@@ -116,7 +129,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
   })
 
   const contactsQuery = useQuery({
-    queryKey: [...campaignQueryKeys.all, 'form-contacts', tenantOrganizationId],
+    queryKey: [...queryKeys.campaigns.all, 'form-contacts', tenantOrganizationId],
     enabled: Boolean(tenantOrganizationId) && canViewContacts && canSubmit && !orgsLoading,
     queryFn: async () => {
       const { data } = await api.contacts.list()
@@ -125,7 +138,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
   })
 
   const groupsQuery = useQuery({
-    queryKey: customerGroupQueryKeys.list(tenantOrganizationId),
+    queryKey: queryKeys.customerGroups.list(tenantOrganizationId),
     enabled:
       Boolean(tenantOrganizationId) &&
       canViewContacts &&
@@ -136,7 +149,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
   })
 
   const groupMembersQuery = useQuery({
-    queryKey: customerGroupQueryKeys.members(tenantOrganizationId, selectedGroupId),
+    queryKey: queryKeys.customerGroups.members(tenantOrganizationId, selectedGroupId),
     enabled:
       Boolean(tenantOrganizationId) &&
       canViewContacts &&
@@ -153,23 +166,73 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
     ? `${mode}:${fromId ?? ''}:${campaignId ?? ''}:${source.id}:${source.updatedAt ?? source.createdAt ?? ''}`
     : null
   const [hydratedSourceKey, setHydratedSourceKey] = useState<string | null>(null)
+  const [reconciledMappingKey, setReconciledMappingKey] = useState('')
   if (source && sourceKey && sourceKey !== hydratedSourceKey) {
     setHydratedSourceKey(sourceKey)
+    const nextTemplateId = source.messageTemplateId ?? ''
     setForm({
       name: mode === 'create' && fromId ? `${source.name} (copy)` : source.name,
-      messageTemplateId: source.messageTemplateId ?? '',
+      messageTemplateId: nextTemplateId,
       audienceLabel: source.totalRecipients > 0 ? 'all-contacts' : '',
       scheduleMode: source.scheduledAt ? 'later' : 'now',
       scheduledAt: source.scheduledAt
         ? new Date(source.scheduledAt).toISOString().slice(0, 16)
         : '',
     })
+    const fromApi = draftsFromApiMappings(source.variableMappings)
+    if (templatesQuery.data) {
+      const hydratedTemplate =
+        templatesQuery.data.find((item) => item.id === nextTemplateId) ?? null
+      const names = extractTemplateVariableNames(hydratedTemplate)
+      setMappingDrafts(reconcileMappingDrafts(fromApi, names))
+      setReconciledMappingKey(`${nextTemplateId}:${names.join('|')}`)
+    } else {
+      setMappingDrafts(fromApi)
+      setReconciledMappingKey('')
+    }
   }
 
   const selectedTemplate = useMemo(
     () => templatesQuery.data?.find((item) => item.id === form.messageTemplateId) ?? null,
     [templatesQuery.data, form.messageTemplateId]
   )
+
+  const templateVariableNames = useMemo(
+    () => extractTemplateVariableNames(selectedTemplate),
+    [selectedTemplate]
+  )
+
+  const templateNotSendable = Boolean(selectedTemplate) && !isTemplateSendable(selectedTemplate)
+  const unsupportedReason = templateUnsupportedReason(selectedTemplate)
+
+  // When the selected template's variable list is known, keep surviving mappings and
+  // drop/add rows without inventing defaults for new variables.
+  const mappingTemplateKey = `${form.messageTemplateId}:${templateVariableNames.join('|')}`
+  if (
+    form.messageTemplateId &&
+    mappingTemplateKey !== reconciledMappingKey &&
+    // Wait until templates have loaded so we don't prune against an empty schema.
+    Boolean(templatesQuery.data)
+  ) {
+    setReconciledMappingKey(mappingTemplateKey)
+    setMappingDrafts((prev) => reconcileMappingDrafts(prev, templateVariableNames))
+  }
+
+  const unmappedVariableNames = useMemo(
+    () => listUnmappedVariableNames(mappingDrafts, templateVariableNames),
+    [mappingDrafts, templateVariableNames]
+  )
+
+  const willSendOrSchedule =
+    form.scheduleMode === 'later' ||
+    (form.scheduleMode === 'now' &&
+      canLaunchCampaigns &&
+      (form.audienceLabel === 'all-contacts' || form.audienceLabel === 'customer-group'))
+
+  const mappingsBlockLaunch =
+    willSendOrSchedule &&
+    (templateNotSendable ||
+      (templateVariableNames.length > 0 && unmappedVariableNames.length > 0))
 
   const allContacts = contactsQuery.data
   const selectedGroup = useMemo(
@@ -214,6 +277,20 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
     }
   }
 
+  function handleTemplateChange(templateId: string) {
+    setForm((prev) => ({ ...prev, messageTemplateId: templateId }))
+    setFieldErrors((prev) => ({ ...prev, template: undefined, mappings: undefined }))
+    const nextTemplate = templatesQuery.data?.find((item) => item.id === templateId) ?? null
+    const nextNames = extractTemplateVariableNames(nextTemplate)
+    setMappingDrafts((prev) => reconcileMappingDrafts(prev, nextNames))
+    setReconciledMappingKey(`${templateId}:${nextNames.join('|')}`)
+  }
+
+  function handleMappingChange(variable: string, next: CampaignVariableMappingDraft) {
+    setMappingDrafts((prev) => ({ ...prev, [variable]: next }))
+    setFieldErrors((prev) => ({ ...prev, mappings: undefined }))
+  }
+
   function handleRemoveRecipient(contactId: string) {
     setExcludedContactIds((prev) => (prev.includes(contactId) ? prev : [...prev, contactId]))
   }
@@ -221,10 +298,16 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
   const mutation = useMutation({
     mutationFn: async (): Promise<Campaign | null> => {
       const whatsappConfigId = selectedTemplate?.whatsappConfigId ?? undefined
+      const variableMappings = buildVariableMappingsPayload(
+        mappingDrafts,
+        templateVariableNames
+      )
       const bodyBase = {
         name: form.name.trim(),
         ...(form.messageTemplateId ? { messageTemplateId: form.messageTemplateId } : {}),
         ...(whatsappConfigId ? { whatsappConfigId } : {}),
+        // Always replace mappings for the current template variable set (may be {}).
+        variableMappings,
       }
 
       // Always persist as draft first; schedule/send APIs own lifecycle transitions.
@@ -289,7 +372,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
       return campaign
     },
     onSuccess: async (campaign) => {
-      await queryClient.invalidateQueries({ queryKey: campaignQueryKeys.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.all })
       if (campaign?.id) {
         router.push(`/dashboard/campaigns/${campaign.id}`)
       } else {
@@ -302,7 +385,12 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
   })
 
   function validate() {
-    const next: { name?: string; template?: string; audience?: string } = {}
+    const next: {
+      name?: string
+      template?: string
+      audience?: string
+      mappings?: string
+    } = {}
     if (!form.name.trim()) next.name = t('form.errors.nameRequired')
     if (form.name.trim().length > 200) next.name = t('form.errors.nameTooLong')
     if (!form.messageTemplateId) next.template = t('form.errors.templateRequired')
@@ -329,6 +417,18 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
         next.audience = t('form.errors.audienceTooLarge', { max: CAMPAIGN_RECIPIENT_MAX })
       }
     }
+
+    if (willSendOrSchedule) {
+      if (templateNotSendable) {
+        next.mappings =
+          unsupportedReason || t('form.errors.templateNotSendable')
+      } else if (unmappedVariableNames.length > 0) {
+        next.mappings = t('form.errors.variablesUnmapped', {
+          variables: unmappedVariableNames.map((name) => `{{${name}}}`).join(', '),
+        })
+      }
+    }
+
     if (form.scheduleMode === 'later') {
       if (!form.scheduledAt) {
         setError(t('form.errors.scheduledAtRequired'))
@@ -459,7 +559,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
               id="campaign-template"
               className="h-11 w-full rounded-md border border-dash-border bg-canvas px-3 text-sm text-ink"
               value={form.messageTemplateId}
-              onChange={(e) => setForm((prev) => ({ ...prev, messageTemplateId: e.target.value }))}
+              onChange={(e) => handleTemplateChange(e.target.value)}
             >
               <option value="">{t('form.templatePlaceholder')}</option>
               {(templatesQuery.data ?? []).map((template) => (
@@ -472,6 +572,19 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
               <p className="text-xs text-negative">{fieldErrors.template}</p>
             ) : null}
           </div>
+
+          <CampaignVariableMappingsSection
+            variableNames={templateVariableNames}
+            drafts={mappingDrafts}
+            unsupportedReason={unsupportedReason}
+            disabled={mutation.isPending}
+            onChange={handleMappingChange}
+          />
+          {fieldErrors.mappings ? (
+            <p role="alert" className="text-xs text-negative">
+              {fieldErrors.mappings}
+            </p>
+          ) : null}
 
           <fieldset className="space-y-3">
             <legend className="text-sm font-medium text-ink">{t('form.audience')}</legend>
@@ -643,6 +756,23 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
                 <dt className="text-mute">{t('summary.template')}</dt>
                 <dd className="text-right font-medium text-ink">{selectedTemplate?.name || '—'}</dd>
               </div>
+              {templateVariableNames.length > 0 || templateNotSendable ? (
+                <div className="flex justify-between gap-3 border-b border-dash-border pb-2">
+                  <dt className="text-mute">{t('summary.mappings')}</dt>
+                  <dd className="text-right font-medium text-ink">
+                    {templateNotSendable
+                      ? t('form.variableMappings.notSendable')
+                      : unmappedVariableNames.length === 0
+                        ? t('form.variableMappings.progressComplete', {
+                            total: templateVariableNames.length,
+                          })
+                        : t('form.variableMappings.progressIncomplete', {
+                            mapped: templateVariableNames.length - unmappedVariableNames.length,
+                            total: templateVariableNames.length,
+                          })}
+                  </dd>
+                </div>
+              ) : null}
               <div className="space-y-3 border-b border-dash-border pb-3">
                 <div className="flex justify-between gap-3">
                   <dt className="text-mute">{t('summary.audience')}</dt>
@@ -734,6 +864,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
               type="submit"
               disabled={
                 mutation.isPending ||
+                mappingsBlockLaunch ||
                 (form.audienceLabel === 'all-contacts' &&
                   (contactsQuery.isLoading ||
                     contactsQuery.isError ||

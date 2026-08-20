@@ -1,5 +1,10 @@
 'use client'
 
+import { useEffect } from 'react'
+import { Loader2 } from 'lucide-react'
+import { useTranslations } from 'next-intl'
+import { useRouter } from '@/i18n/navigation'
+import { authClient } from '@/lib/auth-client'
 import { DashboardChromeProvider, useDashboardChrome } from './DashboardChromeContext'
 import { DashboardSidebar } from './DashboardSidebar'
 import { DashboardTopbar } from './DashboardTopbar'
@@ -9,6 +14,30 @@ import { cn } from '@/lib/utils'
 type DashboardShellProps = {
   children: React.ReactNode
   className?: string
+}
+
+function DashboardAuthGate({ children }: { children: React.ReactNode }) {
+  const router = useRouter()
+  const t = useTranslations('dashboard.accessDenied')
+  const { data: sessionData, isPending } = authClient.useSession()
+  const isSignedIn = Boolean(sessionData?.user)
+
+  useEffect(() => {
+    if (!isPending && !isSignedIn) {
+      router.replace('/login')
+    }
+  }, [isPending, isSignedIn, router])
+
+  if (isPending || !isSignedIn) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-dash-bg">
+        <Loader2 className="size-6 animate-spin text-mute" aria-hidden />
+        <span className="sr-only">{t('loading')}</span>
+      </div>
+    )
+  }
+
+  return children
 }
 
 function DashboardShellFrame({ children, className }: DashboardShellProps) {
@@ -38,10 +67,12 @@ function DashboardShellFrame({ children, className }: DashboardShellProps) {
 
 export function DashboardShell({ children, className }: DashboardShellProps) {
   return (
-    <OrganizationsProvider>
-      <DashboardChromeProvider>
-        <DashboardShellFrame className={className}>{children}</DashboardShellFrame>
-      </DashboardChromeProvider>
-    </OrganizationsProvider>
+    <DashboardAuthGate>
+      <OrganizationsProvider>
+        <DashboardChromeProvider>
+          <DashboardShellFrame className={className}>{children}</DashboardShellFrame>
+        </DashboardChromeProvider>
+      </OrganizationsProvider>
+    </DashboardAuthGate>
   )
 }

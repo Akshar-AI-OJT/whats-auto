@@ -102,7 +102,7 @@ export function DashboardSidebarNav({
               : Boolean(href && (pathname === href || pathname.startsWith(`${href}/`)))
 
     const itemClass = cn(
-      'group flex w-full items-center rounded-xl text-sm font-medium transition-[background-color,color,box-shadow,transform] duration-200',
+      'group flex w-full cursor-pointer items-center rounded-xl text-sm font-medium transition-[background-color,color,box-shadow,transform] duration-200',
       collapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5',
       active
         ? 'bg-primary-pale text-positive-deep shadow-[0_0_0_1px_rgb(159_232_112/0.35)]'
@@ -182,7 +182,7 @@ export function DashboardSidebarNav({
                     onClick={onNavigate}
                     aria-current={childActive ? 'page' : undefined}
                     className={cn(
-                      'rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                      'cursor-pointer rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                       childActive
                         ? 'bg-primary-pale/70 text-positive-deep'
                         : 'text-body hover:bg-dash-surface hover:text-ink'

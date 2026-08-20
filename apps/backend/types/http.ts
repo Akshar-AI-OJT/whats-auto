@@ -21,6 +21,7 @@ declare module '@adonisjs/core/http' {
     authUser?: AuthUser
     sessionId?: string // Better Auth session id (from JWT sid or cookie session)
     activeOrganizationId?: string // from JWT org_id or sessions.activeOrganizationId
+    apiKeyId?: string // set by apiKeyAuth on public integration ingress
     activeMember?: ActiveMember // set by tenant middleware
     memberPermissions?: Set<Permission> // set by tenant/platform middleware
     accessTokenClaims?: AccessTokenClaims // set when authMethod === 'bearer'

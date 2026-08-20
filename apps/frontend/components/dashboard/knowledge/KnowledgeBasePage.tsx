@@ -16,9 +16,9 @@ import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { Button } from '@/components/ui/button'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
+import { queryKeys } from '@/lib/query-keys'
 import {
   formatBytes,
-  mediaQueryKeys,
   unwrapMediaQuota,
 } from '@/components/dashboard/templates/media-utils'
 import {
@@ -26,7 +26,6 @@ import {
   isKnowledgeInFlight,
   KNOWLEDGE_MAX_FILE_BYTES,
   KNOWLEDGE_UPLOAD_ACCEPT,
-  knowledgeQueryKeys,
   resolveKnowledgeFileSource,
   titleFromFileName,
   unwrapKnowledgeCreate,
@@ -86,7 +85,7 @@ export function KnowledgeBasePage() {
   )
 
   const listQuery = useQuery({
-    queryKey: knowledgeQueryKeys.list(tenantOrganizationId, listParams),
+    queryKey: queryKeys.knowledge.list(tenantOrganizationId, listParams),
     enabled: Boolean(tenantOrganizationId) && canView && !orgsLoading,
     queryFn: async () => {
       const { data } = await api.knowledgeDocuments.list({
@@ -107,7 +106,7 @@ export function KnowledgeBasePage() {
   })
 
   const quotaQuery = useQuery({
-    queryKey: knowledgeQueryKeys.quota(tenantOrganizationId),
+    queryKey: queryKeys.knowledge.quota(tenantOrganizationId),
     enabled: Boolean(tenantOrganizationId) && canView && !orgsLoading,
     queryFn: async () => {
       const { data } = await api.media.quota()
@@ -117,8 +116,8 @@ export function KnowledgeBasePage() {
 
   const invalidateKnowledgeAndQuota = async () => {
     await Promise.all([
-      queryClient.invalidateQueries({ queryKey: knowledgeQueryKeys.all }),
-      queryClient.invalidateQueries({ queryKey: mediaQueryKeys.all }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.knowledge.all }),
+      queryClient.invalidateQueries({ queryKey: queryKeys.media.all }),
     ])
   }
 

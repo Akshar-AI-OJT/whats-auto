@@ -74,7 +74,7 @@ function FooterNavItem({
   }
 
   const className =
-    'text-sm text-body transition-colors duration-200 hover:text-positive-deep'
+    'cursor-pointer text-sm text-body transition-colors duration-200 hover:text-positive-deep'
 
   if (link.href.startsWith('mailto:') || link.href.startsWith('http')) {
     return (
@@ -129,7 +129,7 @@ export async function Footer() {
                       ? { target: '_blank', rel: 'noopener noreferrer' }
                       : {})}
                     className={cn(
-                      'flex size-10 items-center justify-center rounded-xl border border-[#E2E8F0] bg-canvas text-body',
+                      'flex size-10 cursor-pointer items-center justify-center rounded-xl border border-[#E2E8F0] bg-canvas text-body',
                       'shadow-[0_1px_2px_rgb(15_23_42/0.04)]',
                       'transition-[transform,color,border-color,box-shadow,background-color] duration-200',
                       'hover:-translate-y-0.5 hover:border-primary/50 hover:bg-primary-pale hover:text-positive-deep',

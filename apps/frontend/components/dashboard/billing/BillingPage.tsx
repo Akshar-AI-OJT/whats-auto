@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { Check, CreditCard, ExternalLink, Loader2, Minus, RefreshCw } from 'lucide-react'
@@ -11,10 +11,9 @@ import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
 import { cn } from '@/lib/utils'
 import { BillingCheckoutDialog } from './BillingCheckoutDialog'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { PLANS, isPlanId, type PlanId, planKeyFromCheckoutPlanId } from '@/lib/plan-config'
+import { PLANS, isPlanId, type PlanId, planKeyFromCheckoutPlanId, getPlanById } from '@/lib/plan-config'
+import { queryKeys } from '@/lib/query-keys'
 import {
-  billingQueryKeys,
   billingStatusTone,
   formatBillingDate,
   isSubscriptionNotFound,
@@ -22,15 +21,6 @@ import {
   unwrapBillingSubscription,
 } from './billing-utils'
 import { clearPendingWorkspacePlan, readPendingWorkspacePlan } from '@/lib/onboarding'
-
-function readPlanIdFromQuery(): string {
-  if (typeof window === 'undefined') return ''
-  try {
-    return new URLSearchParams(window.location.search).get('planId')?.trim() ?? ''
-  } catch {
-    return ''
-  }
-}
 
 function StatusBadge({ status }: { status: string }) {
   const t = useTranslations('dashboard.billing.status')
@@ -83,17 +73,11 @@ export function BillingPage() {
     isLoading: orgsLoading,
   } = useOrganizations()
 
-  const [checkoutOpen, setCheckoutOpen] = useState(false)
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
   const [checkoutSuccess, setCheckoutSuccess] = useState<string | null>(null)
-  const [queryPlanId, setQueryPlanId] = useState('')
-
-  useEffect(() => {
-    setQueryPlanId(readPlanIdFromQuery())
-  }, [])
 
   const subscriptionQuery = useQuery({
-    queryKey: billingQueryKeys.subscription(tenantOrganizationId),
+    queryKey: queryKeys.billing.subscription(tenantOrganizationId),
     enabled: Boolean(tenantOrganizationId) && canViewBilling && !orgsLoading,
     queryFn: async (): Promise<BillingSubscription | null> => {
       try {
@@ -115,9 +99,9 @@ export function BillingPage() {
     },
     onSuccess: async (result) => {
       setCheckoutError(null)
-      setCheckoutOpen(false)
+      setConfirmOpen(false)
       setCheckoutSuccess(t('checkout.success'))
-      await queryClient.invalidateQueries({ queryKey: billingQueryKeys.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.billing.all })
       if (result.checkoutUrl) {
         window.location.assign(result.checkoutUrl)
       }
@@ -129,30 +113,22 @@ export function BillingPage() {
   })
 
   const subscription = subscriptionQuery.data ?? null
-  const initialCheckoutPlanId = queryPlanId || subscription?.planId || ''
 
-  const [selectedPlanKey, setSelectedPlanKey] = useState<PlanId | null>(null)
+  const [selectedPlanKey] = useState<PlanId | null>(() => {
+    if (typeof window === 'undefined') return null
+    // Prefer any plan selected during onboarding so the UI feels continuous.
+    const pending = readPendingWorkspacePlan()
+    // Clear after we've consumed it once; UI-only.
+    clearPendingWorkspacePlan()
+    return isPlanId(pending) ? pending : null
+  })
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [confirmPlanKey, setConfirmPlanKey] = useState<PlanId | null>(null)
 
   const currentPlanKey = planKeyFromCheckoutPlanId(subscription?.planId ?? null)
 
-  useEffect(() => {
-    // Prefer any plan selected during onboarding so the UI feels continuous.
-    const pending = readPendingWorkspacePlan()
-    if (isPlanId(pending)) {
-      setSelectedPlanKey(pending)
-    } else {
-      setSelectedPlanKey(currentPlanKey)
-    }
-    // Clear after we've consumed it once; UI-only.
-    clearPendingWorkspacePlan()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  useEffect(() => {
-    if (!selectedPlanKey) setSelectedPlanKey(currentPlanKey)
-  }, [currentPlanKey, selectedPlanKey])
+  // Derive the active plan: prefer explicit user selection, fall back to current plan.
+  const activePlanKey: PlanId | null = selectedPlanKey ?? currentPlanKey
 
   const compareFeatureKeys = Array.from(new Set(PLANS.flatMap((p) => p.featureKeys))).filter(
     Boolean
@@ -213,10 +189,15 @@ export function BillingPage() {
                 type="button"
                 className="gap-2"
                 onClick={() => {
-                  setCheckoutError(null)
-                  setCheckoutSuccess(null)
-                  setCheckoutOpen(true)
+                  const planKey = activePlanKey
+                  if (planKey) {
+                    setCheckoutError(null)
+                    setCheckoutSuccess(null)
+                    setConfirmPlanKey(planKey)
+                    setConfirmOpen(true)
+                  }
                 }}
+                disabled={!activePlanKey}
               >
                 <CreditCard className="size-4" aria-hidden />
                 {subscription ? t('upgradeCta') : t('choosePlanCta')}
@@ -267,10 +248,15 @@ export function BillingPage() {
                       type="button"
                       className="mt-2 gap-2"
                       onClick={() => {
-                        setCheckoutError(null)
-                        setCheckoutSuccess(null)
-                        setCheckoutOpen(true)
+                        const planKey = activePlanKey
+                        if (planKey) {
+                          setCheckoutError(null)
+                          setCheckoutSuccess(null)
+                          setConfirmPlanKey(planKey)
+                          setConfirmOpen(true)
+                        }
                       }}
+                      disabled={!activePlanKey}
                     >
                       <CreditCard className="size-4" aria-hidden />
                       {t('choosePlanCta')}
@@ -347,10 +333,13 @@ export function BillingPage() {
                       onClick={() => {
                         setCheckoutError(null)
                         setCheckoutSuccess(null)
+                        setCheckoutError(null)
+                        setCheckoutSuccess(null)
                         if (subscription.planId) {
                           checkoutMutation.mutate(subscription.planId)
-                        } else {
-                          setCheckoutOpen(true)
+                        } else if (currentPlanKey) {
+                          setConfirmPlanKey(currentPlanKey)
+                          setConfirmOpen(true)
                         }
                       }}
                     >
@@ -364,7 +353,7 @@ export function BillingPage() {
                   ) : null}
                 </div>
 
-                {checkoutMutation.isError && !checkoutOpen ? (
+                {checkoutMutation.isError && !confirmOpen ? (
                   <div
                     role="alert"
                     className="rounded-xl border border-negative/25 bg-negative/5 px-5 py-4 text-sm text-negative"
@@ -404,7 +393,7 @@ export function BillingPage() {
         <div className="mt-6 grid auto-rows-min grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
           {PLANS.map((plan) => {
             const isCurrent = plan.id === currentPlanKey
-            const isSelected = plan.id === selectedPlanKey
+            const isSelected = plan.id === activePlanKey
 
             const priceLabel =
               plan.priceMonthly == null
@@ -621,49 +610,23 @@ export function BillingPage() {
         </div>
       </DashboardPanel>
 
-      <Dialog
-        open={confirmOpen}
-        onOpenChange={(next) => {
-          if (!confirmOpen) return
-          setConfirmOpen(next)
-        }}
-      >
-        <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md">
-          <DialogHeader className="border-b border-dash-border px-5 py-4 text-left sm:px-6">
-            <DialogTitle>{t('changeDialogTitle')}</DialogTitle>
-            <DialogDescription>{t('changeDialogDescription')}</DialogDescription>
-          </DialogHeader>
-          <div className="p-5 sm:px-6">
-            <p className="text-sm text-body">
-              {confirmPlanKey ? tPlans(`${confirmPlanKey}.name`) : ''}
-            </p>
-            <p className="mt-2 text-sm text-mute">{t('changeDialogNoteUiOnly')}</p>
-          </div>
-          <DialogFooter className="border-t border-dash-border px-5 py-4 sm:px-6">
-            <Button type="button" variant="outline" onClick={() => setConfirmOpen(false)} disabled={false}>
-              {t('cancel')}
-            </Button>
-            <Button
-              type="button"
-              onClick={() => {
-                if (!confirmPlanKey) return
-                setSelectedPlanKey(confirmPlanKey)
-                setConfirmOpen(false)
-              }}
-            >
-              {t('confirmChange')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       <BillingCheckoutDialog
-        open={checkoutOpen}
+        open={confirmOpen}
         pending={checkoutMutation.isPending}
         error={checkoutError}
-        initialPlanId={initialCheckoutPlanId}
-        onOpenChange={setCheckoutOpen}
-        onConfirm={(planId) => checkoutMutation.mutate(planId)}
+        planName={confirmPlanKey ? tPlans(`${confirmPlanKey}.name`) : ''}
+        onOpenChange={(next) => {
+          if (!checkoutMutation.isPending) {
+            setConfirmOpen(next)
+            if (!next) setCheckoutError(null)
+          }
+        }}
+        onConfirm={() => {
+          if (!confirmPlanKey) return
+          const plan = getPlanById(confirmPlanKey)
+          if (!plan?.checkoutPlanId) return
+          checkoutMutation.mutate(plan.checkoutPlanId)
+        }}
       />
     </div>
   )

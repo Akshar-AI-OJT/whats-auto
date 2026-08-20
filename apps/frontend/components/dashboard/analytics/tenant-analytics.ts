@@ -35,17 +35,6 @@ export type ConversationAggregate = {
   statusBreakdown: BreakdownItem[]
 }
 
-export const tenantAnalyticsQueryKeys = {
-  all: ['tenant-analytics'] as const,
-  contacts: ['tenant-analytics', 'contacts'] as const,
-  campaigns: ['tenant-analytics', 'campaigns'] as const,
-  templates: ['tenant-analytics', 'templates'] as const,
-  configs: ['tenant-analytics', 'configs'] as const,
-  conversations: ['tenant-analytics', 'conversations'] as const,
-  tags: ['tenant-analytics', 'tags'] as const,
-  audit: ['tenant-analytics', 'audit'] as const,
-}
-
 async function fetchAllByPages<T>(fetchPage: (page: number, perPage: number) => Promise<{ items: T[]; meta: PaginationMeta | null }>): Promise<T[]> {
   const perPage = 100
   let page = 1

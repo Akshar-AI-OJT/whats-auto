@@ -103,6 +103,13 @@ export default class CampaignException extends Exception {
     })
   }
 
+  static invalidScheduledAt() {
+    return new this('scheduledAt is not a valid datetime', {
+      status: 422,
+      code: 'E_CAMPAIGN_INVALID_SCHEDULED_AT',
+    })
+  }
+
   static invalidReference() {
     return new this('One or more campaign references are invalid', {
       status: 422,
@@ -158,7 +165,6 @@ export default class CampaignException extends Exception {
   static notCancellable(status: string) {
     return this.notEligibleToCancel(status)
   }
-
 
   static templateNotSendable(reason?: string) {
     return new this(reason || 'Campaign template is not sendable', {

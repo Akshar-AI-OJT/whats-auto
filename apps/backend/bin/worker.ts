@@ -59,6 +59,7 @@ try {
     MEDIA_STORAGE_LIFECYCLE_CRON,
     CAMPAIGN_RECOVERY_CRON,
     BILLING_PAYMENT_WEBHOOK_RECOVERY_CRON,
+    INTEGRATION_EVENTS_RECOVERY_CRON,
   } = await import('#services/job_queue/job_names')
   if (typeof driver.schedule === 'function') {
     await driver.schedule(
@@ -112,6 +113,17 @@ try {
     logger.info(
       { cron: BILLING_PAYMENT_WEBHOOK_RECOVERY_CRON },
       'job_queue.billing_webhook_recovery.scheduled'
+    )
+
+    await driver.schedule(
+      JOB_NAMES.INTEGRATION_EVENTS_RECOVERY,
+      INTEGRATION_EVENTS_RECOVERY_CRON,
+      {},
+      { key: 'integration-events-recovery' }
+    )
+    logger.info(
+      { cron: INTEGRATION_EVENTS_RECOVERY_CRON },
+      'job_queue.integration_events_recovery.scheduled'
     )
   }
 

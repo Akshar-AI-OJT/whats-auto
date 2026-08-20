@@ -175,6 +175,35 @@ function protectedRequest<T>(path: string, init: RequestInit = {}) {
   return request<T>(path, { ...init, authMode: 'protected' })
 }
 
+/**
+ * Like protectedRequest but returns the raw Blob instead of parsing JSON.
+ * Used for binary downloads (PDF, etc.) that carry a Bearer token.
+ */
+async function protectedBlobRequest(
+  path: string,
+  init: RequestInit = {}
+): Promise<{ blob: Blob; response: Response }> {
+  const headers = new Headers(init.headers)
+  const token = await getValidAccessToken()
+  headers.set('Authorization', `Bearer ${token}`)
+
+  const response = await fetch(`${getBaseUrl()}${path}`, {
+    ...init,
+    headers,
+    credentials: 'include',
+  })
+
+  applyAuthTokenHeaders(response)
+
+  if (!response.ok) {
+    const error = await parseError(response)
+    throw error
+  }
+
+  const blob = await response.blob()
+  return { blob, response }
+}
+
 export type SignupBody = {
   firstname: string
   lastname: string
@@ -604,6 +633,45 @@ export type WhatsappConfigSummary = {
   updatedAt?: string | null
 }
 
+export type IntegrationConnection = {
+  id: string
+  organizationId: string
+  provider: string
+  externalAccountId: string | null
+  displayName: string
+  config: Record<string, unknown>
+  status: string
+  lastSyncAt: string | null
+  lastErrorCode: string | null
+  lastErrorMessage: string | null
+  createdAt: string
+  updatedAt: string | null
+}
+
+export type UpsertIntegrationConnectionBody = {
+  displayName: string
+  externalAccountId?: string | null
+  config?: Record<string, unknown>
+}
+
+export type IntegrationApiKey = {
+  id: string
+  organizationId: string
+  name: string
+  keyPrefix: string
+  scopes: string[]
+  lastUsedAt: string | null
+  expiresAt: string | null
+  revokedAt: string | null
+  createdAt: string
+  secretToken?: string
+}
+
+export type CreateIntegrationApiKeyBody = {
+  name: string
+  scopes?: Array<'events:write'>
+}
+
 export type WhatsappEmbeddedSignupSession = {
   appId: string
   configId: string
@@ -715,6 +783,14 @@ export type CampaignStatus =
   | 'cancelled'
   | string
 
+/** Maps a template parameter to a contact field, custom field, or static value. */
+export type CampaignVariableMapping =
+  | { source: 'contact_field'; field: string }
+  | { source: 'custom_field'; field: string }
+  | { source: 'static'; value: string }
+
+export type CampaignVariableMappings = Record<string, CampaignVariableMapping>
+
 export type Campaign = {
   id: string
   organizationId: string
@@ -733,6 +809,8 @@ export type Campaign = {
   readCount: number
   repliedCount?: number
   failedCount: number
+  /** Named template param → source mapping (resolved into recipient.variables on send). */
+  variableMappings?: CampaignVariableMappings | null
   createdAt?: string
   updatedAt?: string | null
 }
@@ -754,6 +832,7 @@ export type CreateCampaignBody = {
   headerMediaAssetId?: string
   scheduledAt?: string
   status?: 'draft' | 'scheduled'
+  variableMappings?: CampaignVariableMappings
 }
 
 export type UpdateCampaignBody = {
@@ -763,6 +842,7 @@ export type UpdateCampaignBody = {
   headerMediaAssetId?: string | null
   scheduledAt?: string | null
   status?: 'draft' | 'scheduled'
+  variableMappings?: CampaignVariableMappings | null
 }
 
 export type ReplaceCampaignRecipientsBody = {
@@ -858,6 +938,14 @@ export type ListOrganizationAdminUsersParams = {
   perPage?: number
 }
 
+/** PATCH /api/v1/organization-admin/users/:id */
+export type UpdateOrganizationAdminUserBody = {
+  firstname?: string
+  lastname?: string
+  email?: string
+  isActive?: boolean
+}
+
 /** Row from GET /api/v1/audit */
 export type AuthorizationAuditEvent = {
   id: string
@@ -947,6 +1035,42 @@ export type RoleUpdatePreview = {
   affectedMembers: Array<{ id: string; userId: string }>
 }
 
+/** Nested org membership from GET /api/v1/super-admin/platform-users */
+export type SuperAdminPlatformUserOrganization = {
+  memberId: string
+  organizationId: string
+  organizationName: string
+  organizationSlug: string
+  organizationStatus: boolean
+  role: string
+  roleId: string
+}
+
+/** Row from GET /api/v1/super-admin/platform-users */
+export type SuperAdminPlatformUser = {
+  id: string
+  name: string
+  firstname: string
+  lastname: string
+  email: string
+  isActive: boolean
+  status: 'active' | 'inactive'
+  emailVerified: boolean
+  createdAt: string
+  updatedAt: string | null
+  platformRole: 'superadmin' | null
+  organizations: SuperAdminPlatformUserOrganization[]
+}
+
+export type ListSuperAdminPlatformUsersParams = {
+  page?: number
+  perPage?: number
+  search?: string
+  status?: 'active' | 'inactive' | 'all'
+  organizationId?: string
+  role?: string
+}
+
 /** Row from GET /api/v1/super-admin/organizations */
 export type SuperAdminOrganization = {
   id: string
@@ -1026,7 +1150,7 @@ export type PlatformAiConfig = {
   embeddingProvider: 'openai' | 'google' | 'mistral' | string
   embeddingModel: string
   activeEmbeddingSpaceId?: string
-  maxOutputTokens?: number
+  maxOutputTokens: number
   reindexStatus?: 'idle' | 'running' | 'failed'
   reindexFromSpaceId?: string | null
   reindexToSpaceId?: string | null
@@ -1053,6 +1177,7 @@ export type UpdatePlatformAiConfigBody = {
   summaryTurnThreshold?: number
   embeddingProvider?: string
   embeddingModel?: string
+  maxOutputTokens?: number
   confirmReindex?: boolean
 }
 
@@ -1374,7 +1499,9 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({
           provider: 'google',
-          callbackURL: callbackURL ?? `${process.env.NEXT_PUBLIC_APP_URL}/onboarding/organization`,
+          callbackURL:
+            callbackURL ??
+            `${typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '')}/onboarding/organization`,
         }),
       }),
 
@@ -1754,6 +1881,49 @@ export const api = {
       ),
   },
 
+  integrations: {
+    list: () =>
+      protectedRequest<{ data?: IntegrationConnection[] } | IntegrationConnection[]>(
+        '/api/v1/integrations',
+        { method: 'GET' }
+      ),
+
+    upsert: (provider: string, body: UpsertIntegrationConnectionBody) =>
+      protectedRequest<{ data?: IntegrationConnection } & IntegrationConnection>(
+        `/api/v1/integrations/${provider}`,
+        {
+          method: 'PUT',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    destroy: (provider: string) =>
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/integrations/${provider}`,
+        { method: 'DELETE' }
+      ),
+  },
+
+  apiKeys: {
+    list: () =>
+      protectedRequest<{ data?: IntegrationApiKey[] } | IntegrationApiKey[]>(
+        '/api/v1/api-keys',
+        { method: 'GET' }
+      ),
+
+    create: (body: CreateIntegrationApiKeyBody) =>
+      protectedRequest<{ data?: IntegrationApiKey } & IntegrationApiKey>('/api/v1/api-keys', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+
+    revoke: (id: string) =>
+      protectedRequest<{ data?: IntegrationApiKey } & IntegrationApiKey>(
+        `/api/v1/api-keys/${id}/revoke`,
+        { method: 'POST' }
+      ),
+  },
+
   knowledgeDocuments: {
     list: (params: ListKnowledgeDocumentsParams = {}) => {
       const qs = new URLSearchParams()
@@ -2031,7 +2201,7 @@ export const api = {
 
   organizationAdmin: {
     /**
-     * Paginated org users — Owner/Admin only.
+     * Paginated org users — Owner/Admin only (`accessOrgAdmin`).
      * Role changes still go through PATCH /api/v1/members/:memberId/role.
      */
     listUsers: (params: ListOrganizationAdminUsersParams = {}) => {
@@ -2045,6 +2215,33 @@ export const api = {
         method: 'GET',
       })
     },
+
+    /** GET /api/v1/organization-admin/users/:userId — Owner/Admin only. */
+    getUser: (userId: string) =>
+      protectedRequest<{ data?: OrganizationAdminUser } & OrganizationAdminUser>(
+        `/api/v1/organization-admin/users/${userId}`,
+        { method: 'GET' }
+      ),
+
+    /** PATCH /api/v1/organization-admin/users/:userId — profile + isActive. */
+    updateUser: (userId: string, body: UpdateOrganizationAdminUserBody) =>
+      protectedRequest<{ data?: OrganizationAdminUser } & OrganizationAdminUser>(
+        `/api/v1/organization-admin/users/${userId}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    /**
+     * DELETE /api/v1/organization-admin/users/:userId —
+     * soft-deletes the org membership (does not delete the user account).
+     */
+    softDeleteUser: (userId: string) =>
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/organization-admin/users/${userId}`,
+        { method: 'DELETE' }
+      ),
   },
 
   invitations: {
@@ -2330,6 +2527,20 @@ export const api = {
             body: JSON.stringify({}),
           }
         ),
+
+      send: (invoiceId: string) =>
+        protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+          `/api/v1/super-admin/invoices/${invoiceId}/send`,
+          {
+            method: 'POST',
+            body: JSON.stringify({}),
+          }
+        ),
+
+      download: (invoiceId: string) =>
+        protectedBlobRequest(`/api/v1/super-admin/invoices/${invoiceId}/download`, {
+          method: 'GET',
+        }),
     },
 
     aiConfig: {
@@ -2358,6 +2569,25 @@ export const api = {
         return protectedRequest<
           { data?: AuthorizationAuditEvent[] } | AuthorizationAuditEvent[]
         >(`/api/v1/super-admin/audit-logs${query ? `?${query}` : ''}`, {
+          method: 'GET',
+        })
+      },
+    },
+
+    platformUsers: {
+      list: (params: ListSuperAdminPlatformUsersParams = {}) => {
+        const qs = new URLSearchParams()
+        if (params.page != null) qs.set('page', String(params.page))
+        if (params.perPage != null) qs.set('perPage', String(params.perPage))
+        if (params.search?.trim()) qs.set('search', params.search.trim())
+        if (params.status && params.status !== 'all') qs.set('status', params.status)
+        if (params.organizationId) qs.set('organizationId', params.organizationId)
+        if (params.role?.trim()) qs.set('role', params.role.trim())
+        const query = qs.toString()
+        return protectedRequest<
+          | Paginated<SuperAdminPlatformUser>
+          | { data?: SuperAdminPlatformUser[]; meta?: PaginationMeta }
+        >(`/api/v1/super-admin/platform-users${query ? `?${query}` : ''}`, {
           method: 'GET',
         })
       },

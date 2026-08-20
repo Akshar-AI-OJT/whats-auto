@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useSyncExternalStore } from 'react'
 import { Moon, Sun } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
@@ -9,6 +9,7 @@ import { useTheme } from './ThemeProvider'
 type ThemeToggleProps = {
   className?: string
 }
+const emptySubscribe = () => () => {}
 
 const toggleButtonClassName = cn(
   'relative inline-flex size-10 shrink-0 items-center justify-center rounded-xl border border-dash-border bg-canvas text-ink',
@@ -19,11 +20,11 @@ const toggleButtonClassName = cn(
 export function ThemeToggle({ className }: ThemeToggleProps) {
   const t = useTranslations('dashboard.theme')
   const { resolvedTheme, toggleTheme } = useTheme()
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
+  const mounted = useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false
+  )
 
   // SSR + first client paint stay icon-stable; avoid hydration mismatch when
   // localStorage/theme script resolved dark before React hydrates.

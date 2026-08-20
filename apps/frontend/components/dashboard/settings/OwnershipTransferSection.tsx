@@ -11,10 +11,8 @@ import {
 } from '@/lib/api'
 import { ASSIGNABLE_ROLES, type AssignableRole } from '@/lib/onboarding'
 import { cn } from '@/lib/utils'
-import {
-  organizationQueryKeys,
-  useOrganizations,
-} from '@/components/dashboard/OrganizationsProvider'
+import { queryKeys } from '@/lib/query-keys'
+import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { Button } from '@/components/ui/button'
 import {
   Field,
@@ -69,7 +67,7 @@ export function OwnershipTransferSection() {
   const currentMemberId = accessContext?.memberId ?? null
 
   const membersQuery = useQuery({
-    queryKey: [...organizationQueryKeys.all, 'ownership-members', tenantOrganizationId],
+    queryKey: queryKeys.organizations.ownershipMembers(tenantOrganizationId),
     enabled: Boolean(tenantOrganizationId) && isOwner && canViewTeam,
     queryFn: async () => {
       const { data } = await api.members.list()
@@ -110,7 +108,7 @@ export function OwnershipTransferSection() {
       setTargetMemberId('')
       setReason('')
       setReplacementRole('admin')
-      await queryClient.invalidateQueries({ queryKey: organizationQueryKeys.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.organizations.all })
       await refresh()
     },
     onError: (err) => {

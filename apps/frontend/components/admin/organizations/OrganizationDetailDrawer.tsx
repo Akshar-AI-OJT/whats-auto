@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { Building2, CreditCard, ExternalLink, Loader2, ScrollText, Users } from 'lucide-react'
 import { api, type AuthorizationAuditEvent, type SuperAdminSubscription } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { queryKeys } from '@/lib/query-keys'
 import { Link } from '@/i18n/navigation'
 import { Button, buttonVariants } from '@/components/ui/button'
 import {
@@ -235,7 +236,7 @@ function OverviewTab({
               website ? (
                 <a
                   href={website}
-                  className="text-positive-deep underline-offset-2 hover:underline"
+                  className="cursor-pointer text-positive-deep underline-offset-2 hover:underline"
                   target="_blank"
                   rel="noreferrer"
                 >
@@ -420,7 +421,7 @@ function SubscriptionTab({
 function ActivityTab({ organizationId, empty }: { organizationId: string; empty: string }) {
   const t = useTranslations('admin.organizations')
   const activityQuery = useQuery({
-    queryKey: ['admin-org-activity', organizationId],
+    queryKey: queryKeys.admin.organizationActivity(organizationId),
     queryFn: async () => {
       const { data } = await api.superAdmin.auditLogs.list({ limit: 50, organizationId })
       return unwrapAuditEvents(data)

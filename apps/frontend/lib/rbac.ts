@@ -44,6 +44,8 @@ export const PERMISSIONS = {
   WHATSAPP_CONNECT: 'whatsapp:connect',
   AI_KB_VIEW: 'ai:kb_view',
   AI_KB_MANAGE: 'ai:kb_manage',
+  INTEGRATIONS_VIEW: 'integrations:view',
+  INTEGRATIONS_MANAGE: 'integrations:manage',
   AUDIT_VIEW: 'audit:view',
   PLATFORM_TENANTS_VIEW: 'platform:tenants_view',
 } as const

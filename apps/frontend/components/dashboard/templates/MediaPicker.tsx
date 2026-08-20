@@ -14,7 +14,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { mediaQueryKeys, unwrapMediaList, formatBytes } from './media-utils'
+import { queryKeys } from '@/lib/query-keys'
+import { unwrapMediaList, formatBytes } from './media-utils'
 
 type MediaPickerProps = {
   open: boolean
@@ -42,7 +43,7 @@ export function MediaPicker({ open, onOpenChange, kind, onSelect }: MediaPickerP
   )
 
   const listQuery = useQuery({
-    queryKey: mediaQueryKeys.list(tenantOrganizationId, { ...listParams, picker: 1 }),
+    queryKey: queryKeys.media.list(tenantOrganizationId, { ...listParams, picker: 1 }),
     enabled: open && Boolean(tenantOrganizationId) && !orgsLoading,
     queryFn: async () => {
       const { data } = await api.media.list(listParams)

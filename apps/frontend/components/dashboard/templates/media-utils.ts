@@ -84,11 +84,3 @@ export function unwrapMediaQuota(data: unknown): MediaQuota | null {
     limitBytes: Number(quota.limitBytes ?? 0),
   }
 }
-
-export const mediaQueryKeys = {
-  all: ['media-library'] as const,
-  list: (orgId: string | null | undefined, params: Record<string, string | number>) =>
-    [...mediaQueryKeys.all, 'list', orgId ?? 'none', params] as const,
-  quota: (orgId: string | null | undefined) =>
-    [...mediaQueryKeys.all, 'quota', orgId ?? 'none'] as const,
-}

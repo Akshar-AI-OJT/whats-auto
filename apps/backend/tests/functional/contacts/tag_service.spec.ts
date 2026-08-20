@@ -57,11 +57,7 @@ async function seedContact(organizationId: string, opts: { deletedAt?: Date | nu
   })
 }
 
-async function seedBroadcast(
-  organizationId: string,
-  contactIds: string[],
-  status = 'draft'
-) {
+async function seedBroadcast(organizationId: string, contactIds: string[], status = 'draft') {
   return runWithTenant(organizationId, async () => {
     const [broadcast] = await db
       .table('broadcasts')

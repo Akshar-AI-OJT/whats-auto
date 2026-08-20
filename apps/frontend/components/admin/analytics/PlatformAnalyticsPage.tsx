@@ -33,6 +33,7 @@ import {
   type BreakdownItem,
   type GrowthPoint,
 } from './super-admin-analytics'
+import { queryKeys } from '@/lib/query-keys'
 
 function PanelLoading({ label }: { label: string }) {
   return <div className="mt-5 flex min-h-44 items-center justify-center text-sm text-mute">{label}</div>
@@ -135,31 +136,31 @@ export function PlatformAnalyticsPage() {
   const locale = useLocale()
 
   const orgQuery = useQuery({
-    queryKey: ['super-admin-analytics', 'organizations'],
+    queryKey: queryKeys.admin.analytics.organizations,
     queryFn: fetchAllOrganizations,
     staleTime: 60_000,
   })
 
   const subscriptionsQuery = useQuery({
-    queryKey: ['super-admin-analytics', 'subscriptions'],
+    queryKey: queryKeys.admin.analytics.subscriptions,
     queryFn: fetchAllSubscriptions,
     staleTime: 60_000,
   })
 
   const plansQuery = useQuery({
-    queryKey: ['super-admin-analytics', 'plans'],
+    queryKey: queryKeys.admin.analytics.plans,
     queryFn: fetchAllPlans,
     staleTime: 60_000,
   })
 
   const invoiceSummaryQuery = useQuery({
-    queryKey: ['super-admin-analytics', 'invoice-summary'],
+    queryKey: queryKeys.admin.analytics.invoiceSummary,
     queryFn: fetchInvoiceSummary,
     staleTime: 60_000,
   })
 
   const auditQuery = useQuery({
-    queryKey: ['super-admin-analytics', 'audit'],
+    queryKey: queryKeys.admin.analytics.audit,
     queryFn: fetchRecentAudit,
     staleTime: 60_000,
   })

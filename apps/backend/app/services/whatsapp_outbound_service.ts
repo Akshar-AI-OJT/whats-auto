@@ -258,6 +258,8 @@ export default class WhatsappOutboundService {
     templateId: string
     parameters?: Record<string, string>
     headerMediaAssetId?: string | null
+    /** Public https URL. Allowed only when `channel` is `system`. */
+    headerMediaUrl?: string | null
     actorUserId?: string | null
     idempotencyKey?: string | null
     /** Defaults to tenant (agent inbox). Integrations pass `system`. */
@@ -302,30 +304,21 @@ export default class WhatsappOutboundService {
       let headerMedia: { link: string; filename?: string } | undefined
 
       if (schema.headerMediaType) {
-        if (!params.headerMediaAssetId) {
-          throw WhatsappOutboundException.invalidTemplateParameters(
-            `Header media asset is required for ${schema.headerMediaType} header templates`
-          )
-        }
-
-        const mediaAsset = await this.#loadMediaAsset({
+        const resolved = await this.#resolveTemplateHeaderMedia({
           organizationId: params.organizationId,
-          mediaAssetId: params.headerMediaAssetId,
+          headerMediaType: schema.headerMediaType,
+          channel,
+          headerMediaAssetId: params.headerMediaAssetId,
+          headerMediaUrl: params.headerMediaUrl,
         })
-        this.#assertMediaAsset({
-          mediaType: schema.headerMediaType,
-          mediaAsset,
-        })
-
-        headerMedia = {
-          link: mediaAsset.filePath,
-          filename: schema.headerMediaType === 'document' ? mediaAsset.fileName : undefined,
-        }
-        mediaAssetId = mediaAsset.id
-        mediaUrl = mediaAsset.filePath
-      } else if (params.headerMediaAssetId) {
+        headerMedia = resolved.headerMedia
+        mediaAssetId = resolved.mediaAssetId
+        mediaUrl = resolved.mediaUrl
+      } else if (params.headerMediaAssetId || params.headerMediaUrl) {
         throw WhatsappOutboundException.invalidTemplateParameters(
-          'Header media asset is not allowed for this template'
+          params.headerMediaAssetId
+            ? 'Header media asset is not allowed for this template'
+            : 'Header media is not allowed for this template'
         )
       }
 
@@ -1054,6 +1047,69 @@ export default class WhatsappOutboundService {
     }
   }
 
+  async #resolveTemplateHeaderMedia(params: {
+    organizationId: string
+    headerMediaType: OutboundMediaType
+    channel: 'tenant' | 'system'
+    headerMediaAssetId?: string | null
+    headerMediaUrl?: string | null
+  }): Promise<{
+    headerMedia: { link: string; filename?: string }
+    mediaAssetId?: string
+    mediaUrl: string
+  }> {
+    if (params.headerMediaAssetId) {
+      const mediaAsset = await this.#loadMediaAsset({
+        organizationId: params.organizationId,
+        mediaAssetId: params.headerMediaAssetId,
+      })
+      this.#assertMediaAsset({
+        mediaType: params.headerMediaType,
+        mediaAsset,
+      })
+
+      return {
+        headerMedia: {
+          link: mediaAsset.filePath,
+          filename: params.headerMediaType === 'document' ? mediaAsset.fileName : undefined,
+        },
+        mediaAssetId: mediaAsset.id,
+        mediaUrl: mediaAsset.filePath,
+      }
+    }
+
+    if (params.headerMediaUrl) {
+      if (params.channel !== 'system') {
+        throw WhatsappOutboundException.invalidTemplateParameters(
+          'Remote header media URLs are only allowed on the system channel'
+        )
+      }
+
+      const link = params.headerMediaUrl.trim()
+      const allowedHosts = parseOutboundMediaAllowedHosts(env.get('OUTBOUND_MEDIA_ALLOWED_HOSTS'))
+      if (!isApprovedOutboundMediaUrl(link, allowedHosts)) {
+        throw new WhatsappOutboundException(
+          'Header media URL is not an approved publicly accessible URL for WhatsApp delivery',
+          {
+            status: 422,
+            code: 'E_OUTBOUND_MEDIA_LINK_UNAVAILABLE',
+          }
+        )
+      }
+
+      return {
+        headerMedia: { link },
+        mediaUrl: link,
+      }
+    }
+
+    throw WhatsappOutboundException.invalidTemplateParameters(
+      params.channel === 'system'
+        ? `Header media asset or URL is required for ${params.headerMediaType} header templates`
+        : `Header media asset is required for ${params.headerMediaType} header templates`
+    )
+  }
+
   #assertSessionWindow(lastInboundMessageAt: Date | null): void {
     const sessionWindowMs = 24 * 60 * 60 * 1000
     if (!lastInboundMessageAt || Date.now() - lastInboundMessageAt.getTime() > sessionWindowMs) {
@@ -1166,16 +1222,19 @@ export default class WhatsappOutboundService {
     })
 
     const now = new Date()
-    if (params.mediaAssetId && params.mediaUrl) {
+    if (params.mediaUrl) {
+      const mediaUpdate: Record<string, unknown> = {
+        mediaUrl: params.mediaUrl,
+        updatedAt: now,
+      }
+      if (params.mediaAssetId) {
+        mediaUpdate.mediaAssetId = params.mediaAssetId
+      }
       await trx
         .from('messages')
         .where('id', queued.messageId)
         .where('organizationId', params.organizationId)
-        .update({
-          mediaAssetId: params.mediaAssetId,
-          mediaUrl: params.mediaUrl,
-          updatedAt: now,
-        })
+        .update(mediaUpdate)
     }
 
     await trx.rawQuery(

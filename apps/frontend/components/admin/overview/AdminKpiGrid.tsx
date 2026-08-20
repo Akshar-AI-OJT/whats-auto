@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import {
   Building2,
   Building,
@@ -11,69 +12,134 @@ import {
   Users,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { KPIStatCard } from '@/components/dashboard/overview/KPIStatCard'
-import { MOCK_ADMIN_KPIS } from '../mock-data'
+import { KPIStatCard, KPIStatCardSkeleton } from '@/components/dashboard/overview/KPIStatCard'
+import {
+  fetchAllOrganizations,
+  fetchAllSubscriptions,
+  fetchInvoiceSummary,
+  countTrialOrganizations,
+} from '../analytics/super-admin-analytics'
+import type { SuperAdminOrganization, SuperAdminSubscription, SuperAdminInvoiceSummary } from '@/lib/api'
+
+type KpiData = {
+  organizations: SuperAdminOrganization[]
+  totalOrgs: number
+  subscriptions: SuperAdminSubscription[]
+  invoiceSummary: SuperAdminInvoiceSummary | null
+}
 
 export function AdminKpiGrid() {
   const t = useTranslations('admin.home.kpis')
+  const tAnalytics = useTranslations('admin.analytics')
+  const [data, setData] = useState<KpiData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      try {
+        const [orgResult, subscriptions, invoiceSummary] = await Promise.all([
+          fetchAllOrganizations(),
+          fetchAllSubscriptions(),
+          fetchInvoiceSummary(),
+        ])
+        if (!cancelled) {
+          setData({
+            organizations: orgResult.items,
+            totalOrgs: orgResult.total,
+            subscriptions,
+            invoiceSummary,
+          })
+        }
+      } catch (err) {
+        if (!cancelled) setError(err instanceof Error ? err.message : tAnalytics('unavailable'))
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    load()
+    return () => { cancelled = true }
+  }, [tAnalytics])
+
+  if (loading) {
+    return (
+      <div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 xl:gap-5">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <KPIStatCardSkeleton key={i} className="h-full" />
+        ))}
+      </div>
+    )
+  }
+
+  if (error || !data) {
+    return (
+      <div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 xl:gap-5">
+        <div className="col-span-full rounded-2xl border border-dash-border bg-dash-surface p-6 text-center text-sm text-mute">
+          {error ?? tAnalytics('unavailable')}
+        </div>
+      </div>
+    )
+  }
+
+  const activeOrgs = data.organizations.filter((o) => o.deletedAt == null && o.status === true)
+  const suspendedOrgs = data.organizations.filter(
+    (o) => o.deletedAt == null && o.status === false
+  )
+  const trialCount = countTrialOrganizations(data.subscriptions)
 
   const items = [
     {
       key: 'totalOrganizations' as const,
       icon: Building2,
-      value: MOCK_ADMIN_KPIS.totalOrganizations.value,
-      delta: MOCK_ADMIN_KPIS.totalOrganizations.delta,
-      trend: MOCK_ADMIN_KPIS.totalOrganizations.tone,
+      value: data.totalOrgs,
+      trend: 'neutral' as const,
     },
     {
       key: 'activeOrganizations' as const,
       icon: Building,
-      value: MOCK_ADMIN_KPIS.activeOrganizations.value,
-      delta: MOCK_ADMIN_KPIS.activeOrganizations.delta,
-      trend: MOCK_ADMIN_KPIS.activeOrganizations.tone,
+      value: activeOrgs.length,
+      trend: 'neutral' as const,
     },
     {
       key: 'trialOrganizations' as const,
       icon: Sparkles,
-      value: MOCK_ADMIN_KPIS.trialOrganizations.value,
-      delta: MOCK_ADMIN_KPIS.trialOrganizations.delta,
-      trend: MOCK_ADMIN_KPIS.trialOrganizations.tone,
+      value: trialCount,
+      trend: 'neutral' as const,
     },
     {
       key: 'suspendedOrganizations' as const,
       icon: PauseCircle,
-      value: MOCK_ADMIN_KPIS.suspendedOrganizations.value,
-      delta: MOCK_ADMIN_KPIS.suspendedOrganizations.delta,
-      trend: MOCK_ADMIN_KPIS.suspendedOrganizations.tone,
+      value: suspendedOrgs.length,
+      trend: 'neutral' as const,
     },
     {
       key: 'totalPlatformUsers' as const,
       icon: Users,
-      value: MOCK_ADMIN_KPIS.totalPlatformUsers.value,
-      delta: MOCK_ADMIN_KPIS.totalPlatformUsers.delta,
-      trend: MOCK_ADMIN_KPIS.totalPlatformUsers.tone,
+      value: '—' as string,
+      format: 'plain' as const,
+      trend: 'neutral' as const,
     },
     {
       key: 'monthlyRevenue' as const,
       icon: CreditCard,
-      value: MOCK_ADMIN_KPIS.monthlyRevenue.value,
-      delta: MOCK_ADMIN_KPIS.monthlyRevenue.delta,
-      trend: MOCK_ADMIN_KPIS.monthlyRevenue.tone,
-      prefix: MOCK_ADMIN_KPIS.monthlyRevenue.prefix,
+      value: data.invoiceSummary?.thisMonthAmount ?? 0,
+      prefix: '$',
+      trend: 'neutral' as const,
     },
     {
       key: 'activeWhatsappNumbers' as const,
       icon: Phone,
-      value: MOCK_ADMIN_KPIS.activeWhatsappNumbers.value,
-      delta: MOCK_ADMIN_KPIS.activeWhatsappNumbers.delta,
-      trend: MOCK_ADMIN_KPIS.activeWhatsappNumbers.tone,
+      value: '—' as string,
+      format: 'plain' as const,
+      trend: 'neutral' as const,
     },
     {
       key: 'pendingSupportTickets' as const,
       icon: Headset,
-      value: MOCK_ADMIN_KPIS.pendingSupportTickets.value,
-      delta: MOCK_ADMIN_KPIS.pendingSupportTickets.delta,
-      trend: MOCK_ADMIN_KPIS.pendingSupportTickets.tone,
+      value: '—' as string,
+      format: 'plain' as const,
+      trend: 'neutral' as const,
     },
   ]
 
@@ -84,8 +150,8 @@ export function AdminKpiGrid() {
           key={item.key}
           label={t(`${item.key}.label`)}
           value={item.value}
+          format={'format' in item ? item.format : undefined}
           prefix={'prefix' in item ? item.prefix : undefined}
-          delta={item.delta}
           trend={item.trend}
           hint={t(`${item.key}.hint`)}
           icon={item.icon}
