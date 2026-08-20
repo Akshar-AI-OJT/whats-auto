@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, type ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { Check, CreditCard, ExternalLink, Loader2, Minus, RefreshCw } from 'lucide-react'
@@ -114,28 +114,21 @@ export function BillingPage() {
 
   const subscription = subscriptionQuery.data ?? null
 
-  const [selectedPlanKey, setSelectedPlanKey] = useState<PlanId | null>(null)
+  const [selectedPlanKey] = useState<PlanId | null>(() => {
+    if (typeof window === 'undefined') return null
+    // Prefer any plan selected during onboarding so the UI feels continuous.
+    const pending = readPendingWorkspacePlan()
+    // Clear after we've consumed it once; UI-only.
+    clearPendingWorkspacePlan()
+    return isPlanId(pending) ? pending : null
+  })
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [confirmPlanKey, setConfirmPlanKey] = useState<PlanId | null>(null)
 
   const currentPlanKey = planKeyFromCheckoutPlanId(subscription?.planId ?? null)
 
-  useEffect(() => {
-    // Prefer any plan selected during onboarding so the UI feels continuous.
-    const pending = readPendingWorkspacePlan()
-    if (isPlanId(pending)) {
-      setSelectedPlanKey(pending)
-    } else {
-      setSelectedPlanKey(currentPlanKey)
-    }
-    // Clear after we've consumed it once; UI-only.
-    clearPendingWorkspacePlan()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  useEffect(() => {
-    if (!selectedPlanKey) setSelectedPlanKey(currentPlanKey)
-  }, [currentPlanKey, selectedPlanKey])
+  // Derive the active plan: prefer explicit user selection, fall back to current plan.
+  const activePlanKey: PlanId | null = selectedPlanKey ?? currentPlanKey
 
   const compareFeatureKeys = Array.from(new Set(PLANS.flatMap((p) => p.featureKeys))).filter(
     Boolean
@@ -196,7 +189,7 @@ export function BillingPage() {
                 type="button"
                 className="gap-2"
                 onClick={() => {
-                  const planKey = selectedPlanKey ?? currentPlanKey
+                  const planKey = activePlanKey
                   if (planKey) {
                     setCheckoutError(null)
                     setCheckoutSuccess(null)
@@ -204,7 +197,7 @@ export function BillingPage() {
                     setConfirmOpen(true)
                   }
                 }}
-                disabled={!selectedPlanKey && !currentPlanKey}
+                disabled={!activePlanKey}
               >
                 <CreditCard className="size-4" aria-hidden />
                 {subscription ? t('upgradeCta') : t('choosePlanCta')}
@@ -255,7 +248,7 @@ export function BillingPage() {
                       type="button"
                       className="mt-2 gap-2"
                       onClick={() => {
-                        const planKey = selectedPlanKey ?? currentPlanKey
+                        const planKey = activePlanKey
                         if (planKey) {
                           setCheckoutError(null)
                           setCheckoutSuccess(null)
@@ -263,7 +256,7 @@ export function BillingPage() {
                           setConfirmOpen(true)
                         }
                       }}
-                      disabled={!selectedPlanKey && !currentPlanKey}
+                      disabled={!activePlanKey}
                     >
                       <CreditCard className="size-4" aria-hidden />
                       {t('choosePlanCta')}
@@ -400,7 +393,7 @@ export function BillingPage() {
         <div className="mt-6 grid auto-rows-min grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
           {PLANS.map((plan) => {
             const isCurrent = plan.id === currentPlanKey
-            const isSelected = plan.id === selectedPlanKey
+            const isSelected = plan.id === activePlanKey
 
             const priceLabel =
               plan.priceMonthly == null

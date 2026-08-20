@@ -20,13 +20,9 @@ import {
   unwrapCampaignList,
 } from './campaign-utils'
 import { unwrapTemplateList } from '@/components/dashboard/templates/template-utils'
+import { campaignQueryKeys } from '@/lib/query-keys'
 
-export const campaignQueryKeys = {
-  all: ['campaigns'] as const,
-  list: (orgId: string | null | undefined, params: Record<string, string | number>) =>
-    [...campaignQueryKeys.all, 'list', orgId ?? 'none', params] as const,
-  detail: (id: string) => [...campaignQueryKeys.all, 'detail', id] as const,
-}
+export { campaignQueryKeys }
 
 export function CampaignsListPage() {
   const t = useTranslations('dashboard.campaigns')

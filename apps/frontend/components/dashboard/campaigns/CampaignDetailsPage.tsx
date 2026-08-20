@@ -16,7 +16,7 @@ import {
   CampaignPreviewDialog,
 } from './CampaignDialogs'
 import { CampaignStatusBadge } from './CampaignStatusBadge'
-import { campaignQueryKeys } from './CampaignsListPage'
+import { campaignQueryKeys } from '@/lib/query-keys'
 import {
   formatCampaignDate,
   isCancellableCampaignStatus,

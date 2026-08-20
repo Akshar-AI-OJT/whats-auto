@@ -249,12 +249,11 @@ export function OrganizationDetailsPage({ orgId }: { orgId: string }) {
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
-    setError(null)
     void findSuperAdminOrganization(orgId)
       .then((found) => {
         if (cancelled) return
         setOrg(found)
+        setError(null)
       })
       .catch((err) => {
         if (cancelled) return

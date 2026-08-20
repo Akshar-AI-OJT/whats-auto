@@ -1,9 +1,11 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Archive, ArrowLeft, Check, FileEdit, Loader2, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { Link, useRouter } from '@/i18n/navigation'
+import { queryKeys } from '@/lib/query-keys'
 import { Button } from '@/components/ui/button'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { PlanStatusBadge } from './PlanStatusBadge'
@@ -33,26 +35,31 @@ type PlanViewPageProps = {
 export function PlanViewPage({ planId }: PlanViewPageProps) {
   const t = useTranslations('admin.plans')
   const router = useRouter()
-  const [plan, setPlan] = useState<SubscriptionPlan | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
   const [archiveOpen, setArchiveOpen] = useState(false)
   const [archivePending, setArchivePending] = useState(false)
   const [actionMessage, setActionMessage] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
 
-  useEffect(() => {
-    let cancelled = false
-    setLoading(true)
-    void getPlan(planId).then((result) => {
-      if (cancelled) return
-      if (!result) setError(t('errors.notFound'))
-      else setPlan(result)
-      setLoading(false)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [planId, t])
+  const planQuery = useQuery({
+    queryKey: queryKeys.admin.planDetail(planId),
+    queryFn: async () => {
+      const result = await getPlan(planId)
+      if (!result) throw new Error('not_found')
+      return result
+    },
+    staleTime: 60_000,
+  })
+
+  const plan = planQuery.data ?? null
+  const loading = planQuery.isLoading
+  const error =
+    actionError ||
+    (planQuery.isError
+      ? planQuery.error instanceof Error && planQuery.error.message === 'not_found'
+        ? t('errors.notFound')
+        : t('errors.loadFailed')
+      : null)
 
   const periodLabels = useMemo(
     () => ({
@@ -66,13 +73,15 @@ export function PlanViewPage({ planId }: PlanViewPageProps) {
   async function handleArchive() {
     if (!plan) return
     setArchivePending(true)
+    setActionError(null)
     try {
       const result = await archivePlan(plan.id)
       if (!result.ok) {
-        setError(t(result.messageKey))
+        setActionError(t(result.messageKey))
         return
       }
-      setPlan(result.plan)
+      queryClient.setQueryData<SubscriptionPlan>(queryKeys.admin.planDetail(planId), result.plan)
+      await queryClient.invalidateQueries({ queryKey: ['admin', 'plans'] })
       setArchiveOpen(false)
       setActionMessage(t('toast.archived'))
     } finally {
@@ -167,29 +176,45 @@ export function PlanViewPage({ planId }: PlanViewPageProps) {
         <h2 className="font-display text-lg tracking-tight text-ink">{t('view.overview')}</h2>
         <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <div>
-            <dt className="text-xs font-semibold tracking-wide text-mute uppercase">{t('columns.price')}</dt>
+            <dt className="text-xs font-semibold tracking-wide text-mute uppercase">
+              {t('columns.price')}
+            </dt>
             <dd className="mt-1 text-sm font-semibold text-ink">
               {formatPlanPrice(plan, t('customPrice'), t('perMonth'), t('perYear'))}
             </dd>
           </div>
           <div>
-            <dt className="text-xs font-semibold tracking-wide text-mute uppercase">{t('fields.billingPeriod')}</dt>
-            <dd className="mt-1 text-sm text-ink">{billingPeriodLabel(plan.billingPeriod, periodLabels)}</dd>
+            <dt className="text-xs font-semibold tracking-wide text-mute uppercase">
+              {t('fields.billingPeriod')}
+            </dt>
+            <dd className="mt-1 text-sm text-ink">
+              {billingPeriodLabel(plan.billingPeriod, periodLabels)}
+            </dd>
           </div>
           <div>
-            <dt className="text-xs font-semibold tracking-wide text-mute uppercase">{t('fields.trialDays')}</dt>
+            <dt className="text-xs font-semibold tracking-wide text-mute uppercase">
+              {t('fields.trialDays')}
+            </dt>
             <dd className="mt-1 text-sm text-ink">{plan.trialDays ?? '—'}</dd>
           </div>
           <div>
-            <dt className="text-xs font-semibold tracking-wide text-mute uppercase">{t('columns.features')}</dt>
-            <dd className="mt-1 text-sm text-ink">{t('featureCount', { count: enabledFeatureCount(plan) })}</dd>
+            <dt className="text-xs font-semibold tracking-wide text-mute uppercase">
+              {t('columns.features')}
+            </dt>
+            <dd className="mt-1 text-sm text-ink">
+              {t('featureCount', { count: enabledFeatureCount(plan) })}
+            </dd>
           </div>
           <div>
-            <dt className="text-xs font-semibold tracking-wide text-mute uppercase">{t('columns.created')}</dt>
+            <dt className="text-xs font-semibold tracking-wide text-mute uppercase">
+              {t('columns.created')}
+            </dt>
             <dd className="mt-1 text-sm tabular-nums text-ink">{formatPlanDate(plan.createdAt)}</dd>
           </div>
           <div>
-            <dt className="text-xs font-semibold tracking-wide text-mute uppercase">{t('columns.updated')}</dt>
+            <dt className="text-xs font-semibold tracking-wide text-mute uppercase">
+              {t('columns.updated')}
+            </dt>
             <dd className="mt-1 text-sm tabular-nums text-ink">{formatPlanDate(plan.updatedAt)}</dd>
           </div>
         </dl>
@@ -223,7 +248,9 @@ export function PlanViewPage({ planId }: PlanViewPageProps) {
         <h2 className="font-display text-lg tracking-tight text-ink">{t('sections.features')}</h2>
         <div className="mt-4 flex flex-col gap-5">
           {CATEGORIES.map((category) => {
-            const keys = PLAN_FEATURE_CATALOG.filter((item) => item.category === category).map((item) => item.key)
+            const keys = PLAN_FEATURE_CATALOG.filter((item) => item.category === category).map(
+              (item) => item.key
+            )
             const features = plan.features.filter((feature) => keys.includes(feature.key))
             if (features.length === 0) return null
             return (
@@ -240,7 +267,9 @@ export function PlanViewPage({ planId }: PlanViewPageProps) {
                       <span className={feature.enabled ? 'text-ink' : 'text-mute'}>
                         {t(`featureItems.${feature.key}`)}
                         {feature.description ? (
-                          <span className="mt-0.5 block text-xs text-mute">{feature.description}</span>
+                          <span className="mt-0.5 block text-xs text-mute">
+                            {feature.description}
+                          </span>
                         ) : null}
                       </span>
                     </li>
@@ -269,10 +298,20 @@ export function PlanViewPage({ planId }: PlanViewPageProps) {
             <h2 className="font-display text-lg tracking-tight text-ink">{t('archiveTitle')}</h2>
             <p className="mt-2 text-sm text-body">{t('archiveBody', { name: plan.name })}</p>
             <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <Button type="button" variant="outline" disabled={archivePending} onClick={() => setArchiveOpen(false)}>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={archivePending}
+                onClick={() => setArchiveOpen(false)}
+              >
                 {t('cancel')}
               </Button>
-              <Button type="button" disabled={archivePending} className="gap-2" onClick={() => void handleArchive()}>
+              <Button
+                type="button"
+                disabled={archivePending}
+                className="gap-2"
+                onClick={() => void handleArchive()}
+              >
                 {archivePending ? <Loader2 className="size-4 animate-spin" /> : null}
                 {t('archiveConfirm')}
               </Button>

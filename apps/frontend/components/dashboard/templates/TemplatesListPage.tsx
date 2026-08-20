@@ -37,15 +37,9 @@ import {
   type TemplateViewMode,
   unwrapTemplateList,
 } from './template-utils'
+import { templateQueryKeys } from '@/lib/query-keys'
 
-export const templateQueryKeys = {
-  all: ['whatsapp-templates'] as const,
-  list: (orgId: string | null | undefined, params: Record<string, string | number>) =>
-    [...templateQueryKeys.all, 'list', orgId ?? 'none', params] as const,
-  detail: (id: string) => [...templateQueryKeys.all, 'detail', id] as const,
-  whatsappConnected: (orgId: string | null | undefined) =>
-    [...templateQueryKeys.all, 'whatsapp-connected', orgId ?? 'none'] as const,
-}
+export { templateQueryKeys }
 
 export function TemplatesListPage() {
   const t = useTranslations('dashboard.templates')

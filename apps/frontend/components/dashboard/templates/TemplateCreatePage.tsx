@@ -13,7 +13,7 @@ import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { useRouter } from '@/i18n/navigation'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { TemplateForm, type TemplateFormValues } from './TemplateForm'
-import { templateQueryKeys } from './TemplatesListPage'
+import { templateQueryKeys } from '@/lib/query-keys'
 import { normalizeButtons, normalizeSampleValues, unwrapTemplate } from './template-utils'
 
 /** Avoid useSearchParams — hard refresh can stall pages that suspend on it. */

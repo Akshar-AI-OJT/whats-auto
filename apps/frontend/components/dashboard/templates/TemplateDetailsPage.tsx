@@ -12,7 +12,7 @@ import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { TemplateStatusBadge } from './TemplateStatusBadge'
 import { TemplatePreview, templateToPreviewProps } from './TemplatePreview'
 import { TemplateDeleteDialog } from './TemplateDialogs'
-import { templateQueryKeys } from './TemplatesListPage'
+import { templateQueryKeys } from '@/lib/query-keys'
 import {
   buildSubmissionHistory,
   extractBodyVariables,

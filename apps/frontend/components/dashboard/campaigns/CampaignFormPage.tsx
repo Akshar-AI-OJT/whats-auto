@@ -17,7 +17,7 @@ import { Link, useRouter } from '@/i18n/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
-import { campaignQueryKeys } from './CampaignsListPage'
+import { campaignQueryKeys } from '@/lib/query-keys'
 import { CAMPAIGN_RECIPIENT_MAX, unwrapCampaign, isEditableCampaignStatus } from './campaign-utils'
 import { unwrapTemplateList } from '@/components/dashboard/templates/template-utils'
 import {
