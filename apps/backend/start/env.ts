@@ -88,16 +88,23 @@ export default await Env.create(new URL('../', import.meta.url), {
    */
   MEDIA_STORAGE_NAMESPACE_V2: Env.schema.boolean.optional(),
 
+  /**
+   * Optional smoke-test only. When the mapped shopenup_* template is missing
+   * or not approved, send this approved name instead (e.g. hello_world).
+   * Unset after real templates are approved.
+   */
+  INTEGRATION_COMMERCE_TEMPLATE_FALLBACK: Env.schema.string.optional(),
   /*
   |----------------------------------------------------------
   | Variables for configuring the mail package
   |----------------------------------------------------------
   */
-  MAIL_MAILER: Env.schema.enum(['smtp'] as const),
+  MAIL_MAILER: Env.schema.enum(['smtp', 'brevo'] as const),
   MAIL_FROM_NAME: Env.schema.string(),
   MAIL_FROM_ADDRESS: Env.schema.string(),
-  SMTP_HOST: Env.schema.string(),
-  SMTP_PORT: Env.schema.number(),
-  SMTP_USERNAME: Env.schema.string(),
-  SMTP_PASSWORD: Env.schema.secret(),
+  SMTP_HOST: Env.schema.string.optional(),
+  SMTP_PORT: Env.schema.number.optional(),
+  SMTP_USERNAME: Env.schema.string.optional(),
+  SMTP_PASSWORD: Env.schema.secret.optional(),
+  BREVO_API: Env.schema.secret.optional(),
 })
