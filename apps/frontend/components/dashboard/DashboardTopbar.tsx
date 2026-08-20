@@ -135,8 +135,7 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
   async function handleSignOut() {
     setProfileOpen(false)
     await signOut()
-    router.push('/login')
-    router.refresh()
+    router.replace('/login')
   }
 
   function goToOrgOnboarding() {

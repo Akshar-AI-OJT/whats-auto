@@ -37,7 +37,7 @@ export function MobileMenu({
 
   const itemClassName = (active: boolean) =>
     cn(
-      'rounded-xl px-3 py-3 text-base font-medium transition-[color,background-color] duration-300',
+      'cursor-pointer rounded-xl px-3 py-3 text-base font-medium transition-[color,background-color] duration-300',
       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2',
       active ? 'bg-primary-pale/80 text-ink' : 'text-ink hover:bg-[#F1F5F9]'
     )

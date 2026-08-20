@@ -287,7 +287,7 @@ export function PlansPage() {
                           <td className="px-4 py-3">
                             <button
                               type="button"
-                              className="text-left"
+                              className="cursor-pointer text-left"
                               onClick={() => router.push(`/admin/plans/${plan.id}`)}
                             >
                               <span className="flex items-center gap-2">
@@ -355,7 +355,7 @@ export function PlansPage() {
                               >
                                 <button
                                   type="button"
-                                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
+                                  className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
                                   onClick={() => router.push(`/admin/plans/${plan.id}`)}
                                 >
                                   <Eye className="size-3.5" />
@@ -363,7 +363,7 @@ export function PlansPage() {
                                 </button>
                                 <button
                                   type="button"
-                                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
+                                  className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
                                   onClick={() => router.push(`/admin/plans/${plan.id}/edit`)}
                                 >
                                   <FileEdit className="size-3.5" />
@@ -402,7 +402,7 @@ export function PlansPage() {
                   <li key={plan.id}>
                     <button
                       type="button"
-                      className="w-full rounded-2xl border border-dash-border bg-dash-surface/60 p-4 text-left"
+                      className="w-full cursor-pointer rounded-2xl border border-dash-border bg-dash-surface/60 p-4 text-left"
                       onClick={() => router.push(`/admin/plans/${plan.id}`)}
                     >
                       <div className="flex items-start justify-between gap-3">

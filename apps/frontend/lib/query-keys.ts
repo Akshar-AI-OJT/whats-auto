@@ -28,6 +28,9 @@ export const queryKeys = {
       [...queryKeys.team.all(orgId), 'list', params ?? {}] as const,
     invites: (orgId?: string | null) => [...queryKeys.team.all(orgId), 'invites'] as const,
     members: (orgId?: string | null) => [...queryKeys.team.all(orgId), 'members'] as const,
+    /** GET /api/v1/organization-admin/users/:userId */
+    userDetail: (orgId?: string | null, userId?: string | null) =>
+      [...queryKeys.team.all(orgId), 'user', userId ?? 'none'] as const,
   },
   roles: {
     all: (orgId?: string | null) => ['roles', orgId ?? 'none'] as const,

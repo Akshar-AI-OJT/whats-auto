@@ -752,7 +752,7 @@ function CustomerGroupRowMenu({
       <button
         type="button"
         role="menuitem"
-        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
+        className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
         onClick={onView}
       >
         <Eye className="size-3.5" />

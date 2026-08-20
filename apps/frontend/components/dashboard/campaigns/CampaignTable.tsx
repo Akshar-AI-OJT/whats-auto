@@ -72,7 +72,7 @@ export function CampaignTable({
                   <button
                     type="button"
                     onClick={() => onView(campaign)}
-                    className="flex items-center gap-2 text-left font-medium text-ink hover:underline"
+                    className="flex cursor-pointer items-center gap-2 text-left font-medium text-ink hover:underline"
                   >
                     <span className="flex size-8 items-center justify-center rounded-lg bg-primary-pale text-positive-deep">
                       <Megaphone className="size-3.5" aria-hidden />
