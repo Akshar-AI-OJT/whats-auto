@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Loader2, Search, UserPlus, Users } from 'lucide-react'
+import { Loader2, Search, Trash2, UserPlus, Users } from 'lucide-react'
 import {
   api,
   type ApiError,
@@ -15,6 +15,7 @@ import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
 import { WorkspaceAvatar } from '@/components/dashboard/WorkspaceSwitcher'
 import { AddContactSheet } from '@/components/dashboard/contacts/AddContactSheet'
+import { ContactDeleteDialog } from '@/components/dashboard/contacts/ContactDeleteDialog'
 
 function unwrapList<T>(data: { data?: T[] } | T[] | undefined): T[] {
   if (!data) return []
@@ -49,6 +50,7 @@ export function ContactsPage() {
     tenantOrganizationId,
     canViewContacts,
     canCreateContacts,
+    canDeleteContacts,
     isLoading: orgsLoading,
   } = useOrganizations()
 
@@ -57,6 +59,9 @@ export function ContactsPage() {
   const [listError, setListError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
   const [addOpen, setAddOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<ContactSummary | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [deletePending, setDeletePending] = useState(false)
   const organizationIdRef = useRef(tenantOrganizationId)
   organizationIdRef.current = tenantOrganizationId
 
@@ -89,8 +94,44 @@ export function ContactsPage() {
     [canViewContacts, t]
   )
 
+  function mapDeleteError(apiError: ApiError): string {
+    if (apiError.status === 401) return t('add.errors.sessionExpired')
+    if (apiError.status === 403 || apiError.code === 'PERMISSION_DENIED') {
+      return t('errors.deletePermissionDenied')
+    }
+    if (apiError.status === 404 || apiError.code === 'E_CONTACT_NOT_FOUND') {
+      return t('errors.deleteNotFound')
+    }
+    if (apiError.code === 'E_CONTACT_ALREADY_DELETED') {
+      return t('errors.alreadyDeleted')
+    }
+    return apiError.message || t('errors.deleteFailed')
+  }
+
+  async function handleDeleteConfirm() {
+    if (!deleteTarget || deletePending) return
+
+    setDeletePending(true)
+    setDeleteError(null)
+    try {
+      await api.contacts.delete(deleteTarget.id)
+      setContacts((prev) => prev.filter((contact) => contact.id !== deleteTarget.id))
+      setDeleteTarget(null)
+    } catch (err) {
+      const apiError = err as ApiError
+      if (apiError.status === 404 || apiError.code === 'E_CONTACT_ALREADY_DELETED') {
+        setContacts((prev) => prev.filter((contact) => contact.id !== deleteTarget.id))
+      }
+      setDeleteError(mapDeleteError(apiError))
+    } finally {
+      setDeletePending(false)
+    }
+  }
+
   useEffect(() => {
     if (orgsLoading) return
+    setDeleteTarget(null)
+    setDeleteError(null)
     if (!tenantOrganizationId) {
       setContacts([])
       setQuery('')
@@ -239,16 +280,35 @@ export function ContactsPage() {
                     <p className="truncate text-sm text-body">{contact.phone}</p>
                   </div>
                 </div>
-                <div className="flex min-w-0 flex-col gap-0.5 text-sm text-body sm:items-end">
-                  {contact.email ? (
-                    <p className="truncate">{contact.email}</p>
+                <div className="flex min-w-0 items-center justify-between gap-3 sm:contents">
+                  <div className="flex min-w-0 flex-col gap-0.5 text-sm text-body sm:items-end">
+                    {contact.email ? (
+                      <p className="truncate">{contact.email}</p>
+                    ) : null}
+                    {contact.company ? (
+                      <p className="truncate text-mute">{contact.company}</p>
+                    ) : null}
+                    <p className="text-xs text-mute">
+                      {t('addedAt', { date: formatCreatedAt(contact.createdAt) })}
+                    </p>
+                  </div>
+                  {canDeleteContacts ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="shrink-0 text-mute hover:bg-negative/10 hover:text-negative"
+                      aria-label={t('deleteAria', {
+                        name: contact.name?.trim() || contact.phone,
+                      })}
+                      onClick={() => {
+                        setDeleteError(null)
+                        setDeleteTarget(contact)
+                      }}
+                    >
+                      <Trash2 className="size-4" aria-hidden />
+                    </Button>
                   ) : null}
-                  {contact.company ? (
-                    <p className="truncate text-mute">{contact.company}</p>
-                  ) : null}
-                  <p className="text-xs text-mute">
-                    {t('addedAt', { date: formatCreatedAt(contact.createdAt) })}
-                  </p>
                 </div>
               </li>
             ))}
@@ -262,6 +322,23 @@ export function ContactsPage() {
           onOpenChange={setAddOpen}
           onCreated={() => {
             if (tenantOrganizationId) void loadContacts(tenantOrganizationId)
+          }}
+        />
+      ) : null}
+
+      {canDeleteContacts ? (
+        <ContactDeleteDialog
+          contact={deleteTarget}
+          pending={deletePending}
+          error={deleteError}
+          onOpenChange={(open) => {
+            if (!open && !deletePending) {
+              setDeleteTarget(null)
+              setDeleteError(null)
+            }
+          }}
+          onConfirm={() => {
+            void handleDeleteConfirm()
           }}
         />
       ) : null}

@@ -648,6 +648,9 @@ router
     router
       .post('/', [ContactsController, 'store'])
       .use(middleware.requirePermission({ permission: 'contacts:create' }))
+    router
+      .delete('/:id', [ContactsController, 'softDelete'])
+      .use(middleware.requirePermission({ permission: 'contacts:delete' }))
   })
   .prefix('/api/v1/contacts')
   .use([middleware.jwtAuth(), middleware.tenant()])

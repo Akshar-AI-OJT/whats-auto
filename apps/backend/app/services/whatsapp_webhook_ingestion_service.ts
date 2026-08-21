@@ -3,6 +3,7 @@ import logger from '@adonisjs/core/services/logger'
 import db from '@adonisjs/lucid/services/db'
 import InboxMessageReceived from '#events/inbox_message_received'
 import InboxStatusUpdated from '#events/inbox_status_updated'
+import ContactException from '#exceptions/contact_exception'
 import { parseWebhookChange } from '#lib/meta_whatsapp/webhook_parser'
 import { WhatsappWebhookRepository } from '#repositories/whatsapp_webhook_repository'
 import { runWithTenant } from '#services/tenant_context'
@@ -59,11 +60,27 @@ export default class WhatsappWebhookIngestionService {
     await runWithTenant(config.organizationId, async () => {
       await db.transaction(async (trx) => {
         for (const inbound of parsed.messages) {
-          const contact = await this.repository.upsertContactByWaId(trx, {
-            organizationId: config.organizationId,
-            waId: inbound.fromWaId,
-            profileName: inbound.profileName,
-          })
+          let contact
+          try {
+            contact = await this.repository.upsertContactByWaId(trx, {
+              organizationId: config.organizationId,
+              waId: inbound.fromWaId,
+              profileName: inbound.profileName,
+            })
+          } catch (error) {
+            if (error instanceof ContactException && error.code === 'E_CONTACT_PHONE_INVALID') {
+              logger.warn(
+                {
+                  outcome: 'invalid_contact_phone',
+                  waId: inbound.fromWaId,
+                  organizationId: config.organizationId,
+                },
+                'whatsapp.webhook.skipped'
+              )
+              continue
+            }
+            throw error
+          }
 
           const conversation = await this.repository.findOrCreateConversation(trx, {
             organizationId: config.organizationId,

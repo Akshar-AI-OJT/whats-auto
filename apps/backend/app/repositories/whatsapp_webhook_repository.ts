@@ -121,7 +121,7 @@ export class WhatsappWebhookRepository {
          "phone",
          "phoneNormalized",
          "name"`,
-      [params.organizationId, params.waId, phoneNormalized, name as string]
+      [params.organizationId, phoneNormalized, phoneNormalized, name as string]
     )
 
     const row = (result.rows?.[0] ?? result[0]) as WebhookContactRow | undefined
