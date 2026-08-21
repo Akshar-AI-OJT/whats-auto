@@ -1608,6 +1608,12 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(body),
       }),
+
+    delete: (contactId: string) =>
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/contacts/${contactId}`,
+        { method: 'DELETE' }
+      ),
   },
 
   tags: {

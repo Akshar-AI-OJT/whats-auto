@@ -760,6 +760,7 @@ router
   .group(() => {
     router.get('/', [ContactsController, 'index'])
     router.post('/', [ContactsController, 'store'])
+    router.delete('/:id', [ContactsController, 'softDelete'])
   })
   .prefix('/api/v1/contacts')
   .use([middleware.jwtAuth(), middleware.tenant()])

@@ -980,7 +980,7 @@ export default class WhatsappOutboundService {
         'c.id as conversationId',
         'c.whatsappConfigId',
         'c.status as conversationStatus',
-        'ct.phone as contactPhone',
+        'ct.phoneNormalized as contactPhone',
         'wc.status as configStatus',
         'wc.phoneNumberId'
       )

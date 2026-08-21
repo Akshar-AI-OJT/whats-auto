@@ -19,6 +19,20 @@ export default class ContactException extends Exception {
     })
   }
 
+  static notFound() {
+    return new this('Contact not found', {
+      status: 404,
+      code: 'E_CONTACT_NOT_FOUND',
+    })
+  }
+
+  static alreadyDeleted() {
+    return new this('Contact is already deleted', {
+      status: 409,
+      code: 'E_CONTACT_ALREADY_DELETED',
+    })
+  }
+
   handle(error: this, { response }: HttpContext) {
     return response.status(error.status).send({
       error: error.message,

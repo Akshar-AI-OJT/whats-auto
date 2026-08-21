@@ -1,7 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import ContactPolicy from '#policies/contact_policy'
 import { ContactService } from '#services/contact_service'
-import { createContactValidator } from '#validators/contact'
+import { contactIdParamValidator, createContactValidator } from '#validators/contact'
 import '#types/http'
 
 export default class ContactsController {
@@ -45,5 +45,34 @@ export default class ContactsController {
       company: payload.company,
     })
     return serialize(contact)
+  }
+
+  /**
+   * @softDelete
+   * @summary Soft-delete a contact
+   * @description Marks the contact as deleted without removing the row. Soft-deleted contacts are omitted from list.
+   * @tag Contacts
+   * @security BearerAuth
+   * @paramPath id - Contact id - @type(string)
+   * @responseBody 200 - { "data": { "ok": true } }
+   * @responseBody 401 - { "error": "Missing or invalid session" }
+   * @responseBody 403 - { "error": "Permission denied: contacts:delete", "code": "PERMISSION_DENIED" }
+   * @responseBody 404 - { "error": "Contact not found", "code": "E_CONTACT_NOT_FOUND" }
+   * @responseBody 409 - { "error": "Contact is already deleted", "code": "E_CONTACT_ALREADY_DELETED" }
+   * @responseBody 422 - { "errors": [{ "field": "id", "message": "The id field must be a valid UUID" }] }
+   */
+  async softDelete({ bouncer, request, params, serialize }: HttpContext) {
+    await bouncer.with(ContactPolicy).authorize('delete')
+
+    const { id } = await request.validateUsing(contactIdParamValidator, {
+      data: params,
+    })
+
+    const result = await new ContactService().softDeleteContact({
+      contactId: id,
+      organizationId: request.activeMember!.organizationId,
+    })
+
+    return serialize(result)
   }
 }
