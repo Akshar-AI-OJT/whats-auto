@@ -1,4 +1,5 @@
 import type { Campaign, PaginationMeta } from '@/lib/api'
+import { formatCampaignScheduledAt } from '@/lib/org-datetime'
 
 export type CampaignViewMode = 'cards' | 'list'
 
@@ -55,8 +56,14 @@ export function ratePercent(part: number, total: number): number {
   return Math.round((part / total) * 1000) / 10
 }
 
-export function formatCampaignDate(value: string | null | undefined): string {
+export function formatCampaignDate(
+  value: string | null | undefined,
+  timeZone?: string | null
+): string {
   if (!value) return '—'
+  if (timeZone) {
+    return formatCampaignScheduledAt(value, timeZone) || '—'
+  }
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '—'
   return date.toLocaleString(undefined, {

@@ -182,10 +182,10 @@ test.group('WhatsApp webhook ingestion', (group) => {
                 field: 'messages',
                 value: messagesValue({
                   phoneNumberId: fixture.phoneNumberId,
-                  contacts: [{ wa_id: '15551112222', profile: { name: 'Ada Lovelace' } }],
+                  contacts: [{ wa_id: '919811122222', profile: { name: 'Ada Lovelace' } }],
                   messages: [
                     {
-                      from: '15551112222',
+                      from: '919811122222',
                       id: 'wamid.text.1',
                       timestamp: '1700000000',
                       type: 'text',
@@ -223,7 +223,7 @@ test.group('WhatsApp webhook ingestion', (group) => {
 
         assert.lengthOf(contacts, 1)
         assert.equal(contacts[0].name, 'Ada Lovelace')
-        assert.equal(contacts[0].phoneNormalized, '15551112222')
+        assert.equal(contacts[0].phoneNormalized, '919811122222')
 
         assert.lengthOf(conversations, 1)
         assert.equal(conversations[0].unreadCount, 1)
@@ -260,24 +260,24 @@ test.group('WhatsApp webhook ingestion', (group) => {
               field: 'messages',
               value: messagesValue({
                 phoneNumberId: fixture.phoneNumberId,
-                contacts: [{ wa_id: '15553334444', profile: { name: 'Media User' } }],
+                contacts: [{ wa_id: '919833344444', profile: { name: 'Media User' } }],
                 messages: [
                   {
-                    from: '15553334444',
+                    from: '919833344444',
                     id: 'wamid.image.1',
                     timestamp: '1700001000',
                     type: 'image',
                     image: { id: 'meta-media-1', mime_type: 'image/png', caption: 'Shot' },
                   },
                   {
-                    from: '15553334444',
+                    from: '919833344444',
                     id: 'wamid.location.1',
                     timestamp: '1700001001',
                     type: 'location',
                     location: { latitude: 12.3, longitude: 45.6, name: 'Office' },
                   },
                   {
-                    from: '15553334444',
+                    from: '919833344444',
                     id: 'wamid.interactive.1',
                     timestamp: '1700001002',
                     type: 'interactive',
@@ -339,10 +339,10 @@ test.group('WhatsApp webhook ingestion', (group) => {
               field: 'messages',
               value: messagesValue({
                 phoneNumberId: fixture.phoneNumberId,
-                contacts: [{ wa_id: '15550000001' }],
+                contacts: [{ wa_id: '919800000001' }],
                 messages: [
                   {
-                    from: '15550000001',
+                    from: '919800000001',
                     id: 'wamid.multi.1',
                     timestamp: '1700002000',
                     type: 'text',
@@ -355,10 +355,10 @@ test.group('WhatsApp webhook ingestion', (group) => {
               field: 'messages',
               value: messagesValue({
                 phoneNumberId: fixture.phoneNumberId,
-                contacts: [{ wa_id: '15550000001' }],
+                contacts: [{ wa_id: '919800000001' }],
                 messages: [
                   {
-                    from: '15550000001',
+                    from: '919800000001',
                     id: 'wamid.multi.2',
                     timestamp: '1700002001',
                     type: 'text',
@@ -406,10 +406,10 @@ test.group('WhatsApp webhook ingestion', (group) => {
               field: 'messages',
               value: messagesValue({
                 phoneNumberId: 'unknown-phone-number',
-                contacts: [{ wa_id: '15550000002' }],
+                contacts: [{ wa_id: '919800000002' }],
                 messages: [
                   {
-                    from: '15550000002',
+                    from: '919800000002',
                     id: 'wamid.unknown.1',
                     timestamp: '1700003000',
                     type: 'text',
@@ -458,10 +458,10 @@ test.group('WhatsApp webhook ingestion', (group) => {
               field: 'messages',
               value: messagesValue({
                 phoneNumberId,
-                contacts: [{ wa_id: '15550000003' }],
+                contacts: [{ wa_id: '919800000003' }],
                 messages: [
                   {
-                    from: '15550000003',
+                    from: '919800000003',
                     id: 'wamid.inactive.1',
                     timestamp: '1700004000',
                     type: 'text',
@@ -502,10 +502,10 @@ test.group('WhatsApp webhook ingestion', (group) => {
               field: 'messages',
               value: messagesValue({
                 phoneNumberId: fixture.phoneNumberId,
-                contacts: [{ wa_id: '15550000004' }],
+                contacts: [{ wa_id: '919800000004' }],
                 messages: [
                   {
-                    from: '15550000004',
+                    from: '919800000004',
                     id: 'wamid.dup.1',
                     timestamp: '1700005000',
                     type: 'text',
@@ -550,8 +550,8 @@ test.group('WhatsApp webhook ingestion', (group) => {
         .table('contacts')
         .insert({
           organizationId: fixture.organizationId,
-          phone: '15550000005',
-          phoneNormalized: '15550000005',
+          phone: '919800000005',
+          phoneNormalized: '919800000005',
           name: 'Closed Contact',
           customFields: {},
         })
@@ -579,10 +579,10 @@ test.group('WhatsApp webhook ingestion', (group) => {
               field: 'messages',
               value: messagesValue({
                 phoneNumberId: fixture.phoneNumberId,
-                contacts: [{ wa_id: '15550000005' }],
+                contacts: [{ wa_id: '919800000005' }],
                 messages: [
                   {
-                    from: '15550000005',
+                    from: '919800000005',
                     id: 'wamid.reopen.1',
                     timestamp: '1700006000',
                     type: 'text',
@@ -749,8 +749,8 @@ test.group('WhatsApp webhook ingestion', (group) => {
     const b = await createFixture(`pn-b-${randomUUID().slice(0, 8)}`)
 
     for (const [fixture, wamid, waId] of [
-      [a, 'wamid.tenant.a', '15550000007'],
-      [b, 'wamid.tenant.b', '15550000008'],
+      [a, 'wamid.tenant.a', '919800000007'],
+      [b, 'wamid.tenant.b', '919800000008'],
     ] as const) {
       const { payload, signature } = signedPayload({
         object: 'whatsapp_business_account',

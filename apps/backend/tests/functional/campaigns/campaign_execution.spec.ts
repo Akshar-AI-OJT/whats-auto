@@ -422,7 +422,9 @@ test.group('CampaignExecutionService', (group) => {
     const driver = await manager.ensureStarted()
     assert.instanceOf(driver, NullJobQueueDriver)
     if (!(driver instanceof NullJobQueueDriver)) return
-    const wakes = driver.enqueued.filter((job) => job.name === JOB_NAMES.CAMPAIGN_EXECUTE)
+    const wakes = driver.enqueued.filter(
+      (job) => job.name === JOB_NAMES.CAMPAIGN_EXECUTE && job.data.campaignId === campaign.id
+    )
     assert.lengthOf(wakes, 1)
     assert.equal(wakes[0].data.organizationId, organizationId)
     assert.equal(wakes[0].data.campaignId, campaign.id)
@@ -477,6 +479,70 @@ test.group('CampaignExecutionService', (group) => {
       (job) => job.name === JOB_NAMES.WHATSAPP_OUTBOUND_DISPATCH
     )
     assert.lengthOf(outbound, 0)
+    const delayedWakes = driver.enqueued.filter(
+      (job) =>
+        job.name === JOB_NAMES.CAMPAIGN_EXECUTE &&
+        job.data.campaignId === campaign.id &&
+        job.options?.runAt?.getTime() === scheduledAt.getTime()
+    )
+    assert.isAtLeast(delayedWakes.length, 1)
+  })
+
+  test('recoverOverdueCampaigns wakes a scheduled campaign whose scheduledAt is due', async ({
+    assert,
+  }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const userId = await seedUser()
+    const seeded = await seedTemplateAndConfig(organizationId)
+    const { campaigns, execution } = makeCampaignServices()
+
+    const campaign = await campaigns.createCampaign({
+      organizationId,
+      actorUserId: userId,
+      name: 'Overdue recovery',
+      whatsappConfigId: seeded.whatsappConfigId,
+      messageTemplateId: seeded.messageTemplateId,
+      status: 'draft',
+    })
+
+    await execution.replaceRecipients({
+      organizationId,
+      campaignId: campaign.id,
+      contactIds: [seeded.contactId],
+    })
+
+    await campaigns.scheduleCampaign({
+      campaignId: campaign.id,
+      organizationId,
+      scheduledAt: new Date(Date.now() + 60 * 60 * 1000),
+    })
+
+    await runWithTenant(organizationId, async () => {
+      await db
+        .from('broadcasts')
+        .where('id', campaign.id)
+        .where('organizationId', organizationId)
+        .update({ scheduledAt: new Date(Date.now() - 1000) })
+    })
+
+    const manager = await app.container.make(JobQueueManager)
+    const driver = await manager.ensureStarted()
+    assert.instanceOf(driver, NullJobQueueDriver)
+    if (!(driver instanceof NullJobQueueDriver)) return
+    driver.clearEnqueued()
+
+    const result = await execution.recoverOverdueCampaigns({ organizationId, limit: 10 })
+    assert.isAtLeast(result.woken, 1)
+
+    const wakes = driver.enqueued.filter(
+      (job) => job.name === JOB_NAMES.CAMPAIGN_EXECUTE && job.data.campaignId === campaign.id
+    )
+    assert.lengthOf(wakes, 1)
+    assert.isUndefined(wakes[0].options?.runAt)
+
+    const still = await campaigns.getCampaignById({ campaignId: campaign.id, organizationId })
+    assert.equal(still.status, 'scheduled')
   })
 
   test('executeCampaign sends a CampaignService-scheduled campaign only after scheduledAt is due', async ({
@@ -615,7 +681,9 @@ test.group('CampaignExecutionService', (group) => {
     const driver = await manager.ensureStarted()
     assert.instanceOf(driver, NullJobQueueDriver)
     if (!(driver instanceof NullJobQueueDriver)) return
-    const wakes = driver.enqueued.filter((job) => job.name === JOB_NAMES.CAMPAIGN_EXECUTE)
+    const wakes = driver.enqueued.filter(
+      (job) => job.name === JOB_NAMES.CAMPAIGN_EXECUTE && job.data.campaignId === campaign.id
+    )
     assert.lengthOf(wakes, 1)
     assert.equal(wakes[0].data.campaignId, campaign.id)
     assert.isUndefined(wakes[0].options?.runAt)
@@ -661,11 +729,88 @@ test.group('CampaignExecutionService', (group) => {
     const driver = await manager.ensureStarted()
     assert.instanceOf(driver, NullJobQueueDriver)
     if (!(driver instanceof NullJobQueueDriver)) return
-    assert.lengthOf(driver.removed, 1)
-    assert.equal(driver.removed[0].name, JOB_NAMES.CAMPAIGN_EXECUTE)
-    assert.equal(driver.removed[0].singletonKey, campaign.id)
-    const remainingWakes = driver.enqueued.filter((job) => job.name === JOB_NAMES.CAMPAIGN_EXECUTE)
+    assert.isTrue(
+      driver.removed.some(
+        (item) => item.name === JOB_NAMES.CAMPAIGN_EXECUTE && item.singletonKey === campaign.id
+      )
+    )
+    const remainingWakes = driver.enqueued.filter(
+      (job) => job.name === JOB_NAMES.CAMPAIGN_EXECUTE && job.data.campaignId === campaign.id
+    )
     assert.lengthOf(remainingWakes, 0)
+  })
+
+  test('cancel sending campaign reverts to draft and removes the execute wake', async ({
+    assert,
+  }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const userId = await seedUser()
+    const seeded = await seedTemplateAndConfig(organizationId)
+    const { campaigns, execution } = makeCampaignServices()
+
+    const campaign = await campaigns.createCampaign({
+      organizationId,
+      actorUserId: userId,
+      name: 'Cancel sending',
+      whatsappConfigId: seeded.whatsappConfigId,
+      messageTemplateId: seeded.messageTemplateId,
+      status: 'draft',
+    })
+
+    await execution.replaceRecipients({
+      organizationId,
+      campaignId: campaign.id,
+      contactIds: [seeded.contactId],
+    })
+
+    const sending = await campaigns.sendCampaign({
+      campaignId: campaign.id,
+      organizationId,
+    })
+    assert.equal(sending.status, 'sending')
+
+    const cancelled = await campaigns.cancelScheduledCampaign({
+      campaignId: campaign.id,
+      organizationId,
+    })
+    assert.equal(cancelled.status, 'draft')
+    assert.isNull(cancelled.scheduledAt)
+
+    const manager = await app.container.make(JobQueueManager)
+    const driver = await manager.ensureStarted()
+    assert.instanceOf(driver, NullJobQueueDriver)
+    if (!(driver instanceof NullJobQueueDriver)) return
+    assert.equal(driver.removed[driver.removed.length - 1]?.name, JOB_NAMES.CAMPAIGN_EXECUTE)
+    assert.equal(driver.removed[driver.removed.length - 1]?.singletonKey, campaign.id)
+  })
+
+  test('cancel rejects draft campaigns', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const userId = await seedUser()
+    const seeded = await seedTemplateAndConfig(organizationId)
+    const { campaigns } = makeCampaignServices()
+
+    const campaign = await campaigns.createCampaign({
+      organizationId,
+      actorUserId: userId,
+      name: 'Still draft',
+      whatsappConfigId: seeded.whatsappConfigId,
+      messageTemplateId: seeded.messageTemplateId,
+      status: 'draft',
+    })
+
+    try {
+      await campaigns.cancelScheduledCampaign({
+        campaignId: campaign.id,
+        organizationId,
+      })
+      assert.fail('expected cancelScheduledCampaign to reject')
+    } catch (error) {
+      assert.instanceOf(error, CampaignException)
+      assert.equal((error as CampaignException).code, 'E_CAMPAIGN_NOT_ELIGIBLE_TO_CANCEL')
+    }
   })
 
   test('changeCampaignStatus rejects terminal to draft', async ({ assert }) => {

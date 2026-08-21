@@ -325,6 +325,14 @@ export type ContactSummary = {
   updatedAt?: string | null
 }
 
+export type CustomerGroupSummary = {
+  id: string
+  name: string
+  color?: string | null
+  status?: string
+  createdAt?: string
+}
+
 export type CreateContactBody = {
   phone: string
   name?: string
@@ -355,6 +363,26 @@ export type CustomerGroup = {
   usedInCampaigns: number | null
   createdAt: string
   updatedAt: string | null
+}
+
+export type CampaignPreview = {
+  campaignId: string
+  campaignName: string
+  campaignStatus?: string
+  messageTemplateId?: string
+  templateName?: string
+  templateStatus?: string
+  category?: string
+  language?: string | null
+  headerType?: string | null
+  headerContent?: string | null
+  headerMediaUrl?: string | null
+  variables?: Record<string, string>
+  bodyPreview: string
+  headerPreview?: string | null
+  footerPreview?: string | null
+  footerText?: string | null
+  buttons?: unknown
 }
 
 /** Raw `/api/v1/tags` record. */
@@ -804,6 +832,7 @@ export type Campaign = {
   whatsappConfigId?: string | null
   messageTemplateId?: string | null
   headerMediaAssetId?: string | null
+  audienceTagId?: string | null
   scheduledAt?: string | null
   finalizedAt?: string | null
   cancelledAt?: string | null
@@ -851,25 +880,9 @@ export type UpdateCampaignBody = {
 }
 
 export type ReplaceCampaignRecipientsBody = {
-  contactIds: string[]
+  contactIds?: string[]
+  tagId?: string
   variables?: Record<string, string>
-}
-
-export type CampaignPreview = {
-  campaignId: string
-  campaignName: string
-  messageTemplateId: string
-  templateName: string
-  templateStatus: string
-  category?: string
-  language?: string | null
-  bodyPreview: string
-  headerType?: string | null
-  headerContent?: string | null
-  headerMediaUrl?: string | null
-  footerText?: string | null
-  variables: Record<string, string>
-  buttons?: unknown
 }
 
 export type CreateInvitationBody = {
@@ -1632,6 +1645,12 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(body),
       }),
+
+    delete: (contactId: string) =>
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/contacts/${contactId}`,
+        { method: 'DELETE' }
+      ),
   },
 
   tags: {
@@ -2147,7 +2166,7 @@ export const api = {
         body: JSON.stringify(body),
       }),
 
-    schedule: (campaignId: string, body: { scheduledAt: string }) =>
+    schedule: (campaignId: string, body: { scheduledAt: string; timeZone?: string }) =>
       protectedRequest<{ data?: Campaign } & Campaign>(`/api/v1/campaigns/${campaignId}/schedule`, {
         method: 'POST',
         body: JSON.stringify(body),

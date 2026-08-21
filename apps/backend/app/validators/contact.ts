@@ -8,3 +8,9 @@ export const createContactValidator = vine.create(
     company: vine.string().trim().minLength(1).maxLength(255).optional(),
   })
 )
+
+export const contactIdParamValidator = vine.create(
+  vine.object({
+    id: vine.string().trim().uuid(),
+  })
+)

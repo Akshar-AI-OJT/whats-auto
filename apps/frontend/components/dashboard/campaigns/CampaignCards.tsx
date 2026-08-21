@@ -155,6 +155,7 @@ type CampaignCardsProps = {
   onDuplicate: (campaign: Campaign) => void
   onPause: (campaign: Campaign) => void
   onDelete: (campaign: Campaign) => void
+  timeZone?: string | null
 }
 
 export function CampaignCards({
@@ -169,6 +170,7 @@ export function CampaignCards({
   onDuplicate,
   onPause,
   onDelete,
+  timeZone,
 }: CampaignCardsProps) {
   const t = useTranslations('dashboard.campaigns')
 
@@ -247,7 +249,7 @@ export function CampaignCards({
             <div className="mt-4 flex items-center justify-between gap-2 border-t border-dash-border pt-3">
               <CampaignStatusBadge status={campaign.status} />
               <p className="text-xs text-mute">
-                {formatCampaignDate(campaign.scheduledAt ?? campaign.createdAt)}
+                {formatCampaignDate(campaign.scheduledAt ?? campaign.createdAt, timeZone)}
               </p>
             </div>
           </article>

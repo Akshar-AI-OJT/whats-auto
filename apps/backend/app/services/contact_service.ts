@@ -127,4 +127,41 @@ export class ContactService {
       throw error
     }
   }
+
+  /**
+   * Soft-delete a contact without removing the row.
+   * History (inbox, campaigns) stays intact; the phone can be reused.
+   */
+  async softDeleteContact(params: {
+    contactId: string
+    organizationId: string
+  }): Promise<{ ok: true }> {
+    const row = await db
+      .from('contacts')
+      .where('id', params.contactId)
+      .where('organizationId', params.organizationId)
+      .select('id', 'deletedAt')
+      .first()
+
+    if (!row) {
+      throw ContactException.notFound()
+    }
+
+    if (row.deletedAt) {
+      throw ContactException.alreadyDeleted()
+    }
+
+    const updated = await db
+      .from('contacts')
+      .where('id', params.contactId)
+      .where('organizationId', params.organizationId)
+      .whereNull('deletedAt')
+      .update({ deletedAt: new Date() })
+
+    if (!updated) {
+      throw ContactException.notFound()
+    }
+
+    return { ok: true }
+  }
 }

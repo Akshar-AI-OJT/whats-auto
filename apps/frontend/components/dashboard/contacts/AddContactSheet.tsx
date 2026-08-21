@@ -5,7 +5,8 @@ import { useTranslations } from 'next-intl'
 import { Building2, Loader2, Mail, Phone, User, UserPlus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api, type ApiError } from '@/lib/api'
-import { isValidEmail, isValidPhone } from '@/lib/onboarding'
+import { isValidEmail } from '@/lib/onboarding'
+import { isValidContactPhone } from '@/lib/contact-phone'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { Button } from '@/components/ui/button'
 import {
@@ -69,7 +70,7 @@ export function AddContactSheet({ open, onOpenChange, onCreated }: AddContactShe
   function validate(): FieldErrors {
     const next: FieldErrors = {}
     if (!phone.trim()) next.phone = t('errors.phoneRequired')
-    else if (!isValidPhone(phone)) next.phone = t('errors.phoneInvalid')
+    else if (!isValidContactPhone(phone)) next.phone = t('errors.phoneInvalid')
 
     if (email.trim() && !isValidEmail(email.trim())) {
       next.email = t('errors.emailInvalid')

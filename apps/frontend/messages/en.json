@@ -1854,9 +1854,19 @@
       "emptyDescription": "Add your first contact to start conversations and campaigns.",
       "noMatches": "No contacts match your search.",
       "addedAt": "Added {date}",
+      "deleteAria": "Delete {name}",
+      "deleteConfirmTitle": "Delete this contact?",
+      "deleteConfirmBody": "“{name}” will be removed from this workspace. You can add the same phone number again later.",
+      "deleteConfirm": "Delete contact",
+      "deleteCancel": "Cancel",
+      "deleting": "Deleting…",
       "errors": {
         "loadFailed": "Couldn’t load contacts. Please try again.",
-        "permissionDenied": "You don’t have permission to view contacts in this workspace."
+        "permissionDenied": "You don’t have permission to view contacts in this workspace.",
+        "deleteFailed": "Couldn’t delete this contact. Please try again.",
+        "deletePermissionDenied": "You don’t have permission to delete contacts.",
+        "deleteNotFound": "This contact was not found.",
+        "alreadyDeleted": "This contact is already deleted."
       },
       "add": {
         "title": "Add Contact",
@@ -3259,7 +3269,11 @@
         "schedule": "Schedule",
         "sendNow": "Send Now",
         "scheduleLater": "Schedule for Later",
+        "scheduledAt": "Date and time",
+        "timezone": "Timezone",
+        "orgTimezone": "workspace default",
         "scheduleHint": "Send Now launches immediately after recipients are saved. Schedule for Later queues a future send.",
+        "scheduleLaterHint": "The campaign launches automatically at this time in {timezone}. Messages are not sent until then.",
         "cancel": "Cancel",
         "reviewConfirm": "Save draft",
         "confirmSend": "Save & send",

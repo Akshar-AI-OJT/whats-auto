@@ -174,7 +174,7 @@ export class AuthorizationAuditSchema extends BaseModel {
   @column({ isPrimary: true })
   declare id: string
   @column()
-  declare organizationId: string | null
+  declare organizationId: string
   @column()
   declare permissionId: string | null
   @column()
@@ -219,10 +219,11 @@ export class BroadcastRecipientSchema extends BaseModel {
 }
 
 export class BroadcastSchema extends BaseModel {
+  static $columns = ['audienceTagId', 'createdAt', 'createdByUserId', 'deliveredCount', 'failedCount', 'id', 'messageTemplateId', 'name', 'organizationId', 'readCount', 'repliedCount', 'scheduledAt', 'sentCount', 'status', 'totalRecipients', 'updatedAt', 'variableMappings', 'whatsappConfigId'] as const
   static $columns = ['cancelledAt', 'createdAt', 'createdByUserId', 'deliveredCount', 'failedCount', 'finalizedAt', 'headerMediaAssetId', 'id', 'messageTemplateId', 'name', 'organizationId', 'readCount', 'repliedCount', 'scheduledAt', 'sentCount', 'status', 'totalRecipients', 'updatedAt', 'variableMappings', 'whatsappConfigId'] as const
   $columns = BroadcastSchema.$columns
-  @column.dateTime()
-  declare cancelledAt: DateTime | null
+  @column()
+  declare audienceTagId: string | null
   @column.dateTime()
   declare createdAt: DateTime
   @column()
@@ -231,10 +232,6 @@ export class BroadcastSchema extends BaseModel {
   declare deliveredCount: number
   @column()
   declare failedCount: number
-  @column.dateTime()
-  declare finalizedAt: DateTime | null
-  @column()
-  declare headerMediaAssetId: string | null
   @column({ isPrimary: true })
   declare id: string
   @column()
@@ -421,18 +418,11 @@ export class ConversationNoteSchema extends BaseModel {
 }
 
 export class ConversationSchema extends BaseModel {
+  static $columns = ['assignedAgentId', 'closedAt', 'contactId', 'createdAt', 'firstResponseAt', 'id', 'lastMessageAt', 'lastMessageText', 'organizationId', 'status', 'unreadCount', 'updatedAt', 'whatsappConfigId'] as const
   static $columns = ['aiHandoverReason', 'aiMode', 'aiSummary', 'assignedAgentId', 'attributedCampaignId', 'closedAt', 'contactId', 'createdAt', 'firstResponseAt', 'id', 'lastMessageAt', 'lastMessageText', 'organizationId', 'status', 'unreadCount', 'updatedAt', 'whatsappConfigId'] as const
   $columns = ConversationSchema.$columns
   @column()
-  declare aiHandoverReason: string | null
-  @column()
-  declare aiMode: string
-  @column()
-  declare aiSummary: string | null
-  @column()
   declare assignedAgentId: string | null
-  @column()
-  declare attributedCampaignId: string | null
   @column.dateTime()
   declare closedAt: DateTime | null
   @column()
@@ -630,6 +620,8 @@ export class JwkSchema extends BaseModel {
   declare publicKey: string
 }
 
+export class MediaAssetSchema extends BaseModel {
+  static $columns = ['fileName', 'filePath', 'fileSize', 'id', 'mimeType', 'organizationId', 'uploadedAt', 'uploadedBy'] as const
 export class MediaAssetReferenceSchema extends BaseModel {
   static $columns = ['createdAt', 'id', 'mediaAssetId', 'organizationId', 'ownerId', 'ownerType', 'protectedUntil', 'updatedAt'] as const
   $columns = MediaAssetReferenceSchema.$columns
@@ -655,12 +647,6 @@ export class MediaAssetSchema extends BaseModel {
   static $columns = ['checksum', 'createdAt', 'deliveryUrl', 'fileName', 'filePath', 'fileSize', 'id', 'mimeType', 'organizationId', 'source', 'state', 'storageDisk', 'storageKey', 'storageObjectId', 'updatedAt', 'uploadedAt', 'uploadedBy'] as const
   $columns = MediaAssetSchema.$columns
   @column()
-  declare checksum: string | null
-  @column.dateTime()
-  declare createdAt: DateTime
-  @column()
-  declare deliveryUrl: string
-  @column()
   declare fileName: string
   @column()
   declare filePath: string
@@ -672,18 +658,6 @@ export class MediaAssetSchema extends BaseModel {
   declare mimeType: string
   @column()
   declare organizationId: string
-  @column()
-  declare source: string
-  @column()
-  declare state: string
-  @column()
-  declare storageDisk: string
-  @column()
-  declare storageKey: string
-  @column()
-  declare storageObjectId: string | null
-  @column.dateTime()
-  declare updatedAt: DateTime
   @column.dateTime()
   declare uploadedAt: DateTime
   @column()
@@ -992,10 +966,9 @@ export class OrganizationSubscriptionSchema extends BaseModel {
 }
 
 export class OrganizationSchema extends BaseModel {
+  static $columns = ['country', 'createdAt', 'currency', 'deletedAt', 'email', 'gateway', 'gatewayCustomerId', 'id', 'industry', 'name', 'phone', 'slug', 'status', 'timezone', 'updatedAt', 'website'] as const
   static $columns = ['address', 'country', 'createdAt', 'currency', 'deletedAt', 'email', 'gateway', 'gatewayCustomerId', 'gstin', 'id', 'industry', 'name', 'organizationType', 'pan', 'phone', 'slug', 'status', 'timezone', 'updatedAt', 'website'] as const
   $columns = OrganizationSchema.$columns
-  @column()
-  declare address: string | null
   @column()
   declare country: string
   @column.dateTime()
@@ -1010,18 +983,12 @@ export class OrganizationSchema extends BaseModel {
   declare gateway: string | null
   @column()
   declare gatewayCustomerId: string | null
-  @column()
-  declare gstin: string | null
   @column({ isPrimary: true })
   declare id: string
   @column()
   declare industry: string | null
   @column()
   declare name: string
-  @column()
-  declare organizationType: string | null
-  @column()
-  declare pan: string | null
   @column()
   declare phone: string | null
   @column()
@@ -1314,6 +1281,7 @@ export class SessionSchema extends BaseModel {
 }
 
 export class TagSchema extends BaseModel {
+  static $columns = ['color', 'createdAt', 'createdByUserId', 'id', 'name', 'organizationId'] as const
   static $columns = ['color', 'createdAt', 'createdByUserId', 'description', 'id', 'name', 'organizationId', 'status'] as const
   $columns = TagSchema.$columns
   @column()
@@ -1322,16 +1290,12 @@ export class TagSchema extends BaseModel {
   declare createdAt: DateTime
   @column()
   declare createdByUserId: string | null
-  @column()
-  declare description: string | null
   @column({ isPrimary: true })
   declare id: string
   @column()
   declare name: string
   @column()
   declare organizationId: string
-  @column()
-  declare status: string
 }
 
 export class UnmatchedProviderReceiptSchema extends BaseModel {
