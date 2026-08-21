@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils'
 
 /**
- * Shared left-panel atmosphere — soft neutral wash with quiet green accents.
+ * Shared left-panel atmosphere — soft neutral wash with quiet blue accents.
  */
 export function AuthBrandingShell({
   children,
@@ -21,7 +21,7 @@ export function AuthBrandingShell({
     >
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_12%_8%,rgb(37_211_102/0.08),transparent_48%),radial-gradient(ellipse_at_88%_18%,rgb(18_140_126/0.05),transparent_42%),linear-gradient(165deg,#F8FAFC_0%,#FFFFFF_48%,#F1F5F9_100%)]"
+        className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_12%_8%,rgb(37_99_235/0.08),transparent_48%),radial-gradient(ellipse_at_88%_18%,rgb(30_64_175/0.05),transparent_42%),linear-gradient(165deg,#F8FAFC_0%,#FFFFFF_48%,#F1F5F9_100%)]"
       />
       <div
         aria-hidden

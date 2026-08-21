@@ -270,7 +270,7 @@ export function WhatsappConnectionPage() {
         />
         <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 items-start gap-3.5">
-            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary-pale text-positive-deep shadow-[0_4px_12px_rgb(159_232_112/0.2)]">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary-pale text-positive-deep shadow-[0_4px_12px_rgb(37_99_235/0.2)]">
               <FaWhatsapp className="size-5" aria-hidden />
             </span>
             <div className="min-w-0">

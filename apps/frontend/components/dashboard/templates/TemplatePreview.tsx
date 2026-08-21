@@ -54,7 +54,7 @@ export function TemplatePreview({
             </p>
             {name ? <p className="truncate text-[11px] text-white/75">{name}</p> : null}
           </div>
-          <Check className="size-3.5 text-[#25D366]" aria-hidden />
+          <Check className="size-3.5 text-[#2563eb]" aria-hidden />
         </div>
 
         <div className="space-y-2 px-3 py-4">

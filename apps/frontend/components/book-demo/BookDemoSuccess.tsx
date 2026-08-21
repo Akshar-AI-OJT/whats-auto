@@ -47,7 +47,7 @@ export function BookDemoSuccess({
         className={cn(
           'mx-auto mb-5 flex size-16 items-center justify-center rounded-full sm:size-[4.5rem]',
           'bg-primary-pale text-3xl sm:text-4xl',
-          'shadow-[0_0_0_6px_rgb(159_232_112/0.18),0_12px_28px_rgb(159_232_112/0.35)]',
+          'shadow-[0_0_0_6px_rgb(37_99_235/0.18),0_12px_28px_rgb(37_99_235/0.35)]',
           'animate-hero-float'
         )}
       >
@@ -70,7 +70,7 @@ export function BookDemoSuccess({
               'shadow-[0_1px_2px_rgb(15_23_42/0.03)]',
               'transition-[transform,box-shadow,border-color] duration-200',
               'hover:-translate-y-0.5 hover:border-primary/40',
-              'hover:shadow-[0_8px_20px_rgb(15_23_42/0.06),0_0_0_3px_rgb(159_232_112/0.12)]'
+              'hover:shadow-[0_8px_20px_rgb(15_23_42/0.06),0_0_0_3px_rgb(37_99_235/0.12)]'
             )}
           >
             <p className="flex items-center gap-2 text-xs font-semibold tracking-wide text-mute uppercase">
@@ -97,10 +97,10 @@ export function BookDemoSuccess({
                 'shadow-[0_1px_2px_rgb(15_23_42/0.03)]',
                 'transition-[transform,border-color,box-shadow] duration-200',
                 'hover:-translate-y-0.5 hover:border-primary/45',
-                'hover:shadow-[0_0_0_3px_rgb(159_232_112/0.14)]'
+                'hover:shadow-[0_0_0_3px_rgb(37_99_235/0.14)]'
               )}
             >
-              <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary shadow-[0_4px_12px_rgb(159_232_112/0.35)]">
+              <span className="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary shadow-[0_4px_12px_rgb(37_99_235/0.35)]">
                 <Check className="size-3.5" strokeWidth={2.75} aria-hidden />
               </span>
               <span className="text-sm leading-6 font-medium text-body">
