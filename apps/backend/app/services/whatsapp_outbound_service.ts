@@ -1349,7 +1349,6 @@ export default class WhatsappOutboundService {
     }
   }
 }
-
 function serializeOutboundError(error: unknown): {
   errorMessage: string
   errorCode: string | null
@@ -1377,3 +1376,4 @@ function serializeOutboundError(error: unknown): {
 
   return { errorMessage: 'Unknown outbound error', errorCode: null }
 }
+

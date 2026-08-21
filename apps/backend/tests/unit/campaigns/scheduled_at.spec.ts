@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
-import { parseScheduledAt, toUtcIso } from '#lib/scheduled_at'
+import { parseScheduledAt, toUtcIso, isValidIanaTimeZone } from '#lib/scheduled_at'
 
 test.group('parseScheduledAt', () => {
   test('interprets naive 10:55 PM as organization-local, not UTC', ({ assert }) => {
@@ -64,6 +64,14 @@ test.group('parseScheduledAt', () => {
   test('UTC organization timezone keeps naive wall clock as UTC', ({ assert }) => {
     const instant = parseScheduledAt('2099-08-19 22:55:00', 'UTC')
     assert.equal(instant.toISOString(), '2099-08-19T22:55:00.000Z')
+  })
+
+  test('isValidIanaTimeZone accepts IANA names and rejects junk', ({ assert }) => {
+    assert.isTrue(isValidIanaTimeZone('Asia/Kolkata'))
+    assert.isTrue(isValidIanaTimeZone('UTC'))
+    assert.isFalse(isValidIanaTimeZone('Not/AZone'))
+    assert.isFalse(isValidIanaTimeZone(''))
+    assert.isFalse(isValidIanaTimeZone(null))
   })
 })
 

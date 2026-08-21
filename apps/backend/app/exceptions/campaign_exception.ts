@@ -89,6 +89,25 @@ export default class CampaignException extends Exception {
     })
   }
 
+  static notCancellable(status: string) {
+    return this.notEligibleToCancel(status)
+  }
+
+  static templateRequired() {
+    return this.templateNotConfigured()
+  }
+
+  static whatsappConfigRequired() {
+    return this.whatsappConfigNotConfigured()
+  }
+
+  static recipientsRequired() {
+    return new this('Campaign must have at least one recipient', {
+      status: 422,
+      code: 'E_CAMPAIGN_RECIPIENTS_REQUIRED',
+    })
+  }
+
   static notEditable(status: string) {
     return new this(`Campaign with status "${status}" is not editable`, {
       status: 422,
@@ -107,6 +126,13 @@ export default class CampaignException extends Exception {
     return new this('scheduledAt is not a valid datetime', {
       status: 422,
       code: 'E_CAMPAIGN_INVALID_SCHEDULED_AT',
+    })
+  }
+
+  static invalidTimeZone() {
+    return new this('timeZone is not a valid IANA timezone', {
+      status: 422,
+      code: 'E_CAMPAIGN_INVALID_TIMEZONE',
     })
   }
 
@@ -129,6 +155,16 @@ export default class CampaignException extends Exception {
       status: 422,
       code: 'E_CAMPAIGN_RECIPIENTS_AUDIENCE_REQUIRED',
     })
+  }
+
+  static noEligibleRecipients() {
+    return new this(
+      'Campaign has no eligible recipients after excluding opted-out and deleted contacts',
+      {
+        status: 422,
+        code: 'E_CAMPAIGN_NO_ELIGIBLE_RECIPIENTS',
+      }
+    )
   }
 
   static conflictingAudience() {

@@ -764,7 +764,7 @@ router
   .prefix('/api/v1/contacts')
   .use([middleware.jwtAuth(), middleware.tenant()])
 
-// contact tags — grouping via existing tags / contact_tags tables
+// contact tags — grouping via existing tags / contact_tags tables (product: Customer Groups)
 router
   .group(() => {
     router.get('/', [TagsController, 'index'])

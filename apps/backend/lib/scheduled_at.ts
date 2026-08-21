@@ -34,6 +34,13 @@ export function resolveIanaTimeZone(timeZone: string | null | undefined): string
   return probe.isValid ? timeZone : 'UTC'
 }
 
+/** True when `timeZone` is a real IANA name (not a silent UTC fallback). */
+export function isValidIanaTimeZone(timeZone: string | null | undefined): boolean {
+  const candidate = timeZone?.trim()
+  if (!candidate) return false
+  return DateTime.now().setZone(candidate).isValid
+}
+
 function requireValid(dt: DateTime): DateTime {
   if (!dt.isValid) {
     throw new InvalidScheduledAtError()
