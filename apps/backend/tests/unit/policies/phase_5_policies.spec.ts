@@ -192,5 +192,9 @@ test.group('Phase 5 Policies - BillingPolicy', () => {
     assert.isTrue(policy.viewSubscription(viewer))
     assert.isTrue(policy.viewSubscription(manager))
     assert.isFalse(policy.viewSubscription(unprivileged))
+
+    assert.isTrue(policy.viewPlans(viewer))
+    assert.isTrue(policy.viewPlans(manager))
+    assert.isFalse(policy.viewPlans(unprivileged))
   })
 })

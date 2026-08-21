@@ -79,9 +79,9 @@ export type SubscriptionSlice = {
 
 export const MOCK_SUBSCRIPTION_DISTRIBUTION: SubscriptionSlice[] = [
   { id: 'starter', count: 94, colorClass: 'bg-mute', fill: '#94a3b8' },
-  { id: 'growth', count: 86, colorClass: 'bg-primary', fill: '#9fe870' },
+  { id: 'growth', count: 86, colorClass: 'bg-primary', fill: '#2563eb' },
   { id: 'pro', count: 48, colorClass: 'bg-accent-cyan', fill: '#38c8ff' },
-  { id: 'enterprise', count: 20, colorClass: 'bg-positive-deep', fill: '#3d8b40' },
+  { id: 'enterprise', count: 20, colorClass: 'bg-positive-deep', fill: '#2563eb' },
 ]
 
 export type RevenuePoint = {

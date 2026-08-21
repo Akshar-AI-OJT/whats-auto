@@ -22,13 +22,13 @@ const STALE_MS = 60_000
 
 const PLAN_COLORS: Record<string, string> = {
   starter: '#94a3b8',
-  growth: '#9fe870',
+  growth: '#2563eb',
   pro: '#38c8ff',
-  enterprise: '#3d8b40',
+  enterprise: '#2563eb',
   scale: '#a78bfa',
 }
 
-const FALLBACK_COLORS = ['#94a3b8', '#9fe870', '#38c8ff', '#3d8b40', '#a78bfa', '#f59e0b', '#ef4444']
+const FALLBACK_COLORS = ['#94a3b8', '#2563eb', '#38c8ff', '#2563eb', '#a78bfa', '#f59e0b', '#ef4444']
 
 function getColor(label: string, index: number): string {
   const key = label.toLowerCase()

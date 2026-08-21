@@ -1,12 +1,14 @@
 import type {
   MetaSendTemplateComponent,
+  MetaSendTemplateTextParameter,
   TemplateHeaderMediaType,
+  TemplateParameterFormat,
   TemplateParameterSchema,
   TemplateUrlButtonParam,
 } from '#lib/meta_whatsapp/types'
 
-const NAMED_PLACEHOLDER = /\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}/g
-const NUMBERED_PLACEHOLDER = /\{\{\s*\d+\s*\}\}/
+/** Matches both {{name}} and {{1}} placeholders. */
+const ANY_PLACEHOLDER = /\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*|\d+)\s*\}\}/g
 
 const HEADER_MEDIA_TYPES = new Set<TemplateHeaderMediaType>(['image', 'document'])
 
@@ -22,23 +24,55 @@ export type HeaderMediaInput = {
   filename?: string
 }
 
-function extractNamedPlaceholders(text: string | null | undefined): string[] {
+function isNumericKey(key: string): boolean {
+  return /^\d+$/.test(key)
+}
+
+/**
+ * Extract unique placeholder keys in appearance order.
+ * Numeric-only lists are sorted numerically by callers when format is positional.
+ */
+export function extractTemplatePlaceholders(text: string | null | undefined): string[] {
   if (!text) return []
   const names: string[] = []
   const seen = new Set<string>()
-  for (const match of text.matchAll(NAMED_PLACEHOLDER)) {
-    const name = match[1]
-    if (name && !seen.has(name)) {
-      seen.add(name)
-      names.push(name)
+  for (const match of text.matchAll(ANY_PLACEHOLDER)) {
+    const key = match[1]
+    if (key && !seen.has(key)) {
+      seen.add(key)
+      names.push(key)
     }
   }
   return names
 }
 
-function hasNumberedPlaceholders(text: string | null | undefined): boolean {
-  if (!text) return false
-  return NUMBERED_PLACEHOLDER.test(text)
+function sortPlaceholders(names: string[], format: TemplateParameterFormat): string[] {
+  if (format !== 'positional') return names
+  return [...names].sort((a, b) => Number(a) - Number(b))
+}
+
+/**
+ * Detect placeholder format across a combined name list.
+ * Empty → null; all numeric → positional; all named → named; otherwise mixed.
+ */
+export function detectParameterFormat(names: string[]): TemplateParameterFormat | 'mixed' | null {
+  if (names.length === 0) return null
+  const allNumeric = names.every(isNumericKey)
+  const allNamed = names.every((n) => !isNumericKey(n))
+  if (allNumeric) return 'positional'
+  if (allNamed) return 'named'
+  return 'mixed'
+}
+
+function inferParameterFormat(
+  headerNames: string[],
+  bodyNames: string[],
+  urlButtons: TemplateUrlButtonParam[]
+): TemplateParameterFormat | undefined {
+  const names = [...headerNames, ...bodyNames, ...urlButtons.map((b) => b.name)]
+  const detected = detectParameterFormat(names)
+  if (detected === 'positional' || detected === 'named') return detected
+  return undefined
 }
 
 function parseButtonsArray(buttons: unknown): Array<Record<string, unknown>> | null {
@@ -79,7 +113,7 @@ function extractUrlButtons(
   const parsed = parseButtonsArray(buttons)
   if (parsed === null) {
     const raw = typeof buttons === 'string' ? buttons : JSON.stringify(buttons)
-    if (hasNumberedPlaceholders(raw) || extractNamedPlaceholders(raw).length > 0) {
+    if (extractTemplatePlaceholders(raw).length > 0) {
       return {
         ok: false,
         reason: 'Templates with dynamic button variables are not supported for outbound V1',
@@ -93,20 +127,20 @@ function extractUrlButtons(
 
   for (const [index, button] of parsed.entries()) {
     const url = buttonUrl(button)
-    const urlNames = extractNamedPlaceholders(url)
+    const urlNames = extractTemplatePlaceholders(url)
     const otherText = [button.text, button.example]
       .filter((value): value is string => typeof value === 'string')
       .join(' ')
-    const otherNames = extractNamedPlaceholders(otherText)
+    const otherNames = extractTemplatePlaceholders(otherText)
 
     if (buttonType(button) === 'url') {
       if (urlNames.length > 1) {
-        return { ok: false, reason: 'URL buttons support one named variable' }
+        return { ok: false, reason: 'URL buttons support one variable' }
       }
       if (otherNames.length > 0) {
         return {
           ok: false,
-          reason: 'Named variables are only supported in URL button destinations',
+          reason: 'Variables are only supported in URL button destinations',
         }
       }
       if (urlNames.length === 1) {
@@ -126,7 +160,7 @@ function extractUrlButtons(
     if (urlNames.length > 0 || otherNames.length > 0) {
       return {
         ok: false,
-        reason: 'Named variables are only supported on URL buttons',
+        reason: 'Variables are only supported on URL buttons',
       }
     }
   }
@@ -144,9 +178,21 @@ function nonSendable(reason: string): TemplateParameterSchema {
   }
 }
 
+function textParam(
+  name: string,
+  text: string,
+  format: TemplateParameterFormat | undefined
+): MetaSendTemplateTextParameter {
+  if (format === 'positional') {
+    return { type: 'text', text }
+  }
+  return { type: 'text', parameter_name: name, text }
+}
+
 /**
  * Derive the stored parameterSchema from local template fields.
- * Named URL-button vars are sendable; numbered placeholders stay blocked.
+ * Supports both named ({{name}}) and positional ({{1}}) placeholders.
+ * Mixed formats in one template are rejected.
  */
 export function deriveParameterSchema(params: {
   headerType?: string | null
@@ -155,16 +201,6 @@ export function deriveParameterSchema(params: {
   buttons?: unknown
 }): TemplateParameterSchema {
   const headerType = (params.headerType ?? 'none').toLowerCase()
-  const buttonsRaw =
-    typeof params.buttons === 'string' ? params.buttons : JSON.stringify(params.buttons ?? '')
-
-  if (
-    hasNumberedPlaceholders(params.headerContent) ||
-    hasNumberedPlaceholders(params.bodyText) ||
-    hasNumberedPlaceholders(buttonsRaw)
-  ) {
-    return nonSendable('Numbered placeholders like {{1}} are not supported; use named variables')
-  }
 
   const urlButtonsResult = extractUrlButtons(params.buttons)
   if (!urlButtonsResult.ok) {
@@ -176,25 +212,39 @@ export function deriveParameterSchema(params: {
   }
 
   const urlButtons = urlButtonsResult.buttons
+  const rawHeaderNames =
+    headerType === 'text' ? extractTemplatePlaceholders(params.headerContent) : []
+  const rawBodyNames = extractTemplatePlaceholders(params.bodyText)
+  const urlButtonNames = urlButtons.map((b) => b.name)
+
+  const format = detectParameterFormat([...rawHeaderNames, ...rawBodyNames, ...urlButtonNames])
+  if (format === 'mixed') {
+    return nonSendable('Mixed numbered and named placeholders are not supported')
+  }
+
+  const parameterFormat: TemplateParameterFormat = format ?? 'named'
+  const headerNames = sortPlaceholders(rawHeaderNames, parameterFormat)
+  const bodyNames = sortPlaceholders(rawBodyNames, parameterFormat)
 
   if (HEADER_MEDIA_TYPES.has(headerType as TemplateHeaderMediaType)) {
     return {
       headerNames: [],
-      bodyNames: extractNamedPlaceholders(params.bodyText),
+      bodyNames,
       urlButtons,
       sendable: true,
       headerMediaType: headerType as TemplateHeaderMediaType,
+      ...(bodyNames.length > 0 || urlButtons.length > 0 ? { parameterFormat } : {}),
     }
   }
-
-  const headerNames = headerType === 'text' ? extractNamedPlaceholders(params.headerContent) : []
-  const bodyNames = extractNamedPlaceholders(params.bodyText)
 
   return {
     headerNames,
     bodyNames,
     urlButtons,
     sendable: true,
+    ...(headerNames.length > 0 || bodyNames.length > 0 || urlButtons.length > 0
+      ? { parameterFormat }
+      : {}),
   }
 }
 
@@ -232,6 +282,7 @@ function parseUrlButtons(raw: unknown): TemplateUrlButtonParam[] {
 
 /**
  * Runtime-narrow a stored jsonb parameterSchema.
+ * Infers parameterFormat from names when missing (back-compat).
  */
 export function parseParameterSchema(raw: unknown): TemplateParameterSchema {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
@@ -255,18 +306,27 @@ export function parseParameterSchema(raw: unknown): TemplateParameterSchema {
     ? (headerMediaRaw as TemplateHeaderMediaType)
     : undefined
 
+  let parameterFormat: TemplateParameterFormat | undefined
+  if (record.parameterFormat === 'named' || record.parameterFormat === 'positional') {
+    parameterFormat = record.parameterFormat
+  } else {
+    parameterFormat = inferParameterFormat(headerNames, bodyNames, urlButtons)
+  }
+
   return {
     headerNames,
     bodyNames,
     sendable,
     unsupportedReason,
     headerMediaType,
+    ...(parameterFormat ? { parameterFormat } : {}),
     ...(urlButtons.length > 0 ? { urlButtons } : {}),
   }
 }
 
 /**
- * Map named parameter values (and optional header media) into Meta Cloud API components.
+ * Map parameter values (and optional header media) into Meta Cloud API components.
+ * Named templates include parameter_name; positional templates omit it (order-only).
  */
 export function mapNamedParametersToMetaComponents(params: {
   schema: TemplateParameterSchema
@@ -275,6 +335,8 @@ export function mapNamedParametersToMetaComponents(params: {
 }): MetaSendTemplateComponent[] {
   const { schema, values, headerMedia } = params
   const urlButtons = schema.urlButtons ?? []
+  const format =
+    schema.parameterFormat ?? inferParameterFormat(schema.headerNames, schema.bodyNames, urlButtons)
 
   if (!schema.sendable) {
     throw new TemplateParameterError(
@@ -333,22 +395,14 @@ export function mapNamedParametersToMetaComponents(params: {
   } else if (schema.headerNames.length > 0) {
     components.push({
       type: 'header',
-      parameters: schema.headerNames.map((name) => ({
-        type: 'text' as const,
-        parameter_name: name,
-        text: values[name],
-      })),
+      parameters: schema.headerNames.map((name) => textParam(name, values[name]!, format)),
     })
   }
 
   if (schema.bodyNames.length > 0) {
     components.push({
       type: 'body',
-      parameters: schema.bodyNames.map((name) => ({
-        type: 'text' as const,
-        parameter_name: name,
-        text: values[name],
-      })),
+      parameters: schema.bodyNames.map((name) => textParam(name, values[name]!, format)),
     })
   }
 
@@ -357,13 +411,7 @@ export function mapNamedParametersToMetaComponents(params: {
       type: 'button',
       sub_type: 'url',
       index: String(button.index),
-      parameters: [
-        {
-          type: 'text',
-          parameter_name: button.name,
-          text: values[button.name],
-        },
-      ],
+      parameters: [textParam(button.name, values[button.name]!, format)],
     })
   }
 

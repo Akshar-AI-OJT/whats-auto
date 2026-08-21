@@ -40,6 +40,31 @@ export type SuperAdminPlan = {
   updatedAt: string | null
 }
 
+/**
+ * Tenant-safe billing catalog DTO (GET /api/v1/billing/plans).
+ * Omits gateway internals and admin-only fields; exposes checkoutable instead.
+ */
+export type TenantBillingPlan = {
+  id: string
+  code: string
+  name: string
+  description: string
+  price: number | null
+  currency: string
+  billingPeriod: PlanBillingPeriod
+  popular: boolean
+  trialDays: number | null
+  limits: PlanLimits
+  features: Array<{
+    key: string
+    name: string
+    enabled: boolean
+    category?: PlanFeatureCategory
+  }>
+  checkoutable: boolean
+  sortOrder: number
+}
+
 export type SuperAdminPlanSummary = {
   total: number
   active: number

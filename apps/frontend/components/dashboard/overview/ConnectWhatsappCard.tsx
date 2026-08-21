@@ -46,7 +46,7 @@ export function ConnectWhatsappCard({ className }: { className?: string }) {
             className={cn(
               'flex size-11 shrink-0 items-center justify-center rounded-xl',
               'bg-primary-pale text-positive-deep',
-              'shadow-[0_4px_12px_rgb(159_232_112/0.2)]'
+              'shadow-[0_4px_12px_rgb(37_99_235/0.2)]'
             )}
           >
             <FaWhatsapp className="size-5" aria-hidden />

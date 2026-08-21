@@ -40,7 +40,7 @@ export function InvoiceDocument({
       <div className="px-6 py-6 sm:px-8 sm:py-8">
         <header className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-start gap-3">
-            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-[#075E54] text-white">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-[#2563eb] text-white">
               <MessageCircle className="size-5" aria-hidden />
             </span>
             <div>
@@ -58,7 +58,7 @@ export function InvoiceDocument({
             <dl className="mt-3 space-y-1 text-sm">
               <div className="flex gap-2 sm:justify-end">
                 <dt className="text-[#6B7280]">{t('document.invoiceNumber')}</dt>
-                <dd className="font-semibold text-[#075E54]">{invoice.invoiceNumber}</dd>
+                <dd className="font-semibold text-[#2563eb]">{invoice.invoiceNumber}</dd>
               </div>
               <div className="flex gap-2 sm:justify-end">
                 <dt className="text-[#6B7280]">{t('document.issueDate')}</dt>
@@ -117,7 +117,7 @@ export function InvoiceDocument({
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
           <div className="flex items-start gap-3 rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] px-4 py-3">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#ECFDF5] text-[#075E54]">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#eff6ff] text-[#2563eb]">
               <FileText className="size-4" aria-hidden />
             </span>
             <div className="min-w-0">
@@ -139,7 +139,7 @@ export function InvoiceDocument({
             </div>
           </div>
           <div className="flex items-start gap-3 rounded-xl border border-[#E5E7EB] bg-[#F9FAFB] px-4 py-3">
-            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#ECFDF5] text-[#075E54]">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-[#eff6ff] text-[#2563eb]">
               <Building2 className="size-4" aria-hidden />
             </span>
             <div className="min-w-0">
@@ -157,7 +157,7 @@ export function InvoiceDocument({
         <div className="mt-6 rounded-xl border border-[#E5E7EB]">
           <table className="w-full border-collapse text-left text-sm">
             <thead>
-              <tr className="bg-[#075E54] text-white">
+              <tr className="bg-[#2563eb] text-white">
                 <th className="px-4 py-3 font-semibold">{t('document.description')}</th>
                 <th className="px-4 py-3 text-right font-semibold">{t('document.qty')}</th>
                 <th className="px-4 py-3 text-right font-semibold">{t('document.unitPrice')}</th>
@@ -195,7 +195,7 @@ export function InvoiceDocument({
             {invoice.discount > 0 ? (
               <div className="flex justify-between gap-6">
                 <dt className="text-[#6B7280]">{t('document.discount')}</dt>
-                <dd className="tabular-nums text-[#075E54]">
+                <dd className="tabular-nums text-[#2563eb]">
                   -{formatMoney(invoice.discount, invoice.currency)}
                 </dd>
               </div>
@@ -208,7 +208,7 @@ export function InvoiceDocument({
             </div>
             <div className="flex justify-between gap-6 border-t border-[#E5E7EB] pt-2">
               <dt className="font-semibold text-[#111827]">{t('document.total')}</dt>
-              <dd className="text-lg font-semibold tabular-nums text-[#075E54]">
+              <dd className="text-lg font-semibold tabular-nums text-[#2563eb]">
                 {formatMoney(invoice.total, invoice.currency)}
               </dd>
             </div>
@@ -263,7 +263,7 @@ export function InvoiceDocument({
             </div>
           </div>
           <div className="sm:text-right">
-            <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#075E54]">
+            <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#2563eb]">
               {t('document.thankYou')}
               <Heart className="size-3.5 fill-current" aria-hidden />
             </p>

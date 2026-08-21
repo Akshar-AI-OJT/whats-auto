@@ -591,7 +591,7 @@ export function RoleEditorFullPage({
                       className={cn(
                         'flex items-start gap-3 rounded-2xl border px-3.5 py-3.5 text-left transition-colors',
                         selectedTemplate
-                          ? 'border-primary bg-primary-pale/40 shadow-[0_0_0_1px_rgb(159_232_112/0.25)]'
+                          ? 'border-primary bg-primary-pale/40 shadow-[0_0_0_1px_rgb(37_99_235/0.25)]'
                           : 'border-dash-border bg-canvas hover:bg-dash-surface/60'
                       )}
                     >

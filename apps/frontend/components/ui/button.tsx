@@ -4,9 +4,9 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
 /**
- * Wise button primitives (DESIGN-wise.md):
- * - primary: lime fill + ink text, rounded-xl (24px)
- * - secondary: sage canvas-soft fill
+ * Button primitives:
+ * - primary: blue fill + on-primary text, rounded-xl (24px)
+ * - secondary: soft canvas-soft fill
  * - outline/tertiary: white + ink hairline border
  */
 const buttonVariants = cva(

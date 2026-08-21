@@ -48,14 +48,14 @@ export function AdminSidebarNav({
               'group flex w-full cursor-pointer items-center rounded-xl text-sm font-medium transition-[background-color,color,box-shadow,transform] duration-200',
               collapsed ? 'justify-center px-2 py-2.5' : 'gap-3 px-3 py-2.5',
               active
-                ? 'bg-primary-pale text-positive-deep shadow-[0_0_0_1px_rgb(159_232_112/0.35)]'
+                ? 'bg-primary-pale text-positive-deep shadow-[0_0_0_1px_rgb(37_99_235/0.35)]'
                 : 'text-body hover:bg-dash-surface hover:text-ink'
             )
 
             const iconWrap = cn(
               'flex size-8 shrink-0 items-center justify-center rounded-lg transition-[background-color,color,box-shadow] duration-200',
               active
-                ? 'bg-primary text-on-primary shadow-[0_4px_12px_rgb(159_232_112/0.35)]'
+                ? 'bg-primary text-on-primary shadow-[0_4px_12px_rgb(37_99_235/0.35)]'
                 : 'bg-dash-surface text-mute group-hover:text-positive-deep'
             )
 

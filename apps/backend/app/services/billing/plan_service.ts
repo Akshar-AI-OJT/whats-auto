@@ -8,6 +8,7 @@ import {
   deriveBillingPeriod,
   derivePlanStatus,
   transformPlan,
+  transformTenantBillingPlan,
 } from '#transformers/plan_transformer'
 import type {
   CreateSuperAdminPlanInput,
@@ -16,6 +17,7 @@ import type {
   PlanStatus,
   SuperAdminPlan,
   SuperAdminPlanSummary,
+  TenantBillingPlan,
   UpdateSuperAdminPlanInput,
 } from '#types/plans'
 
@@ -125,6 +127,19 @@ export class PlanService {
     return {
       items: filtered.map(transformPlan),
       summary: buildPlanSummary(all),
+    }
+  }
+
+  /**
+   * Tenant billing catalog: active plans only, ordered like `listAll`
+   * (sortOrder ASC, name ASC). Uses the same active semantics as super-admin
+   * list filtering (`derivePlanStatus` via `filterRows`).
+   */
+  async listTenantPlans(): Promise<{ items: TenantBillingPlan[] }> {
+    const all = await this.plans.listAll()
+    const active = this.plans.filterRows(all, { status: 'active' })
+    return {
+      items: active.map(transformTenantBillingPlan),
     }
   }
 

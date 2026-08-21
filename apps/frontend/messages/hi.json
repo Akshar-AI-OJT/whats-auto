@@ -1462,7 +1462,7 @@
         "insights": "इनसाइट्स",
         "teamAccess": "टीम और एक्सेस",
         "billing": "बिलिंग",
-        "settings": "सेटिंग्स"
+      "settings": "सेटिंग्स"
       }
     },
     "knowledge": {
@@ -2409,7 +2409,10 @@
         "title": "WhatsApp पूर्वावलोकन",
         "businessFallback": "व्यवसाय",
         "emptyBody": "आपके संदेश का पूर्वावलोकन यहाँ दिखेगा।",
-        "buttonFallback": "बटन"
+        "buttonFallback": "बटन",
+        "imageHeaderPlaceholder": "इमेज हेडर",
+        "documentHeaderPlaceholder": "दस्तावेज़ हेडर",
+        "documentHeaderSelected": "दस्तावेज़ संलग्न"
       },
       "form": {
         "name": "टेम्पलेट नाम",
@@ -2420,7 +2423,14 @@
         "headerType": "हेडर",
         "headerContent": "हेडर टेक्स्ट",
         "headerPlaceholder": "ऑर्डर अपडेट",
-        "headerMediaHint": "इमेज और दस्तावेज़ हेडर create API में केवल हेडर प्रकार के रूप में समर्थित हैं। नमूना मीडिया मीडिया लाइब्रेरी में अलग से प्रबंधित होता है।",
+        "headerMediaHint": "इमेज और दस्तावेज़ हेडर के लिए Meta समीक्षा हेतु मीडिया लाइब्रेरी से नमूना चुनें।",
+        "headerImage": "हेडर इमेज",
+        "headerImageHint": "मीडिया लाइब्रेरी से JPEG या PNG नमूना चुनें।",
+        "headerDocument": "हेडर दस्तावेज़",
+        "headerDocumentHint": "मीडिया लाइब्रेरी से PDF नमूना चुनें।",
+        "selectMedia": "मीडिया चुनें",
+        "changeMedia": "बदलें",
+        "removeMedia": "हटाएँ",
         "previewImageHeader": "[इमेज हेडर]",
         "previewDocumentHeader": "[दस्तावेज़ हेडर]",
         "body": "टेम्पलेट बॉडी",
@@ -2428,7 +2438,8 @@
         "footer": "फुटर",
         "footerPlaceholder": "हमारे साथ खरीदारी के लिए धन्यवाद",
         "variables": "वेरिएबल",
-        "variablesHint": "हर नंबर वाले प्लेसहोल्डर के लिए नमूना मान दें।",
+        "variablesHint": "हर नंबर वाले प्लेसहोल्डर ('{{1}}', '{{2}}') के लिए नमूना मान दें।",
+        "variablesHintNamed": "हर नाम वाले प्लेसहोल्डर ('{{customer_name}}') के लिए नमूना मान दें।",
         "samplePlaceholder": "{n} के लिए उदाहरण",
         "buttons": "बटन",
         "buttonsHint": "वैकल्पिक। अधिकतम 3 बटन (त्वरित उत्तर, URL, या फ़ोन)।",
@@ -2437,7 +2448,14 @@
         "buttonTextPlaceholder": "बटन लेबल",
         "buttonUrlPlaceholder": "https://example.com",
         "buttonPhonePlaceholder": "+15551234567",
-        "insertVariable": "वेरिएबल",
+        "insertVariable": "नंबर जोड़ें",
+        "insertVariableHint": "अगला नंबर वाला वेरिएबल डालें जैसे '{{1}}'",
+        "insertVariableLockedNamed": "इस टेम्पलेट में पहले से नाम वाले वेरिएबल हैं",
+        "insertVariableLockedNumbered": "इस टेम्पलेट में पहले से नंबर वाले वेरिएबल हैं",
+        "insertNamedVariable": "नाम जोड़ें",
+        "insertNamedVariableHint": "नाम वाला वेरिएबल डालें जैसे '{{customer_name}}'",
+        "namedVariablePlaceholder": "customer_name",
+        "insertNamedConfirm": "डालें",
         "formatBold": "बोल्ड",
         "formatItalic": "इटैलिक",
         "formatStrike": "स्ट्राइकथ्रू",
@@ -2468,9 +2486,12 @@
           "bodyTooLong": "बॉडी टेक्स्ट 1024 अक्षर या उससे कम होना चाहिए।",
           "footerTooLong": "फुटर 60 अक्षर या उससे कम होना चाहिए।",
           "headerRequired": "टेक्स्ट हेडर के लिए हेडर टेक्स्ट दर्ज करें।",
+          "headerMediaRequired": "इस हेडर के लिए नमूना इमेज या दस्तावेज़ चुनें।",
           "buttonUrlRequired": "URL बटन के लिए वैध लिंक आवश्यक है।",
           "sampleRequired": "वेरिएबल {n} के लिए नमूना मान दर्ज करें।",
-          "samplesRequired": "बनाने से पहले सभी वेरिएबल के नमूना मान भरें।"
+          "samplesRequired": "बनाने से पहले सभी वेरिएबल के नमूना मान भरें।",
+          "mixedVariables": "एक टेम्पलेट में नंबर वाले ('{{1}}') और नाम वाले ('{{name}}') प्लेसहोल्डर एक साथ न मिलाएँ।",
+          "namedVariableInvalid": "नाम वाले वेरिएबल अक्षर या अंडरस्कोर से शुरू होने चाहिए (a-z, A-Z, 0-9, _)।"
         }
       },
       "details": {
@@ -3133,7 +3154,8 @@
           "statusUnmapped": "मैप नहीं",
           "progressComplete": "सभी {total} वेरिएबल मैप हो गए",
           "progressIncomplete": "{total} में से {mapped} वेरिएबल मैप",
-          "notSendable": "यह टेम्पलेट भेजा नहीं जा सकता"
+          "notSendable": "यह टेम्पलेट भेजा नहीं जा सकता",
+          "sampleHint": "नमूना: {sample}"
         },
         "errors": {
           "nameRequired": "कैंपेन नाम आवश्यक है।",

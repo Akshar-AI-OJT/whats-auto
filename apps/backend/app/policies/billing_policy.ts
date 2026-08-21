@@ -18,4 +18,13 @@ export default class BillingPolicy extends BasePolicy {
       false
     )
   }
+
+  /** Same permission set as subscription read — catalog is billing-visible data. */
+  viewPlans(user: AuthzPrincipal): boolean {
+    return (
+      user.memberPermissions?.has('billing:view') ||
+      user.memberPermissions?.has('billing:manage') ||
+      false
+    )
+  }
 }

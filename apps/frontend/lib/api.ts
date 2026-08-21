@@ -740,8 +740,11 @@ export type WhatsappTemplateStatus =
 export type WhatsappTemplateParameterSchema = {
   headerNames?: string[]
   bodyNames?: string[]
+  urlButtons?: Array<{ name: string; index: number }>
   sendable?: boolean
   unsupportedReason?: string | null
+  headerMediaType?: 'image' | 'document'
+  parameterFormat?: 'named' | 'positional'
 }
 
 export type WhatsappTemplateButton = {
@@ -792,6 +795,8 @@ export type CreateWhatsappTemplateBody = {
   language: string
   headerType?: WhatsappTemplateHeaderType | string
   headerContent?: string
+  headerMediaAssetId?: string
+  headerMediaUrl?: string
   bodyText: string
   footerText?: string
   buttons?: WhatsappTemplateButton[]
@@ -1466,6 +1471,38 @@ export type BillingCheckoutBody = {
   planId: string
 }
 
+/** GET /api/v1/billing/plans — tenant-safe active catalog (no gateway secrets). */
+export type TenantBillingPlanBillingPeriod = 'monthly' | 'yearly' | 'custom'
+
+export type TenantBillingPlanFeature = {
+  key: string
+  name: string
+  enabled: boolean
+  category?: string
+}
+
+export type TenantBillingPlanLimits = {
+  users: number | null
+  messagesPerMonth: number | null
+  workspaces: number | null
+}
+
+export type TenantBillingPlan = {
+  id: string
+  code: string
+  name: string
+  description: string
+  price: number | null
+  currency: string
+  billingPeriod: TenantBillingPlanBillingPeriod
+  popular: boolean
+  trialDays: number | null
+  limits: TenantBillingPlanLimits
+  features: TenantBillingPlanFeature[]
+  checkoutable: boolean
+  sortOrder: number
+}
+
 export const api = {
   auth: {
     signup: (body: SignupBody) =>
@@ -2061,6 +2098,12 @@ export const api = {
     getSubscription: () =>
       protectedRequest<{ data?: BillingSubscription } & BillingSubscription>(
         '/api/v1/billing/subscription',
+        { method: 'GET' }
+      ),
+
+    listPlans: () =>
+      protectedRequest<{ data?: { items: TenantBillingPlan[] } }>(
+        '/api/v1/billing/plans',
         { method: 'GET' }
       ),
 
