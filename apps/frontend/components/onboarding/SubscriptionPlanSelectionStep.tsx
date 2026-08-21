@@ -124,7 +124,7 @@ export function SubscriptionPlanSelectionStep({
                     'group relative flex flex-col rounded-2xl p-5 text-left sm:p-6',
                     'border bg-canvas/70 transition-[border-color,box-shadow,transform] duration-200 ease-out',
                     isSelected
-                      ? 'border-primary/60 shadow-[0_0_0_1px_rgb(159_232_112/0.28)]'
+                      ? 'border-primary/60 shadow-[0_0_0_1px_rgb(37_99_235/0.28)]'
                       : 'border-[#E2E8F0] hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-sm'
                   )}
                 >

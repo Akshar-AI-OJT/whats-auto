@@ -135,7 +135,7 @@ export function OrganizationDetailDrawer({
           <>
             <SheetHeader className="shrink-0 border-b border-dash-border p-5 sm:p-6">
               <div className="flex items-start gap-3 pr-8">
-                <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-sm font-bold text-on-primary shadow-[0_6px_16px_rgb(159_232_112/0.35)]">
+                <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-sm font-bold text-on-primary shadow-[0_6px_16px_rgb(37_99_235/0.35)]">
                   {getInitials(organization.name)}
                 </span>
                 <div className="min-w-0">

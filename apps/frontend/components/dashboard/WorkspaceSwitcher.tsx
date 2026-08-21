@@ -172,7 +172,7 @@ export function WorkspaceSwitcher({
           'inline-flex max-w-[9.5rem] items-center gap-2 rounded-xl border border-dash-border bg-canvas px-2 py-1.5 text-left sm:max-w-[16rem] sm:px-2.5',
           'transition-[background-color,border-color,box-shadow] duration-200',
           'hover:border-dash-border-strong hover:bg-dash-surface',
-          open && 'border-primary/45 shadow-[0_0_0_3px_rgb(159_232_112/0.14)]',
+          open && 'border-primary/45 shadow-[0_0_0_3px_rgb(37_99_235/0.14)]',
           isSwitching && 'cursor-wait opacity-80'
         )}
       >
@@ -232,7 +232,7 @@ export function WorkspaceSwitcher({
                       'flex w-full items-center gap-3 rounded-xl px-2.5 py-2.5 text-left',
                       'transition-[background-color,box-shadow] duration-150',
                       selected
-                        ? 'bg-primary-pale shadow-[0_0_0_1px_rgb(159_232_112/0.35)]'
+                        ? 'bg-primary-pale shadow-[0_0_0_1px_rgb(37_99_235/0.35)]'
                         : 'hover:bg-dash-surface',
                       isSwitching && 'cursor-wait opacity-70'
                     )}

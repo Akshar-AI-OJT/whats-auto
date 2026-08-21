@@ -456,7 +456,7 @@ export function BillingPage() {
                   className={cn(
                     'relative min-h-[30rem] rounded-2xl border bg-canvas/70 p-6',
                     isCurrent
-                      ? 'border-primary/55 shadow-[0_0_0_1px_rgb(159_232_112/0.25)]'
+                      ? 'border-primary/55 shadow-[0_0_0_1px_rgb(37_99_235/0.25)]'
                       : isSelected
                         ? 'border-primary/30'
                         : 'border-dash-border'

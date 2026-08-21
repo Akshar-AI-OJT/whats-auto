@@ -17,7 +17,7 @@ export async function TermsUpdated() {
             )}
           >
             <div className="flex items-center gap-3">
-              <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary-pale text-positive-deep shadow-[0_0_0_4px_rgb(159_232_112/0.16)]">
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary-pale text-positive-deep shadow-[0_0_0_4px_rgb(37_99_235/0.16)]">
                 <CalendarClock className="size-5" aria-hidden />
               </span>
               <div>

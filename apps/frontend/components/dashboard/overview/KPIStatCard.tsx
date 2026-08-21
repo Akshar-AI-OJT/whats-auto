@@ -222,10 +222,10 @@ export function KPIStatCard({
           className={cn(
             'flex size-10 shrink-0 items-center justify-center rounded-xl sm:size-11 sm:rounded-2xl',
             'bg-primary-pale text-positive-deep',
-            'shadow-[0_4px_12px_rgb(159_232_112/0.22)]',
+            'shadow-[0_4px_12px_rgb(37_99_235/0.22)]',
             'transition-[transform,background-color,box-shadow] duration-200',
             'group-hover:scale-[1.03] group-hover:bg-primary group-hover:text-on-primary',
-            'group-hover:shadow-[0_6px_16px_rgb(159_232_112/0.35)]'
+            'group-hover:shadow-[0_6px_16px_rgb(37_99_235/0.35)]'
           )}
         >
           <Icon className="size-[18px] sm:size-5" aria-hidden />

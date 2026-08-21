@@ -101,7 +101,7 @@ export function MobileMenu({
               onClick={closeMenu}
               className={cn(
                 buttonVariants(),
-                'w-full rounded-xl shadow-[0_1px_2px_rgb(14_15_12/0.06),0_8px_18px_rgb(159_232_112/0.35)] transition-[transform,box-shadow] duration-300 hover:-translate-y-px hover:shadow-[0_2px_4px_rgb(14_15_12/0.06),0_12px_24px_rgb(159_232_112/0.48)]'
+                'w-full rounded-xl shadow-[0_1px_2px_rgb(14_15_12/0.06),0_8px_18px_rgb(37_99_235/0.35)] transition-[transform,box-shadow] duration-300 hover:-translate-y-px hover:shadow-[0_2px_4px_rgb(14_15_12/0.06),0_12px_24px_rgb(37_99_235/0.48)]'
               )}
             >
               {nav.getStarted.label}

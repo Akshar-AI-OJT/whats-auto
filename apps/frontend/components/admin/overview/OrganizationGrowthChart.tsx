@@ -96,8 +96,8 @@ export function OrganizationGrowthChart({ className }: { className?: string }) {
           >
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#9fe870" stopOpacity="0.35" />
-                <stop offset="100%" stopColor="#9fe870" stopOpacity="0.02" />
+                <stop offset="0%" stopColor="#2563eb" stopOpacity="0.35" />
+                <stop offset="100%" stopColor="#2563eb" stopOpacity="0.02" />
               </linearGradient>
             </defs>
 
@@ -126,7 +126,7 @@ export function OrganizationGrowthChart({ className }: { className?: string }) {
             <path
               d={path}
               fill="none"
-              stroke="#9fe870"
+              stroke="#2563eb"
               strokeWidth={2.5}
               strokeLinecap="round"
               strokeLinejoin="round"
