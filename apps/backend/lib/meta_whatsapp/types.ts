@@ -245,10 +245,13 @@ export type TemplateUrlButtonParam = {
 }
 
 /**
- * Normalized named-variable contract stored on message_templates.parameterSchema.
+ * Normalized template-variable contract stored on message_templates.parameterSchema.
  * Media headers set headerMediaType and leave headerNames empty.
- * Named URL-button vars live in urlButtons (Meta index + parameter name).
+ * URL-button vars live in urlButtons (Meta index + parameter name / positional key).
+ * parameterFormat is 'positional' for {{1}}/{{2}} and 'named' for {{name}}.
  */
+export type TemplateParameterFormat = 'named' | 'positional'
+
 export type TemplateParameterSchema = {
   headerNames: string[]
   bodyNames: string[]
@@ -256,6 +259,8 @@ export type TemplateParameterSchema = {
   sendable: boolean
   unsupportedReason?: string
   headerMediaType?: TemplateHeaderMediaType
+  /** Present when sendable and the template has (or had) text placeholders. */
+  parameterFormat?: TemplateParameterFormat
 }
 
 export type MetaGraphErrorBody = {

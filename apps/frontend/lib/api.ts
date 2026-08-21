@@ -712,8 +712,11 @@ export type WhatsappTemplateStatus =
 export type WhatsappTemplateParameterSchema = {
   headerNames?: string[]
   bodyNames?: string[]
+  urlButtons?: Array<{ name: string; index: number }>
   sendable?: boolean
   unsupportedReason?: string | null
+  headerMediaType?: 'image' | 'document'
+  parameterFormat?: 'named' | 'positional'
 }
 
 export type WhatsappTemplateButton = {
@@ -764,6 +767,8 @@ export type CreateWhatsappTemplateBody = {
   language: string
   headerType?: WhatsappTemplateHeaderType | string
   headerContent?: string
+  headerMediaAssetId?: string
+  headerMediaUrl?: string
   bodyText: string
   footerText?: string
   buttons?: WhatsappTemplateButton[]

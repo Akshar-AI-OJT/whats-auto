@@ -34,8 +34,8 @@ export const emptyMappingDraft = (): CampaignVariableMappingDraft => ({
 })
 
 /**
- * Named template variables that must be mapped before send/schedule.
- * Sources: `parameterSchema.headerNames` + `parameterSchema.bodyNames` only.
+ * Template variables that must be mapped before send/schedule.
+ * Sources: headerNames + bodyNames + urlButtons[].name from parameterSchema.
  */
 export function extractTemplateVariableNames(
   template: WhatsappMessageTemplate | null | undefined
@@ -46,14 +46,23 @@ export function extractTemplateVariableNames(
   const names: string[] = []
   const seen = new Set<string>()
 
+  const push = (raw: unknown) => {
+    if (typeof raw !== 'string') return
+    const name = raw.trim()
+    if (!name || seen.has(name)) return
+    seen.add(name)
+    names.push(name)
+  }
+
   for (const list of [schema.headerNames, schema.bodyNames]) {
     if (!Array.isArray(list)) continue
-    for (const raw of list) {
-      if (typeof raw !== 'string') continue
-      const name = raw.trim()
-      if (!name || seen.has(name)) continue
-      seen.add(name)
-      names.push(name)
+    for (const raw of list) push(raw)
+  }
+
+  if (Array.isArray(schema.urlButtons)) {
+    for (const button of schema.urlButtons) {
+      if (!button || typeof button !== 'object') continue
+      push((button as { name?: unknown }).name)
     }
   }
 
