@@ -19,6 +19,7 @@ type CampaignTableProps = {
   onDuplicate: (campaign: Campaign) => void
   onPause: (campaign: Campaign) => void
   onDelete: (campaign: Campaign) => void
+  timeZone?: string | null
 }
 
 export function CampaignTable({
@@ -33,6 +34,7 @@ export function CampaignTable({
   onDuplicate,
   onPause,
   onDelete,
+  timeZone,
 }: CampaignTableProps) {
   const t = useTranslations('dashboard.campaigns')
 
@@ -98,7 +100,7 @@ export function CampaignTable({
                   <span className="text-mute"> ({read}%)</span>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-body">
-                  {formatCampaignDate(campaign.createdAt)}
+                  {formatCampaignDate(campaign.createdAt, timeZone)}
                 </td>
                 <td className="px-4 py-3 text-right">
                   <CampaignActionsMenu

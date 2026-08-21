@@ -10,7 +10,7 @@ import { DateTime } from 'luxon'
  *   converted to UTC exactly once.
  */
 
-const HAS_EXPLICIT_OFFSET = /(?:Z|[+-]\d{2}:?\d{2})$/i
+const HAS_EXPLICIT_OFFSET = /(?:Z|[+-]\d{2}(?::?\d{2})?)$/i
 
 const NAIVE_FORMATS = [
   'yyyy-MM-dd HH:mm:ss',
@@ -67,9 +67,15 @@ export function parseScheduledAt(value: string | Date | DateTime, timeZone: stri
   const zone = resolveIanaTimeZone(timeZone)
 
   if (HAS_EXPLICIT_OFFSET.test(raw)) {
-    return requireValid(DateTime.fromISO(raw, { setZone: true }))
-      .toUTC()
-      .toJSDate()
+    const isoish = raw.includes(' ') ? raw.replace(' ', 'T') : raw
+    const parsed = DateTime.fromISO(isoish, { setZone: true })
+    if (parsed.isValid) {
+      return parsed.toUTC().toJSDate()
+    }
+    const date = new Date(isoish)
+    if (!Number.isNaN(date.getTime())) {
+      return date
+    }
   }
 
   if (raw.includes('T')) {
@@ -99,22 +105,34 @@ export function isScheduledAtInput(value: string): boolean {
 }
 
 export function toUtcIso(value: DateTime | Date | string): string {
-  if (typeof value === 'string') {
-    const date = new Date(value)
-    if (Number.isNaN(date.getTime())) {
-      throw new InvalidScheduledAtError()
-    }
-    return date.toISOString()
-  }
   if (value instanceof Date) {
     if (Number.isNaN(value.getTime())) {
       throw new InvalidScheduledAtError()
     }
     return value.toISOString()
   }
-  const iso = requireValid(value.toUTC()).toISO()
-  if (!iso) {
+  if (typeof value !== 'string') {
+    const iso = requireValid(value.toUTC()).toISO()
+    if (!iso) {
+      throw new InvalidScheduledAtError()
+    }
+    return iso
+  }
+
+  const raw = value.trim()
+  if (!raw) {
     throw new InvalidScheduledAtError()
   }
-  return iso
+
+  // Offset/Z (and ISO with T) are absolute instants. Naive `YYYY-MM-DD HH:mm:ss`
+  // from pg timestamptz is UTC wall clock — do not parse in the process timezone.
+  if (HAS_EXPLICIT_OFFSET.test(raw) || raw.includes('T')) {
+    const normalized = raw.includes(' ') ? raw.replace(' ', 'T') : raw
+    const date = new Date(normalized)
+    if (!Number.isNaN(date.getTime())) {
+      return date.toISOString()
+    }
+  }
+
+  return parseScheduledAt(raw, 'UTC').toISOString()
 }

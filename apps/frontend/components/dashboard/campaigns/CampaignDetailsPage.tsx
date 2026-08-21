@@ -44,8 +44,10 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
     canLaunchCampaigns,
     canPauseCampaigns,
     isLoading: orgsLoading,
+    activeOrganization,
   } = useOrganizations()
 
+  const orgTimeZone = activeOrganization?.timezone
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [cancelOpen, setCancelOpen] = useState(false)
@@ -243,7 +245,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
           </div>
           <p className="mt-2 text-sm text-body">
             {t('details.createdMeta', {
-              date: formatCampaignDate(campaign.createdAt),
+              date: formatCampaignDate(campaign.createdAt, orgTimeZone),
               template: templateName ?? t('noTemplate'),
             })}
           </p>
@@ -382,12 +384,12 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
           <ol className="mt-5 space-y-4">
             <TimelineStep
               label={t('timeline.created')}
-              detail={formatCampaignDate(campaign.createdAt)}
+              detail={formatCampaignDate(campaign.createdAt, orgTimeZone)}
               active
             />
             <TimelineStep
               label={t('timeline.scheduled')}
-              detail={formatCampaignDate(campaign.scheduledAt)}
+              detail={formatCampaignDate(campaign.scheduledAt, orgTimeZone)}
               active={Boolean(campaign.scheduledAt) || ['scheduled', 'sending', 'sent', 'failed'].includes(campaign.status)}
             />
             <TimelineStep
@@ -397,7 +399,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
             />
             <TimelineStep
               label={t('timeline.completed')}
-              detail={campaign.status === 'sent' ? formatCampaignDate(campaign.updatedAt) : '—'}
+              detail={campaign.status === 'sent' ? formatCampaignDate(campaign.updatedAt, orgTimeZone) : '—'}
               active={campaign.status === 'sent'}
             />
           </ol>

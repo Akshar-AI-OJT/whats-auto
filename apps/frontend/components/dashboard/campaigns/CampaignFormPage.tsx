@@ -24,7 +24,13 @@ import {
   listCustomerGroupContacts,
   listCustomerGroups,
 } from '@/components/dashboard/customer-groups/customer-group-service'
-import { datetimeLocalToVineDate } from '@/lib/vine-date'
+import {
+  formatDateTimeLocalInput,
+  isCampaignScheduleInFuture,
+  isoInstantToDateTimeLocal,
+  resolveDisplayTimeZone,
+  toCampaignScheduledAtPayload,
+} from '@/lib/org-datetime'
 import { CampaignRecipientList } from './CampaignRecipientList'
 
 /** Avoid useSearchParams — it can stall the create page on hard refresh via Suspense. */
@@ -75,6 +81,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
     canLaunchCampaigns,
     canViewContacts,
     isLoading: orgsLoading,
+    activeOrganization,
   } = useOrganizations()
 
   const [fromId] = useState(() => (mode === 'create' ? readDuplicateFromId() : null))
@@ -89,6 +96,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
   }>({})
 
   const canSubmit = mode === 'create' ? canCreateCampaigns : canEditCampaigns
+  const orgTimeZone = resolveDisplayTimeZone(activeOrganization?.timezone)
 
   const sourceQuery = useQuery({
     queryKey: queryKeys.campaigns.detail(campaignId || fromId || 'none'),
@@ -159,9 +167,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
       messageTemplateId: source.messageTemplateId ?? '',
       audienceLabel: source.totalRecipients > 0 ? 'all-contacts' : '',
       scheduleMode: source.scheduledAt ? 'later' : 'now',
-      scheduledAt: source.scheduledAt
-        ? new Date(source.scheduledAt).toISOString().slice(0, 16)
-        : '',
+      scheduledAt: isoInstantToDateTimeLocal(source.scheduledAt, orgTimeZone),
     })
   }
 
@@ -273,8 +279,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
       }
 
       if (form.scheduleMode === 'later') {
-        // Vine vine.date() rejects ISO-8601 with T/Z — send YYYY-MM-DD HH:mm:ss.
-        const scheduledAt = datetimeLocalToVineDate(form.scheduledAt)
+        const scheduledAt = toCampaignScheduledAtPayload(form.scheduledAt)
         const { data } = await api.campaigns.schedule(campaign.id, { scheduledAt })
         campaign = unwrapCampaign(data) ?? campaign
       } else if (
@@ -334,7 +339,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
         setFieldErrors(next)
         return false
       }
-      if (new Date(form.scheduledAt).getTime() <= Date.now()) {
+      if (!isCampaignScheduleInFuture(form.scheduledAt, orgTimeZone)) {
         setError(t('form.errors.scheduledAtFuture'))
         setFieldErrors(next)
         return false
@@ -613,7 +618,9 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
                 className="max-w-xs"
               />
             ) : null}
-            <p className="text-xs text-mute">{t('form.scheduleHint')}</p>
+            <p className="text-xs text-mute">
+              {t('form.scheduleHint')} ({orgTimeZone})
+            </p>
           </fieldset>
 
           {error ? (
@@ -714,7 +721,9 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
                 <dt className="text-mute">{t('summary.schedule')}</dt>
                 <dd className="text-right font-medium text-ink">
                   {form.scheduleMode === 'later'
-                    ? form.scheduledAt || t('form.scheduleLater')
+                    ? form.scheduledAt
+                      ? formatDateTimeLocalInput(form.scheduledAt)
+                      : t('form.scheduleLater')
                     : t('form.sendNow')}
                 </dd>
               </div>
