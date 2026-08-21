@@ -4,7 +4,10 @@ import logger from '@adonisjs/core/services/logger'
 import MessageTemplateException from '#exceptions/message_template_exception'
 import { decryptWhatsappAccessToken } from '#lib/meta_whatsapp/access_token_crypto'
 import { createMetaGraphClient, type MetaGraphClient } from '#lib/meta_whatsapp/graph_client'
-import { deriveParameterSchema, parseParameterSchema } from '#lib/meta_whatsapp/template_parameters'
+import {
+  deriveParameterSchema,
+  resolveParameterSchema,
+} from '#lib/meta_whatsapp/template_parameters'
 import type {
   MetaTemplateComponent,
   MetaMessageTemplateItem,
@@ -86,7 +89,13 @@ export class MessageTemplateService {
         typeof row.sampleValues === 'string'
           ? JSON.parse(row.sampleValues)
           : (row.sampleValues ?? null),
-      parameterSchema: parseParameterSchema(this.#jsonField(row.parameterSchema)),
+      parameterSchema: resolveParameterSchema({
+        stored: this.#jsonField(row.parameterSchema),
+        headerType: row.headerType ?? null,
+        headerContent: row.headerContent ?? null,
+        bodyText: row.bodyText ?? '',
+        buttons: typeof row.buttons === 'string' ? JSON.parse(row.buttons) : (row.buttons ?? null),
+      }),
       status: row.status,
       metaTemplateId: row.metaTemplateId ?? null,
       rejectionReason: row.rejectionReason ?? null,

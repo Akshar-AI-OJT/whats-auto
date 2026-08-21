@@ -6,6 +6,7 @@ import {
   mapNamedParametersToMetaComponents,
   parseParameterSchema,
   pickRequiredParameterValues,
+  resolveParameterSchema,
   TemplateParameterError,
 } from '#lib/meta_whatsapp/template_parameters'
 
@@ -574,5 +575,54 @@ test.group('parseParameterSchema', () => {
   test('invalid input is non-sendable', ({ assert }) => {
     assert.isFalse(parseParameterSchema(null).sendable)
     assert.isFalse(parseParameterSchema('x').sendable)
+  })
+})
+
+test.group('resolveParameterSchema', () => {
+  test('returns stored schema when already sendable', ({ assert }) => {
+    const stored = {
+      headerNames: [],
+      bodyNames: ['1'],
+      sendable: true,
+      parameterFormat: 'positional' as const,
+    }
+    const schema = resolveParameterSchema({
+      stored,
+      bodyText: 'Hi {{1}}',
+    })
+    assert.isTrue(schema.sendable)
+    assert.deepEqual(schema.bodyNames, ['1'])
+  })
+
+  test('heals stale non-sendable numbered schema from template text', ({ assert }) => {
+    const schema = resolveParameterSchema({
+      stored: {
+        headerNames: [],
+        bodyNames: [],
+        sendable: false,
+        unsupportedReason: 'Numbered placeholders like {{1}} are not supported; use named variables',
+      },
+      headerType: 'none',
+      bodyText: 'Hello {{1}}, order {{2}} is ready',
+    })
+
+    assert.isTrue(schema.sendable)
+    assert.equal(schema.parameterFormat, 'positional')
+    assert.deepEqual(schema.bodyNames, ['1', '2'])
+  })
+
+  test('keeps truly unsupported schemas (video header)', ({ assert }) => {
+    const schema = resolveParameterSchema({
+      stored: {
+        headerNames: [],
+        bodyNames: [],
+        sendable: false,
+        unsupportedReason: 'Video header templates are not supported',
+      },
+      headerType: 'video',
+      bodyText: 'Hello {{1}}',
+    })
+
+    assert.isFalse(schema.sendable)
   })
 })

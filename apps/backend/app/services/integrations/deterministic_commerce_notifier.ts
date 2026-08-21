@@ -10,7 +10,7 @@ import {
   pickRequiredTemplateValues,
   selectCommerceTemplateName,
 } from '#lib/integrations/notifier_mapping'
-import { parseParameterSchema } from '#lib/meta_whatsapp/template_parameters'
+import { resolveParameterSchema } from '#lib/meta_whatsapp/template_parameters'
 import { IntegrationEventRepository } from '#repositories/integration_event_repository'
 import { WhatsappWebhookRepository } from '#repositories/whatsapp_webhook_repository'
 import { IntegrationRecipientService } from '#services/integrations/integration_recipient_service'
@@ -197,11 +197,17 @@ export class DeterministicCommerceNotifier {
     if (!template || String(template.status).toLowerCase() !== 'approved') {
       return null
     }
-    const schema = parseParameterSchema(
-      typeof template.parameterSchema === 'string'
-        ? JSON.parse(template.parameterSchema)
-        : template.parameterSchema
-    )
+    const schema = resolveParameterSchema({
+      stored:
+        typeof template.parameterSchema === 'string'
+          ? JSON.parse(template.parameterSchema)
+          : template.parameterSchema,
+      headerType: (template.headerType as string | null) ?? null,
+      headerContent: (template.headerContent as string | null) ?? null,
+      bodyText: (template.bodyText as string) ?? '',
+      buttons:
+        typeof template.buttons === 'string' ? JSON.parse(template.buttons) : template.buttons,
+    })
     if (!schema.sendable) {
       return null
     }
