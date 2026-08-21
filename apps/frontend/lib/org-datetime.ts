@@ -88,10 +88,14 @@ function zonedWallClockToUtcMs(isoLocal: string, timeZone: string): number {
 }
 
 /** Convert a datetime-local / naive value into the campaign API payload string. */
-export function toCampaignScheduledAtPayload(value: string): string {
+export function toCampaignScheduledAtPayload(value: string, timeZone?: string): string {
   const trimmed = value.trim()
   if (!trimmed) return trimmed
   if (HAS_EXPLICIT_OFFSET.test(trimmed)) return trimmed
+  if (timeZone) {
+    const ms = zonedWallClockToUtcMs(trimmed, resolveDisplayTimeZone(timeZone))
+    if (!Number.isNaN(ms)) return new Date(ms).toISOString()
+  }
   const matched = trimmed.match(DATE_TIME_LOCAL)
   if (!matched) return trimmed
   const seconds = matched[3] ?? '00'

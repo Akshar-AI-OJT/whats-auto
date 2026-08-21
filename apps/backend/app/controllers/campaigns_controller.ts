@@ -101,7 +101,7 @@ export default class CampaignsController {
   /**
    * @replaceRecipients
    * @summary Replace campaign recipients
-   * @description Replaces the recipient snapshot for a draft or scheduled campaign. Provide either contactIds (All Contacts) or tagId (customer group). Soft-deleted contacts are excluded when targeting by tag.
+   * @description Replaces the recipient snapshot for a draft or scheduled campaign. Provide either contactIds (All Contacts) or tagId (customer group). Soft-deleted and opted-out contacts are excluded. Group targeting stores audienceTagId so later launch can refresh membership.
    * @tag Campaigns
    * @security BearerAuth
    * @paramPath id - Campaign id - @type(string)
@@ -139,7 +139,7 @@ export default class CampaignsController {
   /**
    * @send
    * @summary Send a campaign
-   * @description Marks an eligible draft/scheduled campaign as sending (running). Does not deliver messages yet — broadcast queue fan-out is a future integration. Soft-deleted campaigns return 404.
+   * @description Marks an eligible draft/scheduled campaign as sending (running). Customer-group campaigns re-resolve live group membership and skip opted-out contacts. Soft-deleted campaigns return 404.
    * @tag Campaigns
    * @security BearerAuth
    * @paramPath id - Campaign id - @type(string)
@@ -147,6 +147,7 @@ export default class CampaignsController {
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 403 - { "error": "Permission denied: campaigns:launch", "code": "PERMISSION_DENIED" }
    * @responseBody 404 - { "error": "Campaign not found", "code": "E_CAMPAIGN_NOT_FOUND" }
+   * @responseBody 422 - { "error": "Campaign has no eligible recipients after excluding opted-out and deleted contacts", "code": "E_CAMPAIGN_NO_ELIGIBLE_RECIPIENTS" }
    * @responseBody 422 - { "error": "Campaign with status \"sending\" is not eligible to send", "code": "E_CAMPAIGN_NOT_ELIGIBLE_TO_SEND" }
    */
   async send({ request, params, serialize }: HttpContext) {
@@ -165,11 +166,11 @@ export default class CampaignsController {
   /**
    * @schedule
    * @summary Schedule a campaign
-   * @description Sets scheduledAt to a future datetime and status to scheduled. Soft-deleted campaigns return 404. Scheduler job registration is a future integration.
+   * @description Sets scheduledAt to a future datetime and status to scheduled. Enqueues a delayed campaign.execute job; the worker launches at that instant without a manual send. Naive datetimes use optional timeZone, otherwise the organization timezone. Soft-deleted campaigns return 404.
    * @tag Campaigns
    * @security BearerAuth
    * @paramPath id - Campaign id - @type(string)
-   * @requestBody { "scheduledAt": "2026-08-07T10:00:00.000Z" }
+   * @requestBody { "scheduledAt": "2026-08-07T10:00:00.000Z", "timeZone": "Asia/Kolkata" }
    * @responseBody 200 - { "data": { "id": "uuid", "name": "July Product Launch", "status": "scheduled", "scheduledAt": "2026-08-07T10:00:00.000Z" } }
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 403 - { "error": "Permission denied: campaigns:edit", "code": "PERMISSION_DENIED" }
@@ -186,6 +187,7 @@ export default class CampaignsController {
       campaignId: id,
       organizationId: request.activeMember!.organizationId,
       scheduledAt: payload.scheduledAt,
+      timeZone: payload.timeZone,
     })
 
     return serialize(campaign)
@@ -193,8 +195,8 @@ export default class CampaignsController {
 
   /**
    * @cancel
-   * @summary Cancel a scheduled campaign
-   * @description Reverts a scheduled campaign to draft and clears scheduledAt. Soft-deleted campaigns return 404. Scheduler job removal is a future integration.
+   * @summary Cancel a scheduled or sending campaign
+   * @description Reverts a scheduled or in-flight campaign to draft and clears scheduledAt. No request body is required. Soft-deleted campaigns return 404. Removes the delayed execute job when the queue driver supports it.
    * @tag Campaigns
    * @security BearerAuth
    * @paramPath id - Campaign id - @type(string)
@@ -206,7 +208,7 @@ export default class CampaignsController {
    */
   async cancel({ request, params, serialize }: HttpContext) {
     const { id } = await request.validateUsing(campaignIdParamValidator, {
-      data: params,
+      data: { id: params.id },
     })
 
     const campaign = await new CampaignService().cancelScheduledCampaign({

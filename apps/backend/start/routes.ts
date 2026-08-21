@@ -18,6 +18,7 @@ const AuthController = () => import('#controllers/auth_controller')
 const PreSignupController = () => import('#controllers/pre_signup_controller')
 const VerifySignupController = () => import('#controllers/verify_signup_controller')
 const ContactsController = () => import('#controllers/contacts_controller')
+const TagsController = () => import('#controllers/tags_controller')
 const CampaignsController = () => import('#controllers/campaigns_controller')
 const ConversationsController = () => import('#controllers/conversations_controller')
 const OrganizationsController = () => import('#controllers/organizations_controller')
@@ -649,6 +650,19 @@ router
       .use(middleware.requirePermission({ permission: 'contacts:create' }))
   })
   .prefix('/api/v1/contacts')
+  .use([middleware.jwtAuth(), middleware.tenant()])
+
+// customer groups (tags) — campaign audience targeting
+router
+  .group(() => {
+    router
+      .get('/', [TagsController, 'index'])
+      .use(middleware.requirePermission({ permission: 'contacts:view' }))
+    router
+      .get('/:id/contacts', [TagsController, 'contacts'])
+      .use(middleware.requirePermission({ permission: 'contacts:view' }))
+  })
+  .prefix('/api/v1/tags')
   .use([middleware.jwtAuth(), middleware.tenant()])
 
 // campaigns — outbound broadcasts (product: Campaign)

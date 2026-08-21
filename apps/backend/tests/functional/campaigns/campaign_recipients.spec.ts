@@ -39,7 +39,10 @@ async function seedUser() {
   return id
 }
 
-async function seedContact(organizationId: string, opts?: { deletedAt?: Date | null }) {
+async function seedContact(
+  organizationId: string,
+  opts?: { deletedAt?: Date | null; optedOutAt?: Date | null }
+) {
   return runWithTenant(organizationId, async () => {
     const phone = `1555${String(Math.floor(Math.random() * 1e7)).padStart(7, '0')}`
     const [contact] = await db
@@ -51,6 +54,7 @@ async function seedContact(organizationId: string, opts?: { deletedAt?: Date | n
         name: 'Recipient Contact',
         customFields: {},
         deletedAt: opts?.deletedAt ?? null,
+        optedOutAt: opts?.optedOutAt ?? null,
       })
       .returning(['id'])
     return contact.id as string
@@ -220,5 +224,131 @@ test.group('CampaignService.replaceRecipients', (group) => {
       assert.isNotNull(recipient)
       assert.equal(recipient.status, 'pending')
     })
+  })
+
+  test('tagId stores audienceTagId and excludes opted-out contacts', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const userId = await seedUser()
+    userIds.push(userId)
+
+    const live = await seedContact(organizationId)
+    const optedOut = await seedContact(organizationId, { optedOutAt: new Date() })
+
+    const campaign = await runWithTenant(organizationId, () =>
+      new CampaignService().createCampaign({
+        organizationId,
+        actorUserId: userId,
+        name: 'Group persist',
+        status: 'draft',
+      })
+    )
+
+    const tagId = await runWithTenant(organizationId, async () => {
+      const [tag] = await db
+        .table('tags')
+        .insert({ organizationId, createdByUserId: userId, name: 'VIP Opt' })
+        .returning(['id'])
+      await db.table('contact_tags').insert([
+        { organizationId, tagId: tag.id, contactId: live },
+        { organizationId, tagId: tag.id, contactId: optedOut },
+      ])
+      return tag.id as string
+    })
+
+    const updated = await runWithTenant(organizationId, () =>
+      new CampaignService().replaceRecipients({
+        organizationId,
+        campaignId: campaign.id,
+        tagId,
+      })
+    )
+    assert.equal(updated.totalRecipients, 1)
+    assert.equal(updated.audienceTagId, tagId)
+
+    await runWithTenant(organizationId, async () => {
+      const recipients = await db.from('broadcast_recipients').where('broadcastId', campaign.id)
+      assert.deepEqual(
+        recipients.map((row) => row.contactId),
+        [live]
+      )
+    })
+  })
+
+  test('sendCampaign re-resolves group membership and rejects a missing group', async ({
+    assert,
+  }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const userId = await seedUser()
+    userIds.push(userId)
+
+    const first = await seedContact(organizationId)
+    const campaign = await runWithTenant(organizationId, () =>
+      new CampaignService().createCampaign({
+        organizationId,
+        actorUserId: userId,
+        name: 'Relaunch group',
+        status: 'draft',
+      })
+    )
+
+    const tagId = await runWithTenant(organizationId, async () => {
+      const [tag] = await db
+        .table('tags')
+        .insert({ organizationId, createdByUserId: userId, name: 'Launch Group' })
+        .returning(['id'])
+      await db.table('contact_tags').insert([{ organizationId, tagId: tag.id, contactId: first }])
+      return tag.id as string
+    })
+
+    await runWithTenant(organizationId, () =>
+      new CampaignService().replaceRecipients({
+        organizationId,
+        campaignId: campaign.id,
+        tagId,
+      })
+    )
+
+    const added = await seedContact(organizationId)
+    await runWithTenant(organizationId, async () => {
+      await db.table('contact_tags').insert([{ organizationId, tagId, contactId: added }])
+    })
+
+    try {
+      await runWithTenant(organizationId, () =>
+        new CampaignService().sendCampaign({
+          campaignId: campaign.id,
+          organizationId,
+        })
+      )
+      assert.fail('expected sendCampaign to reject without a template')
+    } catch (error) {
+      assert.instanceOf(error, CampaignException)
+      assert.equal((error as CampaignException).code, 'E_CAMPAIGN_TEMPLATE_NOT_CONFIGURED')
+    }
+
+    await runWithTenant(organizationId, async () => {
+      const recipients = await db.from('broadcast_recipients').where('broadcastId', campaign.id)
+      const contactIds = recipients.map((row) => row.contactId).sort()
+      assert.deepEqual(contactIds, [first, added].sort())
+    })
+
+    await runWithTenant(organizationId, async () => {
+      await db.from('broadcasts').where('id', campaign.id).update({ audienceTagId: randomUUID() })
+    })
+
+    try {
+      await runWithTenant(organizationId, () =>
+        new CampaignService().sendCampaign({
+          campaignId: campaign.id,
+          organizationId,
+        })
+      )
+      assert.fail('expected missing group to reject')
+    } catch (error) {
+      assert.instanceOf(error, CampaignException)
+      assert.equal((error as CampaignException).code, 'E_CAMPAIGN_TAG_NOT_FOUND')
+    }
   })
 })

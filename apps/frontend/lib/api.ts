@@ -271,6 +271,14 @@ export type ContactSummary = {
   updatedAt?: string | null
 }
 
+export type CustomerGroupSummary = {
+  id: string
+  name: string
+  color?: string | null
+  status?: string
+  createdAt?: string
+}
+
 export type CreateContactBody = {
   phone: string
   name?: string
@@ -298,14 +306,37 @@ export type CampaignSummary = {
   failedCount: number
   createdAt: string
   updatedAt: string | null
+  audienceTagId?: string | null
+}
+
+export type Campaign = CampaignSummary
+
+export type CampaignPreview = {
+  campaignId: string
+  campaignName: string
+  campaignStatus?: string
+  messageTemplateId?: string
+  templateName?: string
+  templateStatus?: string
+  category?: string
+  language?: string | null
+  headerType?: string | null
+  headerMediaUrl?: string | null
+  variables?: Record<string, string>
+  bodyPreview: string
+  headerPreview?: string | null
+  footerPreview?: string | null
+  buttons?: unknown
 }
 
 export type CreateCampaignBody = {
   name: string
   whatsappConfigId?: string
   messageTemplateId?: string
-  /** Naive org-local datetime or timezone-aware ISO instant. Use `toCampaignScheduledAtPayload`. */
+  /** Naive local datetime or timezone-aware ISO instant. Use `toCampaignScheduledAtPayload`. */
   scheduledAt?: string
+  /** IANA zone for naive `scheduledAt`. Offset/Z strings ignore this. */
+  timeZone?: string
   status?: 'draft' | 'scheduled'
 }
 
@@ -838,13 +869,76 @@ export const api = {
         }
       ),
 
-    schedule: (campaignId: string, scheduledAt: string) =>
+    schedule: (
+      campaignId: string,
+      scheduledAt: string | { scheduledAt: string; timeZone?: string }
+    ) =>
       protectedRequest<{ data?: CampaignSummary } & CampaignSummary>(
         `/api/v1/campaigns/${campaignId}/schedule`,
         {
           method: 'POST',
-          body: JSON.stringify({ scheduledAt }),
+          body: JSON.stringify(
+            typeof scheduledAt === 'string' ? { scheduledAt } : scheduledAt
+          ),
         }
+      ),
+
+    send: (campaignId: string) =>
+      protectedRequest<{ data?: CampaignSummary } & CampaignSummary>(
+        `/api/v1/campaigns/${campaignId}/send`,
+        { method: 'POST' }
+      ),
+
+    cancel: (campaignId: string) =>
+      protectedRequest<{ data?: CampaignSummary } & CampaignSummary>(
+        `/api/v1/campaigns/${campaignId}/cancel`,
+        { method: 'PATCH' }
+      ),
+
+    duplicate: (campaignId: string) =>
+      protectedRequest<{ data?: CampaignSummary } & CampaignSummary>(
+        `/api/v1/campaigns/${campaignId}/duplicate`,
+        { method: 'POST' }
+      ),
+
+    preview: (campaignId: string, body?: { variables?: Record<string, string> }) =>
+      protectedRequest<{ data?: CampaignPreview } & CampaignPreview>(
+        `/api/v1/campaigns/${campaignId}/preview`,
+        {
+          method: 'POST',
+          body: JSON.stringify(body ?? {}),
+        }
+      ),
+
+    replaceRecipients: (
+      campaignId: string,
+      body: { contactIds?: string[]; tagId?: string; variables?: Record<string, string> }
+    ) =>
+      protectedRequest<{ data?: CampaignSummary } & CampaignSummary>(
+        `/api/v1/campaigns/${campaignId}/recipients`,
+        {
+          method: 'PUT',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    delete: (campaignId: string) =>
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/campaigns/${campaignId}`,
+        { method: 'DELETE' }
+      ),
+  },
+
+  tags: {
+    list: () =>
+      protectedRequest<
+        { data?: CustomerGroupSummary[] } | CustomerGroupSummary[]
+      >('/api/v1/tags', { method: 'GET' }),
+
+    listContacts: (tagId: string) =>
+      protectedRequest<{ data?: ContactSummary[] } | ContactSummary[]>(
+        `/api/v1/tags/${tagId}/contacts`,
+        { method: 'GET' }
       ),
   },
 

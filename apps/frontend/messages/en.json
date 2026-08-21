@@ -1893,6 +1893,15 @@
         "testToRequired": "Enter a recipient phone number to send a test."
       }
     },
+    "campaigns": {
+      "form": {
+        "scheduledAt": "Date and time",
+        "timezone": "Timezone",
+        "orgTimezone": "workspace default",
+        "scheduleHint": "Pick a day and slot that works for your team.",
+        "scheduleLaterHint": "The campaign launches automatically at this time in {timezone}. Messages are not sent until then."
+      }
+    },
     "settings": {
       "eyebrow": "Workspace",
       "title": "Workspace Settings",

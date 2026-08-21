@@ -36,6 +36,34 @@ test.group('NullJobQueueDriver', () => {
   })
 })
 
+test.group('scheduleWorkerCrons', () => {
+  test('registers outbound and campaign recovery crons', async ({ assert }) => {
+    const { scheduleWorkerCrons } = await import('#services/job_queue/schedule_worker_crons')
+    const { CAMPAIGN_RECOVERY_CRON, WHATSAPP_OUTBOUND_RECOVERY_CRON } = await import(
+      '#services/job_queue/job_names'
+    )
+    const driver = new NullJobQueueDriver()
+    const logs: string[] = []
+    await scheduleWorkerCrons(driver, {
+      info: (_payload, msg) => {
+        logs.push(msg)
+      },
+    })
+
+    assert.lengthOf(driver.scheduled, 2)
+    assert.equal(driver.scheduled[0].name, JOB_NAMES.WHATSAPP_OUTBOUND_RECOVERY)
+    assert.equal(driver.scheduled[0].cron, WHATSAPP_OUTBOUND_RECOVERY_CRON)
+    assert.equal(driver.scheduled[0].options?.key, 'outbound-recovery')
+    assert.equal(driver.scheduled[1].name, JOB_NAMES.CAMPAIGN_RECOVERY)
+    assert.equal(driver.scheduled[1].cron, CAMPAIGN_RECOVERY_CRON)
+    assert.equal(driver.scheduled[1].options?.key, 'campaign-recovery')
+    assert.deepEqual(logs, [
+      'job_queue.outbound_recovery.scheduled',
+      'job_queue.campaign_recovery.scheduled',
+    ])
+  })
+})
+
 test.group('WhatsappOutboundDispatchHandler', () => {
   test('rejects invalid payloads without throwing', async ({ assert }) => {
     const handler = createWhatsappOutboundDispatchHandler({

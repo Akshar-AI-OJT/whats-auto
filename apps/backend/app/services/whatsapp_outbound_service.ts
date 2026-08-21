@@ -934,7 +934,6 @@ export default class WhatsappOutboundService {
     return queued
   }
 }
-
 function serializeOutboundError(error: unknown): {
   errorMessage: string
   errorCode: string | null
@@ -962,3 +961,4 @@ function serializeOutboundError(error: unknown): {
 
   return { errorMessage: 'Unknown outbound error', errorCode: null }
 }
+

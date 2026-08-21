@@ -220,7 +220,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
   const canLaunch =
     canLaunchCampaigns &&
     isLaunchableCampaignStatus(campaign.status) &&
-    campaign.totalRecipients > 0 &&
+    (campaign.totalRecipients > 0 || Boolean(campaign.audienceTagId)) &&
     Boolean(campaign.messageTemplateId) &&
     templateApproved
   const canCancel = canPauseCampaigns && isCancellableCampaignStatus(campaign.status)
@@ -390,7 +390,13 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
             />
             <TimelineStep
               label={t('timeline.scheduled')}
-              detail={formatCampaignDate(campaign.scheduledAt, orgTimeZone)}
+              detail={
+                campaign.scheduledAt
+                  ? `${formatCampaignDate(campaign.scheduledAt, orgTimeZone)}${
+                      orgTimeZone ? ` (${orgTimeZone})` : ''
+                    }`
+                  : '—'
+              }
               active={Boolean(campaign.scheduledAt) || ['scheduled', 'sending', 'sent', 'failed'].includes(campaign.status)}
             />
             <TimelineStep

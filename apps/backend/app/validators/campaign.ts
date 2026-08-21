@@ -24,7 +24,13 @@ export const CAMPAIGN_SCHEDULABLE_STATUSES = ['draft', 'scheduled'] as const
 export const CAMPAIGN_SCHEDULED_STATUS = 'scheduled' as const
 
 /**
- * Status after canceling a scheduled campaign.
+ * Statuses eligible for PATCH /campaigns/:id/cancel.
+ * Matches the product UI (scheduled + in-flight sending).
+ */
+export const CAMPAIGN_CANCELLABLE_STATUSES = ['scheduled', 'sending'] as const
+
+/**
+ * Status after canceling a scheduled or sending campaign.
  * `broadcasts` has no "cancelled" status — cancel returns the campaign to draft.
  */
 export const CAMPAIGN_DRAFT_STATUS = 'draft' as const
@@ -94,7 +100,7 @@ const campaignVariableMappingsSchema = vine.record(campaignVariableMappingSchema
  * Keep scheduledAt as a string so timezone intent is not lost.
  * vine.date() parses naive `YYYY-MM-DD HH:mm:ss` in the Node process timezone
  * (TZ=UTC), which would store 10:55 PM local as 10:55 PM UTC.
- * CampaignService converts naive values in the organization timezone once.
+ * CampaignService converts naive values in the selected or organization timezone once.
  */
 const scheduledAtString = vine.string().trim().minLength(1)
 
@@ -143,6 +149,8 @@ export const previewCampaignValidator = vine.create(
 export const scheduleCampaignValidator = vine.create(
   vine.object({
     scheduledAt: scheduledAtString,
+    /** IANA zone for naive `scheduledAt`. Offset/Z strings ignore this. */
+    timeZone: vine.string().trim().minLength(1).maxLength(100).optional(),
   })
 )
 
