@@ -47,6 +47,8 @@ export const queryKeys = {
     all: ['billing'] as const,
     subscription: (orgId?: string | null) =>
       [...queryKeys.billing.all, 'subscription', orgId ?? 'none'] as const,
+    plans: (orgId?: string | null) =>
+      [...queryKeys.billing.all, 'plans', orgId ?? 'none'] as const,
   },
   whatsapp: {
     configs: (orgId?: string | null) => ['whatsapp-configs', orgId ?? 'none'] as const,

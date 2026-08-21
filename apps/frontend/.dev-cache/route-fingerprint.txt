@@ -30,6 +30,7 @@
 [locale]/dashboard/customer-groups/page.tsx
 [locale]/dashboard/inbox/[conversationId]/page.tsx
 [locale]/dashboard/inbox/page.tsx
+[locale]/dashboard/integrations/page.tsx
 [locale]/dashboard/knowledge/page.tsx
 [locale]/dashboard/notifications/page.tsx
 [locale]/dashboard/page.tsx
