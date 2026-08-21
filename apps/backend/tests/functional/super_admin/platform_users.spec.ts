@@ -45,14 +45,17 @@ function unwrapList(body: unknown): { items: PlatformUser[]; meta: PaginationMet
   const root = body as {
     data?: PlatformUser[] | { data?: PlatformUser[]; meta?: PaginationMeta }
     meta?: PaginationMeta
+    metadata?: PaginationMeta
   }
 
+  const meta = root.meta ?? root.metadata ?? null
+
   if (Array.isArray(root.data)) {
-    return { items: root.data, meta: root.meta ?? null }
+    return { items: root.data, meta }
   }
 
   if (root.data && typeof root.data === 'object' && Array.isArray(root.data.data)) {
-    return { items: root.data.data, meta: root.data.meta ?? root.meta ?? null }
+    return { items: root.data.data, meta: root.data.meta ?? meta }
   }
 
   return { items: [], meta: null }
@@ -131,6 +134,12 @@ test.group('Super Admin Platform Users HTTP', (group) => {
     assert.isObject(meta)
     assert.isAbove(meta!.total, 0)
     assert.equal(meta!.currentPage, 1)
+
+    for (const user of items) {
+      assert.isTrue(user.status === 'active' || user.status === 'inactive')
+      assert.isTrue(user.platformRole === 'superadmin' || user.platformRole === null)
+      assert.isArray(user.organizations)
+    }
   })
 
   test('response includes users from multiple organizations', async ({ client, assert }) => {
