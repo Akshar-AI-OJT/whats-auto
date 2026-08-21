@@ -287,7 +287,7 @@ export function PlatformUsersPage() {
                       >
                         <td className="px-4 py-3.5 sm:px-5">
                           <div className="flex min-w-0 items-center gap-3">
-                            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-xs font-bold text-on-primary shadow-[0_4px_12px_rgb(159_232_112/0.25)]">
+                            <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-xs font-bold text-on-primary shadow-[0_4px_12px_rgb(37_99_235/0.25)]">
                               {getInitials(user.name || user.email)}
                             </span>
                             <span className="block truncate text-sm font-semibold text-ink">

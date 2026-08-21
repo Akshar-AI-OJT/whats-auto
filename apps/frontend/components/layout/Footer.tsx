@@ -133,7 +133,7 @@ export async function Footer() {
                       'shadow-[0_1px_2px_rgb(15_23_42/0.04)]',
                       'transition-[transform,color,border-color,box-shadow,background-color] duration-200',
                       'hover:-translate-y-0.5 hover:border-primary/50 hover:bg-primary-pale hover:text-positive-deep',
-                      'hover:shadow-[0_8px_20px_rgb(159_232_112/0.25)]'
+                      'hover:shadow-[0_8px_20px_rgb(37_99_235/0.25)]'
                     )}
                   >
                     <Icon className="size-4" aria-hidden />

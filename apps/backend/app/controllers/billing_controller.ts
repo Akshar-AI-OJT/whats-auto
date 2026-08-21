@@ -1,11 +1,28 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import BillingPolicy from '#policies/billing_policy'
+import { PlanService } from '#services/billing/plan_service'
 import { RazorpayCheckoutService } from '#services/billing/razorpay_checkout_service'
 import { billingCheckoutValidator } from '#validators/billing_checkout'
 import '#types/http'
 
 export default class BillingController {
+  /**
+   * @summary List active billing plans for the tenant
+   * @description Tenant-safe catalog of active SaaS plans (no gateway secrets). Requires billing:view or billing:manage.
+   * @tag Billing
+   * @security BearerAuth
+   * @responseBody 200 - { "data": { "items": [{ "id": "uuid", "code": "growth", "checkoutable": true }] } }
+   * @responseBody 403 - { "error": "Permission denied: billing:view", "code": "PERMISSION_DENIED" }
+   */
+  @inject()
+  async listPlans({ bouncer, serialize }: HttpContext, plans: PlanService) {
+    await bouncer.with(BillingPolicy).authorize('viewPlans')
+
+    const result = await plans.listTenantPlans()
+    return serialize(result)
+  }
+
   /**
    * @summary Start Razorpay checkout for the active organization
    * @description Creates/reuses a Razorpay customer and subscription; returns hosted checkoutUrl. Requires billing:manage.

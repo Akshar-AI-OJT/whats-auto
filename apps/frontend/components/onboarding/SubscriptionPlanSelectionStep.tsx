@@ -6,8 +6,13 @@ import { Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 
-import { api, type SuperAdminPlan } from '@/lib/api'
+import { api, type TenantBillingPlan } from '@/lib/api'
 import { queryKeys } from '@/lib/query-keys'
+import {
+  formatTenantPlanPrice,
+  resolvePlanFeatureLabel,
+  unwrapBillingPlans,
+} from '@/components/dashboard/billing/billing-utils'
 
 export type OnboardingCheckoutablePlanSelection = {
   id: string
@@ -37,12 +42,9 @@ export function SubscriptionPlanSelectionStep({
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: queryKeys.onboarding.plans,
-    queryFn: async (): Promise<SuperAdminPlan[]> => {
-      const { data } = await api.superAdmin.plans.list({ status: 'active' })
-      type ListPayload = { data?: { items?: SuperAdminPlan[] }; items?: SuperAdminPlan[] }
-      const root = data as ListPayload
-      const items = root.data?.items ?? root.items
-      return Array.isArray(items) ? items : []
+    queryFn: async (): Promise<TenantBillingPlan[]> => {
+      const { data } = await api.billing.listPlans()
+      return unwrapBillingPlans(data)
     },
   })
 
@@ -94,10 +96,7 @@ export function SubscriptionPlanSelectionStep({
           <div className="grid auto-rows-min grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
             {plans.map((plan) => {
               const isSelected = selectedPlanId === plan.id
-
-              // Treat plans as checkoutable only when Razorpay is configured.
-              // We intentionally do NOT rely on `gatewayPlanId` in the frontend.
-              const checkoutable = plan.gateway === 'razorpay'
+              const checkoutable = plan.checkoutable
               const customPrice = tSubs('customPrice')
               const popular = tSubs('popular')
 
@@ -106,6 +105,7 @@ export function SubscriptionPlanSelectionStep({
               const workspaces = formatLimit(plan.limits.workspaces, unlimited)
 
               const enabledFeatures = plan.features.filter((f) => f.enabled)
+              const priceLabel = formatTenantPlanPrice(plan.price, plan.currency, customPrice)
 
               return (
                 <button
@@ -121,10 +121,10 @@ export function SubscriptionPlanSelectionStep({
                   }
                   aria-pressed={isSelected}
                   className={cn(
-                    'group relative flex flex-col rounded-2xl p-5 sm:p-6 text-left',
+                    'group relative flex flex-col rounded-2xl p-5 text-left sm:p-6',
                     'border bg-canvas/70 transition-[border-color,box-shadow,transform] duration-200 ease-out',
                     isSelected
-                      ? 'border-primary/60 shadow-[0_0_0_1px_rgb(159_232_112/0.28)]'
+                      ? 'border-primary/60 shadow-[0_0_0_1px_rgb(37_99_235/0.28)]'
                       : 'border-[#E2E8F0] hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-sm'
                   )}
                 >
@@ -145,7 +145,7 @@ export function SubscriptionPlanSelectionStep({
 
                   <div className="mt-5 flex items-baseline gap-1.5">
                     <span className="font-display text-3xl font-semibold tracking-tight text-ink tabular-nums sm:text-4xl">
-                      {plan.price == null ? customPrice : `$${plan.price.toLocaleString('en-US')}`}
+                      {priceLabel}
                     </span>
                     {plan.price != null ? <span className="text-sm text-mute">{perMonth}</span> : null}
                   </div>
@@ -175,7 +175,7 @@ export function SubscriptionPlanSelectionStep({
                           <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md bg-primary-pale text-positive-deep">
                             ✓
                           </span>
-                          <span>{tFeatures(f.key) ?? f.name ?? f.key}</span>
+                          <span>{resolvePlanFeatureLabel(tFeatures, f.key, f.name)}</span>
                         </li>
                       ))}
                     </ul>
@@ -212,7 +212,9 @@ export function SubscriptionPlanSelectionStep({
               <p className="mt-2 text-sm text-ink">
                 <span className="font-semibold">{selected.name}</span>
                 {' - '}
-                {selected.price == null ? t('step4.enterpriseCustomPrice') : `$${selected.price.toLocaleString('en-US')} ${perMonth}`}
+                {selected.price == null
+                  ? t('step4.enterpriseCustomPrice')
+                  : `${formatTenantPlanPrice(selected.price, selected.currency, tSubs('customPrice'))} ${perMonth}`}
               </p>
               <p className="mt-1 text-xs text-mute">{t('step4.summaryNote')}</p>
             </div>
@@ -222,4 +224,3 @@ export function SubscriptionPlanSelectionStep({
     </div>
   )
 }
-

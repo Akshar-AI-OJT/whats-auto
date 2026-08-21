@@ -45,10 +45,10 @@ export async function HeroSection() {
               className={cn(
                 buttonVariants({ size: 'lg' }),
                 'group justify-center rounded-xl border-transparent bg-primary text-on-primary',
-                'shadow-[0_1px_2px_rgb(14_15_12/0.06),0_8px_18px_rgb(159_232_112/0.4)]',
+                'shadow-[0_1px_2px_rgb(14_15_12/0.06),0_8px_18px_rgb(37_99_235/0.4)]',
                 'transition-[transform,box-shadow,background] duration-200',
                 'hover:-translate-y-0.5 hover:bg-primary-active',
-                'hover:shadow-[0_2px_4px_rgb(14_15_12/0.06),0_14px_28px_rgb(159_232_112/0.5)]'
+                'hover:shadow-[0_2px_4px_rgb(14_15_12/0.06),0_14px_28px_rgb(37_99_235/0.5)]'
               )}
             >
               {t('cta')}

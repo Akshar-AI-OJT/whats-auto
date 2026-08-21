@@ -58,6 +58,10 @@ export class PlanRepository {
     return (row as PlanRow | undefined) ?? null
   }
 
+  /**
+   * Checkout acceptance SQL — keep in lockstep with `isPlanCheckoutable`
+   * in the plan transformer (isActive + razorpay + gatewayPlanId).
+   */
   async findActiveCheckoutableById(planId: string, client: Db = db): Promise<PlanRow | null> {
     const row = await client
       .from('plans')
