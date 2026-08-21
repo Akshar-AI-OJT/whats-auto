@@ -27,7 +27,32 @@ test.group('MessageTemplateService parameterSchema', () => {
       sendable: true,
       unsupportedReason: undefined,
       headerMediaType: undefined,
+      parameterFormat: 'named',
     })
+  })
+
+  test('toDto infers positional format from numbered bodyNames', ({ assert }) => {
+    const service = new MessageTemplateService()
+    const dto = service.toDto({
+      id: '11111111-1111-1111-1111-111111111111',
+      organizationId: '22222222-2222-2222-2222-222222222222',
+      name: 'order_shipped',
+      category: 'UTILITY',
+      language: 'en_US',
+      bodyText: 'Hi {{1}}, order {{2}}',
+      parameterSchema: {
+        headerNames: [],
+        bodyNames: ['1', '2'],
+        sendable: true,
+      },
+      status: 'approved',
+      createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      updatedAt: null,
+    })
+
+    assert.isTrue(dto.parameterSchema.sendable)
+    assert.equal(dto.parameterSchema.parameterFormat, 'positional')
+    assert.deepEqual(dto.parameterSchema.bodyNames, ['1', '2'])
   })
 
   test('toDto treats empty parameterSchema as non-sendable', ({ assert }) => {
@@ -63,15 +88,19 @@ test.group('MessageTemplateService parameterSchema', () => {
     assert.equal(payload.headerType, 'TEXT')
   })
 
-  test('create validator rejects unknown category', async ({ assert }) => {
+  test('create validator accepts headerMediaAssetId', async ({ assert }) => {
     const { createMessageTemplateValidator } = await import('#validators/message_template')
-    await assert.rejects(() =>
-      createMessageTemplateValidator.validate({
-        name: 'order_update',
-        category: 'PROMO',
-        language: 'en_US',
-        bodyText: 'Hello',
-      })
-    )
+    const payload = await createMessageTemplateValidator.validate({
+      name: 'promo_banner',
+      category: 'MARKETING',
+      language: 'en_US',
+      headerType: 'IMAGE',
+      headerMediaAssetId: '11111111-1111-4111-8111-111111111111',
+      bodyText: 'Hello {{1}}',
+      sampleValues: { '1': 'Ada' },
+    })
+
+    assert.equal(payload.headerType, 'IMAGE')
+    assert.equal(payload.headerMediaAssetId, '11111111-1111-4111-8111-111111111111')
   })
 })

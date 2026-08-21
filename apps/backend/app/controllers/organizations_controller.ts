@@ -21,6 +21,7 @@ export default class OrganizationsController {
    * @responseHeader 200 - set-auth-jwt - Reminted access token for the new organization - @type(string)
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 409 - { "error": "Accept or decline your pending invitation before creating an organization", "code": "E_INVITE_PENDING" }
+   * @responseBody 409 - { "error": "Organization slug already in use", "code": "E_ORG_SLUG_ALREADY_EXISTS", "field": "slug" }
    */
   async store({ request, response, serialize }: HttpContext) {
     const payload = await request.validateUsing(createOrganizationValidator)
