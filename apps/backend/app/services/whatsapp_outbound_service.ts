@@ -1388,4 +1388,3 @@ function serializeOutboundError(error: unknown): {
 
   return { errorMessage: 'Unknown outbound error', errorCode: null }
 }
-
