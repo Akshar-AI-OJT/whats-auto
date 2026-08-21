@@ -1598,6 +1598,7 @@
       "pendingInvitedBy": "Invited by {name}",
       "you": "you",
       "changeRoleAria": "Change role for {name}",
+      "editAria": "Edit {name}",
       "removeAria": "Remove {name}",
       "removeConfirmTitle": "Remove this member?",
       "removeConfirmBody": "“{name}” will lose access to this workspace immediately.",
@@ -1615,6 +1616,30 @@
         "admin": "Admin",
         "agent": "Agent",
         "viewer": "Viewer"
+      },
+      "editUser": {
+        "title": "Edit member",
+        "subtitle": "Update profile details for this workspace member.",
+        "loading": "Loading member…",
+        "firstname": "First name",
+        "lastname": "Last name",
+        "email": "Email",
+        "isActive": "Active account",
+        "isActiveHint": "Inactive users remain members but are marked inactive.",
+        "cancel": "Cancel",
+        "retry": "Retry",
+        "save": "Save changes",
+        "saving": "Saving…",
+        "errors": {
+          "loadFailed": "Couldn’t load this member.",
+          "saveFailed": "Couldn’t save member changes.",
+          "notFound": "This member was not found in the workspace.",
+          "firstnameRequired": "First name is required.",
+          "lastnameRequired": "Last name is required.",
+          "emailRequired": "Email is required.",
+          "emailInvalid": "Enter a valid email address.",
+          "emailExists": "An account with this email already exists."
+        }
       },
       "errors": {
         "loadFailed": "Couldn’t load team members. Please try again.",
@@ -3219,6 +3244,35 @@
         "confirmSend": "Save & send",
         "confirmSchedule": "Save & schedule",
         "saving": "Saving…",
+        "variableMappings": {
+          "title": "Variable mapping",
+          "hint": "Map each template variable to a contact field, custom field, or static value before sending or scheduling.",
+          "source": "Source",
+          "sourcePlaceholder": "Select source",
+          "sources": {
+            "contact_field": "Contact field",
+            "custom_field": "Custom field",
+            "static": "Static value"
+          },
+          "contactField": "Field",
+          "customField": "Custom field key",
+          "customFieldPlaceholder": "e.g. order_id",
+          "staticValue": "Value",
+          "staticValuePlaceholder": "Enter a non-empty value",
+          "contactFields": {
+            "name": "Name",
+            "first_name": "First name",
+            "customer_name": "Customer name",
+            "email": "Email",
+            "company": "Company",
+            "phone": "Phone"
+          },
+          "statusMapped": "Mapped",
+          "statusUnmapped": "Not mapped",
+          "progressComplete": "All {total} variables mapped",
+          "progressIncomplete": "{mapped} of {total} variables mapped",
+          "notSendable": "This template cannot be sent"
+        },
         "errors": {
           "nameRequired": "Campaign name is required.",
           "nameTooLong": "Campaign name must be 200 characters or fewer.",
@@ -3231,7 +3285,9 @@
           "groupMembersLoadFailed": "Couldn’t load this group’s contacts. Please try again.",
           "audienceTooLarge": "This audience has more than {max} contacts. Reduce the group size before sending.",
           "scheduledAtRequired": "Choose a schedule date and time.",
-          "scheduledAtFuture": "Schedule time must be in the future."
+          "scheduledAtFuture": "Schedule time must be in the future.",
+          "variablesUnmapped": "Map all template variables before send or schedule: {variables}",
+          "templateNotSendable": "This template cannot be sent with the current parameter schema."
         }
       },
       "summary": {
@@ -3239,6 +3295,7 @@
         "name": "Name",
         "type": "Type",
         "template": "Template",
+        "mappings": "Variables",
         "audience": "Audience",
         "schedule": "Schedule"
       },
@@ -4156,26 +4213,48 @@
     "platformUsers": {
       "eyebrow": "Access management",
       "title": "Platform Users",
-      "subtitle": "Manage internal users who operate the Super Admin console.",
+      "subtitle": "View all users across every organization on the platform.",
       "tableTitle": "All platform users",
       "tableDescription": "{count, plural, one {# user} other {# users}}",
+      "tableDescriptionLoading": "Loading users…",
+      "loading": "Loading platform users…",
+      "refresh": "Refresh",
+      "retry": "Try again",
+      "searchPlaceholder": "Search by name or email…",
+      "emptyTitle": "No platform users",
+      "emptyDescription": "No users were returned for this platform.",
+      "emptyFilteredTitle": "No matching users",
+      "emptyFilteredDescription": "Try a different search or status filter.",
+      "emptyValue": "—",
+      "moreOrganizations": "+{count} more",
+      "filters": {
+        "search": "Search",
+        "status": "Status",
+        "allStatuses": "All statuses"
+      },
+      "pagination": {
+        "previous": "Previous",
+        "next": "Next",
+        "pageOf": "Page {page} of {lastPage} · {total} total"
+      },
       "columns": {
         "name": "Name",
         "email": "Email",
         "role": "Role",
+        "organizations": "Organizations",
         "status": "Status",
         "created": "Created Date"
       },
       "roles": {
-        "superAdmin": "Super Admin",
-        "platformAdmin": "Platform Admin",
-        "support": "Support",
-        "finance": "Finance"
+        "superadmin": "Super Admin",
+        "user": "User"
       },
       "statuses": {
         "active": "Active",
-        "invited": "Invited",
         "inactive": "Inactive"
+      },
+      "errors": {
+        "loadFailed": "Couldn't load platform users. Please try again."
       }
     },
     "auditLogs": {

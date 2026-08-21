@@ -77,7 +77,7 @@ export function CampaignActionsMenu({
           <button
             type="button"
             role="menuitem"
-            className="block w-full px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
+            className="block w-full cursor-pointer px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
             onClick={() => {
               setOpen(false)
               onView()
@@ -89,7 +89,7 @@ export function CampaignActionsMenu({
             <button
               type="button"
               role="menuitem"
-              className="block w-full px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
+              className="block w-full cursor-pointer px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
               onClick={() => {
                 setOpen(false)
                 onEdit()
@@ -102,7 +102,7 @@ export function CampaignActionsMenu({
             <button
               type="button"
               role="menuitem"
-              className="block w-full px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
+              className="block w-full cursor-pointer px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
               onClick={() => {
                 setOpen(false)
                 onDuplicate()
@@ -197,7 +197,7 @@ export function CampaignCards({
                   <button
                     type="button"
                     onClick={() => onView(campaign)}
-                    className="truncate text-left font-semibold text-ink hover:underline"
+                    className="cursor-pointer truncate text-left font-semibold text-ink hover:underline"
                   >
                     {campaign.name}
                   </button>

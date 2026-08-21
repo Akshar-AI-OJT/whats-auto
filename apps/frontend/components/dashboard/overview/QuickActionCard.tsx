@@ -15,7 +15,7 @@ export type QuickActionCardProps = {
 }
 
 const cardClassName = cn(
-  'group relative flex h-full w-full items-start gap-3 overflow-hidden rounded-2xl border border-dash-border bg-dash-surface/70 p-4 text-left',
+  'group relative flex h-full w-full cursor-pointer items-start gap-3 overflow-hidden rounded-2xl border border-dash-border bg-dash-surface/70 p-4 text-left',
   'transition-[background-color,border-color,box-shadow,transform] duration-200 ease-out',
   'hover:-translate-y-1 hover:border-primary/45 hover:bg-canvas',
   'hover:dash-elevated-shadow',

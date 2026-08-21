@@ -463,7 +463,7 @@ export function InvoicesPage() {
                           <td className="px-4 py-3">
                             <button
                               type="button"
-                              className="font-medium text-positive-deep hover:underline"
+                              className="cursor-pointer font-medium text-positive-deep hover:underline"
                               onClick={() => router.push(`/admin/invoices/${invoice.id}`)}
                             >
                               {invoice.invoiceNumber}
@@ -523,7 +523,7 @@ export function InvoicesPage() {
                             <div className="inline-flex items-center gap-1">
                               <button
                                 type="button"
-                                className="inline-flex size-8 items-center justify-center rounded-lg text-mute hover:bg-dash-surface hover:text-ink"
+                                className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-mute hover:bg-dash-surface hover:text-ink"
                                 aria-label={t('actions.view')}
                                 onClick={() => router.push(`/admin/invoices/${invoice.id}`)}
                               >
@@ -580,7 +580,7 @@ export function InvoicesPage() {
                   <li key={invoice.id}>
                     <button
                       type="button"
-                      className="w-full rounded-2xl border border-dash-border bg-dash-surface/60 p-4 text-left"
+                      className="w-full cursor-pointer rounded-2xl border border-dash-border bg-dash-surface/60 p-4 text-left"
                       onClick={() => router.push(`/admin/invoices/${invoice.id}`)}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -649,7 +649,7 @@ export function InvoicesPage() {
           <>
             <button
               type="button"
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
+              className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
               onClick={() => {
                 closeMenu()
                 router.push(`/admin/invoices/${menuInvoice.id}`)

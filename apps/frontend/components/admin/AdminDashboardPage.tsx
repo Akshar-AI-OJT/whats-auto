@@ -10,7 +10,7 @@ export async function AdminDashboardPage() {
   const t = await getTranslations('admin.home')
 
   return (
-    <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 sm:gap-6 xl:gap-7">
+    <div className="flex w-full min-w-0 flex-col gap-5 sm:gap-6 xl:gap-7">
       <DashboardPanel
         as="section"
         className="relative overflow-hidden px-4 py-5 sm:px-6 sm:py-6 md:px-7 md:py-7"

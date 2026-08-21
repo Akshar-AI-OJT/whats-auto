@@ -28,6 +28,9 @@ export const queryKeys = {
       [...queryKeys.team.all(orgId), 'list', params ?? {}] as const,
     invites: (orgId?: string | null) => [...queryKeys.team.all(orgId), 'invites'] as const,
     members: (orgId?: string | null) => [...queryKeys.team.all(orgId), 'members'] as const,
+    /** GET /api/v1/organization-admin/users/:userId */
+    userDetail: (orgId?: string | null, userId?: string | null) =>
+      [...queryKeys.team.all(orgId), 'user', userId ?? 'none'] as const,
   },
   roles: {
     all: (orgId?: string | null) => ['roles', orgId ?? 'none'] as const,
@@ -171,6 +174,9 @@ export const queryKeys = {
       plans: ['super-admin-analytics', 'plans'] as const,
       invoiceSummary: ['super-admin-analytics', 'invoice-summary'] as const,
       audit: ['super-admin-analytics', 'audit'] as const,
+      monthlyRevenue: (locale: string, months = 6) =>
+        ['super-admin-analytics', 'monthly-revenue', locale, months] as const,
     },
+    aiConfig: ['admin', 'ai-config'] as const,
   },
 } as const
