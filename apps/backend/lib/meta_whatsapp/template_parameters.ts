@@ -325,6 +325,36 @@ export function parseParameterSchema(raw: unknown): TemplateParameterSchema {
 }
 
 /**
+ * Prefer a sendable stored schema; otherwise re-derive from template fields.
+ * Heals rows that still have pre-dual-format `sendable: false` for numbered vars.
+ */
+export function resolveParameterSchema(params: {
+  stored: unknown
+  headerType?: string | null
+  headerContent?: string | null
+  bodyText: string
+  buttons?: unknown
+}): TemplateParameterSchema {
+  const stored = parseParameterSchema(params.stored)
+  if (stored.sendable) {
+    return stored
+  }
+
+  const derived = deriveParameterSchema({
+    headerType: params.headerType,
+    headerContent: params.headerContent,
+    bodyText: params.bodyText,
+    buttons: params.buttons,
+  })
+
+  if (derived.sendable) {
+    return derived
+  }
+
+  return stored
+}
+
+/**
  * Map parameter values (and optional header media) into Meta Cloud API components.
  * Named templates include parameter_name; positional templates omit it (order-only).
  */
