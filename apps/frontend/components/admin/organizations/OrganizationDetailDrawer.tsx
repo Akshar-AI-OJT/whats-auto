@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { Building2, CreditCard, ExternalLink, Loader2, ScrollText, Users } from 'lucide-react'
-import { api, type AuthorizationAuditEvent, type SuperAdminSubscription } from '@/lib/api'
+import { api, type AuthorizationAuditEvent, type SuperAdminPlan, type SuperAdminSubscription } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { queryKeys } from '@/lib/query-keys'
 import { Link } from '@/i18n/navigation'
@@ -26,6 +26,7 @@ import { OrganizationPlanBadge, OrganizationStatusBadge } from './OrganizationAc
 
 export type OrganizationRow = AdminOrganizationListItem & {
   subscription: SuperAdminSubscription | null
+  /** Live plan UUID when the org has a subscription. */
   planKey: string | null
   planLabel: string
 }
@@ -34,6 +35,7 @@ type DrawerTab = 'overview' | 'users' | 'subscription' | 'activity'
 
 type OrganizationDetailDrawerProps = {
   organization: OrganizationRow | null
+  plans: SuperAdminPlan[]
   onClose: () => void
   onViewOrganization: (organization: OrganizationRow) => void
   onChangeStatus: (organization: OrganizationRow) => void
@@ -93,6 +95,7 @@ function unwrapAuditEvents(data: unknown): AuthorizationAuditEvent[] {
 
 export function OrganizationDetailDrawer({
   organization,
+  plans,
   onClose,
   onViewOrganization,
   onChangeStatus,
@@ -181,6 +184,7 @@ export function OrganizationDetailDrawer({
               {tab === 'overview' ? (
                 <OverviewTab
                   organization={organization}
+                  plans={plans}
                   empty={empty}
                   onViewUsers={() => setTab('users')}
                   onViewSubscription={() => setTab('subscription')}
@@ -190,7 +194,7 @@ export function OrganizationDetailDrawer({
               ) : null}
               {tab === 'users' ? <UsersTab /> : null}
               {tab === 'subscription' ? (
-                <SubscriptionTab organization={organization} empty={empty} />
+                <SubscriptionTab organization={organization} plans={plans} empty={empty} />
               ) : null}
               {tab === 'activity' ? (
                 <ActivityTab organizationId={organization.id} empty={empty} />
@@ -205,6 +209,7 @@ export function OrganizationDetailDrawer({
 
 function OverviewTab({
   organization,
+  plans,
   empty,
   onViewUsers,
   onViewSubscription,
@@ -212,6 +217,7 @@ function OverviewTab({
   onChangeStatus,
 }: {
   organization: OrganizationRow
+  plans: SuperAdminPlan[]
   empty: string
   onViewUsers: () => void
   onViewSubscription: () => void
@@ -273,8 +279,8 @@ function OverviewTab({
             <p className="mt-1 text-lg font-semibold text-ink">{organization.planLabel}</p>
             {organization.subscription ? (
               <p className="mt-1 text-sm text-body">
-                {planAmountLabel(organization.subscription.planId, empty)}
-                {planBillingKind(organization.subscription.planId) === 'monthly'
+                {planAmountLabel(organization.subscription.planId, plans, empty)}
+                {planBillingKind(organization.subscription.planId, plans) === 'monthly'
                   ? ` / ${t('drawer.perMonth')}`
                   : ''}
               </p>
@@ -354,9 +360,11 @@ function UsersTab() {
 
 function SubscriptionTab({
   organization,
+  plans,
   empty,
 }: {
   organization: OrganizationRow
+  plans: SuperAdminPlan[]
   empty: string
 }) {
   const t = useTranslations('admin.organizations')
@@ -383,15 +391,18 @@ function SubscriptionTab({
       <section className="rounded-2xl border border-dash-border bg-dash-surface/40 p-4 sm:p-5">
         <h3 className="text-sm font-semibold text-ink">{t('drawer.planTitle')}</h3>
         <dl className="mt-1">
-          <DetailRow label={t('columns.plan')} value={resolvePlanLabel(subscription.planId)} />
+          <DetailRow
+            label={t('columns.plan')}
+            value={resolvePlanLabel(subscription.planId, plans)}
+          />
           <DetailRow
             label={t('drawer.fields.price')}
-            value={planAmountLabel(subscription.planId, empty)}
+            value={planAmountLabel(subscription.planId, plans, empty)}
           />
           <DetailRow
             label={t('drawer.fields.billing')}
             value={
-              planBillingKind(subscription.planId) === 'monthly'
+              planBillingKind(subscription.planId, plans) === 'monthly'
                 ? t('drawer.monthly')
                 : t('drawer.customBilling')
             }

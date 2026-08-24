@@ -62,6 +62,8 @@ export type CreateInvoiceInput = {
   organizationAddress?: string
   organizationGstin?: string
   planName: string
+  /** Live Super Admin plan UUID when available. */
+  planId?: string
   billingPeriod: InvoiceBillingPeriod
   periodStart: string
   periodEnd: string
