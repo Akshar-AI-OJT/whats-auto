@@ -2245,12 +2245,6 @@
       "refresh": "बातचीत रिफ़्रेश करें",
       "newMessagesBanner": "नए संदेश — नवीनतम दिखाएँ",
       "newConversationCta": "नई बातचीत",
-      "sse": {
-        "title": "इनबॉक्स लाइव कनेक्शन",
-        "live": "लाइव",
-        "connecting": "कनेक्ट हो रहा है",
-        "reconnecting": "फिर से कनेक्ट हो रहा है"
-      },
       "searchLabel": "बातचीत खोजें",
       "searchPlaceholder": "संपर्क नाम या फ़ोन से खोजें…",
       "statusFilterLabel": "स्थिति से फ़िल्टर करें",

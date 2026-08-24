@@ -2250,12 +2250,6 @@
       "refresh": "Refresh conversations",
       "newMessagesBanner": "New messages — show latest",
       "newConversationCta": "New Conversation",
-      "sse": {
-        "title": "Inbox live connection",
-        "live": "Live",
-        "connecting": "Connecting",
-        "reconnecting": "Reconnecting"
-      },
       "searchLabel": "Search conversations",
       "searchPlaceholder": "Search by contact name or phone…",
       "statusFilterLabel": "Filter by status",
