@@ -1827,6 +1827,27 @@
         "createSubmit": "Save Role",
         "editSubmit": "Save Role",
         "saving": "Saving…",
+        "preview": {
+          "action": "Preview changes",
+          "title": "Role permission preview",
+          "description": "Review the access this role will have after you save, and which members may be affected.",
+          "loading": "Loading preview…",
+          "readyToast": "Permission preview ready.",
+          "close": "Close",
+          "role": "Role",
+          "systemRoleHint": "System role — saving writes workspace overrides only.",
+          "resultingTitle": "Access after save",
+          "resultingCount": "{count} permissions selected",
+          "resultingEmpty": "No permissions selected.",
+          "addedTitle": "Permissions added ({count})",
+          "addedEmpty": "No new permissions.",
+          "removedTitle": "Permissions removed ({count})",
+          "removedEmpty": "No permissions removed.",
+          "affectedTitle": "{count} members affected",
+          "affectedNone": "No members lose permissions with this change.",
+          "affectedHint": "These members currently hold this role and would lose at least one permission.",
+          "noChanges": "Selected permissions match the role’s current access — nothing would change on save."
+        },
         "errors": {
           "nameRequired": "Enter a role name (at least 2 characters).",
           "nameTooLong": "Role name must be 20 characters or fewer.",
@@ -1837,7 +1858,8 @@
           "permissionDenied": "You don’t have permission to manage roles.",
           "escalation": "That role would include permissions you don’t hold.",
           "protected": "That role is protected.",
-          "generic": "Couldn’t save this role. Please try again."
+          "generic": "Couldn’t save this role. Please try again.",
+          "previewFailed": "Couldn’t preview this role. Please try again."
         }
       }
     },
