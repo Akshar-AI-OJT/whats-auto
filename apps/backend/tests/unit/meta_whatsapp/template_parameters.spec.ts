@@ -600,7 +600,8 @@ test.group('resolveParameterSchema', () => {
         headerNames: [],
         bodyNames: [],
         sendable: false,
-        unsupportedReason: 'Numbered placeholders like {{1}} are not supported; use named variables',
+        unsupportedReason:
+          'Numbered placeholders like {{1}} are not supported; use named variables',
       },
       headerType: 'none',
       bodyText: 'Hello {{1}}, order {{2}} is ready',

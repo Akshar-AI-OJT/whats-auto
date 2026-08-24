@@ -2,6 +2,7 @@ import type { JobQueueDriver } from '#services/job_queue/contracts/job_queue_dri
 import {
   BILLING_PAYMENT_WEBHOOK_RECOVERY_CRON,
   CAMPAIGN_RECOVERY_CRON,
+  FLOWS_SESSION_RECOVERY_CRON,
   INTEGRATION_EVENTS_RECOVERY_CRON,
   JOB_NAMES,
   MEDIA_PENDING_UPLOAD_CLEANUP_CRON,
@@ -48,14 +49,16 @@ export async function scheduleWorkerCrons(
     {},
     { key: 'media-storage-lifecycle' }
   )
-  logger.info(
-    { cron: MEDIA_STORAGE_LIFECYCLE_CRON },
-    'job_queue.media_storage_lifecycle.scheduled'
-  )
+  logger.info({ cron: MEDIA_STORAGE_LIFECYCLE_CRON }, 'job_queue.media_storage_lifecycle.scheduled')
 
-  await driver.schedule(JOB_NAMES.CAMPAIGN_RECOVERY, CAMPAIGN_RECOVERY_CRON, {}, {
-    key: 'campaign-recovery',
-  })
+  await driver.schedule(
+    JOB_NAMES.CAMPAIGN_RECOVERY,
+    CAMPAIGN_RECOVERY_CRON,
+    {},
+    {
+      key: 'campaign-recovery',
+    }
+  )
   logger.info({ cron: CAMPAIGN_RECOVERY_CRON }, 'job_queue.campaign_recovery.scheduled')
 
   // Billing recovery: sweep payment_webhook_events rows stuck in pending/failed.
@@ -81,4 +84,12 @@ export async function scheduleWorkerCrons(
     { cron: INTEGRATION_EVENTS_RECOVERY_CRON },
     'job_queue.integration_events_recovery.scheduled'
   )
+
+  await driver.schedule(
+    JOB_NAMES.FLOWS_SESSION_RECOVERY,
+    FLOWS_SESSION_RECOVERY_CRON,
+    {},
+    { key: 'flows-session-recovery' }
+  )
+  logger.info({ cron: FLOWS_SESSION_RECOVERY_CRON }, 'job_queue.flows_session_recovery.scheduled')
 }

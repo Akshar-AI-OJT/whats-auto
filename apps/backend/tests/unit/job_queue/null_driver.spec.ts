@@ -2,6 +2,7 @@ import { test } from '@japa/runner'
 import NullJobQueueDriver from '#services/job_queue/drivers/null_driver'
 import { JOB_NAMES } from '#services/job_queue/job_names'
 import { createWhatsappOutboundDispatchHandler } from '#services/job_queue/handlers/whatsapp_outbound_dispatch_handler'
+import { createFlowsSessionRecoveryHandler } from '#services/job_queue/handlers/flows_session_recovery_handler'
 
 test.group('NullJobQueueDriver', () => {
   test('enqueue records jobs without side effects', async ({ assert }) => {
@@ -37,13 +38,14 @@ test.group('NullJobQueueDriver', () => {
 })
 
 test.group('scheduleWorkerCrons', () => {
-  test('registers recovery crons for outbound, media, campaigns, billing, and integrations', async ({
+  test('registers recovery crons for outbound, media, campaigns, billing, integrations, and flows', async ({
     assert,
   }) => {
     const { scheduleWorkerCrons } = await import('#services/job_queue/schedule_worker_crons')
     const {
       BILLING_PAYMENT_WEBHOOK_RECOVERY_CRON,
       CAMPAIGN_RECOVERY_CRON,
+      FLOWS_SESSION_RECOVERY_CRON,
       INTEGRATION_EVENTS_RECOVERY_CRON,
       MEDIA_PENDING_UPLOAD_CLEANUP_CRON,
       MEDIA_STORAGE_LIFECYCLE_CRON,
@@ -57,7 +59,7 @@ test.group('scheduleWorkerCrons', () => {
       },
     })
 
-    assert.lengthOf(driver.scheduled, 6)
+    assert.lengthOf(driver.scheduled, 7)
     assert.equal(driver.scheduled[0].name, JOB_NAMES.WHATSAPP_OUTBOUND_RECOVERY)
     assert.equal(driver.scheduled[0].cron, WHATSAPP_OUTBOUND_RECOVERY_CRON)
     assert.equal(driver.scheduled[0].options?.key, 'outbound-recovery')
@@ -76,6 +78,9 @@ test.group('scheduleWorkerCrons', () => {
     assert.equal(driver.scheduled[5].name, JOB_NAMES.INTEGRATION_EVENTS_RECOVERY)
     assert.equal(driver.scheduled[5].cron, INTEGRATION_EVENTS_RECOVERY_CRON)
     assert.equal(driver.scheduled[5].options?.key, 'integration-events-recovery')
+    assert.equal(driver.scheduled[6].name, JOB_NAMES.FLOWS_SESSION_RECOVERY)
+    assert.equal(driver.scheduled[6].cron, FLOWS_SESSION_RECOVERY_CRON)
+    assert.equal(driver.scheduled[6].options?.key, 'flows-session-recovery')
     assert.deepEqual(logs, [
       'job_queue.outbound_recovery.scheduled',
       'job_queue.media_pending_upload_cleanup.scheduled',
@@ -83,6 +88,7 @@ test.group('scheduleWorkerCrons', () => {
       'job_queue.campaign_recovery.scheduled',
       'job_queue.billing_webhook_recovery.scheduled',
       'job_queue.integration_events_recovery.scheduled',
+      'job_queue.flows_session_recovery.scheduled',
     ])
   })
 })
@@ -150,5 +156,32 @@ test.group('WhatsappOutboundRecoveryHandler', () => {
     })
 
     assert.deepEqual(calls[0], { organizationId: 'org-1', limit: 10 })
+  })
+})
+
+test.group('FlowsSessionRecoveryHandler', () => {
+  test('calls recoverExpiredSessions and purgeOldLogs', async ({ assert }) => {
+    const calls: string[] = []
+    const handler = createFlowsSessionRecoveryHandler({
+      recoverExpiredSessions: async (params: unknown) => {
+        calls.push(`expired:${JSON.stringify(params)}`)
+        return { recovered: 1, scannedOrganizations: 1 }
+      },
+      purgeOldLogs: async (params: unknown) => {
+        calls.push(`purge:${JSON.stringify(params)}`)
+        return { deleted: 2, scannedOrganizations: 1 }
+      },
+    } as any)
+
+    await handler({
+      id: 'job-flow-recovery',
+      name: JOB_NAMES.FLOWS_SESSION_RECOVERY,
+      data: { organizationId: 'org-1', limit: 10 },
+    })
+
+    assert.deepEqual(calls, [
+      'expired:{"organizationId":"org-1","limit":10}',
+      'purge:{"organizationId":"org-1","limit":10}',
+    ])
   })
 })

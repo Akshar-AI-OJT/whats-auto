@@ -4,6 +4,7 @@ import {
   ConversationAiRepository,
   type ConversationAiState,
 } from '#repositories/conversation_ai_repository'
+import { FlowSessionRepository } from '#repositories/flow_session_repository'
 import AiDebounceService from '#services/ai/ai_debounce_service'
 import { canTransitionAiMode } from '#services/ai/conversation_ai_transitions'
 import { runWithTenant } from '#services/tenant_context'
@@ -11,7 +12,8 @@ import { runWithTenant } from '#services/tenant_context'
 export default class ConversationAiModeService {
   constructor(
     private conversations: ConversationAiRepository = new ConversationAiRepository(),
-    private debounce: AiDebounceService = new AiDebounceService()
+    private debounce: AiDebounceService = new AiDebounceService(),
+    private sessions: FlowSessionRepository = new FlowSessionRepository()
   ) {}
 
   async takeover(params: {
@@ -42,6 +44,7 @@ export default class ConversationAiModeService {
     )
     if (!state || state.aiMode === ConversationAiMode.HUMAN_ACTIVE) {
       await this.debounce.cancelPending(params.organizationId, params.conversationId)
+      await this.#pauseFlowSessions(params)
       return
     }
     if (!canTransitionAiMode(state.aiMode, ConversationAiMode.HUMAN_ACTIVE)) return
@@ -56,6 +59,7 @@ export default class ConversationAiModeService {
       })
     )
     await this.debounce.cancelPending(params.organizationId, params.conversationId)
+    await this.#pauseFlowSessions(params)
   }
 
   async #move(
@@ -66,7 +70,12 @@ export default class ConversationAiModeService {
       this.conversations.findById(params)
     )
     if (!state) throw ConversationException.notFound()
-    if (state.aiMode === next.to) return state
+    if (state.aiMode === next.to) {
+      if (next.to === ConversationAiMode.HUMAN_ACTIVE) {
+        await this.#pauseFlowSessions(params)
+      }
+      return state
+    }
     if (!canTransitionAiMode(state.aiMode, next.to)) {
       throw ConversationException.invalidAiTransition()
     }
@@ -83,10 +92,22 @@ export default class ConversationAiModeService {
     if (next.cancelDebounce) {
       await this.debounce.cancelPending(params.organizationId, params.conversationId)
     }
+    if (next.to === ConversationAiMode.HUMAN_ACTIVE) {
+      await this.#pauseFlowSessions(params)
+    }
 
     const updated = await runWithTenant(params.organizationId, () =>
       this.conversations.findById(params)
     )
     return updated ?? { ...state, aiMode: next.to, aiHandoverReason: next.reason }
+  }
+
+  async #pauseFlowSessions(params: {
+    organizationId: string
+    conversationId: string
+  }): Promise<void> {
+    await runWithTenant(params.organizationId, () =>
+      this.sessions.pauseActiveForConversation(params)
+    )
   }
 }

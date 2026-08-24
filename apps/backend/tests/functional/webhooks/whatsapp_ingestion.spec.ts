@@ -240,6 +240,7 @@ test.group('WhatsApp webhook ingestion', (group) => {
 
       assert.lengthOf(events, 1)
       assert.equal(events[0].payload.providerMessageId, 'wamid.text.1')
+      assert.isNull(events[0].payload.interactiveReplyId)
     } finally {
       emitter.off(InboxMessageReceived, onMessage)
     }
@@ -383,6 +384,82 @@ test.group('WhatsApp webhook ingestion', (group) => {
       assert.lengthOf(conversations, 1)
       assert.equal(conversations[0].unreadCount, 3)
     })
+  })
+
+  test('emits InboxMessageReceived.interactiveReplyId for button and list replies', async ({
+    client,
+    assert,
+  }) => {
+    const fixture = await createFixture()
+    const events: InboxMessageReceived[] = []
+    const onMessage = (event: InboxMessageReceived) => events.push(event)
+    emitter.on(InboxMessageReceived, onMessage)
+
+    try {
+      const { payload, signature } = signedPayload({
+        object: 'whatsapp_business_account',
+        entry: [
+          {
+            id: 'waba',
+            changes: [
+              {
+                field: 'messages',
+                value: messagesValue({
+                  phoneNumberId: fixture.phoneNumberId,
+                  contacts: [{ wa_id: '15556667777', profile: { name: 'Reply User' } }],
+                  messages: [
+                    {
+                      from: '15556667777',
+                      id: 'wamid.button.reply.1',
+                      timestamp: '1700002000',
+                      type: 'interactive',
+                      interactive: {
+                        type: 'button_reply',
+                        button_reply: { id: 'btn_products', title: 'Products' },
+                      },
+                    },
+                    {
+                      from: '15556667777',
+                      id: 'wamid.list.reply.1',
+                      timestamp: '1700002001',
+                      type: 'interactive',
+                      interactive: {
+                        type: 'list_reply',
+                        list_reply: {
+                          id: 'opt_prod_a',
+                          title: 'Product A',
+                          description: 'First item',
+                        },
+                      },
+                    },
+                  ],
+                }),
+              },
+            ],
+          },
+        ],
+      })
+
+      const response = await client
+        .post('/api/v1/webhooks/whatsapp')
+        .header('X-Hub-Signature-256', signature)
+        .json(payload)
+
+      response.assertStatus(200)
+
+      assert.lengthOf(events, 2)
+      const byWamid = Object.fromEntries(
+        events.map((event) => [event.payload.providerMessageId, event.payload])
+      )
+      assert.equal(byWamid['wamid.button.reply.1'].contentType, 'interactive')
+      assert.equal(byWamid['wamid.button.reply.1'].contentText, 'Products')
+      assert.equal(byWamid['wamid.button.reply.1'].interactiveReplyId, 'btn_products')
+      assert.equal(byWamid['wamid.list.reply.1'].contentType, 'interactive')
+      assert.equal(byWamid['wamid.list.reply.1'].contentText, 'Product A')
+      assert.equal(byWamid['wamid.list.reply.1'].interactiveReplyId, 'opt_prod_a')
+    } finally {
+      emitter.off(InboxMessageReceived, onMessage)
+    }
   })
 
   test('processes multiple Meta changes in one payload', async ({ client, assert }) => {

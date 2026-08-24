@@ -181,27 +181,6 @@ export default class CampaignException extends Exception {
     })
   }
 
-  static recipientsRequired() {
-    return new this('Campaign requires at least one recipient before schedule or send', {
-      status: 422,
-      code: 'E_CAMPAIGN_RECIPIENTS_REQUIRED',
-    })
-  }
-
-  /** Alias used by execution paths — same meaning as templateNotConfigured. */
-  static templateRequired() {
-    return this.templateNotConfigured()
-  }
-
-  /** Alias used by execution paths — same meaning as whatsappConfigNotConfigured. */
-  static whatsappConfigRequired() {
-    return this.whatsappConfigNotConfigured()
-  }
-
-  static notCancellable(status: string) {
-    return this.notEligibleToCancel(status)
-  }
-
   static templateNotSendable(reason?: string) {
     return new this(reason || 'Campaign template is not sendable', {
       status: 422,

@@ -12,6 +12,8 @@ export const JOB_NAMES = {
   AI_SUMMARIZE_CONVERSATION: 'ai.summarize_conversation',
   AI_REINDEX_ALL_DOCUMENTS: 'ai.reindex_all_documents',
   INTEGRATION_EVENTS_RECOVERY: 'integrations.events.recovery',
+  FLOWS_ADVANCE_SESSION: 'flows.advance_session',
+  FLOWS_SESSION_RECOVERY: 'flows.session.recovery',
 } as const
 
 /** Singleton key so only one platform KB reindex runs at a time. */
@@ -36,3 +38,6 @@ export const BILLING_PAYMENT_WEBHOOK_RECOVERY_CRON = '*/5 * * * *'
 
 /** Cron for re-emitting stuck accepted integration_events (every 5 minutes). */
 export const INTEGRATION_EVENTS_RECOVERY_CRON = '*/5 * * * *'
+
+/** Cron for expired flow sessions and execution-log retention. */
+export const FLOWS_SESSION_RECOVERY_CRON = '*/1 * * * *'

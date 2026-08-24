@@ -5,6 +5,7 @@ import InboxMessageReceived from '#events/inbox_message_received'
 import InboxStatusUpdated from '#events/inbox_status_updated'
 import ContactException from '#exceptions/contact_exception'
 import { parseWebhookChange } from '#lib/meta_whatsapp/webhook_parser'
+import type { MessageMetadata } from '#lib/meta_whatsapp/types'
 import { WhatsappWebhookRepository } from '#repositories/whatsapp_webhook_repository'
 import { MemoryWorkingSetService } from '#services/ai/contracts/memory_working_set_service'
 import RedisMemoryWorkingSetService from '#services/ai/redis_memory_working_set_service'
@@ -146,6 +147,7 @@ export default class WhatsappWebhookIngestionService {
               contactId: contact.id,
               contentType: result.message.contentType,
               contentText: result.message.contentText,
+              interactiveReplyId: interactiveReplyIdFromMetadata(inbound.metadata),
               direction: 'inbound',
               providerMessageId: inbound.providerMessageId,
               status: result.message.status,
@@ -259,4 +261,10 @@ export default class WhatsappWebhookIngestionService {
       )
     }
   }
+}
+
+function interactiveReplyIdFromMetadata(metadata: MessageMetadata): string | null {
+  const id = metadata.interactive?.buttonReply?.id ?? metadata.interactive?.listReply?.id
+  const trimmed = typeof id === 'string' ? id.trim() : ''
+  return trimmed.length > 0 ? trimmed : null
 }
