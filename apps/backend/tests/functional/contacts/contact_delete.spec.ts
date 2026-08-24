@@ -66,7 +66,7 @@ test.group('ContactService.softDeleteContact', (group) => {
       service.createContact({
         organizationId,
         actorUserId: userId,
-        phone: '+15551234001',
+        phoneNumber: '+14155552671',
         name: 'Ada',
       })
     )
@@ -96,7 +96,7 @@ test.group('ContactService.softDeleteContact', (group) => {
       service.createContact({
         organizationId,
         actorUserId: userId,
-        phone: '+15551234002',
+        phoneNumber: '+14165552671',
       })
     )
 
@@ -128,7 +128,7 @@ test.group('ContactService.softDeleteContact', (group) => {
       service.createContact({
         organizationId: otherOrgId,
         actorUserId: userId,
-        phone: '+15551234003',
+        phoneNumber: '+447911123456',
       })
     )
 
@@ -163,13 +163,13 @@ test.group('ContactService.softDeleteContact', (group) => {
     const userId = await seedUser()
     userIds.push(userId)
     const service = new ContactService()
-    const phone = '+15551234004'
+    const phone = '+919876543210'
 
     const original = await runWithTenant(organizationId, () =>
       service.createContact({
         organizationId,
         actorUserId: userId,
-        phone,
+        phoneNumber: phone,
         name: 'Original',
       })
     )
@@ -182,7 +182,7 @@ test.group('ContactService.softDeleteContact', (group) => {
       service.createContact({
         organizationId,
         actorUserId: userId,
-        phone,
+        phoneNumber: phone,
         name: 'Replacement',
       })
     )

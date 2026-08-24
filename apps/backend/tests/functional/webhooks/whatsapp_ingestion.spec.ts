@@ -245,6 +245,64 @@ test.group('WhatsApp webhook ingestion', (group) => {
     }
   })
 
+  test('upserts Meta wa_id values as international digits for IN and US', async ({
+    client,
+    assert,
+  }) => {
+    const fixture = await createFixture()
+
+    for (const [waId, expectedNormalized] of [
+      ['919811122222', '919811122222'],
+      ['15551234567', '15551234567'],
+      ['14155552671', '14155552671'],
+    ] as const) {
+      const { payload, signature } = signedPayload({
+        object: 'whatsapp_business_account',
+        entry: [
+          {
+            id: 'waba',
+            changes: [
+              {
+                field: 'messages',
+                value: messagesValue({
+                  phoneNumberId: fixture.phoneNumberId,
+                  contacts: [{ wa_id: waId, profile: { name: waId } }],
+                  messages: [
+                    {
+                      from: waId,
+                      id: `wamid.waid.${waId}`,
+                      timestamp: '1700000000',
+                      type: 'text',
+                      text: { body: 'hi' },
+                    },
+                  ],
+                }),
+              },
+            ],
+          },
+        ],
+      })
+
+      const response = await client
+        .post('/api/v1/webhooks/whatsapp')
+        .header('Content-Type', 'application/json')
+        .header('X-Hub-Signature-256', signature)
+        .json(payload)
+
+      response.assertStatus(200)
+
+      await runWithTenant(fixture.organizationId, async () => {
+        const contact = await db
+          .from('contacts')
+          .where('organizationId', fixture.organizationId)
+          .where('phoneNormalized', expectedNormalized)
+          .first()
+        assert.isNotNull(contact)
+        assert.equal(contact.phoneNormalized, expectedNormalized)
+      })
+    }
+  })
+
   test('stores media, location, and interactive data only in metadata', async ({
     client,
     assert,
