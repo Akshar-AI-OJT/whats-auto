@@ -8,6 +8,9 @@ export default class extends BaseSchema {
   protected tableName = 'broadcasts'
 
   async up() {
+    const hasColumn = await this.schema.hasColumn(this.tableName, 'variableMappings')
+    if (hasColumn) return
+
     this.schema.alterTable(this.tableName, (table) => {
       table.jsonb('variableMappings').nullable()
     })

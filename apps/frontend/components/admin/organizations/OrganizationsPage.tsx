@@ -22,8 +22,7 @@ import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { KPIStatCard } from '@/components/dashboard/overview/KPIStatCard'
 import { useRouter } from '@/i18n/navigation'
-import type { SuperAdminSubscription } from '@/lib/api'
-import { planKeyFromCheckoutPlanId, type PlanId } from '@/lib/plan-config'
+import type { SuperAdminPlan, SuperAdminSubscription } from '@/lib/api'
 import {
   deleteSuperAdminOrganization,
   listAllSuperAdminOrganizations,
@@ -34,6 +33,7 @@ import {
 } from './organization-api'
 import {
   listAllSuperAdminSubscriptions,
+  listSuperAdminPlansCatalog,
   planLabel,
 } from '@/components/admin/subscriptions/subscription-api'
 import {
@@ -45,11 +45,10 @@ import {
 import { OrganizationDetailDrawer, type OrganizationRow } from './OrganizationDetailDrawer'
 
 type StatusFilter = 'all' | AdminOrganizationUiStatus
-type PlanFilter = 'all' | PlanId
+/** Filter by live plan UUID (`all` = any / no subscription). */
+type PlanFilter = 'all' | string
 
 const PER_PAGE = 20
-const PLAN_FILTERS: PlanId[] = ['starter', 'growth', 'scale', 'enterprise']
-
 const selectClassName = cn(
   'h-11 w-full min-w-0 rounded-xl border border-dash-border bg-canvas px-3 text-sm text-ink outline-none',
   'transition-[border-color,box-shadow] duration-200',
@@ -95,15 +94,15 @@ function pickSubscription(
 function toRow(
   org: AdminOrganizationListItem,
   subscriptions: SuperAdminSubscription[],
+  plans: SuperAdminPlan[],
   unavailable: string
 ): OrganizationRow {
   const subscription = pickSubscription(subscriptions, org.id)
-  const planKey = subscription ? planKeyFromCheckoutPlanId(subscription.planId) : null
   return {
     ...org,
     subscription,
-    planKey,
-    planLabel: subscription ? planLabel(subscription.planId) : unavailable,
+    planKey: subscription?.planId ?? null,
+    planLabel: subscription ? planLabel(subscription.planId, plans) : unavailable,
   }
 }
 
@@ -149,9 +148,28 @@ export function OrganizationsPage() {
     staleTime: 60_000,
   })
 
+  const plansQuery = useQuery({
+    queryKey: queryKeys.admin.plans({ status: 'all', scope: 'organization-catalog' }),
+    queryFn: () => listSuperAdminPlansCatalog('all'),
+    staleTime: 60_000,
+  })
+
   const organizations = useMemo(() => orgsQuery.data?.organizations ?? [], [orgsQuery.data])
   const subscriptions = useMemo(() => orgsQuery.data?.subscriptions ?? [], [orgsQuery.data])
-  const listLoading = orgsQuery.isLoading
+  const plans = useMemo((): SuperAdminPlan[] => plansQuery.data ?? [], [plansQuery.data])
+  const planFilterOptions = useMemo(() => {
+    const byId = new Map<string, SuperAdminPlan>()
+    for (const plan of plans) {
+      if (plan.status === 'archived') continue
+      byId.set(plan.id, plan)
+    }
+    for (const sub of subscriptions) {
+      const match = plans.find((plan) => plan.id === sub.planId)
+      if (match) byId.set(match.id, match)
+    }
+    return [...byId.values()].sort((a, b) => a.name.localeCompare(b.name))
+  }, [plans, subscriptions])
+  const listLoading = orgsQuery.isLoading || plansQuery.isLoading
   const listError = orgsQuery.error ? mapOrgApiError(orgsQuery.error, t('errors.loadFailed')) : null
 
   function patchOrganizations(
@@ -186,8 +204,11 @@ export function OrganizationsPage() {
   const [editError, setEditError] = useState<string | null>(null)
 
   const rows = useMemo(
-    () => organizations.map((org) => toRow(org, subscriptions, t('filters.plan.unavailable'))),
-    [organizations, subscriptions, t]
+    () =>
+      organizations.map((org) =>
+        toRow(org, subscriptions, plans, t('filters.plan.unavailable'))
+      ),
+    [organizations, subscriptions, plans, t]
   )
 
   const kpiCounts = useMemo(
@@ -440,9 +461,9 @@ export function OrganizationsPage() {
               className={selectClassName}
             >
               <option value="all">{t('filters.plan.all')}</option>
-              {PLAN_FILTERS.map((plan) => (
-                <option key={plan} value={plan}>
-                  {t(`filters.plan.${plan}`)}
+              {planFilterOptions.map((plan) => (
+                <option key={plan.id} value={plan.id}>
+                  {plan.name}
                 </option>
               ))}
             </select>
@@ -716,6 +737,7 @@ export function OrganizationsPage() {
 
       <OrganizationDetailDrawer
         organization={selected}
+        plans={plans}
         onClose={() => setSelectedId(null)}
         onViewOrganization={(org) => {
           setSelectedId(null)

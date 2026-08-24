@@ -2,10 +2,12 @@
 'use client'
 
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useMutation } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import {
   Check,
   ChevronRight,
+  Eye,
   Headset,
   Info,
   Loader2,
@@ -15,7 +17,12 @@ import {
   Users,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { api, type ApiError, type OrganizationRole } from '@/lib/api'
+import {
+  api,
+  type ApiError,
+  type OrganizationRole,
+  type RoleUpdatePreview,
+} from '@/lib/api'
 import {
   groupProductPermissions,
   PRODUCT_PERMISSIONS,
@@ -32,6 +39,7 @@ import {
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
+import { DashboardToast, useDashboardToast } from '@/components/dashboard/ui/use-dashboard-toast'
 import { Link } from '@/i18n/navigation'
 import {
   actionLabel,
@@ -45,6 +53,22 @@ import {
   type CrudColumn,
   type RoleTemplateId,
 } from './role-editor-utils'
+import { RoleUpdatePreviewDialog } from './RoleUpdatePreviewDialog'
+
+function unwrapRolePreview(
+  payload: { data?: RoleUpdatePreview } | RoleUpdatePreview | undefined
+): RoleUpdatePreview {
+  if (!payload) {
+    throw new Error('Empty preview response')
+  }
+  if ('data' in payload && payload.data && Array.isArray(payload.data.permissionsAdded)) {
+    return payload.data
+  }
+  if ('permissionsAdded' in payload && Array.isArray(payload.permissionsAdded)) {
+    return payload as RoleUpdatePreview
+  }
+  throw new Error('Invalid preview response')
+}
 
 const MODULE_DESCRIPTION_KEYS = new Set([
   'inbox',
@@ -138,6 +162,7 @@ export function RoleEditorFullPage({
   const t = useTranslations('dashboard.roles.editor')
   const tRoles = useTranslations('dashboard.roles')
   const { accessContext, canManageRoles, tenantOrganizationId } = useOrganizations()
+  const { toast, showToast, clearToast } = useDashboardToast()
   const TEMP_ROLE_EDIT_REASON = 'Permissions updated from role editor'
 
   const nameId = useId()
@@ -149,6 +174,9 @@ export function RoleEditorFullPage({
   const [role, setRole] = useState<OrganizationRole | null>(null)
   const [roleLoading, setRoleLoading] = useState(mode === 'edit')
   const [roleLoadError, setRoleLoadError] = useState<string | null>(null)
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [previewResult, setPreviewResult] = useState<RoleUpdatePreview | null>(null)
+  const [previewError, setPreviewError] = useState<string | null>(null)
 
   const grantable = useMemo(() => {
     const held = new Set(accessContext?.permissions ?? [])
@@ -263,8 +291,56 @@ export function RoleEditorFullPage({
     return apiError.message || t('errors.generic')
   }
 
+  function mapPreviewError(apiError: ApiError): string {
+    if (apiError.status === 401) return t('errors.sessionExpired')
+    if (apiError.status === 403 || apiError.code === 'PERMISSION_DENIED') {
+      return t('errors.permissionDenied')
+    }
+    if (apiError.code === 'E_PERMISSION_ESCALATION') return t('errors.escalation')
+    if (apiError.code === 'E_ROLE_PROTECTED') return t('errors.protected')
+    return apiError.message || t('errors.previewFailed')
+  }
+
+  const previewMutation = useMutation({
+    mutationFn: async () => {
+      if (!role) throw new Error('Role missing')
+      const { data } = await api.roles.preview(role.role, {
+        permissions: [...selected],
+      })
+      return unwrapRolePreview(data)
+    },
+    onSuccess: (preview) => {
+      setPreviewResult(preview)
+      setPreviewError(null)
+      setPreviewOpen(true)
+      showToast(t('preview.readyToast'), 'success')
+    },
+    onError: (err) => {
+      const message = mapPreviewError(err as unknown as ApiError)
+      setPreviewError(message)
+      setPreviewResult(null)
+      setPreviewOpen(true)
+      showToast(message, 'error')
+    },
+  })
+
+  function requestPreview() {
+    if (mode !== 'edit' || !role || !canManageRoles || !tenantOrganizationId) {
+      setError(t('errors.permissionDenied'))
+      return
+    }
+    if (selected.size === 0) {
+      setPermsError(t('errors.permissionsRequired'))
+      return
+    }
+    setPreviewError(null)
+    setPreviewResult(null)
+    setPreviewOpen(true)
+    previewMutation.mutate()
+  }
+
   function requestCancel() {
-    if (pending) return
+    if (pending || previewMutation.isPending) return
     if (dirty) {
       const confirmed = window.confirm(t('unsavedConfirm'))
       if (!confirmed) return
@@ -411,13 +487,45 @@ export function RoleEditorFullPage({
       : t('editTitle', { role: (role?.role ?? '').toUpperCase() })
   const subtitle = mode === 'create' ? t('createSubtitle') : t('editSubtitle')
   const keyHint = mode === 'create' ? slugPreview(name) : role?.role
-  const saveDisabled = pending || !canManageRoles || !dirty
+  const saveDisabled = pending || previewMutation.isPending || !canManageRoles || !dirty
+  const previewDisabled =
+    pending ||
+    previewMutation.isPending ||
+    !canManageRoles ||
+    !role ||
+    selected.size === 0
 
   const headerActions = (
     <div className="flex flex-col gap-2 sm:flex-row sm:justify-end sm:gap-3">
-      <Button type="button" variant="outline" disabled={pending} onClick={requestCancel}>
+      <Button
+        type="button"
+        variant="outline"
+        disabled={pending || previewMutation.isPending}
+        onClick={requestCancel}
+      >
         {t('cancel')}
       </Button>
+      {mode === 'edit' ? (
+        <Button
+          type="button"
+          variant="outline"
+          disabled={previewDisabled}
+          className="gap-2"
+          onClick={requestPreview}
+        >
+          {previewMutation.isPending ? (
+            <>
+              <Loader2 className="size-4 animate-spin" aria-hidden />
+              {t('preview.loading')}
+            </>
+          ) : (
+            <>
+              <Eye className="size-4" aria-hidden />
+              {t('preview.action')}
+            </>
+          )}
+        </Button>
+      ) : null}
       <Button type="submit" disabled={saveDisabled} className="gap-2">
         {pending ? (
           <>
@@ -479,11 +587,37 @@ export function RoleEditorFullPage({
 
   return (
     <div className="w-full min-w-0">
+      {toast ? (
+        <div className="mb-4">
+          <DashboardToast
+            message={toast.message}
+            variant={toast.variant}
+            onDismiss={clearToast}
+          />
+        </div>
+      ) : null}
+
+      {mode === 'edit' ? (
+        <RoleUpdatePreviewDialog
+          open={previewOpen}
+          onOpenChange={(open) => {
+            setPreviewOpen(open)
+            if (!open) {
+              setPreviewError(null)
+            }
+          }}
+          preview={previewResult}
+          resultingPermissions={[...selected]}
+          loading={previewMutation.isPending}
+          error={previewError}
+        />
+      ) : null}
+
       <form
         className="flex min-w-0 flex-col gap-5"
         onSubmit={handleSubmit}
         noValidate
-        aria-busy={pending}
+        aria-busy={pending || previewMutation.isPending}
         aria-describedby={error ? formErrorId : undefined}
       >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">

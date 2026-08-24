@@ -24,6 +24,11 @@ import {
   type OutboundMediaType,
 } from '#lib/meta_whatsapp/outbound_media'
 import {
+  InteractiveMessageError,
+  serializeInteractivePayload,
+  type MetaInteractivePayload,
+} from '#lib/meta_whatsapp/interactive_message'
+import {
   isRetryableOutboundError,
   isTerminalOutboundFailure,
   nextAttemptAt,
@@ -243,6 +248,78 @@ export default class WhatsappOutboundService {
       await this.#enqueueDispatchWake({
         organizationId: params.organizationId,
         dispatchId: queued.dispatchId,
+      })
+
+      return queued
+    })
+  }
+
+  /**
+   * Queue a Cloud API interactive button or list send (24h session window).
+   */
+  async queueInteractive(params: {
+    organizationId: string
+    conversationId: string
+    interactive: MetaInteractivePayload
+    actorUserId?: string | null
+    idempotencyKey?: string | null
+    senderType?: 'agent' | 'system' | 'ai'
+  }): Promise<QueueOutboundResult> {
+    let interactive: MetaInteractivePayload
+    try {
+      interactive = serializeInteractivePayload(params.interactive)
+    } catch (error) {
+      if (error instanceof InteractiveMessageError) {
+        throw WhatsappOutboundException.invalidInteractive(error.message)
+      }
+      throw error
+    }
+
+    const bodyText = interactive.body.text.trim()
+
+    return runWithTenant(params.organizationId, async () => {
+      const ctx = await this.#loadConversationContext(params.organizationId, params.conversationId)
+      this.#assertSessionWindow(ctx.lastInboundMessageAt)
+
+      const payload: OutboundDispatchPayload = {
+        kind: 'interactive',
+        to: ctx.to,
+        interactive,
+      }
+
+      const queued = await db.transaction(async (trx) => {
+        return this.#queueOutbound(trx, {
+          organizationId: params.organizationId,
+          conversationId: params.conversationId,
+          whatsappConfigId: ctx.whatsappConfigId,
+          actorUserId: params.actorUserId,
+          senderType: params.senderType,
+          contentType: 'interactive',
+          contentText: bodyText,
+          messageTemplateId: null,
+          payload,
+          previewText: bodyText,
+          clientIdempotencyKey: params.idempotencyKey,
+        })
+      })
+
+      await this.#emitInboxMessageQueued({
+        organizationId: params.organizationId,
+        conversationId: params.conversationId,
+        messageId: queued.messageId,
+        dispatchId: queued.dispatchId,
+      })
+
+      await this.#enqueueDispatchWake({
+        organizationId: params.organizationId,
+        dispatchId: queued.dispatchId,
+      })
+
+      await this.#appendAssistantTurn({
+        organizationId: params.organizationId,
+        conversationId: params.conversationId,
+        messageId: queued.messageId,
+        content: bodyText,
       })
 
       return queued
@@ -568,6 +645,34 @@ export default class WhatsappOutboundService {
       })
       if (!result.messageId) {
         throw new MetaGraphApiError('Meta sendMedia returned no message id', 502, null, 'sendMedia')
+      }
+      return result.messageId
+    }
+
+    if (payload.kind === 'interactive') {
+      let interactive: MetaInteractivePayload
+      try {
+        interactive = serializeInteractivePayload(payload.interactive)
+      } catch (error) {
+        if (error instanceof InteractiveMessageError) {
+          throw WhatsappOutboundException.invalidInteractive(error.message)
+        }
+        throw error
+      }
+
+      const result = await this.graphClient.sendInteractiveMessage({
+        phoneNumberId: config.phoneNumberId,
+        accessToken,
+        to: payload.to,
+        interactive,
+      })
+      if (!result.messageId) {
+        throw new MetaGraphApiError(
+          'Meta sendInteractive returned no message id',
+          502,
+          null,
+          'sendInteractive'
+        )
       }
       return result.messageId
     }
@@ -986,7 +1091,7 @@ export default class WhatsappOutboundService {
         'c.id as conversationId',
         'c.whatsappConfigId',
         'c.status as conversationStatus',
-        'ct.phone as contactPhone',
+        'ct.phoneNormalized as contactPhone',
         'wc.status as configStatus',
         'wc.phoneNumberId'
       )
@@ -1303,7 +1408,7 @@ export default class WhatsappOutboundService {
 
     const ctx = await this.#loadConversationContext(params.organizationId, conversationId)
 
-    if (payload.kind === 'text' || payload.kind === 'media') {
+    if (payload.kind === 'text' || payload.kind === 'media' || payload.kind === 'interactive') {
       this.#assertSessionWindow(ctx.lastInboundMessageAt)
     }
 
@@ -1361,7 +1466,6 @@ export default class WhatsappOutboundService {
     }
   }
 }
-
 function serializeOutboundError(error: unknown): {
   errorMessage: string
   errorCode: string | null

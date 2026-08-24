@@ -156,8 +156,13 @@ export class SuperAdminPlatformUsersService {
       }
     })
 
-    paginator.splice(0, paginator.length, ...data)
-    return paginator
+    // Return a DTO envelope. Lucid SimplePaginator keeps original query rows in
+    // a private `rows` snapshot used by all()/toJSON(); splicing the array does
+    // not update that snapshot, so serialize() would drop computed fields.
+    return {
+      data,
+      meta: paginator.getMeta(),
+    }
   }
 
   async #loadLiveMemberships(userIds: string[]): Promise<Map<string, PlatformUserOrganization[]>> {

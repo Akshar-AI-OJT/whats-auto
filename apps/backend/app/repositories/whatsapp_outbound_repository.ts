@@ -5,6 +5,7 @@ import {
   MessageReceiptRepository,
   type ApplyDeliveryReceiptResult,
 } from '#repositories/message_receipt_repository'
+import type { MetaInteractivePayload } from '#lib/meta_whatsapp/interactive_message'
 import type { MetaSendTemplateComponent, MetaWebhookStatusName } from '#lib/meta_whatsapp/types'
 
 export const OUTBOUND_LEASE_MINUTES = 5
@@ -82,8 +83,14 @@ export type OutboundTemplatePayload = {
   components: MetaSendTemplateComponent[]
 }
 
+export type OutboundInteractivePayload = {
+  kind: 'interactive'
+  to: string
+  interactive: MetaInteractivePayload
+}
+
 export type OutboundDispatchPayload =
-  OutboundTextPayload | OutboundTemplatePayload | OutboundMediaPayload
+  OutboundTextPayload | OutboundTemplatePayload | OutboundMediaPayload | OutboundInteractivePayload
 
 export type OutboundDispatchRow = {
   id: string

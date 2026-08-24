@@ -216,6 +216,7 @@ function toCreateBody(input: CreateInvoiceInput) {
     organizationPhone: input.organizationPhone,
     organizationAddress: input.organizationAddress,
     organizationGstin: input.organizationGstin,
+    planId: input.planId,
     planName: input.planName,
     billingPeriod: input.billingPeriod,
     periodStart: input.periodStart,

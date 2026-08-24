@@ -28,17 +28,19 @@ import { SubscriptionDetailPanel } from './SubscriptionDetailPanel'
 import {
   dateInputToIso,
   deleteSuperAdminSubscription,
-  DEMO_PLAN_OPTIONS,
   isoToDateInput,
+  listSuperAdminPlansCatalog,
   listSuperAdminSubscriptions,
   mapSubscriptionApiError,
   planAmountLabel,
   planBillingKind,
   planLabel,
   SUBSCRIPTION_STATUSES,
+  toPlanSelectOptions,
   updateSuperAdminSubscription,
 } from './subscription-api'
 import type {
+  SuperAdminPlan,
   SuperAdminSubscription,
   SuperAdminSubscriptionStatus,
 } from '@/lib/api'
@@ -189,6 +191,12 @@ export function SubscriptionsPage() {
     staleTime: 5 * 60_000,
   })
 
+  const plansQuery = useQuery({
+    queryKey: queryKeys.admin.plans({ status: 'all', scope: 'subscription-catalog' }),
+    queryFn: () => listSuperAdminPlansCatalog('all'),
+    staleTime: 60_000,
+  })
+
   const subscriptions = useMemo(
     () => subsQuery.data?.items ?? [],
     [subsQuery.data]
@@ -196,6 +204,23 @@ export function SubscriptionsPage() {
   const organizations = useMemo(
     () => orgsQuery.data ?? [],
     [orgsQuery.data]
+  )
+  const plans = useMemo((): SuperAdminPlan[] => plansQuery.data ?? [], [plansQuery.data])
+  const planOptions = useMemo(
+    () =>
+      toPlanSelectOptions(plans, {
+        activeOnly: true,
+        includeIds: [
+          editForm?.planId,
+          editTarget?.planId,
+          ...subscriptions.map((sub) => sub.planId),
+        ].filter((id): id is string => Boolean(id)),
+      }),
+    [plans, editForm?.planId, editTarget?.planId, subscriptions]
+  )
+  const filterPlanOptions = useMemo(
+    () => toPlanSelectOptions(plans, { activeOnly: false }),
+    [plans]
   )
   const lastPage = subsQuery.data?.lastPage ?? 1
   const total = subsQuery.data?.total ?? 0
@@ -224,11 +249,13 @@ export function SubscriptionsPage() {
     return subscriptions.filter((sub) => {
       if (statusFilter !== 'all' && sub.status !== statusFilter) return false
       if (planFilter !== 'all' && sub.planId !== planFilter) return false
-      if (billingFilter !== 'all' && planBillingKind(sub.planId) !== billingFilter) return false
+      if (billingFilter !== 'all' && planBillingKind(sub.planId, plans) !== billingFilter) {
+        return false
+      }
       if (!q) return true
       const orgName = orgById.get(sub.organizationId)?.name.toLowerCase() ?? ''
       const website = orgById.get(sub.organizationId)?.website?.toLowerCase() ?? ''
-      const plan = planLabel(sub.planId).toLowerCase()
+      const plan = planLabel(sub.planId, plans).toLowerCase()
       return (
         orgName.includes(q) ||
         website.includes(q) ||
@@ -237,7 +264,7 @@ export function SubscriptionsPage() {
         sub.organizationId.toLowerCase().includes(q)
       )
     })
-  }, [subscriptions, search, statusFilter, planFilter, billingFilter, orgById])
+  }, [subscriptions, search, statusFilter, planFilter, billingFilter, orgById, plans])
 
   const selected = visibleSubscriptions.find((sub) => sub.id === selectedId) ?? null
 
@@ -366,11 +393,18 @@ export function SubscriptionsPage() {
             onChange={(e) => setForm({ ...form, planId: e.target.value })}
             className={selectClassName}
           >
-            {DEMO_PLAN_OPTIONS.map((plan) => (
-              <option key={plan.id} value={plan.id}>
-                {plan.label}
+            {planOptions.length === 0 ? (
+              <option value="" disabled>
+                {plansQuery.isLoading ? t('loading') : t('errors.planRequired')}
               </option>
-            ))}
+            ) : (
+              planOptions.map((plan) => (
+                <option key={plan.id} value={plan.id}>
+                  {plan.label}
+                  {plan.status !== 'active' ? ` (${plan.status})` : ''}
+                </option>
+              ))
+            )}
           </select>
         </div>
 
@@ -529,7 +563,7 @@ export function SubscriptionsPage() {
               aria-label={t('filterPlan')}
             >
               <option value="all">{t('filterAll')}</option>
-              {DEMO_PLAN_OPTIONS.map((plan) => (
+              {filterPlanOptions.map((plan) => (
                 <option key={plan.id} value={plan.id}>
                   {plan.label}
                 </option>
@@ -633,16 +667,16 @@ export function SubscriptionsPage() {
                             >
                               <td className="px-4 py-3">{renderOrgCell(sub)}</td>
                               <td className="px-4 py-3 text-sm font-medium text-ink">
-                                {planLabel(sub.planId)}
+                                {planLabel(sub.planId, plans)}
                               </td>
                               <td className="px-4 py-3">{renderStatus(sub.status)}</td>
                               <td className="px-4 py-3 text-sm text-body">
-                                {planBillingKind(sub.planId) === 'custom'
+                                {planBillingKind(sub.planId, plans) === 'custom'
                                   ? t('billingCustom')
                                   : t('billingMonthly')}
                               </td>
                               <td className="px-4 py-3 text-sm font-medium tabular-nums text-ink">
-                                {planAmountLabel(sub.planId, t('customPrice'))}
+                                {planAmountLabel(sub.planId, plans, t('customPrice'))}
                               </td>
                               <td className="px-4 py-3">
                                 <p className="text-sm tabular-nums text-ink">
@@ -732,7 +766,8 @@ export function SubscriptionsPage() {
                           {renderStatus(sub.status)}
                         </div>
                         <p className="mt-3 text-sm text-body">
-                          {planLabel(sub.planId)} · {planAmountLabel(sub.planId, t('customPrice'))}
+                          {planLabel(sub.planId, plans)} ·{' '}
+                          {planAmountLabel(sub.planId, plans, t('customPrice'))}
                         </p>
                       </button>
                     </li>
@@ -774,6 +809,7 @@ export function SubscriptionsPage() {
         {selected ? (
           <SubscriptionDetailPanel
             subscription={selected}
+            plans={plans}
             organization={orgById.get(selected.organizationId)}
             onClose={() => setSelectedId(null)}
             onChangePlan={() => openEdit(selected)}

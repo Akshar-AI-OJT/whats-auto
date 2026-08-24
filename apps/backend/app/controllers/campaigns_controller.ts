@@ -154,11 +154,11 @@ export default class CampaignsController {
   /**
    * @schedule
    * @summary Schedule a campaign
-   * @description Sets scheduledAt to a future datetime, status to scheduled, and enqueues a delayed execute job. Soft-deleted campaigns return 404.
+   * @description Sets scheduledAt to a future datetime, status to scheduled, and enqueues a delayed execute job. Naive datetimes use optional timeZone, otherwise the organization timezone. Soft-deleted campaigns return 404.
    * @tag Campaigns
    * @security BearerAuth
    * @paramPath id - Campaign id - @type(string)
-   * @requestBody { "scheduledAt": "2026-08-07T10:00:00.000Z" }
+   * @requestBody { "scheduledAt": "2026-08-07T10:00:00.000Z", "timeZone": "Asia/Kolkata" }
    * @responseBody 200 - { "data": { "id": "uuid", "name": "July Product Launch", "status": "scheduled", "scheduledAt": "2026-08-07T10:00:00.000Z" } }
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 403 - { "error": "Permission denied: campaigns:edit", "code": "PERMISSION_DENIED" }
@@ -185,6 +185,7 @@ export default class CampaignsController {
       campaignId: id,
       organizationId: request.activeMember!.organizationId,
       scheduledAt: payload.scheduledAt,
+      timeZone: payload.timeZone,
     })
 
     return serialize(campaign)
@@ -238,7 +239,7 @@ export default class CampaignsController {
   /**
    * @replaceRecipients
    * @summary Replace campaign recipients
-   * @description Replaces the recipient snapshot for a draft or scheduled campaign. Provide either contactIds (All Contacts) or tagId (customer group). Soft-deleted contacts are excluded when targeting by tag.
+   * @description Replaces the recipient snapshot for a draft or scheduled campaign. Provide either contactIds (All Contacts) or tagId (customer group). Soft-deleted and opted-out contacts are excluded. Group targeting stores audienceTagId so later launch can refresh membership.
    * @tag Campaigns
    * @security BearerAuth
    * @paramPath id - Campaign id - @type(string)

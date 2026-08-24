@@ -2,6 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { accessPlatform } from '#abilities/main'
 import SuperAdminPolicy from '#policies/super_admin_policy'
 import { SuperAdminPlatformUsersService } from '#services/super_admin_platform_users_service'
+import PlatformUserTransformer from '#transformers/platform_user_transformer'
 import { listSuperAdminPlatformUsersValidator } from '#validators/super_admin_platform_users'
 import '#types/http'
 
@@ -30,7 +31,7 @@ export default class SuperAdminPlatformUsersController {
       data: request.qs(),
     })
 
-    const users = await new SuperAdminPlatformUsersService().listPlatformUsersPaginated({
+    const { data, meta } = await new SuperAdminPlatformUsersService().listPlatformUsersPaginated({
       page: query.page ?? 1,
       perPage: query.perPage ?? 20,
       search: query.search,
@@ -39,6 +40,6 @@ export default class SuperAdminPlatformUsersController {
       role: query.role,
     })
 
-    return serialize(users)
+    return serialize(PlatformUserTransformer.paginate(data, meta))
   }
 }

@@ -14,6 +14,8 @@ export default class InboxMessageReceived extends BaseEvent {
       contactId: string
       contentType: string
       contentText: string | null
+      /** Button/list reply id from metadata.interactive; null for non-interactive inbound. */
+      interactiveReplyId?: string | null
       direction: 'inbound'
       providerMessageId: string
       status: string

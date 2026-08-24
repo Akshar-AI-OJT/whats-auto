@@ -306,7 +306,7 @@ export class ContactImportRowSchema extends BaseModel {
 }
 
 export class ContactImportSchema extends BaseModel {
-  static $columns = ['columnMapping', 'completedAt', 'createdAt', 'createdByUserId', 'errorCount', 'fileName', 'id', 'organizationId', 'processedRows', 'status', 'successCount', 'totalRows', 'updatedAt'] as const
+  static $columns = ['columnMapping', 'completedAt', 'createdAt', 'createdByUserId', 'defaultCountryCode', 'errorCount', 'fileName', 'id', 'organizationId', 'processedRows', 'status', 'successCount', 'totalRows', 'updatedAt'] as const
   $columns = ContactImportSchema.$columns
   @column()
   declare columnMapping: any | null
@@ -316,6 +316,8 @@ export class ContactImportSchema extends BaseModel {
   declare createdAt: DateTime
   @column()
   declare createdByUserId: string | null
+  @column()
+  declare defaultCountryCode: string | null
   @column()
   declare errorCount: number
   @column()

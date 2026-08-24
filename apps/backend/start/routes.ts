@@ -47,6 +47,7 @@ const ConversationNotesController = () => import('#controllers/conversation_note
 const MediaUploadsController = () => import('#controllers/media_uploads_controller')
 const MediaAssetsController = () => import('#controllers/media_assets_controller')
 const KnowledgeDocumentsController = () => import('#controllers/knowledge_documents_controller')
+const FlowsController = () => import('#controllers/flows_controller')
 const BillingController = () => import('#controllers/billing_controller')
 const BillingRazorpayWebhookController = () =>
   import('#controllers/billing_razorpay_webhook_controller')
@@ -242,6 +243,93 @@ const requestBodySchemas: Record<string, JsonSchema> = {
     },
     ['title', 'sourceType', 'fileName', 'mimeType', 'fileSize']
   ),
+  'post /api/v1/flows': bodySchema(
+    {
+      name: { type: 'string', example: 'Welcome flow' },
+      description: { type: 'string', example: 'Keyword welcome menu', nullable: true },
+      triggerType: {
+        type: 'string',
+        example: 'KEYWORD',
+        enum: ['KEYWORD', 'INBOUND_ANY', 'CAMPAIGN_REPLY', 'SUBFLOW_ENTRY'],
+      },
+      triggerConfig: {
+        type: 'object',
+        example: { keywords: ['hi', 'hello'], matchType: 'exact' },
+      },
+      settings: {
+        type: 'object',
+        example: {
+          sessionTtlMinutes: 1440,
+          onExpiry: 'RESUME_PROMPT',
+          tangentResume: 'IMMEDIATE_REPROMPT',
+        },
+      },
+      isDefault: { type: 'boolean', example: false },
+    },
+    ['name']
+  ),
+  'patch /api/v1/flows/{id}': bodySchema({
+    name: { type: 'string', example: 'Welcome flow v2' },
+    description: { type: 'string', example: 'Updated welcome menu', nullable: true },
+    triggerType: {
+      type: 'string',
+      example: 'KEYWORD',
+      enum: ['KEYWORD', 'INBOUND_ANY', 'CAMPAIGN_REPLY', 'SUBFLOW_ENTRY'],
+    },
+    triggerConfig: {
+      type: 'object',
+      example: { keywords: ['hi'], matchType: 'contains' },
+    },
+    settings: {
+      type: 'object',
+      example: { sessionTtlMinutes: 120, onExpiry: 'RESTART', tangentResume: 'WAIT_FOR_NEXT' },
+    },
+    isDefault: { type: 'boolean', example: false },
+    nodes: {
+      type: 'array',
+      items: { type: 'object' },
+      example: [
+        {
+          id: 'trigger',
+          type: 'TRIGGER',
+          position: { x: 0, y: 0 },
+          data: { label: 'Start' },
+        },
+      ],
+    },
+    edges: {
+      type: 'array',
+      items: { type: 'object' },
+      example: [{ id: 'e1', source: 'trigger', target: 'message' }],
+    },
+    viewport: {
+      type: 'object',
+      example: { x: 0, y: 0, zoom: 1 },
+    },
+  }),
+  'post /api/v1/flows/{id}/validate': bodySchema({
+    nodes: {
+      type: 'array',
+      items: { type: 'object' },
+      example: [
+        {
+          id: 'trigger',
+          type: 'TRIGGER',
+          position: { x: 0, y: 0 },
+          data: { label: 'Start' },
+        },
+      ],
+    },
+    edges: {
+      type: 'array',
+      items: { type: 'object' },
+      example: [{ id: 'e1', source: 'trigger', target: 'message' }],
+    },
+    viewport: {
+      type: 'object',
+      example: { x: 0, y: 0, zoom: 1 },
+    },
+  }),
   'post /api/v1/whatsapp/embedded-signup/complete': bodySchema(
     {
       code: { type: 'string', example: 'AQB...' },
@@ -258,9 +346,26 @@ const requestBodySchemas: Record<string, JsonSchema> = {
     },
     ['to']
   ),
-  'post /api/v1/contacts': bodySchema({ phone: { type: 'string', example: '+919876543210' } }, [
-    'phone',
-  ]),
+  'post /api/v1/contacts': bodySchema(
+    {
+      phoneNumber: {
+        type: 'string',
+        example: '9876543210',
+        description:
+          'National number with countryCode, or international beginning with + (for example +14155552671).',
+      },
+      countryCode: {
+        type: 'string',
+        example: 'IN',
+        description:
+          'ISO 3166-1 alpha-2. Required for national numbers; optional when phoneNumber starts with +.',
+      },
+      name: { type: 'string', example: 'John' },
+      email: { type: 'string', format: 'email', example: 'john@example.com' },
+      company: { type: 'string', example: 'Example' },
+    },
+    ['phoneNumber']
+  ),
   'post /api/v1/tags': bodySchema(
     {
       name: { type: 'string', example: 'VIP' },
@@ -760,11 +865,13 @@ router
   .group(() => {
     router.get('/', [ContactsController, 'index'])
     router.post('/', [ContactsController, 'store'])
+    router.post('/import', [ContactsController, 'importCsv'])
+    router.delete('/:id', [ContactsController, 'softDelete'])
   })
   .prefix('/api/v1/contacts')
   .use([middleware.jwtAuth(), middleware.tenant()])
 
-// contact tags — grouping via existing tags / contact_tags tables
+// contact tags — grouping via existing tags / contact_tags tables (product: Customer Groups)
 router
   .group(() => {
     router.get('/', [TagsController, 'index'])
@@ -827,6 +934,20 @@ router
     router.post('/:id/purge', [KnowledgeDocumentsController, 'purge'])
   })
   .prefix('/api/v1/ai/knowledge-documents')
+  .use([middleware.jwtAuth(), middleware.tenant()])
+
+// visual conversation flows — draft graph + publish pointer
+router
+  .group(() => {
+    router.get('/', [FlowsController, 'index'])
+    router.post('/', [FlowsController, 'store'])
+    router.get('/:id', [FlowsController, 'show'])
+    router.patch('/:id', [FlowsController, 'update'])
+    router.post('/:id/validate', [FlowsController, 'validate'])
+    router.post('/:id/publish', [FlowsController, 'publish'])
+    router.delete('/:id', [FlowsController, 'destroy'])
+  })
+  .prefix('/api/v1/flows')
   .use([middleware.jwtAuth(), middleware.tenant()])
 
 // campaigns — outbound broadcasts (product: Campaign)

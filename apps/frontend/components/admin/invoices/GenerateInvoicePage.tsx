@@ -1,14 +1,19 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { ArrowLeft, ArrowRight, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { Link, useRouter } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
+import { queryKeys } from '@/lib/query-keys'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
-import { DEMO_PLAN_OPTIONS } from '@/components/admin/subscriptions/subscription-api'
+import {
+  listSuperAdminPlansCatalog,
+  toPlanSelectOptions,
+} from '@/components/admin/subscriptions/subscription-api'
 import { InvoicePreviewPanel } from './InvoicePreviewPanel'
 import {
   buildDraftInvoice,
@@ -16,7 +21,6 @@ import {
   draftFormToCreateInput,
   emptyDraftForm,
   lineItemAmount,
-  PLAN_DEFAULT_AMOUNTS,
   planSubscriptionLabel,
   validateDraftForm,
   type InvoiceDraftForm,
@@ -75,37 +79,62 @@ function StepIndicator({ step }: { step: Step }) {
 export function GenerateInvoicePage() {
   const t = useTranslations('admin.invoices')
   const router = useRouter()
-  const [organizations, setOrganizations] = useState<InvoiceOrganization[]>([])
-  const [orgsLoading, setOrgsLoading] = useState(true)
-
   const [step, setStep] = useState<Step>(1)
   const [form, setForm] = useState<InvoiceDraftForm>(() => emptyDraftForm())
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false)
 
-  useEffect(() => {
-    let cancelled = false
-    void listInvoiceOrganizations()
-      .then((items) => {
-        if (cancelled) return
-        setOrganizations(items)
-        if (items[0]) {
-          setForm((current) =>
-            current.organizationId ? current : { ...current, organizationId: items[0].id }
-          )
-        }
-      })
-      .catch(() => {
-        if (!cancelled) setOrganizations([])
-      })
-      .finally(() => {
-        if (!cancelled) setOrgsLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  const orgsQuery = useQuery({
+    queryKey: queryKeys.admin.organizations({ scope: 'invoice-generate' }),
+    queryFn: listInvoiceOrganizations,
+    staleTime: 60_000,
+  })
+
+  const plansQuery = useQuery({
+    queryKey: queryKeys.admin.plans({ status: 'all', scope: 'invoice-catalog' }),
+    queryFn: () => listSuperAdminPlansCatalog('all'),
+    staleTime: 60_000,
+  })
+
+  const organizations = useMemo(
+    (): InvoiceOrganization[] => orgsQuery.data ?? [],
+    [orgsQuery.data]
+  )
+  const orgsLoading = orgsQuery.isLoading
+  const planOptions = useMemo(
+    () =>
+      toPlanSelectOptions(plansQuery.data ?? [], {
+        activeOnly: true,
+        includeIds: form.planId ? [form.planId] : [],
+      }),
+    [plansQuery.data, form.planId]
+  )
+
+  // Prefer first org when form has none — apply during render without useEffect sync.
+  const [appliedDefaultOrg, setAppliedDefaultOrg] = useState(false)
+  if (!appliedDefaultOrg && organizations[0] && !form.organizationId) {
+    setAppliedDefaultOrg(true)
+    setForm((current) =>
+      current.organizationId ? current : { ...current, organizationId: organizations[0].id }
+    )
+  }
+
+  // Prefer first active plan when form has none.
+  const [appliedDefaultPlan, setAppliedDefaultPlan] = useState(false)
+  if (!appliedDefaultPlan && planOptions[0] && !form.planId) {
+    const first = planOptions[0]
+    setAppliedDefaultPlan(true)
+    setForm((current) => {
+      if (current.planId) return current
+      return {
+        ...current,
+        planId: first.id,
+        planName: first.label,
+        lineItems: defaultLineItems(first.label, current.billingPeriod, first.price ?? 0),
+      }
+    })
+  }
 
   const selectedOrg = organizations.find((org) => org.id === form.organizationId) ?? null
 
@@ -119,19 +148,22 @@ export function GenerateInvoicePage() {
     setError(null)
   }
 
-  function handlePlanChange(planName: string) {
-    const unitPrice = PLAN_DEFAULT_AMOUNTS[planName]
+  function handlePlanChange(planId: string) {
+    const selected = planOptions.find((plan) => plan.id === planId)
+    if (!selected) return
+    const planName = selected.label
+    const unitPrice = selected.price ?? 0
     const lineItems = [...form.lineItems]
     if (lineItems[0]) {
       lineItems[0] = {
         ...lineItems[0],
         description: planSubscriptionLabel(planName, form.billingPeriod),
-        unitPrice: unitPrice ?? lineItems[0].unitPrice,
+        unitPrice,
       }
     } else {
-      lineItems.push(...defaultLineItems(planName, form.billingPeriod))
+      lineItems.push(...defaultLineItems(planName, form.billingPeriod, unitPrice))
     }
-    updateForm({ ...form, planName, lineItems })
+    updateForm({ ...form, planId, planName, lineItems })
   }
 
   function handleBillingPeriodChange(billingPeriod: InvoiceBillingPeriod) {
@@ -302,14 +334,21 @@ export function GenerateInvoicePage() {
                 </label>
                 <select
                   id="gen-plan"
-                  value={form.planName}
-                  disabled={readOnly || pending}
+                  value={form.planId}
+                  disabled={readOnly || pending || plansQuery.isLoading}
                   className={selectClassName}
                   onChange={(e) => handlePlanChange(e.target.value)}
                 >
-                  {DEMO_PLAN_OPTIONS.map((plan) => (
-                    <option key={plan.id} value={plan.label}>
-                      {plan.label} ({t('billing.monthly')})
+                  <option value="">{t('fields.subscriptionPlan')}</option>
+                  {planOptions.map((plan) => (
+                    <option key={plan.id} value={plan.id}>
+                      {plan.label} (
+                      {plan.billingPeriod === 'yearly'
+                        ? t('billing.yearly')
+                        : plan.billingPeriod === 'custom'
+                          ? t('billing.custom')
+                          : t('billing.monthly')}
+                      )
                     </option>
                   ))}
                 </select>
