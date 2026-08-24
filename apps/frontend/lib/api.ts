@@ -885,7 +885,22 @@ export type ReplaceCampaignRecipientsBody = {
   tagId?: string
   variables?: Record<string, string>
 }
-
+export type CampaignPreview = {
+  campaignId: string
+  campaignName: string
+  messageTemplateId: string
+  templateName: string
+  templateStatus: string
+  category?: string
+  language?: string | null
+  bodyPreview: string
+  headerType?: string | null
+  headerContent?: string | null
+  headerMediaUrl?: string | null
+  footerText?: string | null
+  variables: Record<string, string>
+  buttons?: unknown
+}
 export type CreateInvitationBody = {
   email: string
   role: string
