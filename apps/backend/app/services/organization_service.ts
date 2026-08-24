@@ -4,8 +4,10 @@ import { Exception } from '@adonisjs/core/exceptions'
 import logger from '@adonisjs/core/services/logger'
 import { DateTime } from 'luxon'
 import InvitationException from '#exceptions/invitation_exception'
+import OrganizationException from '#exceptions/organization_exception'
 import { getGlobalRoleIdByName, resolveAssignableRoleForOrg } from '#services/role_service'
 import { bumpAllOrgMembersPermissionVersion } from '#lib/permission_version_bumps'
+import { isPostgresUniqueViolation } from '#lib/pg_unique_violation'
 import { NotificationService } from '#services/notification_service'
 
 export const ORGANIZATION_TYPES = [
@@ -169,58 +171,65 @@ export class OrganizationService {
 
     const ownerRoleId = await getGlobalRoleIdByName('owner')
 
-    return db.transaction(async (trx) => {
-      const [org] = await trx
-        .table('organizations')
-        .insert({
-          name: data.name,
-          slug: data.slug,
-          email: data.email,
-          phone: data.phone,
-          website: data.website ?? null,
-          industry: data.industry ?? null,
-          organizationType: data.organizationType,
-          address: data.address,
-          pan: data.pan.replace(/\s+/g, '').toUpperCase(),
-          gstin: data.gstin ? data.gstin.replace(/\s+/g, '').toUpperCase() : null,
-          country: data.country,
-          timezone: data.timezone,
-          currency: data.currency ?? null,
+    try {
+      return await db.transaction(async (trx) => {
+        const [org] = await trx
+          .table('organizations')
+          .insert({
+            name: data.name,
+            slug: data.slug,
+            email: data.email,
+            phone: data.phone,
+            website: data.website ?? null,
+            industry: data.industry ?? null,
+            organizationType: data.organizationType,
+            address: data.address,
+            pan: data.pan.replace(/\s+/g, '').toUpperCase(),
+            gstin: data.gstin ? data.gstin.replace(/\s+/g, '').toUpperCase() : null,
+            country: data.country,
+            timezone: data.timezone,
+            currency: data.currency ?? null,
+          })
+          .returning([...ORGANIZATION_PUBLIC_COLUMNS, 'status', 'createdAt'])
+
+        await trx.table('organization_members').insert({
+          organizationId: org.id,
+          userId,
+          roleId: ownerRoleId,
         })
-        .returning([...ORGANIZATION_PUBLIC_COLUMNS, 'status', 'createdAt'])
 
-      await trx.table('organization_members').insert({
-        organizationId: org.id,
-        userId,
-        roleId: ownerRoleId,
+        await trx.table('user_roles').insert({
+          userId,
+          roleId: ownerRoleId,
+          organizationId: org.id,
+        })
+
+        await trx.from('sessions').where('id', sessionId).update({
+          activeOrganizationId: org.id,
+        })
+
+        await trx.table('authorization_audits').insert({
+          organizationId: org.id,
+          actorUserId: userId,
+          targetType: 'organization',
+          targetId: org.id,
+          eventType: 'organization.created',
+          after: JSON.stringify({ name: org.name, slug: org.slug }),
+        })
+
+        return {
+          ...mapOrganizationPublicFields(org as Record<string, unknown>),
+          status: org.status as boolean,
+          createdAt: org.createdAt as string,
+          role: 'owner',
+        }
       })
-
-      await trx.table('user_roles').insert({
-        userId,
-        roleId: ownerRoleId,
-        organizationId: org.id,
-      })
-
-      await trx.from('sessions').where('id', sessionId).update({
-        activeOrganizationId: org.id,
-      })
-
-      await trx.table('authorization_audits').insert({
-        organizationId: org.id,
-        actorUserId: userId,
-        targetType: 'organization',
-        targetId: org.id,
-        eventType: 'organization.created',
-        after: JSON.stringify({ name: org.name, slug: org.slug }),
-      })
-
-      return {
-        ...mapOrganizationPublicFields(org as Record<string, unknown>),
-        status: org.status as boolean,
-        createdAt: org.createdAt as string,
-        role: 'owner',
+    } catch (error) {
+      if (isPostgresUniqueViolation(error, 'organizations_slug_unique')) {
+        throw OrganizationException.slugAlreadyExists(data.slug)
       }
-    })
+      throw error
+    }
   }
 
   /**

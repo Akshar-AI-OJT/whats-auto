@@ -30,7 +30,7 @@ import {
 } from '#lib/meta_whatsapp/outbound_retry'
 import {
   mapNamedParametersToMetaComponents,
-  parseParameterSchema,
+  resolveParameterSchema,
   TemplateParameterError,
 } from '#lib/meta_whatsapp/template_parameters'
 import {
@@ -283,11 +283,17 @@ export default class WhatsappOutboundService {
         throw WhatsappOutboundException.templateNotApproved()
       }
 
-      const schema = parseParameterSchema(
-        typeof template.parameterSchema === 'string'
-          ? JSON.parse(template.parameterSchema)
-          : template.parameterSchema
-      )
+      const schema = resolveParameterSchema({
+        stored:
+          typeof template.parameterSchema === 'string'
+            ? JSON.parse(template.parameterSchema)
+            : template.parameterSchema,
+        headerType: (template.headerType as string | null) ?? null,
+        headerContent: (template.headerContent as string | null) ?? null,
+        bodyText: (template.bodyText as string) ?? '',
+        buttons:
+          typeof template.buttons === 'string' ? JSON.parse(template.buttons) : template.buttons,
+      })
 
       if (!schema.sendable) {
         throw WhatsappOutboundException.templateNotSendable(
@@ -1323,11 +1329,17 @@ export default class WhatsappOutboundService {
         throw WhatsappOutboundException.templateNotApproved()
       }
 
-      const schema = parseParameterSchema(
-        typeof template.parameterSchema === 'string'
-          ? JSON.parse(template.parameterSchema)
-          : template.parameterSchema
-      )
+      const schema = resolveParameterSchema({
+        stored:
+          typeof template.parameterSchema === 'string'
+            ? JSON.parse(template.parameterSchema)
+            : template.parameterSchema,
+        headerType: (template.headerType as string | null) ?? null,
+        headerContent: (template.headerContent as string | null) ?? null,
+        bodyText: (template.bodyText as string) ?? '',
+        buttons:
+          typeof template.buttons === 'string' ? JSON.parse(template.buttons) : template.buttons,
+      })
       if (schema.headerMediaType) {
         const message = await db
           .from('messages')
@@ -1376,4 +1388,3 @@ function serializeOutboundError(error: unknown): {
 
   return { errorMessage: 'Unknown outbound error', errorCode: null }
 }
-

@@ -3,6 +3,7 @@ import {
   type ApiError,
   type BillingCheckoutResult,
   type BillingSubscription,
+  type TenantBillingPlan,
 } from '@/lib/api'
 
 export function unwrapBillingSubscription(data: unknown): BillingSubscription | null {
@@ -21,6 +22,47 @@ export function unwrapBillingCheckout(data: unknown): BillingCheckoutResult | nu
   }
   const wrapped = data as { data?: BillingCheckoutResult }
   return wrapped.data ?? null
+}
+
+export function unwrapBillingPlans(data: unknown): TenantBillingPlan[] {
+  if (!data || typeof data !== 'object') return []
+  const root = data as { data?: { items?: TenantBillingPlan[] }; items?: TenantBillingPlan[] }
+  const items = root.data?.items ?? root.items
+  return Array.isArray(items) ? items : []
+}
+
+export function formatTenantPlanPrice(
+  price: number | null,
+  currency: string,
+  customLabel: string
+): string {
+  if (price == null) return customLabel
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency: currency || 'USD',
+      maximumFractionDigits: 0,
+    }).format(price)
+  } catch {
+    return `${currency} ${price.toLocaleString()}`
+  }
+}
+
+/**
+ * Resolve a plan feature label without throwing when the API key is absent from i18n.
+ * Prefer known `admin.subscriptions.features.*` keys; otherwise use API name/key.
+ */
+export function resolvePlanFeatureLabel(
+  tFeatures: { has: (key: string) => boolean; (key: string): string },
+  featureKey: string,
+  fallbackName?: string | null
+): string {
+  if (featureKey && tFeatures.has(featureKey)) {
+    return tFeatures(featureKey)
+  }
+  const name = fallbackName?.trim()
+  if (name) return name
+  return featureKey
 }
 
 export function isSubscriptionNotFound(error: unknown): boolean {

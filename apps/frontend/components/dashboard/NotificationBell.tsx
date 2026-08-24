@@ -120,7 +120,7 @@ export function NotificationBell({
           'relative inline-flex size-10 items-center justify-center rounded-xl border border-dash-border bg-canvas text-ink',
           'transition-[background-color,border-color,box-shadow] duration-200',
           'hover:bg-dash-surface',
-          open && 'border-primary/45 bg-dash-surface shadow-[0_0_0_3px_rgb(159_232_112/0.14)]'
+          open && 'border-primary/45 bg-dash-surface shadow-[0_0_0_3px_rgb(37_99_235/0.14)]'
         )}
       >
         <Bell

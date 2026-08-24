@@ -1,11 +1,32 @@
 import { test } from '@japa/runner'
 import {
   deriveParameterSchema,
+  detectParameterFormat,
+  extractTemplatePlaceholders,
   mapNamedParametersToMetaComponents,
   parseParameterSchema,
   pickRequiredParameterValues,
+  resolveParameterSchema,
   TemplateParameterError,
 } from '#lib/meta_whatsapp/template_parameters'
+
+test.group('extractTemplatePlaceholders / detectParameterFormat', () => {
+  test('extracts named and numbered placeholders', ({ assert }) => {
+    assert.deepEqual(extractTemplatePlaceholders('Hi {{first_name}}, order {{order_id}}'), [
+      'first_name',
+      'order_id',
+    ])
+    assert.deepEqual(extractTemplatePlaceholders('Hello {{1}}, code {{2}}'), ['1', '2'])
+    assert.deepEqual(extractTemplatePlaceholders('No vars'), [])
+  })
+
+  test('detects named, positional, mixed, and empty', ({ assert }) => {
+    assert.equal(detectParameterFormat(['first_name', 'order_id']), 'named')
+    assert.equal(detectParameterFormat(['2', '1']), 'positional')
+    assert.equal(detectParameterFormat(['1', 'name']), 'mixed')
+    assert.isNull(detectParameterFormat([]))
+  })
+})
 
 test.group('deriveParameterSchema', () => {
   test('extracts named body and text-header variables', ({ assert }) => {
@@ -16,18 +37,38 @@ test.group('deriveParameterSchema', () => {
     })
 
     assert.isTrue(schema.sendable)
+    assert.equal(schema.parameterFormat, 'named')
     assert.deepEqual(schema.headerNames, ['first_name'])
     assert.deepEqual(schema.bodyNames, ['order_id'])
     assert.isUndefined(schema.headerMediaType)
   })
 
-  test('rejects numbered placeholders', ({ assert }) => {
+  test('accepts numbered placeholders as positional sendable', ({ assert }) => {
     const schema = deriveParameterSchema({
       bodyText: 'Hello {{1}}, your code is {{2}}',
     })
 
+    assert.isTrue(schema.sendable)
+    assert.equal(schema.parameterFormat, 'positional')
+    assert.deepEqual(schema.bodyNames, ['1', '2'])
+  })
+
+  test('sorts positional body names numerically', ({ assert }) => {
+    const schema = deriveParameterSchema({
+      bodyText: 'Code {{10}} then {{2}} then {{1}}',
+    })
+
+    assert.isTrue(schema.sendable)
+    assert.deepEqual(schema.bodyNames, ['1', '2', '10'])
+  })
+
+  test('rejects mixed numbered and named placeholders', ({ assert }) => {
+    const schema = deriveParameterSchema({
+      bodyText: 'Hello {{1}}, your name is {{name}}',
+    })
+
     assert.isFalse(schema.sendable)
-    assert.include(schema.unsupportedReason ?? '', 'Numbered')
+    assert.include(schema.unsupportedReason ?? '', 'Mixed')
   })
 
   test('marks image media headers sendable with headerMediaType and body names', ({ assert }) => {
@@ -39,6 +80,7 @@ test.group('deriveParameterSchema', () => {
 
     assert.isTrue(schema.sendable)
     assert.equal(schema.headerMediaType, 'image')
+    assert.equal(schema.parameterFormat, 'named')
     assert.deepEqual(schema.headerNames, [])
     assert.deepEqual(schema.bodyNames, ['product'])
   })
@@ -64,14 +106,15 @@ test.group('deriveParameterSchema', () => {
     assert.deepEqual(schema.bodyNames, ['id'])
   })
 
-  test('media header with numbered body is still rejected', ({ assert }) => {
+  test('media header with numbered body is positional sendable', ({ assert }) => {
     const schema = deriveParameterSchema({
       headerType: 'document',
       bodyText: 'Invoice {{1}}',
     })
 
-    assert.isFalse(schema.sendable)
-    assert.include(schema.unsupportedReason ?? '', 'Numbered')
+    assert.isTrue(schema.sendable)
+    assert.equal(schema.parameterFormat, 'positional')
+    assert.deepEqual(schema.bodyNames, ['1'])
   })
 
   test('allows named URL button variables', ({ assert }) => {
@@ -84,18 +127,31 @@ test.group('deriveParameterSchema', () => {
     })
 
     assert.isTrue(schema.sendable)
+    assert.equal(schema.parameterFormat, 'named')
     assert.deepEqual(schema.bodyNames, ['name'])
     assert.deepEqual(schema.urlButtons, [{ name: 'cta_url', index: 1 }])
   })
 
-  test('rejects numbered URL button placeholders', ({ assert }) => {
+  test('allows positional URL button placeholders when body is also positional', ({ assert }) => {
     const schema = deriveParameterSchema({
-      bodyText: 'Tap below',
+      bodyText: 'Tap below {{1}}',
+      buttons: [{ type: 'URL', text: 'Open', url: 'https://x.com/{{2}}' }],
+    })
+
+    assert.isTrue(schema.sendable)
+    assert.equal(schema.parameterFormat, 'positional')
+    assert.deepEqual(schema.bodyNames, ['1'])
+    assert.deepEqual(schema.urlButtons, [{ name: '2', index: 0 }])
+  })
+
+  test('rejects mixed format between body and URL button', ({ assert }) => {
+    const schema = deriveParameterSchema({
+      bodyText: 'Tap below {{name}}',
       buttons: [{ type: 'URL', text: 'Open', url: 'https://x.com/{{1}}' }],
     })
 
     assert.isFalse(schema.sendable)
-    assert.include(schema.unsupportedReason ?? '', 'Numbered')
+    assert.include(schema.unsupportedReason ?? '', 'Mixed')
   })
 
   test('rejects named variables on non-URL buttons', ({ assert }) => {
@@ -129,6 +185,7 @@ test.group('deriveParameterSchema', () => {
 
     assert.isTrue(schema.sendable)
     assert.deepEqual(schema.urlButtons, [])
+    assert.isUndefined(schema.parameterFormat)
   })
 
   test('parameterless body is sendable', ({ assert }) => {
@@ -140,16 +197,18 @@ test.group('deriveParameterSchema', () => {
     assert.isTrue(schema.sendable)
     assert.deepEqual(schema.headerNames, [])
     assert.deepEqual(schema.bodyNames, [])
+    assert.isUndefined(schema.parameterFormat)
   })
 })
 
 test.group('mapNamedParametersToMetaComponents', () => {
-  test('maps header and body named parameters', ({ assert }) => {
+  test('maps header and body named parameters with parameter_name', ({ assert }) => {
     const components = mapNamedParametersToMetaComponents({
       schema: {
         headerNames: ['first_name'],
         bodyNames: ['order_id'],
         sendable: true,
+        parameterFormat: 'named',
       },
       values: { first_name: 'Ada', order_id: '42' },
     })
@@ -166,6 +225,28 @@ test.group('mapNamedParametersToMetaComponents', () => {
     ])
   })
 
+  test('maps positional body parameters without parameter_name', ({ assert }) => {
+    const components = mapNamedParametersToMetaComponents({
+      schema: {
+        headerNames: [],
+        bodyNames: ['1', '2'],
+        sendable: true,
+        parameterFormat: 'positional',
+      },
+      values: { '1': 'Ada', '2': '42' },
+    })
+
+    assert.deepEqual(components, [
+      {
+        type: 'body',
+        parameters: [
+          { type: 'text', text: 'Ada' },
+          { type: 'text', text: '42' },
+        ],
+      },
+    ])
+  })
+
   test('maps image header media and body params', ({ assert }) => {
     const components = mapNamedParametersToMetaComponents({
       schema: {
@@ -173,6 +254,7 @@ test.group('mapNamedParametersToMetaComponents', () => {
         bodyNames: ['sku'],
         sendable: true,
         headerMediaType: 'image',
+        parameterFormat: 'named',
       },
       values: { sku: 'A-1' },
       headerMedia: { link: 'https://cdn.example.com/a.jpg' },
@@ -248,6 +330,7 @@ test.group('mapNamedParametersToMetaComponents', () => {
       headerNames: [] as string[],
       bodyNames: ['name'],
       sendable: true,
+      parameterFormat: 'named' as const,
     }
 
     assert.throws(
@@ -267,6 +350,23 @@ test.group('mapNamedParametersToMetaComponents', () => {
     )
   })
 
+  test('rejects empty string values', ({ assert }) => {
+    assert.throws(
+      () =>
+        mapNamedParametersToMetaComponents({
+          schema: {
+            headerNames: [],
+            bodyNames: ['1'],
+            sendable: true,
+            parameterFormat: 'positional',
+          },
+          values: { '1': '   ' },
+        }),
+      TemplateParameterError,
+      /non-empty string/
+    )
+  })
+
   test('rejects non-sendable schema', ({ assert }) => {
     assert.throws(
       () =>
@@ -275,12 +375,12 @@ test.group('mapNamedParametersToMetaComponents', () => {
             headerNames: [],
             bodyNames: [],
             sendable: false,
-            unsupportedReason: 'Numbered placeholders',
+            unsupportedReason: 'Video header templates are not supported',
           },
           values: {},
         }),
       TemplateParameterError,
-      /Numbered/
+      /Video/
     )
   })
 
@@ -299,6 +399,7 @@ test.group('mapNamedParametersToMetaComponents', () => {
         bodyNames: ['name'],
         urlButtons: [{ name: 'cta_url', index: 1 }],
         sendable: true,
+        parameterFormat: 'named',
       },
       values: { name: 'Ada', cta_url: 'blue-shirt' },
     })
@@ -313,6 +414,32 @@ test.group('mapNamedParametersToMetaComponents', () => {
         sub_type: 'url',
         index: '1',
         parameters: [{ type: 'text', parameter_name: 'cta_url', text: 'blue-shirt' }],
+      },
+    ])
+  })
+
+  test('maps positional URL button parameters without parameter_name', ({ assert }) => {
+    const components = mapNamedParametersToMetaComponents({
+      schema: {
+        headerNames: [],
+        bodyNames: ['1'],
+        urlButtons: [{ name: '2', index: 0 }],
+        sendable: true,
+        parameterFormat: 'positional',
+      },
+      values: { '1': 'Ada', '2': 'blue-shirt' },
+    })
+
+    assert.deepEqual(components, [
+      {
+        type: 'body',
+        parameters: [{ type: 'text', text: 'Ada' }],
+      },
+      {
+        type: 'button',
+        sub_type: 'url',
+        index: '0',
+        parameters: [{ type: 'text', text: 'blue-shirt' }],
       },
     ])
   })
@@ -368,23 +495,24 @@ test.group('pickRequiredParameterValues', () => {
             headerNames: [],
             bodyNames: [],
             sendable: false,
-            unsupportedReason: 'Numbered placeholders like {{1}} are not supported',
+            unsupportedReason: 'Video header templates are not supported',
           },
           values: {},
         }),
       TemplateParameterError,
-      /Numbered placeholders/
+      /Video/
     )
   })
 })
 
 test.group('parseParameterSchema', () => {
-  test('narrows stored jsonb including headerMediaType', ({ assert }) => {
+  test('narrows stored jsonb including headerMediaType and parameterFormat', ({ assert }) => {
     assert.deepEqual(
       parseParameterSchema({
         headerNames: ['a'],
         bodyNames: ['b'],
         sendable: true,
+        parameterFormat: 'named',
       }),
       {
         headerNames: ['a'],
@@ -392,6 +520,7 @@ test.group('parseParameterSchema', () => {
         sendable: true,
         unsupportedReason: undefined,
         headerMediaType: undefined,
+        parameterFormat: 'named',
       }
     )
 
@@ -425,12 +554,75 @@ test.group('parseParameterSchema', () => {
         sendable: true,
         unsupportedReason: undefined,
         headerMediaType: undefined,
+        parameterFormat: 'named',
       }
     )
+  })
+
+  test('infers positional format from all-numeric names when parameterFormat missing', ({
+    assert,
+  }) => {
+    const schema = parseParameterSchema({
+      headerNames: [],
+      bodyNames: ['1', '2'],
+      sendable: true,
+    })
+
+    assert.equal(schema.parameterFormat, 'positional')
+    assert.deepEqual(schema.bodyNames, ['1', '2'])
   })
 
   test('invalid input is non-sendable', ({ assert }) => {
     assert.isFalse(parseParameterSchema(null).sendable)
     assert.isFalse(parseParameterSchema('x').sendable)
+  })
+})
+
+test.group('resolveParameterSchema', () => {
+  test('returns stored schema when already sendable', ({ assert }) => {
+    const stored = {
+      headerNames: [],
+      bodyNames: ['1'],
+      sendable: true,
+      parameterFormat: 'positional' as const,
+    }
+    const schema = resolveParameterSchema({
+      stored,
+      bodyText: 'Hi {{1}}',
+    })
+    assert.isTrue(schema.sendable)
+    assert.deepEqual(schema.bodyNames, ['1'])
+  })
+
+  test('heals stale non-sendable numbered schema from template text', ({ assert }) => {
+    const schema = resolveParameterSchema({
+      stored: {
+        headerNames: [],
+        bodyNames: [],
+        sendable: false,
+        unsupportedReason: 'Numbered placeholders like {{1}} are not supported; use named variables',
+      },
+      headerType: 'none',
+      bodyText: 'Hello {{1}}, order {{2}} is ready',
+    })
+
+    assert.isTrue(schema.sendable)
+    assert.equal(schema.parameterFormat, 'positional')
+    assert.deepEqual(schema.bodyNames, ['1', '2'])
+  })
+
+  test('keeps truly unsupported schemas (video header)', ({ assert }) => {
+    const schema = resolveParameterSchema({
+      stored: {
+        headerNames: [],
+        bodyNames: [],
+        sendable: false,
+        unsupportedReason: 'Video header templates are not supported',
+      },
+      headerType: 'video',
+      bodyText: 'Hello {{1}}',
+    })
+
+    assert.isFalse(schema.sendable)
   })
 })

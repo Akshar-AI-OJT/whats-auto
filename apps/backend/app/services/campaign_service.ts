@@ -11,9 +11,8 @@ import {
   toUtcIso,
 } from '#lib/scheduled_at'
 import {
-  deriveParameterSchema,
-  parseParameterSchema,
   pickRequiredParameterValues,
+  resolveParameterSchema,
   TemplateParameterError,
 } from '#lib/meta_whatsapp/template_parameters'
 import type { TemplateParameterSchema } from '#lib/meta_whatsapp/types'
@@ -553,12 +552,8 @@ export class CampaignService {
   }
 
   protected campaignTemplateSchema(template: Record<string, unknown>): TemplateParameterSchema {
-    const stored = parseParameterSchema(parseJsonField(template.parameterSchema))
-    if (stored.sendable || stored.unsupportedReason) {
-      return stored
-    }
-
-    return deriveParameterSchema({
+    return resolveParameterSchema({
+      stored: parseJsonField(template.parameterSchema),
       headerType: (template.headerType as string | null) ?? null,
       headerContent: (template.headerContent as string | null) ?? null,
       bodyText: (template.bodyText as string) ?? '',
@@ -1698,7 +1693,7 @@ export class CampaignService {
       headerType,
       headerMediaUrl: (template.headerMediaUrl as string | null) ?? null,
       variables,
-      parameterSchema: parseParameterSchema(parseJsonField(template.parameterSchema)),
+      parameterSchema: this.campaignTemplateSchema(template),
       headerPreview:
         headerType?.toLowerCase() === 'text'
           ? applyTemplateVariables(headerContent, variables)

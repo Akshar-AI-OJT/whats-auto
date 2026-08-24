@@ -892,9 +892,10 @@ router
   .prefix('/api/v1/inbox/conversations')
   .use([middleware.jwtAuth(), middleware.tenant()])
 
-// Platform billing (tenant) — Razorpay SaaS checkout + subscription read
+// Platform billing (tenant) — Razorpay SaaS checkout + subscription read + plan catalog
 router
   .group(() => {
+    router.get('/plans', [BillingController, 'listPlans'])
     router.get('/subscription', [BillingController, 'showSubscription'])
     router.post('/checkout', [BillingController, 'checkout'])
   })

@@ -41,10 +41,10 @@ function QuickActionCardContent({
         className={cn(
           'relative flex size-10 shrink-0 items-center justify-center rounded-xl',
           'bg-primary-pale text-positive-deep',
-          'shadow-[0_4px_12px_rgb(159_232_112/0.2)]',
+          'shadow-[0_4px_12px_rgb(37_99_235/0.2)]',
           'transition-[transform,background-color,color,box-shadow] duration-200',
           'group-hover:scale-110 group-hover:bg-primary group-hover:text-on-primary',
-          'group-hover:shadow-[0_6px_16px_rgb(159_232_112/0.35)]'
+          'group-hover:shadow-[0_6px_16px_rgb(37_99_235/0.35)]'
         )}
       >
         <Icon className="size-4 transition-transform duration-200 group-hover:scale-105" aria-hidden />
