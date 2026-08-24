@@ -1,5 +1,10 @@
 import type { InboxConversation, InboxMessage } from '@/lib/api'
-import type { InboxSseClientEvent, InboxSseMessageReceivedPayload } from '@/lib/inbox-sse'
+import type {
+  InboxSseClientEvent,
+  InboxSseMessageLifecyclePayload,
+  InboxSseMessageReceivedPayload,
+} from '@/lib/inbox-sse'
+import { hasLifecycleMessageSnapshot } from '@/lib/inbox-sse'
 import { aiHandoverReasonFromSse } from './inbox-ai-mode'
 
 export type InboxListFilters = {
@@ -34,11 +39,54 @@ function messageFromReceived(payload: InboxSseMessageReceivedPayload): InboxMess
   }
 }
 
+function messageFromLifecycle(
+  payload: InboxSseMessageLifecyclePayload,
+  status: string
+): InboxMessage | null {
+  if (!hasLifecycleMessageSnapshot(payload)) return null
+
+  const senderType = payload.senderType!
+  const senderId = payload.senderId ?? null
+
+  return {
+    id: payload.messageId,
+    organizationId: payload.organizationId,
+    conversationId: payload.conversationId,
+    senderType,
+    senderId,
+    direction: 'outbound',
+    contentType: payload.contentType!,
+    contentText: payload.contentText ?? null,
+    mediaUrl: payload.mediaUrl ?? null,
+    mediaAssetId: payload.mediaAssetId ?? null,
+    status: payload.status ?? status,
+    providerMessageId: payload.providerMessageId ?? null,
+    errorMessage: payload.errorMessage ?? null,
+    createdAt: payload.createdAt!,
+    updatedAt: null,
+    sender: {
+      type: senderType,
+      id: senderId,
+      name: null,
+    },
+  }
+}
+
 function lifecycleStatus(event: InboxSseClientEvent): string | null {
   if (event.type === 'message.queued') return 'queued'
   if (event.type === 'message.sent') return 'sent'
   if (event.type === 'message.failed') return 'failed'
   if (event.type === 'status.updated') return event.payload.status
+  return null
+}
+
+function lifecyclePreviewText(payload: InboxSseMessageLifecyclePayload): string | null {
+  if (typeof payload.previewText === 'string' && payload.previewText.length > 0) {
+    return payload.previewText
+  }
+  if (typeof payload.contentText === 'string' && payload.contentText.length > 0) {
+    return payload.contentText
+  }
   return null
 }
 
@@ -76,23 +124,38 @@ export function applyInboxSseToConversation(
     }
   }
 
-  if (event.type !== 'message.received') return conversation
+  if (event.type === 'message.received') {
+    const alreadyApplied =
+      conversation.lastMessageAt === event.payload.occurredAt &&
+      (event.payload.contentText == null ||
+        conversation.lastMessageText === event.payload.contentText)
+    if (alreadyApplied) return conversation
 
-  const alreadyApplied =
-    conversation.lastMessageAt === event.payload.occurredAt &&
-    (event.payload.contentText == null ||
-      conversation.lastMessageText === event.payload.contentText)
-  if (alreadyApplied) return conversation
-
-  return {
-    ...conversation,
-    status: 'open',
-    closedAt: null,
-    lastMessageText: event.payload.contentText ?? conversation.lastMessageText,
-    lastMessageAt: event.payload.occurredAt,
-    unreadCount: conversation.unreadCount + 1,
-    updatedAt: event.payload.occurredAt,
+    return {
+      ...conversation,
+      status: 'open',
+      closedAt: null,
+      lastMessageText: event.payload.contentText ?? conversation.lastMessageText,
+      lastMessageAt: event.payload.occurredAt,
+      unreadCount: conversation.unreadCount + 1,
+      updatedAt: event.payload.occurredAt,
+    }
   }
+
+  if (event.type === 'message.queued' || event.type === 'message.sent') {
+    const preview = lifecyclePreviewText(event.payload)
+    const at = event.payload.createdAt
+    if (!preview && !at) return conversation
+    return {
+      ...conversation,
+      lastMessageText: preview ?? conversation.lastMessageText,
+      lastMessageAt: at ?? conversation.lastMessageAt,
+      unreadCount: 0,
+      updatedAt: at ?? conversation.updatedAt,
+    }
+  }
+
+  return conversation
 }
 
 export function applyInboxSseToMessages(
@@ -122,24 +185,40 @@ export function applyInboxSseToMessages(
   if (!status) return { messages, missingMessage: false }
 
   const index = messages.findIndex((message) => message.id === event.payload.messageId)
-  if (index < 0) {
+  if (index >= 0) {
+    const current = messages[index]!
+    const next = messages.slice()
+    next[index] = {
+      ...current,
+      status,
+      providerMessageId:
+        event.type === 'status.updated'
+          ? event.payload.providerMessageId
+          : (event.payload.providerMessageId ?? current.providerMessageId),
+      errorMessage:
+        event.type === 'message.failed'
+          ? (event.payload.errorMessage ?? current.errorMessage)
+          : current.errorMessage,
+    }
+    return { messages: next, missingMessage: false }
+  }
+
+  if (
+    event.type === 'message.queued' ||
+    event.type === 'message.sent' ||
+    event.type === 'message.failed'
+  ) {
+    const appended = messageFromLifecycle(event.payload, status)
+    if (appended) {
+      return { messages: [...messages, appended], missingMessage: false }
+    }
     return {
       messages,
       missingMessage: event.type === 'message.queued' || event.type === 'message.sent',
     }
   }
 
-  const current = messages[index]!
-  const next = messages.slice()
-  next[index] = {
-    ...current,
-    status,
-    providerMessageId:
-      event.type === 'status.updated'
-        ? event.payload.providerMessageId
-        : (event.payload.providerMessageId ?? current.providerMessageId),
-  }
-  return { messages: next, missingMessage: false }
+  return { messages, missingMessage: false }
 }
 
 export function applyInboxSseToList(
@@ -197,13 +276,42 @@ export function applyInboxSseToList(
   }
 
   if (event.type === 'message.queued' || event.type === 'message.sent') {
-    if (index >= 0 || filters.page === 1) {
+    if (index >= 0) {
+      const updated = applyInboxSseToConversation(conversations[index]!, event)
+      if (!matchesInboxListFilters(updated, filters)) {
+        return {
+          conversations: conversations.filter((conversation) => conversation.id !== conversationId),
+          fetchConversationId: null,
+          notifyNewActivity: true,
+        }
+      }
+      const rest = conversations.filter((_, i) => i !== index)
+      return {
+        conversations: [updated, ...rest],
+        fetchConversationId: null,
+        notifyNewActivity: false,
+      }
+    }
+
+    // Outbound without a visible row: only fetch when on page 1 and snapshot is thin
+    // (no contact fields on lifecycle). Prefer chip notify off page 1.
+    if (filters.page === 1 && !hasLifecycleMessageSnapshot(event.payload)) {
       return {
         conversations,
         fetchConversationId: conversationId,
         notifyNewActivity: false,
       }
     }
+
+    if (filters.page === 1) {
+      // Snapshot present but conversation not in list — still need HTTP for contact card.
+      return {
+        conversations,
+        fetchConversationId: conversationId,
+        notifyNewActivity: false,
+      }
+    }
+
     return { conversations, fetchConversationId: null, notifyNewActivity: true }
   }
 

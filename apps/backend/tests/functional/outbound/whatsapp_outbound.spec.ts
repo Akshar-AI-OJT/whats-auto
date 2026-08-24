@@ -1505,6 +1505,10 @@ test.group('WhatsApp outbound service', (group) => {
       assert.lengthOf(queuedEvents, 1)
       assert.equal((queuedEvents[0] as { messageId: string }).messageId, queued.messageId)
       assert.isNull((queuedEvents[0] as { providerMessageId: null }).providerMessageId)
+      assert.equal((queuedEvents[0] as { contentText: string }).contentText, 'evented')
+      assert.equal((queuedEvents[0] as { status: string }).status, 'queued')
+      assert.equal((queuedEvents[0] as { direction: string }).direction, 'outbound')
+      assert.isString((queuedEvents[0] as { createdAt: string }).createdAt)
 
       const sent = await service.executeDispatch({
         organizationId,
@@ -1517,6 +1521,8 @@ test.group('WhatsApp outbound service', (group) => {
         (sentEvents[0] as { providerMessageId: string }).providerMessageId,
         'wamid.out.text'
       )
+      assert.equal((sentEvents[0] as { status: string }).status, 'sent')
+      assert.equal((sentEvents[0] as { contentText: string }).contentText, 'evented')
 
       const failOrg = await createOrg()
       orgIds.push(failOrg)
@@ -1540,6 +1546,8 @@ test.group('WhatsApp outbound service', (group) => {
       })
       assert.equal(failed.outcome, 'failed')
       assert.lengthOf(failedEvents, 1)
+      assert.equal((failedEvents[0] as { status: string }).status, 'failed')
+      assert.equal((failedEvents[0] as { contentText: string }).contentText, 'will fail')
     } finally {
       InboxMessageQueued.dispatch = originalQueued
       InboxMessageSent.dispatch = originalSent

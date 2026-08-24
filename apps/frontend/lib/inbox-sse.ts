@@ -34,12 +34,27 @@ export type InboxSseMessageReceivedPayload = {
   createdAt: string
 }
 
+/**
+ * Outbound lifecycle. Snapshot fields are optional for backward compatibility
+ * with skinny payloads; when present the FE can append without refetch.
+ */
 export type InboxSseMessageLifecyclePayload = {
   organizationId: string
   conversationId: string
   messageId: string
   dispatchId: string
   providerMessageId?: string | null
+  direction?: 'outbound'
+  senderType?: string
+  senderId?: string | null
+  contentType?: string
+  contentText?: string | null
+  previewText?: string | null
+  mediaUrl?: string | null
+  mediaAssetId?: string | null
+  status?: string
+  createdAt?: string
+  errorMessage?: string | null
 }
 
 export type InboxSseStatusUpdatedPayload = {
@@ -75,6 +90,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function asString(value: unknown): string | null {
   return typeof value === 'string' && value.length > 0 ? value : null
+}
+
+function asNullableString(value: unknown): string | null | undefined {
+  if (value === null) return null
+  if (typeof value === 'string') return value
+  return undefined
 }
 
 function isClientEventType(value: string): value is InboxSseClientEventType {
@@ -133,12 +154,26 @@ function parseLifecyclePayload(payload: Record<string, unknown>): InboxSseMessag
   const dispatchId = asString(payload.dispatchId)
   if (!organizationId || !conversationId || !messageId || !dispatchId) return null
 
+  const direction = payload.direction === 'outbound' ? 'outbound' : undefined
+
   return {
     organizationId,
     conversationId,
     messageId,
     dispatchId,
-    providerMessageId: typeof payload.providerMessageId === 'string' ? payload.providerMessageId : null,
+    providerMessageId:
+      typeof payload.providerMessageId === 'string' ? payload.providerMessageId : null,
+    direction,
+    senderType: asString(payload.senderType) ?? undefined,
+    senderId: asNullableString(payload.senderId),
+    contentType: asString(payload.contentType) ?? undefined,
+    contentText: asNullableString(payload.contentText),
+    previewText: asNullableString(payload.previewText),
+    mediaUrl: asNullableString(payload.mediaUrl),
+    mediaAssetId: asNullableString(payload.mediaAssetId),
+    status: asString(payload.status) ?? undefined,
+    createdAt: asString(payload.createdAt) ?? undefined,
+    errorMessage: asNullableString(payload.errorMessage),
   }
 }
 
@@ -210,6 +245,11 @@ export function parseInboxSseClientEvent(raw: unknown): InboxSseClientEvent | nu
 
   const payload = parseLifecyclePayload(raw.payload)
   return payload ? { type, organizationId, payload } : null
+}
+
+/** True when lifecycle payload includes enough fields to append a thread bubble. */
+export function hasLifecycleMessageSnapshot(payload: InboxSseMessageLifecyclePayload): boolean {
+  return Boolean(payload.contentType && payload.createdAt && payload.senderType)
 }
 
 /** Parse one SSE block (`event:` / `data:` lines separated by a blank line). */

@@ -3,7 +3,7 @@
 import { useCallback, useId, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { FileImage, FileText, Loader2, Paperclip, Send, X } from 'lucide-react'
-import { api, type ApiError, type MediaAsset } from '@/lib/api'
+import { api, type ApiError, type InboxMessage, type MediaAsset } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { hasPermission, PERMISSIONS } from '@/lib/rbac'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
@@ -13,11 +13,12 @@ import {
   useDashboardToast,
 } from '@/components/dashboard/ui/use-dashboard-toast'
 import { MediaPicker } from '@/components/dashboard/templates/MediaPicker'
+import { unwrapSingle } from './inbox-utils'
 
 type InboxReplyComposerProps = {
   conversationId: string
   conversationStatus: string
-  onSent: () => Promise<void> | void
+  onSent: (message?: InboxMessage | null) => Promise<void> | void
 }
 
 function mapSendError(apiError: ApiError, t: (key: string) => string): string {
@@ -67,8 +68,9 @@ export function InboxReplyComposer({
     setSending(true)
     clearToast()
     try {
+      let sent: InboxMessage | null = null
       if (attachment) {
-        await api.inbox.sendMessage(
+        const res = await api.inbox.sendMessage(
           conversationId,
           {
             contentType: attachment.kind === 'image' ? 'image' : 'document',
@@ -77,8 +79,9 @@ export function InboxReplyComposer({
           },
           idempotencyKey
         )
+        sent = unwrapSingle<InboxMessage>(res.data)
       } else {
-        await api.inbox.sendMessage(
+        const res = await api.inbox.sendMessage(
           conversationId,
           {
             contentType: 'text',
@@ -86,10 +89,11 @@ export function InboxReplyComposer({
           },
           idempotencyKey
         )
+        sent = unwrapSingle<InboxMessage>(res.data)
       }
       setDraft('')
       setAttachment(null)
-      await onSent()
+      await onSent(sent)
     } catch (err) {
       showToast(mapSendError(err as ApiError, t), 'error')
     } finally {

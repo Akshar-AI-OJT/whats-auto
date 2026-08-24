@@ -47,6 +47,7 @@ import {
   type OutboundDispatchPayload,
   type OutboundDispatchRow,
 } from '#repositories/whatsapp_outbound_repository'
+import type { InboxOutboundLifecyclePayload } from '#types/inbox_outbound_lifecycle'
 import { MemoryWorkingSetService } from '#services/ai/contracts/memory_working_set_service'
 import JobQueueManager from '#services/job_queue/job_queue_manager'
 import { JOB_NAMES } from '#services/job_queue/job_names'
@@ -57,6 +58,15 @@ import { WhatsappConfigService } from '#services/whatsapp_config_service'
 export type QueueOutboundResult = {
   messageId: string
   dispatchId: string
+  senderType: string
+  senderId: string | null
+  contentType: string
+  contentText: string | null
+  previewText: string
+  mediaUrl: string | null
+  mediaAssetId: string | null
+  status: string
+  createdAt: Date
 }
 
 export type RecoverStuckDispatchesResult = {
@@ -152,8 +162,7 @@ export default class WhatsappOutboundService {
       await this.#emitInboxMessageQueued({
         organizationId: params.organizationId,
         conversationId: params.conversationId,
-        messageId: queued.messageId,
-        dispatchId: queued.dispatchId,
+        queued,
       })
 
       await this.#enqueueDispatchWake({
@@ -241,8 +250,7 @@ export default class WhatsappOutboundService {
       await this.#emitInboxMessageQueued({
         organizationId: params.organizationId,
         conversationId: params.conversationId,
-        messageId: queued.messageId,
-        dispatchId: queued.dispatchId,
+        queued,
       })
 
       await this.#enqueueDispatchWake({
@@ -306,8 +314,7 @@ export default class WhatsappOutboundService {
       await this.#emitInboxMessageQueued({
         organizationId: params.organizationId,
         conversationId: params.conversationId,
-        messageId: queued.messageId,
-        dispatchId: queued.dispatchId,
+        queued,
       })
 
       await this.#enqueueDispatchWake({
@@ -459,8 +466,7 @@ export default class WhatsappOutboundService {
       await this.#emitInboxMessageQueued({
         organizationId: params.organizationId,
         conversationId: params.conversationId,
-        messageId: queued.messageId,
-        dispatchId: queued.dispatchId,
+        queued,
       })
 
       await this.#enqueueDispatchWake({
@@ -567,6 +573,7 @@ export default class WhatsappOutboundService {
           messageId: dispatch.messageId,
           dispatchId: dispatch.id,
           providerMessageId: reconcile.providerMessageId,
+          status: 'sent',
         })
       }
 
@@ -745,6 +752,8 @@ export default class WhatsappOutboundService {
           messageId: params.dispatch.messageId,
           dispatchId: params.dispatch.id,
           providerMessageId: null,
+          status: 'failed',
+          errorMessage,
         })
       }
 
@@ -930,24 +939,25 @@ export default class WhatsappOutboundService {
   async #emitInboxMessageQueued(params: {
     organizationId: string
     conversationId: string
-    messageId: string
-    dispatchId: string
+    queued: QueueOutboundResult
   }): Promise<void> {
     try {
-      await InboxMessageQueued.dispatch({
-        organizationId: params.organizationId,
-        conversationId: params.conversationId,
-        messageId: params.messageId,
-        dispatchId: params.dispatchId,
-        providerMessageId: null,
-      })
+      await InboxMessageQueued.dispatch(
+        this.#lifecyclePayload({
+          organizationId: params.organizationId,
+          conversationId: params.conversationId,
+          queued: params.queued,
+          providerMessageId: null,
+          status: 'queued',
+        })
+      )
     } catch (error) {
       logger.error(
         {
           organizationId: params.organizationId,
           conversationId: params.conversationId,
-          messageId: params.messageId,
-          dispatchId: params.dispatchId,
+          messageId: params.queued.messageId,
+          dispatchId: params.queued.dispatchId,
           err: error instanceof Error ? error.message : 'unknown',
         },
         'whatsapp.outbound.inbox_message_queued_event_failed'
@@ -988,14 +998,32 @@ export default class WhatsappOutboundService {
     messageId: string
     dispatchId: string
     providerMessageId: string
+    status: string
   }): Promise<void> {
     try {
+      const snapshot = await this.#loadMessageLifecycleFields({
+        organizationId: params.organizationId,
+        messageId: params.messageId,
+      })
+      if (!snapshot) return
+
       await InboxMessageSent.dispatch({
         organizationId: params.organizationId,
         conversationId: params.conversationId,
         messageId: params.messageId,
         dispatchId: params.dispatchId,
         providerMessageId: params.providerMessageId,
+        direction: 'outbound',
+        senderType: snapshot.senderType,
+        senderId: snapshot.senderId,
+        contentType: snapshot.contentType,
+        contentText: snapshot.contentText,
+        previewText: snapshot.contentText,
+        mediaUrl: snapshot.mediaUrl,
+        mediaAssetId: snapshot.mediaAssetId,
+        status: params.status,
+        createdAt: snapshot.createdAt,
+        errorMessage: null,
       })
     } catch (error) {
       logger.error(
@@ -1017,14 +1045,33 @@ export default class WhatsappOutboundService {
     messageId: string
     dispatchId: string
     providerMessageId?: string | null
+    status: string
+    errorMessage?: string | null
   }): Promise<void> {
     try {
+      const snapshot = await this.#loadMessageLifecycleFields({
+        organizationId: params.organizationId,
+        messageId: params.messageId,
+      })
+      if (!snapshot) return
+
       await InboxMessageFailed.dispatch({
         organizationId: params.organizationId,
         conversationId: params.conversationId,
         messageId: params.messageId,
         dispatchId: params.dispatchId,
         providerMessageId: params.providerMessageId ?? null,
+        direction: 'outbound',
+        senderType: snapshot.senderType,
+        senderId: snapshot.senderId,
+        contentType: snapshot.contentType,
+        contentText: snapshot.contentText,
+        previewText: snapshot.contentText,
+        mediaUrl: snapshot.mediaUrl,
+        mediaAssetId: snapshot.mediaAssetId,
+        status: params.status,
+        createdAt: snapshot.createdAt,
+        errorMessage: params.errorMessage ?? snapshot.errorMessage,
       })
     } catch (error) {
       logger.error(
@@ -1037,6 +1084,82 @@ export default class WhatsappOutboundService {
         },
         'whatsapp.outbound.inbox_message_failed_event_failed'
       )
+    }
+  }
+
+  #lifecyclePayload(params: {
+    organizationId: string
+    conversationId: string
+    queued: QueueOutboundResult
+    providerMessageId: string | null
+    status: string
+  }): InboxOutboundLifecyclePayload {
+    return {
+      organizationId: params.organizationId,
+      conversationId: params.conversationId,
+      messageId: params.queued.messageId,
+      dispatchId: params.queued.dispatchId,
+      providerMessageId: params.providerMessageId,
+      direction: 'outbound',
+      senderType: params.queued.senderType,
+      senderId: params.queued.senderId,
+      contentType: params.queued.contentType,
+      contentText: params.queued.contentText,
+      previewText: params.queued.previewText,
+      mediaUrl: params.queued.mediaUrl,
+      mediaAssetId: params.queued.mediaAssetId,
+      status: params.status,
+      createdAt: params.queued.createdAt.toISOString(),
+      errorMessage: null,
+    }
+  }
+
+  async #loadMessageLifecycleFields(params: {
+    organizationId: string
+    messageId: string
+  }): Promise<{
+    senderType: string
+    senderId: string | null
+    contentType: string
+    contentText: string | null
+    mediaUrl: string | null
+    mediaAssetId: string | null
+    createdAt: string
+    errorMessage: string | null
+  } | null> {
+    const row = await db
+      .from('messages')
+      .where('organizationId', params.organizationId)
+      .where('id', params.messageId)
+      .select(
+        'senderType',
+        'senderId',
+        'contentType',
+        'contentText',
+        'mediaUrl',
+        'mediaAssetId',
+        'createdAt',
+        'errorMessage'
+      )
+      .first()
+
+    if (!row) return null
+
+    const createdAtRaw = row.createdAt
+    const createdAt =
+      createdAtRaw instanceof Date
+        ? createdAtRaw.toISOString()
+        : new Date(createdAtRaw as string).toISOString()
+
+    return {
+      senderType: String(row.senderType),
+      senderId: (row.senderId as string | null) ?? null,
+      contentType: String(row.contentType),
+      contentText: (row.contentText as string | null) ?? null,
+      mediaUrl: (row.mediaUrl as string | null) ?? null,
+      mediaAssetId: (row.mediaAssetId as string | null) ?? null,
+      createdAt,
+      errorMessage: (row.errorMessage as string | null) ?? null,
     }
   }
 
@@ -1360,7 +1483,19 @@ export default class WhatsappOutboundService {
       [params.previewText, now, now, now, params.conversationId, params.organizationId]
     )
 
-    return queued
+    return {
+      messageId: queued.messageId,
+      dispatchId: queued.dispatchId,
+      senderType: queued.senderType,
+      senderId: queued.senderId,
+      contentType: queued.contentType,
+      contentText: queued.contentText,
+      previewText: params.previewText,
+      mediaUrl: params.mediaUrl ?? queued.mediaUrl,
+      mediaAssetId: params.mediaAssetId ?? queued.mediaAssetId,
+      status: queued.status,
+      createdAt: queued.createdAt,
+    }
   }
 
   async #registerMediaReference(
