@@ -31,9 +31,18 @@ export class WhatsappWebhookService {
       !params.challenge ||
       params.verifyToken !== expected
     ) {
+      logger.warn(
+        {
+          mode: params.mode ?? null,
+          hasVerifyToken: Boolean(params.verifyToken),
+          hasChallenge: Boolean(params.challenge),
+        },
+        'whatsapp.webhook.verify_failed'
+      )
       throw WhatsappWebhookException.invalidVerifyToken()
     }
 
+    logger.info({ mode: params.mode }, 'whatsapp.webhook.verify_ok')
     return params.challenge
   }
 

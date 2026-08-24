@@ -74,6 +74,22 @@ export const auth = betterAuth({
 
   // DB columns are Postgres `uuid`. better-auth's default nanoid IDs are not valid UUIDs.
   advanced: {
+    // Production sits behind Railway's reverse proxy. Better Auth will not trust
+    // multi-hop X-Forwarded-For unless trustedProxies is set — otherwise it
+    // falls back to one shared per-path rate-limit bucket and logs a WARN.
+    // Prefer x-real-ip (single value Railway sets) then walk XFF with private
+    // proxy hops stripped.
+    ipAddress: {
+      ipAddressHeaders: ['x-real-ip', 'x-forwarded-for'],
+      trustedProxies: [
+        '10.0.0.0/8',
+        '172.16.0.0/12',
+        '192.168.0.0/16',
+        '100.64.0.0/10', // CGNAT (common Railway edge hop)
+        '127.0.0.1',
+        '::1',
+      ],
+    },
     defaultCookieAttributes: {
       // Cross-origin SPA (Vercel) → API (Railway): SameSite=None; Secure is required.
       // Do NOT set Partitioned (CHIPS): the OAuth state cookie is set during a

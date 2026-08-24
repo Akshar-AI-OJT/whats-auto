@@ -188,6 +188,31 @@ export function InboxConversationThread({
     tenantOrganizationId,
   ])
 
+  const handleSent = useCallback(
+    async (sent?: InboxMessage | null) => {
+      if (sent) {
+        queryClient.setQueryData<InboxMessage[]>(messagesKey, (prev) => {
+          if (!prev) return [sent]
+          if (prev.some((message) => message.id === sent.id)) return prev
+          return [...prev, sent]
+        })
+        const patch: Partial<InboxConversation> = {
+          lastMessageText: sent.contentText,
+          lastMessageAt: sent.createdAt,
+          unreadCount: 0,
+          updatedAt: sent.createdAt,
+        }
+        queryClient.setQueryData<InboxConversation>(detailKey, (prev) =>
+          prev ? mergeConversationUpdate(prev, patch) : prev
+        )
+        mergeWorkspaceConversation(patch)
+        return
+      }
+      await refreshMessages()
+    },
+    [detailKey, mergeWorkspaceConversation, messagesKey, queryClient, refreshMessages]
+  )
+
   useEffect(() => {
     if (!canViewInbox) return
     return subscribeInboxEvents((event) => {
@@ -312,7 +337,7 @@ export function InboxConversationThread({
             <InboxReplyComposer
               conversationId={conversationId}
               conversationStatus={conversation.status}
-              onSent={refreshMessages}
+              onSent={handleSent}
             />
           </div>
         </>
