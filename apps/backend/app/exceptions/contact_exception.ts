@@ -12,6 +12,48 @@ export default class ContactException extends Exception {
     })
   }
 
+  static importInvalidFile() {
+    return new this('Upload a CSV file', {
+      status: 422,
+      code: 'E_CONTACT_IMPORT_INVALID_FILE',
+    })
+  }
+
+  static importEmpty() {
+    return new this('CSV file has no contact rows', {
+      status: 422,
+      code: 'E_CONTACT_IMPORT_EMPTY',
+    })
+  }
+
+  static importMalformed() {
+    return new this('CSV file could not be parsed', {
+      status: 422,
+      code: 'E_CONTACT_IMPORT_MALFORMED',
+    })
+  }
+
+  static importMissingPhoneColumn() {
+    return new this('CSV is missing a phone column', {
+      status: 422,
+      code: 'E_CONTACT_IMPORT_MISSING_PHONE_COLUMN',
+    })
+  }
+
+  static importTooManyRows() {
+    return new this('CSV has too many rows', {
+      status: 422,
+      code: 'E_CONTACT_IMPORT_TOO_MANY_ROWS',
+    })
+  }
+
+  static importInvalidCountry() {
+    return new this('Invalid country code', {
+      status: 422,
+      code: 'E_CONTACT_IMPORT_INVALID_COUNTRY',
+    })
+  }
+
   static duplicatePhone() {
     return new this('A contact with this phone number already exists', {
       status: 409,

@@ -334,7 +334,8 @@ export type CustomerGroupSummary = {
 }
 
 export type CreateContactBody = {
-  phone: string
+  phoneNumber: string
+  countryCode?: string
   name?: string
   email?: string
   company?: string

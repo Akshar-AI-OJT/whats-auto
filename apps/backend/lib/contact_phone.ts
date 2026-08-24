@@ -1,50 +1,85 @@
+import parsePhoneNumberFromString, { isSupportedCountry } from 'libphonenumber-js'
+import type { CountryCode } from 'libphonenumber-js'
 import ContactException from '#exceptions/contact_exception'
 
-const INDIAN_MOBILE = /^[6-9]\d{9}$/
-
 /**
- * Canonical CRM / WhatsApp contact phone: `91XXXXXXXXXX`
- * (India country code + 10-digit mobile starting 6–9).
+ * Canonical CRM / WhatsApp contact phone: country calling code + national number,
+ * digits only (no `+`, spaces, or punctuation).
  *
- * Accepts common input shapes: `9909912691`, `919909912691`,
- * `+91 99099 12691`, `09909912691`, `0091 9909912691`.
+ * National numbers require an ISO 3166-1 alpha-2 `countryCode`.
+ * International numbers (leading `+`) are parsed without a country.
  */
-export function canonicalizeIndianMobile(phone: string): string | null {
-  let digits = phone.replace(/\D/g, '')
-  if (!digits) return null
-
-  if (digits.startsWith('00')) {
-    digits = digits.slice(2)
-  }
-
-  if (digits.length === 13 && digits.startsWith('910') && INDIAN_MOBILE.test(digits.slice(3))) {
-    return `91${digits.slice(3)}`
-  }
-
-  if (digits.length === 11 && digits.startsWith('0') && INDIAN_MOBILE.test(digits.slice(1))) {
-    return `91${digits.slice(1)}`
-  }
-
-  if (digits.length === 12 && digits.startsWith('91') && INDIAN_MOBILE.test(digits.slice(2))) {
-    return digits
-  }
-
-  if (digits.length === 10 && INDIAN_MOBILE.test(digits)) {
-    return `91${digits}`
-  }
-
-  return null
-}
-
-export function isValidContactPhone(phone: string): boolean {
-  return canonicalizeIndianMobile(phone) !== null
-}
-
-/** Digits-only form used for unique matching (org + phoneNormalized). */
-export function normalizeContactPhone(phone: string): string {
-  const canonical = canonicalizeIndianMobile(phone)
-  if (!canonical) {
+export function normalizeContactPhone(phoneNumber: string, countryCode?: string): string {
+  const trimmed = typeof phoneNumber === 'string' ? phoneNumber.trim() : ''
+  if (!trimmed) {
     throw ContactException.invalidPhone()
   }
-  return canonical
+
+  const country = parseIsoCountry(countryCode)
+  const international = isInternationalNumber(trimmed)
+
+  if (!international && !country) {
+    throw ContactException.invalidPhone()
+  }
+
+  const parsed = international
+    ? parsePhoneNumberFromString(trimmed)
+    : parsePhoneNumberFromString(trimmed, country)
+
+  if (!parsed || !parsed.isValid()) {
+    throw ContactException.invalidPhone()
+  }
+
+  return `${parsed.countryCallingCode}${parsed.nationalNumber}`
+}
+
+/**
+ * Meta `wa_id` is already country calling code + national number (digits, optional `+`).
+ * Parse it as international — never as a national number, and never with org country.
+ */
+export function normalizeWhatsappWaId(waId: string): string {
+  const trimmed = typeof waId === 'string' ? waId.trim() : ''
+  if (!trimmed) {
+    throw ContactException.invalidPhone()
+  }
+
+  const international = trimmed.startsWith('+') ? trimmed : `+${trimmed}`
+  try {
+    return normalizeContactPhone(international)
+  } catch (error) {
+    const parsed = parsePhoneNumberFromString(international)
+    if (parsed?.isPossible()) {
+      return `${parsed.countryCallingCode}${parsed.nationalNumber}`
+    }
+    throw error
+  }
+}
+
+function parseIsoCountry(countryCode: string | undefined): CountryCode | undefined {
+  if (typeof countryCode !== 'string') {
+    return undefined
+  }
+
+  const iso = countryCode.trim().toUpperCase()
+  if (!iso) {
+    return undefined
+  }
+
+  if (!isSupportedCountry(iso)) {
+    throw ContactException.invalidPhone()
+  }
+
+  return iso
+}
+
+function isInternationalNumber(value: string): boolean {
+  return value.replace(/^[\s().-]+/, '').startsWith('+')
+}
+
+export function isInternationalContactPhone(phoneNumber: string): boolean {
+  return isInternationalNumber(typeof phoneNumber === 'string' ? phoneNumber.trim() : '')
+}
+
+export function normalizeIsoCountryCode(countryCode: string | undefined): string | undefined {
+  return parseIsoCountry(countryCode)
 }

@@ -258,9 +258,26 @@ const requestBodySchemas: Record<string, JsonSchema> = {
     },
     ['to']
   ),
-  'post /api/v1/contacts': bodySchema({ phone: { type: 'string', example: '+919876543210' } }, [
-    'phone',
-  ]),
+  'post /api/v1/contacts': bodySchema(
+    {
+      phoneNumber: {
+        type: 'string',
+        example: '9876543210',
+        description:
+          'National number with countryCode, or international beginning with + (for example +14155552671).',
+      },
+      countryCode: {
+        type: 'string',
+        example: 'IN',
+        description:
+          'ISO 3166-1 alpha-2. Required for national numbers; optional when phoneNumber starts with +.',
+      },
+      name: { type: 'string', example: 'John' },
+      email: { type: 'string', format: 'email', example: 'john@example.com' },
+      company: { type: 'string', example: 'Example' },
+    },
+    ['phoneNumber']
+  ),
   'post /api/v1/tags': bodySchema(
     {
       name: { type: 'string', example: 'VIP' },
@@ -760,6 +777,7 @@ router
   .group(() => {
     router.get('/', [ContactsController, 'index'])
     router.post('/', [ContactsController, 'store'])
+    router.post('/import', [ContactsController, 'importCsv'])
     router.delete('/:id', [ContactsController, 'softDelete'])
   })
   .prefix('/api/v1/contacts')

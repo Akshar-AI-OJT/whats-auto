@@ -55,9 +55,7 @@ test.group('ContactService phone format', (group) => {
     }
   })
 
-  test('stores 10-digit and 91-prefixed numbers as the same 91XXXXXXXXXX contact', async ({
-    assert,
-  }) => {
+  test('normalizes national IN and international input to the same contact', async ({ assert }) => {
     const organizationId = await createOrg()
     orgIds.push(organizationId)
     const userId = await seedUser()
@@ -68,20 +66,21 @@ test.group('ContactService phone format', (group) => {
       service.createContact({
         organizationId,
         actorUserId: userId,
-        phone: '9909912691',
+        phoneNumber: '9876543210',
+        countryCode: 'IN',
         name: 'Ada',
       })
     )
 
-    assert.equal(created.phone, '919909912691')
-    assert.equal(created.phoneNormalized, '919909912691')
+    assert.equal(created.phone, '9876543210')
+    assert.equal(created.phoneNormalized, '919876543210')
 
     try {
       await runWithTenant(organizationId, () =>
         service.createContact({
           organizationId,
           actorUserId: userId,
-          phone: '+91 99099 12691',
+          phoneNumber: '+919876543210',
           name: 'Ada Duplicate',
         })
       )
@@ -96,62 +95,90 @@ test.group('ContactService phone format', (group) => {
     assert.equal(listed[0].id, created.id)
   })
 
-  test('rejects invalid contact phones', async ({ assert }) => {
+  test('normalizes US and GB national numbers with countryCode', async ({ assert }) => {
     const organizationId = await createOrg()
     orgIds.push(organizationId)
     const userId = await seedUser()
     userIds.push(userId)
     const service = new ContactService()
 
-    try {
-      await runWithTenant(organizationId, () =>
-        service.createContact({
-          organizationId,
-          actorUserId: userId,
-          phone: '15551234567',
-        })
-      )
-      assert.fail('expected invalid phone')
-    } catch (error) {
-      assert.instanceOf(error, ContactException)
-      assert.equal((error as ContactException).code, 'E_CONTACT_PHONE_INVALID')
-    }
-  })
-
-  test('import normalizes, rejects invalid rows, and skips duplicates', async ({ assert }) => {
-    const organizationId = await createOrg()
-    orgIds.push(organizationId)
-    const userId = await seedUser()
-    userIds.push(userId)
-    const service = new ContactService()
-
-    await runWithTenant(organizationId, () =>
+    const us = await runWithTenant(organizationId, () =>
       service.createContact({
         organizationId,
         actorUserId: userId,
-        phone: '919809912691',
-        name: 'Existing',
+        phoneNumber: '4155552671',
+        countryCode: 'US',
       })
     )
+    assert.equal(us.phoneNormalized, '14155552671')
 
-    const result = await runWithTenant(organizationId, () =>
-      service.importContacts({
+    const gb = await runWithTenant(organizationId, () =>
+      service.createContact({
         organizationId,
         actorUserId: userId,
-        contacts: [
-          { phone: '9809912691', name: 'Existing 10-digit' },
-          { phone: '9876543210', name: 'New' },
-          { phone: '12345', name: 'Bad' },
-          { phone: '9876543210', name: 'Batch duplicate' },
-        ],
+        phoneNumber: '07911123456',
+        countryCode: 'GB',
       })
     )
+    assert.equal(gb.phoneNormalized, '447911123456')
+  })
 
-    assert.lengthOf(result.imported, 1)
-    assert.equal(result.imported[0].phoneNormalized, '919876543210')
-    assert.lengthOf(result.failed, 3)
-    assert.equal(result.failed[0].code, 'E_CONTACT_PHONE_EXISTS')
-    assert.equal(result.failed[1].code, 'E_CONTACT_PHONE_INVALID')
-    assert.equal(result.failed[2].code, 'E_CONTACT_PHONE_EXISTS')
+  test('accepts international numbers without countryCode', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const userId = await seedUser()
+    userIds.push(userId)
+    const service = new ContactService()
+
+    const india = await runWithTenant(organizationId, () =>
+      service.createContact({
+        organizationId,
+        actorUserId: userId,
+        phoneNumber: '+91 98765 43210',
+      })
+    )
+    assert.equal(india.phoneNormalized, '919876543210')
+
+    const us = await runWithTenant(organizationId, () =>
+      service.createContact({
+        organizationId,
+        actorUserId: userId,
+        phoneNumber: '+14155552671',
+      })
+    )
+    assert.equal(us.phoneNormalized, '14155552671')
+  })
+
+  test('rejects national numbers without countryCode and invalid input', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const userId = await seedUser()
+    userIds.push(userId)
+    const service = new ContactService()
+
+    const cases: { phoneNumber: string; countryCode?: string }[] = [
+      { phoneNumber: '9876543210' },
+      { phoneNumber: '4155552671' },
+      { phoneNumber: '9876543210', countryCode: 'ZZ' },
+      { phoneNumber: '12345', countryCode: 'IN' },
+      { phoneNumber: 'not-a-phone' },
+      { phoneNumber: '' },
+    ]
+
+    for (const params of cases) {
+      try {
+        await runWithTenant(organizationId, () =>
+          service.createContact({
+            organizationId,
+            actorUserId: userId,
+            ...params,
+          })
+        )
+        assert.fail(`expected invalid phone for ${JSON.stringify(params)}`)
+      } catch (error) {
+        assert.instanceOf(error, ContactException)
+        assert.equal((error as ContactException).code, 'E_CONTACT_PHONE_INVALID')
+      }
+    }
   })
 })

@@ -196,6 +196,12 @@ test.group('Phase 3 Policies - ContactPolicy', () => {
     assert.isFalse(policy.view(agent, { organizationId: 'org-2', id: 'c-1' }))
 
     assert.isTrue(policy.create(agent))
+    assert.isTrue(
+      policy.import(
+        makePrincipal({ role: 'agent', orgId: 'org-1', permissions: ['contacts:import'] })
+      )
+    )
+    assert.isFalse(policy.import(agent))
     assert.isTrue(policy.update(agent, { organizationId: 'org-1', id: 'c-1' }))
     assert.isFalse(policy.update(agent, { organizationId: 'org-2', id: 'c-1' }))
 
