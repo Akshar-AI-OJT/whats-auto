@@ -1452,6 +1452,7 @@
       "messages": "Messages",
       "campaigns": "Campaigns",
       "templates": "Templates",
+      "flows": "Flows",
       "knowledge": "Knowledge Base",
       "integrations": "Integrations",
       "notifications": "Notifications",
@@ -1468,6 +1469,196 @@
         "teamAccess": "Team & Access",
         "billing": "Billing",
         "settings": "Settings"
+      }
+    },
+    "flows": {
+      "eyebrow": "Automation",
+      "title": "Conversation flows",
+      "subtitle": "Build keyword and inbound WhatsApp menus. Publish a version to start routing inbound messages.",
+      "createCta": "New flow",
+      "searchPlaceholder": "Search by name…",
+      "loading": "Loading flows…",
+      "retry": "Retry",
+      "emptyTitle": "No flows yet",
+      "emptyDescription": "Create a draft, then open the canvas to add menus and publish.",
+      "pagination": "Showing {from}–{to} of {total}",
+      "prev": "Previous",
+      "next": "Next",
+      "filters": {
+        "label": "Status",
+        "all": "All",
+        "DRAFT": "Draft",
+        "PUBLISHED": "Published",
+        "ARCHIVED": "Archived"
+      },
+      "status": {
+        "DRAFT": "Draft",
+        "PUBLISHED": "Published",
+        "ARCHIVED": "Archived"
+      },
+      "triggerType": {
+        "KEYWORD": "Keyword",
+        "INBOUND_ANY": "Any inbound",
+        "CAMPAIGN_REPLY": "Campaign reply",
+        "SUBFLOW_ENTRY": "Subflow"
+      },
+      "actions": {
+        "edit": "Open editor",
+        "publish": "Publish",
+        "archive": "Archive"
+      },
+      "create": {
+        "title": "New flow",
+        "subtitle": "Creates a draft and opens the canvas editor.",
+        "name": "Name",
+        "namePlaceholder": "Welcome menu",
+        "description": "Description",
+        "descriptionPlaceholder": "Optional",
+        "triggerType": "Trigger",
+        "keywords": "Keywords",
+        "keywordsPlaceholder": "hi, hello",
+        "cancel": "Cancel",
+        "submit": "Create draft",
+        "saving": "Creating…",
+        "errors": {
+          "nameRequired": "Enter a flow name.",
+          "keywordsRequired": "Add at least one keyword."
+        }
+      },
+      "delete": {
+        "title": "Archive this flow?",
+        "body": "“{name}” will stop matching inbound messages. Versions are kept.",
+        "cancel": "Cancel",
+        "confirm": "Archive",
+        "deleting": "Archiving…"
+      },
+      "publish": {
+        "title": "Publish this flow?",
+        "body": "“{name}” will use its latest valid graph for inbound routing.",
+        "invalid": "This graph is not valid yet.",
+        "cancel": "Cancel",
+        "confirm": "Publish",
+        "publishing": "Publishing…"
+      },
+      "errors": {
+        "loadFailed": "Couldn’t load flows.",
+        "createFailed": "Couldn’t create the flow.",
+        "deleteFailed": "Couldn’t archive the flow.",
+        "publishFailed": "Couldn’t publish the flow.",
+        "publishInvalid": "Fix graph errors before publishing."
+      },
+      "editor": {
+        "back": "Flows",
+        "unsaved": "Unsaved",
+        "settings": "Settings",
+        "settingsTitle": "Flow settings",
+        "settingsHint": "Trigger and session options live on the flow, not on the canvas TRIGGER node.",
+        "validate": "Validate",
+        "save": "Save",
+        "loading": "Loading flow…",
+        "matchType": "Keyword match",
+        "matchTypes": {
+          "exact": "Exact",
+          "contains": "Contains",
+          "regex": "Regex"
+        },
+        "sessionTtl": "Session TTL (minutes)",
+        "onExpiry": "On session expiry",
+        "expiryModes": {
+          "RESUME_PROMPT": "Resume with prompt",
+          "RESTART": "Restart",
+          "RESUME_SILENT": "Resume silently"
+        },
+        "tangentResume": "After AI tangent",
+        "tangentModes": {
+          "IMMEDIATE_REPROMPT": "Reprompt immediately",
+          "WAIT_FOR_NEXT": "Wait for next message"
+        },
+        "inspectorEmpty": "Select a node to edit its fields, or open Settings.",
+        "deleteNode": "Delete",
+        "triggerMirrorHint": "Inbound matching uses Settings → Trigger. This node is the graph entrypoint only.",
+        "addButton": "Add button",
+        "removeButton": "Remove button",
+        "addRow": "Add row",
+        "removeRow": "Remove row",
+        "addCondition": "Add condition",
+        "removeCondition": "Remove condition",
+        "palette": {
+          "title": "Nodes",
+          "hint": "Click or drag onto the canvas.",
+          "MESSAGE": "Message",
+          "TEMPLATE": "Template",
+          "INTERACTIVE_BUTTON": "Buttons",
+          "INTERACTIVE_LIST": "List",
+          "CONDITION": "Condition",
+          "SUBFLOW": "Subflow",
+          "AI_RAG": "AI RAG",
+          "HUMAN_HANDOVER": "Handover",
+          "EXIT": "Exit"
+        },
+        "nodeTypes": {
+          "TRIGGER": "Trigger",
+          "MESSAGE": "Message",
+          "TEMPLATE": "Template",
+          "INTERACTIVE_BUTTON": "Buttons",
+          "INTERACTIVE_LIST": "List",
+          "CONDITION": "Condition",
+          "SUBFLOW": "Subflow",
+          "AI_RAG": "AI RAG",
+          "HUMAN_HANDOVER": "Handover",
+          "EXIT": "Exit"
+        },
+        "fields": {
+          "label": "Label",
+          "messageType": "Message type",
+          "text": "Text",
+          "mediaAssetId": "Media asset ID",
+          "caption": "Caption",
+          "waitForResponse": "Wait for reply",
+          "template": "Template",
+          "templatePlaceholder": "Select a template",
+          "bodyText": "Body",
+          "handleId": "Handle ID",
+          "buttonTitle": "Button title",
+          "actionType": "Action",
+          "listButtonTitle": "List button",
+          "sectionTitle": "Section title",
+          "rowTitle": "Row title",
+          "rowDescription": "Row description",
+          "fallbackHandle": "Fallback handle",
+          "variableKey": "Variable key",
+          "value": "Value",
+          "subflow": "Published subflow",
+          "subflowPlaceholder": "Select a published flow",
+          "reason": "Handover reason",
+          "fallbackAction": "Low-confidence fallback",
+          "fallbackTargetHandle": "Fallback handle"
+        },
+        "messageTypes": {
+          "text": "Text",
+          "image": "Image",
+          "video": "Video",
+          "document": "Document"
+        },
+        "navActions": {
+          "DEFAULT": "Continue (edge)",
+          "BACK": "Back",
+          "MAIN_MENU": "Main menu",
+          "STOP": "Stop / opt out"
+        },
+        "aiFallbacks": {
+          "HUMAN_HANDOVER": "Human handover",
+          "ROUTE_EDGE": "Follow handle"
+        },
+        "meta": {
+          "buttons": "{count} / {max} buttons",
+          "rows": "{count} / {max} rows"
+        },
+        "errors": {
+          "loadFailed": "Couldn’t load this flow.",
+          "saveFailed": "Couldn’t save the flow.",
+          "validateFailed": "Couldn’t validate the flow."
+        }
       }
     },
     "knowledge": {

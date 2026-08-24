@@ -6,7 +6,6 @@ import {
   getValidAccessToken,
 } from '@/lib/access-token'
 import { authClient } from '@/lib/auth-client'
-
 export type ApiError = {
   message: string
   status: number
@@ -1246,6 +1245,117 @@ export type CreateKnowledgeDocumentResult = {
   upload?: KnowledgeDocumentPresignedUpload
 }
 
+export type ConversationFlowStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
+
+export type ConversationFlowTriggerType =
+  | 'KEYWORD'
+  | 'INBOUND_ANY'
+  | 'CAMPAIGN_REPLY'
+  | 'SUBFLOW_ENTRY'
+
+export type ConversationFlowKeywordMatchType = 'exact' | 'contains' | 'regex'
+
+export type ConversationFlowExpiryMode = 'RESUME_PROMPT' | 'RESTART' | 'RESUME_SILENT'
+
+export type ConversationFlowTangentResume = 'IMMEDIATE_REPROMPT' | 'WAIT_FOR_NEXT'
+
+export type ConversationFlowTriggerConfig = {
+  keywords?: string[]
+  matchType?: ConversationFlowKeywordMatchType
+}
+
+export type ConversationFlowSettings = {
+  sessionTtlMinutes: number
+  onExpiry: ConversationFlowExpiryMode
+  tangentResume: ConversationFlowTangentResume
+}
+
+export type ConversationFlowGraphNode = {
+  id: string
+  type: string
+  position?: { x: number; y: number }
+  data?: Record<string, unknown>
+}
+
+export type ConversationFlowGraphEdge = {
+  id: string
+  source: string
+  target: string
+  sourceHandle?: string | null
+  targetHandle?: string | null
+}
+
+export type ConversationFlowViewport = {
+  x: number
+  y: number
+  zoom: number
+}
+
+export type ConversationFlowValidationError = {
+  code?: string
+  message?: string
+  nodeId?: string
+}
+
+export type ConversationFlow = {
+  id: string
+  organizationId: string
+  name: string
+  description: string | null
+  status: ConversationFlowStatus | string
+  isDefault: boolean
+  triggerType: ConversationFlowTriggerType | string
+  publishedVersionId: string | null
+  createdAt: string
+  updatedAt: string | null
+  triggerConfig?: ConversationFlowTriggerConfig
+  settings?: ConversationFlowSettings
+  createdByUserId?: string | null
+  version?: {
+    id: string
+    versionNumber: number
+    nodes: ConversationFlowGraphNode[]
+    edges: ConversationFlowGraphEdge[]
+    viewport: ConversationFlowViewport
+    validationStatus: string
+    validationErrors: ConversationFlowValidationError[] | unknown
+    createdAt: string
+  }
+}
+
+export type ListConversationFlowsParams = {
+  page?: number
+  perPage?: number
+  status?: ConversationFlowStatus
+  search?: string
+}
+
+export type CreateConversationFlowBody = {
+  name: string
+  description?: string | null
+  triggerType?: ConversationFlowTriggerType
+  triggerConfig?: ConversationFlowTriggerConfig
+  settings?: Partial<ConversationFlowSettings>
+  isDefault?: boolean
+}
+
+export type UpdateConversationFlowBody = {
+  name?: string
+  description?: string | null
+  triggerType?: ConversationFlowTriggerType
+  triggerConfig?: ConversationFlowTriggerConfig
+  settings?: Partial<ConversationFlowSettings>
+  isDefault?: boolean
+  nodes?: ConversationFlowGraphNode[]
+  edges?: ConversationFlowGraphEdge[]
+  viewport?: ConversationFlowViewport
+}
+
+export type ConversationFlowValidateResult = {
+  valid: boolean
+  errors: ConversationFlowValidationError[]
+}
+
 export type UpdateSuperAdminSubscriptionBody = {
   planId?: string
   status?: SuperAdminSubscriptionStatus
@@ -2034,6 +2144,59 @@ export const api = {
         `/api/v1/ai/knowledge-documents/${documentId}/purge`,
         { method: 'POST' }
       ),
+  },
+
+  flows: {
+    list: (params: ListConversationFlowsParams = {}) => {
+      const qs = new URLSearchParams()
+      if (params.page != null) qs.set('page', String(params.page))
+      if (params.perPage != null) qs.set('perPage', String(params.perPage))
+      if (params.status) qs.set('status', params.status)
+      if (params.search?.trim()) qs.set('search', params.search.trim())
+      const query = qs.toString()
+      return protectedRequest<
+        | Paginated<ConversationFlow>
+        | { data?: ConversationFlow[]; meta?: PaginationMeta }
+        | { data?: { data?: ConversationFlow[]; meta?: PaginationMeta } }
+      >(`/api/v1/flows${query ? `?${query}` : ''}`, { method: 'GET' })
+    },
+
+    get: (flowId: string) =>
+      protectedRequest<{ data?: ConversationFlow } & ConversationFlow>(`/api/v1/flows/${flowId}`, {
+        method: 'GET',
+      }),
+
+    create: (body: CreateConversationFlowBody) =>
+      protectedRequest<{ data?: ConversationFlow } & ConversationFlow>('/api/v1/flows', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+
+    update: (flowId: string, body: UpdateConversationFlowBody) =>
+      protectedRequest<{ data?: ConversationFlow } & ConversationFlow>(`/api/v1/flows/${flowId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+
+    validate: (flowId: string, body: UpdateConversationFlowBody = {}) =>
+      protectedRequest<{ data?: ConversationFlowValidateResult } & ConversationFlowValidateResult>(
+        `/api/v1/flows/${flowId}/validate`,
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    publish: (flowId: string) =>
+      protectedRequest<{ data?: ConversationFlow } & ConversationFlow>(
+        `/api/v1/flows/${flowId}/publish`,
+        { method: 'POST' }
+      ),
+
+    delete: (flowId: string) =>
+      protectedRequest<{ data?: ConversationFlow } & ConversationFlow>(`/api/v1/flows/${flowId}`, {
+        method: 'DELETE',
+      }),
   },
 
   media: {

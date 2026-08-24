@@ -13,6 +13,8 @@ import { createAiDebounceTurnHandler } from '#services/job_queue/handlers/ai_deb
 import { createAiSummarizeConversationHandler } from '#services/job_queue/handlers/ai_summarize_conversation_handler'
 import { createAiReindexAllDocumentsHandler } from '#services/job_queue/handlers/ai_reindex_all_documents_handler'
 import { createIntegrationEventsRecoveryHandler } from '#services/job_queue/handlers/integration_events_recovery_handler'
+import { createFlowsAdvanceSessionHandler } from '#services/job_queue/handlers/flows_advance_session_handler'
+import { createFlowsSessionRecoveryHandler } from '#services/job_queue/handlers/flows_session_recovery_handler'
 import { CampaignExecutionService } from '#services/campaign_execution_service'
 
 /**
@@ -36,4 +38,6 @@ export async function registerJobHandlers(driver: JobQueueDriver): Promise<void>
   await driver.work(JOB_NAMES.AI_SUMMARIZE_CONVERSATION, createAiSummarizeConversationHandler())
   await driver.work(JOB_NAMES.AI_REINDEX_ALL_DOCUMENTS, createAiReindexAllDocumentsHandler())
   await driver.work(JOB_NAMES.INTEGRATION_EVENTS_RECOVERY, createIntegrationEventsRecoveryHandler())
+  await driver.work(JOB_NAMES.FLOWS_ADVANCE_SESSION, createFlowsAdvanceSessionHandler())
+  await driver.work(JOB_NAMES.FLOWS_SESSION_RECOVERY, createFlowsSessionRecoveryHandler())
 }

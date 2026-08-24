@@ -226,6 +226,42 @@ test.group('CampaignService.replaceRecipients', (group) => {
     })
   })
 
+  test('contactIds snapshots skip opted-out contacts', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const userId = await seedUser()
+    userIds.push(userId)
+
+    const live = await seedContact(organizationId)
+    const optedOut = await seedContact(organizationId, { optedOutAt: new Date() })
+
+    const campaign = await runWithTenant(organizationId, () =>
+      new CampaignService().createCampaign({
+        organizationId,
+        actorUserId: userId,
+        name: 'Opt-out ids',
+        status: 'draft',
+      })
+    )
+
+    const updated = await runWithTenant(organizationId, () =>
+      new CampaignService().replaceRecipients({
+        organizationId,
+        campaignId: campaign.id,
+        contactIds: [live, optedOut],
+      })
+    )
+    assert.equal(updated.totalRecipients, 1)
+
+    await runWithTenant(organizationId, async () => {
+      const recipients = await db.from('broadcast_recipients').where('broadcastId', campaign.id)
+      assert.deepEqual(
+        recipients.map((row) => row.contactId),
+        [live]
+      )
+    })
+  })
+
   test('tagId stores audienceTagId and excludes opted-out contacts', async ({ assert }) => {
     const organizationId = await createOrg()
     orgIds.push(organizationId)

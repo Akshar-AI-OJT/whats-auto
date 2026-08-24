@@ -218,6 +218,157 @@ test.group('HttpMetaGraphClient', () => {
     assert.equal(result.messageId, 'wamid.img')
   })
 
+  test('sendInteractiveMessage posts Cloud API button shape', async ({ assert }) => {
+    let seenUrl = ''
+    let seenBody: Record<string, unknown> = {}
+
+    const fetchImpl: typeof fetch = async (input, init) => {
+      seenUrl = String(input)
+      seenBody = JSON.parse(String(init?.body)) as Record<string, unknown>
+      return new Response(JSON.stringify({ messages: [{ id: 'wamid.btn' }] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const client = new HttpMetaGraphClient({
+      appId: 'app',
+      appSecret: 'secret',
+      graphVersion: 'v25.0',
+      fetchImpl,
+    })
+
+    const result = await client.sendInteractiveMessage({
+      phoneNumberId: 'pn-1',
+      accessToken: 'tok',
+      to: '15551234567',
+      interactive: {
+        type: 'button',
+        header: { type: 'text', text: 'Menu' },
+        body: { text: 'How can we help?' },
+        footer: { text: 'WhatsAuto' },
+        action: {
+          buttons: [
+            { type: 'reply', reply: { id: 'btn_products', title: 'Products' } },
+            { type: 'reply', reply: { id: 'btn_stop', title: 'Stop' } },
+          ],
+        },
+      },
+    })
+
+    assert.include(seenUrl, '/v25.0/pn-1/messages')
+    assert.equal(seenBody.messaging_product, 'whatsapp')
+    assert.equal(seenBody.recipient_type, 'individual')
+    assert.equal(seenBody.type, 'interactive')
+    assert.deepEqual(seenBody.interactive, {
+      type: 'button',
+      header: { type: 'text', text: 'Menu' },
+      body: { text: 'How can we help?' },
+      footer: { text: 'WhatsAuto' },
+      action: {
+        buttons: [
+          { type: 'reply', reply: { id: 'btn_products', title: 'Products' } },
+          { type: 'reply', reply: { id: 'btn_stop', title: 'Stop' } },
+        ],
+      },
+    })
+    assert.equal(result.messageId, 'wamid.btn')
+  })
+
+  test('sendInteractiveMessage posts Cloud API list shape', async ({ assert }) => {
+    let seenBody: Record<string, unknown> = {}
+
+    const fetchImpl: typeof fetch = async (_input, init) => {
+      seenBody = JSON.parse(String(init?.body)) as Record<string, unknown>
+      return new Response(JSON.stringify({ messages: [{ id: 'wamid.list' }] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const client = new HttpMetaGraphClient({
+      appId: 'app',
+      appSecret: 'secret',
+      graphVersion: 'v25.0',
+      fetchImpl,
+    })
+
+    await client.sendInteractiveMessage({
+      phoneNumberId: 'pn-1',
+      accessToken: 'tok',
+      to: '15551234567',
+      interactive: {
+        type: 'list',
+        body: { text: 'Pick a product' },
+        action: {
+          button: 'View options',
+          sections: [
+            {
+              title: 'Catalog',
+              rows: [{ id: 'opt_a', title: 'Product A', description: 'First item' }],
+            },
+          ],
+        },
+      },
+    })
+
+    assert.equal(seenBody.type, 'interactive')
+    assert.deepEqual(seenBody.interactive, {
+      type: 'list',
+      body: { text: 'Pick a product' },
+      action: {
+        button: 'View options',
+        sections: [
+          {
+            title: 'Catalog',
+            rows: [{ id: 'opt_a', title: 'Product A', description: 'First item' }],
+          },
+        ],
+      },
+    })
+  })
+
+  test('sendInteractiveMessage rejects over-limit payloads before calling Meta', async ({
+    assert,
+  }) => {
+    let fetchCalls = 0
+    const fetchImpl: typeof fetch = async () => {
+      fetchCalls += 1
+      return new Response(JSON.stringify({ messages: [{ id: 'wamid.x' }] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const client = new HttpMetaGraphClient({
+      appId: 'app',
+      appSecret: 'secret',
+      graphVersion: 'v25.0',
+      fetchImpl,
+    })
+
+    await assert.rejects(() =>
+      client.sendInteractiveMessage({
+        phoneNumberId: 'pn-1',
+        accessToken: 'tok',
+        to: '15551234567',
+        interactive: {
+          type: 'button',
+          body: { text: 'Nope' },
+          action: {
+            buttons: [
+              { type: 'reply', reply: { id: 'a', title: 'A' } },
+              { type: 'reply', reply: { id: 'b', title: 'B' } },
+              { type: 'reply', reply: { id: 'c', title: 'C' } },
+              { type: 'reply', reply: { id: 'd', title: 'D' } },
+            ],
+          },
+        },
+      })
+    )
+    assert.equal(fetchCalls, 0)
+  })
+
   test('createResumableUploadSession posts to app uploads endpoint', async ({ assert }) => {
     let seenUrl = ''
     let seenMethod = ''

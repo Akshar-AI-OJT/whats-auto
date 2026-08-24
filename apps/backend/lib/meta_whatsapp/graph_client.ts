@@ -1,4 +1,8 @@
 import env from '#start/env'
+import {
+  serializeInteractivePayload,
+  type MetaInteractivePayload,
+} from '#lib/meta_whatsapp/interactive_message'
 import type {
   MetaCreateMessageTemplateResult,
   MetaGraphErrorBody,
@@ -62,6 +66,12 @@ export interface MetaGraphClient {
     link: string
     caption?: string
     filename?: string
+  }): Promise<MetaSendMessageResult>
+  sendInteractiveMessage(params: {
+    phoneNumberId: string
+    accessToken: string
+    to: string
+    interactive: MetaInteractivePayload
   }): Promise<MetaSendMessageResult>
   listMessageTemplates?(params: {
     wabaId: string
@@ -338,6 +348,36 @@ export class HttpMetaGraphClient implements MetaGraphClient {
       messageId: messages?.[0]?.id,
       raw: json,
     }
+  }
+
+  /**
+   * POST /{phone-number-id}/messages (type=interactive button|list).
+   * Meta character/count limits are asserted before the request; they are never truncated.
+   */
+  async sendInteractiveMessage(params: {
+    phoneNumberId: string
+    accessToken: string
+    to: string
+    interactive: MetaInteractivePayload
+  }): Promise<MetaSendMessageResult> {
+    const interactive = serializeInteractivePayload(params.interactive)
+    const url = `${this.baseUrl}/${encodeURIComponent(params.phoneNumberId)}/messages`
+    const json = await this.requestJson<Record<string, unknown>>('sendInteractive', url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${params.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: params.to,
+        type: 'interactive',
+        interactive,
+      }),
+    })
+
+    return this.#parseSendResult(json)
   }
 
   async listMessageTemplates(params: {

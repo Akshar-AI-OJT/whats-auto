@@ -77,6 +77,13 @@ export const queryKeys = {
     quota: (orgId?: string | null) =>
       [...queryKeys.knowledge.all, 'quota', orgId ?? 'none'] as const,
   },
+  flows: {
+    all: ['flows'] as const,
+    list: (orgId?: string | null, params?: Record<string, string | number>) =>
+      [...queryKeys.flows.all, 'list', orgId ?? 'none', params ?? {}] as const,
+    detail: (orgId?: string | null, id?: string | null) =>
+      [...queryKeys.flows.all, 'detail', orgId ?? 'none', id ?? 'none'] as const,
+  },
   customerGroups: {
     all: ['customer-groups'] as const,
     list: (organizationId?: string | null) =>

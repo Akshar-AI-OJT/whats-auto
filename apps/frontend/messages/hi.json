@@ -1447,6 +1447,7 @@
       "messages": "संदेश",
       "campaigns": "कैंपेन",
       "templates": "टेम्पलेट्स",
+      "flows": "फ़्लो",
       "knowledge": "नॉलेज बेस",
       "integrations": "इंटीग्रेशन",
       "notifications": "सूचनाएँ",
@@ -1463,6 +1464,196 @@
         "teamAccess": "टीम और एक्सेस",
         "billing": "बिलिंग",
       "settings": "सेटिंग्स"
+      }
+    },
+    "flows": {
+      "eyebrow": "ऑटोमेशन",
+      "title": "बातचीत फ़्लो",
+      "subtitle": "कीवर्ड और इनबाउंड WhatsApp मेनू बनाएँ। इनबाउंड रूटिंग शुरू करने के लिए एक वर्शन पब्लिश करें।",
+      "createCta": "नया फ़्लो",
+      "searchPlaceholder": "नाम से खोजें…",
+      "loading": "फ़्लो लोड हो रहे हैं…",
+      "retry": "फिर कोशिश करें",
+      "emptyTitle": "अभी कोई फ़्लो नहीं",
+      "emptyDescription": "एक ड्राफ्ट बनाएँ, फिर कैनवस में मेनू जोड़कर पब्लिश करें।",
+      "pagination": "{total} में से {from}–{to} दिख रहे हैं",
+      "prev": "पिछला",
+      "next": "अगला",
+      "filters": {
+        "label": "स्थिति",
+        "all": "सभी",
+        "DRAFT": "ड्राफ्ट",
+        "PUBLISHED": "पब्लिश्ड",
+        "ARCHIVED": "आर्काइव्ड"
+      },
+      "status": {
+        "DRAFT": "ड्राफ्ट",
+        "PUBLISHED": "पब्लिश्ड",
+        "ARCHIVED": "आर्काइव्ड"
+      },
+      "triggerType": {
+        "KEYWORD": "कीवर्ड",
+        "INBOUND_ANY": "कोई भी इनबाउंड",
+        "CAMPAIGN_REPLY": "कैंपेन रिप्लाई",
+        "SUBFLOW_ENTRY": "सबफ़्लो"
+      },
+      "actions": {
+        "edit": "एडिटर खोलें",
+        "publish": "पब्लिश",
+        "archive": "आर्काइव"
+      },
+      "create": {
+        "title": "नया फ़्लो",
+        "subtitle": "एक ड्राफ्ट बनता है और कैनवस एडिटर खुलता है।",
+        "name": "नाम",
+        "namePlaceholder": "वेलकम मेनू",
+        "description": "विवरण",
+        "descriptionPlaceholder": "वैकल्पिक",
+        "triggerType": "ट्रिगर",
+        "keywords": "कीवर्ड",
+        "keywordsPlaceholder": "hi, hello",
+        "cancel": "रद्द करें",
+        "submit": "ड्राफ्ट बनाएँ",
+        "saving": "बनाया जा रहा है…",
+        "errors": {
+          "nameRequired": "फ़्लो का नाम दर्ज करें।",
+          "keywordsRequired": "कम से कम एक कीवर्ड जोड़ें।"
+        }
+      },
+      "delete": {
+        "title": "इस फ़्लो को आर्काइव करें?",
+        "body": "“{name}” इनबाउंड मेल नहीं खाएगा। वर्शन सुरक्षित रहेंगे।",
+        "cancel": "रद्द करें",
+        "confirm": "आर्काइव",
+        "deleting": "आर्काइव हो रहा है…"
+      },
+      "publish": {
+        "title": "इस फ़्लो को पब्लिश करें?",
+        "body": "“{name}” इनबाउंड रूटिंग के लिए अपना नवीनतम मान्य ग्राफ़ उपयोग करेगा।",
+        "invalid": "यह ग्राफ़ अभी मान्य नहीं है।",
+        "cancel": "रद्द करें",
+        "confirm": "पब्लिश",
+        "publishing": "पब्लिश हो रहा है…"
+      },
+      "errors": {
+        "loadFailed": "फ़्लो लोड नहीं हो सके।",
+        "createFailed": "फ़्लो बन नहीं सका।",
+        "deleteFailed": "फ़्लो आर्काइव नहीं हो सका।",
+        "publishFailed": "फ़्लो पब्लिश नहीं हो सका।",
+        "publishInvalid": "पब्लिश करने से पहले ग्राफ़ त्रुटियाँ ठीक करें।"
+      },
+      "editor": {
+        "back": "फ़्लो",
+        "unsaved": "सहेजा नहीं",
+        "settings": "सेटिंग्स",
+        "settingsTitle": "फ़्लो सेटिंग्स",
+        "settingsHint": "ट्रिगर और सेशन विकल्प फ़्लो पर हैं, कैनवस TRIGGER नोड पर नहीं।",
+        "validate": "मान्य करें",
+        "save": "सहेजें",
+        "loading": "फ़्लो लोड हो रहा है…",
+        "matchType": "कीवर्ड मैच",
+        "matchTypes": {
+          "exact": "Exact",
+          "contains": "Contains",
+          "regex": "Regex"
+        },
+        "sessionTtl": "सेशन TTL (मिनट)",
+        "onExpiry": "सेशन समाप्त होने पर",
+        "expiryModes": {
+          "RESUME_PROMPT": "प्रॉम्प्ट के साथ फिर शुरू",
+          "RESTART": "रीस्टार्ट",
+          "RESUME_SILENT": "खामोशी से जारी"
+        },
+        "tangentResume": "AI टैन्जेंट के बाद",
+        "tangentModes": {
+          "IMMEDIATE_REPROMPT": "तुरंत रीप्रॉम्प्ट",
+          "WAIT_FOR_NEXT": "अगले संदेश की प्रतीक्षा"
+        },
+        "inspectorEmpty": "फ़ील्ड संपादित करने के लिए नोड चुनें, या सेटिंग्स खोलें।",
+        "deleteNode": "हटाएँ",
+        "triggerMirrorHint": "इनबाउंड मैचिंग सेटिंग्स → ट्रिगर से होती है। यह नोड केवल एंट्रीपॉइंट है।",
+        "addButton": "बटन जोड़ें",
+        "removeButton": "बटन हटाएँ",
+        "addRow": "पंक्ति जोड़ें",
+        "removeRow": "पंक्ति हटाएँ",
+        "addCondition": "कंडीशन जोड़ें",
+        "removeCondition": "कंडीशन हटाएँ",
+        "palette": {
+          "title": "नोड्स",
+          "hint": "क्लिक करें या कैनवस पर खींचें।",
+          "MESSAGE": "संदेश",
+          "TEMPLATE": "टेम्पलेट",
+          "INTERACTIVE_BUTTON": "बटन",
+          "INTERACTIVE_LIST": "सूची",
+          "CONDITION": "कंडीशन",
+          "SUBFLOW": "सबफ़्लो",
+          "AI_RAG": "AI RAG",
+          "HUMAN_HANDOVER": "हैंडओवर",
+          "EXIT": "एग्ज़िट"
+        },
+        "nodeTypes": {
+          "TRIGGER": "ट्रिगर",
+          "MESSAGE": "संदेश",
+          "TEMPLATE": "टेम्पलेट",
+          "INTERACTIVE_BUTTON": "बटन",
+          "INTERACTIVE_LIST": "सूची",
+          "CONDITION": "कंडीशन",
+          "SUBFLOW": "सबफ़्लो",
+          "AI_RAG": "AI RAG",
+          "HUMAN_HANDOVER": "हैंडओवर",
+          "EXIT": "एग्ज़िट"
+        },
+        "fields": {
+          "label": "लेबल",
+          "messageType": "संदेश प्रकार",
+          "text": "पाठ",
+          "mediaAssetId": "मीडिया एसेट ID",
+          "caption": "कैप्शन",
+          "waitForResponse": "जवाब की प्रतीक्षा",
+          "template": "टेम्पलेट",
+          "templatePlaceholder": "टेम्पलेट चुनें",
+          "bodyText": "बॉडी",
+          "handleId": "हैंडल ID",
+          "buttonTitle": "बटन शीर्षक",
+          "actionType": "एक्शन",
+          "listButtonTitle": "सूची बटन",
+          "sectionTitle": "सेक्शन शीर्षक",
+          "rowTitle": "पंक्ति शीर्षक",
+          "rowDescription": "पंक्ति विवरण",
+          "fallbackHandle": "फ़ॉलबैक हैंडल",
+          "variableKey": "वेरिएबल कुंजी",
+          "value": "मान",
+          "subflow": "पब्लिश्ड सबफ़्लो",
+          "subflowPlaceholder": "पब्लिश्ड फ़्लो चुनें",
+          "reason": "हैंडओवर कारण",
+          "fallbackAction": "कम-कॉन्फ़िडेंस फ़ॉलबैक",
+          "fallbackTargetHandle": "फ़ॉलबैक हैंडल"
+        },
+        "messageTypes": {
+          "text": "पाठ",
+          "image": "छवि",
+          "video": "वीडियो",
+          "document": "दस्तावेज़"
+        },
+        "navActions": {
+          "DEFAULT": "जारी (एज)",
+          "BACK": "वापस",
+          "MAIN_MENU": "मुख्य मेनू",
+          "STOP": "रोकें / ऑप्ट आउट"
+        },
+        "aiFallbacks": {
+          "HUMAN_HANDOVER": "मानव हैंडओवर",
+          "ROUTE_EDGE": "हैंडल फ़ॉलो करें"
+        },
+        "meta": {
+          "buttons": "{count} / {max} बटन",
+          "rows": "{count} / {max} पंक्तियाँ"
+        },
+        "errors": {
+          "loadFailed": "यह फ़्लो लोड नहीं हो सका।",
+          "saveFailed": "फ़्लो सहेजा नहीं जा सका।",
+          "validateFailed": "फ़्लो मान्य नहीं हो सका।"
+        }
       }
     },
     "knowledge": {

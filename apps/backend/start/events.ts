@@ -7,6 +7,8 @@ import app from '@adonisjs/core/services/app'
 import emitter from '@adonisjs/core/services/emitter'
 import logger from '@adonisjs/core/services/logger'
 import AiDebounceService from '#services/ai/ai_debounce_service'
+import FlowRouterService from '#services/flow/flow_router_service'
+import { enqueueFlowAdvanceSession } from '#services/flow/enqueue_flow_advance'
 import InboxMessageFailed from '#events/inbox_message_failed'
 import InboxMessageQueued from '#events/inbox_message_queued'
 import InboxMessageReceived from '#events/inbox_message_received'
@@ -70,7 +72,26 @@ emitter.on(InboxMessageReceived, async (event) => {
   try {
     logger.info(event.payload, 'inbox.message.received')
     publishSafely('message.received', event.payload.organizationId, event.payload)
+
+    const router = new FlowRouterService()
+    const decision = await router.decide({
+      organizationId: event.payload.organizationId,
+      conversationId: event.payload.conversationId,
+      contactId: event.payload.contactId,
+      messageId: event.payload.messageId,
+      contentText: event.payload.contentText,
+      interactiveReplyId: event.payload.interactiveReplyId,
+    })
+
     const debounce = await app.container.make(AiDebounceService)
+
+    if (decision.kind === 'flow') {
+      // Fully suppress AI debounce while a flow session owns the conversation.
+      await debounce.cancelPending(event.payload.organizationId, event.payload.conversationId)
+      await enqueueFlowAdvanceSession(decision.payload)
+      return
+    }
+
     await debounce.scheduleFromInbound({
       organizationId: event.payload.organizationId,
       conversationId: event.payload.conversationId,
