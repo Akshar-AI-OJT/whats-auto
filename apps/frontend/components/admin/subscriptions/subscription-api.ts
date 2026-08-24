@@ -3,18 +3,12 @@ import {
   type ApiError,
   type CreateSuperAdminSubscriptionBody,
   type PaginationMeta,
+  type SuperAdminPlan,
+  type SuperAdminPlanStatus,
   type SuperAdminSubscription,
   type SuperAdminSubscriptionStatus,
   type UpdateSuperAdminSubscriptionBody,
 } from '@/lib/api'
-import { PLANS, planKeyFromCheckoutPlanId, type PlanConfig } from '@/lib/plan-config'
-
-/** Demo-seeded plan UUIDs (stableUuid) — used only when no plans catalog API exists. */
-export const DEMO_PLAN_OPTIONS: Array<{ id: string; label: string }> = [
-  { id: '55c5e165-97f1-45b0-b3d1-801b79f4ff98', label: 'Starter' },
-  { id: '4854c623-f7d6-45a1-a4cd-a262e652f57a', label: 'Growth' },
-  { id: 'b1aaef4d-7933-4965-9cff-69217166513d', label: 'Scale' },
-]
 
 export const SUBSCRIPTION_STATUSES: SuperAdminSubscriptionStatus[] = [
   'trialing',
@@ -23,32 +17,127 @@ export const SUBSCRIPTION_STATUSES: SuperAdminSubscriptionStatus[] = [
   'cancelled',
 ]
 
-export function planConfigForSubscription(planId: string): PlanConfig | undefined {
-  const key = planKeyFromCheckoutPlanId(planId)
-  return key ? PLANS.find((plan) => plan.id === key) : undefined
+export type PlanSelectOption = {
+  id: string
+  label: string
+  price: number | null
+  currency: string
+  billingPeriod: SuperAdminPlan['billingPeriod']
+  status: SuperAdminPlanStatus
 }
 
-export function planLabel(planId: string): string {
-  const config = planConfigForSubscription(planId)
-  if (config) {
-    const match = DEMO_PLAN_OPTIONS.find((plan) => plan.id === planId)
-    return match?.label ?? config.id
+function unwrapPlansPayload(data: unknown): SuperAdminPlan[] {
+  if (!data) return []
+  const root = data as {
+    data?: { items?: SuperAdminPlan[] } | SuperAdminPlan[]
+    items?: SuperAdminPlan[]
   }
-  return DEMO_PLAN_OPTIONS.find((plan) => plan.id === planId)?.label ?? planId.slice(0, 8)
+  if (Array.isArray(root.data)) return root.data
+  if (root.data && typeof root.data === 'object' && Array.isArray(root.data.items)) {
+    return root.data.items
+  }
+  if (Array.isArray(root.items)) return root.items
+  return []
 }
 
-export function planAmountLabel(planId: string, customLabel: string): string {
-  const config = planConfigForSubscription(planId)
-  if (!config || config.priceMonthly == null) return customLabel
-  return `$${config.priceMonthly.toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`
+/** Live Super Admin plans catalog (`GET /api/v1/super-admin/plans`). */
+export async function listSuperAdminPlansCatalog(
+  status: SuperAdminPlanStatus | 'all' = 'all'
+): Promise<SuperAdminPlan[]> {
+  const { data } = await api.superAdmin.plans.list({ status })
+  return unwrapPlansPayload(data)
 }
 
-export function planBillingKind(planId: string): 'monthly' | 'custom' {
-  const config = planConfigForSubscription(planId)
-  return config?.priceMonthly == null ? 'custom' : 'monthly'
+export function findPlanById(
+  plans: SuperAdminPlan[],
+  planId: string | null | undefined
+): SuperAdminPlan | undefined {
+  if (!planId) return undefined
+  return plans.find((plan) => plan.id === planId)
+}
+
+export function planLabel(planId: string, plans: SuperAdminPlan[]): string {
+  const plan = findPlanById(plans, planId)
+  if (plan?.name?.trim()) return plan.name.trim()
+  if (plan?.code?.trim()) return plan.code.trim()
+  return planId.slice(0, 8)
+}
+
+export function formatPlanPrice(
+  plan: SuperAdminPlan | undefined,
+  customLabel: string
+): string {
+  if (!plan || plan.price == null) return customLabel
+  const currency = (plan.currency || 'USD').toUpperCase()
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(plan.price)
+  } catch {
+    return `${currency} ${plan.price.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`
+  }
+}
+
+export function planAmountLabel(
+  planId: string,
+  plans: SuperAdminPlan[],
+  customLabel: string
+): string {
+  return formatPlanPrice(findPlanById(plans, planId), customLabel)
+}
+
+/** Maps API billingPeriod into the subscriptions UI filter buckets. */
+export function planBillingKind(
+  planId: string,
+  plans: SuperAdminPlan[]
+): 'monthly' | 'custom' {
+  const plan = findPlanById(plans, planId)
+  if (!plan) return 'custom'
+  if (plan.billingPeriod === 'custom' || plan.price == null) return 'custom'
+  return 'monthly'
+}
+
+/**
+ * Options for plan selects. Prefer active plans; always include any `includeIds`
+ * so existing subscriptions remain editable even if the plan was archived.
+ */
+export function toPlanSelectOptions(
+  plans: SuperAdminPlan[],
+  options: { activeOnly?: boolean; includeIds?: string[] } = {}
+): PlanSelectOption[] {
+  const include = new Set(options.includeIds?.filter(Boolean) ?? [])
+  const filtered = plans.filter((plan) => {
+    if (include.has(plan.id)) return true
+    if (options.activeOnly) {
+      return plan.status === 'active' || plan.isActive === true
+    }
+    return plan.status !== 'archived'
+  })
+
+  const byId = new Map<string, SuperAdminPlan>()
+  for (const plan of filtered) byId.set(plan.id, plan)
+
+  return [...byId.values()]
+    .sort((a, b) => {
+      const orderA = a.sortOrder ?? 0
+      const orderB = b.sortOrder ?? 0
+      if (orderA !== orderB) return orderA - orderB
+      return a.name.localeCompare(b.name)
+    })
+    .map((plan) => ({
+      id: plan.id,
+      label: plan.name?.trim() || plan.code || plan.id.slice(0, 8),
+      price: plan.price,
+      currency: plan.currency,
+      billingPeriod: plan.billingPeriod,
+      status: plan.status,
+    }))
 }
 
 function unwrapPaginated(
