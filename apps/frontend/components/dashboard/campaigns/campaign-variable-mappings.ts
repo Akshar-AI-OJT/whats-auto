@@ -3,12 +3,13 @@ import type {
   CampaignVariableMappings,
   WhatsappMessageTemplate,
 } from '@/lib/api'
+import { extractTemplateVariables, isNumericTemplateVariable } from '../templates/template-utils'
 
 /** Contact columns supported by backend `readMappedContactField`. */
 export const CAMPAIGN_CONTACT_MAPPING_FIELDS = [
   'name',
   'first_name',
-  'customer_name',
+  'last_name',
   'email',
   'company',
   'phone',
@@ -33,42 +34,92 @@ export const emptyMappingDraft = (): CampaignVariableMappingDraft => ({
   value: '',
 })
 
+function urlButtonTexts(template: WhatsappMessageTemplate | null | undefined): string[] {
+  const buttons = template?.buttons
+  if (!Array.isArray(buttons)) return []
+  return buttons
+    .filter((button) => String(button?.type || '').toUpperCase() === 'URL')
+    .map((button) => String(button?.url || ''))
+}
+
 /**
- * Named template variables that must be mapped before send/schedule.
- * Sources: `parameterSchema.headerNames` + `parameterSchema.bodyNames` only.
+ * Variables extracted from template body/header/URL buttons when schema is empty or stale.
+ */
+export function extractTemplateVariableNamesFromText(
+  template: WhatsappMessageTemplate | null | undefined
+): string[] {
+  if (!template) return []
+  const headerText =
+    String(template.headerType || '').toUpperCase() === 'TEXT' ? template.headerContent : ''
+  return extractTemplateVariables(template.bodyText, headerText, ...urlButtonTexts(template))
+}
+
+/**
+ * Template variables that must be mapped before send/schedule.
+ * Prefer parameterSchema names; fall back to body/header/URL text when schema is stale.
  */
 export function extractTemplateVariableNames(
   template: WhatsappMessageTemplate | null | undefined
 ): string[] {
   const schema = template?.parameterSchema
-  if (!schema) return []
+  if (schema) {
+    const names: string[] = []
+    const seen = new Set<string>()
 
-  const names: string[] = []
-  const seen = new Set<string>()
-
-  for (const list of [schema.headerNames, schema.bodyNames]) {
-    if (!Array.isArray(list)) continue
-    for (const raw of list) {
-      if (typeof raw !== 'string') continue
+    const push = (raw: unknown) => {
+      if (typeof raw !== 'string') return
       const name = raw.trim()
-      if (!name || seen.has(name)) continue
+      if (!name || seen.has(name)) return
       seen.add(name)
       names.push(name)
     }
+
+    for (const list of [schema.headerNames, schema.bodyNames]) {
+      if (!Array.isArray(list)) continue
+      for (const raw of list) push(raw)
+    }
+
+    if (Array.isArray(schema.urlButtons)) {
+      for (const button of schema.urlButtons) {
+        if (!button || typeof button !== 'object') continue
+        push((button as { name?: unknown }).name)
+      }
+    }
+
+    if (names.length > 0) return names
   }
 
-  return names
+  return extractTemplateVariableNamesFromText(template)
 }
 
+/**
+ * Whether the campaign UI can map & launch this template.
+ * Heals stale `sendable: false` from numbered-placeholder schemas by re-checking text.
+ */
 export function isTemplateSendable(template: WhatsappMessageTemplate | null | undefined): boolean {
   if (!template?.parameterSchema) return true
-  return template.parameterSchema.sendable !== false
+  if (template.parameterSchema.sendable !== false) return true
+
+  const headerType = String(template.headerType || '').toLowerCase()
+  if (headerType === 'video') return false
+
+  const reason = String(template.parameterSchema.unsupportedReason || '')
+  if (/mixed numbered and named/i.test(reason)) return false
+
+  const fromText = extractTemplateVariableNamesFromText(template)
+  const hasMixed =
+    fromText.some(isNumericTemplateVariable) &&
+    fromText.some((n) => !isNumericTemplateVariable(n))
+  if (hasMixed) return false
+
+  // Stale non-sendable (e.g. old "Numbered placeholders are not supported") → allow mapping.
+  return true
 }
 
 export function templateUnsupportedReason(
   template: WhatsappMessageTemplate | null | undefined
 ): string | null {
-  if (!template?.parameterSchema || template.parameterSchema.sendable !== false) return null
+  if (!template?.parameterSchema || isTemplateSendable(template)) return null
   const reason = template.parameterSchema.unsupportedReason
   return typeof reason === 'string' && reason.trim() ? reason.trim() : null
 }

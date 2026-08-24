@@ -19,7 +19,7 @@ import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { queryKeys } from '@/lib/query-keys'
 import { CAMPAIGN_RECIPIENT_MAX, unwrapCampaign, isEditableCampaignStatus } from './campaign-utils'
-import { unwrapTemplateList } from '@/components/dashboard/templates/template-utils'
+import { unwrapTemplateList, normalizeSampleValues } from '@/components/dashboard/templates/template-utils'
 import {
   listCustomerGroupContacts,
   listCustomerGroups,
@@ -199,6 +199,11 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
 
   const templateVariableNames = useMemo(
     () => extractTemplateVariableNames(selectedTemplate),
+    [selectedTemplate]
+  )
+
+  const templateSampleValues = useMemo(
+    () => normalizeSampleValues(selectedTemplate?.sampleValues),
     [selectedTemplate]
   )
 
@@ -577,6 +582,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
             variableNames={templateVariableNames}
             drafts={mappingDrafts}
             unsupportedReason={unsupportedReason}
+            sampleValues={templateSampleValues}
             disabled={mutation.isPending}
             onChange={handleMappingChange}
           />

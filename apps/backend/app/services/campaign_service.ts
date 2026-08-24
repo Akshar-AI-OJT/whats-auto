@@ -10,9 +10,8 @@ import {
   toUtcIso,
 } from '#lib/scheduled_at'
 import {
-  deriveParameterSchema,
-  parseParameterSchema,
   pickRequiredParameterValues,
+  resolveParameterSchema,
   TemplateParameterError,
 } from '#lib/meta_whatsapp/template_parameters'
 import type { TemplateParameterSchema } from '#lib/meta_whatsapp/types'
@@ -531,12 +530,8 @@ export class CampaignService {
   }
 
   protected campaignTemplateSchema(template: Record<string, unknown>): TemplateParameterSchema {
-    const stored = parseParameterSchema(parseJsonField(template.parameterSchema))
-    if (stored.sendable || stored.unsupportedReason) {
-      return stored
-    }
-
-    return deriveParameterSchema({
+    return resolveParameterSchema({
+      stored: parseJsonField(template.parameterSchema),
       headerType: (template.headerType as string | null) ?? null,
       headerContent: (template.headerContent as string | null) ?? null,
       bodyText: (template.bodyText as string) ?? '',
@@ -1252,11 +1247,8 @@ export class CampaignService {
         .where('organizationId', params.organizationId)
         .where('status', CAMPAIGN_SCHEDULED_STATUS)
         .update({
-          status:
-            currentStatus === CAMPAIGN_SCHEDULED_STATUS
-              ? CAMPAIGN_SCHEDULED_STATUS
-              : CAMPAIGN_DRAFT_STATUS,
-          scheduledAt: currentStatus === CAMPAIGN_SCHEDULED_STATUS ? previousScheduledAt : null,
+          status: currentStatus,
+          scheduledAt: previousScheduledAt,
         })
       logger.error(
         {
@@ -1288,7 +1280,7 @@ export class CampaignService {
   }
 
   /**
-   * Enqueue delayed campaign execute job for a future schedule.
+   * Enqueue a delayed CAMPAIGN_EXECUTE wake for the canonical scheduledAt instant.
    */
   protected async registerCampaignSchedule(params: {
     organizationId: string
@@ -1365,7 +1357,8 @@ export class CampaignService {
   }
 
   /**
-   * Kick off campaign send: mark as `sending` ("running") when eligible, then enqueue fan-out.
+   * Kick off campaign send: mark as `sending` ("running") when eligible,
+   * then enqueue an immediate CAMPAIGN_EXECUTE wake. Delivery happens in the worker.
    * Soft-deleted campaigns are treated as not found (404).
    * Requires an approved template and a connected WhatsApp configuration.
    */
@@ -1442,7 +1435,6 @@ export class CampaignService {
       )
       throw error
     }
-
     await this.#protectHeaderMedia({
       organizationId: params.organizationId,
       campaignId: params.campaignId,
@@ -1462,7 +1454,7 @@ export class CampaignService {
   }
 
   /**
-   * Enqueue immediate campaign execute fan-out via WhatsappOutboundService per recipient.
+   * Enqueue an immediate CAMPAIGN_EXECUTE wake for manual launch.
    */
   protected async enqueueCampaignSend(params: {
     organizationId: string
@@ -1575,7 +1567,7 @@ export class CampaignService {
       headerType,
       headerMediaUrl: (template.headerMediaUrl as string | null) ?? null,
       variables,
-      parameterSchema: parseParameterSchema(parseJsonField(template.parameterSchema)),
+      parameterSchema: this.campaignTemplateSchema(template),
       headerPreview:
         headerType?.toLowerCase() === 'text'
           ? applyTemplateVariables(headerContent, variables)

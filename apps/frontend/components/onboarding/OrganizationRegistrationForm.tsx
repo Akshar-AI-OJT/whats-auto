@@ -323,7 +323,7 @@ export function OrganizationRegistrationForm({
       }
 
       const message = apiError.message || t('errors.generic')
-      if (/slug/i.test(message)) {
+      if (apiError.code === 'E_ORG_SLUG_ALREADY_EXISTS' || /slug/i.test(message)) {
         setBasicsErrors((prev) => ({ ...prev, slug: message }))
         setStep(1)
       } else if (/email/i.test(message)) {

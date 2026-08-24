@@ -64,6 +64,11 @@ export function TemplateCreatePage() {
       language: template.language || 'en_US',
       headerType,
       headerContent: headerType === 'TEXT' ? template.headerContent || '' : '',
+      headerMediaAssetId: '',
+      headerMediaUrl:
+        headerType === 'IMAGE' || headerType === 'DOCUMENT'
+          ? template.headerMediaUrl || ''
+          : '',
       bodyText: template.bodyText || '',
       footerText: template.footerText || '',
       buttons: normalizeButtons(template.buttons),

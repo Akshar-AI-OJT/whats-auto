@@ -1,16 +1,19 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { useTranslations } from 'next-intl'
-import { useLocale } from 'next-intl'
+import { useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { useLocale, useTranslations } from 'next-intl'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
-import { fetchMonthlyRevenueTrend, type MonthlyRevenuePoint } from '../analytics/super-admin-analytics'
+import { queryKeys } from '@/lib/query-keys'
 import { cn } from '@/lib/utils'
+import { fetchMonthlyRevenueTrend } from '../analytics/super-admin-analytics'
 
 const WIDTH = 560
 const HEIGHT = 220
 const PAD = { top: 16, right: 12, bottom: 32, left: 48 }
+const STALE_MS = 60_000
+const MONTHS = 6
 
 function formatShortCurrency(value: number) {
   if (value >= 1000) {
@@ -24,26 +27,13 @@ export function RevenueTrendChart({ className }: { className?: string }) {
   const tAnalytics = useTranslations('admin.analytics')
   const locale = useLocale()
 
-  const [data, setData] = useState<MonthlyRevenuePoint[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const trendQuery = useQuery({
+    queryKey: queryKeys.admin.analytics.monthlyRevenue(locale, MONTHS),
+    queryFn: () => fetchMonthlyRevenueTrend(locale, MONTHS),
+    staleTime: STALE_MS,
+  })
 
-  useEffect(() => {
-    let cancelled = false
-    async function load() {
-      try {
-        const trend = await fetchMonthlyRevenueTrend(locale)
-        if (!cancelled) setData(trend)
-      } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : tAnalytics('unavailable'))
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-    load()
-    return () => { cancelled = true }
-  }, [locale, tAnalytics])
-
+  const data = useMemo(() => trendQuery.data ?? [], [trendQuery.data])
   const hasRevenue = data.some((d) => d.revenue > 0)
 
   const { bars, yTicks, max } = useMemo(() => {
@@ -79,12 +69,16 @@ export function RevenueTrendChart({ className }: { className?: string }) {
       <DashboardSectionHeader title={t('title')} description={t('description')} />
 
       <div className="mt-5 min-h-0 flex-1">
-        {loading ? (
+        {trendQuery.isLoading ? (
           <div className="flex h-full items-center justify-center">
             <div className="size-6 animate-spin rounded-full border-2 border-dash-border border-t-primary" />
           </div>
-        ) : error ? (
-          <p className="text-center text-sm text-mute">{error}</p>
+        ) : trendQuery.error ? (
+          <p className="text-center text-sm text-mute">
+            {trendQuery.error instanceof Error
+              ? trendQuery.error.message
+              : tAnalytics('unavailable')}
+          </p>
         ) : !hasRevenue ? (
           <p className="text-center text-sm text-mute">{tAnalytics('unavailable')}</p>
         ) : (

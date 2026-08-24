@@ -16,7 +16,9 @@ export default class InboxSseBusProvider {
   }
 
   async boot() {
-    await inboxSseBus.start()
+    if (this.app.getEnvironment() === 'web') {
+      await inboxSseBus.start()
+    }
   }
 
   async shutdown() {

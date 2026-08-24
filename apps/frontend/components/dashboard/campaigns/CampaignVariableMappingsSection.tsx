@@ -24,6 +24,8 @@ type CampaignVariableMappingsSectionProps = {
   variableNames: string[]
   drafts: CampaignVariableMappingDrafts
   unsupportedReason: string | null
+  /** Template sampleValues — shown as hints for numbered / named vars. */
+  sampleValues?: Record<string, string> | null
   disabled?: boolean
   onChange: (variable: string, next: CampaignVariableMappingDraft) => void
 }
@@ -32,6 +34,7 @@ export function CampaignVariableMappingsSection({
   variableNames,
   drafts,
   unsupportedReason,
+  sampleValues,
   disabled = false,
   onChange,
 }: CampaignVariableMappingsSectionProps) {
@@ -76,6 +79,7 @@ export function CampaignVariableMappingsSection({
             {variableNames.map((variable) => {
               const draft = drafts[variable] ?? emptyMappingDraft()
               const complete = isMappingDraftComplete(draft)
+              const sampleHint = sampleValues?.[variable]?.trim()
 
               return (
                 <li
@@ -88,9 +92,16 @@ export function CampaignVariableMappingsSection({
                   )}
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="font-mono text-sm font-semibold text-ink">
-                      {`{{${variable}}}`}
-                    </p>
+                    <div className="min-w-0">
+                      <p className="font-mono text-sm font-semibold text-ink">
+                        {`{{${variable}}}`}
+                      </p>
+                      {sampleHint ? (
+                        <p className="mt-0.5 text-xs text-mute">
+                          {t('sampleHint', { sample: sampleHint })}
+                        </p>
+                      ) : null}
+                    </div>
                     <span
                       className={cn(
                         'inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-semibold tracking-wide uppercase',

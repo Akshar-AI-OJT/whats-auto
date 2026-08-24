@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import {
   Building2,
   Building,
@@ -13,54 +14,44 @@ import {
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { KPIStatCard, KPIStatCardSkeleton } from '@/components/dashboard/overview/KPIStatCard'
+import { queryKeys } from '@/lib/query-keys'
 import {
   fetchAllOrganizations,
   fetchAllSubscriptions,
   fetchInvoiceSummary,
   countTrialOrganizations,
 } from '../analytics/super-admin-analytics'
-import type { SuperAdminOrganization, SuperAdminSubscription, SuperAdminInvoiceSummary } from '@/lib/api'
 
-type KpiData = {
-  organizations: SuperAdminOrganization[]
-  totalOrgs: number
-  subscriptions: SuperAdminSubscription[]
-  invoiceSummary: SuperAdminInvoiceSummary | null
-}
+const STALE_MS = 60_000
 
 export function AdminKpiGrid() {
   const t = useTranslations('admin.home.kpis')
   const tAnalytics = useTranslations('admin.analytics')
-  const [data, setData] = useState<KpiData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    let cancelled = false
-    async function load() {
-      try {
-        const [orgResult, subscriptions, invoiceSummary] = await Promise.all([
-          fetchAllOrganizations(),
-          fetchAllSubscriptions(),
-          fetchInvoiceSummary(),
-        ])
-        if (!cancelled) {
-          setData({
-            organizations: orgResult.items,
-            totalOrgs: orgResult.total,
-            subscriptions,
-            invoiceSummary,
-          })
-        }
-      } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : tAnalytics('unavailable'))
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-    load()
-    return () => { cancelled = true }
-  }, [tAnalytics])
+  const orgQuery = useQuery({
+    queryKey: queryKeys.admin.analytics.organizations,
+    queryFn: fetchAllOrganizations,
+    staleTime: STALE_MS,
+  })
+  const subscriptionsQuery = useQuery({
+    queryKey: queryKeys.admin.analytics.subscriptions,
+    queryFn: fetchAllSubscriptions,
+    staleTime: STALE_MS,
+  })
+  const invoiceSummaryQuery = useQuery({
+    queryKey: queryKeys.admin.analytics.invoiceSummary,
+    queryFn: fetchInvoiceSummary,
+    staleTime: STALE_MS,
+  })
+
+  const loading =
+    orgQuery.isLoading || subscriptionsQuery.isLoading || invoiceSummaryQuery.isLoading
+  const error = orgQuery.error ?? subscriptionsQuery.error ?? invoiceSummaryQuery.error ?? null
+
+  const organizations = useMemo(() => orgQuery.data?.items ?? [], [orgQuery.data?.items])
+  const totalOrgs = orgQuery.data?.total ?? organizations.length
+  const subscriptions = useMemo(() => subscriptionsQuery.data ?? [], [subscriptionsQuery.data])
+  const invoiceSummary = invoiceSummaryQuery.data ?? null
 
   if (loading) {
     return (
@@ -72,27 +63,25 @@ export function AdminKpiGrid() {
     )
   }
 
-  if (error || !data) {
+  if (error) {
     return (
       <div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 xl:gap-5">
         <div className="col-span-full rounded-2xl border border-dash-border bg-dash-surface p-6 text-center text-sm text-mute">
-          {error ?? tAnalytics('unavailable')}
+          {error instanceof Error ? error.message : tAnalytics('unavailable')}
         </div>
       </div>
     )
   }
 
-  const activeOrgs = data.organizations.filter((o) => o.deletedAt == null && o.status === true)
-  const suspendedOrgs = data.organizations.filter(
-    (o) => o.deletedAt == null && o.status === false
-  )
-  const trialCount = countTrialOrganizations(data.subscriptions)
+  const activeOrgs = organizations.filter((o) => o.deletedAt == null && o.status === true)
+  const suspendedOrgs = organizations.filter((o) => o.deletedAt == null && o.status === false)
+  const trialCount = countTrialOrganizations(subscriptions)
 
   const items = [
     {
       key: 'totalOrganizations' as const,
       icon: Building2,
-      value: data.totalOrgs,
+      value: totalOrgs,
       trend: 'neutral' as const,
     },
     {
@@ -123,7 +112,7 @@ export function AdminKpiGrid() {
     {
       key: 'monthlyRevenue' as const,
       icon: CreditCard,
-      value: data.invoiceSummary?.thisMonthAmount ?? 0,
+      value: invoiceSummary?.thisMonthAmount ?? 0,
       prefix: '$',
       trend: 'neutral' as const,
     },
