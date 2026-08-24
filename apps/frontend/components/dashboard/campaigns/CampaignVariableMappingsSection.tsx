@@ -1,10 +1,14 @@
 'use client'
 
+import { useMemo } from 'react'
 import { Check, CircleAlert } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import type { WhatsappMessageTemplate } from '@/lib/api'
 import { Input } from '@/components/ui/input'
+import { TemplatePreview, templateToPreviewProps } from '@/components/dashboard/templates/TemplatePreview'
 import { cn } from '@/lib/utils'
 import {
+  buildCampaignPreviewSampleValues,
   CAMPAIGN_CONTACT_MAPPING_FIELDS,
   emptyMappingDraft,
   isMappingDraftComplete,
@@ -21,6 +25,7 @@ const selectClassName = cn(
 )
 
 type CampaignVariableMappingsSectionProps = {
+  template: WhatsappMessageTemplate | null
   variableNames: string[]
   drafts: CampaignVariableMappingDrafts
   unsupportedReason: string | null
@@ -31,6 +36,7 @@ type CampaignVariableMappingsSectionProps = {
 }
 
 export function CampaignVariableMappingsSection({
+  template,
   variableNames,
   drafts,
   unsupportedReason,
@@ -40,7 +46,26 @@ export function CampaignVariableMappingsSection({
 }: CampaignVariableMappingsSectionProps) {
   const t = useTranslations('dashboard.campaigns.form.variableMappings')
 
-  if (variableNames.length === 0 && !unsupportedReason) {
+  const contactFieldLabels = useMemo(() => {
+    const labels: Record<string, string> = {}
+    for (const field of CAMPAIGN_CONTACT_MAPPING_FIELDS) {
+      labels[field] = t(`contactFields.${field}`)
+    }
+    return labels
+  }, [t])
+
+  const previewSampleValues = useMemo(
+    () =>
+      buildCampaignPreviewSampleValues({
+        variableNames,
+        drafts,
+        templateSamples: sampleValues,
+        contactFieldLabels,
+      }),
+    [variableNames, drafts, sampleValues, contactFieldLabels]
+  )
+
+  if (!template && variableNames.length === 0 && !unsupportedReason) {
     return null
   }
 
@@ -48,9 +73,10 @@ export function CampaignVariableMappingsSection({
     isMappingDraftComplete(drafts[name])
   ).length
   const unmappedCount = variableNames.length - mappedCount
+  const showMappings = variableNames.length > 0 || Boolean(unsupportedReason)
 
-  return (
-    <fieldset className="space-y-3">
+  const mappingsPanel = showMappings ? (
+    <fieldset className="min-w-0 space-y-3">
       <legend className="text-sm font-medium text-ink">{t('title')}</legend>
       <p className="text-xs text-mute">{t('hint')}</p>
 
@@ -228,5 +254,34 @@ export function CampaignVariableMappingsSection({
         </>
       ) : null}
     </fieldset>
+  ) : null
+
+  const previewPanel = template ? (
+    <div className="min-w-0 space-y-2">
+      <p className="text-xs text-mute xl:sr-only">{t('previewHint')}</p>
+      <TemplatePreview
+        {...templateToPreviewProps(template)}
+        sampleValues={previewSampleValues}
+        className="w-full max-w-md mx-auto xl:mx-0 xl:sticky xl:top-4"
+      />
+    </div>
+  ) : null
+
+  if (!mappingsPanel && !previewPanel) {
+    return null
+  }
+
+  return (
+    <div
+      className={cn(
+        'grid grid-cols-1 gap-4',
+        mappingsPanel && previewPanel
+          ? 'xl:grid-cols-[minmax(0,1fr)_minmax(260px,340px)] xl:items-start'
+          : null
+      )}
+    >
+      {mappingsPanel}
+      {previewPanel}
+    </div>
   )
 }

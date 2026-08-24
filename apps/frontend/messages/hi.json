@@ -2243,7 +2243,14 @@
       "loading": "बातचीत लोड हो रही हैं…",
       "retry": "फिर कोशिश करें",
       "refresh": "बातचीत रिफ़्रेश करें",
+      "newMessagesBanner": "नए संदेश — नवीनतम दिखाएँ",
       "newConversationCta": "नई बातचीत",
+      "sse": {
+        "title": "इनबॉक्स लाइव कनेक्शन",
+        "live": "लाइव",
+        "connecting": "कनेक्ट हो रहा है",
+        "reconnecting": "फिर से कनेक्ट हो रहा है"
+      },
       "searchLabel": "बातचीत खोजें",
       "searchPlaceholder": "संपर्क नाम या फ़ोन से खोजें…",
       "statusFilterLabel": "स्थिति से फ़िल्टर करें",
@@ -3361,6 +3368,7 @@
           "contactFields": {
             "name": "नाम",
             "first_name": "पहला नाम",
+            "last_name": "अंतिम नाम",
             "customer_name": "ग्राहक नाम",
             "email": "ईमेल",
             "company": "कंपनी",
@@ -3371,7 +3379,8 @@
           "progressComplete": "सभी {total} वेरिएबल मैप हो गए",
           "progressIncomplete": "{total} में से {mapped} वेरिएबल मैप",
           "notSendable": "यह टेम्पलेट भेजा नहीं जा सकता",
-          "sampleHint": "नमूना: {sample}"
+          "sampleHint": "नमूना: {sample}",
+          "previewHint": "जैसे ही आप वेरिएबल मैप करते हैं, पूर्वावलोकन अपडेट होता है।"
         },
         "errors": {
           "nameRequired": "कैंपेन नाम आवश्यक है।",
