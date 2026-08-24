@@ -108,6 +108,7 @@ export const auth = betterAuth({
       lastname: { type: 'string', required: true, input: true },
       isActive: { type: 'boolean', defaultValue: true, input: false },
       isDeleted: { type: 'boolean', defaultValue: false, input: false },
+      mustChangePassword: { type: 'boolean', defaultValue: false, input: false },
     },
   },
 

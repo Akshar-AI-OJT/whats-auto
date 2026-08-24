@@ -992,7 +992,7 @@ export class OrganizationSubscriptionSchema extends BaseModel {
 }
 
 export class OrganizationSchema extends BaseModel {
-  static $columns = ['address', 'country', 'createdAt', 'currency', 'deletedAt', 'email', 'gateway', 'gatewayCustomerId', 'gstin', 'id', 'industry', 'name', 'organizationType', 'pan', 'phone', 'slug', 'status', 'timezone', 'updatedAt', 'website'] as const
+  static $columns = ['address', 'country', 'createdAt', 'currency', 'deletedAt', 'email', 'gateway', 'gatewayCustomerId', 'gstin', 'id', 'industry', 'name', 'organizationType', 'pan', 'phone', 'slug', 'status', 'timezone', 'updatedAt', 'verificationRejectionReason', 'verificationStatus', 'verifiedAt', 'verifiedByUserId', 'website'] as const
   $columns = OrganizationSchema.$columns
   @column()
   declare address: string | null
@@ -1032,6 +1032,14 @@ export class OrganizationSchema extends BaseModel {
   declare timezone: string
   @column.dateTime()
   declare updatedAt: DateTime | null
+  @column()
+  declare verificationRejectionReason: string | null
+  @column()
+  declare verificationStatus: string
+  @column.dateTime()
+  declare verifiedAt: DateTime | null
+  @column()
+  declare verifiedByUserId: string | null
   @column()
   declare website: string | null
 }
@@ -1400,7 +1408,7 @@ export class UserRoleSchema extends BaseModel {
 }
 
 export class UserSchema extends BaseModel {
-  static $columns = ['createdAt', 'deletedAt', 'email', 'emailVerified', 'firstname', 'id', 'image', 'isActive', 'isDeleted', 'lastname', 'name', 'updatedAt', 'updatedBy'] as const
+  static $columns = ['createdAt', 'deletedAt', 'email', 'emailVerified', 'firstname', 'id', 'image', 'isActive', 'isDeleted', 'lastname', 'mustChangePassword', 'name', 'updatedAt', 'updatedBy'] as const
   $columns = UserSchema.$columns
   @column.dateTime()
   declare createdAt: DateTime
@@ -1422,6 +1430,8 @@ export class UserSchema extends BaseModel {
   declare isDeleted: boolean
   @column()
   declare lastname: string
+  @column()
+  declare mustChangePassword: boolean
   @column()
   declare name: string
   @column.dateTime()

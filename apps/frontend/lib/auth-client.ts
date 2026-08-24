@@ -19,6 +19,7 @@ export const authClient = createAuthClient({
         lastname: { type: 'string' },
         isActive: { type: 'boolean' },
         isDeleted: { type: 'boolean' },
+        mustChangePassword: { type: 'boolean' },
       },
       session: {
         activeOrganizationId: { type: 'string', required: false },

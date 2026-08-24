@@ -5,6 +5,10 @@ import logger from '@adonisjs/core/services/logger'
 import { DateTime } from 'luxon'
 import InvitationException from '#exceptions/invitation_exception'
 import OrganizationException from '#exceptions/organization_exception'
+import {
+  OrganizationVerificationStatus,
+  parseOrganizationVerificationStatus,
+} from '#enums/organization_verification_status'
 import { getGlobalRoleIdByName, resolveAssignableRoleForOrg } from '#services/role_service'
 import { bumpAllOrgMembersPermissionVersion } from '#lib/permission_version_bumps'
 import { isPostgresUniqueViolation } from '#lib/pg_unique_violation'
@@ -63,6 +67,7 @@ export type OrganizationPublicFields = {
   country: string
   timezone: string
   currency: string | null
+  verificationStatus: OrganizationVerificationStatus
 }
 
 const ORGANIZATION_PUBLIC_COLUMNS = [
@@ -80,6 +85,7 @@ const ORGANIZATION_PUBLIC_COLUMNS = [
   'country',
   'timezone',
   'currency',
+  'verificationStatus',
 ] as const
 
 function asOrganizationType(value: unknown): OrganizationType | null {
@@ -110,6 +116,7 @@ function mapOrganizationPublicFields(row: Record<string, unknown>): Organization
     country: row.country as string,
     timezone: row.timezone as string,
     currency: (row.currency as string | null) ?? null,
+    verificationStatus: parseOrganizationVerificationStatus(row.verificationStatus),
   }
 }
 
@@ -257,6 +264,7 @@ export class OrganizationService {
         'o.country',
         'o.timezone',
         'o.currency',
+        'o.verificationStatus',
         'r.name as role',
         'o.createdAt'
       )
