@@ -1,5 +1,9 @@
 import type { ApplicationService } from '@adonisjs/core/types'
-import { initInboxSseBus, inboxSseBus } from '#services/inbox_sse_bus'
+import {
+  assertInboxSseRedisForProduction,
+  initInboxSseBus,
+  inboxSseBus,
+} from '#services/inbox_sse_bus'
 
 /**
  * Cross-process inbox SSE bridge via Redis pub/sub.
@@ -12,6 +16,14 @@ export default class InboxSseBusProvider {
     const environment = this.app.getEnvironment()
     const redisUrl = environment === 'test' ? '' : this.app.config.get<string>('redis.url', '')
     const isWorker = process.env.JOB_QUEUE_WORKER === '1'
+    const nodeEnv = this.app.nodeEnvironment
+
+    // Production web + worker must have Redis for multi-instance fan-out.
+    // Tests force empty URL; local/dev may use in-process hub only.
+    if (environment === 'web' || isWorker) {
+      assertInboxSseRedisForProduction(redisUrl, nodeEnv)
+    }
+
     initInboxSseBus(redisUrl, isWorker)
   }
 

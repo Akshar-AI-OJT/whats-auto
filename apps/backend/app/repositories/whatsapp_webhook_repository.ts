@@ -87,7 +87,9 @@ export class WhatsappWebhookRepository {
 
   /**
    * Upsert contact by org + normalized WhatsApp id.
-   * Profile name is set only on insert so CRM-managed names are preserved.
+   * Soft-deleted rows are restored (most recent) so existing conversations reappear
+   * in inbox (list joins require deletedAt IS NULL). Profile name is set only on
+   * insert so CRM-managed names are preserved.
    * Atomic ON CONFLICT — try/catch unique-violation would abort the open transaction.
    */
   async upsertContactByWaId(
@@ -100,6 +102,39 @@ export class WhatsappWebhookRepository {
   ): Promise<WebhookContactRow> {
     const phoneNormalized = normalizeWhatsappWaId(params.waId)
     const name = params.profileName?.trim() || null
+
+    const restored = await trx.rawQuery(
+      `UPDATE "contacts"
+       SET "deletedAt" = NULL
+       WHERE "id" = (
+         SELECT "id"
+         FROM "contacts"
+         WHERE "organizationId" = ?
+           AND "phoneNormalized" = ?
+           AND "deletedAt" IS NOT NULL
+           AND NOT EXISTS (
+             SELECT 1
+             FROM "contacts" AS live
+             WHERE live."organizationId" = ?
+               AND live."phoneNormalized" = ?
+               AND live."deletedAt" IS NULL
+           )
+         ORDER BY "deletedAt" DESC
+         LIMIT 1
+       )
+       RETURNING
+         "id",
+         "organizationId",
+         "phone",
+         "phoneNormalized",
+         "name"`,
+      [params.organizationId, phoneNormalized, params.organizationId, phoneNormalized]
+    )
+
+    const restoredRow = (restored.rows?.[0] ?? restored[0]) as WebhookContactRow | undefined
+    if (restoredRow) {
+      return restoredRow
+    }
 
     const result = await trx.rawQuery(
       `INSERT INTO "contacts" (

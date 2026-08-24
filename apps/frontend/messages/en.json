@@ -2248,7 +2248,14 @@
       "loading": "Loading conversations…",
       "retry": "Retry",
       "refresh": "Refresh conversations",
+      "newMessagesBanner": "New messages — show latest",
       "newConversationCta": "New Conversation",
+      "sse": {
+        "title": "Inbox live connection",
+        "live": "Live",
+        "connecting": "Connecting",
+        "reconnecting": "Reconnecting"
+      },
       "searchLabel": "Search conversations",
       "searchPlaceholder": "Search by contact name or phone…",
       "statusFilterLabel": "Filter by status",
@@ -3513,6 +3520,7 @@
           "contactFields": {
             "name": "Name",
             "first_name": "First name",
+            "last_name": "Last name",
             "customer_name": "Customer name",
             "email": "Email",
             "company": "Company",
@@ -3523,7 +3531,8 @@
           "progressComplete": "All {total} variables mapped",
           "progressIncomplete": "{mapped} of {total} variables mapped",
           "notSendable": "This template cannot be sent",
-          "sampleHint": "Sample: {sample}"
+          "sampleHint": "Sample: {sample}",
+          "previewHint": "Preview updates as you map each variable."
         },
         "errors": {
           "nameRequired": "Campaign name is required.",

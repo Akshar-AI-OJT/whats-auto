@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { getBaseUrl } from '@/lib/api-base'
 import {
   applyAuthTokenHeaders,
@@ -14,11 +14,16 @@ import { useLatestRef } from '@/hooks/useLatestRef'
 const INITIAL_RETRY_MS = 1000
 const MAX_RETRY_MS = 15000
 
+export type InboxSseConnectionStatus = 'idle' | 'connecting' | 'live' | 'reconnecting'
+
 type UseInboxEventSourceOptions = {
   enabled: boolean
   /** Reconnect when this changes (active organization id). */
   reconnectKey: string | null
   onEvent: (event: InboxSseClientEvent) => void
+  onStatusChange?: (status: InboxSseConnectionStatus) => void
+  /** Fired after a successful HTTP handshake (before streaming). Use for cache catch-up. */
+  onConnected?: () => void
 }
 
 function sleep(ms: number, signal: AbortSignal): Promise<void> {
@@ -74,20 +79,52 @@ async function consumeSseStream(
  * Subscribe to GET /api/v1/inbox/events.
  *
  * Uses fetch + Bearer JWT (EventSource cannot set Authorization). Reconnects
- * with backoff when the stream ends or the handshake fails.
+ * with backoff when the stream ends or the handshake fails. Tab visibility /
+ * browser online events force an immediate reconnect (reset backoff).
  */
 export function useInboxEventSource({
   enabled,
   reconnectKey,
   onEvent,
+  onStatusChange,
+  onConnected,
 }: UseInboxEventSourceOptions) {
   const onEventRef = useLatestRef(onEvent)
+  const onStatusChangeRef = useLatestRef(onStatusChange)
+  const onConnectedRef = useLatestRef(onConnected)
+  const [networkEpoch, setNetworkEpoch] = useState(0)
 
   useEffect(() => {
-    if (!enabled || !reconnectKey) return
+    if (!enabled) return
+
+    const bump = () => setNetworkEpoch((n) => n + 1)
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') bump()
+    }
+    const onOnline = () => bump()
+
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('online', onOnline)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('online', onOnline)
+    }
+  }, [enabled])
+
+  useEffect(() => {
+    if (!enabled || !reconnectKey) {
+      onStatusChangeRef.current?.('idle')
+      return
+    }
 
     const abort = new AbortController()
     let retryMs = INITIAL_RETRY_MS
+    let sawSuccess = false
+
+    const setStatus = (status: InboxSseConnectionStatus) => {
+      onStatusChangeRef.current?.(status)
+    }
 
     const dispatch = (event: InboxSseClientEvent) => {
       onEventRef.current(event)
@@ -95,6 +132,7 @@ export function useInboxEventSource({
 
     const connect = async () => {
       while (!abort.signal.aborted) {
+        setStatus(sawSuccess ? 'reconnecting' : 'connecting')
         try {
           const token = await getValidAccessToken()
           if (abort.signal.aborted) return
@@ -123,12 +161,16 @@ export function useInboxEventSource({
           }
 
           retryMs = INITIAL_RETRY_MS
+          sawSuccess = true
+          setStatus('live')
+          onConnectedRef.current?.()
           await consumeSseStream(response.body, dispatch, abort.signal)
         } catch (error) {
           if (abort.signal.aborted || isAbortError(error)) return
         }
 
         if (abort.signal.aborted) return
+        setStatus('reconnecting')
         try {
           await sleep(retryMs, abort.signal)
         } catch {
@@ -143,5 +185,5 @@ export function useInboxEventSource({
     return () => {
       abort.abort()
     }
-  }, [enabled, onEventRef, reconnectKey])
+  }, [enabled, onConnectedRef, onEventRef, onStatusChangeRef, reconnectKey, networkEpoch])
 }

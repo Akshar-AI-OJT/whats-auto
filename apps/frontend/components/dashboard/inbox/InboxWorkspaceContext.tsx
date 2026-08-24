@@ -4,18 +4,26 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
 } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import type { InboxConversation, OrganizationMember } from '@/lib/api'
 import type { InboxSseClientEvent } from '@/lib/inbox-sse'
-import { useInboxEventSource } from '@/hooks/useInboxEventSource'
+import {
+  useInboxEventSource,
+  type InboxSseConnectionStatus,
+} from '@/hooks/useInboxEventSource'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
+import { queryKeys } from '@/lib/query-keys'
 import { mergeConversationUpdate } from './inbox-utils'
 
 export type InboxSseHandler = (event: InboxSseClientEvent) => void
+
+const SOFT_CATCHUP_MS = 90_000
 
 type InboxWorkspaceContextValue = {
   conversationId: string | null
@@ -28,16 +36,20 @@ type InboxWorkspaceContextValue = {
   subscribeInboxEvents: (handler: InboxSseHandler) => () => void
   detailsOpen: boolean
   setDetailsOpen: (open: boolean) => void
+  sseConnectionStatus: InboxSseConnectionStatus
 }
 
 const InboxWorkspaceContext = createContext<InboxWorkspaceContextValue | null>(null)
 
 export function InboxWorkspaceProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient()
   const { tenantOrganizationId, canViewInbox, isResolvingAccess } = useOrganizations()
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [conversation, setConversation] = useState<InboxConversation | null>(null)
   const [members, setMembers] = useState<OrganizationMember[]>([])
   const [detailsOpen, setDetailsOpen] = useState(false)
+  const [sseConnectionStatus, setSseConnectionStatus] =
+    useState<InboxSseConnectionStatus>('idle')
   const handlersRef = useRef(new Set<InboxSseHandler>())
 
   const mergeConversation = useCallback((patch: Partial<InboxConversation>) => {
@@ -57,11 +69,31 @@ export function InboxWorkspaceProvider({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  const catchUpInboxQueries = useCallback(() => {
+    if (!tenantOrganizationId) return
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.inbox.all(tenantOrganizationId),
+    })
+  }, [queryClient, tenantOrganizationId])
+
   useInboxEventSource({
     enabled: Boolean(canViewInbox && tenantOrganizationId && !isResolvingAccess),
     reconnectKey: tenantOrganizationId,
     onEvent: dispatchInboxEvent,
+    onStatusChange: setSseConnectionStatus,
+    onConnected: catchUpInboxQueries,
   })
+
+  // Soft catch-up while the stream is live and the tab is visible.
+  useEffect(() => {
+    if (sseConnectionStatus !== 'live' || !tenantOrganizationId) return
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        catchUpInboxQueries()
+      }
+    }, SOFT_CATCHUP_MS)
+    return () => window.clearInterval(timer)
+  }, [catchUpInboxQueries, sseConnectionStatus, tenantOrganizationId])
 
   const value = useMemo(
     () => ({
@@ -75,6 +107,7 @@ export function InboxWorkspaceProvider({ children }: { children: ReactNode }) {
       subscribeInboxEvents,
       detailsOpen,
       setDetailsOpen,
+      sseConnectionStatus,
     }),
     [
       conversationId,
@@ -83,6 +116,7 @@ export function InboxWorkspaceProvider({ children }: { children: ReactNode }) {
       mergeConversation,
       subscribeInboxEvents,
       detailsOpen,
+      sseConnectionStatus,
     ]
   )
 

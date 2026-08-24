@@ -138,6 +138,17 @@ export default class WhatsappWebhookIngestionService {
             )
           }
 
+          logger.info(
+            {
+              outcome: 'message_ingested',
+              organizationId: config.organizationId,
+              conversationId: result.conversationId,
+              contactId: contact.id,
+              providerMessageId: inbound.providerMessageId,
+            },
+            'whatsapp.webhook.ingested'
+          )
+
           pendingEvents.push(
             new InboxMessageReceived({
               organizationId: config.organizationId,

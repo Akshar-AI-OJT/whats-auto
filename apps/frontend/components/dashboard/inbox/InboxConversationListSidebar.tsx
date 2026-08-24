@@ -80,6 +80,48 @@ function StatusBadge({ status, label }: { status: string; label: string }) {
   )
 }
 
+function InboxSseStatusPill({
+  status,
+}: {
+  status: 'idle' | 'connecting' | 'live' | 'reconnecting'
+}) {
+  const t = useTranslations('dashboard.inbox.sse')
+  if (status === 'idle') return null
+
+  const tone =
+    status === 'live'
+      ? 'bg-positive/15 text-positive-deep ring-positive/25'
+      : status === 'reconnecting'
+        ? 'bg-dash-surface text-ink ring-dash-border'
+        : 'bg-mute/15 text-mute ring-dash-border'
+
+  const label =
+    status === 'live'
+      ? t('live')
+      : status === 'reconnecting'
+        ? t('reconnecting')
+        : t('connecting')
+
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase ring-1',
+        tone
+      )}
+      title={t('title')}
+    >
+      <span
+        className={cn(
+          'size-1.5 rounded-full',
+          status === 'live' ? 'bg-positive' : 'bg-mute animate-pulse'
+        )}
+        aria-hidden
+      />
+      {label}
+    </span>
+  )
+}
+
 type InboxConversationListSidebarProps = {
   selectedConversationId?: string
   variant?: 'panel' | 'page'
@@ -98,7 +140,8 @@ export function InboxConversationListSidebar({
     permissions,
     isLoading: orgsLoading,
   } = useOrganizations()
-  const { subscribeInboxEvents, conversation: workspaceConversation } = useInboxWorkspace()
+  const { subscribeInboxEvents, conversation: workspaceConversation, sseConnectionStatus } =
+    useInboxWorkspace()
 
   const canCreate =
     hasPermission(permissions, PERMISSIONS.INBOX_VIEW) &&
@@ -111,6 +154,7 @@ export function InboxConversationListSidebar({
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [agentFilter, setAgentFilter] = useState('all')
   const [newOpen, setNewOpen] = useState(false)
+  const [hasDeferredNewActivity, setHasDeferredNewActivity] = useState(false)
 
   const searchId = useId()
 
@@ -189,13 +233,19 @@ export function InboxConversationListSidebar({
           },
           staleTime: 15_000,
         })
+        let inserted = false
         queryClient.setQueryData<InboxListData>(listKey, (prev) => {
           if (!prev) return prev
+          const nextItems = upsertConversationInList(prev.items, detail, listFilters)
+          inserted = nextItems.some((row) => row.id === detail.id)
           return {
             ...prev,
-            items: upsertConversationInList(prev.items, detail, listFilters),
+            items: nextItems,
           }
         })
+        if (!inserted) {
+          setHasDeferredNewActivity(true)
+        }
       } catch {
         // Keep the current page; the next refresh or event can retry.
       }
@@ -207,18 +257,47 @@ export function InboxConversationListSidebar({
     if (!canViewInbox) return
     return subscribeInboxEvents((event) => {
       let fetchConversationId: string | null = null
+      let notifyNewActivity = false
       queryClient.setQueryData<InboxListData>(listKey, (prev) => {
-        if (!prev) return prev
+        if (!prev) {
+          // List not in cache yet — still fetch new conversations so the first
+          // inbound after empty/load does not get dropped.
+          if (event.type === 'message.received' && listFilters.page === 1) {
+            fetchConversationId = event.payload.conversationId
+          } else if (
+            event.type === 'message.received' ||
+            event.type === 'message.queued' ||
+            event.type === 'message.sent'
+          ) {
+            notifyNewActivity = listFilters.page !== 1
+          }
+          return prev
+        }
         const result = applyInboxSseToList(prev.items, event, listFilters)
         fetchConversationId = result.fetchConversationId
+        notifyNewActivity = result.notifyNewActivity
         return { ...prev, items: result.conversations }
       })
+      if (notifyNewActivity) {
+        setHasDeferredNewActivity(true)
+      }
       if (fetchConversationId) {
         void fetchAndUpsertConversation(fetchConversationId)
       }
     })
   }, [canViewInbox, fetchAndUpsertConversation, listFilters, listKey, queryClient, subscribeInboxEvents])
 
+  function showLatestConversations() {
+    setHasDeferredNewActivity(false)
+    setSearchInput('')
+    setSearch('')
+    setStatusFilter('all')
+    setAgentFilter('all')
+    setPage(1)
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.inbox.lists(tenantOrganizationId),
+    })
+  }
   const agentNameByUserId = useMemo(() => {
     const map = new Map<string, string>()
     for (const member of members) {
@@ -260,9 +339,12 @@ export function InboxConversationListSidebar({
       <div className="shrink-0 space-y-3 border-b border-dash-border px-3.5 py-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <h2 className="font-display text-sm font-semibold tracking-tight text-ink">
-              {t('listTitle')}
-            </h2>
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="font-display text-sm font-semibold tracking-tight text-ink">
+                {t('listTitle')}
+              </h2>
+              <InboxSseStatusPill status={sseConnectionStatus} />
+            </div>
             <p className="mt-0.5 text-xs text-mute">{t('listDescription', { count: total })}</p>
           </div>
           <div className="flex shrink-0 items-center gap-1">
@@ -288,6 +370,21 @@ export function InboxConversationListSidebar({
             ) : null}
           </div>
         </div>
+
+        {hasDeferredNewActivity ? (
+          <button
+            type="button"
+            onClick={showLatestConversations}
+            className={cn(
+              'w-full rounded-lg border border-primary/30 bg-primary-pale/70 px-3 py-2',
+              'text-left text-xs font-semibold text-positive-deep',
+              'transition-colors hover:bg-primary-pale focus-visible:outline-none',
+              'focus-visible:ring-2 focus-visible:ring-primary/30'
+            )}
+          >
+            {t('newMessagesBanner')}
+          </button>
+        ) : null}
 
         <div className="relative">
           <Search
