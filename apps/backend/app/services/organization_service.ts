@@ -5,10 +5,8 @@ import logger from '@adonisjs/core/services/logger'
 import { DateTime } from 'luxon'
 import InvitationException from '#exceptions/invitation_exception'
 import OrganizationException from '#exceptions/organization_exception'
-import {
-  OrganizationVerificationStatus,
-  parseOrganizationVerificationStatus,
-} from '#enums/organization_verification_status'
+import type { OrganizationVerificationStatus } from '#enums/organization_verification_status'
+import { parseOrganizationVerificationStatus } from '#enums/organization_verification_status'
 import { getGlobalRoleIdByName, resolveAssignableRoleForOrg } from '#services/role_service'
 import { bumpAllOrgMembersPermissionVersion } from '#lib/permission_version_bumps'
 import { isPostgresUniqueViolation } from '#lib/pg_unique_violation'
