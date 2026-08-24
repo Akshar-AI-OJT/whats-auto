@@ -1,6 +1,6 @@
 import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import { normalizeContactPhone } from '#services/contact_service'
+import { normalizeWhatsappWaId } from '#lib/contact_phone'
 import type { MessageMetadata } from '#lib/meta_whatsapp/types'
 import type { MetaWebhookStatusName } from '#lib/meta_whatsapp/types'
 import {
@@ -98,7 +98,7 @@ export class WhatsappWebhookRepository {
       profileName: string | null
     }
   ): Promise<WebhookContactRow> {
-    const phoneNormalized = normalizeContactPhone(params.waId)
+    const phoneNormalized = normalizeWhatsappWaId(params.waId)
     const name = params.profileName?.trim() || null
 
     const result = await trx.rawQuery(
@@ -121,7 +121,7 @@ export class WhatsappWebhookRepository {
          "phone",
          "phoneNormalized",
          "name"`,
-      [params.organizationId, params.waId, phoneNormalized, name as string]
+      [params.organizationId, phoneNormalized, phoneNormalized, name as string]
     )
 
     const row = (result.rows?.[0] ?? result[0]) as WebhookContactRow | undefined

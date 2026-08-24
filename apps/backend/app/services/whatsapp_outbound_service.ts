@@ -986,7 +986,7 @@ export default class WhatsappOutboundService {
         'c.id as conversationId',
         'c.whatsappConfigId',
         'c.status as conversationStatus',
-        'ct.phone as contactPhone',
+        'ct.phoneNormalized as contactPhone',
         'wc.status as configStatus',
         'wc.phoneNumberId'
       )
@@ -1361,7 +1361,6 @@ export default class WhatsappOutboundService {
     }
   }
 }
-
 function serializeOutboundError(error: unknown): {
   errorMessage: string
   errorCode: string | null

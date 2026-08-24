@@ -40,6 +40,28 @@ async function seedUser() {
   return id
 }
 
+async function seedRecipient(organizationId: string, campaignId: string) {
+  await runWithTenant(organizationId, async () => {
+    const phone = `1555${String(Math.floor(Math.random() * 1e7)).padStart(7, '0')}`
+    const [contact] = await db
+      .table('contacts')
+      .insert({
+        organizationId,
+        phone,
+        phoneNormalized: phone,
+        name: 'TZ Contact',
+        customFields: {},
+      })
+      .returning(['id'])
+
+    await new CampaignService().replaceRecipients({
+      organizationId,
+      campaignId,
+      contactIds: [contact.id as string],
+    })
+  })
+}
+
 function wallClock(iso: string, timeZone: string) {
   return DateTime.fromISO(iso, { zone: timeZone })
 }
@@ -111,6 +133,35 @@ test.group('Campaign scheduledAt timezone', (group) => {
     assert.equal(wallClock(fetched.scheduledAt!, 'Asia/Kolkata').toFormat('hh:mm a'), '10:55 PM')
   })
 
+  test('schedule uses an explicit timeZone instead of the organization timezone', async ({
+    assert,
+  }) => {
+    const organizationId = await createOrg('Asia/Kolkata')
+    orgIds.push(organizationId)
+    const userId = await seedUser()
+    userIds.push(userId)
+    const service = new CampaignService()
+
+    const created = await service.createCampaign({
+      organizationId,
+      actorUserId: userId,
+      name: 'Override zone',
+      status: 'draft',
+    })
+    await seedRecipient(organizationId, created.id)
+
+    const scheduled = await service.scheduleCampaign({
+      campaignId: created.id,
+      organizationId,
+      scheduledAt: '2099-08-19 22:55:00',
+      timeZone: 'America/New_York',
+    })
+
+    assert.equal(scheduled.scheduledAt, '2099-08-20T02:55:00.000Z')
+    assert.equal(scheduled.status, 'scheduled')
+    assert.equal(wallClock(scheduled.scheduledAt!, 'America/New_York').toFormat('hh:mm a'), '10:55 PM')
+  })
+
   test('update and schedule keep the intended organization-local wall clock', async ({
     assert,
   }) => {
@@ -126,6 +177,7 @@ test.group('Campaign scheduledAt timezone', (group) => {
       name: 'Draft then schedule',
       status: 'draft',
     })
+    await seedRecipient(organizationId, created.id)
 
     const scheduled = await service.scheduleCampaign({
       campaignId: created.id,
@@ -237,6 +289,13 @@ test.group('Campaign scheduledAt timezone', (group) => {
       scheduledAt: '2099-08-19T17:25:00.000Z',
     })
     assert.equal(iso.scheduledAt, '2099-08-19T17:25:00.000Z')
+
+    const withZone = await scheduleCampaignValidator.validate({
+      scheduledAt: '2099-08-19 22:55:00',
+      timeZone: 'America/New_York',
+    })
+    assert.equal(withZone.scheduledAt, '2099-08-19 22:55:00')
+    assert.equal(withZone.timeZone, 'America/New_York')
 
     const localIso = await createCampaignValidator.validate({
       name: 'Datetime local',

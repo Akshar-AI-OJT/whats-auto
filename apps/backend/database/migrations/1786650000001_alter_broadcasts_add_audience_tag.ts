@@ -1,24 +1,24 @@
 import { BaseSchema } from '@adonisjs/lucid/schema'
 
 /**
- * Campaign-level template variable mapping rules.
- * Resolved per-recipient values stay on broadcast_recipients.variables.
+ * Persist the campaign's customer group (tag) so launch/relaunch
+ * can re-resolve live membership instead of a one-off contact snapshot.
  */
 export default class extends BaseSchema {
   protected tableName = 'broadcasts'
 
   async up() {
-    const hasColumn = await this.schema.hasColumn(this.tableName, 'variableMappings')
+    const hasColumn = await this.schema.hasColumn(this.tableName, 'audienceTagId')
     if (hasColumn) return
 
     this.schema.alterTable(this.tableName, (table) => {
-      table.jsonb('variableMappings').nullable()
+      table.uuid('audienceTagId').nullable()
     })
   }
 
   async down() {
     this.schema.alterTable(this.tableName, (table) => {
-      table.dropColumn('variableMappings')
+      table.dropColumn('audienceTagId')
     })
   }
 }

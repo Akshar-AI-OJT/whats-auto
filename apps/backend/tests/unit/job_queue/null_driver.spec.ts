@@ -36,6 +36,57 @@ test.group('NullJobQueueDriver', () => {
   })
 })
 
+test.group('scheduleWorkerCrons', () => {
+  test('registers recovery crons for outbound, media, campaigns, billing, and integrations', async ({
+    assert,
+  }) => {
+    const { scheduleWorkerCrons } = await import('#services/job_queue/schedule_worker_crons')
+    const {
+      BILLING_PAYMENT_WEBHOOK_RECOVERY_CRON,
+      CAMPAIGN_RECOVERY_CRON,
+      INTEGRATION_EVENTS_RECOVERY_CRON,
+      MEDIA_PENDING_UPLOAD_CLEANUP_CRON,
+      MEDIA_STORAGE_LIFECYCLE_CRON,
+      WHATSAPP_OUTBOUND_RECOVERY_CRON,
+    } = await import('#services/job_queue/job_names')
+    const driver = new NullJobQueueDriver()
+    const logs: string[] = []
+    await scheduleWorkerCrons(driver, {
+      info: (_payload, msg) => {
+        logs.push(msg)
+      },
+    })
+
+    assert.lengthOf(driver.scheduled, 6)
+    assert.equal(driver.scheduled[0].name, JOB_NAMES.WHATSAPP_OUTBOUND_RECOVERY)
+    assert.equal(driver.scheduled[0].cron, WHATSAPP_OUTBOUND_RECOVERY_CRON)
+    assert.equal(driver.scheduled[0].options?.key, 'outbound-recovery')
+    assert.equal(driver.scheduled[1].name, JOB_NAMES.MEDIA_PENDING_UPLOAD_CLEANUP)
+    assert.equal(driver.scheduled[1].cron, MEDIA_PENDING_UPLOAD_CLEANUP_CRON)
+    assert.equal(driver.scheduled[1].options?.key, 'media-pending-upload-cleanup')
+    assert.equal(driver.scheduled[2].name, JOB_NAMES.MEDIA_STORAGE_LIFECYCLE)
+    assert.equal(driver.scheduled[2].cron, MEDIA_STORAGE_LIFECYCLE_CRON)
+    assert.equal(driver.scheduled[2].options?.key, 'media-storage-lifecycle')
+    assert.equal(driver.scheduled[3].name, JOB_NAMES.CAMPAIGN_RECOVERY)
+    assert.equal(driver.scheduled[3].cron, CAMPAIGN_RECOVERY_CRON)
+    assert.equal(driver.scheduled[3].options?.key, 'campaign-recovery')
+    assert.equal(driver.scheduled[4].name, JOB_NAMES.BILLING_PAYMENT_WEBHOOK_PROCESS)
+    assert.equal(driver.scheduled[4].cron, BILLING_PAYMENT_WEBHOOK_RECOVERY_CRON)
+    assert.equal(driver.scheduled[4].options?.key, 'billing-webhook-recovery')
+    assert.equal(driver.scheduled[5].name, JOB_NAMES.INTEGRATION_EVENTS_RECOVERY)
+    assert.equal(driver.scheduled[5].cron, INTEGRATION_EVENTS_RECOVERY_CRON)
+    assert.equal(driver.scheduled[5].options?.key, 'integration-events-recovery')
+    assert.deepEqual(logs, [
+      'job_queue.outbound_recovery.scheduled',
+      'job_queue.media_pending_upload_cleanup.scheduled',
+      'job_queue.media_storage_lifecycle.scheduled',
+      'job_queue.campaign_recovery.scheduled',
+      'job_queue.billing_webhook_recovery.scheduled',
+      'job_queue.integration_events_recovery.scheduled',
+    ])
+  })
+})
+
 test.group('WhatsappOutboundDispatchHandler', () => {
   test('rejects invalid payloads without throwing', async ({ assert }) => {
     const handler = createWhatsappOutboundDispatchHandler({

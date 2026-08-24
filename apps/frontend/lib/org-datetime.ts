@@ -10,7 +10,7 @@
  */
 
 const DATE_TIME_LOCAL = /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})(?::(\d{2}))?/
-const HAS_EXPLICIT_OFFSET = /(?:Z|[+-]\d{2}:?\d{2})$/i
+const HAS_EXPLICIT_OFFSET = /(?:Z|[+-]\d{2}(?::?\d{2})?)$/i
 
 function part(
   parts: Intl.DateTimeFormatPart[],
@@ -19,15 +19,109 @@ function part(
   return parts.find((item) => item.type === type)?.value ?? ''
 }
 
+function browserTimeZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+  } catch {
+    return 'UTC'
+  }
+}
+
+/** Valid IANA zone from the org, otherwise the browser zone. */
+export function resolveDisplayTimeZone(timeZone?: string | null): string {
+  const candidate = timeZone?.trim()
+  if (candidate) {
+    try {
+      Intl.DateTimeFormat('en-US', { timeZone: candidate }).format(new Date())
+      return candidate
+    } catch {
+      // Invalid IANA name — fall through.
+    }
+  }
+  return browserTimeZone()
+}
+
+function zonedWallClockToUtcMs(isoLocal: string, timeZone: string): number {
+  const matched = isoLocal.trim().match(DATE_TIME_LOCAL)
+  if (!matched) {
+    const parsed = Date.parse(isoLocal)
+    return Number.isNaN(parsed) ? Number.NaN : parsed
+  }
+
+  const asUtc = Date.UTC(
+    Number(matched[1].slice(0, 4)),
+    Number(matched[1].slice(5, 7)) - 1,
+    Number(matched[1].slice(8, 10)),
+    Number(matched[2].slice(0, 2)),
+    Number(matched[2].slice(3, 5)),
+    Number(matched[3] ?? '00')
+  )
+
+  const dtf = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  })
+
+  const wallAsUtc = (ms: number) => {
+    const parts = dtf.formatToParts(new Date(ms))
+    const wallHour = part(parts, 'hour') === '24' ? 0 : Number(part(parts, 'hour'))
+    return Date.UTC(
+      Number(part(parts, 'year')),
+      Number(part(parts, 'month')) - 1,
+      Number(part(parts, 'day')),
+      wallHour,
+      Number(part(parts, 'minute')),
+      Number(part(parts, 'second'))
+    )
+  }
+
+  let utc = asUtc
+  utc += asUtc - wallAsUtc(utc)
+  utc += asUtc - wallAsUtc(utc)
+  return utc
+}
+
 /** Convert a datetime-local / naive value into the campaign API payload string. */
-export function toCampaignScheduledAtPayload(value: string): string {
+export function toCampaignScheduledAtPayload(value: string, timeZone?: string): string {
   const trimmed = value.trim()
   if (!trimmed) return trimmed
   if (HAS_EXPLICIT_OFFSET.test(trimmed)) return trimmed
+  if (timeZone) {
+    const ms = zonedWallClockToUtcMs(trimmed, resolveDisplayTimeZone(timeZone))
+    if (!Number.isNaN(ms)) return new Date(ms).toISOString()
+  }
   const matched = trimmed.match(DATE_TIME_LOCAL)
   if (!matched) return trimmed
   const seconds = matched[3] ?? '00'
   return `${matched[1]} ${matched[2]}:${seconds}`
+}
+
+/** True when the datetime-local wall clock is still in the future in `timeZone`. */
+export function isCampaignScheduleInFuture(value: string, timeZone: string): boolean {
+  const ms = zonedWallClockToUtcMs(value, resolveDisplayTimeZone(timeZone))
+  return !Number.isNaN(ms) && ms > Date.now()
+}
+
+/** Format a datetime-local wall clock without converting it through UTC/browser TZ. */
+export function formatDateTimeLocalInput(value: string, locale?: string): string {
+  const matched = value.trim().match(DATE_TIME_LOCAL)
+  if (!matched) return value
+  const utc = new Date(`${matched[1]}T${matched[2]}:${matched[3] ?? '00'}Z`)
+  if (Number.isNaN(utc.getTime())) return value
+  return new Intl.DateTimeFormat(locale, {
+    timeZone: 'UTC',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  }).format(utc)
 }
 
 /** Format a UTC ISO instant in the organization IANA timezone for list/details. */
@@ -39,9 +133,10 @@ export function formatCampaignScheduledAt(
   if (!iso) return ''
   const date = new Date(iso)
   if (Number.isNaN(date.getTime())) return ''
+  const zone = resolveDisplayTimeZone(timeZone)
   try {
     return new Intl.DateTimeFormat(locale, {
-      timeZone,
+      timeZone: zone,
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -69,7 +164,7 @@ export function isoInstantToDateTimeLocal(
   if (Number.isNaN(date.getTime())) return ''
   try {
     const parts = new Intl.DateTimeFormat('en-CA', {
-      timeZone,
+      timeZone: resolveDisplayTimeZone(timeZone),
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',

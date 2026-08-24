@@ -34,8 +34,10 @@ export function CampaignsListPage() {
     canDeleteCampaigns,
     canPauseCampaigns,
     isLoading: orgsLoading,
+    activeOrganization,
   } = useOrganizations()
 
+  const orgTimeZone = activeOrganization?.timezone
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [startDateInput, setStartDateInput] = useState('')
@@ -267,6 +269,7 @@ export function CampaignsListPage() {
               <CampaignCards
                 campaigns={items}
                 templateNames={templateNames}
+                timeZone={orgTimeZone}
                 canEdit={canEditCampaigns}
                 canCreate={canCreateCampaigns}
                 canDelete={canDeleteCampaigns}
@@ -289,6 +292,7 @@ export function CampaignsListPage() {
               <CampaignTable
                 campaigns={items}
                 templateNames={templateNames}
+                timeZone={orgTimeZone}
                 canEdit={canEditCampaigns}
                 canCreate={canCreateCampaigns}
                 canDelete={canDeleteCampaigns}
