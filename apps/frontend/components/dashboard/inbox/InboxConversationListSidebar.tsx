@@ -80,48 +80,6 @@ function StatusBadge({ status, label }: { status: string; label: string }) {
   )
 }
 
-function InboxSseStatusPill({
-  status,
-}: {
-  status: 'idle' | 'connecting' | 'live' | 'reconnecting'
-}) {
-  const t = useTranslations('dashboard.inbox.sse')
-  if (status === 'idle') return null
-
-  const tone =
-    status === 'live'
-      ? 'bg-positive/15 text-positive-deep ring-positive/25'
-      : status === 'reconnecting'
-        ? 'bg-dash-surface text-ink ring-dash-border'
-        : 'bg-mute/15 text-mute ring-dash-border'
-
-  const label =
-    status === 'live'
-      ? t('live')
-      : status === 'reconnecting'
-        ? t('reconnecting')
-        : t('connecting')
-
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold tracking-wide uppercase ring-1',
-        tone
-      )}
-      title={t('title')}
-    >
-      <span
-        className={cn(
-          'size-1.5 rounded-full',
-          status === 'live' ? 'bg-positive' : 'bg-mute animate-pulse'
-        )}
-        aria-hidden
-      />
-      {label}
-    </span>
-  )
-}
-
 type InboxConversationListSidebarProps = {
   selectedConversationId?: string
   variant?: 'panel' | 'page'
@@ -140,8 +98,7 @@ export function InboxConversationListSidebar({
     permissions,
     isLoading: orgsLoading,
   } = useOrganizations()
-  const { subscribeInboxEvents, conversation: workspaceConversation, sseConnectionStatus } =
-    useInboxWorkspace()
+  const { subscribeInboxEvents, conversation: workspaceConversation } = useInboxWorkspace()
 
   const canCreate =
     hasPermission(permissions, PERMISSIONS.INBOX_VIEW) &&
@@ -339,12 +296,9 @@ export function InboxConversationListSidebar({
       <div className="shrink-0 space-y-3 border-b border-dash-border px-3.5 py-3">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="font-display text-sm font-semibold tracking-tight text-ink">
-                {t('listTitle')}
-              </h2>
-              <InboxSseStatusPill status={sseConnectionStatus} />
-            </div>
+            <h2 className="font-display text-sm font-semibold tracking-tight text-ink">
+              {t('listTitle')}
+            </h2>
             <p className="mt-0.5 text-xs text-mute">{t('listDescription', { count: total })}</p>
           </div>
           <div className="flex shrink-0 items-center gap-1">
