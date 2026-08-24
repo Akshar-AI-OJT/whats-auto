@@ -610,6 +610,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
           </div>
 
           <CampaignVariableMappingsSection
+            template={selectedTemplate}
             variableNames={templateVariableNames}
             drafts={mappingDrafts}
             unsupportedReason={unsupportedReason}

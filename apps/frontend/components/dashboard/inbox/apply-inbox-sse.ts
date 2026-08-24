@@ -1,8 +1,5 @@
 import type { InboxConversation, InboxMessage } from '@/lib/api'
-import type {
-  InboxSseClientEvent,
-  InboxSseMessageReceivedPayload,
-} from '@/lib/inbox-sse'
+import type { InboxSseClientEvent, InboxSseMessageReceivedPayload } from '@/lib/inbox-sse'
 import { aiHandoverReasonFromSse } from './inbox-ai-mode'
 
 export type InboxListFilters = {
@@ -83,7 +80,8 @@ export function applyInboxSseToConversation(
 
   const alreadyApplied =
     conversation.lastMessageAt === event.payload.occurredAt &&
-    (event.payload.contentText == null || conversation.lastMessageText === event.payload.contentText)
+    (event.payload.contentText == null ||
+      conversation.lastMessageText === event.payload.contentText)
   if (alreadyApplied) return conversation
 
   return {
@@ -148,16 +146,20 @@ export function applyInboxSseToList(
   conversations: InboxConversation[],
   event: InboxSseClientEvent,
   filters: InboxListFilters
-): { conversations: InboxConversation[]; fetchConversationId: string | null } {
+): {
+  conversations: InboxConversation[]
+  fetchConversationId: string | null
+  notifyNewActivity: boolean
+} {
   const conversationId = event.payload.conversationId
   const index = conversations.findIndex((conversation) => conversation.id === conversationId)
 
   if (event.type === 'ai.handover.triggered') {
-    if (index < 0) return { conversations, fetchConversationId: null }
+    if (index < 0) return { conversations, fetchConversationId: null, notifyNewActivity: false }
     const updated = applyInboxSseToConversation(conversations[index]!, event)
     const next = conversations.slice()
     next[index] = updated
-    return { conversations: next, fetchConversationId: null }
+    return { conversations: next, fetchConversationId: null, notifyNewActivity: false }
   }
 
   if (event.type === 'message.received') {
@@ -167,25 +169,45 @@ export function applyInboxSseToList(
         return {
           conversations: conversations.filter((conversation) => conversation.id !== conversationId),
           fetchConversationId: null,
+          notifyNewActivity: true,
         }
       }
       const rest = conversations.filter((_, i) => i !== index)
-      return { conversations: [updated, ...rest], fetchConversationId: null }
+      return {
+        conversations: [updated, ...rest],
+        fetchConversationId: null,
+        notifyNewActivity: false,
+      }
+    }
+
+    // Not on this page / list yet.
+    if (filters.page === 1) {
+      return {
+        conversations,
+        fetchConversationId: conversationId,
+        notifyNewActivity: false,
+      }
     }
 
     return {
       conversations,
-      fetchConversationId: filters.page === 1 ? conversationId : null,
+      fetchConversationId: null,
+      notifyNewActivity: true,
     }
   }
 
   if (event.type === 'message.queued' || event.type === 'message.sent') {
     if (index >= 0 || filters.page === 1) {
-      return { conversations, fetchConversationId: conversationId }
+      return {
+        conversations,
+        fetchConversationId: conversationId,
+        notifyNewActivity: false,
+      }
     }
+    return { conversations, fetchConversationId: null, notifyNewActivity: true }
   }
 
-  return { conversations, fetchConversationId: null }
+  return { conversations, fetchConversationId: null, notifyNewActivity: false }
 }
 
 export function upsertConversationInList(

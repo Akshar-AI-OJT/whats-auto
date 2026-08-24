@@ -220,3 +220,40 @@ export function listUnmappedVariableNames(
 ): string[] {
   return variableNames.filter((name) => !isMappingDraftComplete(drafts[name]))
 }
+
+/**
+ * Sample values for live template preview while mapping.
+ * Mapped slots show static text, `[Contact field]`, or `[custom_key]`;
+ * unmapped slots fall back to template samples so the bubble stays readable.
+ */
+export function buildCampaignPreviewSampleValues(params: {
+  variableNames: string[]
+  drafts: CampaignVariableMappingDrafts
+  templateSamples?: Record<string, string> | null
+  contactFieldLabels: Record<string, string>
+}): Record<string, string> {
+  const out: Record<string, string> = { ...(params.templateSamples ?? {}) }
+
+  for (const name of params.variableNames) {
+    const draft = params.drafts[name]
+    if (!isMappingDraftComplete(draft) || !draft?.source) continue
+
+    if (draft.source === 'static') {
+      out[name] = draft.value.trim()
+      continue
+    }
+
+    if (draft.source === 'contact_field') {
+      const field = draft.field.trim()
+      const label = params.contactFieldLabels[field] ?? field
+      out[name] = `[${label}]`
+      continue
+    }
+
+    if (draft.source === 'custom_field') {
+      out[name] = `[${draft.field.trim()}]`
+    }
+  }
+
+  return out
+}

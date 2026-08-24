@@ -246,6 +246,120 @@ test.group('WhatsApp webhook ingestion', (group) => {
     }
   })
 
+  test('restores soft-deleted contact on inbound so conversation reappears', async ({
+    client,
+    assert,
+  }) => {
+    const fixture = await createFixture()
+    const waId = '919811133333'
+
+    const { payload: firstPayload, signature: firstSignature } = signedPayload({
+      object: 'whatsapp_business_account',
+      entry: [
+        {
+          id: 'waba',
+          changes: [
+            {
+              field: 'messages',
+              value: messagesValue({
+                phoneNumberId: fixture.phoneNumberId,
+                contacts: [{ wa_id: waId, profile: { name: 'Soft Delete Me' } }],
+                messages: [
+                  {
+                    from: waId,
+                    id: 'wamid.softdelete.1',
+                    timestamp: '1700000100',
+                    type: 'text',
+                    text: { body: 'before delete' },
+                  },
+                ],
+              }),
+            },
+          ],
+        },
+      ],
+    })
+
+    const firstResponse = await client
+      .post('/api/v1/webhooks/whatsapp')
+      .header('X-Hub-Signature-256', firstSignature)
+      .json(firstPayload)
+    firstResponse.assertStatus(200)
+
+    const contactId = await runWithTenant(fixture.organizationId, async () => {
+      const contact = await db
+        .from('contacts')
+        .where('organizationId', fixture.organizationId)
+        .where('phoneNormalized', waId)
+        .whereNull('deletedAt')
+        .first()
+      assert.exists(contact)
+      await db.from('contacts').where('id', contact!.id).update({ deletedAt: new Date() })
+      return contact!.id as string
+    })
+
+    const { payload: secondPayload, signature: secondSignature } = signedPayload({
+      object: 'whatsapp_business_account',
+      entry: [
+        {
+          id: 'waba',
+          changes: [
+            {
+              field: 'messages',
+              value: messagesValue({
+                phoneNumberId: fixture.phoneNumberId,
+                contacts: [{ wa_id: waId }],
+                messages: [
+                  {
+                    from: waId,
+                    id: 'wamid.softdelete.2',
+                    timestamp: '1700000200',
+                    type: 'text',
+                    text: { body: 'after delete' },
+                  },
+                ],
+              }),
+            },
+          ],
+        },
+      ],
+    })
+
+    const secondResponse = await client
+      .post('/api/v1/webhooks/whatsapp')
+      .header('X-Hub-Signature-256', secondSignature)
+      .json(secondPayload)
+    secondResponse.assertStatus(200)
+
+    await runWithTenant(fixture.organizationId, async () => {
+      const liveContacts = await db
+        .from('contacts')
+        .where('organizationId', fixture.organizationId)
+        .whereNull('deletedAt')
+        .select('*')
+      assert.lengthOf(liveContacts, 1)
+      assert.equal(liveContacts[0].id, contactId)
+      assert.isNull(liveContacts[0].deletedAt)
+
+      const conversations = await db
+        .from('conversations')
+        .where('organizationId', fixture.organizationId)
+        .where('contactId', contactId)
+        .select('*')
+      assert.lengthOf(conversations, 1)
+      assert.equal(conversations[0].lastMessageText, 'after delete')
+      assert.equal(conversations[0].unreadCount, 2)
+
+      const messages = await db
+        .from('messages')
+        .where('organizationId', fixture.organizationId)
+        .orderBy('occurredAt', 'asc')
+        .select('providerMessageId')
+      assert.lengthOf(messages, 2)
+      assert.equal(messages[1].providerMessageId, 'wamid.softdelete.2')
+    })
+  })
+
   test('upserts Meta wa_id values as international digits for IN and US', async ({
     client,
     assert,
