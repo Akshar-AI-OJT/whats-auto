@@ -2059,6 +2059,7 @@
       "title": "Contacts",
       "subtitle": "People you message from this WhatsApp workspace.",
       "addCta": "Add Contact",
+      "importCta": "Import Contacts",
       "listTitle": "All contacts",
       "listDescription": "Stored per workspace. Phone numbers must be unique.",
       "loading": "Loading contacts…",
@@ -2107,6 +2108,86 @@
           "sessionExpired": "Your session expired. Please sign in again.",
           "permissionDenied": "You don’t have permission to add contacts.",
           "generic": "Couldn’t save this contact. Please try again."
+        }
+      },
+      "import": {
+        "title": "Import Contacts",
+        "steps": {
+          "upload": "Upload CSV",
+          "map": "Map Columns",
+          "settings": "Import Settings",
+          "review": "Review & Import"
+        },
+        "cancel": "Cancel",
+        "back": "Back",
+        "next": "Next",
+        "import": "Import",
+        "importing": "Importing…",
+        "close": "Close",
+        "upload": {
+          "heading": "Upload CSV File",
+          "hint": "Drag and drop your CSV file here, or click to browse.",
+          "supports": "Supports .csv files.",
+          "selected": "Selected file: {name}",
+          "supportedFields": "Supported columns: phone*, name, email, company. *Phone column is required."
+        },
+        "map": {
+          "heading": "Map your CSV columns to contact fields.",
+          "csvColumn": "CSV column",
+          "contactField": "Contact field",
+          "unmapped": "Don’t import",
+          "fields": {
+            "phone": "Phone",
+            "name": "Name",
+            "email": "Email",
+            "company": "Company"
+          },
+          "previewToggle": "Preview of first 3 rows",
+          "previewHide": "Hide preview",
+          "phoneRequired": "Map a CSV column to Phone before continuing.",
+          "duplicateField": "Each contact field can only be mapped once."
+        },
+        "settings": {
+          "country": "Default country code",
+          "countryPlaceholder": "Select country",
+          "countryHint": "Used only for national numbers in your CSV that do not include a country code. International numbers that start with + are sent as-is.",
+          "duplicates": "Duplicate contacts",
+          "duplicatesValue": "Skip duplicates (recommended)",
+          "duplicatesHint": "Duplicate contacts will be skipped and not imported again."
+        },
+        "review": {
+          "heading": "Review import summary",
+          "file": "CSV file",
+          "totalRows": "Total rows",
+          "mappedFields": "Mapped fields",
+          "defaultCountry": "Default country",
+          "defaultCountryNone": "Not selected",
+          "duplicates": "Duplicate handling",
+          "duplicatesValue": "Skip duplicates",
+          "warning": "Duplicates will be skipped. Existing contacts will not be updated."
+        },
+        "result": {
+          "title": "Import completed",
+          "subtitle": "Your contacts have been processed.",
+          "totalRows": "Total rows",
+          "imported": "Imported",
+          "skipped": "Skipped (duplicates)",
+          "failed": "Failed",
+          "downloadReport": "Download report"
+        },
+        "errors": {
+          "invalidType": "Upload a .csv file.",
+          "tooLarge": "CSV file must be 2 MB or smaller.",
+          "empty": "CSV file has no contact rows.",
+          "malformed": "CSV file could not be parsed.",
+          "noHeaders": "CSV file is missing column headers.",
+          "sessionExpired": "Your session expired. Please sign in again.",
+          "permissionDenied": "You don’t have permission to import contacts.",
+          "missingPhoneColumn": "CSV is missing a phone column.",
+          "invalidCountry": "Select a valid country.",
+          "tooManyRows": "CSV has too many rows.",
+          "invalidFile": "Upload a CSV file.",
+          "generic": "Couldn’t import contacts. Please try again."
         }
       }
     },

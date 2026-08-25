@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import db from '@adonisjs/lucid/services/db'
 import ContactException from '#exceptions/contact_exception'
 import { ContactImportService } from '#services/contact_import_service'
+import { ContactService } from '#services/contact_service'
 import { runWithTenant } from '#services/tenant_context'
 
 async function createOrg() {
@@ -373,5 +374,102 @@ test.group('ContactImportService', (group) => {
       assert.instanceOf(error, ContactException)
       assert.equal((error as ContactException).code, 'E_CONTACT_IMPORT_MISSING_PHONE_COLUMN')
     }
+  })
+
+  test('skips an existing contact without overwriting it', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const userId = await seedUser()
+    userIds.push(userId)
+
+    const existing = await runWithTenant(organizationId, () =>
+      new ContactService().createContact({
+        organizationId,
+        actorUserId: userId,
+        phoneNumber: '+919876543210',
+        name: 'Original Name',
+        email: 'original@example.com',
+        company: 'Original Co',
+      })
+    )
+
+    const result = await runWithTenant(organizationId, () =>
+      new ContactImportService().importCsv({
+        organizationId,
+        actorUserId: userId,
+        fileName: 'dup.csv',
+        defaultCountryCode: 'IN',
+        csvContent:
+          'name,phone,email,company\nUpdated Name,9876543210,updated@example.com,Updated Co\n',
+      })
+    )
+
+    assert.equal(result.status, 'completed')
+    assert.equal(result.successCount, 0)
+    assert.equal(result.errorCount, 0)
+    assert.equal(result.rows[0]?.status, 'skipped')
+    assert.equal(result.rows[0]?.action, 'skipped')
+
+    const after = await runWithTenant(organizationId, () =>
+      db.from('contacts').where('id', existing.id).first()
+    )
+    assert.equal(after.name, 'Original Name')
+    assert.equal(after.email, 'original@example.com')
+    assert.equal(after.company, 'Original Co')
+    assert.equal(after.phone, '+919876543210')
+    assert.equal(after.phoneNormalized, '919876543210')
+
+    const listed = await runWithTenant(organizationId, () =>
+      new ContactService().listContacts(organizationId)
+    )
+    assert.lengthOf(listed, 1)
+    assert.equal(listed[0].id, existing.id)
+  })
+
+  test('lets two organizations import the same normalized number', async ({ assert }) => {
+    const orgA = await createOrg()
+    const orgB = await createOrg()
+    orgIds.push(orgA, orgB)
+    const userId = await seedUser()
+    userIds.push(userId)
+
+    const resultA = await runWithTenant(orgA, () =>
+      new ContactImportService().importCsv({
+        organizationId: orgA,
+        actorUserId: userId,
+        fileName: 'org-a.csv',
+        defaultCountryCode: 'IN',
+        csvContent: 'name,phone\nRahul,9876543210\n',
+      })
+    )
+    const resultB = await runWithTenant(orgB, () =>
+      new ContactImportService().importCsv({
+        organizationId: orgB,
+        actorUserId: userId,
+        fileName: 'org-b.csv',
+        csvContent: 'name,phone\nRahul,+919876543210\n',
+      })
+    )
+
+    assert.equal(resultA.rows[0]?.action, 'inserted')
+    assert.equal(resultB.rows[0]?.action, 'inserted')
+    assert.notEqual(resultA.rows[0]?.contactId, resultB.rows[0]?.contactId)
+
+    const contactA = await runWithTenant(orgA, () =>
+      db
+        .from('contacts')
+        .where('id', resultA.rows[0]?.contactId as string)
+        .first()
+    )
+    const contactB = await runWithTenant(orgB, () =>
+      db
+        .from('contacts')
+        .where('id', resultB.rows[0]?.contactId as string)
+        .first()
+    )
+    assert.equal(contactA.organizationId, orgA)
+    assert.equal(contactB.organizationId, orgB)
+    assert.equal(contactA.phoneNormalized, '919876543210')
+    assert.equal(contactB.phoneNormalized, '919876543210')
   })
 })

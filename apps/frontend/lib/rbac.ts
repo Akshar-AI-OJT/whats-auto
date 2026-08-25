@@ -12,6 +12,7 @@ export const PERMISSIONS = {
   CONTACTS_CREATE: 'contacts:create',
   CONTACTS_EDIT: 'contacts:edit',
   CONTACTS_DELETE: 'contacts:delete',
+  CONTACTS_IMPORT: 'contacts:import',
   MEDIA_VIEW: 'media:view',
   MEDIA_UPLOAD: 'media:upload',
   MEDIA_DELETE: 'media:delete',
