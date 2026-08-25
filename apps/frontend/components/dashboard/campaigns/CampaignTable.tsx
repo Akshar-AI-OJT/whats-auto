@@ -17,6 +17,7 @@ type CampaignTableProps = {
   onView: (campaign: Campaign) => void
   onEdit: (campaign: Campaign) => void
   onDuplicate: (campaign: Campaign) => void
+  onChangeStatus?: (campaign: Campaign) => void
   onPause: (campaign: Campaign) => void
   onDelete: (campaign: Campaign) => void
 }
@@ -31,6 +32,7 @@ export function CampaignTable({
   onView,
   onEdit,
   onDuplicate,
+  onChangeStatus,
   onPause,
   onDelete,
 }: CampaignTableProps) {
@@ -110,6 +112,9 @@ export function CampaignTable({
                     onView={() => onView(campaign)}
                     onEdit={() => onEdit(campaign)}
                     onDuplicate={() => onDuplicate(campaign)}
+                    onChangeStatus={
+                      onChangeStatus ? () => onChangeStatus(campaign) : undefined
+                    }
                     onPause={() => onPause(campaign)}
                     onDelete={() => onDelete(campaign)}
                   />

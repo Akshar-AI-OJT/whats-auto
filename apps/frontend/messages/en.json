@@ -3219,6 +3219,7 @@
         "menuAria": "Campaign actions",
         "view": "View Details",
         "edit": "Edit Campaign",
+        "changeStatus": "Change status",
         "duplicate": "Duplicate Campaign",
         "pause": "Pause Campaign",
         "cancel": "Cancel campaign",
@@ -3239,6 +3240,16 @@
         "dismiss": "Keep running",
         "confirm": "Cancel campaign",
         "cancelling": "Cancelling…"
+      },
+      "changeStatus": {
+        "title": "Change campaign status?",
+        "body": "Update the status of “{name}”. Only draft and scheduled are allowed here.",
+        "hint": "This updates the status field only. Use Launch to send, Save & schedule to queue a send time, or Cancel to stop a scheduled/sending campaign.",
+        "label": "New status",
+        "dismiss": "Keep current",
+        "confirm": "Update status",
+        "saving": "Updating…",
+        "success": "Campaign status updated."
       },
       "preview": {
         "title": "Message preview",
@@ -3368,6 +3379,8 @@
         "deleteFailed": "Could not delete this campaign.",
         "saveFailed": "Could not save this campaign.",
         "cancelFailed": "Could not cancel this campaign.",
+        "changeStatusFailed": "Could not update this campaign’s status.",
+        "statusTransitionFailed": "That status change is not allowed for this campaign.",
         "launchFailed": "Could not launch this campaign.",
         "templateNotApproved": "The linked message template is not approved. Approve it in Meta before launching.",
         "whatsappNotConnected": "WhatsApp is not connected. Reconnect your WhatsApp account before launching.",

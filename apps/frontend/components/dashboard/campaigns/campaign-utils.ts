@@ -72,6 +72,15 @@ export function isEditableCampaignStatus(status: string): boolean {
   return status === 'draft' || status === 'scheduled'
 }
 
+/** PATCH /campaigns/:id/status only allows draft ↔ scheduled. */
+export const CAMPAIGN_CHANGE_STATUS_TARGETS = ['draft', 'scheduled'] as const
+
+export type CampaignChangeStatusTarget = (typeof CAMPAIGN_CHANGE_STATUS_TARGETS)[number]
+
+export function isStatusChangeableCampaignStatus(status: string): boolean {
+  return isEditableCampaignStatus(status)
+}
+
 export function isLaunchableCampaignStatus(status: string): boolean {
   return status === 'draft' || status === 'scheduled'
 }

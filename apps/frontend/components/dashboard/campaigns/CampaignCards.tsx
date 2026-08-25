@@ -16,6 +16,7 @@ type CampaignActionsMenuProps = {
   onView: () => void
   onEdit: () => void
   onDuplicate: () => void
+  onChangeStatus?: () => void
   onPause: () => void
   onDelete: () => void
 }
@@ -29,6 +30,7 @@ export function CampaignActionsMenu({
   onView,
   onEdit,
   onDuplicate,
+  onChangeStatus,
   onPause,
   onDelete,
 }: CampaignActionsMenuProps) {
@@ -98,6 +100,19 @@ export function CampaignActionsMenu({
               {t('edit')}
             </button>
           ) : null}
+          {canEdit && editable && onChangeStatus ? (
+            <button
+              type="button"
+              role="menuitem"
+              className="block w-full cursor-pointer px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
+              onClick={() => {
+                setOpen(false)
+                onChangeStatus()
+              }}
+            >
+              {t('changeStatus')}
+            </button>
+          ) : null}
           {canCreate ? (
             <button
               type="button"
@@ -153,6 +168,7 @@ type CampaignCardsProps = {
   onView: (campaign: Campaign) => void
   onEdit: (campaign: Campaign) => void
   onDuplicate: (campaign: Campaign) => void
+  onChangeStatus?: (campaign: Campaign) => void
   onPause: (campaign: Campaign) => void
   onDelete: (campaign: Campaign) => void
 }
@@ -167,6 +183,7 @@ export function CampaignCards({
   onView,
   onEdit,
   onDuplicate,
+  onChangeStatus,
   onPause,
   onDelete,
 }: CampaignCardsProps) {
@@ -208,6 +225,9 @@ export function CampaignCards({
                     onView={() => onView(campaign)}
                     onEdit={() => onEdit(campaign)}
                     onDuplicate={() => onDuplicate(campaign)}
+                    onChangeStatus={
+                      onChangeStatus ? () => onChangeStatus(campaign) : undefined
+                    }
                     onPause={() => onPause(campaign)}
                     onDelete={() => onDelete(campaign)}
                   />
