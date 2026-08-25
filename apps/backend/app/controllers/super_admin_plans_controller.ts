@@ -39,13 +39,12 @@ export default class SuperAdminPlansController {
 
   /**
    * @summary Create a billing plan (Super Admin)
-   * @description Creates a local plans row and, when price/interval are checkoutable, syncs Razorpay Plans API to set gatewayPlanId.
+   * @description Creates a local plans catalog row only. Razorpay plan ids are created later at tenant checkout.
    * @tag Super Admin
    * @security BearerAuth
    * @requestBody { "name": "Growth", "price": 2499, "currency": "INR", "billingPeriod": "monthly", "status": "active", "limits": {} }
-   * @responseBody 200 - { "data": { "id": "uuid", "gatewayPlanId": "plan_xxx", "status": "active" } }
+   * @responseBody 200 - { "data": { "id": "uuid", "name": "Growth", "status": "active", "gatewayPlanId": null } }
    * @responseBody 403 - { "error": "Permission denied: platform:tenants_billing", "code": "PERMISSION_DENIED" }
-   * @responseBody 502 - { "error": "...", "code": "E_PLAN_GATEWAY_FAILED" }
    */
   @inject()
   async store({ bouncer, request, serialize }: HttpContext, plans: PlanService) {
@@ -79,11 +78,11 @@ export default class SuperAdminPlansController {
 
   /**
    * @summary Update a billing plan (Super Admin)
-   * @description Partial update. Re-syncs Razorpay when price, currency, or billing interval changes (plans are immutable on the gateway).
+   * @description Partial local catalog update. Pricing/interval changes clear any stored Razorpay plan id so the next checkout re-syncs.
    * @tag Super Admin
    * @security BearerAuth
    * @paramPath id - Plan id - @type(string)
-   * @responseBody 200 - { "data": { "id": "uuid", "gatewayPlanId": "plan_xxx" } }
+   * @responseBody 200 - { "data": { "id": "uuid", "name": "Growth" } }
    * @responseBody 404 - { "error": "Plan Not Found", "code": "E_PLAN_NOT_FOUND" }
    */
   @inject()
@@ -101,7 +100,7 @@ export default class SuperAdminPlansController {
 
   /**
    * @summary Archive (soft-deactivate) a billing plan (Super Admin)
-   * @description Sets status=archived and isActive=false. Does not delete the Razorpay plan.
+   * @description Sets status=archived and isActive=false. Does not call Razorpay.
    * @tag Super Admin
    * @security BearerAuth
    * @paramPath id - Plan id - @type(string)

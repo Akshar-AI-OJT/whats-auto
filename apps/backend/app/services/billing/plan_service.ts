@@ -1,7 +1,5 @@
 import PlanException from '#exceptions/plan_exception'
 import { insertAuthorizationAudit } from '#lib/authorization_audit'
-import { createRazorpayClient, RazorpayApiError } from '#lib/razorpay/razorpay_client'
-import type { RazorpayClient, RazorpayPlanPeriod } from '#lib/razorpay/types'
 import { PlanRepository } from '#repositories/plan_repository'
 import {
   buildPlanSummary,
@@ -52,12 +50,6 @@ function billingIntervalFromPeriod(period: PlanBillingPeriod): string {
   return 'month'
 }
 
-function razorpayPeriodFromBilling(period: PlanBillingPeriod): RazorpayPlanPeriod | null {
-  if (period === 'monthly') return 'monthly'
-  if (period === 'yearly') return 'yearly'
-  return null
-}
-
 function toMajorPrice(value: string | number | null | undefined): number {
   if (value === null) return 0
   return typeof value === 'number' ? value : Number(value)
@@ -101,22 +93,12 @@ function buildMetadata(input: {
   }
 }
 
-function isCheckoutSyncable(price: number, billingPeriod: PlanBillingPeriod): boolean {
-  return price > 0 && (billingPeriod === 'monthly' || billingPeriod === 'yearly')
-}
-
 /**
- * Super-admin SaaS plan catalog: CRUD + Razorpay Plans API sync for gatewayPlanId.
+ * Super-admin SaaS plan catalog: local CRUD only.
+ * Razorpay plan sync happens lazily at tenant checkout.
  */
 export class PlanService {
-  protected razorpay: RazorpayClient
-
-  constructor(
-    protected plans: PlanRepository = new PlanRepository(),
-    razorpayClient?: RazorpayClient
-  ) {
-    this.razorpay = razorpayClient ?? createRazorpayClient()
-  }
+  constructor(protected plans: PlanRepository = new PlanRepository()) {}
 
   async listPlans(params: {
     search?: string
@@ -159,22 +141,6 @@ export class PlanService {
     const status = input.status
     const code = await this.#allocateCode(input.code?.trim() || slugifyCode(input.name))
 
-    let gateway: string | null = null
-    let gatewayPlanId: string | null = null
-
-    if (isCheckoutSyncable(price, billingPeriod)) {
-      const synced = await this.#createRazorpayPlan({
-        name: input.name.trim(),
-        description: input.description?.trim() || null,
-        price,
-        currency: input.currency.toUpperCase(),
-        billingPeriod,
-        code,
-      })
-      gateway = 'razorpay'
-      gatewayPlanId = synced.id
-    }
-
     const row = await this.plans.create({
       code,
       name: input.name.trim(),
@@ -184,8 +150,8 @@ export class PlanService {
       billingInterval: billingIntervalFromPeriod(billingPeriod),
       billingIntervalCount: 1,
       trialDays: input.trialDays ?? 0,
-      gateway,
-      gatewayPlanId,
+      gateway: null,
+      gatewayPlanId: null,
       limits: buildLimits(input.limits),
       isActive: status === 'active',
       sortOrder: input.sortOrder ?? 0,
@@ -254,29 +220,15 @@ export class PlanService {
       code = await this.#allocateCode(patch.code.trim(), planId)
     }
 
+    // Pricing/interval changes invalidate a previously synced Razorpay plan id.
+    // Next tenant checkout will create a fresh gateway plan.
     const priceChanged =
       toMajorPrice(existing.price) !== price ||
       deriveBillingPeriod(existing) !== billingPeriod ||
       existing.currency.toUpperCase() !== currency
 
-    let gateway = existing.gateway
-    let gatewayPlanId = existing.gatewayPlanId
-
-    if (isCheckoutSyncable(price, billingPeriod) && (priceChanged || !gatewayPlanId)) {
-      const synced = await this.#createRazorpayPlan({
-        name,
-        description,
-        price,
-        currency,
-        billingPeriod,
-        code,
-      })
-      gateway = 'razorpay'
-      gatewayPlanId = synced.id
-    } else if (!isCheckoutSyncable(price, billingPeriod)) {
-      gateway = null
-      gatewayPlanId = null
-    }
+    const gateway = priceChanged ? null : existing.gateway
+    const gatewayPlanId = priceChanged ? null : existing.gatewayPlanId
 
     const updated = await this.plans.update(planId, {
       code,
@@ -354,40 +306,5 @@ export class PlanService {
       if (!existing || existing.id === excludeId) return candidate
     }
     throw PlanException.codeTaken(base)
-  }
-
-  async #createRazorpayPlan(params: {
-    name: string
-    description: string | null
-    price: number
-    currency: string
-    billingPeriod: PlanBillingPeriod
-    code: string
-  }) {
-    const period = razorpayPeriodFromBilling(params.billingPeriod)
-    if (!period) {
-      throw PlanException.gatewayFailed('Billing period is not syncable with Razorpay')
-    }
-
-    try {
-      return await this.razorpay.createPlan({
-        period,
-        interval: 1,
-        item: {
-          name: params.name,
-          amount: Math.round(params.price * 100),
-          currency: params.currency,
-          description: params.description,
-        },
-        notes: {
-          planCode: params.code,
-        },
-      })
-    } catch (error) {
-      if (error instanceof RazorpayApiError) {
-        throw PlanException.gatewayFailed(error.message)
-      }
-      throw error
-    }
   }
 }
