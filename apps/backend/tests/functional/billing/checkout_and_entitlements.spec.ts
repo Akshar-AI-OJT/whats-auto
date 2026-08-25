@@ -186,6 +186,46 @@ test.group('RazorpayCheckoutService', () => {
     assert.equal(org?.gatewayCustomerId, result.gatewayCustomerId)
   })
 
+  test('startCheckout lazily creates Razorpay plan when gatewayPlanId is missing', async ({
+    assert,
+  }) => {
+    const seeded = await seedOrgAndCheckoutablePlan()
+    await db
+      .from('plans')
+      .where('id', seeded.planId)
+      .update({ gateway: null, gatewayPlanId: null })
+
+    let createdPlanAmount: number | null = null
+    const checkout = new RazorpayCheckoutService(
+      new PlanRepository(),
+      new OrganizationSubscriptionRepository(),
+      fakeRazorpay({
+        createPlan: async (params) => {
+          createdPlanAmount = params.item.amount
+          return {
+            id: `plan_lazy_${randomUUID().slice(0, 8)}`,
+            period: params.period,
+            interval: params.interval,
+            item: params.item,
+            notes: params.notes,
+          }
+        },
+      })
+    )
+
+    const result = await checkout.startCheckout({
+      organizationId: seeded.organizationId,
+      planId: seeded.planId,
+    })
+
+    assert.equal(result.checkoutUrl, 'https://rzp.io/i/demo')
+    assert.equal(createdPlanAmount, 249900)
+
+    const plan = await db.from('plans').where('id', seeded.planId).first()
+    assert.equal(plan?.gateway, 'razorpay')
+    assert.isString(plan?.gatewayPlanId)
+  })
+
   test('startCheckout rejects inactive or unmapped plan', async ({ assert }) => {
     const seeded = await seedOrgAndCheckoutablePlan()
     const inactivePlanId = randomUUID()

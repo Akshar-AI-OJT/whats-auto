@@ -60,15 +60,16 @@ export class PlanRepository {
 
   /**
    * Checkout acceptance SQL — keep in lockstep with `isPlanCheckoutable`
-   * in the plan transformer (isActive + razorpay + gatewayPlanId).
+   * (isActive + price > 0 + month/year interval). Gateway plan id is optional
+   * until first tenant checkout syncs it.
    */
   async findActiveCheckoutableById(planId: string, client: Db = db): Promise<PlanRow | null> {
     const row = await client
       .from('plans')
       .where('id', planId)
       .where('isActive', true)
-      .where('gateway', 'razorpay')
-      .whereNotNull('gatewayPlanId')
+      .where('price', '>', 0)
+      .whereIn('billingInterval', ['month', 'year', 'monthly', 'yearly'])
       .first()
     return (row as PlanRow | undefined) ?? null
   }
