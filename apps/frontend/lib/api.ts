@@ -115,7 +115,11 @@ async function request<T>(
   const { authMode, _authRetried, ...fetchInit } = init
   const headers = new Headers(fetchInit.headers)
 
-  if (fetchInit.body && !headers.has('Content-Type')) {
+  if (
+    fetchInit.body &&
+    !headers.has('Content-Type') &&
+    !(fetchInit.body instanceof FormData)
+  ) {
     headers.set('Content-Type', 'application/json')
   }
 
@@ -285,6 +289,43 @@ export type CreateContactBody = {
   name?: string
   email?: string
   company?: string
+}
+
+export type ContactCsvColumnMapping = {
+  phone?: string
+  name?: string
+  email?: string
+  company?: string
+}
+
+export type ContactImportRowResult = {
+  rowNumber: number
+  status: 'processed' | 'failed' | 'skipped'
+  action: 'inserted' | 'skipped' | null
+  errorMessage: string | null
+  contactId: string | null
+  rawData: Record<string, string>
+}
+
+export type ContactImportResult = {
+  id: string
+  organizationId: string
+  fileName: string
+  status: string
+  defaultCountryCode: string | null
+  columnMapping: ContactCsvColumnMapping
+  totalRows: number
+  processedRows: number
+  successCount: number
+  errorCount: number
+  completedAt: string | null
+  rows: ContactImportRowResult[]
+}
+
+export type ImportContactsBody = {
+  file: File
+  columnMapping: ContactCsvColumnMapping
+  defaultCountryCode?: string
 }
 
 export type CampaignStatus = 'draft' | 'scheduled' | 'sending' | 'sent' | 'failed'
@@ -837,6 +878,22 @@ export const api = {
         `/api/v1/contacts/${contactId}`,
         { method: 'DELETE' }
       ),
+
+    importCsv: (body: ImportContactsBody) => {
+      const form = new FormData()
+      form.append('file', body.file)
+      form.append('columnMapping', JSON.stringify(body.columnMapping))
+      if (body.defaultCountryCode) {
+        form.append('defaultCountryCode', body.defaultCountryCode)
+      }
+      return protectedRequest<{ data?: ContactImportResult } & ContactImportResult>(
+        '/api/v1/contacts/import',
+        {
+          method: 'POST',
+          body: form,
+        }
+      )
+    },
   },
 
   campaigns: {

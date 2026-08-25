@@ -46,6 +46,7 @@ type OrganizationsContextValue = {
   canViewContacts: boolean
   canCreateContacts: boolean
   canDeleteContacts: boolean
+  canImportContacts: boolean
   canViewInbox: boolean
   canViewWhatsapp: boolean
   canConnectWhatsapp: boolean
@@ -324,6 +325,7 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
     canViewContacts: hasPermission(permissions, PERMISSIONS.CONTACTS_VIEW),
     canCreateContacts: hasPermission(permissions, PERMISSIONS.CONTACTS_CREATE),
     canDeleteContacts: hasPermission(permissions, PERMISSIONS.CONTACTS_DELETE),
+    canImportContacts: hasPermission(permissions, PERMISSIONS.CONTACTS_IMPORT),
     canViewInbox: hasPermission(permissions, PERMISSIONS.INBOX_VIEW),
     canViewWhatsapp: hasPermission(permissions, PERMISSIONS.WHATSAPP_VIEW),
     canConnectWhatsapp: hasPermission(permissions, PERMISSIONS.WHATSAPP_CONNECT),
