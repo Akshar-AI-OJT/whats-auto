@@ -5,7 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
 import { useRouter, usePathname } from '@/i18n/navigation'
-import { Loader2, Search, Trash2, UserPlus, Users } from 'lucide-react'
+import { Loader2, Search, Trash2, Upload, UserPlus, Users } from 'lucide-react'
 import { api, type ApiError, type ContactSummary } from '@/lib/api'
 import { queryKeys } from '@/lib/query-keys'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
@@ -16,6 +16,7 @@ import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSecti
 import { WorkspaceAvatar } from '@/components/dashboard/WorkspaceSwitcher'
 import { AddContactSheet } from '@/components/dashboard/contacts/AddContactSheet'
 import { ContactDeleteDialog } from '@/components/dashboard/contacts/ContactDeleteDialog'
+import { ImportContactsDialog } from '@/components/dashboard/contacts/ImportContactsDialog'
 
 function unwrapList<T>(data: { data?: T[] } | T[] | undefined): T[] {
   if (!data) return []
@@ -55,6 +56,7 @@ export function ContactsPage() {
     canViewContacts,
     canCreateContacts,
     canDeleteContacts,
+    canImportContacts,
     isLoading: orgsLoading,
   } = useOrganizations()
 
@@ -62,6 +64,8 @@ export function ContactsPage() {
   const [addForced, setAddForced] = useState(false)
   const addOpen = canCreateContacts && (addFromQuery || addForced)
   const [query, setQuery] = useState('')
+  const [addOpen, setAddOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<ContactSummary | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deletePending, setDeletePending] = useState(false)
@@ -204,15 +208,30 @@ export function ContactsPage() {
               {t('subtitle')}
             </p>
           </div>
-          {canCreateContacts ? (
-            <Button
-              type="button"
-              className="shrink-0 gap-2"
-              onClick={() => handleAddOpenChange(true)}
-            >
-              <UserPlus className="size-4" aria-hidden />
-              {t('addCta')}
-            </Button>
+          {canCreateContacts || canImportContacts ? (
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              {canImportContacts ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => setImportOpen(true)}
+                >
+                  <Upload className="size-4" aria-hidden />
+                  {t('importCta')}
+                </Button>
+              ) : null}
+              {canCreateContacts ? (
+                <Button
+                  type="button"
+                  className="gap-2"
+                  onClick={() => setAddOpen(true)}
+                >
+                  <UserPlus className="size-4" aria-hidden />
+                  {t('addCta')}
+                </Button>
+              ) : null}
+            </div>
           ) : null}
         </div>
       </DashboardPanel>
@@ -256,15 +275,30 @@ export function ContactsPage() {
             </span>
             <p className="font-medium text-ink">{t('emptyTitle')}</p>
             <p className="max-w-sm text-sm text-body">{t('emptyDescription')}</p>
-            {canCreateContacts ? (
-              <Button
-                type="button"
-                className="mt-2 gap-2"
-                onClick={() => handleAddOpenChange(true)}
-              >
-                <UserPlus className="size-4" aria-hidden />
-                {t('addCta')}
-              </Button>
+            {canCreateContacts || canImportContacts ? (
+              <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+                {canImportContacts ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="gap-2"
+                    onClick={() => setImportOpen(true)}
+                  >
+                    <Upload className="size-4" aria-hidden />
+                    {t('importCta')}
+                  </Button>
+                ) : null}
+                {canCreateContacts ? (
+                  <Button
+                    type="button"
+                    className="gap-2"
+                    onClick={() => setAddOpen(true)}
+                  >
+                    <UserPlus className="size-4" aria-hidden />
+                    {t('addCta')}
+                  </Button>
+                ) : null}
+              </div>
             ) : null}
           </div>
         ) : showNoMatches ? (
@@ -322,9 +356,17 @@ export function ContactsPage() {
           open={addOpen}
           onOpenChange={handleAddOpenChange}
           onCreated={() => {
-            void queryClient.invalidateQueries({
-              queryKey: queryKeys.contacts.all(tenantOrganizationId),
-            })
+            if (tenantOrganizationId) void loadContacts(tenantOrganizationId)
+          }}
+        />
+      ) : null}
+
+      {canImportContacts ? (
+        <ImportContactsDialog
+          open={importOpen}
+          onOpenChange={setImportOpen}
+          onImported={() => {
+            if (tenantOrganizationId) void loadContacts(tenantOrganizationId)
           }}
         />
       ) : null}
