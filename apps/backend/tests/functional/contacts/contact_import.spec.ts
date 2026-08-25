@@ -485,14 +485,16 @@ test.group('ContactImportService', (group) => {
         actorUserId: userId,
         fileName: 'unmap.csv',
         columnMapping: { phone: 'phone' },
-        csvContent:
-          'name,phone,email,company\nRahul,+919876543210,rahul@example.com,Acme\n',
+        csvContent: 'name,phone,email,company\nRahul,+919876543210,rahul@example.com,Acme\n',
       })
     )
 
     assert.equal(result.rows[0]?.action, 'inserted')
     const contact = await runWithTenant(organizationId, () =>
-      db.from('contacts').where('id', result.rows[0]?.contactId as string).first()
+      db
+        .from('contacts')
+        .where('id', result.rows[0]?.contactId as string)
+        .first()
     )
     assert.equal(contact.phoneNormalized, '919876543210')
     assert.isNull(contact.name)

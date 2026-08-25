@@ -66,7 +66,10 @@ test.group('parseContactCsv', () => {
     const mapping = { phone: 'phone' }
 
     assert.equal(resolvePhoneHeader(parsed.headers, mapping), 'phone')
-    assert.equal(mappedCell(parsed.rows[0] ?? {}, parsed.headers, mapping, 'phone'), '+919876543210')
+    assert.equal(
+      mappedCell(parsed.rows[0] ?? {}, parsed.headers, mapping, 'phone'),
+      '+919876543210'
+    )
     assert.equal(mappedCell(parsed.rows[0] ?? {}, parsed.headers, mapping, 'name'), '')
     assert.equal(mappedCell(parsed.rows[0] ?? {}, parsed.headers, mapping, 'email'), '')
     assert.equal(mappedCell(parsed.rows[0] ?? {}, parsed.headers, mapping, 'company'), '')
@@ -90,9 +93,15 @@ test.group('parseContactCsv', () => {
     const parsed = parseContactCsv(csv)
     const mapping = {}
 
-    assert.equal(mappedCell(parsed.rows[0] ?? {}, parsed.headers, mapping, 'phone'), '+919876543210')
+    assert.equal(
+      mappedCell(parsed.rows[0] ?? {}, parsed.headers, mapping, 'phone'),
+      '+919876543210'
+    )
     assert.equal(mappedCell(parsed.rows[0] ?? {}, parsed.headers, mapping, 'name'), 'Rahul')
-    assert.equal(mappedCell(parsed.rows[0] ?? {}, parsed.headers, mapping, 'email'), 'rahul@example.com')
+    assert.equal(
+      mappedCell(parsed.rows[0] ?? {}, parsed.headers, mapping, 'email'),
+      'rahul@example.com'
+    )
     assert.equal(mappedCell(parsed.rows[0] ?? {}, parsed.headers, mapping, 'company'), 'Acme')
   })
 })
