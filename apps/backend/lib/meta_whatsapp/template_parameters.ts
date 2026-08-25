@@ -207,10 +207,6 @@ export function deriveParameterSchema(params: {
     return nonSendable(urlButtonsResult.reason)
   }
 
-  if (headerType === 'video') {
-    return nonSendable('Video header templates are not supported')
-  }
-
   const urlButtons = urlButtonsResult.buttons
   const rawHeaderNames =
     headerType === 'text' ? extractTemplatePlaceholders(params.headerContent) : []

@@ -3,12 +3,12 @@
  * Listeners for Automation/SSE attach here; failures are logged only and must
  * never retry sends, reverse durable message state, or throw into emitters.
  */
-import app from '@adonisjs/core/services/app'
 import emitter from '@adonisjs/core/services/emitter'
 import logger from '@adonisjs/core/services/logger'
-import AiDebounceService from '#services/ai/ai_debounce_service'
+import PlatformAiConfigService from '#services/ai/platform_ai_config_service'
 import FlowRouterService from '#services/flow/flow_router_service'
 import { enqueueFlowAdvanceSession } from '#services/flow/enqueue_flow_advance'
+import FlowInboundBufferService from '#services/flow/flow_inbound_buffer_service'
 import InboxMessageFailed from '#events/inbox_message_failed'
 import InboxMessageQueued from '#events/inbox_message_queued'
 import InboxMessageReceived from '#events/inbox_message_received'
@@ -83,21 +83,38 @@ emitter.on(InboxMessageReceived, async (event) => {
       interactiveReplyId: event.payload.interactiveReplyId,
     })
 
-    const debounce = await app.container.make(AiDebounceService)
+    if (decision.kind !== 'flow') {
+      // none → no automatic reply (flows are the only reply engine)
+      return
+    }
 
-    if (decision.kind === 'flow') {
-      // Fully suppress AI debounce while a flow session owns the conversation.
-      await debounce.cancelPending(event.payload.organizationId, event.payload.conversationId)
+    const interactiveReplyId = event.payload.interactiveReplyId
+    if (interactiveReplyId) {
+      // Button/list taps must feel instant — drop any pending free-text burst.
+      const buffer = new FlowInboundBufferService()
+      await buffer.cancel({
+        organizationId: event.payload.organizationId,
+        conversationId: event.payload.conversationId,
+      })
       await enqueueFlowAdvanceSession(decision.payload)
       return
     }
 
-    await debounce.scheduleFromInbound({
-      organizationId: event.payload.organizationId,
-      conversationId: event.payload.conversationId,
-      contactId: event.payload.contactId,
-      messageId: event.payload.messageId,
-      contentText: event.payload.contentText,
+    const trimmed = event.payload.contentText?.trim() ?? ''
+    if (trimmed) {
+      const buffer = new FlowInboundBufferService()
+      await buffer.push({
+        organizationId: event.payload.organizationId,
+        conversationId: event.payload.conversationId,
+        messageId: event.payload.messageId,
+        content: trimmed,
+      })
+    }
+
+    const platform = new PlatformAiConfigService()
+    const config = await platform.get()
+    await enqueueFlowAdvanceSession(decision.payload, {
+      delaySeconds: config.debounceDelaySeconds,
     })
   } catch (error) {
     logListenerFailure('inbox.message.received_listener_failed', event.payload, error)

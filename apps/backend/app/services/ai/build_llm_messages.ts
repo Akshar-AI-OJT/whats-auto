@@ -5,16 +5,25 @@ export type LlmChatMessage = {
   content: string
 }
 
+/**
+ * System message is instructions only. Retrieved chunks and the customer text
+ * live in the user turn as delimited data (not instructions).
+ */
 export function buildLlmMessages(options: LlmCompletionOptions): LlmChatMessage[] {
-  const context = formatContextChunks(options.contextChunks)
-  const systemPrompt = context
-    ? `${options.systemPrompt}\n\nRetrieved context:\n${context}`
-    : options.systemPrompt
-
   return [
-    { role: 'system', content: systemPrompt },
-    { role: 'user', content: options.userPrompt },
+    { role: 'system', content: options.systemPrompt },
+    { role: 'user', content: buildUserContent(options) },
   ]
+}
+
+function buildUserContent(options: LlmCompletionOptions): string {
+  const parts: string[] = []
+  const context = formatContextChunks(options.contextChunks)
+  if (context) {
+    parts.push(`<reference_material>\n${context}\n</reference_material>`)
+  }
+  parts.push(`<customer_message>\n${options.userPrompt}\n</customer_message>`)
+  return parts.join('\n\n')
 }
 
 function formatContextChunks(chunks: LlmCompletionOptions['contextChunks']): string | null {

@@ -1919,7 +1919,6 @@ export class PlatformAiConfigSchema extends BaseModel {
     'debounceDelaySeconds',
     'embeddingModel',
     'embeddingProvider',
-    'handoverKeywords',
     'id',
     'isEnabled',
     'maxOutputTokens',
@@ -1956,8 +1955,6 @@ export class PlatformAiConfigSchema extends BaseModel {
   declare embeddingModel: string
   @column()
   declare embeddingProvider: string
-  @column()
-  declare handoverKeywords: any
   @column({ isPrimary: true })
   declare id: string
   @column()

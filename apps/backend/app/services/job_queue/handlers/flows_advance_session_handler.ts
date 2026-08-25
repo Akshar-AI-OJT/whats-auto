@@ -1,10 +1,12 @@
 import logger from '@adonisjs/core/services/logger'
 import type { FlowAdvanceSessionJobPayload } from '#services/flow/contracts/flow_job_payloads'
 import FlowExecutionEngine from '#services/flow/flow_execution_engine'
+import FlowInboundBufferService from '#services/flow/flow_inbound_buffer_service'
 import type { JobHandler } from '#services/job_queue/contracts/job_queue_driver'
 
 export function createFlowsAdvanceSessionHandler(
-  engine: FlowExecutionEngine = new FlowExecutionEngine()
+  engine: FlowExecutionEngine = new FlowExecutionEngine(),
+  buffer: FlowInboundBufferService = new FlowInboundBufferService()
 ): JobHandler {
   return async (job) => {
     const payload = parsePayload(job.data)
@@ -13,7 +15,8 @@ export function createFlowsAdvanceSessionHandler(
       return
     }
 
-    const result = await engine.advance(payload)
+    const advancePayload = await mergeBufferedText(payload, buffer)
+    const result = await engine.advance(advancePayload)
     logger.info(
       {
         jobId: job.id,
@@ -25,6 +28,25 @@ export function createFlowsAdvanceSessionHandler(
       },
       'flows.advance_session.completed'
     )
+  }
+}
+
+async function mergeBufferedText(
+  payload: FlowAdvanceSessionJobPayload,
+  buffer: FlowInboundBufferService
+): Promise<FlowAdvanceSessionJobPayload> {
+  // Interactive taps skip the buffer; do not merge leftover free text into them.
+  if (payload.interactiveReplyId) return payload
+
+  const entries = await buffer.drain({
+    organizationId: payload.organizationId,
+    conversationId: payload.conversationId,
+  })
+  if (entries.length === 0) return payload
+
+  return {
+    ...payload,
+    contentText: entries.map((entry) => entry.content).join('\n'),
   }
 }
 

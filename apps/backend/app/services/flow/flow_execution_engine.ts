@@ -1,5 +1,6 @@
 import db from '@adonisjs/lucid/services/db'
 import logger from '@adonisjs/core/services/logger'
+import { AiUsageDecision } from '#enums/ai_usage_decision'
 import { ConversationAiMode } from '#enums/conversation_ai_mode'
 import { FlowNodeType } from '#enums/flow_node_type'
 import { FlowSessionStatus } from '#enums/flow_session_status'
@@ -157,6 +158,7 @@ export default class FlowExecutionEngine {
           contact,
           settingsSessionTtlMinutes: settings.sessionTtlMinutes,
           tangentResume: settings.tangentResume,
+          handoverKeywords: settings.handoverKeywords,
         })
         if (!resumed || this.#isTerminal(resumed.status) || this.#isHoldStatus(resumed.status)) {
           const done = resumed ?? current
@@ -297,6 +299,7 @@ export default class FlowExecutionEngine {
     contact: EngineContact
     settingsSessionTtlMinutes: number
     tangentResume: FlowTangentResumeMode
+    handoverKeywords: string[]
   }): Promise<FlowSessionRow | null> {
     const { session, graph, payload } = params
     const node = graph.nodes.find((item) => item.id === session.currentNodeId)
@@ -383,6 +386,7 @@ export default class FlowExecutionEngine {
           payload,
           expiresAt,
           tangentResume: params.tangentResume,
+          handoverKeywords: params.handoverKeywords,
           fallbackToHandover: true,
         })
         if (tangent) return tangent
@@ -407,6 +411,7 @@ export default class FlowExecutionEngine {
           payload,
           expiresAt,
           tangentResume: params.tangentResume,
+          handoverKeywords: params.handoverKeywords,
           fallbackToHandover: true,
         })
         if (tangent) return tangent
@@ -454,6 +459,7 @@ export default class FlowExecutionEngine {
         payload,
         expiresAt,
         tangentResume: params.tangentResume,
+        handoverKeywords: params.handoverKeywords,
         fallbackToHandover: false,
       })
       if (tangent) return tangent
@@ -895,6 +901,7 @@ export default class FlowExecutionEngine {
     payload: FlowAdvanceSessionJobPayload
     expiresAt: Date
     tangentResume: FlowTangentResumeMode
+    handoverKeywords: string[]
     fallbackToHandover: boolean
   }): Promise<FlowSessionRow | null> {
     const userText = params.payload.contentText?.trim() ?? ''
@@ -908,6 +915,7 @@ export default class FlowExecutionEngine {
       userText,
       currentNode: params.node,
       tangentResume: params.tangentResume,
+      handoverKeywords: params.handoverKeywords,
       fallbackToHandover: params.fallbackToHandover,
     })
     if (!result.handled) return null
@@ -957,8 +965,9 @@ export default class FlowExecutionEngine {
     const minConfidenceScore = override ? Number(override) : undefined
     const answered = await this.ai.answerFromKnowledge({
       organizationId: session.organizationId,
+      conversationId: session.conversationId,
       query: payload.contentText ?? '',
-      systemPromptOverride: asString(node.data.systemPromptOverride),
+      promptAppendix: asString(node.data.promptAppendix),
       minConfidenceScore:
         minConfidenceScore !== undefined && Number.isFinite(minConfidenceScore)
           ? minConfidenceScore
@@ -973,6 +982,19 @@ export default class FlowExecutionEngine {
         text: answered.text,
         idempotencyKey: `flow:${session.id}:${node.id}:ai_rag`,
       })
+      if (answered.usage) {
+        await this.ai.recordSuccessfulReply({
+          organizationId: session.organizationId,
+          conversationId: session.conversationId,
+          messageId: payload.messageId,
+          modelName: answered.usage.modelName,
+          promptTokens: answered.usage.promptTokens,
+          completionTokens: answered.usage.completionTokens,
+          totalTokens: answered.usage.totalTokens,
+          latencyMs: answered.usage.latencyMs,
+          retrievalScore: answered.usage.retrievalScore,
+        })
+      }
       await this.logs.insert({
         organizationId: session.organizationId,
         flowSessionId: session.id,
@@ -980,7 +1002,10 @@ export default class FlowExecutionEngine {
         nodeId: node.id,
         nodeType: node.type,
         actionTaken: 'AI_RAG_ANSWER',
-        outputPayload: { maxScore: answered.maxScore ?? null },
+        outputPayload: {
+          maxScore: answered.maxScore ?? null,
+          fromCache: answered.usage?.fromCache ?? false,
+        },
       })
       return this.#followUnlabeled({
         session,
@@ -1039,6 +1064,21 @@ export default class FlowExecutionEngine {
       node,
       expiresAt,
       reason: answered.reason ?? 'low_confidence',
+      usage:
+        answered.reason === 'low_confidence' || answered.kind === 'low_confidence'
+          ? {
+              decision: AiUsageDecision.HANDOVER_LOW_CONFIDENCE,
+              messageId: payload.messageId,
+              modelName: answered.usage?.modelName ?? 'unknown',
+              retrievalScore: answered.maxScore ?? null,
+            }
+          : answered.kind === 'error'
+            ? {
+                decision: AiUsageDecision.HANDOVER_ERROR,
+                messageId: payload.messageId,
+                modelName: answered.usage?.modelName ?? 'unknown',
+              }
+            : undefined,
     })
   }
 
@@ -1076,11 +1116,18 @@ export default class FlowExecutionEngine {
     node: FlowNode
     expiresAt: Date
     reason: string
+    usage?: {
+      decision: AiUsageDecision
+      messageId?: string | null
+      modelName: string
+      retrievalScore?: number | null
+    }
   }): Promise<{ session: FlowSessionRow; stop: boolean }> {
     await this.ai.triggerHandover({
       organizationId: params.session.organizationId,
       conversationId: params.session.conversationId,
       reason: params.reason,
+      usage: params.usage,
     })
     const updated =
       (await this.sessions.update({

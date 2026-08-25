@@ -3,7 +3,7 @@ import { createRedisConnection } from '#lib/redis/create_redis_connection'
 import { assertTenantRedisKey } from '#lib/redis/tenant_redis_keys'
 
 /**
- * List/TTL/string helper for AI debounce, memory working-set, and exact answer cache.
+ * List/TTL/string helper for flow inbound buffer, memory working-set, and exact answer cache.
  * Callers must pass keys from tenantRedisKey() or tenantAnswerCacheKey() — other prefixes are rejected.
  */
 export default class TenantRedisStore {

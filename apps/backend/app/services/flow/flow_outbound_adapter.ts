@@ -50,15 +50,10 @@ export default class FlowOutboundAdapter {
       return { kind: 'text', messageId: queued.messageId, dispatchId: queued.dispatchId }
     }
 
-    if (messageType === 'image' || messageType === 'video' || messageType === 'document') {
+    if (messageType === 'image' || messageType === 'document') {
       const mediaAssetId = asString(params.node.data.mediaAssetId)?.trim()
       if (!mediaAssetId) {
         logger.warn({ nodeId: params.node.id, messageType }, 'flow.outbound.media_missing_asset')
-        return { kind: 'none' }
-      }
-      if (messageType === 'video') {
-        // Outbound media channel currently supports image|document for system/tenant.
-        logger.warn({ nodeId: params.node.id }, 'flow.outbound.video_unsupported')
         return { kind: 'none' }
       }
 

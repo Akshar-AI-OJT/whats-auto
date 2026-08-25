@@ -8,7 +8,6 @@ export const JOB_NAMES = {
   CAMPAIGN_EXECUTE: 'campaigns.execute',
   CAMPAIGN_RECOVERY: 'campaigns.recovery',
   AI_PROCESS_DOCUMENT: 'ai.process_document',
-  AI_DEBOUNCE_TURN: 'ai.debounce_turn',
   AI_SUMMARIZE_CONVERSATION: 'ai.summarize_conversation',
   AI_REINDEX_ALL_DOCUMENTS: 'ai.reindex_all_documents',
   INTEGRATION_EVENTS_RECOVERY: 'integrations.events.recovery',
