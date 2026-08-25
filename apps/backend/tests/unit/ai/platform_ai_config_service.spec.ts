@@ -106,10 +106,7 @@ test.group('PlatformAiConfigService', (group) => {
     const service = new PlatformAiConfigService()
     await service.get()
 
-    const updated = await service.update(
-      { debounceDelaySeconds: 7 },
-      actorUserId
-    )
+    const updated = await service.update({ debounceDelaySeconds: 7 }, actorUserId)
 
     assert.equal(updated.debounceDelaySeconds, 7)
     assert.equal(updated.updatedByUserId, actorUserId)

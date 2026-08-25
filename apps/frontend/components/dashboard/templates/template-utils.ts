@@ -1,19 +1,9 @@
-import type {
-  PaginationMeta,
-  WhatsappMessageTemplate,
-  WhatsappTemplateButton,
-} from '@/lib/api'
+import type { PaginationMeta, WhatsappMessageTemplate, WhatsappTemplateButton } from '@/lib/api'
 
 export const TEMPLATE_CATEGORIES = ['MARKETING', 'UTILITY', 'AUTHENTICATION'] as const
 /** Matches backend create validator — VIDEO is not accepted. */
 export const TEMPLATE_HEADER_TYPES = ['NONE', 'TEXT', 'IMAGE', 'DOCUMENT'] as const
-export const TEMPLATE_STATUS_TABS = [
-  'all',
-  'draft',
-  'pending',
-  'approved',
-  'rejected',
-] as const
+export const TEMPLATE_STATUS_TABS = ['all', 'draft', 'pending', 'approved', 'rejected'] as const
 export const TEMPLATE_LANGUAGES = [
   { value: 'en_US', label: 'English (US)' },
   { value: 'en', label: 'English' },
@@ -217,9 +207,7 @@ export function statusTone(status: string) {
   return 'bg-dash-surface text-body border-dash-border'
 }
 
-export function normalizeSampleValues(
-  sampleValues: unknown
-): Record<string, string> {
+export function normalizeSampleValues(sampleValues: unknown): Record<string, string> {
   if (!sampleValues || typeof sampleValues !== 'object') return {}
   const result: Record<string, string> = {}
   for (const [key, value] of Object.entries(sampleValues as Record<string, unknown>)) {

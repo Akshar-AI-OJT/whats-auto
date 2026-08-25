@@ -82,6 +82,8 @@ export function FlowEditorPage({ flowId }: { flowId: string }) {
   const [validationErrors, setValidationErrors] = useState<ConversationFlowValidationError[]>([])
   const [validationState, setValidationState] = useState<FlowValidationState>('unknown')
   const reactFlowRef = useRef<ReactFlowInstance<FlowRfNode, FlowRfEdge> | null>(null)
+  /** Bumps on every local edit; save/publish success ignores responses older than the latest edit. */
+  const editEpochRef = useRef(0)
 
   const detailQuery = useQuery({
     queryKey: queryKeys.flows.detail(tenantOrganizationId, flowId),
@@ -164,6 +166,7 @@ export function FlowEditorPage({ flowId }: { flowId: string }) {
     return map
   }, [publishedFlowsQuery.data])
   const markDirty = useCallback(() => {
+    editEpochRef.current += 1
     setDirty(true)
     setActionError(null)
     setValidationState('unknown')
@@ -289,7 +292,10 @@ export function FlowEditorPage({ flowId }: { flowId: string }) {
       })
       if (filtered.length === 0) return
       setNodes((current) => applyNodeChanges(filtered, current))
-      const structural = filtered.some((change) => change.type !== 'select')
+      // `dimensions` is React Flow measuring — not an authoring edit.
+      const structural = filtered.some(
+        (change) => change.type !== 'select' && change.type !== 'dimensions'
+      )
       if (structural) markDirty()
       for (const change of filtered) {
         if (change.type === 'remove' && change.id === selectedId) setSelectedId(null)
@@ -341,23 +347,28 @@ export function FlowEditorPage({ flowId }: { flowId: string }) {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      const epoch = editEpochRef.current
       const { data } = await api.flows.update(flowId, buildBody())
-      return unwrapFlow(data)
+      return { flow: unwrapFlow(data), epoch }
     },
-    onSuccess: async (flow) => {
+    onSuccess: async ({ flow, epoch }) => {
+      // Newer local edits landed while this save was in flight — keep canvas, stay dirty.
+      if (epoch !== editEpochRef.current) return
+
       setDirty(false)
       if (flow) {
         setStatus(flow.status)
-        // PATCH already runs graph validation and persists version.validationStatus.
         const hydrated = validationStateFromVersion(flow.version)
         setValidationState(hydrated.state)
         setValidationErrors(hydrated.errors)
         setActionError(hydrated.state === 'invalid' ? t('errors.publishInvalid') : null)
+        const nextKey = `${flow.updatedAt}:${flow.version?.id ?? 'none'}`
+        setHydratedKey(nextKey)
+        queryClient.setQueryData(queryKeys.flows.detail(tenantOrganizationId, flowId), flow)
       } else {
         setActionError(null)
       }
       await queryClient.invalidateQueries({ queryKey: queryKeys.flows.all })
-      setHydratedKey(null)
     },
     onError: (err) => {
       setActionError((err as unknown as ApiError).message || t('editor.errors.saveFailed'))
@@ -379,9 +390,13 @@ export function FlowEditorPage({ flowId }: { flowId: string }) {
 
   const publishMutation = useMutation({
     mutationFn: async () => {
+      const epoch = editEpochRef.current
       if (dirty) {
         const { data } = await api.flows.update(flowId, buildBody())
         unwrapFlow(data)
+      }
+      if (epoch !== editEpochRef.current) {
+        throw new Error(t('editor.errors.saveFailed'))
       }
       const { data: validateData } = await api.flows.validate(flowId)
       const result = unwrapFlowValidate(validateData)
@@ -393,16 +408,22 @@ export function FlowEditorPage({ flowId }: { flowId: string }) {
         throw error
       }
       const { data } = await api.flows.publish(flowId)
-      return unwrapFlow(data)
+      return { flow: unwrapFlow(data), epoch }
     },
-    onSuccess: async (flow) => {
+    onSuccess: async ({ flow, epoch }) => {
+      if (epoch !== editEpochRef.current) return
+
       setDirty(false)
       setValidationErrors([])
       setValidationState('valid')
       setActionError(null)
-      if (flow) setStatus(flow.status)
+      if (flow) {
+        setStatus(flow.status)
+        const nextKey = `${flow.updatedAt}:${flow.version?.id ?? 'none'}`
+        setHydratedKey(nextKey)
+        queryClient.setQueryData(queryKeys.flows.detail(tenantOrganizationId, flowId), flow)
+      }
       await queryClient.invalidateQueries({ queryKey: queryKeys.flows.all })
-      setHydratedKey(null)
     },
     onError: (err) => {
       const withErrors = err as { validationErrors?: ConversationFlowValidationError[] }
@@ -534,7 +555,7 @@ export function FlowEditorPage({ flowId }: { flowId: string }) {
           nodes={nodes}
           edges={edges}
           viewport={viewport}
-          canvasKey={hydratedKey ?? flowId}
+          canvasKey={flowId}
           readOnly={readOnly}
           instanceRef={reactFlowRef}
           onNodesChange={onNodesChange}

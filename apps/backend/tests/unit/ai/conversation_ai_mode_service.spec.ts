@@ -82,9 +82,7 @@ test.group('ConversationAiModeService', () => {
     assert.equal(taken.aiHandoverReason, 'takeover')
     assert.deepEqual(auto.paused, [CONV])
     assert.deepEqual(auto.cancelledBuffers, [CONV])
-    assert.deepEqual(auto.removedJobs, [
-      { name: JOB_NAMES.FLOWS_ADVANCE_SESSION, key: CONV },
-    ])
+    assert.deepEqual(auto.removedJobs, [{ name: JOB_NAMES.FLOWS_ADVANCE_SESSION, key: CONV }])
 
     const fromHandover = createService(ConversationAiMode.HANDOVER)
     const after = await fromHandover.service.takeover({

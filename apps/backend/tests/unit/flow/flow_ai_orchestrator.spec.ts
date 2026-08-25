@@ -471,7 +471,11 @@ test.group('FlowAiOrchestrator.handleUnexpectedInput', () => {
       {
         async retrieve(params: unknown) {
           retrieved.push(params)
-          return { chunks: [{ content: 'Hours 9-5', score: 0.9, id: 'c1' }], maxScore: 0.9, meetsMinConfidence: true }
+          return {
+            chunks: [{ content: 'Hours 9-5', score: 0.9, id: 'c1' }],
+            maxScore: 0.9,
+            meetsMinConfidence: true,
+          }
         },
       } as unknown as KnowledgeRetrievalService,
       {

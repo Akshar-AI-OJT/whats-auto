@@ -16,8 +16,7 @@ const payload: FlowAdvanceSessionJobPayload = {
 
 test.group('enqueueFlowAdvanceSession', () => {
   test('enqueues immediately when delaySeconds is omitted', async ({ assert }) => {
-    const enqueued: Array<{ name: string; options?: { singletonKey?: string; runAt?: Date } }> =
-      []
+    const enqueued: Array<{ name: string; options?: { singletonKey?: string; runAt?: Date } }> = []
     const queue = {
       async ensureStarted() {
         return {
@@ -45,11 +44,7 @@ test.group('enqueueFlowAdvanceSession', () => {
     const queue = {
       async ensureStarted() {
         return {
-          async enqueue(
-            _name: string,
-            _data: Record<string, unknown>,
-            options?: { runAt?: Date }
-          ) {
+          async enqueue(_name: string, _data: Record<string, unknown>, options?: { runAt?: Date }) {
             enqueued.push({ options })
           },
         }
