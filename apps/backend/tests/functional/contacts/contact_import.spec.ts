@@ -472,4 +472,80 @@ test.group('ContactImportService', (group) => {
     assert.equal(contactA.phoneNormalized, '919876543210')
     assert.equal(contactB.phoneNormalized, '919876543210')
   })
+
+  test('does not import unmapped name, email, or company columns', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const userId = await seedUser()
+    userIds.push(userId)
+
+    const result = await runWithTenant(organizationId, () =>
+      new ContactImportService().importCsv({
+        organizationId,
+        actorUserId: userId,
+        fileName: 'unmap.csv',
+        columnMapping: { phone: 'phone' },
+        csvContent:
+          'name,phone,email,company\nRahul,+919876543210,rahul@example.com,Acme\n',
+      })
+    )
+
+    assert.equal(result.rows[0]?.action, 'inserted')
+    const contact = await runWithTenant(organizationId, () =>
+      db.from('contacts').where('id', result.rows[0]?.contactId as string).first()
+    )
+    assert.equal(contact.phoneNormalized, '919876543210')
+    assert.isNull(contact.name)
+    assert.isNull(contact.email)
+    assert.isNull(contact.company)
+  })
+
+  test('fails invalid email and oversize fields as row errors without aborting the batch', async ({
+    assert,
+  }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const userId = await seedUser()
+    userIds.push(userId)
+    const tooLong = 'A'.repeat(256)
+
+    const result = await runWithTenant(organizationId, () =>
+      new ContactImportService().importCsv({
+        organizationId,
+        actorUserId: userId,
+        fileName: 'profile.csv',
+        columnMapping: {
+          phone: 'phone',
+          name: 'name',
+          email: 'email',
+          company: 'company',
+        },
+        csvContent: [
+          'name,phone,email,company',
+          'Good,+14155552671,good@example.com,Acme',
+          'BadEmail,+919876543210,not-an-email,Acme',
+          `${tooLong},+447911123456,ok@example.com,Acme`,
+        ].join('\n'),
+      })
+    )
+
+    assert.equal(result.status, 'completed')
+    assert.equal(result.successCount, 1)
+    assert.equal(result.errorCount, 2)
+    assert.equal(result.rows[0]?.action, 'inserted')
+    assert.equal(result.rows[1]?.status, 'failed')
+    assert.equal(result.rows[1]?.errorMessage, 'Invalid email address')
+    assert.equal(result.rows[2]?.status, 'failed')
+    assert.equal(result.rows[2]?.errorMessage, 'Name is too long')
+
+    const contacts = await runWithTenant(organizationId, () =>
+      db
+        .from('contacts')
+        .where('organizationId', organizationId)
+        .whereNull('deletedAt')
+        .select('email')
+    )
+    assert.lengthOf(contacts, 1)
+    assert.equal(contacts[0]?.email, 'good@example.com')
+  })
 })

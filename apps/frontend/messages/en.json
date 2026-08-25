@@ -1746,6 +1746,7 @@
           "country": "Default country code",
           "countryPlaceholder": "Select country",
           "countryHint": "Used only for national numbers in your CSV that do not include a country code. International numbers that start with + are sent as-is.",
+          "countryNationalWarning": "This CSV includes national phone numbers. Select a default country for those rows, or they will fail to import. Numbers that start with + are not affected.",
           "duplicates": "Duplicate contacts",
           "duplicatesValue": "Skip duplicates (recommended)",
           "duplicatesHint": "Duplicate contacts will be skipped and not imported again."
@@ -1759,7 +1760,8 @@
           "defaultCountryNone": "Not selected",
           "duplicates": "Duplicate handling",
           "duplicatesValue": "Skip duplicates",
-          "warning": "Duplicates will be skipped. Existing contacts will not be updated."
+          "warning": "Duplicates will be skipped. Existing contacts will not be updated.",
+          "countryNationalWarning": "Some rows have national phone numbers. Without a default country those rows will fail. International numbers that start with + can still import."
         },
         "result": {
           "title": "Import completed",

@@ -66,6 +66,10 @@ export function parseContactCsv(content: string): ParsedContactCsv {
   return { headers, rows }
 }
 
+export function hasExplicitColumnMapping(mapping: ContactCsvColumnMapping): boolean {
+  return CONTACT_CSV_FIELDS.some((field) => Boolean(mapping[field]?.trim()))
+}
+
 export function resolvePhoneHeader(headers: string[], mapping: ContactCsvColumnMapping): string {
   const mapped = mapping.phone?.trim()
   if (mapped) {
@@ -90,15 +94,23 @@ export function mappedCell(
   field: ContactCsvField
 ): string {
   const wanted = mapping[field]?.trim()
-  if (!wanted) {
-    if (field === 'phone') {
-      const header = findHeader(headers, 'phone') ?? findHeader(headers, 'phoneNumber')
-      return header ? (row[header] ?? '').trim() : ''
-    }
-    const header = findHeader(headers, field)
+  if (wanted) {
+    const header = findHeader(headers, wanted)
     return header ? (row[header] ?? '').trim() : ''
   }
 
-  const header = findHeader(headers, wanted)
+  // Phone keeps an implicit fallback so unmapped CSVs with a phone/phoneNumber
+  // header still import. Optional fields do not: omitting them from an explicit
+  // mapping means "Don't import".
+  if (field === 'phone') {
+    const header = findHeader(headers, 'phone') ?? findHeader(headers, 'phoneNumber')
+    return header ? (row[header] ?? '').trim() : ''
+  }
+
+  if (hasExplicitColumnMapping(mapping)) {
+    return ''
+  }
+
+  const header = findHeader(headers, field)
   return header ? (row[header] ?? '').trim() : ''
 }
