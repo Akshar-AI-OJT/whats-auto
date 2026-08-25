@@ -10,9 +10,12 @@ import InboxMessageReceived from '#events/inbox_message_received'
 import { encryptWhatsappAccessToken } from '#lib/meta_whatsapp/access_token_crypto'
 import { ContactConsentRepository } from '#repositories/contact_consent_repository'
 import { ConversationAiRepository } from '#repositories/conversation_ai_repository'
+import { AiUsageLogRepository } from '#repositories/ai_usage_log_repository'
 import { FlowExecutionLogRepository } from '#repositories/flow_execution_log_repository'
 import { FlowRepository } from '#repositories/flow_repository'
 import { FlowSessionRepository } from '#repositories/flow_session_repository'
+import AiAnswerCacheService from '#services/ai/ai_answer_cache_service'
+import AiConversationSummaryService from '#services/ai/ai_conversation_summary_service'
 import FakeLlmProvider from '#services/ai/drivers/fake_llm_provider'
 import type KnowledgeRetrievalService from '#services/ai/knowledge_retrieval_service'
 import type PlatformAiConfigService from '#services/ai/platform_ai_config_service'
@@ -211,7 +214,7 @@ function handoverGraph() {
 async function seedPublishedFlow(
   organizationId: string,
   graph: ReturnType<typeof waitingMenuGraph>,
-  settings?: { tangentResume?: string }
+  settings?: { tangentResume?: string; handoverKeywords?: string[] }
 ) {
   return runWithTenant(organizationId, async () => {
     const [flow] = await db
@@ -226,6 +229,7 @@ async function seedPublishedFlow(
           sessionTtlMinutes: 60,
           onExpiry: 'RESUME_PROMPT',
           tangentResume: settings?.tangentResume ?? 'IMMEDIATE_REPROMPT',
+          handoverKeywords: settings?.handoverKeywords ?? ['human', 'agent'],
         },
       })
       .returning(['id'])
@@ -355,12 +359,13 @@ test.group('Flows | AI tangent + handover', (group) => {
     const platform = {
       async get() {
         return {
-          handoverKeywords: ['human', 'agent'],
+          isEnabled: true,
           minConfidenceScore: 0.7,
           systemPrompt: 'Answer from context.',
           chatModel: 'fake',
           temperature: 0.2,
           maxOutputTokens: 256,
+          activeEmbeddingSpaceId: 'test:space:v1',
         }
       },
     } as unknown as PlatformAiConfigService
@@ -370,6 +375,9 @@ test.group('Flows | AI tangent + handover', (group) => {
       platform,
       new ConversationAiRepository(),
       new FlowOutboundAdapter(),
+      new AiUsageLogRepository(),
+      new AiAnswerCacheService(),
+      new AiConversationSummaryService(),
       llm
     )
     const engine = new FlowExecutionEngine(
@@ -486,6 +494,32 @@ test.group('Flows | AI tangent + handover', (group) => {
     assert.isNotNull(aiMsg)
     assert.equal(String(aiMsg!.contentText), 'Store hours are 9am–5pm.')
     assert.notInclude(String(aiMsg!.contentText), 'Pick a department')
+  })
+
+  test('per-flow handover keyword pauses the waiting session', async ({ assert }) => {
+    retrievalMode = 'high'
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const { fixture, session } = await startWaitingMenu(organizationId, undefined)
+
+    await dispatchInbound({
+      organizationId,
+      conversationId: fixture.conversationId,
+      contactId: fixture.contactId,
+      contentText: 'I need an agent please',
+    })
+    await drainFlowAdvanceJobs(queue)
+
+    const after = await runWithTenant(organizationId, () =>
+      db.from('flow_sessions').where('id', session!.id).first()
+    )
+    assert.equal(after!.status, FlowSessionStatus.PAUSED_FOR_HUMAN)
+
+    const conversation = await runWithTenant(organizationId, () =>
+      db.from('conversations').where('id', fixture.conversationId).first()
+    )
+    assert.equal(conversation!.aiMode, ConversationAiMode.HANDOVER)
+    assert.equal(conversation!.aiHandoverReason, 'agent')
   })
 
   test('low-confidence unmatched interactive input pauses for human handover', async ({

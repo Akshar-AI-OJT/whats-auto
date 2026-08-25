@@ -1,11 +1,12 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import {
   applyEdgeChanges,
   applyNodeChanges,
   type OnEdgesChange,
   type OnNodesChange,
+  type ReactFlowInstance,
   type Viewport,
 } from '@xyflow/react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -19,6 +20,7 @@ import {
   type ConversationFlowTriggerType,
   type ConversationFlowValidationError,
   type UpdateConversationFlowBody,
+  type WhatsappMessageTemplate,
 } from '@/lib/api'
 import { hasPermission, PERMISSIONS } from '@/lib/rbac'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
@@ -30,18 +32,27 @@ import { FlowNodeInspector } from './FlowNodeInspector'
 import { FlowSettingsPanel } from './FlowSettingsPanel'
 import { FlowSidebarPalette } from './FlowSidebarPalette'
 import { FlowToolbar } from './FlowToolbar'
+import { FlowEditorProvider } from './flow-editor-context'
 import {
   DEFAULT_FLOW_SETTINGS,
   DEFAULT_VIEWPORT,
   createFlowNode,
   graphToRf,
   remapSourceHandle,
+  dropSourceHandles,
   rfToGraph,
   type FlowCanvasNodeType,
   type FlowRfEdge,
   type FlowRfNode,
 } from './flow-canvas-graph'
-import { parseKeywordList, unwrapFlow, unwrapFlowList, unwrapFlowValidate } from './flow-utils'
+import {
+  parseKeywordList,
+  unwrapFlow,
+  unwrapFlowList,
+  unwrapFlowValidate,
+  validationStateFromVersion,
+  type FlowValidationState,
+} from './flow-utils'
 
 export function FlowEditorPage({ flowId }: { flowId: string }) {
   const t = useTranslations('dashboard.flows')
@@ -69,6 +80,8 @@ export function FlowEditorPage({ flowId }: { flowId: string }) {
   const [status, setStatus] = useState('DRAFT')
   const [actionError, setActionError] = useState<string | null>(null)
   const [validationErrors, setValidationErrors] = useState<ConversationFlowValidationError[]>([])
+  const [validationState, setValidationState] = useState<FlowValidationState>('unknown')
+  const reactFlowRef = useRef<ReactFlowInstance<FlowRfNode, FlowRfEdge> | null>(null)
 
   const detailQuery = useQuery({
     queryKey: queryKeys.flows.detail(tenantOrganizationId, flowId),
@@ -116,15 +129,19 @@ export function FlowEditorPage({ flowId }: { flowId: string }) {
     setKeywords((flow.triggerConfig?.keywords ?? []).join(', '))
     setMatchType(flow.triggerConfig?.matchType ?? 'exact')
     setSettings({
-      sessionTtlMinutes: flow.settings?.sessionTtlMinutes ?? DEFAULT_FLOW_SETTINGS.sessionTtlMinutes,
+      sessionTtlMinutes:
+        flow.settings?.sessionTtlMinutes ?? DEFAULT_FLOW_SETTINGS.sessionTtlMinutes,
       onExpiry: flow.settings?.onExpiry ?? DEFAULT_FLOW_SETTINGS.onExpiry,
       tangentResume: flow.settings?.tangentResume ?? DEFAULT_FLOW_SETTINGS.tangentResume,
+      handoverKeywords: flow.settings?.handoverKeywords ?? DEFAULT_FLOW_SETTINGS.handoverKeywords,
     })
     setNodes(graph.nodes)
     setEdges(graph.edges)
     setViewport(version?.viewport ?? DEFAULT_VIEWPORT)
     setStatus(flow.status)
-    setValidationErrors([])
+    const hydratedValidation = validationStateFromVersion(version)
+    setValidationState(hydratedValidation.state)
+    setValidationErrors(hydratedValidation.errors)
   }
 
   const readOnly = status === 'ARCHIVED' || !canEdit
@@ -132,11 +149,135 @@ export function FlowEditorPage({ flowId }: { flowId: string }) {
     () => nodes.find((node) => node.id === selectedId) ?? null,
     [nodes, selectedId]
   )
-
+  const templatesById = useMemo(() => {
+    const map = new Map<string, WhatsappMessageTemplate>()
+    for (const item of templatesQuery.data ?? []) {
+      map.set(item.id, item)
+    }
+    return map
+  }, [templatesQuery.data])
+  const publishedFlowsById = useMemo(() => {
+    const map = new Map<string, { id: string; name: string }>()
+    for (const item of publishedFlowsQuery.data ?? []) {
+      map.set(item.id, { id: item.id, name: item.name })
+    }
+    return map
+  }, [publishedFlowsQuery.data])
   const markDirty = useCallback(() => {
     setDirty(true)
     setActionError(null)
+    setValidationState('unknown')
+    setValidationErrors([])
   }, [])
+
+  const patchNodeDataById = useCallback(
+    (nodeId: string, patch: Record<string, unknown>) => {
+      if (readOnly) return
+      setNodes((current) =>
+        current.map((node) =>
+          node.id === nodeId ? { ...node, data: { ...node.data, ...patch } } : node
+        )
+      )
+      markDirty()
+    },
+    [markDirty, readOnly]
+  )
+
+  const renameHandleById = useCallback(
+    (nodeId: string, oldId: string, nextId: string) => {
+      if (readOnly || !oldId || oldId === nextId) return
+      setEdges((current) => remapSourceHandle(current, nodeId, oldId, nextId))
+      markDirty()
+    },
+    [markDirty, readOnly]
+  )
+
+  const removeHandlesById = useCallback(
+    (nodeId: string, handleIds: string[]) => {
+      if (readOnly || handleIds.length === 0) return
+      setEdges((current) => dropSourceHandles(current, nodeId, handleIds))
+      markDirty()
+    },
+    [markDirty, readOnly]
+  )
+
+  const deleteNodeById = useCallback(
+    (nodeId: string) => {
+      if (readOnly) return
+      const target = nodes.find((node) => node.id === nodeId)
+      if (!target || target.type === 'TRIGGER') return
+      setNodes((current) => current.filter((node) => node.id !== nodeId))
+      setEdges((current) =>
+        current.filter((edge) => edge.source !== nodeId && edge.target !== nodeId)
+      )
+      if (selectedId === nodeId) setSelectedId(null)
+      markDirty()
+    },
+    [markDirty, nodes, readOnly, selectedId]
+  )
+
+  const patchTriggerKeywords = useCallback(
+    (next: string[]) => {
+      if (readOnly) return
+      setKeywords(next.join(', '))
+      markDirty()
+    },
+    [markDirty, readOnly]
+  )
+
+  const editorContextValue = useMemo(
+    () => ({
+      triggerType,
+      triggerKeywords: parseKeywordList(keywords),
+      templatesById,
+      publishedFlowsById,
+      readOnly,
+      patchNodeData: patchNodeDataById,
+      renameHandle: renameHandleById,
+      removeHandles: removeHandlesById,
+      deleteNode: deleteNodeById,
+      patchTriggerKeywords,
+    }),
+    [
+      deleteNodeById,
+      keywords,
+      patchNodeDataById,
+      patchTriggerKeywords,
+      publishedFlowsById,
+      readOnly,
+      removeHandlesById,
+      renameHandleById,
+      templatesById,
+      triggerType,
+    ]
+  )
+
+  const applyValidationResult = useCallback(
+    (result: { valid: boolean; errors: ConversationFlowValidationError[] }) => {
+      setValidationErrors(result.errors)
+      setValidationState(result.valid ? 'valid' : 'invalid')
+      setActionError(result.valid ? null : t('errors.publishInvalid'))
+    },
+    [t]
+  )
+
+  const focusValidationNode = useCallback(
+    (nodeId: string | undefined) => {
+      if (!nodeId) return
+      setSelectedId(nodeId)
+      setSettingsOpen(false)
+      const node = nodes.find((item) => item.id === nodeId)
+      const instance = reactFlowRef.current
+      if (!node || !instance) return
+      const width = typeof node.measured?.width === 'number' ? node.measured.width : 280
+      const height = typeof node.measured?.height === 'number' ? node.measured.height : 80
+      instance.setCenter(node.position.x + width / 2, node.position.y + height / 2, {
+        zoom: Math.max(instance.getZoom(), 0.85),
+        duration: 220,
+      })
+    },
+    [nodes]
+  )
 
   const onNodesChange: OnNodesChange<FlowRfNode> = useCallback(
     (changes) => {
@@ -148,7 +289,8 @@ export function FlowEditorPage({ flowId }: { flowId: string }) {
       })
       if (filtered.length === 0) return
       setNodes((current) => applyNodeChanges(filtered, current))
-      markDirty()
+      const structural = filtered.some((change) => change.type !== 'select')
+      if (structural) markDirty()
       for (const change of filtered) {
         if (change.type === 'remove' && change.id === selectedId) setSelectedId(null)
       }
@@ -160,7 +302,8 @@ export function FlowEditorPage({ flowId }: { flowId: string }) {
     (changes) => {
       if (readOnly) return
       setEdges((current) => applyEdgeChanges(changes, current))
-      markDirty()
+      const structural = changes.some((change) => change.type !== 'select')
+      if (structural) markDirty()
     },
     [markDirty, readOnly]
   )
@@ -203,8 +346,16 @@ export function FlowEditorPage({ flowId }: { flowId: string }) {
     },
     onSuccess: async (flow) => {
       setDirty(false)
-      setActionError(null)
-      if (flow) setStatus(flow.status)
+      if (flow) {
+        setStatus(flow.status)
+        // PATCH already runs graph validation and persists version.validationStatus.
+        const hydrated = validationStateFromVersion(flow.version)
+        setValidationState(hydrated.state)
+        setValidationErrors(hydrated.errors)
+        setActionError(hydrated.state === 'invalid' ? t('errors.publishInvalid') : null)
+      } else {
+        setActionError(null)
+      }
       await queryClient.invalidateQueries({ queryKey: queryKeys.flows.all })
       setHydratedKey(null)
     },
@@ -219,8 +370,7 @@ export function FlowEditorPage({ flowId }: { flowId: string }) {
       return unwrapFlowValidate(data)
     },
     onSuccess: (result) => {
-      setValidationErrors(result.errors)
-      setActionError(result.valid ? null : t('errors.publishInvalid'))
+      applyValidationResult(result)
     },
     onError: (err) => {
       setActionError((err as unknown as ApiError).message || t('editor.errors.validateFailed'))
@@ -248,6 +398,7 @@ export function FlowEditorPage({ flowId }: { flowId: string }) {
     onSuccess: async (flow) => {
       setDirty(false)
       setValidationErrors([])
+      setValidationState('valid')
       setActionError(null)
       if (flow) setStatus(flow.status)
       await queryClient.invalidateQueries({ queryKey: queryKeys.flows.all })
@@ -256,8 +407,7 @@ export function FlowEditorPage({ flowId }: { flowId: string }) {
     onError: (err) => {
       const withErrors = err as { validationErrors?: ConversationFlowValidationError[] }
       if (withErrors.validationErrors?.length) {
-        setValidationErrors(withErrors.validationErrors)
-        setActionError(t('errors.publishInvalid'))
+        applyValidationResult({ valid: false, errors: withErrors.validationErrors })
         return
       }
       setActionError((err as unknown as ApiError).message || t('errors.publishFailed'))
@@ -290,6 +440,12 @@ export function FlowEditorPage({ flowId }: { flowId: string }) {
     markDirty()
   }
 
+  function removeSelectedHandles(handleIds: string[]) {
+    if (!selectedId || readOnly || handleIds.length === 0) return
+    setEdges((current) => dropSourceHandles(current, selectedId, handleIds))
+    markDirty()
+  }
+
   if (orgsLoading || detailQuery.isLoading) {
     return (
       <div className="flex items-center justify-center gap-2 p-16 text-mute">
@@ -318,11 +474,14 @@ export function FlowEditorPage({ flowId }: { flowId: string }) {
   }
 
   return (
+    <FlowEditorProvider value={editorContextValue}>
     <div className="flex h-[calc(100dvh-8.5rem)] min-h-[520px] w-full min-w-0 flex-col gap-3">
       <FlowToolbar
         name={name}
         status={status}
         dirty={dirty}
+        validationState={validationState}
+        validationErrorCount={validationErrors.length}
         readOnly={readOnly}
         canSave={canEdit}
         canPublish={canPublish}
@@ -353,14 +512,23 @@ export function FlowEditorPage({ flowId }: { flowId: string }) {
         <ul className="max-h-28 space-y-1 overflow-y-auto rounded-xl border border-negative/30 bg-canvas px-3 py-2 text-xs text-destructive">
           {validationErrors.map((error, index) => (
             <li key={`${error.code ?? 'err'}-${index}`}>
-              {error.nodeId ? `${error.nodeId}: ` : ''}
-              {error.message || error.code || t('errors.publishInvalid')}
+              {error.nodeId ? (
+                <button
+                  type="button"
+                  className="text-left underline-offset-2 hover:underline"
+                  onClick={() => focusValidationNode(error.nodeId)}
+                >
+                  {error.nodeId}: {error.message || error.code || t('errors.publishInvalid')}
+                </button>
+              ) : (
+                <>{error.message || error.code || t('errors.publishInvalid')}</>
+              )}
             </li>
           ))}
         </ul>
       ) : null}
 
-      <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[200px_minmax(0,1fr)_minmax(280px,340px)]">
+      <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[220px_minmax(0,1fr)_minmax(280px,340px)]">
         <FlowSidebarPalette disabled={readOnly} onAdd={addNode} />
         <FlowCanvas
           nodes={nodes}
@@ -368,6 +536,7 @@ export function FlowEditorPage({ flowId }: { flowId: string }) {
           viewport={viewport}
           canvasKey={hydratedKey ?? flowId}
           readOnly={readOnly}
+          instanceRef={reactFlowRef}
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onEdgesReplace={(next) => {
@@ -434,21 +603,16 @@ export function FlowEditorPage({ flowId }: { flowId: string }) {
               }))}
               onPatchData={patchSelectedData}
               onRenameHandle={renameSelectedHandle}
+              onRemoveHandles={removeSelectedHandles}
               onDelete={() => {
-                if (!selectedNode || selectedNode.type === 'TRIGGER' || readOnly) return
-                setNodes((current) => current.filter((node) => node.id !== selectedNode.id))
-                setEdges((current) =>
-                  current.filter(
-                    (edge) => edge.source !== selectedNode.id && edge.target !== selectedNode.id
-                  )
-                )
-                setSelectedId(null)
-                markDirty()
+                if (!selectedNode) return
+                deleteNodeById(selectedNode.id)
               }}
             />
           )}
         </div>
       </div>
     </div>
+    </FlowEditorProvider>
   )
 }

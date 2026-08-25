@@ -4,7 +4,7 @@ const SHA256_HEX = /^[a-f0-9]{64}$/
 
 export const TENANT_REDIS_KEY_PREFIX = 'wa:org'
 
-export type TenantRedisKeyKind = 'debounce' | 'memory'
+export type TenantRedisKeyKind = 'flowbuf' | 'memory' | 'debounce'
 
 function assertUuidSegment(value: string, label: string): string {
   if (!ORG_SEGMENT.test(value)) {
@@ -15,7 +15,7 @@ function assertUuidSegment(value: string, label: string): string {
 
 /**
  * Tenant-scoped Redis key. Every key includes organizationId so a missed
- * filter cannot read another org's debounce, memory, or answer-cache entries.
+ * filter cannot read another org's flow buffer, memory, or answer-cache entries.
  */
 export function tenantRedisKey(
   kind: TenantRedisKeyKind,

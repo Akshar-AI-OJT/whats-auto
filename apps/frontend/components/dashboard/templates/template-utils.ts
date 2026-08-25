@@ -177,7 +177,6 @@ export function formatHeaderType(headerType: string | null | undefined) {
   if (value === 'TEXT') return 'Text'
   if (value === 'IMAGE') return 'Image'
   if (value === 'DOCUMENT') return 'Document'
-  if (value === 'VIDEO') return 'Video'
   return headerType
 }
 

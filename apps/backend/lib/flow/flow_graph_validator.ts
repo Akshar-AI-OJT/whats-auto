@@ -14,6 +14,7 @@ import {
   type FlowNode,
   type FlowTriggerConfig,
 } from '#lib/flow/flow_graph'
+import { RAG_PROMPT_APPENDIX_MAX_LENGTH } from '#services/ai/ai_prompt_defaults'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
@@ -352,7 +353,13 @@ function validateInteractiveListNode(
   for (const rawSection of sections) {
     const section = isRecord(rawSection) ? rawSection : {}
     const sectionTitle = asString(section.title)?.trim() ?? ''
-    if (sectionTitle.length > META_INTERACTIVE_LIMITS.sectionTitleMax) {
+    if (!sectionTitle) {
+      errors.push({
+        code: 'MISSING_REQUIRED_FIELD',
+        message: 'Each list section requires a title',
+        nodeId: node.id,
+      })
+    } else if (sectionTitle.length > META_INTERACTIVE_LIMITS.sectionTitleMax) {
       errors.push({
         code: 'META_LIMIT',
         message: `Section title exceeds ${META_INTERACTIVE_LIMITS.sectionTitleMax} characters`,
@@ -528,21 +535,32 @@ function validateSubflowNode(
 }
 
 function validateAiRagNode(node: FlowNode, edges: FlowEdge[]): FlowGraphValidationError[] {
+  const errors: FlowGraphValidationError[] = []
+  const appendix = asString(node.data.promptAppendix)
+  if (appendix && appendix.length > RAG_PROMPT_APPENDIX_MAX_LENGTH) {
+    errors.push({
+      code: 'META_LIMIT',
+      message: `AI_RAG promptAppendix must be at most ${RAG_PROMPT_APPENDIX_MAX_LENGTH} characters`,
+      nodeId: node.id,
+    })
+  }
+
   const fallbackAction = asString(node.data.fallbackAction) ?? 'HUMAN_HANDOVER'
   if (fallbackAction === 'ROUTE_EDGE') {
     const handle = asString(node.data.fallbackTargetHandle)?.trim()
     if (!handle) {
-      return [
-        {
-          code: 'MISSING_REQUIRED_FIELD',
-          message: 'AI_RAG ROUTE_EDGE fallback requires fallbackTargetHandle',
-          nodeId: node.id,
-        },
-      ]
+      errors.push({
+        code: 'MISSING_REQUIRED_FIELD',
+        message: 'AI_RAG ROUTE_EDGE fallback requires fallbackTargetHandle',
+        nodeId: node.id,
+      })
+      return errors
     }
-    return validateDeclaredHandles(node, edges, [{ id: handle, requiresEdge: true }])
+    errors.push(...validateDeclaredHandles(node, edges, [{ id: handle, requiresEdge: true }]))
+    return errors
   }
-  return validateUnlabeledOutgoing(node, edges, { min: 0, max: 1 })
+  errors.push(...validateUnlabeledOutgoing(node, edges, { min: 0, max: 1 }))
+  return errors
 }
 
 type HandleSpec = { id: string; requiresEdge: boolean }

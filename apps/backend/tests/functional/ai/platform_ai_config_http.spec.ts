@@ -16,7 +16,6 @@ const DEFAULTS = {
   minConfidenceScore: 0.7,
   debounceDelaySeconds: 4,
   systemPrompt: null as string | null,
-  handoverKeywords: JSON.stringify(['agent', 'human', 'representative', 'support', 'call me']),
   workingSetSize: 6,
   summaryTurnThreshold: 10,
   embeddingModel: 'text-embedding-3-small',
@@ -128,11 +127,10 @@ test.group('Platform AI config HTTP', (group) => {
       .header('Authorization', `Bearer ${token}`)
       .json({
         debounceDelaySeconds: 8,
-        handoverKeywords: ['agent', 'human'],
       })
     patched.assertStatus(200)
     assert.equal(patched.body().data.debounceDelaySeconds, 8)
-    assert.deepEqual(patched.body().data.handoverKeywords, ['agent', 'human'])
+    assert.isUndefined(patched.body().data.handoverKeywords)
 
     const again = await client
       .get('/api/v1/super-admin/ai-config')

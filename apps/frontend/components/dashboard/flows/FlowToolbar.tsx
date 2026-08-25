@@ -1,17 +1,23 @@
 'use client'
 
-import { Loader2 } from 'lucide-react'
+import { ArrowLeft, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
-import { flowStatusBadgeClass } from './flow-utils'
+import {
+  flowStatusBadgeClass,
+  flowValidationBadgeClass,
+  type FlowValidationState,
+} from './flow-utils'
 
 export function FlowToolbar({
   name,
   status,
   dirty,
+  validationState,
+  validationErrorCount,
   readOnly,
   canSave,
   canPublish,
@@ -28,6 +34,8 @@ export function FlowToolbar({
   name: string
   status: string
   dirty: boolean
+  validationState: FlowValidationState
+  validationErrorCount: number
   readOnly: boolean
   canSave: boolean
   canPublish: boolean
@@ -44,37 +52,56 @@ export function FlowToolbar({
   const t = useTranslations('dashboard.flows')
   const statusKey = ['DRAFT', 'PUBLISHED', 'ARCHIVED'].includes(status) ? status : 'DRAFT'
   const busy = saving || validating || publishing
+  const publishEnabled = !readOnly && !busy && validationState === 'valid'
+  const validationLabel =
+    validationState === 'valid'
+      ? t('editor.validation.valid')
+      : validationState === 'invalid'
+        ? t('editor.validation.invalid', { count: validationErrorCount })
+        : t('editor.validation.unknown')
 
   return (
-    <div className="flex flex-col gap-3 rounded-xl border border-dash-border bg-canvas px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex min-w-0 flex-1 items-center gap-3">
+    <div className="flex flex-col gap-3 rounded-xl border border-dash-border bg-canvas px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
         <Link
           href="/dashboard/flows"
           className={cn(
-            'inline-flex h-10 shrink-0 items-center justify-center rounded-xl border border-ink bg-canvas px-4 text-sm font-semibold text-ink',
+            'inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-ink bg-canvas px-3 text-sm font-semibold text-ink',
             'hover:bg-canvas-soft'
           )}
         >
+          <ArrowLeft className="size-4" aria-hidden />
           {t('editor.back')}
         </Link>
         <Input
           value={name}
           onChange={(event) => onNameChange(event.target.value)}
           disabled={readOnly || !canSave}
-          className="h-10 max-w-sm rounded-xl"
+          className="h-10 min-w-0 max-w-sm flex-1 rounded-xl sm:max-w-xs"
           aria-label={t('create.name')}
         />
-        <span
-          className={cn(
-            'inline-flex shrink-0 rounded-md px-2 py-0.5 text-[11px] font-medium tracking-wide uppercase',
-            flowStatusBadgeClass(status)
-          )}
-        >
-          {t(`status.${statusKey}`)}
-        </span>
-        {dirty ? <span className="text-xs text-mute">{t('editor.unsaved')}</span> : null}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span
+            className={cn(
+              'inline-flex shrink-0 rounded-md px-2 py-0.5 text-[11px] font-medium tracking-wide uppercase',
+              flowStatusBadgeClass(status)
+            )}
+          >
+            {t(`status.${statusKey}`)}
+          </span>
+          <span
+            className={cn(
+              'inline-flex shrink-0 rounded-md px-2 py-0.5 text-[11px] font-medium tracking-wide',
+              flowValidationBadgeClass(validationState)
+            )}
+          >
+            {validationLabel}
+          </span>
+          {dirty ? <span className="text-xs text-mute">{t('editor.unsaved')}</span> : null}
+        </div>
       </div>
-      <div className="flex flex-wrap gap-2">
+
+      <div className="flex flex-wrap items-center gap-2 sm:justify-end">
         <Button
           type="button"
           size="sm"
@@ -98,7 +125,15 @@ export function FlowToolbar({
           {t('editor.save')}
         </Button>
         {canPublish ? (
-          <Button type="button" size="sm" disabled={readOnly || busy} onClick={onPublish}>
+          <Button
+            type="button"
+            size="sm"
+            disabled={!publishEnabled}
+            title={
+              validationState === 'valid' ? undefined : t('editor.validation.publishDisabled')
+            }
+            onClick={onPublish}
+          >
             {publishing ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
             {t('actions.publish')}
           </Button>

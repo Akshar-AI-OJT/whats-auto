@@ -4,21 +4,31 @@ import type { FlowAdvanceSessionJobPayload } from '#services/flow/contracts/flow
 import JobQueueManager from '#services/job_queue/job_queue_manager'
 import { JOB_NAMES } from '#services/job_queue/job_names'
 
+export type EnqueueFlowAdvanceOptions = {
+  /** Coalescing window for free text. Omit for interactive / immediate advances. */
+  delaySeconds?: number
+  queue?: JobQueueManager
+}
+
 /**
  * Enqueue a serialized flow advance for one conversation (singletonKey = conversationId).
  */
 export async function enqueueFlowAdvanceSession(
   payload: FlowAdvanceSessionJobPayload,
-  queue?: JobQueueManager
+  options?: EnqueueFlowAdvanceOptions
 ): Promise<void> {
   try {
-    const manager = queue ?? (await app.container.make(JobQueueManager))
+    const manager = options?.queue ?? (await app.container.make(JobQueueManager))
     const driver = await manager.ensureStarted()
+    const delaySeconds = options?.delaySeconds
     await driver.enqueue(
       JOB_NAMES.FLOWS_ADVANCE_SESSION,
       { ...payload },
       {
         singletonKey: payload.conversationId,
+        ...(delaySeconds !== undefined && delaySeconds > 0
+          ? { runAt: new Date(Date.now() + delaySeconds * 1000) }
+          : {}),
       }
     )
   } catch (error) {

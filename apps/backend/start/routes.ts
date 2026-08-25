@@ -214,11 +214,6 @@ const requestBodySchemas: Record<string, JsonSchema> = {
     minConfidenceScore: { type: 'number', example: 0.7 },
     debounceDelaySeconds: { type: 'integer', example: 4 },
     systemPrompt: { type: 'string', example: 'You are a grounded support agent.' },
-    handoverKeywords: {
-      type: 'array',
-      items: { type: 'string' },
-      example: ['agent', 'human', 'representative'],
-    },
     workingSetSize: { type: 'integer', example: 6 },
     summaryTurnThreshold: { type: 'integer', example: 10 },
     embeddingProvider: { type: 'string', example: 'openai' },

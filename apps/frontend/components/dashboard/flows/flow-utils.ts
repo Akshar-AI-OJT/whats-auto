@@ -86,3 +86,36 @@ export function flowStatusBadgeClass(status: string): string {
       return 'bg-dash-info-soft text-dash-info ring-1 ring-accent-cyan/30'
   }
 }
+
+export type FlowValidationState = 'unknown' | 'valid' | 'invalid'
+
+export function validationStateFromVersion(version: {
+  validationStatus?: string
+  validationErrors?: ConversationFlowValidationError[] | unknown
+} | null | undefined): {
+  state: FlowValidationState
+  errors: ConversationFlowValidationError[]
+} {
+  const errors = Array.isArray(version?.validationErrors)
+    ? (version.validationErrors as ConversationFlowValidationError[])
+    : []
+  if (version?.validationStatus === 'VALID') {
+    return { state: 'valid', errors: [] }
+  }
+  if (version?.validationStatus === 'INVALID') {
+    return { state: 'invalid', errors }
+  }
+  return { state: 'unknown', errors: [] }
+}
+
+export function flowValidationBadgeClass(state: FlowValidationState): string {
+  switch (state) {
+    case 'valid':
+      return 'bg-primary-pale text-positive-deep ring-1 ring-primary/25'
+    case 'invalid':
+      return 'bg-negative/10 text-destructive ring-1 ring-negative/30'
+    case 'unknown':
+    default:
+      return 'bg-dash-surface text-mute ring-1 ring-dash-border'
+  }
+}

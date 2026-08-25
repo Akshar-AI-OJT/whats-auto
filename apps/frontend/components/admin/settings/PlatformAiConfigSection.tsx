@@ -3,7 +3,7 @@
 import { useCallback, useId, useMemo, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
-import { Loader2, X } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import {
   api,
   type ApiError,
@@ -13,6 +13,15 @@ import {
 import { queryKeys } from '@/lib/query-keys'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardToast, useDashboardToast } from '@/components/dashboard/ui/use-dashboard-toast'
 import {
@@ -21,6 +30,9 @@ import {
   catalogForProvider,
   selectOptionsWithCurrent,
 } from './platform-ai-models'
+
+/** Exact phrase required before toggling platform `isEnabled` (kill switch). */
+const KILL_SWITCH_CONFIRM_PHRASE = 'confirm kill'
 
 const fieldClassName = cn(
   'h-11 w-full min-w-0 rounded-xl border border-dash-border bg-canvas px-3 text-sm text-ink outline-none',
@@ -49,7 +61,6 @@ type FormState = {
   workingSetSize: string
   summaryTurnThreshold: string
   systemPrompt: string
-  handoverKeywords: string[]
 }
 
 function unwrapConfig(payload: unknown): PlatformAiConfig | null {
@@ -90,7 +101,6 @@ function formFromConfig(config: PlatformAiConfig): FormState {
     workingSetSize: String(config.workingSetSize),
     summaryTurnThreshold: String(config.summaryTurnThreshold),
     systemPrompt: config.systemPrompt ?? '',
-    handoverKeywords: [...config.handoverKeywords],
   }
 }
 
@@ -105,13 +115,6 @@ function parseBoundedNumber(
   if (integer && !Number.isInteger(value)) return null
   if (value < min || value > max) return null
   return value
-}
-
-function normalizeKeyword(raw: string): string | null {
-  const keyword = raw.trim()
-  if (!keyword) return null
-  if (keyword.length > PLATFORM_AI_LIMITS.keywordMaxLength) return null
-  return keyword
 }
 
 function mapAiConfigError(error: unknown, fallback: 'load' | 'save'): string {
@@ -227,7 +230,9 @@ export function PlatformAiConfigSection() {
   const { toast, showToast, clearToast } = useDashboardToast()
 
   const [draft, setDraft] = useState<FormState | null>(null)
-  const [keywordDraft, setKeywordDraft] = useState('')
+  const [killConfirmOpen, setKillConfirmOpen] = useState(false)
+  const [killConfirmNextEnabled, setKillConfirmNextEnabled] = useState(false)
+  const [killConfirmInput, setKillConfirmInput] = useState('')
 
   const configQuery = useQuery({
     queryKey: queryKeys.admin.aiConfig,
@@ -290,6 +295,25 @@ export function PlatformAiConfigSection() {
     [configQuery.data]
   )
 
+  const openKillConfirm = useCallback((nextEnabled: boolean) => {
+    setKillConfirmNextEnabled(nextEnabled)
+    setKillConfirmInput('')
+    setKillConfirmOpen(true)
+  }, [])
+
+  const closeKillConfirm = useCallback(() => {
+    setKillConfirmOpen(false)
+    setKillConfirmInput('')
+  }, [])
+
+  const confirmKillSwitch = useCallback(() => {
+    if (killConfirmInput !== KILL_SWITCH_CONFIRM_PHRASE) return
+    patchForm((prev) => ({ ...prev, isEnabled: killConfirmNextEnabled }))
+    closeKillConfirm()
+  }, [closeKillConfirm, killConfirmInput, killConfirmNextEnabled, patchForm])
+
+  const killConfirmMatches = killConfirmInput === KILL_SWITCH_CONFIRM_PHRASE
+
   const catalog = useMemo(
     () => catalogForProvider(form?.chatProvider ?? 'openai'),
     [form?.chatProvider]
@@ -305,33 +329,6 @@ export function PlatformAiConfigSection() {
   const summaryModels = useMemo(
     () => selectOptionsWithCurrent(catalog.chat, form?.summaryModel ?? ''),
     [catalog.chat, form?.summaryModel]
-  )
-
-  const addKeyword = useCallback(
-    (raw: string) => {
-      const keyword = normalizeKeyword(raw)
-      if (!keyword) return
-      patchForm((prev) => {
-        if (prev.handoverKeywords.length >= PLATFORM_AI_LIMITS.keywordMaxCount) return prev
-        const exists = prev.handoverKeywords.some(
-          (item) => item.toLowerCase() === keyword.toLowerCase()
-        )
-        if (exists) return prev
-        return { ...prev, handoverKeywords: [...prev.handoverKeywords, keyword] }
-      })
-      setKeywordDraft('')
-    },
-    [patchForm]
-  )
-
-  const removeKeyword = useCallback(
-    (index: number) => {
-      patchForm((prev) => ({
-        ...prev,
-        handoverKeywords: prev.handoverKeywords.filter((_, i) => i !== index),
-      }))
-    },
-    [patchForm]
   )
 
   const handleSave = useCallback(async () => {
@@ -397,10 +394,6 @@ export function PlatformAiConfigSection() {
       showToast(t('errors.summaryThreshold'), 'error')
       return
     }
-    if (form.handoverKeywords.length < 1) {
-      showToast(t('errors.keywordsRequired'), 'error')
-      return
-    }
 
     const body: UpdatePlatformAiConfigBody = {
       isEnabled: form.isEnabled,
@@ -417,7 +410,6 @@ export function PlatformAiConfigSection() {
       workingSetSize,
       summaryTurnThreshold,
       systemPrompt: form.systemPrompt.trim() ? form.systemPrompt : null,
-      handoverKeywords: form.handoverKeywords,
       ...(reindexStatus === 'failed' ? { confirmReindex: true } : {}),
     }
 
@@ -493,9 +485,7 @@ export function PlatformAiConfigSection() {
                   className="mt-0.5 size-4 rounded border-dash-border-strong text-primary focus-visible:ring-primary/30"
                   checked={form.isEnabled}
                   disabled={saving}
-                  onChange={(event) =>
-                    patchForm((prev) => ({ ...prev, isEnabled: event.target.checked }))
-                  }
+                  onChange={(event) => openKillConfirm(event.target.checked)}
                 />
                 <span className="min-w-0">
                   <span className="block text-sm font-medium text-ink">
@@ -750,65 +740,6 @@ export function PlatformAiConfigSection() {
                 />
               </FieldShell>
             </SettingsSection>
-
-            <div className="border-t border-dash-border" />
-
-            <SettingsSection
-              title={t('sections.handover.title')}
-              description={t('sections.handover.description')}
-            >
-              <FieldShell
-                id={`${formId}-keywords`}
-                label={t('fields.handoverKeywords')}
-                hint={t('hints.handoverKeywords')}
-              >
-                <div className="overflow-hidden rounded-xl border border-dash-border bg-canvas">
-                  <div className="flex min-h-12 flex-wrap gap-2 border-b border-dash-border bg-dash-surface/40 px-3 py-2.5">
-                    {form.handoverKeywords.length === 0 ? (
-                      <p className="py-1 text-xs text-mute">{t('keywordsEmpty')}</p>
-                    ) : (
-                      form.handoverKeywords.map((keyword, index) => (
-                        <span
-                          key={`${keyword}-${index}`}
-                          className="inline-flex items-center gap-1.5 rounded-lg bg-canvas px-2.5 py-1 text-xs font-medium text-ink ring-1 ring-dash-border"
-                        >
-                          {keyword}
-                          <button
-                            type="button"
-                            className="rounded text-mute hover:text-ink"
-                            aria-label={t('removeKeyword', { keyword })}
-                            disabled={saving}
-                            onClick={() => removeKeyword(index)}
-                          >
-                            <X className="size-3.5" aria-hidden />
-                          </button>
-                        </span>
-                      ))
-                    )}
-                  </div>
-                  <input
-                    id={`${formId}-keywords`}
-                    className="h-11 w-full border-0 bg-transparent px-3 text-sm text-ink outline-none placeholder:text-mute disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={saving}
-                    value={keywordDraft}
-                    placeholder={t('keywordPlaceholder')}
-                    onChange={(event) => setKeywordDraft(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ',') {
-                        event.preventDefault()
-                        addKeyword(keywordDraft)
-                      }
-                      if (event.key === 'Backspace' && !keywordDraft) {
-                        removeKeyword(form.handoverKeywords.length - 1)
-                      }
-                    }}
-                    onBlur={() => {
-                      if (keywordDraft.trim()) addKeyword(keywordDraft)
-                    }}
-                  />
-                </div>
-              </FieldShell>
-            </SettingsSection>
           </div>
 
           <div
@@ -825,6 +756,62 @@ export function PlatformAiConfigSection() {
           </div>
         </form>
       ) : null}
+
+      <Dialog
+        open={killConfirmOpen}
+        onOpenChange={(open) => {
+          if (!open) closeKillConfirm()
+        }}
+      >
+        <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md" showCloseButton>
+          <DialogHeader className="border-b border-dash-border px-5 py-4 text-left sm:px-6">
+            <DialogTitle>
+              {killConfirmNextEnabled
+                ? t('killConfirm.titleEnable')
+                : t('killConfirm.titleDisable')}
+            </DialogTitle>
+            <DialogDescription>
+              {killConfirmNextEnabled
+                ? t('killConfirm.bodyEnable', { phrase: KILL_SWITCH_CONFIRM_PHRASE })
+                : t('killConfirm.bodyDisable', { phrase: KILL_SWITCH_CONFIRM_PHRASE })}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 px-5 py-4 sm:px-6">
+            <label htmlFor={`${formId}-kill-confirm`} className="block text-sm font-medium text-ink">
+              {t('killConfirm.phraseLabel', { phrase: KILL_SWITCH_CONFIRM_PHRASE })}
+            </label>
+            <Input
+              id={`${formId}-kill-confirm`}
+              autoComplete="off"
+              spellCheck={false}
+              value={killConfirmInput}
+              placeholder={KILL_SWITCH_CONFIRM_PHRASE}
+              onChange={(event) => setKillConfirmInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  confirmKillSwitch()
+                }
+              }}
+            />
+          </div>
+
+          <DialogFooter className="flex-col-reverse gap-2 border-t border-dash-border sm:flex-row sm:justify-end">
+            <Button type="button" variant="outline" onClick={closeKillConfirm}>
+              {t('killConfirm.cancel')}
+            </Button>
+            <Button
+              type="button"
+              variant={killConfirmNextEnabled ? 'default' : 'destructive'}
+              disabled={!killConfirmMatches}
+              onClick={confirmKillSwitch}
+            >
+              {t('killConfirm.confirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardPanel>
   )
 }

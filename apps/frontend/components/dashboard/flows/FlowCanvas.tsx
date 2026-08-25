@@ -30,6 +30,7 @@ export function FlowCanvas({
   viewport,
   canvasKey,
   readOnly,
+  instanceRef,
   onNodesChange,
   onEdgesChange,
   onEdgesReplace,
@@ -42,6 +43,7 @@ export function FlowCanvas({
   viewport: Viewport
   canvasKey: string
   readOnly: boolean
+  instanceRef?: React.MutableRefObject<ReactFlowInstance<FlowRfNode, FlowRfEdge> | null>
   onNodesChange: OnNodesChange<FlowRfNode>
   onEdgesChange: OnEdgesChange<FlowRfEdge>
   onEdgesReplace: (edges: FlowRfEdge[]) => void
@@ -49,7 +51,8 @@ export function FlowCanvas({
   onSelect: (nodeId: string | null) => void
   onAddNode: (node: FlowRfNode) => void
 }) {
-  const instanceRef = useRef<ReactFlowInstance<FlowRfNode, FlowRfEdge> | null>(null)
+  const localInstanceRef = useRef<ReactFlowInstance<FlowRfNode, FlowRfEdge> | null>(null)
+  const rfRef = instanceRef ?? localInstanceRef
 
   const onConnect = useCallback(
     (connection: Connection) => {
@@ -79,7 +82,7 @@ export function FlowCanvas({
         if (readOnly) return
         const type = event.dataTransfer.getData(FLOW_DND_TYPE)
         if (!isFlowCanvasNodeType(type) || type === 'TRIGGER') return
-        const instance = instanceRef.current
+        const instance = rfRef.current
         const position = instance
           ? instance.screenToFlowPosition({ x: event.clientX, y: event.clientY })
           : { x: event.clientX, y: event.clientY }
@@ -93,7 +96,7 @@ export function FlowCanvas({
         nodeTypes={flowNodeTypes}
         defaultViewport={viewport}
         onInit={(instance) => {
-          instanceRef.current = instance
+          rfRef.current = instance
         }}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
@@ -105,12 +108,20 @@ export function FlowCanvas({
         nodesConnectable={!readOnly}
         elementsSelectable
         deleteKeyCode={readOnly ? null : ['Backspace', 'Delete']}
+        onBeforeDelete={async () => {
+          const el = document.activeElement
+          if (!el) return true
+          const tag = el.tagName
+          if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return false
+          if ((el as HTMLElement).isContentEditable) return false
+          return true
+        }}
         fitView
         proOptions={{ hideAttribution: true }}
       >
         <Background gap={18} size={1} />
         <Controls showInteractive={false} />
-        <MiniMap pannable zoomable className="!bg-canvas" />
+        <MiniMap pannable zoomable className="bg-canvas!" />
       </ReactFlow>
     </div>
   )

@@ -1556,6 +1556,12 @@
         "validate": "Validate",
         "save": "Save",
         "loading": "Loading flow…",
+        "validation": {
+          "unknown": "Not validated",
+          "valid": "Valid",
+          "invalid": "{count, plural, one {# error} other {# errors}}",
+          "publishDisabled": "Validate the graph before publishing."
+        },
         "matchType": "Keyword match",
         "matchTypes": {
           "exact": "Exact",
@@ -1574,25 +1580,49 @@
           "IMMEDIATE_REPROMPT": "Reprompt immediately",
           "WAIT_FOR_NEXT": "Wait for next message"
         },
-        "inspectorEmpty": "Select a node to edit its fields, or open Settings.",
+        "handoverKeywords": "Handover keywords",
+        "handoverKeywordsHint": "During an open session, these phrases hand the chat to a human (case-insensitive substring). Empty means no keyword escape.",
+        "handoverKeywordsPlaceholder": "Type a phrase and press Enter",
+        "handoverKeywordsEmpty": "No handover keywords yet.",
+        "removeHandoverKeyword": "Remove {keyword}",
+        "inspectorEmpty": "Select a node for advanced fields, or edit content on the canvas.",
         "deleteNode": "Delete",
-        "triggerMirrorHint": "Inbound matching uses Settings → Trigger. This node is the graph entrypoint only.",
+        "triggerMirrorHint": "Inbound matching uses these keywords and Settings → Trigger. This node is the graph entrypoint.",
         "addButton": "Add button",
         "removeButton": "Remove button",
         "addRow": "Add row",
         "removeRow": "Remove row",
+        "addSection": "Add section",
+        "removeSection": "Remove section",
         "addCondition": "Add condition",
         "removeCondition": "Remove condition",
+        "canvas": {
+          "anyInbound": "Any inbound message",
+          "campaignReply": "Campaign reply trigger",
+          "subflowEntry": "Subflow entry",
+          "addKeyword": "Type a keyword and press Enter",
+          "removeKeyword": "Remove {keyword}",
+          "noKeywords": "Add keywords here or in Settings",
+          "mediaAsset": "Media asset",
+          "aiRagHint": "Grounded answer from knowledge",
+          "aiHandoverFallback": "Fallback: human handover",
+          "handoverHint": "Hand over to a human",
+          "exitHint": "End this path"
+        },
         "palette": {
           "title": "Nodes",
           "hint": "Click or drag onto the canvas.",
+          "groups": {
+            "contents": "Contents",
+            "actions": "Actions"
+          },
           "MESSAGE": "Message",
           "TEMPLATE": "Template",
           "INTERACTIVE_BUTTON": "Buttons",
           "INTERACTIVE_LIST": "List",
           "CONDITION": "Condition",
           "SUBFLOW": "Subflow",
-          "AI_RAG": "AI RAG",
+          "AI_RAG": "AI answer",
           "HUMAN_HANDOVER": "Handover",
           "EXIT": "Exit"
         },
@@ -1604,7 +1634,7 @@
           "INTERACTIVE_LIST": "List",
           "CONDITION": "Condition",
           "SUBFLOW": "Subflow",
-          "AI_RAG": "AI RAG",
+          "AI_RAG": "AI answer",
           "HUMAN_HANDOVER": "Handover",
           "EXIT": "Exit"
         },
@@ -1632,7 +1662,11 @@
           "subflowPlaceholder": "Select a published flow",
           "reason": "Handover reason",
           "fallbackAction": "Low-confidence fallback",
-          "fallbackTargetHandle": "Fallback handle"
+          "fallbackTargetHandle": "Fallback handle",
+          "promptAppendix": "Extra instructions"
+        },
+        "hints": {
+          "promptAppendix": "Layered on the platform system prompt — does not replace it. Max 2000 characters."
         },
         "messageTypes": {
           "text": "Text",
@@ -4639,13 +4673,19 @@
         "saving": "Saving…",
         "saved": "AI settings saved.",
         "saveFooterHint": "Changes apply to all workspaces.",
+        "killConfirm": {
+          "titleDisable": "Disable platform AI?",
+          "titleEnable": "Enable platform AI?",
+          "bodyDisable": "This turns off flow RAG and the answer cache for every workspace. Type {phrase} exactly to confirm.",
+          "bodyEnable": "This turns platform flow RAG back on for every workspace. Type {phrase} exactly to confirm.",
+          "phraseLabel": "Type {phrase} to confirm",
+          "confirm": "Confirm",
+          "cancel": "Cancel"
+        },
         "reindexConfirm": "This will re-embed {count} knowledge chunks into a new space. Retrieval stays on the current embedding model until the job finishes. Continue?",
         "reindexRunning": "Re-embedding knowledge into the new space. Chat settings can still be saved. Provider and embedding model are locked until this finishes.",
         "reindexFailed": "Knowledge reindex failed. Save again to retry, or switch back to the previous embedding model.",
         "promptPlaceholder": "Leave empty to use the built-in grounded WhatsApp assistant prompt.",
-        "keywordPlaceholder": "Add keyword…",
-        "keywordsEmpty": "No keywords yet.",
-        "removeKeyword": "Remove {keyword}",
         "sameAsMain": "Same as main chat model",
         "providers": {
           "openai": "OpenAI",
@@ -4664,10 +4704,6 @@
           "instructions": {
             "title": "Instructions",
             "description": "The system prompt sent with every grounded auto-reply."
-          },
-          "handover": {
-            "title": "Human handover",
-            "description": "Phrases that move a conversation from AI to a human agent."
           }
         },
         "fields": {
@@ -4679,29 +4715,27 @@
           "embeddingModel": "Embedding model",
           "temperature": "Temperature",
           "maxOutputTokens": "Max output tokens",
-          "debounceDelaySeconds": "Debounce (s)",
+          "debounceDelaySeconds": "Inbound coalesce (s)",
           "campaignAttributionWindowHours": "Attribution window (hrs)",
           "minConfidenceScore": "Min confidence",
           "workingSetSize": "Working-set size",
           "summaryTurnThreshold": "Summary threshold",
-          "systemPrompt": "System prompt",
-          "handoverKeywords": "Handover keywords"
+          "systemPrompt": "System prompt"
         },
         "hints": {
-          "isEnabled": "When off, inbound messages are not sent to the LLM.",
+          "isEnabled": "When off, flow AI_RAG and mid-flow RAG tangent skip the LLM (and answer cache). Waiting nodes re-prompt; AI_RAG uses its configured fallback. Per-flow handover keywords still apply.",
           "chatProvider": "API keys stay in server env. Only the selected provider’s key is required.",
           "chatModel": "Used for auto-replies. Changing this does not re-embed knowledge.",
           "summaryModel": "Optional cheaper model for conversation summaries. Must be the same provider.",
           "embeddingModel": "1024-dimension models only. Changing provider or embedding model re-embeds the knowledge base after you confirm.",
           "temperature": "0 to 2.",
           "maxOutputTokens": "1 to 8192. Caps tokens for auto-replies and conversation summaries.",
-          "debounceDelaySeconds": "1 to 15. Delay before a grounded reply is generated.",
+          "debounceDelaySeconds": "1 to 15. Delay before free-text flow advances so rapid messages merge into one turn. Interactive replies are immediate.",
           "campaignAttributionWindowHours": "1 to 168.",
           "minConfidenceScore": "0 to 1. Retrieval below this score hands over.",
           "workingSetSize": "2 to 20 recent turns kept in memory.",
           "summaryTurnThreshold": "2 to 200, and must be at least the working-set size.",
-          "systemPrompt": "Plain text. Newlines are kept. Empty uses the built-in default.",
-          "handoverKeywords": "1 to 50 phrases. A case-insensitive substring match hands the chat to a human."
+          "systemPrompt": "Plain text. Newlines are kept. Empty uses the built-in default. Flows may append extra instructions on AI_RAG nodes but cannot replace this base or the hard-coded guardrails."
         },
         "errors": {
           "loadFailed": "Couldn’t load AI settings. Please try again.",
@@ -4711,7 +4745,6 @@
           "notFound": "Platform AI config was not found.",
           "summaryThreshold": "Summary turn threshold must be greater than or equal to working-set size.",
           "invalidRange": "One or more values are outside the allowed range.",
-          "keywordsRequired": "Add at least one handover keyword.",
           "reindexRequired": "Changing provider or embedding model requires re-embedding the knowledge base. Confirm when prompted.",
           "reindexInProgress": "A knowledge reindex is already running. Wait for it to finish before changing provider or embedding model.",
           "invalidModel": "That model is not allowed for the selected provider.",

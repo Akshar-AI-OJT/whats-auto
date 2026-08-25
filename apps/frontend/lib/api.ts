@@ -725,7 +725,7 @@ export type TestWhatsappConfigResult = {
 
 export type WhatsappTemplateCategory = 'MARKETING' | 'UTILITY' | 'AUTHENTICATION'
 
-export type WhatsappTemplateHeaderType = 'NONE' | 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT'
+export type WhatsappTemplateHeaderType = 'NONE' | 'TEXT' | 'IMAGE' | 'DOCUMENT'
 
 export type WhatsappTemplateStatus =
   | 'draft'
@@ -1162,7 +1162,6 @@ export type PlatformAiConfig = {
   minConfidenceScore: number
   debounceDelaySeconds: number
   systemPrompt: string | null
-  handoverKeywords: string[]
   workingSetSize: number
   summaryTurnThreshold: number
   embeddingProvider: 'openai' | 'google' | 'mistral' | string
@@ -1190,7 +1189,6 @@ export type UpdatePlatformAiConfigBody = {
   minConfidenceScore?: number
   debounceDelaySeconds?: number
   systemPrompt?: string | null
-  handoverKeywords?: string[]
   workingSetSize?: number
   summaryTurnThreshold?: number
   embeddingProvider?: string
@@ -1268,6 +1266,7 @@ export type ConversationFlowSettings = {
   sessionTtlMinutes: number
   onExpiry: ConversationFlowExpiryMode
   tangentResume: ConversationFlowTangentResume
+  handoverKeywords: string[]
 }
 
 export type ConversationFlowGraphNode = {
