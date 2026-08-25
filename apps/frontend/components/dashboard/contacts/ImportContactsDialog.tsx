@@ -23,6 +23,7 @@ import {
   type ContactCsvField,
   type ParsedContactCsv,
 } from '@/lib/contact-csv'
+import { isInternationalContactPhone } from '@/lib/contact-phone'
 import { COUNTRY_OPTIONS } from '@/components/onboarding/organization-wizard-types'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { Button } from '@/components/ui/button'
@@ -65,6 +66,17 @@ function unwrapImport(
   }
   if ('totalRows' in data) return data
   return null
+}
+
+function hasNationalMappedPhones(
+  parsed: ParsedContactCsv | null,
+  phoneHeader: string | undefined
+) {
+  if (!parsed || !phoneHeader) return false
+  return parsed.rows.some((row) => {
+    const phone = (row[phoneHeader] ?? '').trim()
+    return phone.length > 0 && !isInternationalContactPhone(phone)
+  })
 }
 
 function skippedCount(result: ContactImportResult) {
@@ -132,6 +144,8 @@ export function ImportContactsDialog({
   const mapping = toBackendColumnMapping(csvToField)
   const mappedFields = mappedFieldsList(csvToField)
   const previewRows = parsed?.rows.slice(0, 3) ?? []
+  const needsCountryWarning =
+    !defaultCountryCode && hasNationalMappedPhones(parsed, mapping.phone)
 
   function reset() {
     setScreen(1)
@@ -267,7 +281,11 @@ export function ImportContactsDialog({
       }
       setResult(imported)
       setScreen('result')
-      onImported?.()
+      try {
+        onImported?.()
+      } catch {
+        // Import already succeeded; list refresh is best-effort.
+      }
     } catch (err) {
       setError(mapImportError(err as ApiError))
     } finally {
@@ -529,6 +547,14 @@ export function ImportContactsDialog({
                   ))}
                 </select>
                 <FieldDescription>{t('settings.countryHint')}</FieldDescription>
+                {needsCountryWarning ? (
+                  <div
+                    role="status"
+                    className="rounded-xl border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-ink"
+                  >
+                    {t('settings.countryNationalWarning')}
+                  </div>
+                ) : null}
               </Field>
               <Field className="gap-2">
                 <FieldLabel htmlFor={duplicatesId}>{t('settings.duplicates')}</FieldLabel>
@@ -567,6 +593,14 @@ export function ImportContactsDialog({
               <div className="rounded-xl border border-primary/30 bg-primary-pale/50 px-3 py-2 text-sm text-positive-deep">
                 {t('review.warning')}
               </div>
+              {needsCountryWarning ? (
+                <div
+                  role="status"
+                  className="rounded-xl border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-ink"
+                >
+                  {t('review.countryNationalWarning')}
+                </div>
+              ) : null}
             </div>
           ) : null}
 

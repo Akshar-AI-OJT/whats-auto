@@ -59,4 +59,40 @@ test.group('parseContactCsv', () => {
       assert.equal((error as ContactException).code, 'E_CONTACT_IMPORT_MALFORMED')
     }
   })
+
+  test('omitted optional fields stay empty when a mapping is explicit', ({ assert }) => {
+    const csv = 'name,phone,email,company\nRahul,+919876543210,rahul@example.com,Acme\n'
+    const parsed = parseContactCsv(csv)
+    const mapping = { phone: 'phone' }
+
+    assert.equal(resolvePhoneHeader(parsed.headers, mapping), 'phone')
+    assert.equal(mappedCell(parsed.rows[0] ?? {}, parsed.headers, mapping, 'phone'), '+919876543210')
+    assert.equal(mappedCell(parsed.rows[0] ?? {}, parsed.headers, mapping, 'name'), '')
+    assert.equal(mappedCell(parsed.rows[0] ?? {}, parsed.headers, mapping, 'email'), '')
+    assert.equal(mappedCell(parsed.rows[0] ?? {}, parsed.headers, mapping, 'company'), '')
+  })
+
+  test('does not fall back to name/email/company headers when those fields are unmapped', ({
+    assert,
+  }) => {
+    const csv = 'name,Mobile Number,email,company\nRahul,9876543210,rahul@example.com,Acme\n'
+    const parsed = parseContactCsv(csv)
+    const mapping = { phone: 'Mobile Number', name: 'name' }
+
+    assert.equal(mappedCell(parsed.rows[0] ?? {}, parsed.headers, mapping, 'name'), 'Rahul')
+    assert.equal(mappedCell(parsed.rows[0] ?? {}, parsed.headers, mapping, 'phone'), '9876543210')
+    assert.equal(mappedCell(parsed.rows[0] ?? {}, parsed.headers, mapping, 'email'), '')
+    assert.equal(mappedCell(parsed.rows[0] ?? {}, parsed.headers, mapping, 'company'), '')
+  })
+
+  test('falls back to literal headers only when no mapping is provided', ({ assert }) => {
+    const csv = 'name,phone,email,company\nRahul,+919876543210,rahul@example.com,Acme\n'
+    const parsed = parseContactCsv(csv)
+    const mapping = {}
+
+    assert.equal(mappedCell(parsed.rows[0] ?? {}, parsed.headers, mapping, 'phone'), '+919876543210')
+    assert.equal(mappedCell(parsed.rows[0] ?? {}, parsed.headers, mapping, 'name'), 'Rahul')
+    assert.equal(mappedCell(parsed.rows[0] ?? {}, parsed.headers, mapping, 'email'), 'rahul@example.com')
+    assert.equal(mappedCell(parsed.rows[0] ?? {}, parsed.headers, mapping, 'company'), 'Acme')
+  })
 })
