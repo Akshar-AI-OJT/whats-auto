@@ -68,7 +68,7 @@ export type MetaWebhookError = {
 }
 
 export type MetaWebhookMessageType =
-  'text' | 'image' | 'video' | 'document' | 'audio' | 'location' | 'interactive' | string
+  'text' | 'image' | 'document' | 'audio' | 'location' | 'interactive' | string
 
 export type MetaWebhookContext = {
   id?: string
@@ -91,8 +91,6 @@ export type MetaWebhookMessage = {
   type: MetaWebhookMessageType
   text?: MetaWebhookText
   image?: MetaWebhookMedia
-  audio?: MetaWebhookMedia
-  video?: MetaWebhookMedia
   document?: MetaWebhookMedia
   location?: MetaWebhookLocation
   interactive?: MetaWebhookInteractive
@@ -275,7 +273,7 @@ export type MetaGraphErrorBody = {
 
 export type MetaTemplateComponent = {
   type: 'HEADER' | 'BODY' | 'FOOTER' | 'BUTTONS' | string
-  format?: 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT' | string
+  format?: 'TEXT' | 'IMAGE' | 'DOCUMENT' | string
   text?: string
   buttons?: Array<Record<string, unknown>>
   example?: Record<string, unknown>

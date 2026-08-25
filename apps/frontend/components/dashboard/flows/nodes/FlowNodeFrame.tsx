@@ -59,7 +59,8 @@ export function FlowNodeFrame({
   return (
     <div
       className={cn(
-        'w-72 overflow-visible rounded-xl border shadow-sm',
+        // Keep overflow visible so row/button handles can sit on the edge.
+        'relative w-72 overflow-visible rounded-xl border shadow-sm',
         TYPE_SHELL[type],
         selected ? 'ring-2 ring-primary/45' : null
       )}
@@ -73,7 +74,16 @@ export function FlowNodeFrame({
         />
       ) : null}
 
-      <div className={cn('flex items-start justify-between gap-2 rounded-t-[11px] px-3 py-2', TYPE_HEADER[type])}>
+      {/*
+        Header uses the same rounded-xl as the shell so top corners share one curve.
+        A smaller inner radius (e.g. 11px) left a crescent of shell bg in the corners.
+      */}
+      <div
+        className={cn(
+          'flex items-start justify-between gap-2 rounded-t-xl px-3 py-2',
+          TYPE_HEADER[type]
+        )}
+      >
         <div className="min-w-0">
           <p className="text-[10px] font-medium tracking-wide uppercase opacity-80">{typeLabel}</p>
           <p className="mt-0.5 truncate text-sm font-semibold">{label}</p>

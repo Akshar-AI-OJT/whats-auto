@@ -207,7 +207,7 @@ function validateNode(
 function validateMessageNode(node: FlowNode, edges: FlowEdge[]): FlowGraphValidationError[] {
   const messageType = asString(node.data.messageType) ?? 'text'
   const errors: FlowGraphValidationError[] = []
-  if (!['text', 'image', 'video', 'document'].includes(messageType)) {
+  if (!['text', 'image', 'document'].includes(messageType)) {
     errors.push({
       code: 'INVALID_MESSAGE_TYPE',
       message: `Unknown message type ${messageType}`,
@@ -221,7 +221,7 @@ function validateMessageNode(node: FlowNode, edges: FlowEdge[]): FlowGraphValida
       nodeId: node.id,
     })
   }
-  if (['image', 'video', 'document'].includes(messageType)) {
+  if (['image', 'document'].includes(messageType)) {
     const mediaAssetId = asString(node.data.mediaAssetId)?.trim()
     const mediaUrl = asString(node.data.mediaUrl)?.trim()
     if (!mediaAssetId && !mediaUrl) {

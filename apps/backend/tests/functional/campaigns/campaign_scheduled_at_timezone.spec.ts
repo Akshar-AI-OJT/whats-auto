@@ -159,7 +159,10 @@ test.group('Campaign scheduledAt timezone', (group) => {
 
     assert.equal(scheduled.scheduledAt, '2099-08-20T02:55:00.000Z')
     assert.equal(scheduled.status, 'scheduled')
-    assert.equal(wallClock(scheduled.scheduledAt!, 'America/New_York').toFormat('hh:mm a'), '10:55 PM')
+    assert.equal(
+      wallClock(scheduled.scheduledAt!, 'America/New_York').toFormat('hh:mm a'),
+      '10:55 PM'
+    )
   })
 
   test('update and schedule keep the intended organization-local wall clock', async ({
