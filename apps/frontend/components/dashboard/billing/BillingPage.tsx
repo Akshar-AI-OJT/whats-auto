@@ -3,7 +3,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
-import { Check, CreditCard, ExternalLink, Loader2, Minus, RefreshCw } from 'lucide-react'
+import { Check, CreditCard, Loader2, Minus, RefreshCw } from 'lucide-react'
 import { api, type ApiError, type BillingSubscription, type TenantBillingPlan } from '@/lib/api'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { Button } from '@/components/ui/button'
@@ -18,7 +18,7 @@ import {
   formatTenantPlanPrice,
   isSubscriptionNotFound,
   resolvePlanFeatureLabel,
-  unwrapBillingCheckout,
+  startBillingPayment,
   unwrapBillingPlans,
   unwrapBillingSubscription,
 } from './billing-utils'
@@ -36,7 +36,9 @@ function StatusBadge({ status }: { status: string }) {
           ? t('pastDue')
           : key === 'cancelled' || key === 'canceled'
             ? t('cancelled')
-            : status
+            : key === 'expired'
+              ? t('expired')
+              : status
 
   return (
     <span
@@ -108,20 +110,12 @@ export function BillingPage() {
   })
 
   const checkoutMutation = useMutation({
-    mutationFn: async (planId: string) => {
-      const { data } = await api.billing.checkout({ planId })
-      const result = unwrapBillingCheckout(data)
-      if (!result) throw new Error(t('errors.checkoutFailed'))
-      return result
-    },
-    onSuccess: async (result) => {
+    mutationFn: async (planId: string) => startBillingPayment(planId),
+    onSuccess: async () => {
       setCheckoutError(null)
       setConfirmOpen(false)
       setCheckoutSuccess(t('checkout.success'))
       await queryClient.invalidateQueries({ queryKey: queryKeys.billing.all })
-      if (result.checkoutUrl) {
-        window.location.assign(result.checkoutUrl)
-      }
     },
     onError: (err) => {
       const apiError = err as unknown as ApiError
@@ -344,20 +338,10 @@ export function BillingPage() {
               </dl>
 
               <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-                {subscription.checkoutUrl ? (
-                  <Button
-                    type="button"
-                    className="gap-2"
-                    onClick={() => window.location.assign(subscription.checkoutUrl!)}
-                  >
-                    <ExternalLink className="size-4" aria-hidden />
-                    {t('completeCheckoutCta')}
-                  </Button>
-                ) : null}
                 {canManageBilling ? (
                   <Button
                     type="button"
-                    variant={subscription.checkoutUrl ? 'outline' : 'default'}
+                    variant="default"
                     className="gap-2"
                     disabled={checkoutMutation.isPending}
                     onClick={() => {

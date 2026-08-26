@@ -14,6 +14,8 @@ import { createAiReindexAllDocumentsHandler } from '#services/job_queue/handlers
 import { createIntegrationEventsRecoveryHandler } from '#services/job_queue/handlers/integration_events_recovery_handler'
 import { createFlowsAdvanceSessionHandler } from '#services/job_queue/handlers/flows_advance_session_handler'
 import { createFlowsSessionRecoveryHandler } from '#services/job_queue/handlers/flows_session_recovery_handler'
+import { createBillingSubscriptionLifecycleHandler } from '#services/job_queue/handlers/billing_subscription_lifecycle_handler'
+import { createOnboardingCleanupHandler } from '#services/job_queue/handlers/onboarding_cleanup_handler'
 import { CampaignExecutionService } from '#services/campaign_execution_service'
 
 /**
@@ -38,4 +40,9 @@ export async function registerJobHandlers(driver: JobQueueDriver): Promise<void>
   await driver.work(JOB_NAMES.INTEGRATION_EVENTS_RECOVERY, createIntegrationEventsRecoveryHandler())
   await driver.work(JOB_NAMES.FLOWS_ADVANCE_SESSION, createFlowsAdvanceSessionHandler())
   await driver.work(JOB_NAMES.FLOWS_SESSION_RECOVERY, createFlowsSessionRecoveryHandler())
+  await driver.work(
+    JOB_NAMES.BILLING_SUBSCRIPTION_LIFECYCLE,
+    createBillingSubscriptionLifecycleHandler()
+  )
+  await driver.work(JOB_NAMES.ONBOARDING_CLEANUP, createOnboardingCleanupHandler())
 }

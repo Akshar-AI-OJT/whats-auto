@@ -26,6 +26,7 @@ export default class AccessContextController {
     return serialize({
       organizationId: activeMember!.organizationId,
       organizationName: org.name,
+      status: org.status as string,
       memberId: activeMember!.id,
       role: activeMember!.role,
       displayName,

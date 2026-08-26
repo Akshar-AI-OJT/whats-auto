@@ -4,6 +4,8 @@ import { DateTime } from 'luxon'
 import env from '#start/env'
 import mail from '@adonisjs/mail/services/main'
 import InvitationException from '#exceptions/invitation_exception'
+import OrganizationException from '#exceptions/organization_exception'
+import { OrganizationStatus } from '#enums/organization_status'
 import { resolveAssignableRoleForOrg } from '#services/role_service'
 import { NotificationService } from '#services/notification_service'
 
@@ -120,6 +122,20 @@ export class InvitationService {
     const { organizationId, inviterId, email, role } = params
     const normalizedEmail = email.toLowerCase()
 
+    const org = await db
+      .from('organizations')
+      .where('id', organizationId)
+      .whereNull('deletedAt')
+      .select('name', 'status')
+      .first()
+
+    if (!org) {
+      throw OrganizationException.notFound()
+    }
+    if (org.status !== OrganizationStatus.ACTIVE) {
+      throw InvitationException.organizationNotProvisioned()
+    }
+
     const roleRow = await resolveAssignableRoleForOrg(organizationId, role)
 
     const existingMember = await db
@@ -146,13 +162,6 @@ export class InvitationService {
     if (existingPending) {
       throw InvitationException.alreadyPending()
     }
-
-    const org = await db
-      .from('organizations')
-      .where('id', organizationId)
-      .whereNull('deletedAt')
-      .select('name')
-      .firstOrFail()
 
     const inviter = await db.from('users').where('id', inviterId).select('name').firstOrFail()
 

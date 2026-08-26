@@ -158,7 +158,7 @@ export function computeCurrentOrganizationSplit(
 
   for (const org of organizations) {
     if (org.deletedAt != null) continue
-    if (org.status === true) active += 1
+    if (org.status === 'active') active += 1
     else inactive += 1
   }
 

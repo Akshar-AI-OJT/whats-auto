@@ -60,8 +60,7 @@ export class PlanRepository {
 
   /**
    * Checkout acceptance SQL — keep in lockstep with `isPlanCheckoutable`
-   * (isActive + price > 0 + month/year interval). Gateway plan id is optional
-   * until first tenant checkout syncs it.
+   * (isActive + price > 0). Gateway plan id is unused for Orders API checkout.
    */
   async findActiveCheckoutableById(planId: string, client: Db = db): Promise<PlanRow | null> {
     const row = await client
@@ -69,7 +68,6 @@ export class PlanRepository {
       .where('id', planId)
       .where('isActive', true)
       .where('price', '>', 0)
-      .whereIn('billingInterval', ['month', 'year', 'monthly', 'yearly'])
       .first()
     return (row as PlanRow | undefined) ?? null
   }

@@ -9,8 +9,10 @@ import {
   getValidAccessToken,
   peekAccessTokenOrgId,
 } from '@/lib/access-token'
+import { ONBOARDING_PAYMENT_PATH } from '@/lib/onboarding'
 import { hasPermission, PERMISSIONS } from '@/lib/rbac'
 import { queryKeys } from '@/lib/query-keys'
+import { usePathname, useRouter } from '@/i18n/navigation'
 
 const EMPTY_ORGANIZATIONS: OrganizationSummary[] = []
 
@@ -151,6 +153,8 @@ async function ensureAccessTokenForOrganization(organizationId: string): Promise
  */
 export function OrganizationsProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient()
+  const router = useRouter()
+  const pathname = usePathname()
   const { data: sessionData, isPending: sessionPending } = authClient.useSession()
   const sessionOrgId = readSessionOrganizationId(sessionData?.session)
   const isSignedIn = Boolean(sessionData?.user)
@@ -204,6 +208,18 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
     livePendingActiveId && livePendingActiveId !== accessQuery.data?.organizationId
       ? null
       : (accessQuery.data ?? null)
+
+  // Pending orgs must complete payment before using the dashboard.
+  useEffect(() => {
+    if (!accessContext || accessContext.status !== 'pending_setup') return
+    if (
+      pathname.startsWith('/onboarding/payment') ||
+      pathname.startsWith('/onboarding/organization')
+    ) {
+      return
+    }
+    router.replace(ONBOARDING_PAYMENT_PATH)
+  }, [accessContext, pathname, router])
 
   // Reset bootstrap latch when the session drops (logout / account switch).
   useEffect(() => {
@@ -319,9 +335,7 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
 
   const sessionOrgFromContext = accessContext?.organizationId ?? null
   const activeOrgId = activeOrganization?.id ?? null
-  const orgAligned = Boolean(
-    isSignedIn && activeOrgId && sessionOrgFromContext === activeOrgId
-  )
+  const orgAligned = Boolean(isSignedIn && activeOrgId && sessionOrgFromContext === activeOrgId)
   // Derive readiness when JWT already matches — avoids sync setState in an effect.
   const jwtAlreadyReady = orgAligned && peekAccessTokenOrgId() === activeOrgId
 
@@ -346,8 +360,7 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
     }
   }, [orgAligned, activeOrgId])
 
-  const tokenReadyOrgId =
-    jwtAlreadyReady || remintedForOrgId === activeOrgId ? activeOrgId : null
+  const tokenReadyOrgId = jwtAlreadyReady || remintedForOrgId === activeOrgId ? activeOrgId : null
 
   const tenantOrganizationId =
     sessionOrgFromContext &&
