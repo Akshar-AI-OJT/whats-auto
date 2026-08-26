@@ -811,6 +811,8 @@ export default class WhatsappOutboundService {
       ? [params.organizationId]
       : await db
           .from('organizations')
+          .whereNull('deletedAt')
+          .where('status', 'active')
           .select('id')
           .then((rows) => rows.map((row) => row.id as string))
 

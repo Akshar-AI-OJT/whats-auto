@@ -21,11 +21,8 @@ import {
   isValidWebsiteUrl,
   markOnboardingChecklistVisible,
   readPendingOnboardingContact,
-  saveOnboardingCheckoutSession,
   savePendingWorkspacePlan,
   savePendingWorkspacePreferences,
-  readOnboardingCheckoutSession,
-  ONBOARDING_PAYMENT_PATH,
   ORG_SETUP_PATH,
 } from '@/lib/onboarding'
 import {
@@ -46,7 +43,7 @@ import { AuthLayout } from '@/components/auth/auth-layout'
 import { AuthBranding } from '@/components/auth/auth-branding'
 import { useRouter } from '@/i18n/navigation'
 import { BillingCheckoutDialog } from '@/components/dashboard/billing/BillingCheckoutDialog'
-import { startOrResumeBillingCheckout } from '@/components/dashboard/billing/billing-utils'
+import { startBillingPayment } from '@/components/dashboard/billing/billing-utils'
 import { OrganizationBasicsStep } from './OrganizationBasicsStep'
 import { CompanyInformationStep } from './CompanyInformationStep'
 import {
@@ -146,13 +143,6 @@ export function OrganizationRegistrationForm({
       cancelled = true
     }
   }, [router])
-
-  useEffect(() => {
-    if (guardingInvite) return
-    if (readOnboardingCheckoutSession()) {
-      router.replace(ONBOARDING_PAYMENT_PATH)
-    }
-  }, [guardingInvite, router])
 
   const [companyErrors, setCompanyErrors] = useState<OrganizationWizardCompanyErrors>({})
   const [preferencesErrors, setPreferencesErrors] =
@@ -419,17 +409,9 @@ export function OrganizationRegistrationForm({
     try {
       // Persist the real backend plan UUID so other screens can resume/refresh state.
       savePendingWorkspacePlan(selectedPlan.id)
-      const result = await startOrResumeBillingCheckout(selectedPlan.id)
-      saveOnboardingCheckoutSession({
-        planId: selectedPlan.id,
-        checkoutPlanId: selectedPlan.id,
-        planName: selectedPlan.name,
-        subscriptionId: result.subscriptionId,
-        checkoutUrl: result.checkoutUrl ?? null,
-        phase: result.checkoutUrl ? 'awaiting_gateway' : 'success',
-      })
+      await startBillingPayment(selectedPlan.id)
       setConfirmOpen(false)
-      router.replace(ONBOARDING_PAYMENT_PATH)
+      router.replace('/dashboard')
     } catch (err) {
       checkoutLockRef.current = false
       const apiError = err as ApiError

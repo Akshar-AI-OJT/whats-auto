@@ -1,12 +1,10 @@
 import env from '#start/env'
 import type {
   CreateRazorpayCustomerParams,
-  CreateRazorpayPlanParams,
-  CreateRazorpaySubscriptionParams,
+  CreateRazorpayOrderParams,
   RazorpayClient,
   RazorpayCustomer,
-  RazorpayPlan,
-  RazorpaySubscription,
+  RazorpayOrder,
 } from '#lib/razorpay/types'
 
 export class RazorpayApiError extends Error {
@@ -98,36 +96,21 @@ export class HttpRazorpayClient implements RazorpayClient {
     })
   }
 
-  async createSubscription(
-    params: CreateRazorpaySubscriptionParams
-  ): Promise<RazorpaySubscription> {
-    return this.requestJson<RazorpaySubscription>('createSubscription', '/subscriptions', {
+  async createOrder(params: CreateRazorpayOrderParams): Promise<RazorpayOrder> {
+    return this.requestJson<RazorpayOrder>('createOrder', '/orders', {
       method: 'POST',
       body: JSON.stringify({
-        plan_id: params.planId,
-        customer_id: params.customerId,
-        total_count: params.totalCount,
-        quantity: params.quantity ?? 1,
-        customer_notify: params.customerNotify ?? true,
+        amount: params.amount,
+        currency: params.currency,
+        receipt: params.receipt,
         notes: params.notes,
       }),
     })
   }
 
-  async createPlan(params: CreateRazorpayPlanParams): Promise<RazorpayPlan> {
-    return this.requestJson<RazorpayPlan>('createPlan', '/plans', {
-      method: 'POST',
-      body: JSON.stringify({
-        period: params.period,
-        interval: params.interval,
-        item: {
-          name: params.item.name,
-          amount: params.item.amount,
-          currency: params.item.currency,
-          description: params.item.description ?? undefined,
-        },
-        notes: params.notes,
-      }),
+  async fetchOrder(orderId: string): Promise<RazorpayOrder> {
+    return this.requestJson<RazorpayOrder>('fetchOrder', `/orders/${encodeURIComponent(orderId)}`, {
+      method: 'GET',
     })
   }
 }

@@ -19,6 +19,13 @@ export default class InvitationException extends Exception {
     })
   }
 
+  static organizationNotProvisioned() {
+    return new this('Complete payment before inviting members to this organization', {
+      status: 402,
+      code: 'E_ORG_PAYMENT_REQUIRED',
+    })
+  }
+
   static emailSendFailed(detail?: string) {
     return new this(
       detail ? `Failed to send invite email: ${detail}` : 'Failed to send invite email',

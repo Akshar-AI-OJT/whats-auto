@@ -72,17 +72,12 @@ export function transformPlanLimits(row: Pick<PlanRow, 'limits'>): PlanLimits {
 }
 
 /**
- * Tenant checkout eligibility — active paid monthly/yearly plans.
- * Razorpay `gatewayPlanId` is created lazily at checkout, not during super-admin CRUD.
+ * Tenant checkout eligibility — active paid plans (any billing interval).
  * Keep in lockstep with `PlanRepository.findActiveCheckoutableById`.
  */
-export function isPlanCheckoutable(
-  row: Pick<PlanRow, 'isActive' | 'price' | 'billingInterval' | 'metadata'>
-): boolean {
+export function isPlanCheckoutable(row: Pick<PlanRow, 'isActive' | 'price'>): boolean {
   if (row.isActive !== true) return false
-  if (!(toNumber(row.price) > 0)) return false
-  const period = deriveBillingPeriod(row)
-  return period === 'monthly' || period === 'yearly'
+  return toNumber(row.price) > 0
 }
 
 export function transformPlan(row: PlanRow): SuperAdminPlan {

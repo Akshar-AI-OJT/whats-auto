@@ -173,11 +173,15 @@ export function PlatformAnalyticsPage() {
   const audits = useMemo(() => auditQuery.data ?? [], [auditQuery.data])
 
   const activeCount = useMemo(
-    () => organizations.filter((org) => org.deletedAt == null && org.status === true).length,
+    () => organizations.filter((org) => org.deletedAt == null && org.status === 'active').length,
     [organizations]
   )
   const inactiveCount = useMemo(
-    () => organizations.filter((org) => org.deletedAt == null && org.status === false).length,
+    () =>
+      organizations.filter(
+        (org) =>
+          org.deletedAt == null && (org.status === 'suspended' || org.status === 'false')
+      ).length,
     [organizations]
   )
   const trialCount = useMemo(() => countTrialOrganizations(subscriptions), [subscriptions])

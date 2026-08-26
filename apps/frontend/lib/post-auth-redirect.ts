@@ -1,6 +1,6 @@
 import { peekAccessTokenRole } from '@/lib/access-token'
 import { api, type ApiError } from '@/lib/api'
-import { ORG_SETUP_PATH } from '@/lib/onboarding'
+import { ONBOARDING_PAYMENT_PATH, ORG_SETUP_PATH } from '@/lib/onboarding'
 
 /** Platform console home for global superadmin (no tenant org required). */
 export const SUPER_ADMIN_HOME_PATH = '/admin/dashboard'
@@ -11,6 +11,7 @@ export type OnboardingNextStep =
   | 'accept_invitation'
   | 'create_organization'
   | 'select_organization'
+  | 'complete_payment'
   | 'ready'
 
 export type OnboardingPendingInvitation = {
@@ -147,6 +148,11 @@ export async function resolvePostAuthPath(options: {
           clearPendingInvitationId()
         }
         return ORG_SETUP_PATH
+      }
+
+      if (state.nextStep === 'complete_payment') {
+        clearPendingInvitationId()
+        return ONBOARDING_PAYMENT_PATH
       }
 
       if (peekAccessTokenRole() === 'superadmin' && state.organizations.length === 0) {

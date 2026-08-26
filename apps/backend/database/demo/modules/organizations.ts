@@ -67,7 +67,7 @@ export const organizationsModule: DemoSeedModule = {
         country: org.country,
         timezone: org.timezone,
         currency: org.currency,
-        status: true,
+        status: 'active',
         deletedAt: null,
       })
     }

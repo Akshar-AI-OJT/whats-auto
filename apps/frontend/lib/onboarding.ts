@@ -311,20 +311,10 @@ export function clearPendingWorkspacePlan() {
 
 const CHECKOUT_SESSION_KEY = 'wa-onboarding-checkout'
 
-export type OnboardingCheckoutPhase =
-  | 'awaiting_gateway'
-  | 'awaiting_return'
-  | 'success'
-  | 'failed'
-  | 'cancelled'
-
 export type OnboardingCheckoutSession = {
   planId: string
   checkoutPlanId: string
   planName?: string
-  subscriptionId?: string
-  checkoutUrl?: string | null
-  phase: OnboardingCheckoutPhase
 }
 
 export function saveOnboardingCheckoutSession(session: OnboardingCheckoutSession) {
@@ -342,7 +332,7 @@ export function readOnboardingCheckoutSession(): OnboardingCheckoutSession | nul
     const raw = window.sessionStorage.getItem(CHECKOUT_SESSION_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw) as OnboardingCheckoutSession
-    if (!parsed?.planId || !parsed?.checkoutPlanId || !parsed?.phase) return null
+    if (!parsed?.planId || !parsed?.checkoutPlanId) return null
     return parsed
   } catch {
     return null

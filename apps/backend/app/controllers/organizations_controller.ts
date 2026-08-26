@@ -32,7 +32,11 @@ export default class OrganizationsController {
         sessionId: request.sessionId!,
         data: payload,
       })
-      await attachRemintedAccessToken({ request, response }, request.sessionId!)
+      // Only remint when the new (or reused) pending org became the active session.
+      // Creating a second workspace must not strand the owner on an unpaid org.
+      if (org.sessionActivated) {
+        await attachRemintedAccessToken({ request, response }, request.sessionId!)
+      }
       return serialize(org)
     } catch (error) {
       return mapRbacError(error, response)

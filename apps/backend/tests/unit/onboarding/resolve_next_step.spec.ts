@@ -45,4 +45,16 @@ test.group('resolveNextStep', () => {
       'select_organization'
     )
   })
+
+  test('pending_setup active organization must complete payment', ({ assert }) => {
+    assert.equal(
+      resolveNextStep({
+        organizationCount: 1,
+        pendingInvitationCount: 0,
+        activeOrganizationId: 'org-1',
+        activeOrgStatus: 'pending_setup',
+      }),
+      'complete_payment'
+    )
+  })
 })

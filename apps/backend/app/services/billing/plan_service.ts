@@ -220,8 +220,7 @@ export class PlanService {
       code = await this.#allocateCode(patch.code.trim(), planId)
     }
 
-    // Pricing/interval changes invalidate a previously synced Razorpay plan id.
-    // Next tenant checkout will create a fresh gateway plan.
+    // Clear legacy Razorpay plan ids when pricing/interval changes (Orders API ignores them).
     const priceChanged =
       toMajorPrice(existing.price) !== price ||
       deriveBillingPeriod(existing) !== billingPeriod ||
