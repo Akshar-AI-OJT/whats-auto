@@ -91,14 +91,12 @@ export type OrganizationWizardState = {
   phone: string
   website: string
   slugTouched: boolean
-  // Step 2 — company (API: organizationType, address, pan, country, timezone required)
-  // gstin optional. logo + companySize are UX-only (session), not sent to create-org
+  // Step 2 — company (API: organizationType, address, country, timezone required)
+  // logo + companySize are UX-only (session), not sent to create-org
   logoFileName: string
   logoPreviewUrl: string | null
   organizationType: OrganizationTypeOption | ''
   address: string
-  pan: string
-  gstin: string
   industry: IndustryOption | ''
   companySize: CompanySizeOption | ''
   country: string
@@ -123,8 +121,6 @@ export type OrganizationWizardBasicsErrors = {
 export type OrganizationWizardCompanyErrors = {
   organizationType?: string
   address?: string
-  pan?: string
-  gstin?: string
   industry?: string
   companySize?: string
   country?: string

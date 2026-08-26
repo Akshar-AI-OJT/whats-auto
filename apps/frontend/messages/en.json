@@ -1248,6 +1248,7 @@
       "createWorkspace": "Create Workspace",
       "continueToDashboard": "Continue to dashboard",
       "proceedToCheckout": "Continue to checkout",
+      "checkoutHint": "You won't be charged yet.",
       "creating": "Creating workspace…",
       "step1": {
         "title": "Create your organization",
@@ -1366,16 +1367,17 @@
       },
       "step4": {
         "title": "Choose a subscription plan",
-        "subtitle": "Pick the plan that fits your workspace today. You can update billing anytime from the Dashboard.",
+        "subtitle": "Pick the plan that fits your workspace today. You can upgrade or cancel anytime from the Dashboard.",
         "loadingPlans": "Loading plans…",
         "loadingPlansFailed": "Couldn't load plans. Please try again.",
         "retry": "Retry",
         "emptyTitle": "No plans available",
         "emptyDescription": "No active monthly plans are available right now.",
-        "chooseCta": "Choose plan",
+        "chooseCta": "Select plan",
         "selectedCta": "Selected",
         "enterpriseCta": "Contact sales",
         "enterpriseCustomPrice": "Custom",
+        "allPlansInclude": "All plans include",
         "summaryLabel": "Selected plan",
         "summaryNote": "You'll confirm this plan and complete Razorpay checkout before entering the dashboard."
       },
