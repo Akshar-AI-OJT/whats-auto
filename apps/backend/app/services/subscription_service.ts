@@ -1,6 +1,7 @@
 import SubscriptionException from '#exceptions/subscription_exception'
 import { insertAuthorizationAudit } from '#lib/authorization_audit'
 import OrganizationSubscription from '#models/organization_subscription'
+import { OrganizationService } from '#services/organization_service'
 import { runWithTenant } from '#services/tenant_context'
 import { SUBSCRIPTION_SOFT_DELETED_STATUS } from '#validators/subscription_crud'
 import db from '@adonisjs/lucid/services/db'
@@ -8,6 +9,10 @@ import { DateTime } from 'luxon'
 
 function toDateTime(date: DateTime | Date): DateTime {
   return date instanceof Date ? DateTime.fromJSDate(date) : date
+}
+
+function isEntitledStatus(status: string): boolean {
+  return status === 'active' || status === 'trialing'
 }
 
 export type CreateSubscriptionInput = {
@@ -135,6 +140,10 @@ export class SubscriptionService {
         after: { planId: created.planId, status: created.status },
       })
 
+      if (isEntitledStatus(String(created.status))) {
+        await new OrganizationService().promoteToActive(data.organizationId)
+      }
+
       return created
     })
   }
@@ -204,6 +213,10 @@ export class SubscriptionService {
         eventType: 'subscription.updated',
         after: { planId: updated.planId, status: updated.status },
       })
+
+      if (isEntitledStatus(String(updated.status))) {
+        await new OrganizationService().promoteToActive(existing.organizationId)
+      }
 
       return updated
     })

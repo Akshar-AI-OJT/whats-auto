@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { Loader2 } from 'lucide-react'
@@ -12,115 +12,62 @@ import {
   isCapturedPayment,
   isFailedPayment,
   isSubscriptionNotFound,
+  startBillingPayment,
   unwrapBillingSubscription,
 } from '@/components/dashboard/billing/billing-utils'
 import { useRouter } from '@/i18n/navigation'
 import {
   clearOnboardingCheckoutSession,
   readOnboardingCheckoutSession,
-  saveOnboardingCheckoutSession,
+  readPendingWorkspacePlan,
   ORG_SETUP_PATH,
   type OnboardingCheckoutSession,
 } from '@/lib/onboarding'
-import {
-  OnboardingPaymentView,
-  type OnboardingPaymentViewState,
-} from './OnboardingPaymentView'
+import { OnboardingPaymentView, type OnboardingPaymentViewState } from './OnboardingPaymentView'
 
-function readGatewayReturnParams() {
-  if (typeof window === 'undefined') {
-    return { success: false, cancelled: false }
-  }
-  const params = new URLSearchParams(window.location.search)
-  const status = (params.get('status') || params.get('payment') || '').toLowerCase()
-  const success =
-    Boolean(params.get('razorpay_payment_id')) ||
-    Boolean(params.get('razorpay_subscription_id')) ||
-    status === 'success' ||
-    status === 'paid' ||
-    status === 'captured'
-  const cancelled =
-    status === 'cancelled' ||
-    status === 'canceled' ||
-    Boolean(params.get('error')) ||
-    params.get('razorpay_payment_link_status') === 'cancelled'
-  return { success, cancelled }
-}
-
-function resolveCheckoutSession(
-  stored: OnboardingCheckoutSession
-): { session: OnboardingCheckoutSession; checkoutUrl: string | null } {
-  const gateway = readGatewayReturnParams()
-  if (gateway.success) {
-    return { session: { ...stored, phase: 'success' }, checkoutUrl: null }
-  }
-  if (gateway.cancelled && stored.phase !== 'success') {
-    return { session: { ...stored, phase: 'cancelled' }, checkoutUrl: null }
-  }
-  if (stored.phase === 'awaiting_gateway' && stored.checkoutUrl) {
-    return {
-      session: { ...stored, phase: 'awaiting_return' },
-      checkoutUrl: stored.checkoutUrl,
-    }
-  }
-  if (stored.phase === 'awaiting_gateway' && !stored.checkoutUrl) {
-    return { session: { ...stored, phase: 'success' }, checkoutUrl: null }
-  }
-  return { session: stored, checkoutUrl: null }
-}
-
-function viewFromSession(
-  session: OnboardingCheckoutSession | null,
+function viewFromSubscription(
   subscription: BillingSubscription | null
 ): OnboardingPaymentViewState {
-  if (!session) return 'pending'
-  if (isCapturedPayment(subscription) || session.phase === 'success') return 'success'
-  if (isFailedPayment(subscription) || session.phase === 'failed') return 'failed'
-  if (session.phase === 'cancelled') return 'cancelled'
-  if (session.phase === 'awaiting_gateway') return 'redirecting'
+  if (isCapturedPayment(subscription)) return 'success'
+  if (isFailedPayment(subscription)) return 'failed'
   return 'pending'
+}
+
+function readCheckoutSession(): OnboardingCheckoutSession | null {
+  const stored = readOnboardingCheckoutSession()
+  if (stored) return stored
+  const pendingPlan = readPendingWorkspacePlan()
+  if (!pendingPlan) return null
+  return {
+    planId: pendingPlan,
+    checkoutPlanId: pendingPlan,
+  }
+}
+
+function subscribeCheckoutSession() {
+  return () => {}
 }
 
 export function OnboardingPaymentPage() {
   const t = useTranslations('onboarding.organization')
   const router = useRouter()
-  const [session, setSession] = useState<OnboardingCheckoutSession | null>(null)
-  const [ready, setReady] = useState(false)
+  const session = useSyncExternalStore(
+    subscribeCheckoutSession,
+    readCheckoutSession,
+    () => null
+  )
+  const [paying, setPaying] = useState(false)
+  const [payError, setPayError] = useState<string | null>(null)
 
   useEffect(() => {
-    let cancelled = false
-
-    void (async () => {
-      await Promise.resolve()
-      if (cancelled) return
-
-      const stored = readOnboardingCheckoutSession()
-      if (!stored) {
-        router.replace(ORG_SETUP_PATH)
-        return
-      }
-
-      const resolved = resolveCheckoutSession(stored)
-      saveOnboardingCheckoutSession(resolved.session)
-      if (cancelled) return
-
-      if (resolved.checkoutUrl) {
-        window.location.assign(resolved.checkoutUrl)
-        return
-      }
-
-      setSession(resolved.session)
-      setReady(true)
-    })()
-
-    return () => {
-      cancelled = true
+    if (session === null) {
+      router.replace(ORG_SETUP_PATH)
     }
-  }, [router])
+  }, [session, router])
 
   const subscriptionQuery = useQuery({
     queryKey: queryKeys.onboarding.billingSubscription,
-    enabled: ready,
+    enabled: session !== null,
     queryFn: async (): Promise<BillingSubscription | null> => {
       try {
         const { data } = await api.billing.getSubscription()
@@ -130,21 +77,25 @@ export function OnboardingPaymentPage() {
         throw error
       }
     },
-    refetchInterval: (query) => {
-      const data = query.state.data ?? null
-      if (isCapturedPayment(data) || isFailedPayment(data)) return false
-      if (session?.phase === 'success' || session?.phase === 'failed') return false
-      return 2500
-    },
   })
 
-  const view = viewFromSession(session, subscriptionQuery.data ?? null)
+  const view = viewFromSubscription(subscriptionQuery.data ?? null)
   const planName = session?.planName ?? ''
+  const planId = session?.planId ?? session?.checkoutPlanId ?? null
 
-  function handleCompletePayment() {
-    const url = session?.checkoutUrl
-    if (!url || typeof window === 'undefined') return
-    window.location.assign(url)
+  async function handleCompletePayment() {
+    if (!planId || paying) return
+    setPaying(true)
+    setPayError(null)
+    try {
+      await startBillingPayment(planId)
+      await subscriptionQuery.refetch()
+    } catch (error) {
+      const apiError = error as ApiError
+      setPayError(apiError.message || t('errors.checkoutFailed'))
+    } finally {
+      setPaying(false)
+    }
   }
 
   function handleContinueToDashboard() {
@@ -152,7 +103,7 @@ export function OnboardingPaymentPage() {
     router.push('/dashboard')
   }
 
-  if (!ready || !session) {
+  if (!session) {
     return (
       <AuthLayout branding={<AuthBranding variant="organization" />}>
         <div className="flex items-center justify-center gap-2 py-16 text-sm text-body">
@@ -172,11 +123,13 @@ export function OnboardingPaymentPage() {
       <OnboardingPaymentView
         state={view}
         planName={planName}
-        error={queryError}
-        completePaymentDisabled={!session.checkoutUrl}
-        refreshDisabled={subscriptionQuery.isFetching}
+        error={payError || queryError}
+        completePaymentDisabled={!planId || paying}
+        refreshDisabled={subscriptionQuery.isFetching || paying}
         onContinueToDashboard={handleContinueToDashboard}
-        onCompletePayment={handleCompletePayment}
+        onCompletePayment={() => {
+          void handleCompletePayment()
+        }}
         onRefresh={() => {
           void subscriptionQuery.refetch()
         }}

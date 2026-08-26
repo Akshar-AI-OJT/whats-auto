@@ -1380,16 +1380,16 @@
         "summaryNote": "You'll confirm this plan and complete Razorpay checkout before entering the dashboard."
       },
       "payment": {
-        "redirectingTitle": "Redirecting to Razorpay",
-        "redirectingSubtitle": "We're opening the secure checkout page for your selected plan.",
-        "pendingTitle": "Confirming your payment",
-        "pendingSubtitle": "If you completed checkout, this page updates automatically. You can also reopen Razorpay to finish payment.",
+        "redirectingTitle": "Preparing checkout",
+        "redirectingSubtitle": "We're opening Razorpay so you can pay for your selected plan.",
+        "pendingTitle": "Complete your payment",
+        "pendingSubtitle": "Pay with UPI, card, or netbanking. This page updates once payment is verified.",
         "successTitle": "Payment successful",
         "successSubtitle": "Your subscription is confirmed. Continue to your workspace dashboard when you're ready.",
         "failedTitle": "Payment unsuccessful",
         "failedSubtitle": "We couldn't confirm your payment. You can try again without leaving onboarding.",
         "cancelledTitle": "Checkout cancelled",
-        "cancelledSubtitle": "No payment was completed. You can resume Razorpay checkout for the selected plan.",
+        "cancelledSubtitle": "No payment was completed. You can pay now for the selected plan.",
         "planLabel": "Selected plan",
         "continueToDashboard": "Continue to dashboard",
         "completePayment": "Complete payment",
@@ -3059,15 +3059,16 @@
         "active": "Active",
         "trialing": "Trialing",
         "pastDue": "Past due",
-        "cancelled": "Cancelled"
+        "cancelled": "Cancelled",
+        "expired": "Expired"
       },
       "checkout": {
         "title": "Confirm plan",
-        "description": "Review the selected plan before starting checkout.",
+        "description": "Review the selected plan before paying with Razorpay.",
         "cancel": "Cancel",
-        "confirm": "Continue to checkout",
-        "starting": "Starting…",
-        "success": "Checkout started. Redirecting to the payment page if a checkout URL was returned."
+        "confirm": "Pay now",
+        "starting": "Opening payment…",
+        "success": "Payment confirmed. Your subscription is active."
       },
       "errors": {
         "permissionDenied": "You don’t have permission to view billing in this workspace.",

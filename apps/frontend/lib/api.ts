@@ -44,6 +44,27 @@ function isTokenAuthError(error: ApiError): boolean {
   return !error.code || /token|bearer|unauthorized|jwt/i.test(error.message)
 }
 
+function isOrgPaymentRequired(error: ApiError): boolean {
+  return error.status === 402 && error.code === 'E_ORG_PAYMENT_REQUIRED'
+}
+
+/** Soft navigate to the payment step without treating it as a permission denial. */
+function redirectToOnboardingPayment() {
+  if (typeof window === 'undefined') return
+  const { pathname } = window.location
+  if (
+    pathname.includes('/onboarding/payment') ||
+    pathname.includes('/onboarding/organization') ||
+    pathname.includes('/onboarding/')
+  ) {
+    return
+  }
+  const parts = pathname.split('/').filter(Boolean)
+  const maybeLocale = parts[0]
+  const locale = maybeLocale && /^[a-z]{2}(-[A-Za-z]{2})?$/.test(maybeLocale) ? maybeLocale : 'en'
+  window.location.assign(`/${locale}/onboarding/payment`)
+}
+
 async function parseError(response: Response): Promise<ApiError> {
   let message = response.statusText || 'Request failed'
   let code: string | undefined
@@ -121,11 +142,7 @@ async function request<T>(
   const { authMode, _authRetried, ...fetchInit } = init
   const headers = new Headers(fetchInit.headers)
 
-  if (
-    fetchInit.body &&
-    !headers.has('Content-Type') &&
-    !(fetchInit.body instanceof FormData)
-  ) {
+  if (fetchInit.body && !headers.has('Content-Type') && !(fetchInit.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json')
   }
 
@@ -155,6 +172,10 @@ async function request<T>(
         await refreshSessionCookieBootstrap()
         throw error
       }
+    }
+
+    if (authMode === 'protected' && isOrgPaymentRequired(error)) {
+      redirectToOnboardingPayment()
     }
 
     throw error
@@ -253,6 +274,9 @@ export type CreatedOrganization = {
   name: string
   slug: string
   role: string
+  status?: 'pending_setup' | 'active' | 'suspended' | 'false'
+  sessionActivated?: boolean
+  reused?: boolean
 }
 
 export type OrganizationSummary = {
@@ -272,6 +296,7 @@ export type OrganizationSummary = {
   currency?: string | null
   role: string
   createdAt: string
+  status?: 'pending_setup' | 'active' | 'suspended' | 'false'
 }
 
 export type UpdateOrganizationBody = {
@@ -307,6 +332,7 @@ export type OrganizationDetails = {
 export type AccessContext = {
   organizationId: string
   organizationName: string
+  status?: 'pending_setup' | 'active' | 'suspended' | 'false'
   memberId: string
   role: string
   displayName: string
@@ -521,10 +547,7 @@ export type InboxConversation = {
 
 export type InboxAiMode = 'AI_AUTO' | 'HANDOVER' | 'HUMAN_ACTIVE'
 
-export type InboxAiHandoverReason =
-  | 'low_confidence'
-  | 'keyword_match'
-  | 'business_exception'
+export type InboxAiHandoverReason = 'low_confidence' | 'keyword_match' | 'business_exception'
 
 export type InboxAiModePatch = {
   id: string
@@ -769,14 +792,7 @@ export type WhatsappTemplateCategory = 'MARKETING' | 'UTILITY' | 'AUTHENTICATION
 export type WhatsappTemplateHeaderType = 'NONE' | 'TEXT' | 'IMAGE' | 'DOCUMENT'
 
 export type WhatsappTemplateStatus =
-  | 'draft'
-  | 'pending'
-  | 'approved'
-  | 'rejected'
-  | 'deleted'
-  | 'paused'
-  | 'disabled'
-  | string
+  'draft' | 'pending' | 'approved' | 'rejected' | 'deleted' | 'paused' | 'disabled' | string
 
 export type WhatsappTemplateParameterSchema = {
   headerNames?: string[]
@@ -849,13 +865,7 @@ export type SyncWhatsappTemplatesResult = {
 }
 
 export type CampaignStatus =
-  | 'draft'
-  | 'scheduled'
-  | 'sending'
-  | 'sent'
-  | 'failed'
-  | 'cancelled'
-  | string
+  'draft' | 'scheduled' | 'sending' | 'sent' | 'failed' | 'cancelled' | string
 
 /** Maps a template parameter to a contact field, custom field, or static value. */
 export type CampaignVariableMapping =
@@ -986,7 +996,6 @@ export type PaginationMeta = {
   firstPage?: number
 }
 
-
 export type Paginated<T> = {
   data: T[]
   meta: PaginationMeta
@@ -1051,7 +1060,7 @@ export type OnboardingPendingInvitation = {
 }
 
 export type OnboardingNextStep =
-  'accept_invitation' | 'create_organization' | 'select_organization' | 'ready'
+  'accept_invitation' | 'create_organization' | 'select_organization' | 'complete_payment' | 'ready'
 
 export type OnboardingState = {
   activeOrganizationId: string | null
@@ -1100,7 +1109,7 @@ export type SuperAdminPlatformUserOrganization = {
   organizationId: string
   organizationName: string
   organizationSlug: string
-  organizationStatus: boolean
+  organizationStatus: string
   role: string
   roleId: string
 }
@@ -1146,8 +1155,8 @@ export type SuperAdminOrganization = {
   country: string
   timezone: string
   currency?: string | null
-  /** Backend boolean: true = active, false = inactive */
-  status: boolean
+  /** pending_setup | active | suspended | false (soft-deleted) */
+  status: 'pending_setup' | 'active' | 'suspended' | 'false' | string
   createdAt: string
   updatedAt?: string | null
   deletedAt?: string | null
@@ -1287,10 +1296,7 @@ export type CreateKnowledgeDocumentResult = {
 export type ConversationFlowStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
 
 export type ConversationFlowTriggerType =
-  | 'KEYWORD'
-  | 'INBOUND_ANY'
-  | 'CAMPAIGN_REPLY'
-  | 'SUBFLOW_ENTRY'
+  'KEYWORD' | 'INBOUND_ANY' | 'CAMPAIGN_REPLY' | 'SUBFLOW_ENTRY'
 
 export type ConversationFlowKeywordMatchType = 'exact' | 'contains' | 'regex'
 
@@ -1606,20 +1612,41 @@ export type BillingSubscription = {
   lastPaymentAt?: string | null
 }
 
-/** POST /api/v1/billing/checkout — fields returned by BillingController.checkout */
+/** POST /api/v1/billing/checkout — Orders API Checkout.js fields */
 export type BillingCheckoutResult = {
-  subscriptionId: string
-  planId: string
-  status: string
-  checkoutUrl?: string | null
-  gatewaySubscriptionId?: string | null
-  gatewayCustomerId?: string | null
-  currentPeriodStart?: string | null
-  currentPeriodEnd?: string | null
+  orderId: string
+  amount: number
+  currency: string
+  keyId: string
+  purpose: 'new_subscription' | 'renewal' | 'plan_change'
+  plan: {
+    id: string
+    code: string
+    name: string
+    price: number
+  }
+  prefill: {
+    name: string
+    email: string
+    contact: string | null
+  }
 }
 
 export type BillingCheckoutBody = {
   planId: string
+}
+
+export type BillingVerifyBody = {
+  razorpayOrderId: string
+  razorpayPaymentId: string
+  razorpaySignature: string
+}
+
+export type BillingVerifyResult = {
+  orderId: string
+  subscriptionId: string
+  invoiceId: string
+  alreadyApplied: boolean
 }
 
 /** GET /api/v1/billing/plans — tenant-safe active catalog (no gateway secrets). */
@@ -1915,11 +1942,7 @@ export const api = {
       })
     },
 
-    sendMessage: (
-      conversationId: string,
-      body: SendInboxMessageBody,
-      idempotencyKey: string
-    ) =>
+    sendMessage: (conversationId: string, body: SendInboxMessageBody, idempotencyKey: string) =>
       protectedRequest<{ data?: InboxMessage } & InboxMessage>(
         `/api/v1/inbox/conversations/${conversationId}/messages`,
         {
@@ -2011,9 +2034,10 @@ export const api = {
       ),
 
     markAllAsRead: () =>
-      protectedRequest<
-        { data?: MarkAllNotificationsReadResult } & MarkAllNotificationsReadResult
-      >('/api/v1/notifications/read-all', { method: 'PATCH' }),
+      protectedRequest<{ data?: MarkAllNotificationsReadResult } & MarkAllNotificationsReadResult>(
+        '/api/v1/notifications/read-all',
+        { method: 'PATCH' }
+      ),
   },
 
   whatsapp: {
@@ -2129,10 +2153,9 @@ export const api = {
 
   apiKeys: {
     list: () =>
-      protectedRequest<{ data?: IntegrationApiKey[] } | IntegrationApiKey[]>(
-        '/api/v1/api-keys',
-        { method: 'GET' }
-      ),
+      protectedRequest<{ data?: IntegrationApiKey[] } | IntegrationApiKey[]>('/api/v1/api-keys', {
+        method: 'GET',
+      }),
 
     create: (body: CreateIntegrationApiKeyBody) =>
       protectedRequest<{ data?: IntegrationApiKey } & IntegrationApiKey>('/api/v1/api-keys', {
@@ -2322,14 +2345,22 @@ export const api = {
       ),
 
     listPlans: () =>
-      protectedRequest<{ data?: { items: TenantBillingPlan[] } }>(
-        '/api/v1/billing/plans',
-        { method: 'GET' }
-      ),
+      protectedRequest<{ data?: { items: TenantBillingPlan[] } }>('/api/v1/billing/plans', {
+        method: 'GET',
+      }),
 
     checkout: (body: BillingCheckoutBody) =>
       protectedRequest<{ data?: BillingCheckoutResult } & BillingCheckoutResult>(
         '/api/v1/billing/checkout',
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    verify: (body: BillingVerifyBody) =>
+      protectedRequest<{ data?: BillingVerifyResult } & BillingVerifyResult>(
+        '/api/v1/billing/verify',
         {
           method: 'POST',
           body: JSON.stringify(body),
@@ -2381,10 +2412,13 @@ export const api = {
       ),
 
     replaceRecipients: (campaignId: string, body: ReplaceCampaignRecipientsBody) =>
-      protectedRequest<{ data?: Campaign } & Campaign>(`/api/v1/campaigns/${campaignId}/recipients`, {
-        method: 'PUT',
-        body: JSON.stringify(body),
-      }),
+      protectedRequest<{ data?: Campaign } & Campaign>(
+        `/api/v1/campaigns/${campaignId}/recipients`,
+        {
+          method: 'PUT',
+          body: JSON.stringify(body),
+        }
+      ),
 
     schedule: (campaignId: string, body: { scheduledAt: string; timeZone?: string }) =>
       protectedRequest<{ data?: Campaign } & Campaign>(`/api/v1/campaigns/${campaignId}/schedule`, {
@@ -2418,13 +2452,10 @@ export const api = {
       ),
 
     changeStatus: (campaignId: string, body: { status: CampaignStatus }) =>
-      protectedRequest<{ data?: Campaign } & Campaign>(
-        `/api/v1/campaigns/${campaignId}/status`,
-        {
-          method: 'PATCH',
-          body: JSON.stringify(body),
-        }
-      ),
+      protectedRequest<{ data?: Campaign } & Campaign>(`/api/v1/campaigns/${campaignId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
   },
 
   members: {
@@ -2455,13 +2486,10 @@ export const api = {
      * Body: targetMemberId, replacementRoleForCurrentOwner, reason (min 5).
      */
     transfer: (body: TransferOwnershipBody) =>
-      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
-        '/api/v1/ownership/transfer',
-        {
-          method: 'POST',
-          body: JSON.stringify(body),
-        }
-      ),
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>('/api/v1/ownership/transfer', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
   },
 
   audit: {
@@ -2473,11 +2501,12 @@ export const api = {
       const qs = new URLSearchParams()
       if (params.limit != null) qs.set('limit', String(params.limit))
       const query = qs.toString()
-      return protectedRequest<
-        { data?: AuthorizationAuditEvent[] } | AuthorizationAuditEvent[]
-      >(`/api/v1/audit${query ? `?${query}` : ''}`, {
-        method: 'GET',
-      })
+      return protectedRequest<{ data?: AuthorizationAuditEvent[] } | AuthorizationAuditEvent[]>(
+        `/api/v1/audit${query ? `?${query}` : ''}`,
+        {
+          method: 'GET',
+        }
+      )
     },
   },
 
@@ -2717,13 +2746,10 @@ export const api = {
         ),
 
       create: (body: CreateSuperAdminPlanBody) =>
-        protectedRequest<{ data?: SuperAdminPlan } & SuperAdminPlan>(
-          '/api/v1/super-admin/plans',
-          {
-            method: 'POST',
-            body: JSON.stringify(body),
-          }
-        ),
+        protectedRequest<{ data?: SuperAdminPlan } & SuperAdminPlan>('/api/v1/super-admin/plans', {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }),
 
       update: (planId: string, body: UpdateSuperAdminPlanBody) =>
         protectedRequest<{ data?: SuperAdminPlan } & SuperAdminPlan>(
@@ -2748,14 +2774,14 @@ export const api = {
         if (params.perPage != null) qs.set('perPage', String(params.perPage))
         if (params.search?.trim()) qs.set('search', params.search.trim())
         if (params.status && params.status !== 'all') qs.set('status', params.status)
-        if (params.issueMonth && params.issueMonth !== 'all') qs.set('issueMonth', params.issueMonth)
+        if (params.issueMonth && params.issueMonth !== 'all')
+          qs.set('issueMonth', params.issueMonth)
         if (params.billingPeriod && params.billingPeriod !== 'all') {
           qs.set('billingPeriod', params.billingPeriod)
         }
         const query = qs.toString()
         return protectedRequest<
-          | Paginated<SuperAdminInvoice>
-          | { data?: SuperAdminInvoice[]; meta?: PaginationMeta }
+          Paginated<SuperAdminInvoice> | { data?: SuperAdminInvoice[]; meta?: PaginationMeta }
         >(`/api/v1/super-admin/invoices${query ? `?${query}` : ''}`, {
           method: 'GET',
         })
@@ -2765,16 +2791,18 @@ export const api = {
         const qs = new URLSearchParams()
         if (params.search?.trim()) qs.set('search', params.search.trim())
         if (params.status && params.status !== 'all') qs.set('status', params.status)
-        if (params.issueMonth && params.issueMonth !== 'all') qs.set('issueMonth', params.issueMonth)
+        if (params.issueMonth && params.issueMonth !== 'all')
+          qs.set('issueMonth', params.issueMonth)
         if (params.billingPeriod && params.billingPeriod !== 'all') {
           qs.set('billingPeriod', params.billingPeriod)
         }
         const query = qs.toString()
-        return protectedRequest<
-          { data?: SuperAdminInvoiceSummary } & SuperAdminInvoiceSummary
-        >(`/api/v1/super-admin/invoices/summary${query ? `?${query}` : ''}`, {
-          method: 'GET',
-        })
+        return protectedRequest<{ data?: SuperAdminInvoiceSummary } & SuperAdminInvoiceSummary>(
+          `/api/v1/super-admin/invoices/summary${query ? `?${query}` : ''}`,
+          {
+            method: 'GET',
+          }
+        )
       },
 
       get: (invoiceId: string) =>
@@ -2848,11 +2876,12 @@ export const api = {
         if (params.limit != null) qs.set('limit', String(params.limit))
         if (params.organizationId) qs.set('organizationId', params.organizationId)
         const query = qs.toString()
-        return protectedRequest<
-          { data?: AuthorizationAuditEvent[] } | AuthorizationAuditEvent[]
-        >(`/api/v1/super-admin/audit-logs${query ? `?${query}` : ''}`, {
-          method: 'GET',
-        })
+        return protectedRequest<{ data?: AuthorizationAuditEvent[] } | AuthorizationAuditEvent[]>(
+          `/api/v1/super-admin/audit-logs${query ? `?${query}` : ''}`,
+          {
+            method: 'GET',
+          }
+        )
       },
     },
 

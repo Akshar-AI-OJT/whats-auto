@@ -64,7 +64,6 @@ export function ContactsPage() {
   const [addForced, setAddForced] = useState(false)
   const addOpen = canCreateContacts && (addFromQuery || addForced)
   const [query, setQuery] = useState('')
-  const [addOpen, setAddOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<ContactSummary | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -225,7 +224,7 @@ export function ContactsPage() {
                 <Button
                   type="button"
                   className="gap-2"
-                  onClick={() => setAddOpen(true)}
+                  onClick={() => handleAddOpenChange(true)}
                 >
                   <UserPlus className="size-4" aria-hidden />
                   {t('addCta')}
@@ -292,7 +291,7 @@ export function ContactsPage() {
                   <Button
                     type="button"
                     className="gap-2"
-                    onClick={() => setAddOpen(true)}
+                    onClick={() => handleAddOpenChange(true)}
                   >
                     <UserPlus className="size-4" aria-hidden />
                     {t('addCta')}
@@ -356,7 +355,7 @@ export function ContactsPage() {
           open={addOpen}
           onOpenChange={handleAddOpenChange}
           onCreated={() => {
-            if (tenantOrganizationId) void loadContacts(tenantOrganizationId)
+            void refreshContacts()
           }}
         />
       ) : null}
@@ -366,7 +365,7 @@ export function ContactsPage() {
           open={importOpen}
           onOpenChange={setImportOpen}
           onImported={() => {
-            if (tenantOrganizationId) void loadContacts(tenantOrganizationId)
+            void refreshContacts()
           }}
         />
       ) : null}

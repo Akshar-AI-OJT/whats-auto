@@ -5,6 +5,7 @@
 export const APPLICATION_TABLES = [
   'accounts',
   'authorization_audits',
+  'billing_orders',
   'contacts',
   'conversation_assignments',
   'conversation_notes',

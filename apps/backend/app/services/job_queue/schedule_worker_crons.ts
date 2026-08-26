@@ -1,12 +1,14 @@
 import type { JobQueueDriver } from '#services/job_queue/contracts/job_queue_driver'
 import {
   BILLING_PAYMENT_WEBHOOK_RECOVERY_CRON,
+  BILLING_SUBSCRIPTION_LIFECYCLE_CRON,
   CAMPAIGN_RECOVERY_CRON,
   FLOWS_SESSION_RECOVERY_CRON,
   INTEGRATION_EVENTS_RECOVERY_CRON,
   JOB_NAMES,
   MEDIA_PENDING_UPLOAD_CLEANUP_CRON,
   MEDIA_STORAGE_LIFECYCLE_CRON,
+  ONBOARDING_CLEANUP_CRON,
   WHATSAPP_OUTBOUND_RECOVERY_CRON,
 } from '#services/job_queue/job_names'
 
@@ -92,4 +94,23 @@ export async function scheduleWorkerCrons(
     { key: 'flows-session-recovery' }
   )
   logger.info({ cron: FLOWS_SESSION_RECOVERY_CRON }, 'job_queue.flows_session_recovery.scheduled')
+
+  await driver.schedule(
+    JOB_NAMES.BILLING_SUBSCRIPTION_LIFECYCLE,
+    BILLING_SUBSCRIPTION_LIFECYCLE_CRON,
+    {},
+    { key: 'billing-subscription-lifecycle' }
+  )
+  logger.info(
+    { cron: BILLING_SUBSCRIPTION_LIFECYCLE_CRON },
+    'job_queue.billing_subscription_lifecycle.scheduled'
+  )
+
+  await driver.schedule(
+    JOB_NAMES.ONBOARDING_CLEANUP,
+    ONBOARDING_CLEANUP_CRON,
+    {},
+    { key: 'onboarding-cleanup' }
+  )
+  logger.info({ cron: ONBOARDING_CLEANUP_CRON }, 'job_queue.onboarding_cleanup.scheduled')
 }

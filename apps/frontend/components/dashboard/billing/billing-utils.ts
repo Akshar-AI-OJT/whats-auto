@@ -3,8 +3,10 @@ import {
   type ApiError,
   type BillingCheckoutResult,
   type BillingSubscription,
+  type BillingVerifyResult,
   type TenantBillingPlan,
 } from '@/lib/api'
+import { openRazorpayCheckout } from '@/lib/razorpay-checkout'
 
 export function unwrapBillingSubscription(data: unknown): BillingSubscription | null {
   if (!data) return null
@@ -17,10 +19,19 @@ export function unwrapBillingSubscription(data: unknown): BillingSubscription | 
 
 export function unwrapBillingCheckout(data: unknown): BillingCheckoutResult | null {
   if (!data) return null
-  if (typeof data === 'object' && data !== null && 'subscriptionId' in data) {
+  if (typeof data === 'object' && data !== null && 'orderId' in data && 'keyId' in data) {
     return data as BillingCheckoutResult
   }
   const wrapped = data as { data?: BillingCheckoutResult }
+  return wrapped.data ?? null
+}
+
+export function unwrapBillingVerify(data: unknown): BillingVerifyResult | null {
+  if (!data) return null
+  if (typeof data === 'object' && data !== null && 'subscriptionId' in data) {
+    return data as BillingVerifyResult
+  }
+  const wrapped = data as { data?: BillingVerifyResult }
   return wrapped.data ?? null
 }
 
@@ -97,7 +108,7 @@ export function billingStatusTone(status: string) {
   if (normalized === 'past_due') {
     return 'bg-negative/10 text-negative border-negative/25'
   }
-  if (normalized === 'cancelled' || normalized === 'canceled') {
+  if (normalized === 'cancelled' || normalized === 'canceled' || normalized === 'expired') {
     return 'bg-dash-surface text-body border-dash-border'
   }
   return 'bg-dash-surface text-body border-dash-border'
@@ -110,53 +121,36 @@ export function isValidPlanId(value: string) {
   return UUID_RE.test(value.trim())
 }
 
-export function isCheckoutInProgressError(error: unknown): boolean {
-  const apiError = error as ApiError | undefined
-  if (!apiError) return false
-  return apiError.status === 409 || apiError.code === 'E_BILLING_CHECKOUT_IN_PROGRESS'
-}
-
-function checkoutResultFromSubscription(
-  subscription: BillingSubscription
-): BillingCheckoutResult {
-  return {
-    subscriptionId: subscription.id,
-    planId: subscription.planId,
-    status: subscription.status,
-    checkoutUrl: subscription.checkoutUrl ?? null,
-    gatewaySubscriptionId: subscription.gatewaySubscriptionId ?? null,
-  }
-}
-
 /**
- * POST /api/v1/billing/checkout with the internal plan UUID.
- * If a hosted checkout is already open for the org, resume that checkoutUrl.
+ * Create a Razorpay order, open Checkout.js, then verify the signature server-side.
  */
-export async function startOrResumeBillingCheckout(
-  planId: string
-): Promise<BillingCheckoutResult> {
-  try {
-    const { data } = await api.billing.checkout({ planId })
-    const result = unwrapBillingCheckout(data)
-    if (!result) {
-      throw new Error('Checkout did not return a subscription')
-    }
-    return result
-  } catch (error) {
-    if (!isCheckoutInProgressError(error)) throw error
-
-    try {
-      const { data } = await api.billing.getSubscription()
-      const subscription = unwrapBillingSubscription(data)
-      if (subscription?.checkoutUrl) {
-        return checkoutResultFromSubscription(subscription)
-      }
-    } catch {
-      /* fall through and rethrow the original 409 */
-    }
-
-    throw error
+export async function startBillingPayment(planId: string): Promise<BillingVerifyResult> {
+  const { data } = await api.billing.checkout({ planId })
+  const order = unwrapBillingCheckout(data)
+  if (!order) {
+    throw new Error('Checkout did not return an order')
   }
+
+  const paid = await openRazorpayCheckout({
+    key: order.keyId,
+    amount: order.amount,
+    currency: order.currency,
+    name: 'Whats-Auto',
+    description: order.plan.name,
+    orderId: order.orderId,
+    prefill: order.prefill,
+  })
+
+  const verified = await api.billing.verify({
+    razorpayOrderId: paid.razorpay_order_id,
+    razorpayPaymentId: paid.razorpay_payment_id,
+    razorpaySignature: paid.razorpay_signature,
+  })
+  const result = unwrapBillingVerify(verified.data)
+  if (!result) {
+    throw new Error('Payment verification did not return a subscription')
+  }
+  return result
 }
 
 export function isCapturedPayment(subscription: BillingSubscription | null): boolean {
@@ -164,7 +158,7 @@ export function isCapturedPayment(subscription: BillingSubscription | null): boo
   const last = subscription.lastPaymentStatus?.toLowerCase()
   if (last === 'captured' || last === 'paid' || last === 'success') return true
   const status = subscription.status.toLowerCase()
-  return (status === 'active' || status === 'authenticated') && !subscription.checkoutUrl
+  return status === 'active' || status === 'authenticated'
 }
 
 export function isFailedPayment(subscription: BillingSubscription | null): boolean {

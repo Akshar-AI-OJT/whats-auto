@@ -140,7 +140,7 @@ export class WhatsappEmbeddedSignupService {
       .from('organizations')
       .where('id', organizationId)
       .whereNull('deletedAt')
-      .where('status', true)
+      .where('status', 'active')
       .select('id')
       .first()
 
