@@ -262,7 +262,7 @@ export type CreateOrganizationBody = {
   industry?: string
   organizationType: OrganizationType
   address: string
-  pan: string
+  pan?: string
   gstin?: string
   country: string
   timezone: string
