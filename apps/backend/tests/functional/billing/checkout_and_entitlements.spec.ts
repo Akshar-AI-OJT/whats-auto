@@ -190,10 +190,7 @@ test.group('RazorpayCheckoutService', () => {
     assert,
   }) => {
     const seeded = await seedOrgAndCheckoutablePlan()
-    await db
-      .from('plans')
-      .where('id', seeded.planId)
-      .update({ gateway: null, gatewayPlanId: null })
+    await db.from('plans').where('id', seeded.planId).update({ gateway: null, gatewayPlanId: null })
 
     let createdPlanAmount: number | null = null
     const checkout = new RazorpayCheckoutService(

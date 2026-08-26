@@ -370,7 +370,7 @@
       "fields": {
         "fullName": "पूरा नाम",
         "email": "वर्क ईमेल",
-        "company": "कंपनी का नाम",
+        "company": "संगठन का नाम",
         "phone": "फ़ोन नंबर",
         "companySize": "कंपनी का आकार",
         "purpose": "डेमो का उद्देश्य"
@@ -1072,7 +1072,7 @@
       "subtitle": "कुछ ही मिनटों में ग्राहक बातचीत ऑटोमेट करना शुरू करें।",
       "firstname": "पहला नाम",
       "lastname": "अंतिम नाम",
-      "email": "बिज़नेस ईमेल",
+      "email": "ईमेल",
       "phone": "फ़ोन नंबर",
       "password": "पासवर्ड",
       "confirmPassword": "पासवर्ड की पुष्टि करें",
@@ -1231,7 +1231,7 @@
       "slug": "संगठन स्लग",
       "slugPlaceholder": "acme-workspace",
       "slugHint": "केवल छोटे अक्षर, अंक और हाइफ़न। नाम से ऑटो-जनरेट — आप संपादित कर सकते हैं।",
-      "email": "व्यवसाय ईमेल",
+      "email": "संगठन ईमेल",
       "emailPlaceholder": "ops@acme.com",
       "phone": "मोबाइल नंबर",
       "phonePlaceholder": "+91 98765 43210",

@@ -69,7 +69,8 @@ function createInitialState(): OrganizationWizardState {
   return {
     name: '',
     slug: '',
-    email: contact.email,
+    // Leave empty — org email may differ from the signed-in user's email.
+    email: '',
     phone: contact.phone,
     website: '',
     slugTouched: false,

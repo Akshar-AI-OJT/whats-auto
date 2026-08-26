@@ -375,7 +375,7 @@
       "fields": {
         "fullName": "Full Name",
         "email": "Work Email",
-        "company": "Company Name",
+        "company": "Organization Name",
         "phone": "Phone Number",
         "companySize": "Company Size",
         "purpose": "Purpose of Demo"
@@ -1077,7 +1077,7 @@
       "subtitle": "Start automating customer conversations in just a few minutes.",
       "firstname": "First Name",
       "lastname": "Last Name",
-      "email": "Business Email",
+      "email": "Email",
       "phone": "Phone Number",
       "password": "Password",
       "confirmPassword": "Confirm Password",
@@ -1236,7 +1236,7 @@
       "slug": "Organization Slug",
       "slugPlaceholder": "acme-workspace",
       "slugHint": "Lowercase letters, numbers, and hyphens only. Auto-generated from the name — you can edit it.",
-      "email": "Business Email",
+      "email": "Organization Email",
       "emailPlaceholder": "ops@acme.com",
       "phone": "Mobile Number",
       "phonePlaceholder": "+91 98765 43210",
@@ -1468,7 +1468,7 @@
         "insights": "Insights",
         "teamAccess": "Team & Access",
         "billing": "Billing",
-        "settings": "Settings"
+      "settings": "Settings"
       }
     },
     "flows": {
