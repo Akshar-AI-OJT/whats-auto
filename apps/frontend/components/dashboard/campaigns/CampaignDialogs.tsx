@@ -1,9 +1,14 @@
 'use client'
 
+import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Loader2 } from 'lucide-react'
 import type { Campaign, CampaignPreview } from '@/lib/api'
 import { Button } from '@/components/ui/button'
+import {
+  CAMPAIGN_CHANGE_STATUS_TARGETS,
+  type CampaignChangeStatusTarget,
+} from './campaign-utils'
 import {
   Dialog,
   DialogContent,
@@ -176,6 +181,97 @@ export function CampaignPreviewDialog({
           <DialogFooter className="border-0 bg-transparent p-0 sm:justify-end">
             <Button type="button" onClick={() => onOpenChange(false)}>
               {t('dismiss')}
+            </Button>
+          </DialogFooter>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+type CampaignChangeStatusDialogProps = {
+  open: boolean
+  campaign: Campaign | null
+  pending: boolean
+  error: string | null
+  onOpenChange: (open: boolean) => void
+  onConfirm: (status: CampaignChangeStatusTarget) => void
+}
+
+export function CampaignChangeStatusDialog({
+  open,
+  campaign,
+  pending,
+  error,
+  onOpenChange,
+  onConfirm,
+}: CampaignChangeStatusDialogProps) {
+  const t = useTranslations('dashboard.campaigns.changeStatus')
+  const tStatus = useTranslations('dashboard.campaigns.status')
+  const derivedStatus: CampaignChangeStatusTarget =
+    campaign?.status === 'scheduled' ? 'scheduled' : 'draft'
+  const campaignKey = open && campaign ? `${campaign.id}:${campaign.status}` : ''
+  const [trackedKey, setTrackedKey] = useState(campaignKey)
+  const [nextStatus, setNextStatus] = useState<CampaignChangeStatusTarget>(derivedStatus)
+  if (campaignKey !== trackedKey) {
+    setTrackedKey(campaignKey)
+    if (campaignKey) {
+      setNextStatus(derivedStatus)
+    }
+  }
+
+  const unchanged = campaign ? nextStatus === campaign.status : true
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md" showCloseButton>
+        <DialogHeader className="border-b border-dash-border px-5 py-4 text-left sm:px-6">
+          <DialogTitle>{t('title')}</DialogTitle>
+          <DialogDescription>{t('body', { name: campaign?.name ?? '' })}</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 px-5 py-4 sm:px-6">
+          <p className="text-xs text-mute">{t('hint')}</p>
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium text-ink">{t('label')}</legend>
+            {CAMPAIGN_CHANGE_STATUS_TARGETS.map((status) => (
+              <label
+                key={status}
+                className="flex cursor-pointer items-center gap-2 rounded-xl border border-dash-border px-3 py-2 text-sm text-ink"
+              >
+                <input
+                  type="radio"
+                  name="campaign-change-status"
+                  value={status}
+                  checked={nextStatus === status}
+                  disabled={pending}
+                  onChange={() => setNextStatus(status)}
+                />
+                {tStatus(status)}
+              </label>
+            ))}
+          </fieldset>
+          {error ? (
+            <p role="alert" className="text-sm text-negative">
+              {error}
+            </p>
+          ) : null}
+          <DialogFooter className="border-0 bg-transparent p-0 sm:justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={pending}
+              onClick={() => onOpenChange(false)}
+            >
+              {t('dismiss')}
+            </Button>
+            <Button
+              type="button"
+              disabled={pending || !campaign || unchanged}
+              className="gap-2"
+              onClick={() => onConfirm(nextStatus)}
+            >
+              {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
+              {pending ? t('saving') : t('confirm')}
             </Button>
           </DialogFooter>
         </div>

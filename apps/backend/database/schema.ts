@@ -268,6 +268,87 @@ export class AuthorizationAuditSchema extends BaseModel {
   declare targetType: string
 }
 
+export class BillingOrderSchema extends BaseModel {
+  static $columns = [
+    'amount',
+    'appliedAt',
+    'createdAt',
+    'currency',
+    'expiresAt',
+    'failureReason',
+    'gateway',
+    'gatewayOrderId',
+    'id',
+    'invoiceId',
+    'metadata',
+    'organizationId',
+    'paymentTransactionId',
+    'periodEnd',
+    'periodStart',
+    'planId',
+    'planSnapshot',
+    'purpose',
+    'receipt',
+    'status',
+    'subscriptionId',
+    'tax',
+    'taxRate',
+    'total',
+    'updatedAt',
+  ] as const
+  $columns = BillingOrderSchema.$columns
+  @column()
+  declare amount: string
+  @column.dateTime()
+  declare appliedAt: DateTime | null
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare currency: string
+  @column.dateTime()
+  declare expiresAt: DateTime | null
+  @column()
+  declare failureReason: string | null
+  @column()
+  declare gateway: string
+  @column()
+  declare gatewayOrderId: string
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare invoiceId: string | null
+  @column()
+  declare metadata: any
+  @column()
+  declare organizationId: string
+  @column()
+  declare paymentTransactionId: string | null
+  @column.dateTime()
+  declare periodEnd: DateTime
+  @column.dateTime()
+  declare periodStart: DateTime
+  @column()
+  declare planId: string
+  @column()
+  declare planSnapshot: any
+  @column()
+  declare purpose: string
+  @column()
+  declare receipt: string | null
+  @column()
+  declare status: string
+  @column()
+  declare subscriptionId: string | null
+  @column()
+  declare tax: string
+  @column()
+  declare taxRate: string
+  @column()
+  declare total: string
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+}
+
 export class BroadcastRecipientSchema extends BaseModel {
   static $columns = [
     'broadcastId',
@@ -1548,6 +1629,7 @@ export class OrganizationSubscriptionSchema extends BaseModel {
     'endedAt',
     'gateway',
     'gatewaySubscriptionId',
+    'graceEndsAt',
     'id',
     'lastPaymentAt',
     'lastPaymentStatus',
@@ -1581,6 +1663,8 @@ export class OrganizationSubscriptionSchema extends BaseModel {
   declare gateway: string | null
   @column()
   declare gatewaySubscriptionId: string | null
+  @column.dateTime()
+  declare graceEndsAt: DateTime | null
   @column({ isPrimary: true })
   declare id: string
   @column.dateTime()
@@ -1658,7 +1742,7 @@ export class OrganizationSchema extends BaseModel {
   @column()
   declare slug: string
   @column()
-  declare status: boolean
+  declare status: string
   @column()
   declare timezone: string
   @column.dateTime()
@@ -1919,7 +2003,6 @@ export class PlatformAiConfigSchema extends BaseModel {
     'debounceDelaySeconds',
     'embeddingModel',
     'embeddingProvider',
-    'handoverKeywords',
     'id',
     'isEnabled',
     'maxOutputTokens',
@@ -1956,8 +2039,6 @@ export class PlatformAiConfigSchema extends BaseModel {
   declare embeddingModel: string
   @column()
   declare embeddingProvider: string
-  @column()
-  declare handoverKeywords: any
   @column({ isPrimary: true })
   declare id: string
   @column()

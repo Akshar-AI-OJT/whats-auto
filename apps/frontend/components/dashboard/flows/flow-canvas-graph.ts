@@ -20,9 +20,25 @@ export const FLOW_CANVAS_NODE_TYPES = [
 
 export type FlowCanvasNodeType = (typeof FLOW_CANVAS_NODE_TYPES)[number]
 
-export const PALETTE_NODE_TYPES = FLOW_CANVAS_NODE_TYPES.filter(
-  (type) => type !== 'TRIGGER'
-) as Exclude<FlowCanvasNodeType, 'TRIGGER'>[]
+export type PaletteNodeType = Exclude<FlowCanvasNodeType, 'TRIGGER'>
+
+export const PALETTE_GROUPS = [
+  {
+    id: 'contents',
+    types: ['MESSAGE', 'TEMPLATE', 'INTERACTIVE_BUTTON', 'INTERACTIVE_LIST'],
+  },
+  {
+    id: 'actions',
+    types: ['CONDITION', 'SUBFLOW', 'AI_RAG', 'HUMAN_HANDOVER', 'EXIT'],
+  },
+] as const satisfies ReadonlyArray<{
+  id: 'contents' | 'actions'
+  types: readonly PaletteNodeType[]
+}>
+
+export const PALETTE_NODE_TYPES = PALETTE_GROUPS.flatMap(
+  (group) => group.types
+) as PaletteNodeType[]
 
 export const FLOW_NAV_ACTIONS = ['DEFAULT', 'BACK', 'MAIN_MENU', 'STOP'] as const
 export type FlowNavAction = (typeof FLOW_NAV_ACTIONS)[number]
@@ -270,6 +286,20 @@ export function remapSourceHandle(
   )
 }
 
+/** Drop edges whose sourceHandle was removed from a multi-handle node (list row / button / condition). */
+export function dropSourceHandles(
+  edges: FlowRfEdge[],
+  nodeId: string,
+  handleIds: string[]
+): FlowRfEdge[] {
+  if (handleIds.length === 0) return edges
+  const drop = new Set(handleIds.filter(Boolean))
+  if (drop.size === 0) return edges
+  return edges.filter(
+    (edge) => !(edge.source === nodeId && edge.sourceHandle && drop.has(edge.sourceHandle))
+  )
+}
+
 export function countListRows(data: Record<string, unknown>): number {
   const sections = Array.isArray(data.sections) ? data.sections : []
   let count = 0
@@ -286,4 +316,11 @@ export const DEFAULT_FLOW_SETTINGS = {
   sessionTtlMinutes: 1440,
   onExpiry: 'RESUME_PROMPT' as const,
   tangentResume: 'IMMEDIATE_REPROMPT' as const,
+  handoverKeywords: [] as string[],
 }
+
+/** Keep in sync with apps/backend/app/validators/flow.ts flowSettingsSchema.handoverKeywords */
+export const FLOW_HANDOVER_KEYWORD_LIMITS = {
+  maxCount: 50,
+  maxLength: 80,
+} as const

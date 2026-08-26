@@ -12,6 +12,7 @@ import {
   normalizeIsoCountryCode,
 } from '#lib/contact_phone'
 import { ContactService } from '#services/contact_service'
+import { validateContactProfileFields } from '#validators/contact'
 
 const IMPORT_COLUMNS = [
   'id',
@@ -194,22 +195,27 @@ export class ContactImportService {
           action = 'skipped'
           errorMessage = 'A contact with this phone number already exists'
         } else {
-          const created = await this.contacts.createContact({
-            organizationId: params.organizationId,
-            actorUserId: params.actorUserId,
-            phoneNumber,
-            countryCode: isInternationalContactPhone(phoneNumber)
-              ? undefined
-              : params.defaultCountryCode,
-            name,
-            email,
-            company,
-          })
-          params.seenNormalized.add(created.phoneNormalized)
-          status = 'processed'
-          action = 'inserted'
-          errorMessage = null
-          contactId = created.id
+          const profile = await validateContactProfileFields({ name, email, company })
+          if (!profile.ok) {
+            errorMessage = profile.message
+          } else {
+            const created = await this.contacts.createContact({
+              organizationId: params.organizationId,
+              actorUserId: params.actorUserId,
+              phoneNumber,
+              countryCode: isInternationalContactPhone(phoneNumber)
+                ? undefined
+                : params.defaultCountryCode,
+              name: profile.value.name,
+              email: profile.value.email,
+              company: profile.value.company,
+            })
+            params.seenNormalized.add(created.phoneNormalized)
+            status = 'processed'
+            action = 'inserted'
+            errorMessage = null
+            contactId = created.id
+          }
         }
       } catch (error) {
         if (error instanceof ContactException && error.code === 'E_CONTACT_PHONE_EXISTS') {

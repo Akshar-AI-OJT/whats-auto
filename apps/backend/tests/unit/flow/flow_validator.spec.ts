@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { META_INTERACTIVE_LIMITS } from '#lib/meta_whatsapp/interactive_message'
 import type { FlowGraph } from '#lib/flow/flow_graph'
 import { validateFlowGraph, validateFlowTrigger } from '#lib/flow/flow_graph_validator'
+import { RAG_PROMPT_APPENDIX_MAX_LENGTH } from '#services/ai/ai_prompt_defaults'
 
 function codes(errors: Array<{ code: string }>): string[] {
   return errors.map((error) => error.code)
@@ -115,6 +116,25 @@ test.group('flow graph validator', () => {
     assert.include(codes(validateFlowGraph(longTitle)), 'META_LIMIT')
   })
 
+  test('rejects AI_RAG promptAppendix over the character limit', ({ assert }) => {
+    const graph: FlowGraph = {
+      nodes: [
+        { id: 'trigger', type: 'TRIGGER', data: { label: 'Start' } },
+        {
+          id: 'rag',
+          type: 'AI_RAG',
+          data: {
+            label: 'RAG',
+            promptAppendix: 'x'.repeat(RAG_PROMPT_APPENDIX_MAX_LENGTH + 1),
+            fallbackAction: 'HUMAN_HANDOVER',
+          },
+        },
+      ],
+      edges: [{ id: 'e1', source: 'trigger', target: 'rag' }],
+    }
+    assert.include(codes(validateFlowGraph(graph)), 'META_LIMIT')
+  })
+
   test('rejects self subflow and subflow cycles', ({ assert }) => {
     const flowId = randomUUID()
     const otherId = randomUUID()
@@ -159,31 +179,34 @@ test.group('flow graph validator', () => {
     assert.deepEqual(validateFlowTrigger('INBOUND_ANY', {}), [])
   })
 
-  test('requires condition handles and fallback edges', ({ assert }) => {
+  test('requires INTERACTIVE_LIST section titles', ({ assert }) => {
     const graph: FlowGraph = {
       nodes: [
         { id: 'trigger', type: 'TRIGGER', data: { label: 'Start' } },
         {
-          id: 'cond',
-          type: 'CONDITION',
+          id: 'list',
+          type: 'INTERACTIVE_LIST',
           data: {
-            label: 'Check',
-            fallbackHandle: 'fallback',
-            conditions: [
+            label: 'Menu',
+            bodyText: 'Choose',
+            buttonTitle: 'Options',
+            sections: [
               {
-                id: 'yes',
-                variableKey: 'variables.ok',
-                operator: 'equals',
-                value: '1',
+                title: '',
+                rows: [{ id: 'row_1', title: 'One', actionType: 'DEFAULT' }],
               },
             ],
           },
         },
         { id: 'exit', type: 'EXIT', data: { label: 'Done' } },
       ],
-      edges: [{ id: 'e1', source: 'trigger', target: 'cond' }],
+      edges: [
+        { id: 'e1', source: 'trigger', target: 'list' },
+        { id: 'e2', source: 'list', sourceHandle: 'row_1', target: 'exit' },
+      ],
     }
     const errors = validateFlowGraph(graph)
-    assert.include(codes(errors), 'MISSING_HANDLE_EDGE')
+    assert.include(codes(errors), 'MISSING_REQUIRED_FIELD')
+    assert.isTrue(errors.some((error) => error.message?.includes('section requires a title')))
   })
 })

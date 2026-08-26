@@ -78,6 +78,7 @@ export type InsertInvoiceParams = {
   billToAddress?: string | null
   billToGstin?: string | null
   metadata?: Record<string, unknown>
+  paidAt?: Date | null
 }
 
 export type InsertInvoiceLineItemParams = {
@@ -233,6 +234,7 @@ export class InvoiceRepository {
         billToAddress: params.billToAddress ?? null,
         billToGstin: params.billToGstin ?? null,
         metadata: params.metadata ?? {},
+        paidAt: params.paidAt ?? null,
       })
       .returning('*')
 

@@ -20,7 +20,7 @@ export const plansModule: DemoSeedModule = {
         trialDays: 0,
         gateway: null as string | null,
         gatewayPlanId: null as string | null,
-        isActive: true,
+        isActive: false,
         sortOrder: 10,
         limits: jsonb({
           messagesPerMonth: 500,
@@ -28,7 +28,7 @@ export const plansModule: DemoSeedModule = {
           whatsappNumbers: 1,
           storageBytes: 1_073_741_824,
         }),
-        metadata: jsonb({}),
+        metadata: jsonb({ status: 'archived' }),
       },
       {
         id: FIXTURE_IDS.plans.growth,
@@ -39,10 +39,9 @@ export const plansModule: DemoSeedModule = {
         currency: 'INR',
         billingInterval: 'month',
         billingIntervalCount: 1,
-        trialDays: 14,
-        gateway: 'razorpay',
-        // Demo-only id — replace with a real Razorpay plan_XXXX in sandbox/checkout tests
-        gatewayPlanId: 'plan_demo_growth_monthly',
+        trialDays: 0,
+        gateway: null as string | null,
+        gatewayPlanId: null as string | null,
         isActive: true,
         sortOrder: 20,
         limits: jsonb({
@@ -62,9 +61,9 @@ export const plansModule: DemoSeedModule = {
         currency: 'INR',
         billingInterval: 'month',
         billingIntervalCount: 1,
-        trialDays: 14,
-        gateway: 'razorpay',
-        gatewayPlanId: 'plan_demo_scale_monthly',
+        trialDays: 0,
+        gateway: null as string | null,
+        gatewayPlanId: null as string | null,
         isActive: true,
         sortOrder: 30,
         limits: jsonb({

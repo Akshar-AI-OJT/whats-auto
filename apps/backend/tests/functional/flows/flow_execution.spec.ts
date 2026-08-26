@@ -27,7 +27,7 @@ async function createOrg() {
       country: 'US',
       timezone: 'UTC',
       currency: 'USD',
-      status: true,
+      status: 'active',
     })
     .returning(['id'])
   return row.id as string
@@ -557,7 +557,7 @@ test.group('Flows | execution engine', (group) => {
     }
   })
 
-  test('keyword trigger → welcome → buttons → selection → exit; no AI debounce job', async ({
+  test('keyword trigger → welcome → buttons → selection → exit; enqueues flow advance only', async ({
     assert,
   }) => {
     const organizationId = await createOrg()
@@ -581,10 +581,10 @@ test.group('Flows | execution engine', (group) => {
       createdAt: new Date().toISOString(),
     })
 
-    assert.isFalse(queue.enqueued.some((job) => job.name === JOB_NAMES.AI_DEBOUNCE_TURN))
     const advanceJobs = queue.enqueued.filter((job) => job.name === JOB_NAMES.FLOWS_ADVANCE_SESSION)
     assert.lengthOf(advanceJobs, 1)
     assert.equal(advanceJobs[0]?.options?.singletonKey, fixture.conversationId)
+    assert.isTrue(advanceJobs[0]?.options?.runAt instanceof Date)
 
     await drainFlowAdvanceJobs(queue)
 
@@ -632,10 +632,12 @@ test.group('Flows | execution engine', (group) => {
       createdAt: new Date().toISOString(),
     })
 
-    assert.isFalse(queue.enqueued.some((job) => job.name === JOB_NAMES.AI_DEBOUNCE_TURN))
     assert.lengthOf(
       queue.enqueued.filter((job) => job.name === JOB_NAMES.FLOWS_ADVANCE_SESSION),
       1
+    )
+    assert.isUndefined(
+      queue.enqueued.find((job) => job.name === JOB_NAMES.FLOWS_ADVANCE_SESSION)?.options?.runAt
     )
 
     await drainFlowAdvanceJobs(queue)

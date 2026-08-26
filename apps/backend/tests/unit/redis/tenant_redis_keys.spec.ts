@@ -11,9 +11,10 @@ const SPACE = 'openai:text-embedding-3-small:1024:v1'
 const HASH = 'a'.repeat(64)
 
 test.group('tenantRedisKey', () => {
-  test('builds org-scoped debounce and memory keys', ({ assert }) => {
-    assert.equal(tenantRedisKey('debounce', ORG, CONV), `wa:org:${ORG}:debounce:${CONV}`)
+  test('builds org-scoped flowbuf and memory keys', ({ assert }) => {
+    assert.equal(tenantRedisKey('flowbuf', ORG, CONV), `wa:org:${ORG}:flowbuf:${CONV}`)
     assert.equal(tenantRedisKey('memory', ORG, CONV), `wa:org:${ORG}:memory:${CONV}`)
+    assert.equal(tenantRedisKey('debounce', ORG, CONV), `wa:org:${ORG}:debounce:${CONV}`)
   })
 
   test('builds an org-scoped answer-cache key with space and question hash', ({ assert }) => {

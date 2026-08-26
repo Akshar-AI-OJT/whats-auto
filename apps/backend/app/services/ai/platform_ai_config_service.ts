@@ -34,7 +34,6 @@ export type PlatformAiConfigSnapshot = {
   minConfidenceScore: number
   debounceDelaySeconds: number
   systemPrompt: string | null
-  handoverKeywords: string[]
   workingSetSize: number
   summaryTurnThreshold: number
   embeddingProvider: LlmChatProvider
@@ -62,7 +61,6 @@ export type UpdatePlatformAiConfigDto = {
   minConfidenceScore?: number
   debounceDelaySeconds?: number
   systemPrompt?: string | null
-  handoverKeywords?: string[]
   workingSetSize?: number
   summaryTurnThreshold?: number
   embeddingProvider?: LlmChatProvider
@@ -97,7 +95,6 @@ type PlatformAiConfigRow = {
   minConfidenceScore: string | number
   debounceDelaySeconds: number
   systemPrompt: string | null
-  handoverKeywords: unknown
   workingSetSize: number
   summaryTurnThreshold: number
   embeddingProvider: string
@@ -241,8 +238,7 @@ export default class PlatformAiConfigService {
         continue
       }
       if (skipLiveEmbed && key === 'embeddingModel') continue
-      updates[key] =
-        key === 'handoverKeywords' && Array.isArray(value) ? JSON.stringify(value) : value
+      updates[key] = value
     }
     if (embedIdentityChanged && !skipLiveEmbed) {
       updates.activeEmbeddingSpaceId = nextSpace
@@ -402,7 +398,6 @@ export default class PlatformAiConfigService {
       minConfidenceScore: Number(row.minConfidenceScore),
       debounceDelaySeconds: Number(row.debounceDelaySeconds),
       systemPrompt: row.systemPrompt,
-      handoverKeywords: normalizeKeywords(row.handoverKeywords),
       workingSetSize: Number(row.workingSetSize),
       summaryTurnThreshold: Number(row.summaryTurnThreshold),
       embeddingProvider,
@@ -530,18 +525,4 @@ function apiKeyForProvider(provider: LlmChatProvider): string | undefined {
 
 function toIso(value: Date | string): string {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString()
-}
-
-function normalizeKeywords(value: unknown): string[] {
-  if (typeof value === 'string') {
-    try {
-      return normalizeKeywords(JSON.parse(value))
-    } catch {
-      return []
-    }
-  }
-  if (Array.isArray(value) && value.every((item) => typeof item === 'string')) {
-    return value
-  }
-  return []
 }

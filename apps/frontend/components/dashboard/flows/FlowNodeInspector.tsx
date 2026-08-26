@@ -17,6 +17,9 @@ import {
   type FlowRfNode,
 } from './flow-canvas-graph'
 
+/** Keep in sync with apps/backend/app/services/ai/ai_prompt_defaults.ts */
+const RAG_PROMPT_APPENDIX_MAX_LENGTH = 2000
+
 const selectClassName = cn(
   'h-11 w-full rounded-xl border border-dash-border bg-canvas px-3 text-sm text-ink outline-none',
   'focus-visible:border-primary/55 focus-visible:ring-2 focus-visible:ring-primary/30',
@@ -39,6 +42,7 @@ export function FlowNodeInspector({
   publishedFlows,
   onPatchData,
   onRenameHandle,
+  onRemoveHandles,
   onDelete,
 }: {
   node: FlowRfNode | null
@@ -47,13 +51,14 @@ export function FlowNodeInspector({
   publishedFlows: FlowOption[]
   onPatchData: (patch: Record<string, unknown>) => void
   onRenameHandle: (oldId: string, nextId: string) => void
+  onRemoveHandles: (handleIds: string[]) => void
   onDelete: () => void
 }) {
   const t = useTranslations('dashboard.flows.editor')
 
   if (!node) {
     return (
-      <div className="rounded-xl border border-dash-border bg-canvas p-4">
+      <div className="flex h-full min-h-0 flex-col overflow-y-auto rounded-xl border border-dash-border bg-canvas p-4">
         <p className="text-sm text-mute">{t('inspectorEmpty')}</p>
       </div>
     )
@@ -64,10 +69,10 @@ export function FlowNodeInspector({
   const canDelete = type !== 'TRIGGER' && !readOnly
 
   return (
-    <div className="flex min-h-0 flex-col overflow-y-auto rounded-xl border border-dash-border bg-canvas p-4">
+    <div className="flex h-full min-h-0 flex-col overflow-y-auto rounded-xl border border-dash-border bg-canvas p-4">
       <div className="mb-3 flex items-start justify-between gap-2">
         <div>
-      <p className="text-xs font-medium tracking-wide text-mute uppercase">
+          <p className="text-xs font-medium tracking-wide text-mute uppercase">
             {t(`nodeTypes.${type}`)}
           </p>
           <p className="mt-1 text-sm font-medium text-ink">{node.id}</p>
@@ -110,6 +115,7 @@ export function FlowNodeInspector({
           readOnly={readOnly}
           onPatchData={onPatchData}
           onRenameHandle={onRenameHandle}
+          onRemoveHandles={onRemoveHandles}
         />
       ) : null}
       {type === 'INTERACTIVE_LIST' ? (
@@ -118,6 +124,7 @@ export function FlowNodeInspector({
           readOnly={readOnly}
           onPatchData={onPatchData}
           onRenameHandle={onRenameHandle}
+          onRemoveHandles={onRemoveHandles}
         />
       ) : null}
       {type === 'CONDITION' ? (
@@ -126,6 +133,7 @@ export function FlowNodeInspector({
           readOnly={readOnly}
           onPatchData={onPatchData}
           onRenameHandle={onRenameHandle}
+          onRemoveHandles={onRemoveHandles}
         />
       ) : null}
       {type === 'SUBFLOW' ? (
@@ -188,17 +196,7 @@ function MessageFields({
           ))}
         </select>
       </div>
-      {messageType === 'text' ? (
-        <div className="space-y-2">
-          <Label>{t('fields.text')}</Label>
-          <textarea
-            className={textareaClassName}
-            value={asString(data.text)}
-            disabled={readOnly}
-            onChange={(event) => onPatchData({ text: event.target.value })}
-          />
-        </div>
-      ) : (
+      {messageType === 'text' ? null : (
         <>
           <div className="space-y-2">
             <Label>{t('fields.mediaAssetId')}</Label>
@@ -270,35 +268,28 @@ function ButtonFields({
   readOnly,
   onPatchData,
   onRenameHandle,
+  onRemoveHandles,
 }: {
   data: Record<string, unknown>
   readOnly: boolean
   onPatchData: (patch: Record<string, unknown>) => void
   onRenameHandle: (oldId: string, nextId: string) => void
+  onRemoveHandles: (handleIds: string[]) => void
 }) {
   const t = useTranslations('dashboard.flows.editor')
-  const bodyText = asString(data.bodyText)
   const buttons = Array.isArray(data.buttons) ? data.buttons.map(asRecord) : []
-
   return (
     <div className="mt-4 space-y-3">
-      <div className="space-y-2">
-        <Label>{t('fields.bodyText')}</Label>
-        <textarea
-          className={textareaClassName}
-          value={bodyText}
-          disabled={readOnly}
-          onChange={(event) => onPatchData({ bodyText: event.target.value })}
-        />
-      </div>
       <p className="text-xs text-mute">
         {t('meta.buttons', { count: buttons.length, max: META_INTERACTIVE_LIMITS.maxButtons })}
       </p>
       {buttons.map((button, index) => {
         const id = asString(button.id)
-        const title = asString(button.title)
         return (
-          <div key={`${id}-${index}`} className="space-y-2 rounded-lg border border-dash-border p-3">
+          <div
+            key={`${id}-${index}`}
+            className="space-y-2 rounded-lg border border-dash-border p-3"
+          >
             <div className="space-y-2">
               <Label>{t('fields.handleId')}</Label>
               <Input
@@ -311,23 +302,6 @@ function ButtonFields({
                   )
                   onPatchData({ buttons: next })
                   onRenameHandle(id, nextId)
-                }}
-                className="h-11 rounded-xl"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>
-                {t('fields.buttonTitle')} ({title.length}/{META_INTERACTIVE_LIMITS.buttonTitleMax})
-              </Label>
-              <Input
-                value={title}
-                maxLength={META_INTERACTIVE_LIMITS.buttonTitleMax}
-                disabled={readOnly}
-                onChange={(event) => {
-                  const next = buttons.map((item, i) =>
-                    i === index ? { ...item, title: event.target.value } : item
-                  )
-                  onPatchData({ buttons: next })
                 }}
                 className="h-11 rounded-xl"
               />
@@ -357,7 +331,10 @@ function ButtonFields({
                 type="button"
                 size="sm"
                 variant="outline"
-                onClick={() => onPatchData({ buttons: buttons.filter((_, i) => i !== index) })}
+                onClick={() => {
+                  onPatchData({ buttons: buttons.filter((_, i) => i !== index) })
+                  if (id) onRemoveHandles([id])
+                }}
               >
                 {t('removeButton')}
               </Button>
@@ -372,10 +349,7 @@ function ButtonFields({
           variant="outline"
           onClick={() =>
             onPatchData({
-              buttons: [
-                ...buttons,
-                { id: newCanvasId('btn'), title: 'OK', actionType: 'DEFAULT' },
-              ],
+              buttons: [...buttons, { id: newCanvasId('btn'), title: 'OK', actionType: 'DEFAULT' }],
             })
           }
         >
@@ -391,41 +365,21 @@ function ListFields({
   readOnly,
   onPatchData,
   onRenameHandle,
+  onRemoveHandles,
 }: {
   data: Record<string, unknown>
   readOnly: boolean
   onPatchData: (patch: Record<string, unknown>) => void
   onRenameHandle: (oldId: string, nextId: string) => void
+  onRemoveHandles: (handleIds: string[]) => void
 }) {
   const t = useTranslations('dashboard.flows.editor')
   const sections = Array.isArray(data.sections) ? data.sections.map(asRecord) : []
   const rowCount = countListRows(data)
-  const buttonTitle = asString(data.buttonTitle)
+  const canAddRow = !readOnly && rowCount < META_INTERACTIVE_LIMITS.maxListRows
 
   return (
     <div className="mt-4 space-y-3">
-      <div className="space-y-2">
-        <Label>{t('fields.bodyText')}</Label>
-        <textarea
-          className={textareaClassName}
-          value={asString(data.bodyText)}
-          disabled={readOnly}
-          onChange={(event) => onPatchData({ bodyText: event.target.value })}
-        />
-      </div>
-      <div className="space-y-2">
-        <Label>
-          {t('fields.listButtonTitle')} ({buttonTitle.length}/
-          {META_INTERACTIVE_LIMITS.listButtonTitleMax})
-        </Label>
-        <Input
-          value={buttonTitle}
-          maxLength={META_INTERACTIVE_LIMITS.listButtonTitleMax}
-          disabled={readOnly}
-          onChange={(event) => onPatchData({ buttonTitle: event.target.value })}
-          className="h-11 rounded-xl"
-        />
-      </div>
       <p className="text-xs text-mute">
         {t('meta.rows', { count: rowCount, max: META_INTERACTIVE_LIMITS.maxListRows })}
       </p>
@@ -445,6 +399,7 @@ function ListFields({
               <Input
                 value={sectionTitle}
                 maxLength={META_INTERACTIVE_LIMITS.sectionTitleMax}
+                required
                 disabled={readOnly}
                 onChange={(event) => {
                   const next = sections.map((item, i) =>
@@ -457,7 +412,6 @@ function ListFields({
             </div>
             {rows.map((row, rowIndex) => {
               const id = asString(row.id)
-              const title = asString(row.title)
               const description = asString(row.description)
               return (
                 <div
@@ -479,23 +433,6 @@ function ListFields({
                       })
                       onPatchData({ sections: next })
                       onRenameHandle(id, nextId)
-                    }}
-                    className="h-10 rounded-xl"
-                  />
-                  <Input
-                    value={title}
-                    maxLength={META_INTERACTIVE_LIMITS.rowTitleMax}
-                    disabled={readOnly}
-                    placeholder={`${t('fields.rowTitle')} (${title.length}/${META_INTERACTIVE_LIMITS.rowTitleMax})`}
-                    onChange={(event) => {
-                      const next = sections.map((item, i) => {
-                        if (i !== sectionIndex) return item
-                        const nextRows = rows.map((r, ri) =>
-                          ri === rowIndex ? { ...r, title: event.target.value } : r
-                        )
-                        return { ...item, rows: nextRows }
-                      })
-                      onPatchData({ sections: next })
                     }}
                     className="h-10 rounded-xl"
                   />
@@ -543,11 +480,15 @@ function ListFields({
                       size="sm"
                       variant="outline"
                       onClick={() => {
-                        const next = sections.map((item, i) => {
-                          if (i !== sectionIndex) return item
-                          return { ...item, rows: rows.filter((_, ri) => ri !== rowIndex) }
-                        })
+                        const nextRows = rows.filter((_, ri) => ri !== rowIndex)
+                        const next =
+                          nextRows.length === 0 && sections.length > 1
+                            ? sections.filter((_, i) => i !== sectionIndex)
+                            : sections.map((item, i) =>
+                                i === sectionIndex ? { ...item, rows: nextRows } : item
+                              )
                         onPatchData({ sections: next })
+                        if (id) onRemoveHandles([id])
                       }}
                     >
                       {t('removeRow')}
@@ -556,7 +497,7 @@ function ListFields({
                 </div>
               )
             })}
-            {!readOnly && rowCount < META_INTERACTIVE_LIMITS.maxListRows ? (
+            {canAddRow ? (
               <Button
                 type="button"
                 size="sm"
@@ -578,9 +519,43 @@ function ListFields({
                 {t('addRow')}
               </Button>
             ) : null}
+            {!readOnly && sections.length > 1 ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  const removedIds = rows.map((row) => asString(row.id)).filter(Boolean)
+                  onPatchData({ sections: sections.filter((_, i) => i !== sectionIndex) })
+                  onRemoveHandles(removedIds)
+                }}
+              >
+                {t('removeSection')}
+              </Button>
+            ) : null}
           </div>
         )
       })}
+      {canAddRow ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() =>
+            onPatchData({
+              sections: [
+                ...sections,
+                {
+                  title: '',
+                  rows: [{ id: newCanvasId('row'), title: 'Option', actionType: 'DEFAULT' }],
+                },
+              ],
+            })
+          }
+        >
+          {t('addSection')}
+        </Button>
+      ) : null}
     </div>
   )
 }
@@ -590,11 +565,13 @@ function ConditionFields({
   readOnly,
   onPatchData,
   onRenameHandle,
+  onRemoveHandles,
 }: {
   data: Record<string, unknown>
   readOnly: boolean
   onPatchData: (patch: Record<string, unknown>) => void
   onRenameHandle: (oldId: string, nextId: string) => void
+  onRemoveHandles: (handleIds: string[]) => void
 }) {
   const t = useTranslations('dashboard.flows.editor')
   const conditions = Array.isArray(data.conditions) ? data.conditions.map(asRecord) : []
@@ -618,7 +595,10 @@ function ConditionFields({
       {conditions.map((condition, index) => {
         const id = asString(condition.id)
         return (
-          <div key={`${id}-${index}`} className="space-y-2 rounded-lg border border-dash-border p-3">
+          <div
+            key={`${id}-${index}`}
+            className="space-y-2 rounded-lg border border-dash-border p-3"
+          >
             <Input
               value={id}
               disabled={readOnly}
@@ -679,9 +659,10 @@ function ConditionFields({
                 type="button"
                 size="sm"
                 variant="outline"
-                onClick={() =>
+                onClick={() => {
                   onPatchData({ conditions: conditions.filter((_, i) => i !== index) })
-                }
+                  if (id) onRemoveHandles([id])
+                }}
               >
                 {t('removeCondition')}
               </Button>
@@ -761,9 +742,26 @@ function AiRagFields({
   const t = useTranslations('dashboard.flows.editor')
   const fallbackAction = asString(data.fallbackAction) || 'HUMAN_HANDOVER'
   const fallbackTargetHandle = asString(data.fallbackTargetHandle)
+  const promptAppendix = asString(data.promptAppendix) ?? ''
 
   return (
     <div className="mt-4 space-y-3">
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <Label>{t('fields.promptAppendix')}</Label>
+          <span className="text-xs text-muted-ink">
+            {promptAppendix.length} / {RAG_PROMPT_APPENDIX_MAX_LENGTH}
+          </span>
+        </div>
+        <textarea
+          className={textareaClassName}
+          value={promptAppendix}
+          disabled={readOnly}
+          maxLength={RAG_PROMPT_APPENDIX_MAX_LENGTH}
+          placeholder={t('hints.promptAppendix')}
+          onChange={(event) => onPatchData({ promptAppendix: event.target.value })}
+        />
+      </div>
       <div className="space-y-2">
         <Label>{t('fields.fallbackAction')}</Label>
         <select

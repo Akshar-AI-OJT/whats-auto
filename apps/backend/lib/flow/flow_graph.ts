@@ -16,12 +16,15 @@ export const DEFAULT_FLOW_SETTINGS: FlowSettings = {
   sessionTtlMinutes: 1440,
   onExpiry: 'RESUME_PROMPT',
   tangentResume: 'IMMEDIATE_REPROMPT',
+  handoverKeywords: [],
 }
 
 export type FlowSettings = {
   sessionTtlMinutes: number
   onExpiry: FlowExpiryMode
   tangentResume: FlowTangentResumeMode
+  /** Mid-flow escape phrases (case-insensitive substring). Empty = no keyword handover. */
+  handoverKeywords: string[]
 }
 
 export type FlowTriggerConfig = {
@@ -98,6 +101,12 @@ export function parseFlowSettings(value: unknown): FlowSettings {
   const ttl = Number(record.sessionTtlMinutes)
   const onExpiry = asString(record.onExpiry)
   const tangentResume = asString(record.tangentResume)
+  const handoverKeywords = Array.isArray(record.handoverKeywords)
+    ? record.handoverKeywords
+        .filter((item): item is string => typeof item === 'string')
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0)
+    : DEFAULT_FLOW_SETTINGS.handoverKeywords
 
   return {
     sessionTtlMinutes:
@@ -110,6 +119,7 @@ export function parseFlowSettings(value: unknown): FlowSettings {
     tangentResume: FLOW_TANGENT_RESUME_MODES.includes(tangentResume as FlowTangentResumeMode)
       ? (tangentResume as FlowTangentResumeMode)
       : DEFAULT_FLOW_SETTINGS.tangentResume,
+    handoverKeywords,
   }
 }
 

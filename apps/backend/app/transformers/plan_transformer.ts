@@ -72,13 +72,12 @@ export function transformPlanLimits(row: Pick<PlanRow, 'limits'>): PlanLimits {
 }
 
 /**
- * Same acceptance rules as `PlanRepository.findActiveCheckoutableById` /
- * Razorpay checkout. Keep this and the SQL filter in lockstep.
+ * Tenant checkout eligibility — active paid plans (any billing interval).
+ * Keep in lockstep with `PlanRepository.findActiveCheckoutableById`.
  */
-export function isPlanCheckoutable(
-  row: Pick<PlanRow, 'isActive' | 'gateway' | 'gatewayPlanId'>
-): boolean {
-  return row.isActive === true && row.gateway === 'razorpay' && Boolean(row.gatewayPlanId)
+export function isPlanCheckoutable(row: Pick<PlanRow, 'isActive' | 'price'>): boolean {
+  if (row.isActive !== true) return false
+  return toNumber(row.price) > 0
 }
 
 export function transformPlan(row: PlanRow): SuperAdminPlan {

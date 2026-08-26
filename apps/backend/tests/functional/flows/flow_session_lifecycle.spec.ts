@@ -32,7 +32,7 @@ async function createOrg() {
       country: 'US',
       timezone: 'UTC',
       currency: 'USD',
-      status: true,
+      status: 'active',
     })
     .returning(['id'])
   return row.id as string
@@ -444,6 +444,59 @@ test.group('Flows | session lifecycle', (group) => {
       db.from('flow_sessions').where('id', session!.id).first()
     )
     assert.equal(stillPaused?.status, FlowSessionStatus.PAUSED_FOR_HUMAN)
+  })
+
+  test('resume AI terminates a paused session so the next keyword starts a fresh flow', async ({
+    assert,
+  }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const { fixture, session } = await startWaitingSession({
+      organizationId,
+      queue,
+      onExpiry: 'RESUME_PROMPT',
+    })
+
+    await new ConversationAiModeService().takeover({
+      organizationId,
+      conversationId: fixture.conversationId,
+    })
+    await new ConversationAiModeService().resume({
+      organizationId,
+      conversationId: fixture.conversationId,
+    })
+
+    const terminated = await runWithTenant(organizationId, () =>
+      db.from('flow_sessions').where('id', session!.id).first()
+    )
+    assert.equal(terminated?.status, FlowSessionStatus.TERMINATED)
+
+    const conversation = await runWithTenant(organizationId, () =>
+      db.from('conversations').where('id', fixture.conversationId).first()
+    )
+    assert.equal(conversation?.aiMode, ConversationAiMode.AI_AUTO)
+
+    queue.clearEnqueued()
+    await dispatchInbound({
+      organizationId,
+      conversationId: fixture.conversationId,
+      contactId: fixture.contactId,
+      contentText: 'hi',
+    })
+    await drainFlowAdvanceJobs(queue)
+
+    const sessions = await runWithTenant(organizationId, () =>
+      db
+        .from('flow_sessions')
+        .where('organizationId', organizationId)
+        .where('conversationId', fixture.conversationId)
+        .orderBy('createdAt', 'asc')
+    )
+    assert.equal(sessions.length, 2)
+    assert.equal(sessions[0].id, session!.id)
+    assert.equal(sessions[0].status, FlowSessionStatus.TERMINATED)
+    assert.equal(sessions[1].status, FlowSessionStatus.WAITING_FOR_INPUT)
+    assert.notEqual(sessions[1].id, session!.id)
   })
 
   test('recovery job purges execution logs older than the retention window', async ({ assert }) => {

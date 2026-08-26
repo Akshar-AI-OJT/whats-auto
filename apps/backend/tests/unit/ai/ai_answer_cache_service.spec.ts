@@ -24,8 +24,10 @@ class InMemoryStringStore {
   }
 }
 
-function hashQuestion(question: string): string {
-  return createHash('sha256').update(normalizeAnswerCacheQuestion(question), 'utf8').digest('hex')
+function hashQuestion(question: string, promptFingerprint?: string): string {
+  const normalized = normalizeAnswerCacheQuestion(question)
+  const material = promptFingerprint ? `${normalized}\0${promptFingerprint}` : normalized
+  return createHash('sha256').update(material, 'utf8').digest('hex')
 }
 
 test.group('normalizeAnswerCacheQuestion', () => {
@@ -82,6 +84,48 @@ test.group('AiAnswerCacheService', () => {
         embeddingSpaceId: OTHER_SPACE,
       })
     )
+  })
+
+  test('misses when prompt fingerprint differs for the same question', async ({ assert }) => {
+    const redis = new InMemoryStringStore()
+    const cache = new AiAnswerCacheService(redis as unknown as TenantRedisStore)
+    await cache.set(
+      {
+        organizationId: ORG,
+        question: 'hours?',
+        embeddingSpaceId: SPACE,
+        promptFingerprint: 'fp-a',
+      },
+      'Answer for tone A'
+    )
+
+    assert.equal(
+      await cache.get({
+        organizationId: ORG,
+        question: 'hours?',
+        embeddingSpaceId: SPACE,
+        promptFingerprint: 'fp-a',
+      }),
+      'Answer for tone A'
+    )
+    assert.isNull(
+      await cache.get({
+        organizationId: ORG,
+        question: 'hours?',
+        embeddingSpaceId: SPACE,
+        promptFingerprint: 'fp-b',
+      })
+    )
+    assert.isNull(
+      await cache.get({
+        organizationId: ORG,
+        question: 'hours?',
+        embeddingSpaceId: SPACE,
+      })
+    )
+
+    const key = tenantAnswerCacheKey(ORG, SPACE, hashQuestion('hours?', 'fp-a'))
+    assert.equal(redis.values.get(key), 'Answer for tone A')
   })
 
   test('does not store an empty answer and treats empty stored values as a miss', async ({

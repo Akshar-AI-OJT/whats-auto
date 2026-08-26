@@ -133,6 +133,22 @@ export class FlowSessionRepository {
     return Number(updated)
   }
 
+  async terminatePausedForConversation(
+    params: { organizationId: string; conversationId: string },
+    client: Db = db
+  ): Promise<number> {
+    const updated = await client
+      .from('flow_sessions')
+      .where('organizationId', params.organizationId)
+      .where('conversationId', params.conversationId)
+      .where('status', FlowSessionStatus.PAUSED_FOR_HUMAN)
+      .update({
+        status: FlowSessionStatus.TERMINATED,
+        updatedAt: new Date(),
+      })
+    return Number(updated)
+  }
+
   async insert(params: InsertFlowSessionParams, client: Db = db): Promise<FlowSessionRow> {
     const [row] = await client
       .table('flow_sessions')

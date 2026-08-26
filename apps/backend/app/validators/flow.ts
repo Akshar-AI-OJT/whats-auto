@@ -34,6 +34,10 @@ const flowSettingsSchema = vine.object({
   sessionTtlMinutes: vine.number().withoutDecimals().min(1).max(10080).optional(),
   onExpiry: vine.enum(FLOW_EXPIRY_MODES).optional(),
   tangentResume: vine.enum(FLOW_TANGENT_RESUME_MODES).optional(),
+  handoverKeywords: vine
+    .array(vine.string().trim().minLength(1).maxLength(80))
+    .maxLength(50)
+    .optional(),
 })
 
 const flowTriggerConfigSchema = vine.object({

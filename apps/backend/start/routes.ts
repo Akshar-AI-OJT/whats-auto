@@ -214,11 +214,6 @@ const requestBodySchemas: Record<string, JsonSchema> = {
     minConfidenceScore: { type: 'number', example: 0.7 },
     debounceDelaySeconds: { type: 'integer', example: 4 },
     systemPrompt: { type: 'string', example: 'You are a grounded support agent.' },
-    handoverKeywords: {
-      type: 'array',
-      items: { type: 'string' },
-      example: ['agent', 'human', 'representative'],
-    },
     workingSetSize: { type: 'integer', example: 6 },
     summaryTurnThreshold: { type: 'integer', example: 10 },
     embeddingProvider: { type: 'string', example: 'openai' },
@@ -801,7 +796,7 @@ router
     router.post('/:id/invitations', [InvitationsController, 'store'])
   })
   .prefix('/api/v1/organizations')
-  .use([middleware.jwtAuth(), middleware.tenant()])
+  .use([middleware.jwtAuth(), middleware.tenant({ skipActiveGate: true })])
 
 // invitations — list stays active-org scoped; accept/reject/cancel use invitation :id
 router
@@ -821,7 +816,7 @@ router
 //  Access context (frontend polls this after login/org switch)
 router
   .get('/api/v1/access-context', [controllers.AccessContext, 'show'])
-  .use([middleware.jwtAuth(), middleware.tenant()])
+  .use([middleware.jwtAuth(), middleware.tenant({ skipActiveGate: true })])
 
 // Onboarding state — no active org required; tells the client which screen comes next
 router.get('/api/v1/onboarding/state', [OnboardingController, 'show']).use([middleware.jwtAuth()])
@@ -1000,9 +995,10 @@ router
     router.get('/plans', [BillingController, 'listPlans'])
     router.get('/subscription', [BillingController, 'showSubscription'])
     router.post('/checkout', [BillingController, 'checkout'])
+    router.post('/verify', [BillingController, 'verify'])
   })
   .prefix('/api/v1/billing')
-  .use([middleware.jwtAuth(), middleware.tenant()])
+  .use([middleware.jwtAuth(), middleware.tenant({ skipActiveGate: true })])
 
 // notifications — personal in-app feed (org + user scoped; not notifications:manage config)
 router

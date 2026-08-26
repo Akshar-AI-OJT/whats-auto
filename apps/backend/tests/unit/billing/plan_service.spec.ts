@@ -1,57 +1,16 @@
 import { test } from '@japa/runner'
 import { randomUUID } from 'node:crypto'
 import db from '@adonisjs/lucid/services/db'
-import type { RazorpayClient } from '#lib/razorpay/types'
 import { PlanRepository } from '#repositories/plan_repository'
 import { PlanService } from '#services/billing/plan_service'
 
-function fakeRazorpay(overrides: Partial<RazorpayClient> = {}): RazorpayClient {
-  return {
-    createCustomer: async () => ({ id: 'cust_x', email: 'a@b.com', name: 'Org' }),
-    createSubscription: async (params) => ({
-      id: 'sub_x',
-      plan_id: params.planId,
-      customer_id: params.customerId,
-      status: 'created',
-      notes: params.notes,
-    }),
-    createPlan: async (params) => ({
-      id: `plan_rzp_${randomUUID().slice(0, 8)}`,
-      period: params.period,
-      interval: params.interval,
-      item: {
-        name: params.item.name,
-        amount: params.item.amount,
-        currency: params.item.currency,
-      },
-      notes: params.notes,
-    }),
-    ...overrides,
-  }
-}
-
 test.group('PlanService', () => {
-  test('create syncs Razorpay plan and stores gatewayPlanId', async ({ assert }) => {
+  test('create stores local plan without Razorpay sync', async ({ assert }) => {
     const code = `svc_${randomUUID().slice(0, 8)}`
-    const gatewayPlanId = `plan_rzp_${randomUUID().slice(0, 8)}`
-    let createdAmount: number | null = null
-    const service = new PlanService(
-      new PlanRepository(),
-      fakeRazorpay({
-        createPlan: async (params) => {
-          createdAmount = params.item.amount
-          return {
-            id: gatewayPlanId,
-            period: params.period,
-            interval: params.interval,
-            item: params.item,
-          }
-        },
-      })
-    )
+    const service = new PlanService(new PlanRepository())
 
     const plan = await service.createPlan({
-      name: 'Synced Growth',
+      name: 'Local Growth',
       code,
       description: 'Test',
       price: 2499,
@@ -63,30 +22,17 @@ test.group('PlanService', () => {
       features: [{ key: 'campaigns', name: 'campaigns', enabled: true, category: 'automation' }],
     })
 
-    assert.equal(plan.gateway, 'razorpay')
-    assert.equal(plan.gatewayPlanId, gatewayPlanId)
-    assert.equal(createdAmount, 249900)
+    assert.isNull(plan.gateway)
+    assert.isNull(plan.gatewayPlanId)
     assert.equal(plan.status, 'active')
+    assert.equal(plan.price, 2499)
     assert.equal(plan.limits.users, 10)
 
     await db.from('plans').where('id', plan.id).delete()
   })
 
-  test('create with custom pricing skips Razorpay', async ({ assert }) => {
-    let called = false
-    const service = new PlanService(
-      new PlanRepository(),
-      fakeRazorpay({
-        createPlan: async (params) => {
-          called = true
-          return {
-            id: 'should_not',
-            period: params.period,
-            interval: params.interval,
-          }
-        },
-      })
-    )
+  test('create with custom pricing stays local', async ({ assert }) => {
+    const service = new PlanService(new PlanRepository())
 
     const plan = await service.createPlan({
       name: 'Enterprise Custom',
@@ -99,7 +45,7 @@ test.group('PlanService', () => {
       features: [],
     })
 
-    assert.isFalse(called)
+    assert.isNull(plan.gateway)
     assert.isNull(plan.gatewayPlanId)
     assert.isNull(plan.price)
     assert.equal(plan.status, 'draft')
@@ -107,8 +53,8 @@ test.group('PlanService', () => {
     await db.from('plans').where('id', plan.id).delete()
   })
 
-  test('update recreates Razorpay plan when price changes', async ({ assert }) => {
-    const service = new PlanService(new PlanRepository(), fakeRazorpay())
+  test('update clears gateway plan id when price changes', async ({ assert }) => {
+    const service = new PlanService(new PlanRepository())
     const created = await service.createPlan({
       name: 'Price Change',
       code: `pc_${randomUUID().slice(0, 8)}`,
@@ -119,19 +65,21 @@ test.group('PlanService', () => {
       limits: {},
     })
 
-    const firstGatewayId = created.gatewayPlanId
-    assert.isString(firstGatewayId)
+    await db
+      .from('plans')
+      .where('id', created.id)
+      .update({ gateway: 'razorpay', gatewayPlanId: 'plan_rzp_stale' })
 
     const updated = await service.updatePlan(created.id, { price: 2000 })
-    assert.isString(updated.gatewayPlanId)
-    assert.notEqual(updated.gatewayPlanId, firstGatewayId)
+    assert.isNull(updated.gateway)
+    assert.isNull(updated.gatewayPlanId)
     assert.equal(updated.price, 2000)
 
     await db.from('plans').where('id', created.id).delete()
   })
 
-  test('archive soft-deactivates without clearing gateway id', async ({ assert }) => {
-    const service = new PlanService(new PlanRepository(), fakeRazorpay())
+  test('archive soft-deactivates without calling Razorpay', async ({ assert }) => {
+    const service = new PlanService(new PlanRepository())
     const created = await service.createPlan({
       name: 'Archive Me',
       code: `arch_${randomUUID().slice(0, 8)}`,
@@ -143,11 +91,16 @@ test.group('PlanService', () => {
       limits: {},
     })
 
+    await db
+      .from('plans')
+      .where('id', created.id)
+      .update({ gateway: 'razorpay', gatewayPlanId: 'plan_rzp_keep' })
+
     const archived = await service.archivePlan(created.id)
     assert.equal(archived.status, 'archived')
     assert.isFalse(archived.isActive)
     assert.isFalse(archived.popular)
-    assert.equal(archived.gatewayPlanId, created.gatewayPlanId)
+    assert.equal(archived.gatewayPlanId, 'plan_rzp_keep')
 
     await db.from('plans').where('id', created.id).delete()
   })

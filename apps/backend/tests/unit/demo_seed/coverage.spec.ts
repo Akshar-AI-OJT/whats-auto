@@ -7,6 +7,7 @@ import { assertRegistryCoverage, allOwnedTables } from '#database/demo/registry'
 const SCHEMA_CLASS_TO_TABLE: Record<string, string> = {
   AccountSchema: 'accounts',
   AuthorizationAuditSchema: 'authorization_audits',
+  BillingOrderSchema: 'billing_orders',
   ContactSchema: 'contacts',
   ConversationAssignmentSchema: 'conversation_assignments',
   ConversationNoteSchema: 'conversation_notes',

@@ -692,7 +692,7 @@ test.group('WhatsApp webhook ingestion', (group) => {
   })
 
   test('skips inactive organization configs', async ({ client, assert }) => {
-    const organizationId = await createOrg({ status: false })
+    const organizationId = await createOrg({ status: 'false' })
     const phoneNumberId = `pn-inactive-${randomUUID().slice(0, 8)}`
     const whatsappConfigId = await createConnectedConfig(organizationId, phoneNumberId)
     fixtures.push({ organizationId, whatsappConfigId, phoneNumberId })

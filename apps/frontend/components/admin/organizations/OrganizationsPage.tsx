@@ -320,7 +320,7 @@ export function OrganizationsPage() {
       patchOrganizations((prev) =>
         prev.map((org) =>
           org.id === deleteTarget.id
-            ? { ...org, deletedAt: new Date().toISOString(), status: false, uiStatus: 'archived' }
+            ? { ...org, deletedAt: new Date().toISOString(), status: 'false', uiStatus: 'archived' }
             : org
         )
       )

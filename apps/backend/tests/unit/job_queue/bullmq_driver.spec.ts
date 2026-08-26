@@ -56,18 +56,18 @@ function createInspectQueue(jobName: string, prefix: string): Queue {
 }
 
 test.group('BullmqJobQueueDriver singleton re-enqueue', () => {
-  test('schedules a new delayed job after ai.debounce_turn completes', async ({ assert }) => {
-    const prefix = `wa:test:debounce:${randomUUID()}`
+  test('schedules a new delayed job after flows.advance_session completes', async ({ assert }) => {
+    const prefix = `wa:test:flow-advance:${randomUUID()}`
     const driver = createDriver(prefix)
-    const queue = createInspectQueue(JOB_NAMES.AI_DEBOUNCE_TURN, prefix)
+    const queue = createInspectQueue(JOB_NAMES.FLOWS_ADVANCE_SESSION, prefix)
     const conversationId = randomUUID()
 
     await driver.start()
-    await driver.work(JOB_NAMES.AI_DEBOUNCE_TURN, async () => {})
+    await driver.work(JOB_NAMES.FLOWS_ADVANCE_SESSION, async () => {})
 
     try {
       await driver.enqueue(
-        JOB_NAMES.AI_DEBOUNCE_TURN,
+        JOB_NAMES.FLOWS_ADVANCE_SESSION,
         { pass: 1 },
         {
           singletonKey: conversationId,
@@ -78,7 +78,7 @@ test.group('BullmqJobQueueDriver singleton re-enqueue', () => {
       await waitForJobState(queue, conversationId, 'completed')
 
       await driver.enqueue(
-        JOB_NAMES.AI_DEBOUNCE_TURN,
+        JOB_NAMES.FLOWS_ADVANCE_SESSION,
         { pass: 2 },
         {
           singletonKey: conversationId,
@@ -135,15 +135,15 @@ test.group('BullmqJobQueueDriver singleton re-enqueue', () => {
   test('remove clears a completed singleton so enqueue can schedule again', async ({ assert }) => {
     const prefix = `wa:test:remove:${randomUUID()}`
     const driver = createDriver(prefix)
-    const queue = createInspectQueue(JOB_NAMES.AI_DEBOUNCE_TURN, prefix)
+    const queue = createInspectQueue(JOB_NAMES.FLOWS_ADVANCE_SESSION, prefix)
     const conversationId = randomUUID()
 
     await driver.start()
-    await driver.work(JOB_NAMES.AI_DEBOUNCE_TURN, async () => {})
+    await driver.work(JOB_NAMES.FLOWS_ADVANCE_SESSION, async () => {})
 
     try {
       await driver.enqueue(
-        JOB_NAMES.AI_DEBOUNCE_TURN,
+        JOB_NAMES.FLOWS_ADVANCE_SESSION,
         { pass: 1 },
         {
           singletonKey: conversationId,
@@ -153,10 +153,10 @@ test.group('BullmqJobQueueDriver singleton re-enqueue', () => {
 
       await waitForJobState(queue, conversationId, 'completed')
 
-      await driver.remove(JOB_NAMES.AI_DEBOUNCE_TURN, conversationId)
+      await driver.remove(JOB_NAMES.FLOWS_ADVANCE_SESSION, conversationId)
 
       await driver.enqueue(
-        JOB_NAMES.AI_DEBOUNCE_TURN,
+        JOB_NAMES.FLOWS_ADVANCE_SESSION,
         { pass: 2 },
         {
           singletonKey: conversationId,
