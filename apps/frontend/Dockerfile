@@ -56,8 +56,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/frontend/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/frontend/.next/static ./apps/frontend/.next/static
 
 USER nextjs
-EXPOSE 3000
-ENV PORT=3000 HOSTNAME=0.0.0.0
+EXPOSE 3200
+ENV PORT=3200 HOSTNAME=0.0.0.0
 
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "apps/frontend/server.js"]

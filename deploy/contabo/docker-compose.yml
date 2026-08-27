@@ -3,6 +3,10 @@
 #   cp deploy/contabo/.env.example deploy/contabo/.env
 #   # edit deploy/contabo/.env
 #   docker compose -f deploy/contabo/docker-compose.yml --env-file deploy/contabo/.env up -d --build
+# Migrations (after api is up):
+#   bash deploy/contabo/migrate.sh status
+#   bash deploy/contabo/migrate.sh
+#   # same as: cd apps/backend && node ace migration:status && node ace migration:run
 #
 # Put Caddy/Nginx in front for TLS. See deploy/contabo/Caddyfile.
 
@@ -10,19 +14,23 @@ name: whats-auto
 
 services:
   postgres:
-    image: pgvector/pgvector:pg16
+    image: pgvector/pgvector:pg17
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${PG_USER:-whatsauto}
+      POSTGRES_USER: ${PG_USER:-postgres}
       POSTGRES_PASSWORD: ${PG_PASSWORD:?set PG_PASSWORD}
-      POSTGRES_DB: ${PG_DB_NAME:-whatsauto}
+      POSTGRES_DB: ${PG_DB_NAME:-whatsapp_production}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ../../whatsapp_schema.sql:/schema/whatsapp_schema.sql:ro
+      - ./initdb/01-load-schema.sh:/docker-entrypoint-initdb.d/01-load-schema.sh:ro
+    # Schema is applied only on first start (empty volume). To reload:
+    #   docker compose ... down -v   then up again (destroys DB data).
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
       interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 15
     networks:
       - internal
 
@@ -55,13 +63,13 @@ services:
     environment:
       NODE_ENV: production
       HOST: 0.0.0.0
-      PORT: 3333
+      PORT: 3201
       PG_HOST: postgres
       PG_PORT: 5432
       REDIS_URL: redis://redis:6379
       JOB_QUEUE_DRIVER: bullmq
     ports:
-      - '${API_HOST_PORT:-3333}:3333'
+      - '${API_HOST_PORT:-3201}:3201'
     networks:
       - internal
       - edge
@@ -84,7 +92,7 @@ services:
     environment:
       NODE_ENV: production
       HOST: 0.0.0.0
-      PORT: 3333
+      PORT: 3201
       PG_HOST: postgres
       PG_PORT: 5432
       REDIS_URL: redis://redis:6379
@@ -98,16 +106,16 @@ services:
       dockerfile: apps/frontend/Dockerfile
       args:
         NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:?set NEXT_PUBLIC_APP_URL}
-        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?set NEXT_PUBLIC_API_URL to https://api.yourdomain.com}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?set NEXT_PUBLIC_API_URL to https://api.ottobot.codecolonies.com}
     restart: unless-stopped
     depends_on:
       - api
     environment:
       NODE_ENV: production
-      PORT: 3000
+      PORT: 3200
       HOSTNAME: 0.0.0.0
     ports:
-      - '${FRONTEND_HOST_PORT:-3000}:3000'
+      - '${FRONTEND_HOST_PORT:-3200}:3200'
     networks:
       - edge
 

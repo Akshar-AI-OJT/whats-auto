@@ -1,17 +1,17 @@
-# Contabo reverse proxy — cross-origin (app. + api.)
+# Contabo reverse proxy — cross-origin (app + api).
 #
 # Install Caddy on the VPS host (not in compose). DNS:
-#   app.yourdomain.com → VPS
-#   api.yourdomain.com → VPS
+#   ottobot.codecolonies.com → VPS
+#   api.ottobot.codecolonies.com → VPS
 #
-# Frontend build must set NEXT_PUBLIC_API_URL=https://api.yourdomain.com
-# Backend: CORS_ORIGIN=https://app.yourdomain.com
-#          BETTER_AUTH_URL / APP_URL / JWT_ISSUER=https://api.yourdomain.com
+# Frontend build must set NEXT_PUBLIC_API_URL=https://api.ottobot.codecolonies.com
+# Backend: CORS_ORIGIN=https://ottobot.codecolonies.com
+#          BETTER_AUTH_URL / APP_URL / JWT_ISSUER=https://api.ottobot.codecolonies.com
 
-app.yourdomain.com {
-	reverse_proxy 127.0.0.1:3000
+ottobot.codecolonies.com {
+	reverse_proxy 127.0.0.1:3200
 }
 
-api.yourdomain.com {
-	reverse_proxy 127.0.0.1:3333
+api.ottobot.codecolonies.com {
+	reverse_proxy 127.0.0.1:3201
 }

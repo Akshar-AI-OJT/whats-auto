@@ -49,8 +49,8 @@ COPY --from=builder --chown=adonis:nodejs /app/apps/backend/build ./
 COPY --from=builder --chown=adonis:nodejs /prod/backend/node_modules ./node_modules
 
 USER adonis
-EXPOSE 3333
-ENV HOST=0.0.0.0 PORT=3333
+EXPOSE 3201
+ENV HOST=0.0.0.0 PORT=3201
 
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "bin/server.js"]
