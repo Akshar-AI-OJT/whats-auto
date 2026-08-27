@@ -1597,6 +1597,115 @@
         "logoUploadFailed": "लोगो अपलोड नहीं हो सका। कृपया फिर कोशिश करें।",
         "saveFailed": "प्रोफ़ाइल सहेजी नहीं जा सकी। कृपया फिर कोशिश करें।"
       }
+    },
+    "organizationProfile": {
+      "loading": "आपका संगठन लोड हो रहा है…",
+      "stepBadge": "चरण {step} / {total}",
+      "optional": "वैकल्पिक",
+      "sidebar": {
+        "title": "अपना संगठन प्रोफ़ाइल पूरा करें",
+        "subtitle": "आवश्यक विवरण भरें ताकि आपका वर्कस्पेस तैयार हो। वैकल्पिक फ़ील्ड बाद में पूरे किए जा सकते हैं।",
+        "completionLabel": "प्रोफ़ाइल पूर्णता"
+      },
+      "steps": {
+        "organization": {
+          "title": "संगठन विवरण",
+          "description": "आपके संगठन की बुनियादी जानकारी"
+        },
+        "business": {
+          "title": "व्यवसाय जानकारी",
+          "description": "अपने व्यवसाय के बारे में और बताएँ"
+        },
+        "address": {
+          "title": "पता",
+          "description": "आपके संगठन का पता"
+        },
+        "review": {
+          "title": "समीक्षा और पुष्टि",
+          "description": "अपने विवरण की समीक्षा करें और पुष्टि करें"
+        }
+      },
+      "fields": {
+        "name": "संगठन का नाम",
+        "email": "व्यवसाय ईमेल",
+        "phone": "फ़ोन नंबर",
+        "phoneHint": "संभव हो तो देश कोड शामिल करें।",
+        "alternatePhone": "वैकल्पिक फ़ोन",
+        "website": "वेबसाइट",
+        "industry": "उद्योग",
+        "industryPlaceholder": "उद्योग चुनें",
+        "logoUpload": "लोगो अपलोड करें",
+        "logoHint": "PNG, JPG या WEBP (अधिकतम 2MB)",
+        "logoPreview": "लोगो पूर्वावलोकन",
+        "businessSize": "व्यवसाय का आकार",
+        "businessSizePlaceholder": "व्यवसाय का आकार चुनें",
+        "businessType": "व्यवसाय का प्रकार",
+        "businessTypePlaceholder": "व्यवसाय का प्रकार चुनें",
+        "description": "विवरण",
+        "defaultLanguage": "डिफ़ॉल्ट भाषा",
+        "defaultLanguagePlaceholder": "भाषा चुनें",
+        "registrationNumber": "व्यवसाय पंजीकरण संख्या",
+        "addressLine1": "पता पंक्ति 1",
+        "addressLine1Placeholder": "मकान / भवन और सड़क",
+        "addressLine2": "पता पंक्ति 2",
+        "addressLine2Placeholder": "अपार्टमेंट, सुइट, आदि",
+        "city": "शहर",
+        "state": "राज्य / प्रदेश",
+        "postalCode": "पिन / पोस्टल कोड",
+        "country": "देश",
+        "countryPlaceholder": "देश चुनें"
+      },
+      "languages": {
+        "en": "अंग्रेज़ी",
+        "hi": "हिन्दी"
+      },
+      "actions": {
+        "cancel": "रद्द करें",
+        "back": "वापस",
+        "continue": "जारी रखें",
+        "completeSetup": "सेटअप पूरा करें",
+        "saving": "सहेजा जा रहा है…",
+        "edit": "संपादित करें",
+        "createOrganization": "संगठन बनाएँ"
+      },
+      "review": {
+        "organization": "संगठन विवरण",
+        "business": "व्यवसाय जानकारी",
+        "address": "पता",
+        "empty": "—",
+        "confirmLabel": "मैं पुष्टि करता/करती हूँ कि ऊपर दी गई जानकारी सही है।"
+      },
+      "success": {
+        "title": "आपका संगठन तैयार है",
+        "subtitle": "आवश्यक प्रोफ़ाइल विवरण सहेजे गए हैं। वैकल्पिक फ़ील्ड बाद में डैशबोर्ड से पूरे कर सकते हैं।",
+        "completion": "प्रोफ़ाइल पूर्णता: {percent}%",
+        "cta": "डैशबोर्ड पर जाएँ"
+      },
+      "help": {
+        "needHelp": "मदद चाहिए?",
+        "contactSupport": "सपोर्ट से संपर्क करें"
+      },
+      "errors": {
+        "noOrganization": "कोई संगठन नहीं मिला। पहले वर्कस्पेस बनाएँ।",
+        "nameRequired": "संगठन का नाम आवश्यक है (कम से कम 2 अक्षर)।",
+        "emailInvalid": "सही व्यवसाय ईमेल दर्ज करें।",
+        "phoneInvalid": "सही फ़ोन नंबर दर्ज करें।",
+        "websiteInvalid": "सही वेबसाइट URL दर्ज करें (https://…).",
+        "industryRequired": "उद्योग चुनें।",
+        "businessSizeRequired": "व्यवसाय का आकार चुनें।",
+        "descriptionTooLong": "विवरण 500 अक्षर या उससे कम होना चाहिए।",
+        "addressLine1Required": "पता पंक्ति 1 आवश्यक है।",
+        "cityRequired": "शहर आवश्यक है।",
+        "stateRequired": "राज्य / प्रदेश आवश्यक है।",
+        "postalCodeRequired": "पिन / पोस्टल कोड आवश्यक है।",
+        "countryRequired": "देश चुनें।",
+        "requiredIncomplete": "सेटअप पूरा करने से पहले सभी आवश्यक फ़ील्ड भरें।",
+        "confirmRequired": "कृपया पुष्टि करें कि जानकारी सही है।",
+        "logoType": "लोगो PNG, JPG या WEBP होना चाहिए।",
+        "logoSize": "लोगो 2MB या उससे छोटा होना चाहिए।",
+        "logoUploadFailed": "लोगो अपलोड नहीं हो सका। कृपया फिर कोशिश करें।",
+        "saveFailed": "प्रोफ़ाइल सहेजी नहीं जा सकी। कृपया फिर कोशिश करें।"
+      }
     }
   },
   "dashboard": {
