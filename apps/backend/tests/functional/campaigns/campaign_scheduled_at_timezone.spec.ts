@@ -19,7 +19,7 @@ async function createOrg(timezone: string) {
       country: 'IN',
       timezone,
       currency: 'INR',
-      status: true,
+      status: 'active',
     })
     .returning(['id'])
   return row.id as string

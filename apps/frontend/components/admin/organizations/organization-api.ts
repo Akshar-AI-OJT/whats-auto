@@ -6,7 +6,7 @@ import {
   type UpdateSuperAdminOrganizationBody,
 } from '@/lib/api'
 
-/** Platform UI statuses derived from API boolean `status` + `deletedAt`. */
+/** Platform UI statuses derived from API `status` + `deletedAt`. */
 export type AdminOrganizationUiStatus = 'active' | 'suspended' | 'pending' | 'archived'
 
 export type AdminOrganizationListItem = SuperAdminOrganization & {
@@ -36,8 +36,10 @@ function unwrapPaginated(
 }
 
 export function mapOrganizationUiStatus(org: SuperAdminOrganization): AdminOrganizationUiStatus {
-  if (org.deletedAt) return 'archived'
-  return org.status ? 'active' : 'suspended'
+  if (org.deletedAt || org.status === 'false') return 'archived'
+  if (org.status === 'pending_setup') return 'pending'
+  if (org.status === 'suspended') return 'suspended'
+  return 'active'
 }
 
 export function toAdminOrganizationListItem(

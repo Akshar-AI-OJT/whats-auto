@@ -73,8 +73,8 @@ export function AdminKpiGrid() {
     )
   }
 
-  const activeOrgs = organizations.filter((o) => o.deletedAt == null && o.status === true)
-  const suspendedOrgs = organizations.filter((o) => o.deletedAt == null && o.status === false)
+  const activeOrgs = organizations.filter((o) => o.deletedAt == null && o.status === 'active')
+  const suspendedOrgs = organizations.filter((o) => o.deletedAt == null && o.status === 'suspended')
   const trialCount = countTrialOrganizations(subscriptions)
 
   const items = [

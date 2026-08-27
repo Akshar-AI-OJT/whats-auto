@@ -69,7 +69,7 @@ export class WhatsappWebhookRepository {
         .join('organizations as org', 'org.id', 'wc.organizationId')
         .where('wc.phoneNumberId', phoneNumberId)
         .where('wc.status', 'connected')
-        .where('org.status', true)
+        .where('org.status', 'active')
         .whereNull('org.deletedAt')
         .select('wc.id', 'wc.organizationId')
         .first()

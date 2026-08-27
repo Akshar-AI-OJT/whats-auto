@@ -170,7 +170,7 @@ export function buildCreateOrganizationPayload(input: {
   industry?: string
   organizationType: 'company' | 'partnership' | 'sole_proprietorship' | 'other'
   address: string
-  pan: string
+  pan?: string
   gstin?: string
   country: string
   timezone: string
@@ -185,9 +185,9 @@ export function buildCreateOrganizationPayload(input: {
     timezone: string
     organizationType: 'company' | 'partnership' | 'sole_proprietorship' | 'other'
     address: string
-    pan: string
     website?: string
     industry?: string
+    pan?: string
     gstin?: string
     currency?: string
   } = {
@@ -197,7 +197,6 @@ export function buildCreateOrganizationPayload(input: {
     phone: input.phone.trim(),
     organizationType: input.organizationType,
     address: input.address.trim(),
-    pan: normalizeTaxId(input.pan),
     country: input.country.trim(),
     timezone: input.timezone.trim(),
   }
@@ -207,6 +206,9 @@ export function buildCreateOrganizationPayload(input: {
 
   const industry = input.industry?.trim()
   if (industry) payload.industry = industry
+
+  const pan = input.pan ? normalizeTaxId(input.pan) : ''
+  if (pan) payload.pan = pan
 
   const gstin = input.gstin ? normalizeTaxId(input.gstin) : ''
   if (gstin) payload.gstin = gstin
@@ -311,20 +313,10 @@ export function clearPendingWorkspacePlan() {
 
 const CHECKOUT_SESSION_KEY = 'wa-onboarding-checkout'
 
-export type OnboardingCheckoutPhase =
-  | 'awaiting_gateway'
-  | 'awaiting_return'
-  | 'success'
-  | 'failed'
-  | 'cancelled'
-
 export type OnboardingCheckoutSession = {
   planId: string
   checkoutPlanId: string
   planName?: string
-  subscriptionId?: string
-  checkoutUrl?: string | null
-  phase: OnboardingCheckoutPhase
 }
 
 export function saveOnboardingCheckoutSession(session: OnboardingCheckoutSession) {
@@ -342,7 +334,7 @@ export function readOnboardingCheckoutSession(): OnboardingCheckoutSession | nul
     const raw = window.sessionStorage.getItem(CHECKOUT_SESSION_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw) as OnboardingCheckoutSession
-    if (!parsed?.planId || !parsed?.checkoutPlanId || !parsed?.phase) return null
+    if (!parsed?.planId || !parsed?.checkoutPlanId) return null
     return parsed
   } catch {
     return null

@@ -21,7 +21,7 @@ async function createOrg() {
       country: 'IN',
       timezone: 'UTC',
       currency: 'INR',
-      status: true,
+      status: 'active',
     })
     .returning(['id'])
   return row.id as string

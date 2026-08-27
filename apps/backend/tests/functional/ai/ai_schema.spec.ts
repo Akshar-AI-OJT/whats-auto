@@ -17,7 +17,7 @@ async function createOrg(label: string) {
     country: 'US',
     timezone: 'UTC',
     currency: 'USD',
-    status: true,
+    status: 'active',
   })
   return id
 }

@@ -375,7 +375,7 @@
       "fields": {
         "fullName": "Full Name",
         "email": "Work Email",
-        "company": "Company Name",
+        "company": "Organization Name",
         "phone": "Phone Number",
         "companySize": "Company Size",
         "purpose": "Purpose of Demo"
@@ -1077,7 +1077,7 @@
       "subtitle": "Start automating customer conversations in just a few minutes.",
       "firstname": "First Name",
       "lastname": "Last Name",
-      "email": "Business Email",
+      "email": "Email",
       "phone": "Phone Number",
       "password": "Password",
       "confirmPassword": "Confirm Password",
@@ -1236,7 +1236,7 @@
       "slug": "Organization Slug",
       "slugPlaceholder": "acme-workspace",
       "slugHint": "Lowercase letters, numbers, and hyphens only. Auto-generated from the name — you can edit it.",
-      "email": "Business Email",
+      "email": "Organization Email",
       "emailPlaceholder": "ops@acme.com",
       "phone": "Mobile Number",
       "phonePlaceholder": "+91 98765 43210",
@@ -1248,6 +1248,7 @@
       "createWorkspace": "Create Workspace",
       "continueToDashboard": "Continue to dashboard",
       "proceedToCheckout": "Continue to checkout",
+      "checkoutHint": "You won't be charged yet.",
       "creating": "Creating workspace…",
       "step1": {
         "title": "Create your organization",
@@ -1366,30 +1367,31 @@
       },
       "step4": {
         "title": "Choose a subscription plan",
-        "subtitle": "Pick the plan that fits your workspace today. You can update billing anytime from the Dashboard.",
+        "subtitle": "Pick the plan that fits your workspace today. You can upgrade or cancel anytime from the Dashboard.",
         "loadingPlans": "Loading plans…",
         "loadingPlansFailed": "Couldn't load plans. Please try again.",
         "retry": "Retry",
         "emptyTitle": "No plans available",
         "emptyDescription": "No active monthly plans are available right now.",
-        "chooseCta": "Choose plan",
+        "chooseCta": "Select plan",
         "selectedCta": "Selected",
         "enterpriseCta": "Contact sales",
         "enterpriseCustomPrice": "Custom",
+        "allPlansInclude": "All plans include",
         "summaryLabel": "Selected plan",
         "summaryNote": "You'll confirm this plan and complete Razorpay checkout before entering the dashboard."
       },
       "payment": {
-        "redirectingTitle": "Redirecting to Razorpay",
-        "redirectingSubtitle": "We're opening the secure checkout page for your selected plan.",
-        "pendingTitle": "Confirming your payment",
-        "pendingSubtitle": "If you completed checkout, this page updates automatically. You can also reopen Razorpay to finish payment.",
+        "redirectingTitle": "Preparing checkout",
+        "redirectingSubtitle": "We're opening Razorpay so you can pay for your selected plan.",
+        "pendingTitle": "Complete your payment",
+        "pendingSubtitle": "Pay with UPI, card, or netbanking. This page updates once payment is verified.",
         "successTitle": "Payment successful",
         "successSubtitle": "Your subscription is confirmed. Continue to your workspace dashboard when you're ready.",
         "failedTitle": "Payment unsuccessful",
         "failedSubtitle": "We couldn't confirm your payment. You can try again without leaving onboarding.",
         "cancelledTitle": "Checkout cancelled",
-        "cancelledSubtitle": "No payment was completed. You can resume Razorpay checkout for the selected plan.",
+        "cancelledSubtitle": "No payment was completed. You can pay now for the selected plan.",
         "planLabel": "Selected plan",
         "continueToDashboard": "Continue to dashboard",
         "completePayment": "Complete payment",
@@ -1468,7 +1470,7 @@
         "insights": "Insights",
         "teamAccess": "Team & Access",
         "billing": "Billing",
-        "settings": "Settings"
+      "settings": "Settings"
       }
     },
     "flows": {
@@ -3059,15 +3061,16 @@
         "active": "Active",
         "trialing": "Trialing",
         "pastDue": "Past due",
-        "cancelled": "Cancelled"
+        "cancelled": "Cancelled",
+        "expired": "Expired"
       },
       "checkout": {
         "title": "Confirm plan",
-        "description": "Review the selected plan before starting checkout.",
+        "description": "Review the selected plan before paying with Razorpay.",
         "cancel": "Cancel",
-        "confirm": "Continue to checkout",
-        "starting": "Starting…",
-        "success": "Checkout started. Redirecting to the payment page if a checkout URL was returned."
+        "confirm": "Pay now",
+        "starting": "Opening payment…",
+        "success": "Payment confirmed. Your subscription is active."
       },
       "errors": {
         "permissionDenied": "You don’t have permission to view billing in this workspace.",

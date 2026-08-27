@@ -27,7 +27,7 @@ async function seedBillingOrg() {
     country: 'IN',
     timezone: 'UTC',
     currency: 'INR',
-    status: true,
+    status: 'active',
     gateway: 'razorpay',
     gatewayCustomerId: `cust_${organizationId.slice(0, 8)}`,
   })

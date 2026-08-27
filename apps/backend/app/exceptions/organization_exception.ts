@@ -19,6 +19,13 @@ export default class OrganizationException extends Exception {
     })
   }
 
+  static paymentRequired() {
+    return new this('Complete payment to activate this organization before using the product.', {
+      status: 402,
+      code: 'E_ORG_PAYMENT_REQUIRED',
+    })
+  }
+
   handle(error: this, { response }: HttpContext) {
     return response.status(error.status).send({
       error: error.message,

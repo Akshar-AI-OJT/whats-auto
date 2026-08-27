@@ -13,6 +13,8 @@ export const JOB_NAMES = {
   INTEGRATION_EVENTS_RECOVERY: 'integrations.events.recovery',
   FLOWS_ADVANCE_SESSION: 'flows.advance_session',
   FLOWS_SESSION_RECOVERY: 'flows.session.recovery',
+  BILLING_SUBSCRIPTION_LIFECYCLE: 'billing.subscription.lifecycle',
+  ONBOARDING_CLEANUP: 'onboarding.cleanup',
 } as const
 
 /** Singleton key so only one platform KB reindex runs at a time. */
@@ -40,3 +42,9 @@ export const INTEGRATION_EVENTS_RECOVERY_CRON = '*/5 * * * *'
 
 /** Cron for expired flow sessions and execution-log retention. */
 export const FLOWS_SESSION_RECOVERY_CRON = '*/1 * * * *'
+
+/** Cron for order expiry, grace, subscription expiry, and renewal reminders. */
+export const BILLING_SUBSCRIPTION_LIFECYCLE_CRON = '0 * * * *'
+
+/** Cron for expired pre-signup OTPs and aged pending_setup org purge (daily). */
+export const ONBOARDING_CLEANUP_CRON = '15 3 * * *'

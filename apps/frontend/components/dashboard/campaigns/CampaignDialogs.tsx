@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Loader2 } from 'lucide-react'
 import type { Campaign, CampaignPreview } from '@/lib/api'
@@ -208,12 +208,17 @@ export function CampaignChangeStatusDialog({
 }: CampaignChangeStatusDialogProps) {
   const t = useTranslations('dashboard.campaigns.changeStatus')
   const tStatus = useTranslations('dashboard.campaigns.status')
-  const [nextStatus, setNextStatus] = useState<CampaignChangeStatusTarget>('draft')
-
-  useEffect(() => {
-    if (!open || !campaign) return
-    setNextStatus(campaign.status === 'scheduled' ? 'scheduled' : 'draft')
-  }, [open, campaign])
+  const derivedStatus: CampaignChangeStatusTarget =
+    campaign?.status === 'scheduled' ? 'scheduled' : 'draft'
+  const campaignKey = open && campaign ? `${campaign.id}:${campaign.status}` : ''
+  const [trackedKey, setTrackedKey] = useState(campaignKey)
+  const [nextStatus, setNextStatus] = useState<CampaignChangeStatusTarget>(derivedStatus)
+  if (campaignKey !== trackedKey) {
+    setTrackedKey(campaignKey)
+    if (campaignKey) {
+      setNextStatus(derivedStatus)
+    }
+  }
 
   const unchanged = campaign ? nextStatus === campaign.status : true
 

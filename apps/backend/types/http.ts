@@ -1,5 +1,6 @@
 import type { auth } from '#lib/auth'
 import type { Permission } from '#abilities/permissions'
+import type { OrganizationStatusValue } from '#enums/organization_status'
 import type { ActiveMember } from '#services/authorization_service'
 import type { AccessTokenClaims } from '#types/access_token'
 
@@ -24,6 +25,8 @@ declare module '@adonisjs/core/http' {
     apiKeyId?: string // set by apiKeyAuth on public integration ingress
     activeMember?: ActiveMember // set by tenant middleware
     memberPermissions?: Set<Permission> // set by tenant/platform middleware
+    /** Set by tenant middleware from organizations.status (never from JWT). */
+    organizationStatus?: OrganizationStatusValue
     accessTokenClaims?: AccessTokenClaims // set when authMethod === 'bearer'
     authMethod?: AuthMethod // 'bearer' | 'session'
   }
