@@ -1,9 +1,11 @@
 # Contabo VPS stack: frontend + API + worker + Redis.
 # Postgres is EXTERNAL — set PG_HOST to the DB server IP in .env.
+# Media files: host bind dir shared by api + worker; Caddy serves /media publicly.
 #
 # Usage (from repo root):
+#   sudo mkdir -p /var/lib/whats-auto/media && sudo chown 1001:1001 /var/lib/whats-auto/media
 #   cp deploy/contabo/.env.example deploy/contabo/.env
-#   # set PG_HOST=<postgres-ip> and other secrets
+#   # set PG_HOST=<postgres-ip>, domains, OBJECT_STORAGE_DRIVER=fs, …
 #   docker compose -f deploy/contabo/docker-compose.yml --env-file deploy/contabo/.env up -d --build
 #
 # TLS: put Caddy/Nginx on the host (see Caddyfile). Compose only binds localhost ports.
@@ -29,9 +31,8 @@ services:
       - internal
 
   # --------------------------------------------------------------------
-  # api — AdonisJS HTTP (auth, webhooks, REST, inbox SSE)
+  # api — AdonisJS HTTP (auth, webhooks, REST, inbox SSE, media PUT)
   # Image CMD: node bin/server.js  →  host :${API_HOST_PORT:-3333}
-  # Connects to Postgres via PG_HOST IP from .env (outbound from container).
   # --------------------------------------------------------------------
   api:
     build:
@@ -47,9 +48,15 @@ services:
       NODE_ENV: production
       HOST: 0.0.0.0
       PORT: 3333
-      # PG_* (including PG_HOST=<ip>) come from .env — not overridden here.
       REDIS_URL: redis://redis:6379
       JOB_QUEUE_DRIVER: bullmq
+      OBJECT_STORAGE_DRIVER: ${OBJECT_STORAGE_DRIVER:-fs}
+      DRIVE_DISK: ${DRIVE_DISK:-fs}
+      MEDIA_LOCAL_ROOT: ${MEDIA_LOCAL_ROOT:-/var/lib/whats-auto/media}
+    volumes:
+      - type: bind
+        source: ${MEDIA_HOST_PATH:-/var/lib/whats-auto/media}
+        target: ${MEDIA_LOCAL_ROOT:-/var/lib/whats-auto/media}
     ports:
       - '${API_HOST_PORT:-3333}:3333'
     networks:
@@ -57,7 +64,7 @@ services:
       - edge
 
   # --------------------------------------------------------------------
-  # worker — same backend image, BullMQ consumer (outbound, campaigns, AI, flows)
+  # worker — same backend image, BullMQ consumer (needs same media disk)
   # Override CMD: node bin/worker.js  (no public ports)
   # --------------------------------------------------------------------
   worker:
@@ -79,12 +86,18 @@ services:
       PORT: 3333
       REDIS_URL: redis://redis:6379
       JOB_QUEUE_DRIVER: bullmq
+      OBJECT_STORAGE_DRIVER: ${OBJECT_STORAGE_DRIVER:-fs}
+      DRIVE_DISK: ${DRIVE_DISK:-fs}
+      MEDIA_LOCAL_ROOT: ${MEDIA_LOCAL_ROOT:-/var/lib/whats-auto/media}
+    volumes:
+      - type: bind
+        source: ${MEDIA_HOST_PATH:-/var/lib/whats-auto/media}
+        target: ${MEDIA_LOCAL_ROOT:-/var/lib/whats-auto/media}
     networks:
       - internal
 
   # --------------------------------------------------------------------
   # frontend — Next.js standalone (UI). NEXT_PUBLIC_* baked at build time.
-  # Image CMD: node apps/frontend/server.js  →  host :${FRONTEND_HOST_PORT:-3000}
   # --------------------------------------------------------------------
   frontend:
     build:

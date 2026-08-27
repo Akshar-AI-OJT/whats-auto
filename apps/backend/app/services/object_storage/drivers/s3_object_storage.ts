@@ -48,6 +48,8 @@ export default class S3ObjectStorage extends ObjectStorage {
     contentType: string
     contentLength: number
     expiresInSeconds?: number
+    assetId?: string
+    organizationId?: string
   }): Promise<PresignedUpload> {
     const expiresInSeconds = params.expiresInSeconds ?? 15 * 60
     // Sign ContentType only — Content-Length in SignedHeaders makes browser

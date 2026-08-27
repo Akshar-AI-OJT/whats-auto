@@ -74,6 +74,13 @@ export default class MediaException extends Exception {
     })
   }
 
+  static invalidUploadSignature() {
+    return new this('Media upload signature is invalid or expired', {
+      status: 403,
+      code: 'E_MEDIA_UPLOAD_SIGNATURE_INVALID',
+    })
+  }
+
   static notDeletable(detail: string) {
     return new this(detail, {
       status: 422,

@@ -4,14 +4,31 @@
 #   app.yourdomain.com → VPS
 #   api.yourdomain.com → VPS
 #
-# Frontend build must set NEXT_PUBLIC_API_URL=https://api.yourdomain.com
+# Media: host dir /var/lib/whats-auto/media is bind-mounted into api+worker
+# and served publicly at https://api.yourdomain.com/media/<storageKey>
+# (WhatsApp GETs never hit Node).
+#
+# Frontend build: NEXT_PUBLIC_API_URL=https://api.yourdomain.com
 # Backend: CORS_ORIGIN=https://app.yourdomain.com
 #          BETTER_AUTH_URL / APP_URL / JWT_ISSUER=https://api.yourdomain.com
+#          MEDIA_PUBLIC_BASE_URL=https://api.yourdomain.com/media
 
-app.yourdomain.com {
+ottobot.codecolonies.com {
 	reverse_proxy 127.0.0.1:3000
 }
 
-api.yourdomain.com {
-	reverse_proxy 127.0.0.1:3333
+api.ottobot.codecolonies.com {
+	# Raise body size for local-disk media PUTs (documents up to 100 MiB)
+	request_body {
+		max_size 110MB
+	}
+
+	handle_path /media/* {
+		root * /var/lib/whats-auto/media
+		file_server
+	}
+
+	handle {
+		reverse_proxy 127.0.0.1:3333
+	}
 }

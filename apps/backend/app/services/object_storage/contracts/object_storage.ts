@@ -21,6 +21,9 @@ export abstract class ObjectStorage {
     contentType: string
     contentLength: number
     expiresInSeconds?: number
+    /** Required by LocalObjectStorage for HMAC upload URLs; ignored by S3/Fake. */
+    assetId?: string
+    organizationId?: string
   }): Promise<PresignedUpload>
 
   abstract headObject(key: string): Promise<ObjectHeadResult | null>

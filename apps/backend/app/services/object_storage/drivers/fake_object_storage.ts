@@ -27,6 +27,8 @@ export default class FakeObjectStorage extends ObjectStorage {
     contentType: string
     contentLength: number
     expiresInSeconds?: number
+    assetId?: string
+    organizationId?: string
   }): Promise<PresignedUpload> {
     const expiresInSeconds = params.expiresInSeconds ?? 15 * 60
     this.presigned.push({

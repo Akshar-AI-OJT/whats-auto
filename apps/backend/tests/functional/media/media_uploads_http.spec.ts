@@ -177,6 +177,65 @@ test.group('Media uploads HTTP', (group) => {
     assert.equal(again.body().data.state, MediaAssetState.Ready)
   })
 
+  test('HMAC put content writes bytes for local-disk driver', async ({ client, assert }) => {
+    const { mkdtemp, rm } = await import('node:fs/promises')
+    const { tmpdir } = await import('node:os')
+    const path = await import('node:path')
+    const envModule = await import('#start/env')
+    const env = envModule.default
+    const localStorageModule = await import('#services/object_storage/drivers/local_object_storage')
+    const LocalObjectStorage = localStorageModule.default
+
+    const root = await mkdtemp(path.join(tmpdir(), 'wa-http-media-'))
+    const local = new LocalObjectStorage({
+      root,
+      appUrl: env.get('APP_URL'),
+      signingSecret: env.get('APP_KEY').release(),
+    })
+    app.container.bindValue(ObjectStorage, local)
+
+    try {
+      const token = await mintDemoToken(DEMO_USERS.northstarAgent)
+      const fileSize = 16
+      const body = jpegBytes(fileSize)
+
+      const initiate = await client
+        .post('/api/v1/media/uploads')
+        .header('Authorization', `Bearer ${token}`)
+        .json({
+          fileName: 'local.jpg',
+          mimeType: 'image/jpeg',
+          fileSize,
+        })
+
+      initiate.assertStatus(200)
+      const initiated = initiate.body().data as {
+        asset: { id: string }
+        upload: { url: string; headers: Record<string, string> }
+      }
+
+      assert.include(initiated.upload.url, '/api/v1/media/uploads/')
+      assert.include(initiated.upload.url, 'sig=')
+
+      const put = await client
+        .put(initiated.upload.url.replace(/^https?:\/\/[^/]+/i, ''))
+        .header('Content-Type', initiated.upload.headers['Content-Type'] ?? 'image/jpeg')
+        .body(body)
+
+      put.assertStatus(204)
+
+      const complete = await client
+        .post(`/api/v1/media/uploads/${initiated.asset.id}/complete`)
+        .header('Authorization', `Bearer ${token}`)
+
+      complete.assertStatus(200)
+      assert.equal(complete.body().data.state, MediaAssetState.Ready)
+    } finally {
+      app.container.bindValue(ObjectStorage, storage)
+      await rm(root, { recursive: true, force: true })
+    }
+  })
+
   test('complete without object returns upload incomplete', async ({ client, assert }) => {
     const token = await mintDemoToken(DEMO_USERS.northstarAgent)
 

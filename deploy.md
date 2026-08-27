@@ -49,11 +49,12 @@ Names must match `apps/backend/start/env.ts`. Railway `DATABASE_URL` / `S3_KEY` 
 | `WHATSAPP_VERIFY_TOKEN` `META_APP_ID` `META_APP_SECRET` `META_EMBEDDED_SIGNUP_CONFIG_ID` `META_GRAPH_API_VERSION` | Meta app; webhook `{APP_URL}/api/v1/webhooks/whatsapp`                       |
 | `OPENAI_API_KEY` `GOOGLE_AI_API_KEY` `MISTRAL_API_KEY`                                                            | Optional until platform AI is enabled                                        |
 | `RAZORPAY_KEY_ID` `RAZORPAY_KEY_SECRET` `RAZORPAY_WEBHOOK_SECRET`                                                 | Billing; webhook `{APP_URL}/api/v1/webhooks/billing/razorpay`                |
-| `S3_ACCESS_KEY_ID` `S3_SECRET_ACCESS_KEY` `S3_REGION` `S3_BUCKET` `S3_ENDPOINT` | Contabo Object Storage (S3-compatible) |
-| `S3_FORCE_PATH_STYLE`                                                                                             | `true` (required for Contabo)                                                    |
-| `DRIVE_DISK`                                                                                                      | `s3`                                                                         |
-| `MEDIA_PUBLIC_BASE_URL`                                                                                           | Contabo public base for media links, no trailing slash                       |
-| `OUTBOUND_MEDIA_ALLOWED_HOSTS`                                                                                    | Contabo storage hostname only                                                |
+| `OBJECT_STORAGE_DRIVER` / `DRIVE_DISK`                                                                            | `fs` (Contabo disk) or `s3`                                                  |
+| `MEDIA_LOCAL_ROOT`                                                                                                | Required when `fs` — e.g. `/var/lib/whats-auto/media`                        |
+| `S3_ACCESS_KEY_ID` `S3_SECRET_ACCESS_KEY` `S3_REGION` `S3_BUCKET` `S3_ENDPOINT`                                   | Required when `s3` only                                                      |
+| `S3_FORCE_PATH_STYLE`                                                                                             | `true` when using Contabo Object Storage / MinIO                             |
+| `MEDIA_PUBLIC_BASE_URL`                                                                                           | Public base WhatsApp fetches — e.g. `https://api.domain.com/media`           |
+| `OUTBOUND_MEDIA_ALLOWED_HOSTS`                                                                                    | Hostname only — e.g. `api.domain.com`                                        |
 
 Production CORS allowlist is `CORS_ORIGIN` (see `apps/backend/config/cors.ts`). Session cookies use `SameSite=None; Secure` so the Vercel origin can send them to Railway.
 
@@ -67,3 +68,16 @@ Monorepo install must see the repo-root `pnpm-workspace.yaml` / lockfile. Prefer
 ### Meta callback
 
 Point the Meta app webhook and Embedded Signup redirects at the **Railway** public URL, not ngrok and not Vercel `/api`.
+
+---
+
+## Contabo VPS (Docker Compose)
+
+See [`deploy/contabo/`](deploy/contabo/). Default media mode is **local disk** (`OBJECT_STORAGE_DRIVER=fs`):
+
+1. Create host dir: `sudo mkdir -p /var/lib/whats-auto/media && sudo chown 1001:1001 /var/lib/whats-auto/media`
+2. Set `MEDIA_PUBLIC_BASE_URL=https://api.<domain>/media` and `OUTBOUND_MEDIA_ALLOWED_HOSTS=api.<domain>`
+3. Caddy on `api.<domain>` serves `/media/*` from that host path (see `deploy/contabo/Caddyfile`); api+worker bind-mount the same path
+4. Browser uploads use HMAC `PUT /api/v1/media/uploads/:id/content` (no Contabo Object Storage)
+
+Use `OBJECT_STORAGE_DRIVER=s3` only if you later enable S3-compatible storage; then fill `S3_*` and skip the bind mount / Caddy `/media` block.

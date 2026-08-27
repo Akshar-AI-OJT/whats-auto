@@ -902,7 +902,12 @@ router
   .prefix('/api/v1/integrations')
   .use([middleware.jwtAuth(), middleware.tenant()])
 
-// media uploads — direct-to-S3 pending → ready lifecycle + Media Library
+// media uploads — HMAC PUT (local disk) is public; initiate/complete stay authenticated
+router
+  .put('/api/v1/media/uploads/:id/content', [MediaUploadsController, 'putContent'])
+  .use([middleware.rateLimit({ max: 60, windowMs: 60 * 1000, name: 'media-upload-content' })])
+
+// media uploads — direct-to-storage pending → ready lifecycle + Media Library
 router
   .group(() => {
     router.get('/', [MediaAssetsController, 'index'])
