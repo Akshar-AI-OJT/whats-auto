@@ -5,7 +5,6 @@ import { useQuery } from '@tanstack/react-query'
 import {
   Check,
   Crown,
-  LayoutGrid,
   Loader2,
   MessageSquareText,
   Users,
@@ -131,7 +130,6 @@ export function SubscriptionPlanSelectionStep({
               const checkoutable = plan.checkoutable
               const users = formatLimit(plan.limits.users, unlimited)
               const messages = formatLimit(plan.limits.messagesPerMonth, unlimited)
-              const workspaces = formatLimit(plan.limits.workspaces, unlimited)
               const enabledFeatures = plan.features.filter((f) => f.enabled)
               const priceLabel = formatTenantPlanPrice(plan.price, plan.currency, customPrice)
 
@@ -200,13 +198,6 @@ export function SubscriptionPlanSelectionStep({
                           {tSubs('limits.messages')}
                         </span>
                         <span className="font-semibold tabular-nums text-ink">{messages}</span>
-                      </li>
-                      <li className="flex items-center justify-between gap-3 text-sm">
-                        <span className="inline-flex items-center gap-2 text-mute">
-                          <LayoutGrid className="size-4 shrink-0 text-primary" aria-hidden />
-                          {tSubs('limits.workspaces')}
-                        </span>
-                        <span className="font-semibold tabular-nums text-ink">{workspaces}</span>
                       </li>
                     </ul>
                   </div>

@@ -39,7 +39,6 @@ type PlanFormState = {
   billingPeriod: Exclude<PlanBillingPeriod, 'custom'> | 'custom'
   users: string
   messagesPerMonth: string
-  workspaces: string
   trialDays: string
   status: Exclude<PlanStatus, 'archived'>
   features: Record<string, { enabled: boolean; description: string }>
@@ -69,7 +68,6 @@ function emptyForm(): PlanFormState {
     billingPeriod: 'monthly',
     users: '',
     messagesPerMonth: '',
-    workspaces: '',
     trialDays: '',
     status: 'draft',
     features: emptyFeatureMap(),
@@ -93,7 +91,6 @@ function formFromPlan(plan: SubscriptionPlan): PlanFormState {
     billingPeriod: plan.billingPeriod === 'yearly' ? 'yearly' : plan.billingPeriod === 'custom' ? 'custom' : 'monthly',
     users: plan.limits.users != null ? String(plan.limits.users) : '',
     messagesPerMonth: plan.limits.messagesPerMonth != null ? String(plan.limits.messagesPerMonth) : '',
-    workspaces: plan.limits.workspaces != null ? String(plan.limits.workspaces) : '',
     trialDays: plan.trialDays != null ? String(plan.trialDays) : '',
     status: plan.status === 'archived' ? 'draft' : plan.status,
     features,
@@ -128,7 +125,6 @@ function toCreateInput(form: PlanFormState): CreatePlanInput {
     limits: {
       users: parseOptionalNumber(form.users),
       messagesPerMonth: parseOptionalNumber(form.messagesPerMonth),
-      workspaces: parseOptionalNumber(form.workspaces),
     },
     features,
   }
@@ -201,10 +197,6 @@ export function PlanFormPage({ mode, planId }: PlanFormPageProps) {
     if (users && (!Number.isFinite(Number(users)) || Number(users) < 0)) return t('errors.limitInvalid')
     const messages = form.messagesPerMonth.trim()
     if (messages && (!Number.isFinite(Number(messages)) || Number(messages) < 0)) {
-      return t('errors.limitInvalid')
-    }
-    const workspaces = form.workspaces.trim()
-    if (workspaces && (!Number.isFinite(Number(workspaces)) || Number(workspaces) < 0)) {
       return t('errors.limitInvalid')
     }
     const trial = form.trialDays.trim()
@@ -476,21 +468,6 @@ export function PlanFormPage({ mode, planId }: PlanFormPageProps) {
                     className="h-11 rounded-xl border-dash-border"
                   />
                   <p className="text-xs text-mute">{t('fields.messagesHelp')}</p>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label htmlFor="plan-workspaces" className="text-sm font-medium text-ink">
-                    {t('fields.workspaces')}
-                  </label>
-                  <Input
-                    id="plan-workspaces"
-                    type="number"
-                    min="0"
-                    value={form.workspaces}
-                    onChange={(e) => setForm({ ...form, workspaces: e.target.value })}
-                    placeholder={t('unlimited')}
-                    className="h-11 rounded-xl border-dash-border"
-                  />
-                  <p className="text-xs text-mute">{t('fields.workspacesHelp')}</p>
                 </div>
               </div>
             </div>

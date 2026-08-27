@@ -27,7 +27,7 @@ const selectClassName = cn(
   'h-11 w-full cursor-pointer appearance-none rounded-xl px-3.5 text-sm text-ink outline-none'
 )
 
-type WorkspacePreferencesStepProps = {
+type OrganizationPreferencesStepProps = {
   state: OrganizationWizardState
   errors: OrganizationWizardPreferencesErrors
   pending: boolean
@@ -35,13 +35,13 @@ type WorkspacePreferencesStepProps = {
   onClearError: (key: keyof OrganizationWizardPreferencesErrors) => void
 }
 
-export function WorkspacePreferencesStep({
+export function OrganizationPreferencesStep({
   state,
   errors,
   pending,
   onChange,
   onClearError,
-}: WorkspacePreferencesStepProps) {
+}: OrganizationPreferencesStepProps) {
   const t = useTranslations('onboarding.organization')
 
   const languageId = useId()

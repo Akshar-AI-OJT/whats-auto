@@ -19,7 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { WorkspaceAvatar } from '@/components/dashboard/WorkspaceSwitcher'
+import { OrganizationAvatar } from '@/components/dashboard/OrganizationSwitcher'
 import {
   DashboardToast,
   useDashboardToast,
@@ -381,7 +381,7 @@ export function InboxNewConversationSheet({
                           )}
                           onClick={() => setSelectedContactId(contact.id)}
                         >
-                          <WorkspaceAvatar
+                          <OrganizationAvatar
                             initials={contactInitialsFromContact(contact)}
                             size="md"
                             className="rounded-lg"

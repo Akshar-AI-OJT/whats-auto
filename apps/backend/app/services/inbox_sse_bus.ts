@@ -19,6 +19,7 @@ const BUS_EVENT_TYPES = new Set<InboxSseEventType>([
   'ai.token.delta',
   'ai.generation.completed',
   'ai.handover.triggered',
+  'conversation.ai_mode.updated',
 ])
 
 function isBusEvent(value: unknown): value is InboxSseEvent {

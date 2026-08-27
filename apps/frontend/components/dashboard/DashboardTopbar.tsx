@@ -19,17 +19,17 @@ import { DashboardSidebar } from './DashboardSidebar'
 import { NotificationBell } from './NotificationBell'
 import { UserProfileMenu } from './UserProfileMenu'
 import {
-  WorkspaceSwitcher,
+  OrganizationSwitcher,
   organizationInitials,
-  type WorkspaceSwitcherItem,
-} from './WorkspaceSwitcher'
+  type OrganizationSwitcherItem,
+} from './OrganizationSwitcher'
 import { ThemeToggle } from '@/components/theme/ThemeToggle'
 
 type DashboardTopbarProps = {
   className?: string
 }
 
-const ACCENTS: WorkspaceSwitcherItem['accent'][] = ['green', 'cyan', 'amber']
+const ACCENTS: OrganizationSwitcherItem['accent'][] = ['green', 'cyan', 'amber']
 
 function detectMac() {
   if (typeof navigator === 'undefined') return false
@@ -70,7 +70,7 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
     selectOrganization,
   } = useOrganizations()
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [workspaceOpen, setWorkspaceOpen] = useState(false)
+  const [organizationOpen, setOrganizationOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
@@ -79,7 +79,7 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
   const isMac = useSyncExternalStore(subscribeNoop, detectMac, () => false)
   const isLg = useSyncExternalStore(subscribeLg, getIsLg, () => false)
 
-  const workspaces = useMemo<WorkspaceSwitcherItem[]>(
+  const switcherOrganizations = useMemo<OrganizationSwitcherItem[]>(
     () =>
       organizations.map((org, index) => ({
         id: org.id,
@@ -139,11 +139,11 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
   }
 
   function goToOrgOnboarding() {
-    setWorkspaceOpen(false)
+    setOrganizationOpen(false)
     router.push(ORG_SETUP_PATH)
   }
 
-  async function handleWorkspaceChange(nextId: string) {
+  async function handleOrganizationChange(nextId: string) {
     if (nextId === activeOrganizationId) return
     await selectOrganization(nextId)
   }
@@ -211,19 +211,19 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
       ) : null}
 
       {hasOrganizations && activeOrganizationId ? (
-        <WorkspaceSwitcher
+        <OrganizationSwitcher
           className="order-1 min-w-0 max-w-[11rem] sm:max-w-[13rem] lg:max-w-[15rem]"
-          workspaces={workspaces}
+          organizations={switcherOrganizations}
           value={activeOrganizationId}
-          open={workspaceOpen}
+          open={organizationOpen}
           onOpenChange={(next) => {
-            setWorkspaceOpen(next)
+            setOrganizationOpen(next)
             if (next) {
               setProfileOpen(false)
               setNotificationsOpen(false)
             }
           }}
-          onChange={handleWorkspaceChange}
+          onChange={handleOrganizationChange}
           error={organizationsError}
           labels={{
             listLabel: t('workspace.listLabel'),
@@ -231,7 +231,7 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
             members: t('workspace.members'),
             create: t('workspace.create'),
           }}
-          onCreateWorkspace={goToOrgOnboarding}
+          onCreateOrganization={goToOrgOnboarding}
         />
       ) : null}
 
@@ -311,7 +311,7 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
           onOpenChange={(next) => {
             setNotificationsOpen(next)
             if (next) {
-              setWorkspaceOpen(false)
+              setOrganizationOpen(false)
               setProfileOpen(false)
             }
           }}
@@ -323,7 +323,7 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
             onOpenChange={(next) => {
               setProfileOpen(next)
               if (next) {
-                setWorkspaceOpen(false)
+                setOrganizationOpen(false)
                 setNotificationsOpen(false)
               }
             }}

@@ -35,7 +35,7 @@ import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
 import { InviteMemberSheet } from '@/components/dashboard/team/InviteMemberSheet'
 import { EditOrgAdminUserDialog } from '@/components/dashboard/team/EditOrgAdminUserDialog'
-import { WorkspaceAvatar } from '@/components/dashboard/WorkspaceSwitcher'
+import { OrganizationAvatar } from '@/components/dashboard/OrganizationSwitcher'
 
 const DEFAULT_PER_PAGE = 20
 
@@ -553,7 +553,7 @@ export function TeamMembersPage() {
                     className="flex flex-col gap-3 bg-canvas px-4 py-3.5 sm:flex-row sm:items-center sm:gap-3 sm:px-5"
                   >
                     <div className="flex min-w-0 flex-1 items-center gap-3">
-                      <WorkspaceAvatar
+                      <OrganizationAvatar
                         initials={initialsFromName(member.name, member.email)}
                         size="md"
                       />

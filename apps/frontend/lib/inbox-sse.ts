@@ -15,9 +15,15 @@ export const INBOX_SSE_MESSAGE_TYPES = [
 
 export const INBOX_SSE_AI_TYPES = ['ai.handover.triggered'] as const
 
+export const INBOX_SSE_CONVERSATION_TYPES = ['conversation.ai_mode.updated'] as const
+
 export type InboxSseMessageType = (typeof INBOX_SSE_MESSAGE_TYPES)[number]
 export type InboxSseAiType = (typeof INBOX_SSE_AI_TYPES)[number]
-export type InboxSseClientEventType = InboxSseMessageType | InboxSseAiType
+export type InboxSseConversationType = (typeof INBOX_SSE_CONVERSATION_TYPES)[number]
+export type InboxSseClientEventType =
+  | InboxSseMessageType
+  | InboxSseAiType
+  | InboxSseConversationType
 
 export type InboxSseMessageReceivedPayload = {
   organizationId: string
@@ -74,6 +80,14 @@ export type InboxSseAiHandoverPayload = {
   matchedKeyword?: string
 }
 
+export type InboxSseAiModeUpdatedPayload = {
+  conversationId: string
+  aiMode: string
+  aiHandoverReason: string | null
+  automationBlocked: boolean
+  openFlowSessionStatus: string | null
+}
+
 export type InboxSseClientEvent =
   | { type: 'message.received'; organizationId: string; payload: InboxSseMessageReceivedPayload }
   | { type: 'message.queued'; organizationId: string; payload: InboxSseMessageLifecyclePayload }
@@ -81,8 +95,17 @@ export type InboxSseClientEvent =
   | { type: 'message.failed'; organizationId: string; payload: InboxSseMessageLifecyclePayload }
   | { type: 'status.updated'; organizationId: string; payload: InboxSseStatusUpdatedPayload }
   | { type: 'ai.handover.triggered'; organizationId: string; payload: InboxSseAiHandoverPayload }
+  | {
+      type: 'conversation.ai_mode.updated'
+      organizationId: string
+      payload: InboxSseAiModeUpdatedPayload
+    }
 
-const CLIENT_EVENT_TYPE_SET = new Set<string>([...INBOX_SSE_MESSAGE_TYPES, ...INBOX_SSE_AI_TYPES])
+const CLIENT_EVENT_TYPE_SET = new Set<string>([
+  ...INBOX_SSE_MESSAGE_TYPES,
+  ...INBOX_SSE_AI_TYPES,
+  ...INBOX_SSE_CONVERSATION_TYPES,
+])
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -190,6 +213,23 @@ function parseHandoverPayload(payload: Record<string, unknown>): InboxSseAiHando
   }
 }
 
+function parseAiModeUpdatedPayload(
+  payload: Record<string, unknown>
+): InboxSseAiModeUpdatedPayload | null {
+  const conversationId = asString(payload.conversationId)
+  const aiMode = asString(payload.aiMode)
+  if (!conversationId || !aiMode) return null
+  if (typeof payload.automationBlocked !== 'boolean') return null
+
+  return {
+    conversationId,
+    aiMode,
+    aiHandoverReason: asNullableString(payload.aiHandoverReason) ?? null,
+    automationBlocked: payload.automationBlocked,
+    openFlowSessionStatus: asNullableString(payload.openFlowSessionStatus) ?? null,
+  }
+}
+
 function parseStatusPayload(payload: Record<string, unknown>): InboxSseStatusUpdatedPayload | null {
   const organizationId = asString(payload.organizationId)
   const conversationId = asString(payload.conversationId)
@@ -240,6 +280,11 @@ export function parseInboxSseClientEvent(raw: unknown): InboxSseClientEvent | nu
 
   if (type === 'ai.handover.triggered') {
     const payload = parseHandoverPayload(raw.payload)
+    return payload ? { type, organizationId, payload } : null
+  }
+
+  if (type === 'conversation.ai_mode.updated') {
+    const payload = parseAiModeUpdatedPayload(raw.payload)
     return payload ? { type, organizationId, payload } : null
   }
 

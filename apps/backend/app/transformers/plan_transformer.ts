@@ -66,9 +66,8 @@ export function transformPlanLimits(row: Pick<PlanRow, 'limits'>): PlanLimits {
         : null
   const messagesPerMonth =
     typeof limits.messagesPerMonth === 'number' ? limits.messagesPerMonth : null
-  const workspaces = typeof limits.workspaces === 'number' ? limits.workspaces : null
 
-  return { users, messagesPerMonth, workspaces }
+  return { users, messagesPerMonth }
 }
 
 /**

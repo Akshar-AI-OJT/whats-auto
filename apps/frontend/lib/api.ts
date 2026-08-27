@@ -575,6 +575,8 @@ export type InboxConversation = {
   updatedAt?: string | null
   aiMode?: InboxAiMode | string
   aiHandoverReason?: string | null
+  automationBlocked?: boolean
+  openFlowSessionStatus?: string | null
   contact: InboxConversationContact
 }
 
@@ -586,6 +588,8 @@ export type InboxAiModePatch = {
   id: string
   aiMode: InboxAiMode | string
   aiHandoverReason: string | null
+  automationBlocked?: boolean
+  openFlowSessionStatus?: string | null
 }
 
 export type CreateInboxConversationBody = {
@@ -1570,7 +1574,6 @@ export type SuperAdminPlanFeature = {
 export type SuperAdminPlanLimits = {
   users: number | null
   messagesPerMonth: number | null
-  workspaces: number | null
 }
 
 export type SuperAdminPlan = {
@@ -1617,7 +1620,6 @@ export type CreateSuperAdminPlanBody = {
   limits: {
     users?: number | null
     messagesPerMonth?: number | null
-    workspaces?: number | null
   }
   features?: SuperAdminPlanFeature[]
   sortOrder?: number
@@ -1697,7 +1699,6 @@ export type TenantBillingPlanFeature = {
 export type TenantBillingPlanLimits = {
   users: number | null
   messagesPerMonth: number | null
-  workspaces: number | null
 }
 
 export type TenantBillingPlan = {

@@ -222,7 +222,7 @@ export function PlanViewPage({ planId }: PlanViewPageProps) {
 
       <DashboardPanel className="p-5 sm:p-6 lg:p-8">
         <h2 className="font-display text-lg tracking-tight text-ink">{t('sections.limits')}</h2>
-        <dl className="mt-4 grid gap-4 sm:grid-cols-3">
+        <dl className="mt-4 grid gap-4 sm:grid-cols-2">
           <div>
             <dt className="text-xs text-mute">{t('fields.users')}</dt>
             <dd className="mt-1 text-sm font-semibold text-ink">
@@ -233,12 +233,6 @@ export function PlanViewPage({ planId }: PlanViewPageProps) {
             <dt className="text-xs text-mute">{t('fields.messages')}</dt>
             <dd className="mt-1 text-sm font-semibold text-ink">
               {formatLimit(plan.limits.messagesPerMonth, t('unlimited'))}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs text-mute">{t('fields.workspaces')}</dt>
-            <dd className="mt-1 text-sm font-semibold text-ink">
-              {formatLimit(plan.limits.workspaces, t('unlimited'))}
             </dd>
           </div>
         </dl>

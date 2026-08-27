@@ -511,14 +511,14 @@ export class InvitationService {
       ])
 
       const userName = (accepter?.name as string | undefined) ?? 'A user'
-      const workspaceName = (org?.name as string | undefined) ?? 'the workspace'
+      const organizationName = (org?.name as string | undefined) ?? 'the organization'
 
       await new NotificationService().createNotification({
         organizationId: params.organizationId,
         userId: params.inviterId,
         type: 'team_invitation_accepted',
         title: 'Invitation accepted',
-        body: `${userName} accepted your invitation and joined ${workspaceName}.`,
+        body: `${userName} accepted your invitation and joined ${organizationName}.`,
         actorUserId: params.actorUserId,
       })
     } catch (error) {

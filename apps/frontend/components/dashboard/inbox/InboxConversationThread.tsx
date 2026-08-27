@@ -21,7 +21,7 @@ import { InboxConversationHeader } from './InboxConversationHeader'
 import { InboxMessageList } from './InboxMessageList'
 import { InboxReplyComposer } from './InboxReplyComposer'
 import { InboxThreadHeaderSkeleton, InboxThreadMessagesSkeleton } from './InboxThreadSkeleton'
-import { useInboxWorkspace } from './InboxWorkspaceContext'
+import { useInboxOrganization } from './InboxOrganizationContext'
 import { applyInboxSseToConversation, applyInboxSseToMessages } from './apply-inbox-sse'
 import { contactLabel, unwrapPaginated, unwrapSingle, mergeConversationUpdate } from './inbox-utils'
 
@@ -72,13 +72,13 @@ export function InboxConversationThread({
   const tInbox = useTranslations('dashboard.inbox')
   const queryClient = useQueryClient()
   const { tenantOrganizationId, canViewInbox, isLoading: orgsLoading } = useOrganizations()
-  const workspace = useInboxWorkspace()
-  const subscribeInboxEvents = workspace.subscribeInboxEvents
+  const inbox = useInboxOrganization()
+  const subscribeInboxEvents = inbox.subscribeInboxEvents
 
-  const setWorkspaceConversation = workspace.setConversation
-  const setWorkspaceConversationId = workspace.setConversationId
-  const setWorkspaceMembers = workspace.setMembers
-  const mergeWorkspaceConversation = workspace.mergeConversation
+  const setInboxConversation = inbox.setConversation
+  const setInboxConversationId = inbox.setConversationId
+  const setInboxMembers = inbox.setMembers
+  const mergeInboxConversation = inbox.mergeConversation
 
   const threadEnabled =
     !orgsLoading && Boolean(tenantOrganizationId) && canViewInbox && Boolean(conversationId)
@@ -127,16 +127,16 @@ export function InboxConversationThread({
     ? (conversationQuery.error as unknown as ApiError).message || t('errors.loadFailed')
     : null
 
-  // Keep workspace in sync with the active thread (render-phase adjust).
-  const workspaceConversationId = workspace.conversationId
-  if (workspaceConversationId !== conversationId) {
-    setWorkspaceConversationId(conversationId)
-    setWorkspaceConversation(null)
-  } else if (conversation && workspace.conversation !== conversation) {
-    setWorkspaceConversation(conversation)
+  // Keep inbox context in sync with the active thread (render-phase adjust).
+  const inboxConversationId = inbox.conversationId
+  if (inboxConversationId !== conversationId) {
+    setInboxConversationId(conversationId)
+    setInboxConversation(null)
+  } else if (conversation && inbox.conversation !== conversation) {
+    setInboxConversation(conversation)
   }
-  if (membersQuery.isSuccess && workspace.members !== members) {
-    setWorkspaceMembers(members)
+  if (membersQuery.isSuccess && inbox.members !== members) {
+    setInboxMembers(members)
   }
 
   const agentNameByUserId = useMemo(() => {
@@ -174,7 +174,7 @@ export function InboxConversationThread({
           },
         }),
       ])
-      setWorkspaceConversation(detailResult)
+      setInboxConversation(detailResult)
     } catch {
       // Keep existing messages; composer surfaces send errors via toast.
     }
@@ -184,7 +184,7 @@ export function InboxConversationThread({
     detailKey,
     messagesKey,
     queryClient,
-    setWorkspaceConversation,
+    setInboxConversation,
     tenantOrganizationId,
   ])
 
@@ -205,12 +205,12 @@ export function InboxConversationThread({
         queryClient.setQueryData<InboxConversation>(detailKey, (prev) =>
           prev ? mergeConversationUpdate(prev, patch) : prev
         )
-        mergeWorkspaceConversation(patch)
+        mergeInboxConversation(patch)
         return
       }
       await refreshMessages()
     },
-    [detailKey, mergeWorkspaceConversation, messagesKey, queryClient, refreshMessages]
+    [detailKey, mergeInboxConversation, messagesKey, queryClient, refreshMessages]
   )
 
   useEffect(() => {
@@ -235,7 +235,7 @@ export function InboxConversationThread({
       })
 
       if (conversationPatch) {
-        mergeWorkspaceConversation(conversationPatch)
+        mergeInboxConversation(conversationPatch)
       }
 
       if (missingMessage) {
@@ -246,7 +246,7 @@ export function InboxConversationThread({
     canViewInbox,
     conversationId,
     detailKey,
-    mergeWorkspaceConversation,
+    mergeInboxConversation,
     messagesKey,
     queryClient,
     refreshMessages,
@@ -264,9 +264,9 @@ export function InboxConversationThread({
       queryClient.setQueryData<InboxConversation>(detailKey, (prev) =>
         prev ? mergeConversationUpdate(prev, patch) : prev
       )
-      mergeWorkspaceConversation(patch)
+      mergeInboxConversation(patch)
     },
-    [detailKey, mergeWorkspaceConversation, queryClient]
+    [detailKey, mergeInboxConversation, queryClient]
   )
 
   if (!orgsLoading && !canViewInbox) {

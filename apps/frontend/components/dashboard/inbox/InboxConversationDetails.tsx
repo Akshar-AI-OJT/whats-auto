@@ -18,7 +18,7 @@ import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { useWhatsappConfigs } from '@/hooks/useWhatsappConfigs'
 import { InboxThreadNotes } from './InboxThreadNotes'
 import { InboxAiModePill } from './InboxAiModePill'
-import { useInboxWorkspace } from './InboxWorkspaceContext'
+import { useInboxOrganization } from './InboxOrganizationContext'
 import { formatMessageTime, unwrapSingle } from './inbox-utils'
 
 function unwrapMembers(data: unknown): OrganizationMember[] {
@@ -59,13 +59,13 @@ export function InboxConversationDetails({
     canViewWhatsapp,
     isLoading: orgsLoading,
   } = useOrganizations()
-  const workspace = useInboxWorkspace()
-  const setWorkspaceConversationId = workspace.setConversationId
-  const setWorkspaceConversation = workspace.setConversation
-  const setWorkspaceMembers = workspace.setMembers
-  const workspaceConversationId = workspace.conversationId
-  const workspaceConversation = workspace.conversation
-  const workspaceMembers = workspace.members
+  const inbox = useInboxOrganization()
+  const setInboxConversationId = inbox.setConversationId
+  const setInboxConversation = inbox.setConversation
+  const setInboxMembers = inbox.setMembers
+  const inboxConversationId = inbox.conversationId
+  const inboxConversation = inbox.conversation
+  const inboxMembers = inbox.members
 
   const [tabState, setTabState] = useState<{ conversationId: string; tab: 'info' | 'notes' }>({
     conversationId,
@@ -117,20 +117,20 @@ export function InboxConversationDetails({
     ? (conversationQuery.error as unknown as ApiError).message || t('thread.errors.loadFailed')
     : null
 
-  // Seed workspace from query cache without fighting Thread SSE merges.
-  if (workspaceConversationId !== conversationId) {
-    setWorkspaceConversationId(conversationId)
-    setWorkspaceConversation(null)
-  } else if (localConversation && !workspaceConversation) {
-    setWorkspaceConversation(localConversation)
+  // Seed inbox context from query cache without fighting Thread SSE merges.
+  if (inboxConversationId !== conversationId) {
+    setInboxConversationId(conversationId)
+    setInboxConversation(null)
+  } else if (localConversation && !inboxConversation) {
+    setInboxConversation(localConversation)
   }
-  if (membersQuery.isSuccess && workspaceMembers !== members) {
-    setWorkspaceMembers(members)
+  if (membersQuery.isSuccess && inboxMembers !== members) {
+    setInboxMembers(members)
   }
 
   const conversation =
-    workspaceConversationId === conversationId && workspaceConversation
-      ? workspaceConversation
+    inboxConversationId === conversationId && inboxConversation
+      ? inboxConversation
       : localConversation
 
   const detailsTab = tabState.conversationId === conversationId ? tabState.tab : 'info'
@@ -139,11 +139,11 @@ export function InboxConversationDetails({
 
   const agentNameByUserId = useMemo(() => {
     const map = new Map<string, string>()
-    for (const member of workspaceMembers) {
+    for (const member of inboxMembers) {
       map.set(member.userId, member.name || member.email)
     }
     return map
-  }, [workspaceMembers])
+  }, [inboxMembers])
 
   const whatsappLabel = useMemo(() => {
     if (!whatsappConfigId) return null

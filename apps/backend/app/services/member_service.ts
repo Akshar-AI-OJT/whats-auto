@@ -192,10 +192,10 @@ export class MemberService {
       userId: member.userId as string,
       actorUserId,
       type: 'team_member_removed',
-      title: 'You were removed from this workspace',
+      title: 'You were removed from this organization',
       body: workspaceName
         ? `You were removed from ${workspaceName}.`
-        : 'You were removed from this workspace.',
+        : 'You were removed from this organization.',
     })
   }
 

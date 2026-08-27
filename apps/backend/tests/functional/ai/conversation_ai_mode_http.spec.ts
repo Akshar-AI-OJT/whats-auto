@@ -85,6 +85,7 @@ test.group('Conversation AI mode HTTP', (group) => {
     taken.assertStatus(200)
     assert.equal(taken.body().data.aiMode, ConversationAiMode.HUMAN_ACTIVE)
     assert.equal(taken.body().data.aiHandoverReason, 'takeover')
+    assert.isTrue(taken.body().data.automationBlocked)
 
     const resumed = await client
       .post(`/api/v1/inbox/conversations/${CONV}/ai/resume`)
@@ -92,5 +93,21 @@ test.group('Conversation AI mode HTTP', (group) => {
     resumed.assertStatus(200)
     assert.equal(resumed.body().data.aiMode, ConversationAiMode.AI_AUTO)
     assert.isNull(resumed.body().data.aiHandoverReason)
+    assert.isFalse(resumed.body().data.automationBlocked)
+  })
+
+  test('resume while already AI_AUTO succeeds for orphan pause repair', async ({
+    client,
+    assert,
+  }) => {
+    const token = await mintToken(DEMO_USERS.northstarAgent, ORG)
+    await setAiMode(ConversationAiMode.AI_AUTO, null)
+
+    const resumed = await client
+      .post(`/api/v1/inbox/conversations/${CONV}/ai/resume`)
+      .header('Authorization', `Bearer ${token}`)
+    resumed.assertStatus(200)
+    assert.equal(resumed.body().data.aiMode, ConversationAiMode.AI_AUTO)
+    assert.isFalse(resumed.body().data.automationBlocked)
   })
 })

@@ -22,7 +22,7 @@ export function remapTagErrorMessage(error: Pick<ApiError, 'message' | 'code'> |
   if (code === 'E_TAG_NAME_EXISTS') return 'A group with this name already exists.'
   if (code === 'E_TAG_ASSIGNMENT_EXISTS') return 'This contact is already in the group.'
   if (code === 'E_TAG_ASSIGNMENT_NOT_FOUND') return 'This contact is not in the group.'
-  if (code === 'E_TAG_INVALID_CONTACT') return 'That contact could not be found in this workspace.'
+  if (code === 'E_TAG_INVALID_CONTACT') return 'That contact could not be found in this organization.'
   if (code === 'E_TAG_EMPTY_UPDATE') return 'No changes were provided.'
   return raw
     .replace(/\btag assignment\b/gi, 'group membership')
