@@ -48,10 +48,6 @@ export default await Env.create(new URL('../', import.meta.url), {
   PG_DB_NAME: Env.schema.string(),
   PG_SSL: Env.schema.boolean.optional(),
 
-  // Resend
-  RESEND_API_KEY: Env.schema.secret(),
-  EMAIL_FROM: Env.schema.string(),
-
   WHATSAPP_VERIFY_TOKEN: Env.schema.string(),
 
   META_APP_SECRET: Env.schema.secret(),
@@ -90,9 +86,24 @@ export default await Env.create(new URL('../', import.meta.url), {
   S3_FORCE_PATH_STYLE: Env.schema.boolean.optional(),
   DRIVE_DISK: Env.schema.enum(['s3'] as const),
   MEDIA_PUBLIC_BASE_URL: Env.schema.string({ format: 'url', tld: false }),
+
   /**
-   * @deprecated New uploads always use v2 organization keys.
-   * Kept optional so existing .env files do not fail validation.
+   * Optional smoke-test only. When the mapped shopenup_* template is missing
+   * or not approved, send this approved name instead (e.g. hello_world).
+   * Unset after real templates are approved.
    */
-  MEDIA_STORAGE_NAMESPACE_V2: Env.schema.boolean.optional(),
+  INTEGRATION_COMMERCE_TEMPLATE_FALLBACK: Env.schema.string.optional(),
+  /*
+  |----------------------------------------------------------
+  | Variables for configuring the mail package
+  |----------------------------------------------------------
+  */
+  MAIL_MAILER: Env.schema.enum(['smtp', 'brevo'] as const),
+  MAIL_FROM_NAME: Env.schema.string(),
+  MAIL_FROM_ADDRESS: Env.schema.string(),
+  SMTP_HOST: Env.schema.string.optional(),
+  SMTP_PORT: Env.schema.number.optional(),
+  SMTP_USERNAME: Env.schema.string.optional(),
+  SMTP_PASSWORD: Env.schema.secret.optional(),
+  BREVO_API: Env.schema.secret.optional(),
 })

@@ -42,6 +42,8 @@ export const createMessageTemplateValidator = vine.create(
       .in([...TEMPLATE_HEADER_TYPES])
       .optional(),
     headerContent: vine.string().trim().maxLength(60).optional(),
+    headerMediaAssetId: vine.string().trim().uuid().optional(),
+    headerMediaUrl: vine.string().trim().url().optional(),
     bodyText: vine.string().trim().minLength(1).maxLength(1024),
     footerText: vine.string().trim().maxLength(60).optional(),
     buttons: vine.array(vine.any()).optional(),

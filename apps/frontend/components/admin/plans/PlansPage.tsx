@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useId, useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Archive,
   Eye,
@@ -17,6 +18,7 @@ import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
 import { useSearchParams } from 'next/navigation'
 import { cn } from '@/lib/utils'
+import { queryKeys } from '@/lib/query-keys'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
@@ -30,7 +32,7 @@ import {
   formatPlanDate,
   formatPlanPrice,
 } from './plan-utils'
-import type { PlanStatus, PlanSummary, SubscriptionPlan } from './types'
+import type { PlanStatus, SubscriptionPlan } from './types'
 import { PLAN_STATUSES } from './types'
 
 const selectClassName = cn(
@@ -45,13 +47,10 @@ type StatusFilter = PlanStatus | 'all'
 export function PlansPage() {
   const t = useTranslations('admin.plans')
   const router = useRouter()
+  const queryClient = useQueryClient()
   const searchParams = useSearchParams()
   const searchId = useId()
 
-  const [items, setItems] = useState<SubscriptionPlan[]>([])
-  const [summary, setSummary] = useState<PlanSummary | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
@@ -72,28 +71,25 @@ export function PlansPage() {
     return () => window.clearTimeout(timer)
   }, [search])
 
-  const load = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const result = await listPlans({
+  const plansQueryKey = queryKeys.admin.plans({
+    search: debouncedSearch,
+    status: statusFilter,
+  })
+  const plansQuery = useQuery({
+    queryKey: plansQueryKey,
+    queryFn: async () =>
+      listPlans({
         search: debouncedSearch,
         status: statusFilter,
-      })
-      setItems(result.items)
-      setSummary(result.summary)
-    } catch {
-      setItems([])
-      setSummary(null)
-      setError(t('errors.loadFailed'))
-    } finally {
-      setLoading(false)
-    }
-  }, [debouncedSearch, statusFilter, t])
+      }),
+    staleTime: 60_000,
+    placeholderData: (previous) => previous,
+  })
 
-  useEffect(() => {
-    void load()
-  }, [load])
+  const items = plansQuery.data?.items ?? []
+  const summary = plansQuery.data?.summary ?? null
+  const loading = plansQuery.isLoading
+  const error = plansQuery.error ? t('errors.loadFailed') : null
 
   useEffect(() => {
     function onDocClick() {
@@ -128,7 +124,7 @@ export function PlansPage() {
       }
       setActionMessage(t('toast.archived'))
       setArchiveTarget(null)
-      await load()
+      await queryClient.invalidateQueries({ queryKey: queryKeys.admin.plansRoot })
     } finally {
       setArchivePending(false)
     }
@@ -144,7 +140,11 @@ export function PlansPage() {
           </h1>
           <p className="mt-1 max-w-2xl text-sm leading-6 text-body">{t('subtitle')}</p>
         </div>
-        <Button type="button" className="gap-2 self-start" onClick={() => router.push('/admin/plans/create')}>
+        <Button
+          type="button"
+          className="gap-2 self-start"
+          onClick={() => router.push('/admin/plans/create')}
+        >
           <Plus className="size-4" aria-hidden />
           {t('create')}
         </Button>
@@ -239,7 +239,12 @@ export function PlansPage() {
             <p role="alert" className="text-sm text-negative">
               {error}
             </p>
-            <Button type="button" variant="outline" size="sm" onClick={() => void load()}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void plansQuery.refetch()}
+            >
               {t('retry')}
             </Button>
           </div>
@@ -282,7 +287,7 @@ export function PlansPage() {
                           <td className="px-4 py-3">
                             <button
                               type="button"
-                              className="text-left"
+                              className="cursor-pointer text-left"
                               onClick={() => router.push(`/admin/plans/${plan.id}`)}
                             >
                               <span className="flex items-center gap-2">
@@ -293,7 +298,9 @@ export function PlansPage() {
                                   </span>
                                 ) : null}
                               </span>
-                              <p className="mt-0.5 max-w-xs truncate text-xs text-mute">{plan.description}</p>
+                              <p className="mt-0.5 max-w-xs truncate text-xs text-mute">
+                                {plan.description}
+                              </p>
                             </button>
                           </td>
                           <td className="px-4 py-3">
@@ -309,17 +316,22 @@ export function PlansPage() {
                               {t('limits.users')}: {formatLimit(plan.limits.users, t('unlimited'))}
                             </p>
                             <p>
-                              {t('limits.messages')}: {formatLimit(plan.limits.messagesPerMonth, t('unlimited'))}
+                              {t('limits.messages')}:{' '}
+                              {formatLimit(plan.limits.messagesPerMonth, t('unlimited'))}
                             </p>
                             <p>
-                              {t('limits.workspaces')}: {formatLimit(plan.limits.workspaces, t('unlimited'))}
+                              {t('limits.workspaces')}:{' '}
+                              {formatLimit(plan.limits.workspaces, t('unlimited'))}
                             </p>
                           </td>
                           <td className="px-4 py-3 text-sm tabular-nums text-ink">
                             {t('featureCount', { count: enabledFeatureCount(plan) })}
                           </td>
                           <td className="px-4 py-3">
-                            <PlanStatusBadge status={plan.status} label={t(`statuses.${plan.status}`)} />
+                            <PlanStatusBadge
+                              status={plan.status}
+                              label={t(`statuses.${plan.status}`)}
+                            />
                           </td>
                           <td className="px-4 py-3 text-sm tabular-nums text-body">
                             {formatPlanDate(plan.updatedAt)}
@@ -343,7 +355,7 @@ export function PlansPage() {
                               >
                                 <button
                                   type="button"
-                                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
+                                  className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
                                   onClick={() => router.push(`/admin/plans/${plan.id}`)}
                                 >
                                   <Eye className="size-3.5" />
@@ -351,7 +363,7 @@ export function PlansPage() {
                                 </button>
                                 <button
                                   type="button"
-                                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
+                                  className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
                                   onClick={() => router.push(`/admin/plans/${plan.id}/edit`)}
                                 >
                                   <FileEdit className="size-3.5" />
@@ -390,7 +402,7 @@ export function PlansPage() {
                   <li key={plan.id}>
                     <button
                       type="button"
-                      className="w-full rounded-2xl border border-dash-border bg-dash-surface/60 p-4 text-left"
+                      className="w-full cursor-pointer rounded-2xl border border-dash-border bg-dash-surface/60 p-4 text-left"
                       onClick={() => router.push(`/admin/plans/${plan.id}`)}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -400,7 +412,10 @@ export function PlansPage() {
                             {formatPlanPrice(plan, t('customPrice'), t('perMonth'), t('perYear'))}
                           </p>
                         </div>
-                        <PlanStatusBadge status={plan.status} label={t(`statuses.${plan.status}`)} />
+                        <PlanStatusBadge
+                          status={plan.status}
+                          label={t(`statuses.${plan.status}`)}
+                        />
                       </div>
                     </button>
                   </li>
@@ -426,7 +441,9 @@ export function PlansPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <h2 className="font-display text-lg tracking-tight text-ink">{t('archiveTitle')}</h2>
-            <p className="mt-2 text-sm text-body">{t('archiveBody', { name: archiveTarget.name })}</p>
+            <p className="mt-2 text-sm text-body">
+              {t('archiveBody', { name: archiveTarget.name })}
+            </p>
             <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Button
                 type="button"
@@ -436,7 +453,12 @@ export function PlansPage() {
               >
                 {t('cancel')}
               </Button>
-              <Button type="button" disabled={archivePending} className="gap-2" onClick={() => void handleArchive()}>
+              <Button
+                type="button"
+                disabled={archivePending}
+                className="gap-2"
+                onClick={() => void handleArchive()}
+              >
                 {archivePending ? <Loader2 className="size-4 animate-spin" /> : null}
                 {t('archiveConfirm')}
               </Button>

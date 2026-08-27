@@ -39,7 +39,7 @@ export const createOrganizationValidator = vine.create(
     industry: vine.string().trim().optional(),
     organizationType: organizationTypeSchema,
     address: addressSchema,
-    pan: panSchema,
+    pan: panSchema.optional(),
     gstin: gstinSchema.optional(),
     country: vine.string().trim().minLength(2).maxLength(100),
     timezone: vine.string().trim().minLength(1).maxLength(100),

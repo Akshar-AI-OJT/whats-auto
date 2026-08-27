@@ -1,16 +1,27 @@
 'use client'
 
-import { useCallback, useEffect, useId, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useId, useMemo, useState, type ReactNode } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
-import { Loader2, X } from 'lucide-react'
+import { Loader2 } from 'lucide-react'
 import {
   api,
   type ApiError,
   type PlatformAiConfig,
   type UpdatePlatformAiConfigBody,
 } from '@/lib/api'
+import { queryKeys } from '@/lib/query-keys'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardToast, useDashboardToast } from '@/components/dashboard/ui/use-dashboard-toast'
 import {
@@ -19,6 +30,9 @@ import {
   catalogForProvider,
   selectOptionsWithCurrent,
 } from './platform-ai-models'
+
+/** Exact phrase required before toggling platform `isEnabled` (kill switch). */
+const KILL_SWITCH_CONFIRM_PHRASE = 'confirm kill'
 
 const fieldClassName = cn(
   'h-11 w-full min-w-0 rounded-xl border border-dash-border bg-canvas px-3 text-sm text-ink outline-none',
@@ -40,13 +54,13 @@ type FormState = {
   summaryModel: string | null
   embeddingModel: string
   temperature: string
+  maxOutputTokens: number
   campaignAttributionWindowHours: string
   minConfidenceScore: string
   debounceDelaySeconds: string
   workingSetSize: string
   summaryTurnThreshold: string
   systemPrompt: string
-  handoverKeywords: string[]
 }
 
 function unwrapConfig(payload: unknown): PlatformAiConfig | null {
@@ -80,13 +94,13 @@ function formFromConfig(config: PlatformAiConfig): FormState {
     summaryModel: config.summaryModel ?? null,
     embeddingModel: pendingEmbed || config.embeddingModel,
     temperature: String(config.temperature),
+    maxOutputTokens: Number(config.maxOutputTokens ?? 1024),
     campaignAttributionWindowHours: String(config.campaignAttributionWindowHours),
     minConfidenceScore: String(config.minConfidenceScore),
     debounceDelaySeconds: String(config.debounceDelaySeconds),
     workingSetSize: String(config.workingSetSize),
     summaryTurnThreshold: String(config.summaryTurnThreshold),
     systemPrompt: config.systemPrompt ?? '',
-    handoverKeywords: [...config.handoverKeywords],
   }
 }
 
@@ -101,13 +115,6 @@ function parseBoundedNumber(
   if (integer && !Number.isInteger(value)) return null
   if (value < min || value > max) return null
   return value
-}
-
-function normalizeKeyword(raw: string): string | null {
-  const keyword = raw.trim()
-  if (!keyword) return null
-  if (keyword.length > PLATFORM_AI_LIMITS.keywordMaxLength) return null
-  return keyword
 }
 
 function mapAiConfigError(error: unknown, fallback: 'load' | 'save'): string {
@@ -219,14 +226,93 @@ function NumberField({
 export function PlatformAiConfigSection() {
   const t = useTranslations('admin.settings.ai')
   const formId = useId()
+  const queryClient = useQueryClient()
   const { toast, showToast, clearToast } = useDashboardToast()
 
-  const [form, setForm] = useState<FormState | null>(null)
-  const [reindexStatus, setReindexStatus] = useState<'idle' | 'running' | 'failed'>('idle')
-  const [keywordDraft, setKeywordDraft] = useState('')
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [loadError, setLoadError] = useState<string | null>(null)
+  const [draft, setDraft] = useState<FormState | null>(null)
+  const [killConfirmOpen, setKillConfirmOpen] = useState(false)
+  const [killConfirmNextEnabled, setKillConfirmNextEnabled] = useState(false)
+  const [killConfirmInput, setKillConfirmInput] = useState('')
+
+  const configQuery = useQuery({
+    queryKey: queryKeys.admin.aiConfig,
+    queryFn: async (): Promise<PlatformAiConfig> => {
+      const { data } = await api.superAdmin.aiConfig.get()
+      const config = unwrapConfig(data)
+      if (!config) {
+        throw Object.assign(new Error('Platform AI config missing'), {
+          code: 'E_PLATFORM_AI_CONFIG_NOT_FOUND',
+        })
+      }
+      return config
+    },
+    refetchInterval: (query) =>
+      query.state.data && reindexStatusFromConfig(query.state.data) === 'running' ? 2000 : false,
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: async (payload: UpdatePlatformAiConfigBody): Promise<PlatformAiConfig> => {
+      const { data } = await api.superAdmin.aiConfig.update(payload)
+      const config = unwrapConfig(data)
+      if (!config) {
+        throw Object.assign(new Error('Platform AI config missing'), {
+          code: 'E_PLATFORM_AI_CONFIG_NOT_FOUND',
+        })
+      }
+      return config
+    },
+    onSuccess: (config) => {
+      queryClient.setQueryData(queryKeys.admin.aiConfig, config)
+      setDraft(formFromConfig(config))
+    },
+  })
+
+  const reindexStatus = configQuery.data
+    ? reindexStatusFromConfig(configQuery.data)
+    : ('idle' as const)
+  const saving = updateMutation.isPending
+  const loading = configQuery.isLoading && !configQuery.data
+  const loadError = configQuery.isError
+    ? (() => {
+        const key = mapAiConfigError(configQuery.error, 'load')
+        return key === 'raw'
+          ? (configQuery.error as unknown as ApiError).message
+          : t(`errors.${key}`)
+      })()
+    : null
+
+  // Prefer local edits; otherwise mirror the latest server config (incl. reindex polls).
+  const form = draft ?? (configQuery.data ? formFromConfig(configQuery.data) : null)
+
+  const patchForm = useCallback(
+    (updater: (prev: FormState) => FormState) => {
+      setDraft((prev) => {
+        const base = prev ?? (configQuery.data ? formFromConfig(configQuery.data) : null)
+        if (!base) return prev
+        return updater(base)
+      })
+    },
+    [configQuery.data]
+  )
+
+  const openKillConfirm = useCallback((nextEnabled: boolean) => {
+    setKillConfirmNextEnabled(nextEnabled)
+    setKillConfirmInput('')
+    setKillConfirmOpen(true)
+  }, [])
+
+  const closeKillConfirm = useCallback(() => {
+    setKillConfirmOpen(false)
+    setKillConfirmInput('')
+  }, [])
+
+  const confirmKillSwitch = useCallback(() => {
+    if (killConfirmInput !== KILL_SWITCH_CONFIRM_PHRASE) return
+    patchForm((prev) => ({ ...prev, isEnabled: killConfirmNextEnabled }))
+    closeKillConfirm()
+  }, [closeKillConfirm, killConfirmInput, killConfirmNextEnabled, patchForm])
+
+  const killConfirmMatches = killConfirmInput === KILL_SWITCH_CONFIRM_PHRASE
 
   const catalog = useMemo(
     () => catalogForProvider(form?.chatProvider ?? 'openai'),
@@ -245,65 +331,6 @@ export function PlatformAiConfigSection() {
     [catalog.chat, form?.summaryModel]
   )
 
-  const loadConfig = useCallback(async () => {
-    setLoading(true)
-    setLoadError(null)
-    try {
-      const { data } = await api.superAdmin.aiConfig.get()
-      const config = unwrapConfig(data)
-      if (!config) {
-        setForm(null)
-        setLoadError(t('errors.loadFailed'))
-        return
-      }
-      setForm(formFromConfig(config))
-      setReindexStatus(reindexStatusFromConfig(config))
-    } catch (err) {
-      setForm(null)
-      const key = mapAiConfigError(err, 'load')
-      setLoadError(key === 'raw' ? (err as ApiError).message : t(`errors.${key}`))
-    } finally {
-      setLoading(false)
-    }
-  }, [t])
-
-  useEffect(() => {
-    let cancelled = false
-    const scheduled = Promise.resolve().then(() => {
-      if (cancelled) return
-      return loadConfig()
-    })
-    return () => {
-      cancelled = true
-      void scheduled
-    }
-  }, [loadConfig])
-
-  const addKeyword = useCallback((raw: string) => {
-    const keyword = normalizeKeyword(raw)
-    if (!keyword) return
-    setForm((prev) => {
-      if (!prev) return prev
-      if (prev.handoverKeywords.length >= PLATFORM_AI_LIMITS.keywordMaxCount) return prev
-      const exists = prev.handoverKeywords.some(
-        (item) => item.toLowerCase() === keyword.toLowerCase()
-      )
-      if (exists) return prev
-      return { ...prev, handoverKeywords: [...prev.handoverKeywords, keyword] }
-    })
-    setKeywordDraft('')
-  }, [])
-
-  const removeKeyword = useCallback((index: number) => {
-    setForm((prev) => {
-      if (!prev) return prev
-      return {
-        ...prev,
-        handoverKeywords: prev.handoverKeywords.filter((_, i) => i !== index),
-      }
-    })
-  }, [])
-
   const handleSave = useCallback(async () => {
     if (!form || saving) return
     clearToast()
@@ -313,6 +340,12 @@ export function PlatformAiConfigSection() {
       PLATFORM_AI_LIMITS.temperature.min,
       PLATFORM_AI_LIMITS.temperature.max,
       false
+    )
+    const maxOutputTokens = parseBoundedNumber(
+      String(form.maxOutputTokens),
+      PLATFORM_AI_LIMITS.maxOutputTokens.min,
+      PLATFORM_AI_LIMITS.maxOutputTokens.max,
+      true
     )
     const campaignAttributionWindowHours = parseBoundedNumber(
       form.campaignAttributionWindowHours,
@@ -347,6 +380,7 @@ export function PlatformAiConfigSection() {
 
     if (
       temperature == null ||
+      maxOutputTokens == null ||
       campaignAttributionWindowHours == null ||
       minConfidenceScore == null ||
       debounceDelaySeconds == null ||
@@ -360,10 +394,6 @@ export function PlatformAiConfigSection() {
       showToast(t('errors.summaryThreshold'), 'error')
       return
     }
-    if (form.handoverKeywords.length < 1) {
-      showToast(t('errors.keywordsRequired'), 'error')
-      return
-    }
 
     const body: UpdatePlatformAiConfigBody = {
       isEnabled: form.isEnabled,
@@ -373,46 +403,32 @@ export function PlatformAiConfigSection() {
       embeddingProvider: form.chatProvider,
       embeddingModel: form.embeddingModel,
       temperature,
+      maxOutputTokens,
       campaignAttributionWindowHours,
       minConfidenceScore,
       debounceDelaySeconds,
       workingSetSize,
       summaryTurnThreshold,
       systemPrompt: form.systemPrompt.trim() ? form.systemPrompt : null,
-      handoverKeywords: form.handoverKeywords,
       ...(reindexStatus === 'failed' ? { confirmReindex: true } : {}),
     }
 
-    setSaving(true)
     try {
-      const persist = async (payload: UpdatePlatformAiConfigBody) => {
-        const { data } = await api.superAdmin.aiConfig.update(payload)
-        const config = unwrapConfig(data)
-        if (config) {
-          setForm(formFromConfig(config))
-          setReindexStatus(reindexStatusFromConfig(config))
-        }
-      }
-
       try {
-        await persist(body)
+        await updateMutation.mutateAsync(body)
       } catch (err) {
         const apiError = err as ApiError
         if (apiError.code !== 'E_PLATFORM_AI_REINDEX_REQUIRED') throw err
-        const confirmed = window.confirm(
-          t('reindexConfirm', { count: apiError.chunkCount ?? 0 })
-        )
+        const confirmed = window.confirm(t('reindexConfirm', { count: apiError.chunkCount ?? 0 }))
         if (!confirmed) return
-        await persist({ ...body, confirmReindex: true })
+        await updateMutation.mutateAsync({ ...body, confirmReindex: true })
       }
       showToast(t('saved'), 'success')
     } catch (err) {
       const key = mapAiConfigError(err, 'save')
       showToast(key === 'raw' ? (err as ApiError).message : t(`errors.${key}`), 'error')
-    } finally {
-      setSaving(false)
     }
-  }, [clearToast, form, reindexStatus, saving, showToast, t])
+  }, [clearToast, form, reindexStatus, saving, showToast, t, updateMutation])
 
   const embedLocked = reindexStatus === 'running'
 
@@ -434,7 +450,15 @@ export function PlatformAiConfigSection() {
           <p role="alert" className="text-sm text-negative">
             {loadError}
           </p>
-          <Button type="button" variant="outline" size="sm" onClick={() => void loadConfig()}>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setDraft(null)
+              void configQuery.refetch()
+            }}
+          >
             {t('retry')}
           </Button>
         </div>
@@ -461,9 +485,7 @@ export function PlatformAiConfigSection() {
                   className="mt-0.5 size-4 rounded border-dash-border-strong text-primary focus-visible:ring-primary/30"
                   checked={form.isEnabled}
                   disabled={saving}
-                  onChange={(event) =>
-                    setForm((prev) => (prev ? { ...prev, isEnabled: event.target.checked } : prev))
-                  }
+                  onChange={(event) => openKillConfirm(event.target.checked)}
                 />
                 <span className="min-w-0">
                   <span className="block text-sm font-medium text-ink">
@@ -489,17 +511,13 @@ export function PlatformAiConfigSection() {
                     onChange={(event) => {
                       const nextProvider = event.target.value
                       const nextCatalog = catalogForProvider(nextProvider)
-                      setForm((prev) =>
-                        prev
-                          ? {
-                              ...prev,
-                              chatProvider: nextProvider,
-                              chatModel: nextCatalog.defaults.chatModel,
-                              summaryModel: nextCatalog.defaults.summaryModel,
-                              embeddingModel: nextCatalog.defaults.embeddingModel,
-                            }
-                          : prev
-                      )
+                      patchForm((prev) => ({
+                        ...prev,
+                        chatProvider: nextProvider,
+                        chatModel: nextCatalog.defaults.chatModel,
+                        summaryModel: nextCatalog.defaults.summaryModel,
+                        embeddingModel: nextCatalog.defaults.embeddingModel,
+                      }))
                     }}
                   >
                     {PLATFORM_AI_PROVIDERS.map((provider) => (
@@ -521,7 +539,7 @@ export function PlatformAiConfigSection() {
                     disabled={saving}
                     value={form.chatModel}
                     onChange={(event) =>
-                      setForm((prev) => (prev ? { ...prev, chatModel: event.target.value } : prev))
+                      patchForm((prev) => ({ ...prev, chatModel: event.target.value }))
                     }
                   >
                     {chatModels.map((model) => (
@@ -543,9 +561,7 @@ export function PlatformAiConfigSection() {
                     disabled={saving}
                     value={form.summaryModel ?? ''}
                     onChange={(event) =>
-                      setForm((prev) =>
-                        prev ? { ...prev, summaryModel: event.target.value || null } : prev
-                      )
+                      patchForm((prev) => ({ ...prev, summaryModel: event.target.value || null }))
                     }
                   >
                     <option value="">{t('sameAsMain')}</option>
@@ -558,7 +574,7 @@ export function PlatformAiConfigSection() {
                 </FieldShell>
               </div>
 
-              <div className="grid grid-cols-1 gap-x-5 gap-y-5 sm:grid-cols-3">
+              <div className="grid grid-cols-1 gap-x-5 gap-y-5 sm:grid-cols-2 lg:grid-cols-4">
                 <NumberField
                   id={`${formId}-temperature`}
                   label={t('fields.temperature')}
@@ -568,9 +584,27 @@ export function PlatformAiConfigSection() {
                   min={PLATFORM_AI_LIMITS.temperature.min}
                   max={PLATFORM_AI_LIMITS.temperature.max}
                   step="0.1"
-                  onChange={(value) =>
-                    setForm((prev) => (prev ? { ...prev, temperature: value } : prev))
-                  }
+                  onChange={(value) => patchForm((prev) => ({ ...prev, temperature: value }))}
+                />
+
+                <NumberField
+                  id={`${formId}-max-output-tokens`}
+                  label={t('fields.maxOutputTokens')}
+                  hint={t('hints.maxOutputTokens')}
+                  value={String(form.maxOutputTokens)}
+                  disabled={saving}
+                  min={PLATFORM_AI_LIMITS.maxOutputTokens.min}
+                  max={PLATFORM_AI_LIMITS.maxOutputTokens.max}
+                  step="1"
+                  onChange={(value) => {
+                    const next = Number(value)
+                    patchForm((prev) => ({
+                      ...prev,
+                      maxOutputTokens: Number.isFinite(next)
+                        ? Math.trunc(next)
+                        : prev.maxOutputTokens,
+                    }))
+                  }}
                 />
 
                 <NumberField
@@ -583,7 +617,7 @@ export function PlatformAiConfigSection() {
                   max={PLATFORM_AI_LIMITS.debounceDelaySeconds.max}
                   step="1"
                   onChange={(value) =>
-                    setForm((prev) => (prev ? { ...prev, debounceDelaySeconds: value } : prev))
+                    patchForm((prev) => ({ ...prev, debounceDelaySeconds: value }))
                   }
                 />
 
@@ -597,9 +631,7 @@ export function PlatformAiConfigSection() {
                   max={PLATFORM_AI_LIMITS.campaignAttributionWindowHours.max}
                   step="1"
                   onChange={(value) =>
-                    setForm((prev) =>
-                      prev ? { ...prev, campaignAttributionWindowHours: value } : prev
-                    )
+                    patchForm((prev) => ({ ...prev, campaignAttributionWindowHours: value }))
                   }
                 />
               </div>
@@ -632,9 +664,7 @@ export function PlatformAiConfigSection() {
                   disabled={saving || embedLocked}
                   value={form.embeddingModel}
                   onChange={(event) =>
-                    setForm((prev) =>
-                      prev ? { ...prev, embeddingModel: event.target.value } : prev
-                    )
+                    patchForm((prev) => ({ ...prev, embeddingModel: event.target.value }))
                   }
                 >
                   {embeddingModels.map((model) => (
@@ -656,7 +686,7 @@ export function PlatformAiConfigSection() {
                   max={PLATFORM_AI_LIMITS.minConfidenceScore.max}
                   step="0.05"
                   onChange={(value) =>
-                    setForm((prev) => (prev ? { ...prev, minConfidenceScore: value } : prev))
+                    patchForm((prev) => ({ ...prev, minConfidenceScore: value }))
                   }
                 />
                 <NumberField
@@ -668,9 +698,7 @@ export function PlatformAiConfigSection() {
                   min={PLATFORM_AI_LIMITS.workingSetSize.min}
                   max={PLATFORM_AI_LIMITS.workingSetSize.max}
                   step="1"
-                  onChange={(value) =>
-                    setForm((prev) => (prev ? { ...prev, workingSetSize: value } : prev))
-                  }
+                  onChange={(value) => patchForm((prev) => ({ ...prev, workingSetSize: value }))}
                 />
                 <NumberField
                   id={`${formId}-summary`}
@@ -682,7 +710,7 @@ export function PlatformAiConfigSection() {
                   max={PLATFORM_AI_LIMITS.summaryTurnThreshold.max}
                   step="1"
                   onChange={(value) =>
-                    setForm((prev) => (prev ? { ...prev, summaryTurnThreshold: value } : prev))
+                    patchForm((prev) => ({ ...prev, summaryTurnThreshold: value }))
                   }
                 />
               </div>
@@ -707,68 +735,9 @@ export function PlatformAiConfigSection() {
                   value={form.systemPrompt}
                   placeholder={t('promptPlaceholder')}
                   onChange={(event) =>
-                    setForm((prev) => (prev ? { ...prev, systemPrompt: event.target.value } : prev))
+                    patchForm((prev) => ({ ...prev, systemPrompt: event.target.value }))
                   }
                 />
-              </FieldShell>
-            </SettingsSection>
-
-            <div className="border-t border-dash-border" />
-
-            <SettingsSection
-              title={t('sections.handover.title')}
-              description={t('sections.handover.description')}
-            >
-              <FieldShell
-                id={`${formId}-keywords`}
-                label={t('fields.handoverKeywords')}
-                hint={t('hints.handoverKeywords')}
-              >
-                <div className="overflow-hidden rounded-xl border border-dash-border bg-canvas">
-                  <div className="flex min-h-12 flex-wrap gap-2 border-b border-dash-border bg-dash-surface/40 px-3 py-2.5">
-                    {form.handoverKeywords.length === 0 ? (
-                      <p className="py-1 text-xs text-mute">{t('keywordsEmpty')}</p>
-                    ) : (
-                      form.handoverKeywords.map((keyword, index) => (
-                        <span
-                          key={`${keyword}-${index}`}
-                          className="inline-flex items-center gap-1.5 rounded-lg bg-canvas px-2.5 py-1 text-xs font-medium text-ink ring-1 ring-dash-border"
-                        >
-                          {keyword}
-                          <button
-                            type="button"
-                            className="rounded text-mute hover:text-ink"
-                            aria-label={t('removeKeyword', { keyword })}
-                            disabled={saving}
-                            onClick={() => removeKeyword(index)}
-                          >
-                            <X className="size-3.5" aria-hidden />
-                          </button>
-                        </span>
-                      ))
-                    )}
-                  </div>
-                  <input
-                    id={`${formId}-keywords`}
-                    className="h-11 w-full border-0 bg-transparent px-3 text-sm text-ink outline-none placeholder:text-mute disabled:cursor-not-allowed disabled:opacity-60"
-                    disabled={saving}
-                    value={keywordDraft}
-                    placeholder={t('keywordPlaceholder')}
-                    onChange={(event) => setKeywordDraft(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === 'Enter' || event.key === ',') {
-                        event.preventDefault()
-                        addKeyword(keywordDraft)
-                      }
-                      if (event.key === 'Backspace' && !keywordDraft) {
-                        removeKeyword(form.handoverKeywords.length - 1)
-                      }
-                    }}
-                    onBlur={() => {
-                      if (keywordDraft.trim()) addKeyword(keywordDraft)
-                    }}
-                  />
-                </div>
               </FieldShell>
             </SettingsSection>
           </div>
@@ -787,6 +756,62 @@ export function PlatformAiConfigSection() {
           </div>
         </form>
       ) : null}
+
+      <Dialog
+        open={killConfirmOpen}
+        onOpenChange={(open) => {
+          if (!open) closeKillConfirm()
+        }}
+      >
+        <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md" showCloseButton>
+          <DialogHeader className="border-b border-dash-border px-5 py-4 text-left sm:px-6">
+            <DialogTitle>
+              {killConfirmNextEnabled
+                ? t('killConfirm.titleEnable')
+                : t('killConfirm.titleDisable')}
+            </DialogTitle>
+            <DialogDescription>
+              {killConfirmNextEnabled
+                ? t('killConfirm.bodyEnable', { phrase: KILL_SWITCH_CONFIRM_PHRASE })
+                : t('killConfirm.bodyDisable', { phrase: KILL_SWITCH_CONFIRM_PHRASE })}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-2 px-5 py-4 sm:px-6">
+            <label htmlFor={`${formId}-kill-confirm`} className="block text-sm font-medium text-ink">
+              {t('killConfirm.phraseLabel', { phrase: KILL_SWITCH_CONFIRM_PHRASE })}
+            </label>
+            <Input
+              id={`${formId}-kill-confirm`}
+              autoComplete="off"
+              spellCheck={false}
+              value={killConfirmInput}
+              placeholder={KILL_SWITCH_CONFIRM_PHRASE}
+              onChange={(event) => setKillConfirmInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  event.preventDefault()
+                  confirmKillSwitch()
+                }
+              }}
+            />
+          </div>
+
+          <DialogFooter className="flex-col-reverse gap-2 border-t border-dash-border sm:flex-row sm:justify-end">
+            <Button type="button" variant="outline" onClick={closeKillConfirm}>
+              {t('killConfirm.cancel')}
+            </Button>
+            <Button
+              type="button"
+              variant={killConfirmNextEnabled ? 'default' : 'destructive'}
+              disabled={!killConfirmMatches}
+              onClick={confirmKillSwitch}
+            >
+              {t('killConfirm.confirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </DashboardPanel>
   )
 }

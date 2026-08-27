@@ -3,25 +3,29 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
-import { ArrowLeft, Copy, Eye, Loader2, PauseCircle, Pencil, Rocket } from 'lucide-react'
+import { ArrowLeft, Copy, Eye, Loader2, PauseCircle, Pencil, RefreshCw, Rocket } from 'lucide-react'
 import { api, type ApiError, type CampaignPreview } from '@/lib/api'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { Link, useRouter } from '@/i18n/navigation'
 import { Button } from '@/components/ui/button'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
+import { DashboardToast, useDashboardToast } from '@/components/dashboard/ui/use-dashboard-toast'
 import { CampaignActionsMenu } from './CampaignCards'
 import {
   CampaignCancelDialog,
+  CampaignChangeStatusDialog,
   CampaignDeleteDialog,
   CampaignPreviewDialog,
 } from './CampaignDialogs'
 import { CampaignStatusBadge } from './CampaignStatusBadge'
-import { campaignQueryKeys } from './CampaignsListPage'
+import { queryKeys } from '@/lib/query-keys'
 import {
+  type CampaignChangeStatusTarget,
   formatCampaignDate,
   isCancellableCampaignStatus,
   isEditableCampaignStatus,
   isLaunchableCampaignStatus,
+  isStatusChangeableCampaignStatus,
   ratePercent,
   unwrapCampaign,
 } from './campaign-utils'
@@ -35,6 +39,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
   const t = useTranslations('dashboard.campaigns')
   const router = useRouter()
   const queryClient = useQueryClient()
+  const { toast, showToast, clearToast } = useDashboardToast()
   const {
     tenantOrganizationId,
     canViewCampaigns,
@@ -44,19 +49,23 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
     canLaunchCampaigns,
     canPauseCampaigns,
     isLoading: orgsLoading,
+    activeOrganization,
   } = useOrganizations()
 
+  const orgTimeZone = activeOrganization?.timezone
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [cancelOpen, setCancelOpen] = useState(false)
   const [cancelError, setCancelError] = useState<string | null>(null)
+  const [statusOpen, setStatusOpen] = useState(false)
+  const [statusError, setStatusError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [preview, setPreview] = useState<CampaignPreview | null>(null)
   const [previewError, setPreviewError] = useState<string | null>(null)
 
   const campaignQuery = useQuery({
-    queryKey: campaignQueryKeys.detail(campaignId),
+    queryKey: queryKeys.campaigns.detail(campaignId),
     enabled: Boolean(tenantOrganizationId) && canViewCampaigns && !orgsLoading,
     queryFn: async () => {
       const { data } = await api.campaigns.get(campaignId)
@@ -65,7 +74,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
   })
 
   const templatesQuery = useQuery({
-    queryKey: [...campaignQueryKeys.all, 'detail-templates', tenantOrganizationId],
+    queryKey: [...queryKeys.campaigns.all, 'detail-templates', tenantOrganizationId],
     enabled: Boolean(tenantOrganizationId) && canViewCampaigns && !orgsLoading,
     queryFn: async () => {
       const { data } = await api.whatsapp.listTemplates({ perPage: 100 })
@@ -78,7 +87,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
       await api.campaigns.delete(campaignId)
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: campaignQueryKeys.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.all })
       router.push('/dashboard/campaigns')
     },
     onError: (err) => {
@@ -94,10 +103,40 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
     onSuccess: async () => {
       setCancelOpen(false)
       setCancelError(null)
-      await queryClient.invalidateQueries({ queryKey: campaignQueryKeys.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.all })
     },
     onError: (err) => {
       setCancelError((err as unknown as ApiError).message || t('errors.cancelFailed'))
+    },
+  })
+
+  const changeStatusMutation = useMutation({
+    mutationFn: async (status: CampaignChangeStatusTarget) => {
+      const { data } = await api.campaigns.changeStatus(campaignId, { status })
+      return unwrapCampaign(data)
+    },
+    onSuccess: async () => {
+      setStatusOpen(false)
+      setStatusError(null)
+      showToast(t('changeStatus.success'), 'success')
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.all }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.overview.campaigns(tenantOrganizationId),
+        }),
+      ])
+    },
+    onError: (err) => {
+      const apiErr = err as unknown as ApiError
+      if (apiErr.code === 'E_CAMPAIGN_INVALID_STATUS_TRANSITION') {
+        setStatusError(t('errors.statusTransitionFailed'))
+        return
+      }
+      if (apiErr.status === 403 || apiErr.code === 'PERMISSION_DENIED') {
+        setStatusError(t('errors.permissionDenied'))
+        return
+      }
+      setStatusError(apiErr.message || t('errors.changeStatusFailed'))
     },
   })
 
@@ -108,7 +147,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
     },
     onSuccess: async () => {
       setActionError(null)
-      await queryClient.invalidateQueries({ queryKey: campaignQueryKeys.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.all })
     },
     onError: (err) => {
       const apiErr = err as unknown as ApiError
@@ -130,7 +169,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
       return unwrapCampaign(data)
     },
     onSuccess: async (campaign) => {
-      await queryClient.invalidateQueries({ queryKey: campaignQueryKeys.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.all })
       if (campaign?.id) {
         router.push(`/dashboard/campaigns/${campaign.id}/edit`)
       }
@@ -217,13 +256,22 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
   const canLaunch =
     canLaunchCampaigns &&
     isLaunchableCampaignStatus(campaign.status) &&
-    campaign.totalRecipients > 0 &&
+    (campaign.totalRecipients > 0 || Boolean(campaign.audienceTagId)) &&
     Boolean(campaign.messageTemplateId) &&
     templateApproved
   const canCancel = canPauseCampaigns && isCancellableCampaignStatus(campaign.status)
+  const canChangeStatus =
+    canEditCampaigns && isStatusChangeableCampaignStatus(campaign.status)
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-5">
+      {toast ? (
+        <DashboardToast
+          message={toast.message}
+          variant={toast.variant}
+          onDismiss={clearToast}
+        />
+      ) : null}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <Link
@@ -243,7 +291,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
           </div>
           <p className="mt-2 text-sm text-body">
             {t('details.createdMeta', {
-              date: formatCampaignDate(campaign.createdAt),
+              date: formatCampaignDate(campaign.createdAt, orgTimeZone),
               template: templateName ?? t('noTemplate'),
             })}
           </p>
@@ -299,6 +347,21 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
               {t('actions.cancel')}
             </Button>
           ) : null}
+          {canChangeStatus ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              disabled={changeStatusMutation.isPending}
+              onClick={() => {
+                setStatusError(null)
+                setStatusOpen(true)
+              }}
+            >
+              <RefreshCw className="size-4" aria-hidden />
+              {t('actions.changeStatus')}
+            </Button>
+          ) : null}
           {canEditCampaigns && isEditableCampaignStatus(campaign.status) ? (
             <Button
               type="button"
@@ -335,6 +398,10 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
             onView={() => undefined}
             onEdit={() => router.push(`/dashboard/campaigns/${campaign.id}/edit`)}
             onDuplicate={() => duplicateMutation.mutate()}
+            onChangeStatus={() => {
+              setStatusError(null)
+              setStatusOpen(true)
+            }}
             onPause={() => {
               setCancelError(null)
               setCancelOpen(true)
@@ -382,12 +449,18 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
           <ol className="mt-5 space-y-4">
             <TimelineStep
               label={t('timeline.created')}
-              detail={formatCampaignDate(campaign.createdAt)}
+              detail={formatCampaignDate(campaign.createdAt, orgTimeZone)}
               active
             />
             <TimelineStep
               label={t('timeline.scheduled')}
-              detail={formatCampaignDate(campaign.scheduledAt)}
+              detail={
+                campaign.scheduledAt
+                  ? `${formatCampaignDate(campaign.scheduledAt, orgTimeZone)}${
+                      orgTimeZone ? ` (${orgTimeZone})` : ''
+                    }`
+                  : '—'
+              }
               active={Boolean(campaign.scheduledAt) || ['scheduled', 'sending', 'sent', 'failed'].includes(campaign.status)}
             />
             <TimelineStep
@@ -397,7 +470,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
             />
             <TimelineStep
               label={t('timeline.completed')}
-              detail={campaign.status === 'sent' ? formatCampaignDate(campaign.updatedAt) : '—'}
+              detail={campaign.status === 'sent' ? formatCampaignDate(campaign.updatedAt, orgTimeZone) : '—'}
               active={campaign.status === 'sent'}
             />
           </ol>
@@ -452,6 +525,16 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
           if (!open && !cancelMutation.isPending) setCancelOpen(false)
         }}
         onConfirm={() => cancelMutation.mutate()}
+      />
+      <CampaignChangeStatusDialog
+        open={statusOpen}
+        campaign={campaign}
+        pending={changeStatusMutation.isPending}
+        error={statusError}
+        onOpenChange={(open) => {
+          if (!open && !changeStatusMutation.isPending) setStatusOpen(false)
+        }}
+        onConfirm={(status) => changeStatusMutation.mutate(status)}
       />
       <CampaignPreviewDialog
         open={previewOpen}

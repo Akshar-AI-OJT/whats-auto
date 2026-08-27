@@ -25,7 +25,7 @@ export type ParsedInboundMessage = {
   providerMessageId: string
   fromWaId: string
   occurredAt: Date
-  contentType: 'text' | 'image' | 'video' | 'document' | 'location' | 'interactive'
+  contentType: 'text' | 'image' | 'document' | 'location' | 'interactive'
   contentText: string | null
   metadata: MessageMetadata
   profileName: string | null
@@ -309,7 +309,6 @@ function parseMessage(raw: unknown): MetaWebhookMessage | null {
     type,
     text,
     image: parseMedia(raw.image),
-    video: parseMedia(raw.video),
     document: parseMedia(raw.document),
     location: parseLocation(raw.location),
     interactive: parseInteractive(raw.interactive),
@@ -350,7 +349,7 @@ function toInboundMessage(
   const occurredAt = parseUnixTimestamp(message.timestamp)
   if (!occurredAt) return null
 
-  const supportedTypes = new Set(['text', 'image', 'video', 'document', 'location', 'interactive'])
+  const supportedTypes = new Set(['text', 'image', 'document', 'location', 'interactive'])
   if (!supportedTypes.has(message.type)) {
     return null
   }
@@ -364,14 +363,8 @@ function toInboundMessage(
       contentText = message.text?.body?.trim() || null
       break
     case 'image':
-    case 'video':
     case 'document': {
-      const media =
-        contentType === 'image'
-          ? message.image
-          : contentType === 'video'
-            ? message.video
-            : message.document
+      const media = contentType === 'image' ? message.image : message.document
       const mapped = toMetadataMedia(media)
       if (mapped) metadata.media = mapped
       contentText = mapped?.caption?.trim() || mapped?.filename?.trim() || null

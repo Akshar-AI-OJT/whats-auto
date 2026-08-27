@@ -10,6 +10,8 @@ import {
   Settings,
   UsersRound,
   BookOpen,
+  Workflow,
+  Plug,
   Image as ImageIcon,
   ScrollText,
   type LucideIcon,
@@ -36,7 +38,9 @@ export const DASHBOARD_NAV_KEYS = [
   'campaigns',
   'templates',
   'media',
+  'flows',
   'knowledge',
+  'integrations',
   'analytics',
   'team',
   'auditLogs',
@@ -60,7 +64,7 @@ export const DASHBOARD_NAV_SECTIONS: readonly DashboardNavSection[] = [
   { id: 'overview', items: ['dashboard'] },
   { id: 'messaging', items: ['inbox', 'contacts'] },
   { id: 'campaignsContent', items: ['campaigns', 'templates', 'media'] },
-  { id: 'automationAi', items: ['knowledge'] },
+  { id: 'automationAi', items: ['flows', 'knowledge', 'integrations'] },
   { id: 'insights', items: ['analytics'] },
   { id: 'teamAccess', items: ['team', 'auditLogs'] },
   { id: 'billing', items: ['billing'] },
@@ -74,12 +78,14 @@ export const DASHBOARD_NAV_ICONS: Record<DashboardNavKey, LucideIcon> = {
   campaigns: Megaphone,
   templates: FileText,
   media: ImageIcon,
+  flows: Workflow,
   knowledge: BookOpen,
+  integrations: Plug,
+  notifications: Bell,
   analytics: BarChart3,
   team: UsersRound,
   auditLogs: ScrollText,
   billing: CreditCard,
-  notifications: Bell,
   settings: Settings,
 }
 
@@ -91,12 +97,14 @@ export const DASHBOARD_NAV_HREFS: Partial<Record<DashboardNavKey, string>> = {
   campaigns: '/dashboard/campaigns',
   templates: '/dashboard/templates',
   media: '/dashboard/templates/media',
+  flows: '/dashboard/flows',
   knowledge: '/dashboard/knowledge',
+  integrations: '/dashboard/integrations',
+  notifications: '/dashboard/notifications',
   analytics: '/dashboard/analytics',
   team: '/dashboard/team',
   auditLogs: '/dashboard/audit-logs',
   billing: '/dashboard/billing',
-  notifications: '/dashboard/notifications',
   settings: '/dashboard/settings',
 }
 
@@ -108,9 +116,7 @@ export type DashboardNavChild = {
 }
 
 /** Nested items under Team Management and Contacts & Audience. */
-export const DASHBOARD_NAV_CHILDREN: Partial<
-  Record<DashboardNavKey, DashboardNavChild[]>
-> = {
+export const DASHBOARD_NAV_CHILDREN: Partial<Record<DashboardNavKey, DashboardNavChild[]>> = {
   team: [
     { key: 'teamMembers', href: '/dashboard/team', permission: PERMISSIONS.TEAM_VIEW },
     {
@@ -140,7 +146,9 @@ export const DASHBOARD_NAV_PERMISSION: Partial<Record<DashboardNavKey, string>> 
   campaigns: PERMISSIONS.CAMPAIGNS_VIEW,
   templates: PERMISSIONS.TEMPLATES_VIEW,
   media: PERMISSIONS.MEDIA_VIEW,
+  flows: PERMISSIONS.AUTOMATIONS_VIEW,
   knowledge: PERMISSIONS.AI_KB_VIEW,
+  integrations: PERMISSIONS.INTEGRATIONS_VIEW,
   auditLogs: PERMISSIONS.AUDIT_VIEW,
   analytics: PERMISSIONS.ANALYTICS_VIEW,
   billing: PERMISSIONS.BILLING_VIEW,

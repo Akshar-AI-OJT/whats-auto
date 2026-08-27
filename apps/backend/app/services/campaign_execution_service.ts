@@ -106,7 +106,6 @@ export class CampaignExecutionService {
           .update({
             status: isImmediate ? 'sending' : 'scheduled',
             scheduledAt,
-            cancelledAt: null,
           })
 
         if (campaign.headerMediaAssetId) {
@@ -159,72 +158,14 @@ export class CampaignExecutionService {
   /**
    * Cancel a campaign:
    * - scheduled → draft
-   * - sending → cancelled + finalized (stop in-flight fan-out)
+   * - sending → draft (stop in-flight fan-out; broadcasts has no cancelled status)
    */
   async cancelCampaign(params: {
     organizationId: string
     campaignId: string
   }): Promise<CampaignDto> {
     return runWithTenant(params.organizationId, async () => {
-      const campaign = await this.#loadCampaignRow(params)
-      const status = campaign.status as string
-
-      if (status === 'scheduled') {
-        await db
-          .from('broadcasts')
-          .where('id', params.campaignId)
-          .where('organizationId', params.organizationId)
-          .where('status', 'scheduled')
-          .update({
-            status: 'draft',
-            scheduledAt: null,
-            cancelledAt: null,
-          })
-
-        return this.campaigns.getCampaignById({
-          campaignId: params.campaignId,
-          organizationId: params.organizationId,
-        })
-      }
-
-      if (status !== 'sending') {
-        throw CampaignException.notCancellable(status)
-      }
-
-      const now = new Date()
-      await db
-        .from('broadcasts')
-        .where('id', params.campaignId)
-        .where('organizationId', params.organizationId)
-        .update({
-          status: 'cancelled',
-          cancelledAt: now,
-          finalizedAt: now,
-        })
-
-      if (campaign.headerMediaAssetId) {
-        const protectedUntil = new Date(
-          now.getTime() + CAMPAIGN_LIBRARY_RETENTION_DAYS * 24 * 60 * 60 * 1000
-        )
-        await this.mediaReferences.upsert({
-          organizationId: params.organizationId,
-          mediaAssetId: campaign.headerMediaAssetId as string,
-          ownerType: 'campaign',
-          ownerId: params.campaignId,
-          protectedUntil,
-        })
-      }
-
-      await this.campaigns.notifyCreatorBestEffort({
-        organizationId: params.organizationId,
-        createdByUserId: (campaign.createdByUserId as string | null) ?? null,
-        type: 'campaign_cancelled',
-        title: 'Campaign cancelled',
-        body: `“${campaign.name as string}” was cancelled while sending.`,
-        campaignId: params.campaignId,
-      })
-
-      return this.campaigns.getCampaignById({
+      return this.campaigns.cancelScheduledCampaign({
         campaignId: params.campaignId,
         organizationId: params.organizationId,
       })
@@ -261,6 +202,22 @@ export class CampaignExecutionService {
           ? new Date(campaign.scheduledAt as string | Date)
           : null
         if (scheduledAt && scheduledAt.getTime() > Date.now() + 1000) {
+          try {
+            await enqueueCampaignWake({
+              organizationId: params.organizationId,
+              campaignId: params.campaignId,
+              runAt: scheduledAt,
+            })
+          } catch (error) {
+            logger.warn(
+              {
+                campaignId: params.campaignId,
+                organizationId: params.organizationId,
+                err: error instanceof Error ? error.message : 'unknown',
+              },
+              'campaigns.execute.reschedule_failed'
+            )
+          }
           return { claimed: 0, remaining: Number(campaign.totalRecipients), finalized: false }
         }
         const [started] = await db
@@ -396,6 +353,8 @@ export class CampaignExecutionService {
       ? [params.organizationId]
       : await db
           .from('organizations')
+          .whereNull('deletedAt')
+          .where('status', 'active')
           .select('id')
           .then((rows) => rows.map((row) => row.id as string))
 

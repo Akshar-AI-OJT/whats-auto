@@ -74,7 +74,7 @@ export async function FeaturePreviewSection() {
                     'shadow-[0_10px_32px_rgb(15_23_42/0.06),0_2px_6px_rgb(15_23_42/0.03)]',
                     'transition-[transform,box-shadow,border-color] duration-200 ease-out',
                     'hover:-translate-y-1 hover:border-primary/55',
-                    'hover:shadow-[0_16px_40px_rgb(15_23_42/0.1),0_0_0_4px_rgb(159_232_112/0.15)]'
+                    'hover:shadow-[0_16px_40px_rgb(15_23_42/0.1),0_0_0_4px_rgb(37_99_235/0.15)]'
                   )}
                 >
                   <span
@@ -83,7 +83,7 @@ export async function FeaturePreviewSection() {
                       'bg-primary-pale text-positive-deep',
                       'transition-[transform,box-shadow,background-color] duration-200',
                       'group-hover:scale-105 group-hover:bg-primary/20',
-                      'group-hover:shadow-[0_0_0_4px_rgb(159_232_112/0.2)]'
+                      'group-hover:shadow-[0_0_0_4px_rgb(37_99_235/0.2)]'
                     )}
                   >
                     <Icon className="size-5" aria-hidden />

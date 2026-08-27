@@ -158,7 +158,7 @@ export function computeCurrentOrganizationSplit(
 
   for (const org of organizations) {
     if (org.deletedAt != null) continue
-    if (org.status === true) active += 1
+    if (org.status === 'active') active += 1
     else inactive += 1
   }
 
@@ -200,6 +200,54 @@ export function countTrialOrganizations(subscriptions: SuperAdminSubscription[])
     }
   }
   return trialingOrgs.size
+}
+
+export type MonthlyRevenuePoint = {
+  key: string
+  label: string
+  revenue: number
+}
+
+export async function fetchMonthlyRevenueTrend(
+  locale: string,
+  months = 6
+): Promise<MonthlyRevenuePoint[]> {
+  const now = new Date()
+  const monthStarts: Date[] = []
+  for (let i = months - 1; i >= 0; i -= 1) {
+    monthStarts.push(new Date(now.getFullYear(), now.getMonth() - i, 1))
+  }
+
+  const results = await Promise.all(
+    monthStarts.map(async (date) => {
+      const issueMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+      const { data } = await api.superAdmin.invoices.summary({ issueMonth })
+      if (!data) {
+        return {
+          key: issueMonth,
+          label: new Intl.DateTimeFormat(locale, { month: 'short' }).format(date),
+          revenue: 0,
+        }
+      }
+
+      // The API response may either include the summary directly (with `totalCount`) or be wrapped in `{ data: ... }`.
+      const resolved = (() => {
+        if (typeof data === 'object' && data !== null && 'totalCount' in (data as object)) {
+          return data as SuperAdminInvoiceSummary
+        }
+        const wrapped = data as { data?: SuperAdminInvoiceSummary }
+        return wrapped.data ?? null
+      })()
+
+      return {
+        key: issueMonth,
+        label: new Intl.DateTimeFormat(locale, { month: 'short' }).format(date),
+        revenue: resolved?.paidAmount ?? 0,
+      }
+    })
+  )
+
+  return results
 }
 
 export function formatCurrency(value: number, locale: string): string {

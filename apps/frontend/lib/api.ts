@@ -6,7 +6,6 @@ import {
   getValidAccessToken,
 } from '@/lib/access-token'
 import { authClient } from '@/lib/auth-client'
-
 export type ApiError = {
   message: string
   status: number
@@ -43,6 +42,27 @@ function isTokenAuthError(error: ApiError): boolean {
   if (error.code && TOKEN_AUTH_ERROR_CODES.has(error.code)) return true
   // Some middleware paths return 401 without a stable code.
   return !error.code || /token|bearer|unauthorized|jwt/i.test(error.message)
+}
+
+function isOrgPaymentRequired(error: ApiError): boolean {
+  return error.status === 402 && error.code === 'E_ORG_PAYMENT_REQUIRED'
+}
+
+/** Soft navigate to the payment step without treating it as a permission denial. */
+function redirectToOnboardingPayment() {
+  if (typeof window === 'undefined') return
+  const { pathname } = window.location
+  if (
+    pathname.includes('/onboarding/payment') ||
+    pathname.includes('/onboarding/organization') ||
+    pathname.includes('/onboarding/')
+  ) {
+    return
+  }
+  const parts = pathname.split('/').filter(Boolean)
+  const maybeLocale = parts[0]
+  const locale = maybeLocale && /^[a-z]{2}(-[A-Za-z]{2})?$/.test(maybeLocale) ? maybeLocale : 'en'
+  window.location.assign(`/${locale}/onboarding/payment`)
 }
 
 async function parseError(response: Response): Promise<ApiError> {
@@ -122,7 +142,7 @@ async function request<T>(
   const { authMode, _authRetried, ...fetchInit } = init
   const headers = new Headers(fetchInit.headers)
 
-  if (fetchInit.body && !headers.has('Content-Type')) {
+  if (fetchInit.body && !headers.has('Content-Type') && !(fetchInit.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json')
   }
 
@@ -154,6 +174,10 @@ async function request<T>(
       }
     }
 
+    if (authMode === 'protected' && isOrgPaymentRequired(error)) {
+      redirectToOnboardingPayment()
+    }
+
     throw error
   }
 
@@ -173,6 +197,35 @@ function publicRequest<T>(path: string, init: RequestInit = {}) {
 
 function protectedRequest<T>(path: string, init: RequestInit = {}) {
   return request<T>(path, { ...init, authMode: 'protected' })
+}
+
+/**
+ * Like protectedRequest but returns the raw Blob instead of parsing JSON.
+ * Used for binary downloads (PDF, etc.) that carry a Bearer token.
+ */
+async function protectedBlobRequest(
+  path: string,
+  init: RequestInit = {}
+): Promise<{ blob: Blob; response: Response }> {
+  const headers = new Headers(init.headers)
+  const token = await getValidAccessToken()
+  headers.set('Authorization', `Bearer ${token}`)
+
+  const response = await fetch(`${getBaseUrl()}${path}`, {
+    ...init,
+    headers,
+    credentials: 'include',
+  })
+
+  applyAuthTokenHeaders(response)
+
+  if (!response.ok) {
+    const error = await parseError(response)
+    throw error
+  }
+
+  const blob = await response.blob()
+  return { blob, response }
 }
 
 export type SignupBody = {
@@ -209,7 +262,7 @@ export type CreateOrganizationBody = {
   industry?: string
   organizationType: OrganizationType
   address: string
-  pan: string
+  pan?: string
   gstin?: string
   country: string
   timezone: string
@@ -221,6 +274,9 @@ export type CreatedOrganization = {
   name: string
   slug: string
   role: string
+  status?: 'pending_setup' | 'active' | 'suspended' | 'false'
+  sessionActivated?: boolean
+  reused?: boolean
 }
 
 export type OrganizationSummary = {
@@ -240,6 +296,7 @@ export type OrganizationSummary = {
   currency?: string | null
   role: string
   createdAt: string
+  status?: 'pending_setup' | 'active' | 'suspended' | 'false'
 }
 
 export type UpdateOrganizationBody = {
@@ -275,6 +332,7 @@ export type OrganizationDetails = {
 export type AccessContext = {
   organizationId: string
   organizationName: string
+  status?: 'pending_setup' | 'active' | 'suspended' | 'false'
   memberId: string
   role: string
   displayName: string
@@ -296,11 +354,57 @@ export type ContactSummary = {
   updatedAt?: string | null
 }
 
+export type CustomerGroupSummary = {
+  id: string
+  name: string
+  color?: string | null
+  status?: string
+  createdAt?: string
+}
+
 export type CreateContactBody = {
-  phone: string
+  phoneNumber: string
+  countryCode?: string
   name?: string
   email?: string
   company?: string
+}
+
+export type ContactCsvColumnMapping = {
+  phone?: string
+  name?: string
+  email?: string
+  company?: string
+}
+
+export type ContactImportRowResult = {
+  rowNumber: number
+  status: 'processed' | 'failed' | 'skipped'
+  action: 'inserted' | 'skipped' | null
+  errorMessage: string | null
+  contactId: string | null
+  rawData: Record<string, string>
+}
+
+export type ContactImportResult = {
+  id: string
+  organizationId: string
+  fileName: string
+  status: string
+  defaultCountryCode: string | null
+  columnMapping: ContactCsvColumnMapping
+  totalRows: number
+  processedRows: number
+  successCount: number
+  errorCount: number
+  completedAt: string | null
+  rows: ContactImportRowResult[]
+}
+
+export type ImportContactsBody = {
+  file: File
+  columnMapping: ContactCsvColumnMapping
+  defaultCountryCode?: string
 }
 
 /**
@@ -326,6 +430,26 @@ export type CustomerGroup = {
   usedInCampaigns: number | null
   createdAt: string
   updatedAt: string | null
+}
+
+export type CampaignPreview = {
+  campaignId: string
+  campaignName: string
+  campaignStatus?: string
+  messageTemplateId?: string
+  templateName?: string
+  templateStatus?: string
+  category?: string
+  language?: string | null
+  headerType?: string | null
+  headerContent?: string | null
+  headerMediaUrl?: string | null
+  variables?: Record<string, string>
+  bodyPreview: string
+  headerPreview?: string | null
+  footerPreview?: string | null
+  footerText?: string | null
+  buttons?: unknown
 }
 
 /** Raw `/api/v1/tags` record. */
@@ -418,20 +542,21 @@ export type InboxConversation = {
   updatedAt?: string | null
   aiMode?: InboxAiMode | string
   aiHandoverReason?: string | null
+  automationBlocked?: boolean
+  openFlowSessionStatus?: string | null
   contact: InboxConversationContact
 }
 
 export type InboxAiMode = 'AI_AUTO' | 'HANDOVER' | 'HUMAN_ACTIVE'
 
-export type InboxAiHandoverReason =
-  | 'low_confidence'
-  | 'keyword_match'
-  | 'business_exception'
+export type InboxAiHandoverReason = 'low_confidence' | 'keyword_match' | 'business_exception'
 
 export type InboxAiModePatch = {
   id: string
   aiMode: InboxAiMode | string
   aiHandoverReason: string | null
+  automationBlocked?: boolean
+  openFlowSessionStatus?: string | null
 }
 
 export type CreateInboxConversationBody = {
@@ -604,6 +729,45 @@ export type WhatsappConfigSummary = {
   updatedAt?: string | null
 }
 
+export type IntegrationConnection = {
+  id: string
+  organizationId: string
+  provider: string
+  externalAccountId: string | null
+  displayName: string
+  config: Record<string, unknown>
+  status: string
+  lastSyncAt: string | null
+  lastErrorCode: string | null
+  lastErrorMessage: string | null
+  createdAt: string
+  updatedAt: string | null
+}
+
+export type UpsertIntegrationConnectionBody = {
+  displayName: string
+  externalAccountId?: string | null
+  config?: Record<string, unknown>
+}
+
+export type IntegrationApiKey = {
+  id: string
+  organizationId: string
+  name: string
+  keyPrefix: string
+  scopes: string[]
+  lastUsedAt: string | null
+  expiresAt: string | null
+  revokedAt: string | null
+  createdAt: string
+  secretToken?: string
+}
+
+export type CreateIntegrationApiKeyBody = {
+  name: string
+  scopes?: Array<'events:write'>
+}
+
 export type WhatsappEmbeddedSignupSession = {
   appId: string
   configId: string
@@ -629,23 +793,19 @@ export type TestWhatsappConfigResult = {
 
 export type WhatsappTemplateCategory = 'MARKETING' | 'UTILITY' | 'AUTHENTICATION'
 
-export type WhatsappTemplateHeaderType = 'NONE' | 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT'
+export type WhatsappTemplateHeaderType = 'NONE' | 'TEXT' | 'IMAGE' | 'DOCUMENT'
 
 export type WhatsappTemplateStatus =
-  | 'draft'
-  | 'pending'
-  | 'approved'
-  | 'rejected'
-  | 'deleted'
-  | 'paused'
-  | 'disabled'
-  | string
+  'draft' | 'pending' | 'approved' | 'rejected' | 'deleted' | 'paused' | 'disabled' | string
 
 export type WhatsappTemplateParameterSchema = {
   headerNames?: string[]
   bodyNames?: string[]
+  urlButtons?: Array<{ name: string; index: number }>
   sendable?: boolean
   unsupportedReason?: string | null
+  headerMediaType?: 'image' | 'document'
+  parameterFormat?: 'named' | 'positional'
 }
 
 export type WhatsappTemplateButton = {
@@ -696,6 +856,8 @@ export type CreateWhatsappTemplateBody = {
   language: string
   headerType?: WhatsappTemplateHeaderType | string
   headerContent?: string
+  headerMediaAssetId?: string
+  headerMediaUrl?: string
   bodyText: string
   footerText?: string
   buttons?: WhatsappTemplateButton[]
@@ -707,13 +869,15 @@ export type SyncWhatsappTemplatesResult = {
 }
 
 export type CampaignStatus =
-  | 'draft'
-  | 'scheduled'
-  | 'sending'
-  | 'sent'
-  | 'failed'
-  | 'cancelled'
-  | string
+  'draft' | 'scheduled' | 'sending' | 'sent' | 'failed' | 'cancelled' | string
+
+/** Maps a template parameter to a contact field, custom field, or static value. */
+export type CampaignVariableMapping =
+  | { source: 'contact_field'; field: string }
+  | { source: 'custom_field'; field: string }
+  | { source: 'static'; value: string }
+
+export type CampaignVariableMappings = Record<string, CampaignVariableMapping>
 
 export type Campaign = {
   id: string
@@ -723,6 +887,7 @@ export type Campaign = {
   whatsappConfigId?: string | null
   messageTemplateId?: string | null
   headerMediaAssetId?: string | null
+  audienceTagId?: string | null
   scheduledAt?: string | null
   finalizedAt?: string | null
   cancelledAt?: string | null
@@ -733,6 +898,8 @@ export type Campaign = {
   readCount: number
   repliedCount?: number
   failedCount: number
+  /** Named template param → source mapping (resolved into recipient.variables on send). */
+  variableMappings?: CampaignVariableMappings | null
   createdAt?: string
   updatedAt?: string | null
 }
@@ -754,6 +921,7 @@ export type CreateCampaignBody = {
   headerMediaAssetId?: string
   scheduledAt?: string
   status?: 'draft' | 'scheduled'
+  variableMappings?: CampaignVariableMappings
 }
 
 export type UpdateCampaignBody = {
@@ -763,28 +931,13 @@ export type UpdateCampaignBody = {
   headerMediaAssetId?: string | null
   scheduledAt?: string | null
   status?: 'draft' | 'scheduled'
+  variableMappings?: CampaignVariableMappings | null
 }
 
 export type ReplaceCampaignRecipientsBody = {
-  contactIds: string[]
+  contactIds?: string[]
+  tagId?: string
   variables?: Record<string, string>
-}
-
-export type CampaignPreview = {
-  campaignId: string
-  campaignName: string
-  messageTemplateId: string
-  templateName: string
-  templateStatus: string
-  category?: string
-  language?: string | null
-  bodyPreview: string
-  headerType?: string | null
-  headerContent?: string | null
-  headerMediaUrl?: string | null
-  footerText?: string | null
-  variables: Record<string, string>
-  buttons?: unknown
 }
 
 export type CreateInvitationBody = {
@@ -847,7 +1000,6 @@ export type PaginationMeta = {
   firstPage?: number
 }
 
-
 export type Paginated<T> = {
   data: T[]
   meta: PaginationMeta
@@ -856,6 +1008,14 @@ export type Paginated<T> = {
 export type ListOrganizationAdminUsersParams = {
   page?: number
   perPage?: number
+}
+
+/** PATCH /api/v1/organization-admin/users/:id */
+export type UpdateOrganizationAdminUserBody = {
+  firstname?: string
+  lastname?: string
+  email?: string
+  isActive?: boolean
 }
 
 /** Row from GET /api/v1/audit */
@@ -904,7 +1064,7 @@ export type OnboardingPendingInvitation = {
 }
 
 export type OnboardingNextStep =
-  'accept_invitation' | 'create_organization' | 'select_organization' | 'ready'
+  'accept_invitation' | 'create_organization' | 'select_organization' | 'complete_payment' | 'ready'
 
 export type OnboardingState = {
   activeOrganizationId: string | null
@@ -947,6 +1107,42 @@ export type RoleUpdatePreview = {
   affectedMembers: Array<{ id: string; userId: string }>
 }
 
+/** Nested org membership from GET /api/v1/super-admin/platform-users */
+export type SuperAdminPlatformUserOrganization = {
+  memberId: string
+  organizationId: string
+  organizationName: string
+  organizationSlug: string
+  organizationStatus: string
+  role: string
+  roleId: string
+}
+
+/** Row from GET /api/v1/super-admin/platform-users */
+export type SuperAdminPlatformUser = {
+  id: string
+  name: string
+  firstname: string
+  lastname: string
+  email: string
+  isActive: boolean
+  status: 'active' | 'inactive'
+  emailVerified: boolean
+  createdAt: string
+  updatedAt: string | null
+  platformRole: 'superadmin' | null
+  organizations: SuperAdminPlatformUserOrganization[]
+}
+
+export type ListSuperAdminPlatformUsersParams = {
+  page?: number
+  perPage?: number
+  search?: string
+  status?: 'active' | 'inactive' | 'all'
+  organizationId?: string
+  role?: string
+}
+
 /** Row from GET /api/v1/super-admin/organizations */
 export type SuperAdminOrganization = {
   id: string
@@ -963,8 +1159,8 @@ export type SuperAdminOrganization = {
   country: string
   timezone: string
   currency?: string | null
-  /** Backend boolean: true = active, false = inactive */
-  status: boolean
+  /** pending_setup | active | suspended | false (soft-deleted) */
+  status: 'pending_setup' | 'active' | 'suspended' | 'false' | string
   createdAt: string
   updatedAt?: string | null
   deletedAt?: string | null
@@ -1020,13 +1216,12 @@ export type PlatformAiConfig = {
   minConfidenceScore: number
   debounceDelaySeconds: number
   systemPrompt: string | null
-  handoverKeywords: string[]
   workingSetSize: number
   summaryTurnThreshold: number
   embeddingProvider: 'openai' | 'google' | 'mistral' | string
   embeddingModel: string
   activeEmbeddingSpaceId?: string
-  maxOutputTokens?: number
+  maxOutputTokens: number
   reindexStatus?: 'idle' | 'running' | 'failed'
   reindexFromSpaceId?: string | null
   reindexToSpaceId?: string | null
@@ -1048,11 +1243,11 @@ export type UpdatePlatformAiConfigBody = {
   minConfidenceScore?: number
   debounceDelaySeconds?: number
   systemPrompt?: string | null
-  handoverKeywords?: string[]
   workingSetSize?: number
   summaryTurnThreshold?: number
   embeddingProvider?: string
   embeddingModel?: string
+  maxOutputTokens?: number
   confirmReindex?: boolean
 }
 
@@ -1100,6 +1295,115 @@ export type KnowledgeDocumentPresignedUpload = {
 export type CreateKnowledgeDocumentResult = {
   document: KnowledgeDocument
   upload?: KnowledgeDocumentPresignedUpload
+}
+
+export type ConversationFlowStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
+
+export type ConversationFlowTriggerType =
+  'KEYWORD' | 'INBOUND_ANY' | 'CAMPAIGN_REPLY' | 'SUBFLOW_ENTRY'
+
+export type ConversationFlowKeywordMatchType = 'exact' | 'contains' | 'regex'
+
+export type ConversationFlowExpiryMode = 'RESUME_PROMPT' | 'RESTART' | 'RESUME_SILENT'
+
+export type ConversationFlowTangentResume = 'IMMEDIATE_REPROMPT' | 'WAIT_FOR_NEXT'
+
+export type ConversationFlowTriggerConfig = {
+  keywords?: string[]
+  matchType?: ConversationFlowKeywordMatchType
+}
+
+export type ConversationFlowSettings = {
+  sessionTtlMinutes: number
+  onExpiry: ConversationFlowExpiryMode
+  tangentResume: ConversationFlowTangentResume
+  handoverKeywords: string[]
+}
+
+export type ConversationFlowGraphNode = {
+  id: string
+  type: string
+  position?: { x: number; y: number }
+  data?: Record<string, unknown>
+}
+
+export type ConversationFlowGraphEdge = {
+  id: string
+  source: string
+  target: string
+  sourceHandle?: string | null
+  targetHandle?: string | null
+}
+
+export type ConversationFlowViewport = {
+  x: number
+  y: number
+  zoom: number
+}
+
+export type ConversationFlowValidationError = {
+  code?: string
+  message?: string
+  nodeId?: string
+}
+
+export type ConversationFlow = {
+  id: string
+  organizationId: string
+  name: string
+  description: string | null
+  status: ConversationFlowStatus | string
+  isDefault: boolean
+  triggerType: ConversationFlowTriggerType | string
+  publishedVersionId: string | null
+  createdAt: string
+  updatedAt: string | null
+  triggerConfig?: ConversationFlowTriggerConfig
+  settings?: ConversationFlowSettings
+  createdByUserId?: string | null
+  version?: {
+    id: string
+    versionNumber: number
+    nodes: ConversationFlowGraphNode[]
+    edges: ConversationFlowGraphEdge[]
+    viewport: ConversationFlowViewport
+    validationStatus: string
+    validationErrors: ConversationFlowValidationError[] | unknown
+    createdAt: string
+  }
+}
+
+export type ListConversationFlowsParams = {
+  page?: number
+  perPage?: number
+  status?: ConversationFlowStatus
+  search?: string
+}
+
+export type CreateConversationFlowBody = {
+  name: string
+  description?: string | null
+  triggerType?: ConversationFlowTriggerType
+  triggerConfig?: ConversationFlowTriggerConfig
+  settings?: Partial<ConversationFlowSettings>
+  isDefault?: boolean
+}
+
+export type UpdateConversationFlowBody = {
+  name?: string
+  description?: string | null
+  triggerType?: ConversationFlowTriggerType
+  triggerConfig?: ConversationFlowTriggerConfig
+  settings?: Partial<ConversationFlowSettings>
+  isDefault?: boolean
+  nodes?: ConversationFlowGraphNode[]
+  edges?: ConversationFlowGraphEdge[]
+  viewport?: ConversationFlowViewport
+}
+
+export type ConversationFlowValidateResult = {
+  valid: boolean
+  errors: ConversationFlowValidationError[]
 }
 
 export type UpdateSuperAdminSubscriptionBody = {
@@ -1312,20 +1616,73 @@ export type BillingSubscription = {
   lastPaymentAt?: string | null
 }
 
-/** POST /api/v1/billing/checkout — fields returned by BillingController.checkout */
+/** POST /api/v1/billing/checkout — Orders API Checkout.js fields */
 export type BillingCheckoutResult = {
-  subscriptionId: string
-  planId: string
-  status: string
-  checkoutUrl?: string | null
-  gatewaySubscriptionId?: string | null
-  gatewayCustomerId?: string | null
-  currentPeriodStart?: string | null
-  currentPeriodEnd?: string | null
+  orderId: string
+  amount: number
+  currency: string
+  keyId: string
+  purpose: 'new_subscription' | 'renewal' | 'plan_change'
+  plan: {
+    id: string
+    code: string
+    name: string
+    price: number
+  }
+  prefill: {
+    name: string
+    email: string
+    contact: string | null
+  }
 }
 
 export type BillingCheckoutBody = {
   planId: string
+}
+
+export type BillingVerifyBody = {
+  razorpayOrderId: string
+  razorpayPaymentId: string
+  razorpaySignature: string
+}
+
+export type BillingVerifyResult = {
+  orderId: string
+  subscriptionId: string
+  invoiceId: string
+  alreadyApplied: boolean
+}
+
+/** GET /api/v1/billing/plans — tenant-safe active catalog (no gateway secrets). */
+export type TenantBillingPlanBillingPeriod = 'monthly' | 'yearly' | 'custom'
+
+export type TenantBillingPlanFeature = {
+  key: string
+  name: string
+  enabled: boolean
+  category?: string
+}
+
+export type TenantBillingPlanLimits = {
+  users: number | null
+  messagesPerMonth: number | null
+  workspaces: number | null
+}
+
+export type TenantBillingPlan = {
+  id: string
+  code: string
+  name: string
+  description: string
+  price: number | null
+  currency: string
+  billingPeriod: TenantBillingPlanBillingPeriod
+  popular: boolean
+  trialDays: number | null
+  limits: TenantBillingPlanLimits
+  features: TenantBillingPlanFeature[]
+  checkoutable: boolean
+  sortOrder: number
 }
 
 export const api = {
@@ -1374,7 +1731,9 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({
           provider: 'google',
-          callbackURL: callbackURL ?? `${process.env.NEXT_PUBLIC_APP_URL}/onboarding/organization`,
+          callbackURL:
+            callbackURL ??
+            `${typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '')}/onboarding/organization`,
         }),
       }),
 
@@ -1468,6 +1827,28 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(body),
       }),
+
+    delete: (contactId: string) =>
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/contacts/${contactId}`,
+        { method: 'DELETE' }
+      ),
+
+    importCsv: (body: ImportContactsBody) => {
+      const form = new FormData()
+      form.append('file', body.file)
+      form.append('columnMapping', JSON.stringify(body.columnMapping))
+      if (body.defaultCountryCode) {
+        form.append('defaultCountryCode', body.defaultCountryCode)
+      }
+      return protectedRequest<{ data?: ContactImportResult } & ContactImportResult>(
+        '/api/v1/contacts/import',
+        {
+          method: 'POST',
+          body: form,
+        }
+      )
+    },
   },
 
   tags: {
@@ -1565,11 +1946,7 @@ export const api = {
       })
     },
 
-    sendMessage: (
-      conversationId: string,
-      body: SendInboxMessageBody,
-      idempotencyKey: string
-    ) =>
+    sendMessage: (conversationId: string, body: SendInboxMessageBody, idempotencyKey: string) =>
       protectedRequest<{ data?: InboxMessage } & InboxMessage>(
         `/api/v1/inbox/conversations/${conversationId}/messages`,
         {
@@ -1661,9 +2038,10 @@ export const api = {
       ),
 
     markAllAsRead: () =>
-      protectedRequest<
-        { data?: MarkAllNotificationsReadResult } & MarkAllNotificationsReadResult
-      >('/api/v1/notifications/read-all', { method: 'PATCH' }),
+      protectedRequest<{ data?: MarkAllNotificationsReadResult } & MarkAllNotificationsReadResult>(
+        '/api/v1/notifications/read-all',
+        { method: 'PATCH' }
+      ),
   },
 
   whatsapp: {
@@ -1754,6 +2132,48 @@ export const api = {
       ),
   },
 
+  integrations: {
+    list: () =>
+      protectedRequest<{ data?: IntegrationConnection[] } | IntegrationConnection[]>(
+        '/api/v1/integrations',
+        { method: 'GET' }
+      ),
+
+    upsert: (provider: string, body: UpsertIntegrationConnectionBody) =>
+      protectedRequest<{ data?: IntegrationConnection } & IntegrationConnection>(
+        `/api/v1/integrations/${provider}`,
+        {
+          method: 'PUT',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    destroy: (provider: string) =>
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/integrations/${provider}`,
+        { method: 'DELETE' }
+      ),
+  },
+
+  apiKeys: {
+    list: () =>
+      protectedRequest<{ data?: IntegrationApiKey[] } | IntegrationApiKey[]>('/api/v1/api-keys', {
+        method: 'GET',
+      }),
+
+    create: (body: CreateIntegrationApiKeyBody) =>
+      protectedRequest<{ data?: IntegrationApiKey } & IntegrationApiKey>('/api/v1/api-keys', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+
+    revoke: (id: string) =>
+      protectedRequest<{ data?: IntegrationApiKey } & IntegrationApiKey>(
+        `/api/v1/api-keys/${id}/revoke`,
+        { method: 'POST' }
+      ),
+  },
+
   knowledgeDocuments: {
     list: (params: ListKnowledgeDocumentsParams = {}) => {
       const qs = new URLSearchParams()
@@ -1807,6 +2227,59 @@ export const api = {
         `/api/v1/ai/knowledge-documents/${documentId}/purge`,
         { method: 'POST' }
       ),
+  },
+
+  flows: {
+    list: (params: ListConversationFlowsParams = {}) => {
+      const qs = new URLSearchParams()
+      if (params.page != null) qs.set('page', String(params.page))
+      if (params.perPage != null) qs.set('perPage', String(params.perPage))
+      if (params.status) qs.set('status', params.status)
+      if (params.search?.trim()) qs.set('search', params.search.trim())
+      const query = qs.toString()
+      return protectedRequest<
+        | Paginated<ConversationFlow>
+        | { data?: ConversationFlow[]; meta?: PaginationMeta }
+        | { data?: { data?: ConversationFlow[]; meta?: PaginationMeta } }
+      >(`/api/v1/flows${query ? `?${query}` : ''}`, { method: 'GET' })
+    },
+
+    get: (flowId: string) =>
+      protectedRequest<{ data?: ConversationFlow } & ConversationFlow>(`/api/v1/flows/${flowId}`, {
+        method: 'GET',
+      }),
+
+    create: (body: CreateConversationFlowBody) =>
+      protectedRequest<{ data?: ConversationFlow } & ConversationFlow>('/api/v1/flows', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+
+    update: (flowId: string, body: UpdateConversationFlowBody) =>
+      protectedRequest<{ data?: ConversationFlow } & ConversationFlow>(`/api/v1/flows/${flowId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+
+    validate: (flowId: string, body: UpdateConversationFlowBody = {}) =>
+      protectedRequest<{ data?: ConversationFlowValidateResult } & ConversationFlowValidateResult>(
+        `/api/v1/flows/${flowId}/validate`,
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    publish: (flowId: string) =>
+      protectedRequest<{ data?: ConversationFlow } & ConversationFlow>(
+        `/api/v1/flows/${flowId}/publish`,
+        { method: 'POST' }
+      ),
+
+    delete: (flowId: string) =>
+      protectedRequest<{ data?: ConversationFlow } & ConversationFlow>(`/api/v1/flows/${flowId}`, {
+        method: 'DELETE',
+      }),
   },
 
   media: {
@@ -1875,9 +2348,23 @@ export const api = {
         { method: 'GET' }
       ),
 
+    listPlans: () =>
+      protectedRequest<{ data?: { items: TenantBillingPlan[] } }>('/api/v1/billing/plans', {
+        method: 'GET',
+      }),
+
     checkout: (body: BillingCheckoutBody) =>
       protectedRequest<{ data?: BillingCheckoutResult } & BillingCheckoutResult>(
         '/api/v1/billing/checkout',
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    verify: (body: BillingVerifyBody) =>
+      protectedRequest<{ data?: BillingVerifyResult } & BillingVerifyResult>(
+        '/api/v1/billing/verify',
         {
           method: 'POST',
           body: JSON.stringify(body),
@@ -1929,12 +2416,15 @@ export const api = {
       ),
 
     replaceRecipients: (campaignId: string, body: ReplaceCampaignRecipientsBody) =>
-      protectedRequest<{ data?: Campaign } & Campaign>(`/api/v1/campaigns/${campaignId}/recipients`, {
-        method: 'PUT',
-        body: JSON.stringify(body),
-      }),
+      protectedRequest<{ data?: Campaign } & Campaign>(
+        `/api/v1/campaigns/${campaignId}/recipients`,
+        {
+          method: 'PUT',
+          body: JSON.stringify(body),
+        }
+      ),
 
-    schedule: (campaignId: string, body: { scheduledAt: string }) =>
+    schedule: (campaignId: string, body: { scheduledAt: string; timeZone?: string }) =>
       protectedRequest<{ data?: Campaign } & Campaign>(`/api/v1/campaigns/${campaignId}/schedule`, {
         method: 'POST',
         body: JSON.stringify(body),
@@ -1966,13 +2456,10 @@ export const api = {
       ),
 
     changeStatus: (campaignId: string, body: { status: CampaignStatus }) =>
-      protectedRequest<{ data?: Campaign } & Campaign>(
-        `/api/v1/campaigns/${campaignId}/status`,
-        {
-          method: 'PATCH',
-          body: JSON.stringify(body),
-        }
-      ),
+      protectedRequest<{ data?: Campaign } & Campaign>(`/api/v1/campaigns/${campaignId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
   },
 
   members: {
@@ -2003,13 +2490,10 @@ export const api = {
      * Body: targetMemberId, replacementRoleForCurrentOwner, reason (min 5).
      */
     transfer: (body: TransferOwnershipBody) =>
-      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
-        '/api/v1/ownership/transfer',
-        {
-          method: 'POST',
-          body: JSON.stringify(body),
-        }
-      ),
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>('/api/v1/ownership/transfer', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
   },
 
   audit: {
@@ -2021,17 +2505,18 @@ export const api = {
       const qs = new URLSearchParams()
       if (params.limit != null) qs.set('limit', String(params.limit))
       const query = qs.toString()
-      return protectedRequest<
-        { data?: AuthorizationAuditEvent[] } | AuthorizationAuditEvent[]
-      >(`/api/v1/audit${query ? `?${query}` : ''}`, {
-        method: 'GET',
-      })
+      return protectedRequest<{ data?: AuthorizationAuditEvent[] } | AuthorizationAuditEvent[]>(
+        `/api/v1/audit${query ? `?${query}` : ''}`,
+        {
+          method: 'GET',
+        }
+      )
     },
   },
 
   organizationAdmin: {
     /**
-     * Paginated org users — Owner/Admin only.
+     * Paginated org users — Owner/Admin only (`accessOrgAdmin`).
      * Role changes still go through PATCH /api/v1/members/:memberId/role.
      */
     listUsers: (params: ListOrganizationAdminUsersParams = {}) => {
@@ -2045,6 +2530,33 @@ export const api = {
         method: 'GET',
       })
     },
+
+    /** GET /api/v1/organization-admin/users/:userId — Owner/Admin only. */
+    getUser: (userId: string) =>
+      protectedRequest<{ data?: OrganizationAdminUser } & OrganizationAdminUser>(
+        `/api/v1/organization-admin/users/${userId}`,
+        { method: 'GET' }
+      ),
+
+    /** PATCH /api/v1/organization-admin/users/:userId — profile + isActive. */
+    updateUser: (userId: string, body: UpdateOrganizationAdminUserBody) =>
+      protectedRequest<{ data?: OrganizationAdminUser } & OrganizationAdminUser>(
+        `/api/v1/organization-admin/users/${userId}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    /**
+     * DELETE /api/v1/organization-admin/users/:userId —
+     * soft-deletes the org membership (does not delete the user account).
+     */
+    softDeleteUser: (userId: string) =>
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/organization-admin/users/${userId}`,
+        { method: 'DELETE' }
+      ),
   },
 
   invitations: {
@@ -2238,13 +2750,10 @@ export const api = {
         ),
 
       create: (body: CreateSuperAdminPlanBody) =>
-        protectedRequest<{ data?: SuperAdminPlan } & SuperAdminPlan>(
-          '/api/v1/super-admin/plans',
-          {
-            method: 'POST',
-            body: JSON.stringify(body),
-          }
-        ),
+        protectedRequest<{ data?: SuperAdminPlan } & SuperAdminPlan>('/api/v1/super-admin/plans', {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }),
 
       update: (planId: string, body: UpdateSuperAdminPlanBody) =>
         protectedRequest<{ data?: SuperAdminPlan } & SuperAdminPlan>(
@@ -2269,14 +2778,14 @@ export const api = {
         if (params.perPage != null) qs.set('perPage', String(params.perPage))
         if (params.search?.trim()) qs.set('search', params.search.trim())
         if (params.status && params.status !== 'all') qs.set('status', params.status)
-        if (params.issueMonth && params.issueMonth !== 'all') qs.set('issueMonth', params.issueMonth)
+        if (params.issueMonth && params.issueMonth !== 'all')
+          qs.set('issueMonth', params.issueMonth)
         if (params.billingPeriod && params.billingPeriod !== 'all') {
           qs.set('billingPeriod', params.billingPeriod)
         }
         const query = qs.toString()
         return protectedRequest<
-          | Paginated<SuperAdminInvoice>
-          | { data?: SuperAdminInvoice[]; meta?: PaginationMeta }
+          Paginated<SuperAdminInvoice> | { data?: SuperAdminInvoice[]; meta?: PaginationMeta }
         >(`/api/v1/super-admin/invoices${query ? `?${query}` : ''}`, {
           method: 'GET',
         })
@@ -2286,16 +2795,18 @@ export const api = {
         const qs = new URLSearchParams()
         if (params.search?.trim()) qs.set('search', params.search.trim())
         if (params.status && params.status !== 'all') qs.set('status', params.status)
-        if (params.issueMonth && params.issueMonth !== 'all') qs.set('issueMonth', params.issueMonth)
+        if (params.issueMonth && params.issueMonth !== 'all')
+          qs.set('issueMonth', params.issueMonth)
         if (params.billingPeriod && params.billingPeriod !== 'all') {
           qs.set('billingPeriod', params.billingPeriod)
         }
         const query = qs.toString()
-        return protectedRequest<
-          { data?: SuperAdminInvoiceSummary } & SuperAdminInvoiceSummary
-        >(`/api/v1/super-admin/invoices/summary${query ? `?${query}` : ''}`, {
-          method: 'GET',
-        })
+        return protectedRequest<{ data?: SuperAdminInvoiceSummary } & SuperAdminInvoiceSummary>(
+          `/api/v1/super-admin/invoices/summary${query ? `?${query}` : ''}`,
+          {
+            method: 'GET',
+          }
+        )
       },
 
       get: (invoiceId: string) =>
@@ -2330,6 +2841,20 @@ export const api = {
             body: JSON.stringify({}),
           }
         ),
+
+      send: (invoiceId: string) =>
+        protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+          `/api/v1/super-admin/invoices/${invoiceId}/send`,
+          {
+            method: 'POST',
+            body: JSON.stringify({}),
+          }
+        ),
+
+      download: (invoiceId: string) =>
+        protectedBlobRequest(`/api/v1/super-admin/invoices/${invoiceId}/download`, {
+          method: 'GET',
+        }),
     },
 
     aiConfig: {
@@ -2355,9 +2880,29 @@ export const api = {
         if (params.limit != null) qs.set('limit', String(params.limit))
         if (params.organizationId) qs.set('organizationId', params.organizationId)
         const query = qs.toString()
+        return protectedRequest<{ data?: AuthorizationAuditEvent[] } | AuthorizationAuditEvent[]>(
+          `/api/v1/super-admin/audit-logs${query ? `?${query}` : ''}`,
+          {
+            method: 'GET',
+          }
+        )
+      },
+    },
+
+    platformUsers: {
+      list: (params: ListSuperAdminPlatformUsersParams = {}) => {
+        const qs = new URLSearchParams()
+        if (params.page != null) qs.set('page', String(params.page))
+        if (params.perPage != null) qs.set('perPage', String(params.perPage))
+        if (params.search?.trim()) qs.set('search', params.search.trim())
+        if (params.status && params.status !== 'all') qs.set('status', params.status)
+        if (params.organizationId) qs.set('organizationId', params.organizationId)
+        if (params.role?.trim()) qs.set('role', params.role.trim())
+        const query = qs.toString()
         return protectedRequest<
-          { data?: AuthorizationAuditEvent[] } | AuthorizationAuditEvent[]
-        >(`/api/v1/super-admin/audit-logs${query ? `?${query}` : ''}`, {
+          | Paginated<SuperAdminPlatformUser>
+          | { data?: SuperAdminPlatformUser[]; meta?: PaginationMeta }
+        >(`/api/v1/super-admin/platform-users${query ? `?${query}` : ''}`, {
           method: 'GET',
         })
       },

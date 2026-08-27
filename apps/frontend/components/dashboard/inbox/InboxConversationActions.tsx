@@ -69,8 +69,13 @@ export function InboxConversationActions({
   const isClosed = conversation.status === 'closed'
   const busy = pendingAction !== null || orgsLoading
   const aiMode = conversationAiMode(conversation)
-  const showTakeover = canReply && (aiMode === 'AI_AUTO' || aiMode === 'HANDOVER')
-  const showResume = canReply && (aiMode === 'HANDOVER' || aiMode === 'HUMAN_ACTIVE')
+  const orphanPause =
+    aiMode === 'AI_AUTO' &&
+    (conversation.automationBlocked === true ||
+      conversation.openFlowSessionStatus === 'PAUSED_FOR_HUMAN')
+  const showTakeover = canReply && (aiMode === 'AI_AUTO' || aiMode === 'HANDOVER') && !orphanPause
+  const showResume =
+    canReply && (aiMode === 'HANDOVER' || aiMode === 'HUMAN_ACTIVE' || orphanPause)
   const activeStatus: 'open' | 'pending' =
     conversation.status === 'pending' ? 'pending' : 'open'
 

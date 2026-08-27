@@ -4,9 +4,15 @@ import logger from '@adonisjs/core/services/logger'
 import CampaignException from '#exceptions/campaign_exception'
 import { MediaAssetReferenceRepository } from '#repositories/media_asset_reference_repository'
 import {
-  deriveParameterSchema,
-  parseParameterSchema,
+  InvalidScheduledAtError,
+  isValidIanaTimeZone,
+  parseScheduledAt,
+  resolveIanaTimeZone,
+  toUtcIso,
+} from '#lib/scheduled_at'
+import {
   pickRequiredParameterValues,
+  resolveParameterSchema,
   TemplateParameterError,
 } from '#lib/meta_whatsapp/template_parameters'
 import type { TemplateParameterSchema } from '#lib/meta_whatsapp/types'
@@ -19,6 +25,7 @@ import { enqueueCampaignWake, removeCampaignWake } from '#services/campaign_queu
 import { NotificationService } from '#services/notification_service'
 import type { CAMPAIGN_STATUSES } from '#validators/campaign'
 import {
+  CAMPAIGN_CANCELLABLE_STATUSES,
   CAMPAIGN_SORT_FIELDS,
   CAMPAIGN_SOFT_DELETED_STATUS,
   CAMPAIGN_SCHEDULABLE_STATUSES,
@@ -26,11 +33,14 @@ import {
   CAMPAIGN_DRAFT_STATUS,
   CAMPAIGN_SCHEDULED_STATUS,
   CAMPAIGN_SENDING_STATUS,
+  type CampaignVariableMapping,
+  type CampaignVariableMappings,
 } from '#validators/campaign'
 import type { DateTime } from 'luxon'
 
 const SENDABLE_STATUS_SET = new Set<string>(CAMPAIGN_SENDABLE_STATUSES)
 const SCHEDULABLE_STATUS_SET = new Set<string>(CAMPAIGN_SCHEDULABLE_STATUSES)
+const CANCELLABLE_STATUS_SET = new Set<string>(CAMPAIGN_CANCELLABLE_STATUSES)
 
 export type CampaignLifecycleStatus = (typeof CAMPAIGN_STATUSES)[number]
 
@@ -61,6 +71,7 @@ export type CampaignDto = {
   whatsappConfigId: string | null
   messageTemplateId: string | null
   headerMediaAssetId: string | null
+  audienceTagId: string | null
   scheduledAt: string | null
   finalizedAt: string | null
   cancelledAt: string | null
@@ -73,6 +84,7 @@ export type CampaignDto = {
   failedCount: number
   createdAt: string
   updatedAt: string | null
+  variableMappings: CampaignVariableMappings | null
 }
 
 export type CreateCampaignInput = {
@@ -82,8 +94,9 @@ export type CreateCampaignInput = {
   whatsappConfigId?: string
   messageTemplateId?: string
   headerMediaAssetId?: string
-  scheduledAt?: DateTime | Date
+  scheduledAt?: DateTime | Date | string
   status?: 'draft' | 'scheduled'
+  variableMappings?: CampaignVariableMappings
 }
 
 export type ListCampaignsInput = {
@@ -104,8 +117,9 @@ export type UpdateCampaignInput = {
   whatsappConfigId?: string | null
   messageTemplateId?: string | null
   headerMediaAssetId?: string | null
-  scheduledAt?: DateTime | Date | null
+  scheduledAt?: DateTime | Date | string | null
   status?: 'draft' | 'scheduled'
+  variableMappings?: CampaignVariableMappings | null
 }
 
 export type PreviewCampaignInput = {
@@ -148,23 +162,21 @@ function isForeignKeyViolation(error: unknown): boolean {
   return false
 }
 
-function toJsDate(value: DateTime | Date): Date {
-  return value instanceof Date ? value : value.toJSDate()
-}
-
 function toIso(value: DateTime | Date | string | null | undefined): string | null {
   if (!value) return null
-  if (typeof value === 'string') {
-    const date = new Date(value)
-    return Number.isNaN(date.getTime()) ? null : date.toISOString()
+  try {
+    return toUtcIso(value)
+  } catch {
+    return null
   }
-  if (value instanceof Date) {
-    return Number.isNaN(value.getTime()) ? null : value.toISOString()
+}
+
+function parseVariableMappings(raw: unknown): CampaignVariableMappings | null {
+  const parsed = parseJsonField(raw)
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return null
   }
-  const iso = value.toISO()
-  if (!iso) return null
-  const parsed = new Date(iso)
-  return Number.isNaN(parsed.getTime()) ? null : iso
+  return parsed as CampaignVariableMappings
 }
 
 function mapCampaignRow(row: Record<string, unknown>): CampaignDto {
@@ -176,6 +188,7 @@ function mapCampaignRow(row: Record<string, unknown>): CampaignDto {
     whatsappConfigId: (row.whatsappConfigId as string | null) ?? null,
     messageTemplateId: (row.messageTemplateId as string | null) ?? null,
     headerMediaAssetId: (row.headerMediaAssetId as string | null) ?? null,
+    audienceTagId: (row.audienceTagId as string | null) ?? null,
     scheduledAt: toIso(row.scheduledAt as DateTime | Date | string | null),
     finalizedAt: toIso(row.finalizedAt as DateTime | Date | string | null),
     cancelledAt: toIso(row.cancelledAt as DateTime | Date | string | null),
@@ -188,6 +201,7 @@ function mapCampaignRow(row: Record<string, unknown>): CampaignDto {
     failedCount: Number(row.failedCount ?? 0),
     createdAt: toIso(row.createdAt as DateTime | Date | string)!,
     updatedAt: toIso(row.updatedAt as DateTime | Date | string | null),
+    variableMappings: parseVariableMappings(row.variableMappings),
   }
 }
 
@@ -217,19 +231,26 @@ function toVariableMap(raw: unknown): Record<string, string> {
   return out
 }
 
-function contactTemplateValueCandidates(contact: {
+function usableTemplateString(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  return trimmed ? trimmed : undefined
+}
+
+type CampaignContactValues = {
   name: string | null
   email: string | null
   company: string | null
   phone: string
   customFields: unknown
-}): Record<string, string> {
+}
+
+function contactTemplateValueCandidates(contact: CampaignContactValues): Record<string, string> {
   const out: Record<string, string> = {}
   const set = (key: string, value: unknown) => {
-    if (typeof value !== 'string') return
-    const trimmed = value.trim()
-    if (!trimmed) return
-    out[key] = trimmed
+    const usable = usableTemplateString(value)
+    if (!usable) return
+    out[key] = usable
   }
 
   set('name', contact.name)
@@ -246,24 +267,95 @@ function contactTemplateValueCandidates(contact: {
   return out
 }
 
+/** Existing contact columns (plus the same name aliases used by automatic resolution). */
+function readMappedContactField(contact: CampaignContactValues, field: string): string | undefined {
+  switch (field) {
+    case 'name':
+    case 'first_name':
+    case 'customer_name':
+      return usableTemplateString(contact.name)
+    case 'email':
+      return usableTemplateString(contact.email)
+    case 'company':
+      return usableTemplateString(contact.company)
+    case 'phone':
+      return usableTemplateString(contact.phone)
+    default:
+      return undefined
+  }
+}
+
+function valuesFromVariableMappings(params: {
+  contact: CampaignContactValues | null
+  mappings?: CampaignVariableMappings | null
+}): Record<string, string> {
+  const out: Record<string, string> = {}
+  if (!params.mappings) return out
+
+  const customFields = params.contact ? toVariableMap(params.contact.customFields) : {}
+
+  for (const [param, mapping] of Object.entries(params.mappings)) {
+    const resolved = resolveMappedValue(mapping, params.contact, customFields)
+    if (resolved !== undefined) {
+      out[param] = resolved
+    }
+  }
+
+  return out
+}
+
+function resolveMappedValue(
+  mapping: CampaignVariableMapping | Record<string, unknown> | null | undefined,
+  contact: CampaignContactValues | null,
+  customFields: Record<string, string>
+): string | undefined {
+  if (!mapping || typeof mapping !== 'object' || Array.isArray(mapping)) {
+    return undefined
+  }
+
+  const source = (mapping as { source?: unknown }).source
+  if (source === 'contact_field') {
+    const field = usableTemplateString((mapping as { field?: unknown }).field)
+    if (!field || !contact) return undefined
+    return readMappedContactField(contact, field)
+  }
+
+  if (source === 'custom_field') {
+    const field = usableTemplateString((mapping as { field?: unknown }).field)
+    if (!field) return undefined
+    return usableTemplateString(customFields[field])
+  }
+
+  if (source === 'static') {
+    return usableTemplateString((mapping as { value?: unknown }).value)
+  }
+
+  return undefined
+}
+
 function resolveRecipientParameterValues(params: {
   schema: TemplateParameterSchema
-  contact: {
-    name: string | null
-    email: string | null
-    company: string | null
-    phone: string
-    customFields: unknown
-  } | null
+  contact: CampaignContactValues | null
+  mappings?: CampaignVariableMappings | null
   overrides?: Record<string, string> | null
 }): Record<string, string> {
+  const values: Record<string, string> = {
+    ...(params.contact ? contactTemplateValueCandidates(params.contact) : {}),
+  }
+
+  if (params.mappings) {
+    for (const param of Object.keys(params.mappings)) {
+      delete values[param]
+    }
+    Object.assign(values, valuesFromVariableMappings(params))
+  }
+
+  Object.assign(values, params.overrides ?? {})
+
   try {
     return pickRequiredParameterValues({
       schema: params.schema,
-      values: {
-        ...(params.contact ? contactTemplateValueCandidates(params.contact) : {}),
-        ...(params.overrides ?? {}),
-      },
+      values,
     })
   } catch (error) {
     if (error instanceof TemplateParameterError) {
@@ -303,6 +395,7 @@ const BROADCAST_COLUMNS = [
   'whatsappConfigId',
   'messageTemplateId',
   'headerMediaAssetId',
+  'audienceTagId',
   'scheduledAt',
   'finalizedAt',
   'cancelledAt',
@@ -315,6 +408,7 @@ const BROADCAST_COLUMNS = [
   'failedCount',
   'createdAt',
   'updatedAt',
+  'variableMappings',
 ] as const
 
 @inject()
@@ -368,6 +462,53 @@ export class CampaignService {
     return row
   }
 
+  protected async getOrganizationTimezone(organizationId: string): Promise<string> {
+    const row = await db
+      .from('organizations')
+      .where('id', organizationId)
+      .select('timezone')
+      .first()
+    return resolveIanaTimeZone(typeof row?.timezone === 'string' ? row.timezone : null)
+  }
+
+  /**
+   * Date/DateTime values are already absolute instants.
+   * Strings are parsed once: offset/Z as instants, naive as `timeZone` (or org TZ).
+   */
+  protected async resolveScheduledAt(
+    organizationId: string,
+    value: DateTime | Date | string,
+    timeZone?: string | null
+  ): Promise<Date> {
+    try {
+      if (typeof value !== 'string') {
+        return parseScheduledAt(value, 'UTC')
+      }
+      const zone = this.resolveScheduleTimeZone(
+        timeZone,
+        await this.getOrganizationTimezone(organizationId)
+      )
+      return parseScheduledAt(value, zone)
+    } catch (error) {
+      if (error instanceof InvalidScheduledAtError) {
+        throw CampaignException.invalidScheduledAt()
+      }
+      throw error
+    }
+  }
+
+  protected resolveScheduleTimeZone(
+    timeZone: string | null | undefined,
+    organizationTimeZone: string
+  ): string {
+    const candidate = timeZone?.trim()
+    if (!candidate) return organizationTimeZone
+    if (!isValidIanaTimeZone(candidate)) {
+      throw CampaignException.invalidTimeZone()
+    }
+    return candidate
+  }
+
   protected async assertWhatsappConfigInOrg(organizationId: string, whatsappConfigId: string) {
     const config = await db
       .from('whatsapp_configs')
@@ -411,12 +552,8 @@ export class CampaignService {
   }
 
   protected campaignTemplateSchema(template: Record<string, unknown>): TemplateParameterSchema {
-    const stored = parseParameterSchema(parseJsonField(template.parameterSchema))
-    if (stored.sendable || stored.unsupportedReason) {
-      return stored
-    }
-
-    return deriveParameterSchema({
+    return resolveParameterSchema({
+      stored: parseJsonField(template.parameterSchema),
       headerType: (template.headerType as string | null) ?? null,
       headerContent: (template.headerContent as string | null) ?? null,
       bodyText: (template.bodyText as string) ?? '',
@@ -502,6 +639,7 @@ export class CampaignService {
     organizationId: string
     campaignId: string
     messageTemplateId: string
+    mappings?: CampaignVariableMappings | null
   }): Promise<void> {
     const schema = await this.loadCampaignTemplateSchema(params)
     const required = [...schema.headerNames, ...schema.bodyNames]
@@ -528,6 +666,7 @@ export class CampaignService {
               customFields: row.customFields,
             }
           : null,
+        mappings: params.mappings,
         overrides: toVariableMap(row.variables),
       })
     }
@@ -554,6 +693,7 @@ export class CampaignService {
       .where('ct.organizationId', organizationId)
       .where('c.organizationId', organizationId)
       .whereNull('c.deletedAt')
+      .whereNull('c.optedOutAt')
       .select('c.id')
 
     return [...new Set(rows.map((row) => row.id as string))]
@@ -597,22 +737,31 @@ export class CampaignService {
     } else {
       uniqueIds = [...new Set(params.contactIds ?? [])]
 
-      let foundCount = 0
+      const eligible: string[] = []
       for (let i = 0; i < uniqueIds.length; i += RECIPIENT_INSERT_BATCH_SIZE) {
         const batch = uniqueIds.slice(i, i + RECIPIENT_INSERT_BATCH_SIZE)
         const found = await db
           .from('contacts')
           .where('organizationId', params.organizationId)
           .whereIn('id', batch)
-          .count('* as total')
-          .first()
-        foundCount += Number((found as { total: number } | undefined)?.total ?? 0)
+          .whereNull('deletedAt')
+          .select('id', 'optedOutAt')
+        if (found.length !== batch.length) {
+          const foundIds = new Set(found.map((row) => row.id as string))
+          if (batch.some((id) => !foundIds.has(id))) {
+            throw CampaignException.invalidReference()
+          }
+        }
+        for (const row of found) {
+          if (!row.optedOutAt) {
+            eligible.push(row.id as string)
+          }
+        }
       }
-
-      if (foundCount !== uniqueIds.length) {
-        throw CampaignException.invalidReference()
-      }
+      uniqueIds = eligible
     }
+
+    const audienceTagId = params.tagId ?? null
 
     const messageTemplateId = campaign.messageTemplateId as string | null
     const schema = messageTemplateId
@@ -627,6 +776,7 @@ export class CampaignService {
           contactIds: uniqueIds,
         })
       : null
+    const mappings = schema ? parseVariableMappings(campaign.variableMappings) : null
 
     const now = new Date()
     await db.transaction(async (trx) => {
@@ -641,7 +791,7 @@ export class CampaignService {
           .from('broadcasts')
           .where('id', params.campaignId)
           .where('organizationId', params.organizationId)
-          .update({ totalRecipients: 0 })
+          .update({ totalRecipients: 0, audienceTagId })
         return
       }
 
@@ -657,6 +807,7 @@ export class CampaignService {
               ? resolveRecipientParameterValues({
                   schema,
                   contact: contacts?.get(contactId) ?? null,
+                  mappings,
                   overrides: params.variables,
                 })
               : (params.variables ?? null),
@@ -669,7 +820,7 @@ export class CampaignService {
         .from('broadcasts')
         .where('id', params.campaignId)
         .where('organizationId', params.organizationId)
-        .update({ totalRecipients: uniqueIds.length })
+        .update({ totalRecipients: uniqueIds.length, audienceTagId })
     })
 
     return this.getCampaignById({
@@ -804,19 +955,23 @@ export class CampaignService {
     }
 
     if (input.scheduledAt !== undefined) {
-      updates.scheduledAt = input.scheduledAt ? toJsDate(input.scheduledAt) : null
+      updates.scheduledAt = input.scheduledAt
+        ? await this.resolveScheduledAt(input.organizationId, input.scheduledAt)
+        : null
     }
 
     if (input.status !== undefined) {
       updates.status = input.status
     }
 
+    if (input.variableMappings !== undefined) {
+      updates.variableMappings = input.variableMappings
+    }
+
     const nextStatus = (updates.status as string | undefined) ?? (existing.status as string)
     const nextScheduledAt =
       input.scheduledAt !== undefined
-        ? input.scheduledAt
-          ? toJsDate(input.scheduledAt)
-          : null
+        ? ((updates.scheduledAt as Date | null | undefined) ?? null)
         : existing.scheduledAt
           ? new Date(existing.scheduledAt as string | Date)
           : null
@@ -910,7 +1065,9 @@ export class CampaignService {
    */
   async createCampaign(input: CreateCampaignInput): Promise<CampaignDto> {
     const name = input.name.trim()
-    const scheduledAt = input.scheduledAt ? toJsDate(input.scheduledAt) : null
+    const scheduledAt = input.scheduledAt
+      ? await this.resolveScheduledAt(input.organizationId, input.scheduledAt)
+      : null
     const status = input.status ?? (scheduledAt ? 'scheduled' : 'draft')
 
     if (status === 'scheduled' && !scheduledAt) {
@@ -948,6 +1105,7 @@ export class CampaignService {
           whatsappConfigId,
           messageTemplateId: input.messageTemplateId ?? null,
           headerMediaAssetId: input.headerMediaAssetId ?? null,
+          variableMappings: input.variableMappings ?? null,
           scheduledAt,
           status,
           totalRecipients: 0,
@@ -986,6 +1144,7 @@ export class CampaignService {
     const whatsappConfigId = (source.whatsappConfigId as string | null) ?? null
     const messageTemplateId = (source.messageTemplateId as string | null) ?? null
     const headerMediaAssetId = (source.headerMediaAssetId as string | null) ?? null
+    const variableMappings = parseVariableMappings(source.variableMappings)
 
     if (whatsappConfigId) {
       await this.assertWhatsappConfigInOrg(params.organizationId, whatsappConfigId)
@@ -1009,6 +1168,8 @@ export class CampaignService {
           whatsappConfigId,
           messageTemplateId,
           headerMediaAssetId,
+          variableMappings,
+          audienceTagId: (source.audienceTagId as string | null) ?? null,
           scheduledAt: null,
           status: CAMPAIGN_DRAFT_STATUS,
           totalRecipients: 0,
@@ -1020,7 +1181,17 @@ export class CampaignService {
         })
         .returning([...BROADCAST_COLUMNS])
 
-      return mapCampaignRow(row)
+      const duplicated = mapCampaignRow(row)
+      const sourceTagId = (source.audienceTagId as string | null) ?? null
+      if (sourceTagId) {
+        return this.replaceRecipients({
+          organizationId: params.organizationId,
+          campaignId: duplicated.id,
+          tagId: sourceTagId,
+        })
+      }
+
+      return duplicated
     } catch (error) {
       if (isForeignKeyViolation(error)) {
         throw CampaignException.invalidReference()
@@ -1038,7 +1209,8 @@ export class CampaignService {
   async scheduleCampaign(params: {
     campaignId: string
     organizationId: string
-    scheduledAt: DateTime | Date
+    scheduledAt: DateTime | Date | string
+    timeZone?: string | null
   }): Promise<CampaignDto> {
     const existing = await this.findCampaignRowOrFail({
       campaignId: params.campaignId,
@@ -1072,16 +1244,33 @@ export class CampaignService {
       await assertReadyMediaAsset(params.organizationId, existing.headerMediaAssetId as string)
     }
 
-    const scheduledAt = toJsDate(params.scheduledAt)
+    const scheduledAt = await this.resolveScheduledAt(
+      params.organizationId,
+      params.scheduledAt,
+      params.timeZone
+    )
     if (scheduledAt.getTime() <= Date.now()) {
       throw CampaignException.scheduledAtMustBeFuture()
     }
 
-    if (existing.messageTemplateId) {
+    await this.refreshDispatchAudience({
+      campaignId: params.campaignId,
+      organizationId: params.organizationId,
+    })
+    const ready = await this.findCampaignRowOrFail({
+      campaignId: params.campaignId,
+      organizationId: params.organizationId,
+    })
+    if (Number(ready.totalRecipients) < 1) {
+      throw CampaignException.noEligibleRecipients()
+    }
+
+    if (ready.messageTemplateId) {
       await this.assertRecipientVariablesReady({
         organizationId: params.organizationId,
         campaignId: params.campaignId,
-        messageTemplateId: existing.messageTemplateId as string,
+        messageTemplateId: ready.messageTemplateId as string,
+        mappings: parseVariableMappings(ready.variableMappings),
       })
     }
 
@@ -1118,11 +1307,8 @@ export class CampaignService {
         .where('organizationId', params.organizationId)
         .where('status', CAMPAIGN_SCHEDULED_STATUS)
         .update({
-          status:
-            currentStatus === CAMPAIGN_SCHEDULED_STATUS
-              ? CAMPAIGN_SCHEDULED_STATUS
-              : CAMPAIGN_DRAFT_STATUS,
-          scheduledAt: currentStatus === CAMPAIGN_SCHEDULED_STATUS ? previousScheduledAt : null,
+          status: currentStatus,
+          scheduledAt: previousScheduledAt,
         })
       logger.error(
         {
@@ -1154,13 +1340,18 @@ export class CampaignService {
   }
 
   /**
-   * Enqueue delayed campaign execute job for a future schedule.
+   * Enqueue a delayed CAMPAIGN_EXECUTE wake for the canonical scheduledAt instant.
+   * Drops any previous delayed wake first so reschedule updates `runAt`.
    */
   protected async registerCampaignSchedule(params: {
     organizationId: string
     campaignId: string
     scheduledAt: Date
   }): Promise<void> {
+    await removeCampaignWake({
+      organizationId: params.organizationId,
+      campaignId: params.campaignId,
+    })
     await enqueueCampaignWake({
       organizationId: params.organizationId,
       campaignId: params.campaignId,
@@ -1169,7 +1360,8 @@ export class CampaignService {
   }
 
   /**
-   * Cancel a scheduled campaign: revert to draft and clear `scheduledAt`.
+   * Cancel a scheduled or in-flight campaign: revert to draft and clear `scheduledAt`.
+   * There is no "cancelled" status on `broadcasts` — draft is the lifecycle equivalent.
    * Soft-deleted campaigns are treated as not found (404).
    * In-progress (`sending`) campaigns use cancelInProgressCampaign instead.
    */
@@ -1180,16 +1372,16 @@ export class CampaignService {
     const existing = await this.findCampaignRowOrFail(params)
     const currentStatus = existing.status as string
 
-    if (currentStatus !== CAMPAIGN_SCHEDULED_STATUS) {
+    if (!CANCELLABLE_STATUS_SET.has(currentStatus)) {
       throw CampaignException.notEligibleToCancel(currentStatus)
     }
 
-    // Conditional update prevents canceling a campaign that left scheduled mid-request.
+    // Conditional update prevents canceling a campaign that left a cancellable status mid-request.
     const [row] = await db
       .from('broadcasts')
       .where('id', params.campaignId)
       .where('organizationId', params.organizationId)
-      .where('status', CAMPAIGN_SCHEDULED_STATUS)
+      .whereIn('status', [...CAMPAIGN_CANCELLABLE_STATUSES])
       .update({
         status: CAMPAIGN_DRAFT_STATUS,
         scheduledAt: null,
@@ -1231,7 +1423,66 @@ export class CampaignService {
   }
 
   /**
-   * Kick off campaign send: mark as `sending` ("running") when eligible, then enqueue fan-out.
+   * Re-resolve recipients immediately before send/schedule.
+   * Group campaigns use live tag membership (minus deleted + opted-out).
+   * All-contacts snapshots only drop opted-out rows.
+   */
+  protected async refreshDispatchAudience(params: {
+    campaignId: string
+    organizationId: string
+  }): Promise<void> {
+    const campaign = await this.findCampaignRowOrFail(params)
+    const audienceTagId = (campaign.audienceTagId as string | null) ?? null
+    if (audienceTagId) {
+      await this.replaceRecipients({
+        organizationId: params.organizationId,
+        campaignId: params.campaignId,
+        tagId: audienceTagId,
+      })
+      return
+    }
+
+    await this.pruneOptedOutRecipients(params)
+  }
+
+  protected async pruneOptedOutRecipients(params: {
+    campaignId: string
+    organizationId: string
+  }): Promise<void> {
+    await db.transaction(async (trx) => {
+      await trx
+        .from('broadcast_recipients')
+        .where('organizationId', params.organizationId)
+        .where('broadcastId', params.campaignId)
+        .whereIn('contactId', (sub) => {
+          sub
+            .from('contacts')
+            .where('organizationId', params.organizationId)
+            .where((q) => {
+              q.whereNotNull('optedOutAt').orWhereNotNull('deletedAt')
+            })
+            .select('id')
+        })
+        .delete()
+
+      const countRow = await trx
+        .from('broadcast_recipients')
+        .where('organizationId', params.organizationId)
+        .where('broadcastId', params.campaignId)
+        .count('* as total')
+        .first()
+
+      await trx
+        .from('broadcasts')
+        .where('id', params.campaignId)
+        .where('organizationId', params.organizationId)
+        .update({ totalRecipients: Number(countRow?.total ?? 0) })
+    })
+  }
+
+  /**
+   * Kick off campaign send: mark as `sending` ("running") when eligible,
+   * then enqueue an immediate CAMPAIGN_EXECUTE wake. Delivery happens in the worker.
    * Soft-deleted campaigns are treated as not found (404).
    * Requires an approved template and a connected WhatsApp configuration.
    */
@@ -1243,29 +1494,32 @@ export class CampaignService {
       throw CampaignException.notEligibleToSend(currentStatus)
     }
 
-    if (!existing.messageTemplateId) {
+    await this.refreshDispatchAudience(params)
+    const ready = await this.findCampaignRowOrFail(params)
+    if (Number(ready.totalRecipients) < 1) {
+      throw CampaignException.noEligibleRecipients()
+    }
+
+    if (!ready.messageTemplateId) {
       throw CampaignException.templateNotConfigured()
     }
 
-    if (!existing.whatsappConfigId) {
+    if (!ready.whatsappConfigId) {
       throw CampaignException.whatsappConfigNotConfigured()
     }
 
-    if (Number(existing.totalRecipients ?? 0) < 1) {
-      throw CampaignException.recipientsRequired()
-    }
+    await assertApprovedTemplate(params.organizationId, ready.messageTemplateId as string)
+    await assertConnectedWhatsappConfig(params.organizationId, ready.whatsappConfigId as string)
 
-    await assertApprovedTemplate(params.organizationId, existing.messageTemplateId as string)
-    await assertConnectedWhatsappConfig(params.organizationId, existing.whatsappConfigId as string)
-
-    if (existing.headerMediaAssetId) {
-      await assertReadyMediaAsset(params.organizationId, existing.headerMediaAssetId as string)
+    if (ready.headerMediaAssetId) {
+      await assertReadyMediaAsset(params.organizationId, ready.headerMediaAssetId as string)
     }
 
     await this.assertRecipientVariablesReady({
       organizationId: params.organizationId,
       campaignId: params.campaignId,
-      messageTemplateId: existing.messageTemplateId as string,
+      messageTemplateId: ready.messageTemplateId as string,
+      mappings: parseVariableMappings(ready.variableMappings),
     })
 
     // Conditional update prevents racing a second send into `sending`.
@@ -1307,7 +1561,6 @@ export class CampaignService {
       )
       throw error
     }
-
     await this.#protectHeaderMedia({
       organizationId: params.organizationId,
       campaignId: params.campaignId,
@@ -1327,7 +1580,7 @@ export class CampaignService {
   }
 
   /**
-   * Enqueue immediate campaign execute fan-out via WhatsappOutboundService per recipient.
+   * Enqueue an immediate CAMPAIGN_EXECUTE wake for manual launch.
    */
   protected async enqueueCampaignSend(params: {
     organizationId: string
@@ -1440,7 +1693,7 @@ export class CampaignService {
       headerType,
       headerMediaUrl: (template.headerMediaUrl as string | null) ?? null,
       variables,
-      parameterSchema: parseParameterSchema(parseJsonField(template.parameterSchema)),
+      parameterSchema: this.campaignTemplateSchema(template),
       headerPreview:
         headerType?.toLowerCase() === 'text'
           ? applyTemplateVariables(headerContent, variables)

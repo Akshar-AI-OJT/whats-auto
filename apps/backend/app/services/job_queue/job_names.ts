@@ -8,9 +8,13 @@ export const JOB_NAMES = {
   CAMPAIGN_EXECUTE: 'campaigns.execute',
   CAMPAIGN_RECOVERY: 'campaigns.recovery',
   AI_PROCESS_DOCUMENT: 'ai.process_document',
-  AI_DEBOUNCE_TURN: 'ai.debounce_turn',
   AI_SUMMARIZE_CONVERSATION: 'ai.summarize_conversation',
   AI_REINDEX_ALL_DOCUMENTS: 'ai.reindex_all_documents',
+  INTEGRATION_EVENTS_RECOVERY: 'integrations.events.recovery',
+  FLOWS_ADVANCE_SESSION: 'flows.advance_session',
+  FLOWS_SESSION_RECOVERY: 'flows.session.recovery',
+  BILLING_SUBSCRIPTION_LIFECYCLE: 'billing.subscription.lifecycle',
+  ONBOARDING_CLEANUP: 'onboarding.cleanup',
 } as const
 
 /** Singleton key so only one platform KB reindex runs at a time. */
@@ -32,3 +36,15 @@ export const CAMPAIGN_RECOVERY_CRON = '*/1 * * * *'
 
 /** Cron for sweeping unprocessed billing webhook events (every 5 minutes). */
 export const BILLING_PAYMENT_WEBHOOK_RECOVERY_CRON = '*/5 * * * *'
+
+/** Cron for re-emitting stuck accepted integration_events (every 5 minutes). */
+export const INTEGRATION_EVENTS_RECOVERY_CRON = '*/5 * * * *'
+
+/** Cron for expired flow sessions and execution-log retention. */
+export const FLOWS_SESSION_RECOVERY_CRON = '*/1 * * * *'
+
+/** Cron for order expiry, grace, subscription expiry, and renewal reminders. */
+export const BILLING_SUBSCRIPTION_LIFECYCLE_CRON = '0 * * * *'
+
+/** Cron for expired pre-signup OTPs and aged pending_setup org purge (daily). */
+export const ONBOARDING_CLEANUP_CRON = '15 3 * * *'

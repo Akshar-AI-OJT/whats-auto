@@ -6,11 +6,15 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Link } from '@/i18n/navigation'
 import type { AdminOrganizationListItem } from '@/components/admin/organizations/organization-api'
-import type { SuperAdminSubscription, SuperAdminSubscriptionStatus } from '@/lib/api'
+import type {
+  SuperAdminPlan,
+  SuperAdminSubscription,
+  SuperAdminSubscriptionStatus,
+} from '@/lib/api'
 import {
+  findPlanById,
   planAmountLabel,
   planBillingKind,
-  planConfigForSubscription,
   planLabel,
   SUBSCRIPTION_STATUSES,
 } from './subscription-api'
@@ -78,6 +82,7 @@ function LimitRow({
 
 type SubscriptionDetailPanelProps = {
   subscription: SuperAdminSubscription
+  plans: SuperAdminPlan[]
   organization?: AdminOrganizationListItem
   onClose: () => void
   onChangePlan: () => void
@@ -86,6 +91,7 @@ type SubscriptionDetailPanelProps = {
 
 export function SubscriptionDetailPanel({
   subscription,
+  plans,
   organization,
   onClose,
   onChangePlan,
@@ -94,10 +100,12 @@ export function SubscriptionDetailPanel({
   const t = useTranslations('admin.subscriptions')
   const name = organization?.name ?? subscription.organizationId.slice(0, 8)
   const website = organization?.website?.trim() || null
-  const plan = planConfigForSubscription(subscription.planId)
-  const amount = planAmountLabel(subscription.planId, t('customPrice'))
+  const plan = findPlanById(plans, subscription.planId)
+  const amount = planAmountLabel(subscription.planId, plans, t('customPrice'))
   const billing =
-    planBillingKind(subscription.planId) === 'custom' ? t('billingCustom') : t('billingMonthly')
+    planBillingKind(subscription.planId, plans) === 'custom'
+      ? t('billingCustom')
+      : t('billingMonthly')
   const statusKey = SUBSCRIPTION_STATUSES.includes(
     subscription.status as SuperAdminSubscriptionStatus
   )
@@ -149,7 +157,7 @@ export function SubscriptionDetailPanel({
         <dl className="mt-3 space-y-2.5 text-sm">
           <div className="flex justify-between gap-3">
             <dt className="text-mute">{t('columns.plan')}</dt>
-            <dd className="font-medium text-ink">{planLabel(subscription.planId)}</dd>
+            <dd className="font-medium text-ink">{planLabel(subscription.planId, plans)}</dd>
           </div>
           <div className="flex justify-between gap-3">
             <dt className="text-mute">{t('columns.billing')}</dt>
@@ -158,7 +166,7 @@ export function SubscriptionDetailPanel({
           <div className="flex justify-between gap-3">
             <dt className="text-mute">{t('columns.amount')}</dt>
             <dd className="font-medium tabular-nums text-ink">
-              {plan?.priceMonthly != null ? t('detail.amountPerMonth', { amount }) : amount}
+              {plan?.price != null ? t('detail.amountPerMonth', { amount }) : amount}
             </dd>
           </div>
           <div className="flex justify-between gap-3">
@@ -197,17 +205,17 @@ export function SubscriptionDetailPanel({
           <div className="mt-3 space-y-3">
             <LimitRow
               label={t('limits.users')}
-              limit={plan?.limits.userLimit}
+              limit={plan?.limits?.users}
               unlimited={t('unlimited')}
             />
             <LimitRow
               label={t('limits.messages')}
-              limit={plan?.limits.messageLimit}
+              limit={plan?.limits?.messagesPerMonth}
               unlimited={t('unlimited')}
             />
             <LimitRow
               label={t('limits.workspaces')}
-              limit={plan?.limits.workspaceLimit}
+              limit={plan?.limits?.workspaces}
               unlimited={t('unlimited')}
             />
           </div>

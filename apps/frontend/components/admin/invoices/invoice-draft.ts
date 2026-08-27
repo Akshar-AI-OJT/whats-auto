@@ -16,6 +16,8 @@ export type InvoiceFormLineItem = {
 
 export type InvoiceDraftForm = {
   organizationId: string
+  /** Live Super Admin plan UUID when selected from the catalog. */
+  planId: string
   planName: string
   billingPeriod: InvoiceBillingPeriod
   periodStart: string
@@ -25,14 +27,8 @@ export type InvoiceDraftForm = {
   currency: 'USD'
   taxRatePercent: string
   discount: string
-  notes: string
   lineItems: InvoiceFormLineItem[]
-}
-
-export const PLAN_DEFAULT_AMOUNTS: Record<string, number> = {
-  Starter: 29,
-  Growth: 149,
-  Scale: 249,
+  notes: string
 }
 
 export function roundMoney(value: number) {
@@ -72,8 +68,11 @@ export function planSubscriptionLabel(
   return `${planName} Plan (${suffix})`
 }
 
-export function defaultLineItems(planName: string, billingPeriod: InvoiceBillingPeriod): InvoiceFormLineItem[] {
-  const unitPrice = PLAN_DEFAULT_AMOUNTS[planName] ?? 149
+export function defaultLineItems(
+  planName: string,
+  billingPeriod: InvoiceBillingPeriod,
+  unitPrice = 0
+): InvoiceFormLineItem[] {
   return [
     {
       id: crypto.randomUUID(),
@@ -96,12 +95,13 @@ export function monthBounds(date = new Date()) {
   return { start: toInput(start), end: toInput(end) }
 }
 
-export function emptyDraftForm(planName = 'Growth'): InvoiceDraftForm {
+export function emptyDraftForm(): InvoiceDraftForm {
   const bounds = monthBounds()
   const issue = todayInput()
   return {
     organizationId: '',
-    planName,
+    planId: '',
+    planName: '',
     billingPeriod: 'monthly',
     periodStart: bounds.start,
     periodEnd: bounds.end,
@@ -111,7 +111,7 @@ export function emptyDraftForm(planName = 'Growth'): InvoiceDraftForm {
     taxRatePercent: '18',
     discount: '0',
     notes: '',
-    lineItems: defaultLineItems(planName, 'monthly'),
+    lineItems: defaultLineItems('', 'monthly', 0),
   }
 }
 
@@ -185,6 +185,7 @@ export function draftFormToCreateInput(
     organizationPhone: organization.phone,
     organizationAddress: organization.address,
     organizationGstin: organization.gstin,
+    planId: form.planId || undefined,
     planName: form.planName,
     billingPeriod: form.billingPeriod,
     periodStart: form.periodStart,

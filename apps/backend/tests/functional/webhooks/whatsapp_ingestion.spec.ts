@@ -182,10 +182,10 @@ test.group('WhatsApp webhook ingestion', (group) => {
                 field: 'messages',
                 value: messagesValue({
                   phoneNumberId: fixture.phoneNumberId,
-                  contacts: [{ wa_id: '15551112222', profile: { name: 'Ada Lovelace' } }],
+                  contacts: [{ wa_id: '919811122222', profile: { name: 'Ada Lovelace' } }],
                   messages: [
                     {
-                      from: '15551112222',
+                      from: '919811122222',
                       id: 'wamid.text.1',
                       timestamp: '1700000000',
                       type: 'text',
@@ -223,7 +223,7 @@ test.group('WhatsApp webhook ingestion', (group) => {
 
         assert.lengthOf(contacts, 1)
         assert.equal(contacts[0].name, 'Ada Lovelace')
-        assert.equal(contacts[0].phoneNormalized, '15551112222')
+        assert.equal(contacts[0].phoneNormalized, '919811122222')
 
         assert.lengthOf(conversations, 1)
         assert.equal(conversations[0].unreadCount, 1)
@@ -240,8 +240,181 @@ test.group('WhatsApp webhook ingestion', (group) => {
 
       assert.lengthOf(events, 1)
       assert.equal(events[0].payload.providerMessageId, 'wamid.text.1')
+      assert.isNull(events[0].payload.interactiveReplyId)
     } finally {
       emitter.off(InboxMessageReceived, onMessage)
+    }
+  })
+
+  test('restores soft-deleted contact on inbound so conversation reappears', async ({
+    client,
+    assert,
+  }) => {
+    const fixture = await createFixture()
+    const waId = '919811133333'
+
+    const { payload: firstPayload, signature: firstSignature } = signedPayload({
+      object: 'whatsapp_business_account',
+      entry: [
+        {
+          id: 'waba',
+          changes: [
+            {
+              field: 'messages',
+              value: messagesValue({
+                phoneNumberId: fixture.phoneNumberId,
+                contacts: [{ wa_id: waId, profile: { name: 'Soft Delete Me' } }],
+                messages: [
+                  {
+                    from: waId,
+                    id: 'wamid.softdelete.1',
+                    timestamp: '1700000100',
+                    type: 'text',
+                    text: { body: 'before delete' },
+                  },
+                ],
+              }),
+            },
+          ],
+        },
+      ],
+    })
+
+    const firstResponse = await client
+      .post('/api/v1/webhooks/whatsapp')
+      .header('X-Hub-Signature-256', firstSignature)
+      .json(firstPayload)
+    firstResponse.assertStatus(200)
+
+    const contactId = await runWithTenant(fixture.organizationId, async () => {
+      const contact = await db
+        .from('contacts')
+        .where('organizationId', fixture.organizationId)
+        .where('phoneNormalized', waId)
+        .whereNull('deletedAt')
+        .first()
+      assert.exists(contact)
+      await db.from('contacts').where('id', contact!.id).update({ deletedAt: new Date() })
+      return contact!.id as string
+    })
+
+    const { payload: secondPayload, signature: secondSignature } = signedPayload({
+      object: 'whatsapp_business_account',
+      entry: [
+        {
+          id: 'waba',
+          changes: [
+            {
+              field: 'messages',
+              value: messagesValue({
+                phoneNumberId: fixture.phoneNumberId,
+                contacts: [{ wa_id: waId }],
+                messages: [
+                  {
+                    from: waId,
+                    id: 'wamid.softdelete.2',
+                    timestamp: '1700000200',
+                    type: 'text',
+                    text: { body: 'after delete' },
+                  },
+                ],
+              }),
+            },
+          ],
+        },
+      ],
+    })
+
+    const secondResponse = await client
+      .post('/api/v1/webhooks/whatsapp')
+      .header('X-Hub-Signature-256', secondSignature)
+      .json(secondPayload)
+    secondResponse.assertStatus(200)
+
+    await runWithTenant(fixture.organizationId, async () => {
+      const liveContacts = await db
+        .from('contacts')
+        .where('organizationId', fixture.organizationId)
+        .whereNull('deletedAt')
+        .select('*')
+      assert.lengthOf(liveContacts, 1)
+      assert.equal(liveContacts[0].id, contactId)
+      assert.isNull(liveContacts[0].deletedAt)
+
+      const conversations = await db
+        .from('conversations')
+        .where('organizationId', fixture.organizationId)
+        .where('contactId', contactId)
+        .select('*')
+      assert.lengthOf(conversations, 1)
+      assert.equal(conversations[0].lastMessageText, 'after delete')
+      assert.equal(conversations[0].unreadCount, 2)
+
+      const messages = await db
+        .from('messages')
+        .where('organizationId', fixture.organizationId)
+        .orderBy('occurredAt', 'asc')
+        .select('providerMessageId')
+      assert.lengthOf(messages, 2)
+      assert.equal(messages[1].providerMessageId, 'wamid.softdelete.2')
+    })
+  })
+
+  test('upserts Meta wa_id values as international digits for IN and US', async ({
+    client,
+    assert,
+  }) => {
+    const fixture = await createFixture()
+
+    for (const [waId, expectedNormalized] of [
+      ['919811122222', '919811122222'],
+      ['15551234567', '15551234567'],
+      ['14155552671', '14155552671'],
+    ] as const) {
+      const { payload, signature } = signedPayload({
+        object: 'whatsapp_business_account',
+        entry: [
+          {
+            id: 'waba',
+            changes: [
+              {
+                field: 'messages',
+                value: messagesValue({
+                  phoneNumberId: fixture.phoneNumberId,
+                  contacts: [{ wa_id: waId, profile: { name: waId } }],
+                  messages: [
+                    {
+                      from: waId,
+                      id: `wamid.waid.${waId}`,
+                      timestamp: '1700000000',
+                      type: 'text',
+                      text: { body: 'hi' },
+                    },
+                  ],
+                }),
+              },
+            ],
+          },
+        ],
+      })
+
+      const response = await client
+        .post('/api/v1/webhooks/whatsapp')
+        .header('Content-Type', 'application/json')
+        .header('X-Hub-Signature-256', signature)
+        .json(payload)
+
+      response.assertStatus(200)
+
+      await runWithTenant(fixture.organizationId, async () => {
+        const contact = await db
+          .from('contacts')
+          .where('organizationId', fixture.organizationId)
+          .where('phoneNormalized', expectedNormalized)
+          .first()
+        assert.isNotNull(contact)
+        assert.equal(contact.phoneNormalized, expectedNormalized)
+      })
     }
   })
 
@@ -260,24 +433,24 @@ test.group('WhatsApp webhook ingestion', (group) => {
               field: 'messages',
               value: messagesValue({
                 phoneNumberId: fixture.phoneNumberId,
-                contacts: [{ wa_id: '15553334444', profile: { name: 'Media User' } }],
+                contacts: [{ wa_id: '919833344444', profile: { name: 'Media User' } }],
                 messages: [
                   {
-                    from: '15553334444',
+                    from: '919833344444',
                     id: 'wamid.image.1',
                     timestamp: '1700001000',
                     type: 'image',
                     image: { id: 'meta-media-1', mime_type: 'image/png', caption: 'Shot' },
                   },
                   {
-                    from: '15553334444',
+                    from: '919833344444',
                     id: 'wamid.location.1',
                     timestamp: '1700001001',
                     type: 'location',
                     location: { latitude: 12.3, longitude: 45.6, name: 'Office' },
                   },
                   {
-                    from: '15553334444',
+                    from: '919833344444',
                     id: 'wamid.interactive.1',
                     timestamp: '1700001002',
                     type: 'interactive',
@@ -327,6 +500,82 @@ test.group('WhatsApp webhook ingestion', (group) => {
     })
   })
 
+  test('emits InboxMessageReceived.interactiveReplyId for button and list replies', async ({
+    client,
+    assert,
+  }) => {
+    const fixture = await createFixture()
+    const events: InboxMessageReceived[] = []
+    const onMessage = (event: InboxMessageReceived) => events.push(event)
+    emitter.on(InboxMessageReceived, onMessage)
+
+    try {
+      const { payload, signature } = signedPayload({
+        object: 'whatsapp_business_account',
+        entry: [
+          {
+            id: 'waba',
+            changes: [
+              {
+                field: 'messages',
+                value: messagesValue({
+                  phoneNumberId: fixture.phoneNumberId,
+                  contacts: [{ wa_id: '15556667777', profile: { name: 'Reply User' } }],
+                  messages: [
+                    {
+                      from: '15556667777',
+                      id: 'wamid.button.reply.1',
+                      timestamp: '1700002000',
+                      type: 'interactive',
+                      interactive: {
+                        type: 'button_reply',
+                        button_reply: { id: 'btn_products', title: 'Products' },
+                      },
+                    },
+                    {
+                      from: '15556667777',
+                      id: 'wamid.list.reply.1',
+                      timestamp: '1700002001',
+                      type: 'interactive',
+                      interactive: {
+                        type: 'list_reply',
+                        list_reply: {
+                          id: 'opt_prod_a',
+                          title: 'Product A',
+                          description: 'First item',
+                        },
+                      },
+                    },
+                  ],
+                }),
+              },
+            ],
+          },
+        ],
+      })
+
+      const response = await client
+        .post('/api/v1/webhooks/whatsapp')
+        .header('X-Hub-Signature-256', signature)
+        .json(payload)
+
+      response.assertStatus(200)
+
+      assert.lengthOf(events, 2)
+      const byWamid = Object.fromEntries(
+        events.map((event) => [event.payload.providerMessageId, event.payload])
+      )
+      assert.equal(byWamid['wamid.button.reply.1'].contentType, 'interactive')
+      assert.equal(byWamid['wamid.button.reply.1'].contentText, 'Products')
+      assert.equal(byWamid['wamid.button.reply.1'].interactiveReplyId, 'btn_products')
+      assert.equal(byWamid['wamid.list.reply.1'].contentType, 'interactive')
+      assert.equal(byWamid['wamid.list.reply.1'].contentText, 'Product A')
+      assert.equal(byWamid['wamid.list.reply.1'].interactiveReplyId, 'opt_prod_a')
+    } finally {
+      emitter.off(InboxMessageReceived, onMessage)
+    }
+  })
+
   test('processes multiple Meta changes in one payload', async ({ client, assert }) => {
     const fixture = await createFixture()
     const { payload, signature } = signedPayload({
@@ -339,10 +588,10 @@ test.group('WhatsApp webhook ingestion', (group) => {
               field: 'messages',
               value: messagesValue({
                 phoneNumberId: fixture.phoneNumberId,
-                contacts: [{ wa_id: '15550000001' }],
+                contacts: [{ wa_id: '919800000001' }],
                 messages: [
                   {
-                    from: '15550000001',
+                    from: '919800000001',
                     id: 'wamid.multi.1',
                     timestamp: '1700002000',
                     type: 'text',
@@ -355,10 +604,10 @@ test.group('WhatsApp webhook ingestion', (group) => {
               field: 'messages',
               value: messagesValue({
                 phoneNumberId: fixture.phoneNumberId,
-                contacts: [{ wa_id: '15550000001' }],
+                contacts: [{ wa_id: '919800000001' }],
                 messages: [
                   {
-                    from: '15550000001',
+                    from: '919800000001',
                     id: 'wamid.multi.2',
                     timestamp: '1700002001',
                     type: 'text',
@@ -406,10 +655,10 @@ test.group('WhatsApp webhook ingestion', (group) => {
               field: 'messages',
               value: messagesValue({
                 phoneNumberId: 'unknown-phone-number',
-                contacts: [{ wa_id: '15550000002' }],
+                contacts: [{ wa_id: '919800000002' }],
                 messages: [
                   {
-                    from: '15550000002',
+                    from: '919800000002',
                     id: 'wamid.unknown.1',
                     timestamp: '1700003000',
                     type: 'text',
@@ -443,7 +692,7 @@ test.group('WhatsApp webhook ingestion', (group) => {
   })
 
   test('skips inactive organization configs', async ({ client, assert }) => {
-    const organizationId = await createOrg({ status: false })
+    const organizationId = await createOrg({ status: 'false' })
     const phoneNumberId = `pn-inactive-${randomUUID().slice(0, 8)}`
     const whatsappConfigId = await createConnectedConfig(organizationId, phoneNumberId)
     fixtures.push({ organizationId, whatsappConfigId, phoneNumberId })
@@ -458,10 +707,10 @@ test.group('WhatsApp webhook ingestion', (group) => {
               field: 'messages',
               value: messagesValue({
                 phoneNumberId,
-                contacts: [{ wa_id: '15550000003' }],
+                contacts: [{ wa_id: '919800000003' }],
                 messages: [
                   {
-                    from: '15550000003',
+                    from: '919800000003',
                     id: 'wamid.inactive.1',
                     timestamp: '1700004000',
                     type: 'text',
@@ -502,10 +751,10 @@ test.group('WhatsApp webhook ingestion', (group) => {
               field: 'messages',
               value: messagesValue({
                 phoneNumberId: fixture.phoneNumberId,
-                contacts: [{ wa_id: '15550000004' }],
+                contacts: [{ wa_id: '919800000004' }],
                 messages: [
                   {
-                    from: '15550000004',
+                    from: '919800000004',
                     id: 'wamid.dup.1',
                     timestamp: '1700005000',
                     type: 'text',
@@ -550,8 +799,8 @@ test.group('WhatsApp webhook ingestion', (group) => {
         .table('contacts')
         .insert({
           organizationId: fixture.organizationId,
-          phone: '15550000005',
-          phoneNormalized: '15550000005',
+          phone: '919800000005',
+          phoneNormalized: '919800000005',
           name: 'Closed Contact',
           customFields: {},
         })
@@ -579,10 +828,10 @@ test.group('WhatsApp webhook ingestion', (group) => {
               field: 'messages',
               value: messagesValue({
                 phoneNumberId: fixture.phoneNumberId,
-                contacts: [{ wa_id: '15550000005' }],
+                contacts: [{ wa_id: '919800000005' }],
                 messages: [
                   {
-                    from: '15550000005',
+                    from: '919800000005',
                     id: 'wamid.reopen.1',
                     timestamp: '1700006000',
                     type: 'text',
@@ -749,8 +998,8 @@ test.group('WhatsApp webhook ingestion', (group) => {
     const b = await createFixture(`pn-b-${randomUUID().slice(0, 8)}`)
 
     for (const [fixture, wamid, waId] of [
-      [a, 'wamid.tenant.a', '15550000007'],
-      [b, 'wamid.tenant.b', '15550000008'],
+      [a, 'wamid.tenant.a', '919800000007'],
+      [b, 'wamid.tenant.b', '919800000008'],
     ] as const) {
       const { payload, signature } = signedPayload({
         object: 'whatsapp_business_account',

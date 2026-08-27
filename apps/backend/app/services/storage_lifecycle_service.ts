@@ -123,7 +123,11 @@ export class StorageLifecycleService {
     if (organizationId) {
       return [organizationId]
     }
-    const rows = await db.from('organizations').select('id')
+    const rows = await db
+      .from('organizations')
+      .whereNull('deletedAt')
+      .where('status', 'active')
+      .select('id')
     return rows.map((row) => row.id as string)
   }
 }

@@ -3,9 +3,13 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { Exception } from '@adonisjs/core/exceptions'
 import logger from '@adonisjs/core/services/logger'
 import { DateTime } from 'luxon'
+import { OrganizationStatus } from '#enums/organization_status'
+import type { OrganizationStatusValue } from '#enums/organization_status'
 import InvitationException from '#exceptions/invitation_exception'
+import OrganizationException from '#exceptions/organization_exception'
 import { getGlobalRoleIdByName, resolveAssignableRoleForOrg } from '#services/role_service'
 import { bumpAllOrgMembersPermissionVersion } from '#lib/permission_version_bumps'
+import { isPostgresUniqueViolation } from '#lib/pg_unique_violation'
 import { NotificationService } from '#services/notification_service'
 
 export const ORGANIZATION_TYPES = [
@@ -26,7 +30,7 @@ export type CreateOrganizationInput = {
   industry?: string
   organizationType: OrganizationType
   address: string
-  pan: string
+  pan?: string
   gstin?: string
   country: string
   timezone: string
@@ -156,7 +160,9 @@ export class OrganizationService {
 
   /**
    * Create an organization and make the caller the owner.
-   * Dual-writes organization_members + user_roles, sets active org on the session.
+   * New orgs start as pending_setup. Session switches to the new org only when
+   * the caller has no already-active workspace (avoids stranding a paid owner).
+   * Reuses the caller's existing pending_setup org on retry to avoid email/slug collisions.
    */
   async createOrganization(params: {
     userId: string
@@ -168,20 +174,185 @@ export class OrganizationService {
     await this.assertNoBlockingInvitation(userId)
 
     const ownerRoleId = await getGlobalRoleIdByName('owner')
+    const hasActiveWorkspace = await this.#userHasActiveWorkspace(userId)
+
+    const existingPending = await this.#findOwnedPendingSetupOrg(userId)
+    if (existingPending) {
+      return this.#reusePendingSetupOrg({
+        org: existingPending,
+        userId,
+        sessionId,
+        data,
+        activateSession: !hasActiveWorkspace,
+      })
+    }
+
+    try {
+      return await db.transaction(async (trx) => {
+        const [org] = await trx
+          .table('organizations')
+          .insert({
+            name: data.name,
+            slug: data.slug,
+            email: data.email,
+            phone: data.phone,
+            website: data.website ?? null,
+            industry: data.industry ?? null,
+            organizationType: data.organizationType,
+            address: data.address,
+            pan: data.pan ? data.pan.replace(/\s+/g, '').toUpperCase() : null,
+            gstin: data.gstin ? data.gstin.replace(/\s+/g, '').toUpperCase() : null,
+            country: data.country,
+            timezone: data.timezone,
+            currency: data.currency ?? null,
+            status: OrganizationStatus.PENDING_SETUP,
+          })
+          .returning([...ORGANIZATION_PUBLIC_COLUMNS, 'status', 'createdAt'])
+
+        await trx.table('organization_members').insert({
+          organizationId: org.id,
+          userId,
+          roleId: ownerRoleId,
+        })
+
+        await trx.table('user_roles').insert({
+          userId,
+          roleId: ownerRoleId,
+          organizationId: org.id,
+        })
+
+        const sessionActivated = !hasActiveWorkspace
+        if (sessionActivated) {
+          await trx.from('sessions').where('id', sessionId).update({
+            activeOrganizationId: org.id,
+          })
+        }
+
+        await trx.table('authorization_audits').insert({
+          organizationId: org.id,
+          actorUserId: userId,
+          targetType: 'organization',
+          targetId: org.id,
+          eventType: 'organization.created',
+          after: JSON.stringify({
+            name: org.name,
+            slug: org.slug,
+            status: OrganizationStatus.PENDING_SETUP,
+          }),
+        })
+
+        return {
+          ...mapOrganizationPublicFields(org as Record<string, unknown>),
+          status: org.status as OrganizationStatusValue,
+          createdAt: org.createdAt as string,
+          role: 'owner',
+          sessionActivated,
+        }
+      })
+    } catch (error) {
+      if (isPostgresUniqueViolation(error, 'organizations_slug_unique')) {
+        throw OrganizationException.slugAlreadyExists(data.slug)
+      }
+      // Email collision with the caller's own pending org (race) — reuse it.
+      if (isPostgresUniqueViolation(error, 'organizations_email_unique')) {
+        const pending = await this.#findOwnedPendingSetupOrg(userId)
+        if (pending) {
+          return this.#reusePendingSetupOrg({
+            org: pending,
+            userId,
+            sessionId,
+            data,
+            activateSession: !hasActiveWorkspace,
+          })
+        }
+      }
+      throw error
+    }
+  }
+
+  /**
+   * Promote an organization to active after a successful entitlement path
+   * (paid order, super-admin grant, legacy webhook). Idempotent.
+   */
+  async promoteToActive(organizationId: string, trx?: TransactionClientContract): Promise<void> {
+    const query = (trx ?? db)
+      .from('organizations')
+      .where('id', organizationId)
+      .whereNull('deletedAt')
+      .whereNot('status', OrganizationStatus.ACTIVE)
+      .update({ status: OrganizationStatus.ACTIVE })
+
+    await query
+  }
+
+  async #userHasActiveWorkspace(userId: string): Promise<boolean> {
+    const row = await db
+      .from('organization_members as m')
+      .innerJoin('organizations as o', 'o.id', 'm.organizationId')
+      .where('m.userId', userId)
+      .where('m.isDeleted', false)
+      .whereNull('o.deletedAt')
+      .where('o.status', OrganizationStatus.ACTIVE)
+      .select('o.id')
+      .first()
+    return Boolean(row)
+  }
+
+  async #findOwnedPendingSetupOrg(userId: string) {
+    return db
+      .from('organization_members as m')
+      .innerJoin('organizations as o', 'o.id', 'm.organizationId')
+      .innerJoin('roles as r', 'r.id', 'm.roleId')
+      .where('m.userId', userId)
+      .where('m.isDeleted', false)
+      .whereNull('o.deletedAt')
+      .where('o.status', OrganizationStatus.PENDING_SETUP)
+      .where('r.name', 'owner')
+      .select(
+        'o.id',
+        'o.name',
+        'o.slug',
+        'o.email',
+        'o.phone',
+        'o.website',
+        'o.industry',
+        'o.organizationType',
+        'o.address',
+        'o.pan',
+        'o.gstin',
+        'o.country',
+        'o.timezone',
+        'o.currency',
+        'o.status',
+        'o.createdAt'
+      )
+      .orderBy('o.createdAt', 'asc')
+      .first()
+  }
+
+  async #reusePendingSetupOrg(params: {
+    org: Record<string, unknown>
+    userId: string
+    sessionId: string
+    data: CreateOrganizationInput
+    activateSession: boolean
+  }) {
+    const { org, userId, sessionId, data, activateSession } = params
+    const organizationId = org.id as string
 
     return db.transaction(async (trx) => {
-      const [org] = await trx
-        .table('organizations')
-        .insert({
+      const [updated] = await trx
+        .from('organizations')
+        .where('id', organizationId)
+        .update({
           name: data.name,
-          slug: data.slug,
-          email: data.email,
+          // Keep existing slug/email to avoid unique collisions on retry with new values.
           phone: data.phone,
           website: data.website ?? null,
           industry: data.industry ?? null,
           organizationType: data.organizationType,
           address: data.address,
-          pan: data.pan.replace(/\s+/g, '').toUpperCase(),
+          pan: data.pan ? data.pan.replace(/\s+/g, '').toUpperCase() : null,
           gstin: data.gstin ? data.gstin.replace(/\s+/g, '').toUpperCase() : null,
           country: data.country,
           timezone: data.timezone,
@@ -189,36 +360,28 @@ export class OrganizationService {
         })
         .returning([...ORGANIZATION_PUBLIC_COLUMNS, 'status', 'createdAt'])
 
-      await trx.table('organization_members').insert({
-        organizationId: org.id,
-        userId,
-        roleId: ownerRoleId,
-      })
-
-      await trx.table('user_roles').insert({
-        userId,
-        roleId: ownerRoleId,
-        organizationId: org.id,
-      })
-
-      await trx.from('sessions').where('id', sessionId).update({
-        activeOrganizationId: org.id,
-      })
+      if (activateSession) {
+        await trx.from('sessions').where('id', sessionId).update({
+          activeOrganizationId: organizationId,
+        })
+      }
 
       await trx.table('authorization_audits').insert({
-        organizationId: org.id,
+        organizationId,
         actorUserId: userId,
         targetType: 'organization',
-        targetId: org.id,
-        eventType: 'organization.created',
-        after: JSON.stringify({ name: org.name, slug: org.slug }),
+        targetId: organizationId,
+        eventType: 'organization.pending_setup_reused',
+        after: JSON.stringify({ name: data.name }),
       })
 
       return {
-        ...mapOrganizationPublicFields(org as Record<string, unknown>),
-        status: org.status as boolean,
-        createdAt: org.createdAt as string,
+        ...mapOrganizationPublicFields(updated as Record<string, unknown>),
+        status: updated.status as OrganizationStatusValue,
+        createdAt: updated.createdAt as string,
         role: 'owner',
+        sessionActivated: activateSession,
+        reused: true as const,
       }
     })
   }
@@ -248,6 +411,7 @@ export class OrganizationService {
         'o.country',
         'o.timezone',
         'o.currency',
+        'o.status',
         'r.name as role',
         'o.createdAt'
       )
@@ -255,6 +419,7 @@ export class OrganizationService {
 
     return rows.map((r) => ({
       ...mapOrganizationPublicFields(r as Record<string, unknown>),
+      status: r.status as OrganizationStatusValue,
       role: r.role as string,
       createdAt: r.createdAt as string,
     }))
@@ -409,11 +574,11 @@ export class OrganizationService {
         targetId: organizationId,
         eventType: 'organization.soft_deleted',
         before: JSON.stringify({ name: org.name, slug: org.slug, status: org.status }),
-        after: JSON.stringify({ status: false, deletedAt: deletedAt.toISO() }),
+        after: JSON.stringify({ status: OrganizationStatus.FALSE, deletedAt: deletedAt.toISO() }),
       })
 
       await trx.from('organizations').where('id', organizationId).update({
-        status: false,
+        status: OrganizationStatus.FALSE,
         deletedAt: deletedAt.toSQL(),
       })
 

@@ -85,7 +85,7 @@ function OrganizationHeader({ org }: { org: AdminOrganizationListItem }) {
 
         <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex min-w-0 items-start gap-3.5">
-            <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-sm font-bold text-on-primary shadow-[0_6px_16px_rgb(159_232_112/0.35)]">
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-sm font-bold text-on-primary shadow-[0_6px_16px_rgb(37_99_235/0.35)]">
               {getInitials(org.name)}
             </span>
             <div className="min-w-0">
@@ -249,12 +249,11 @@ export function OrganizationDetailsPage({ orgId }: { orgId: string }) {
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
-    setError(null)
     void findSuperAdminOrganization(orgId)
       .then((found) => {
         if (cancelled) return
         setOrg(found)
+        setError(null)
       })
       .catch((err) => {
         if (cancelled) return

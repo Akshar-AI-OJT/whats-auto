@@ -15,9 +15,15 @@ export const INBOX_SSE_MESSAGE_TYPES = [
 
 export const INBOX_SSE_AI_TYPES = ['ai.handover.triggered'] as const
 
+export const INBOX_SSE_CONVERSATION_TYPES = ['conversation.ai_mode.updated'] as const
+
 export type InboxSseMessageType = (typeof INBOX_SSE_MESSAGE_TYPES)[number]
 export type InboxSseAiType = (typeof INBOX_SSE_AI_TYPES)[number]
-export type InboxSseClientEventType = InboxSseMessageType | InboxSseAiType
+export type InboxSseConversationType = (typeof INBOX_SSE_CONVERSATION_TYPES)[number]
+export type InboxSseClientEventType =
+  | InboxSseMessageType
+  | InboxSseAiType
+  | InboxSseConversationType
 
 export type InboxSseMessageReceivedPayload = {
   organizationId: string
@@ -34,12 +40,27 @@ export type InboxSseMessageReceivedPayload = {
   createdAt: string
 }
 
+/**
+ * Outbound lifecycle. Snapshot fields are optional for backward compatibility
+ * with skinny payloads; when present the FE can append without refetch.
+ */
 export type InboxSseMessageLifecyclePayload = {
   organizationId: string
   conversationId: string
   messageId: string
   dispatchId: string
   providerMessageId?: string | null
+  direction?: 'outbound'
+  senderType?: string
+  senderId?: string | null
+  contentType?: string
+  contentText?: string | null
+  previewText?: string | null
+  mediaUrl?: string | null
+  mediaAssetId?: string | null
+  status?: string
+  createdAt?: string
+  errorMessage?: string | null
 }
 
 export type InboxSseStatusUpdatedPayload = {
@@ -59,6 +80,14 @@ export type InboxSseAiHandoverPayload = {
   matchedKeyword?: string
 }
 
+export type InboxSseAiModeUpdatedPayload = {
+  conversationId: string
+  aiMode: string
+  aiHandoverReason: string | null
+  automationBlocked: boolean
+  openFlowSessionStatus: string | null
+}
+
 export type InboxSseClientEvent =
   | { type: 'message.received'; organizationId: string; payload: InboxSseMessageReceivedPayload }
   | { type: 'message.queued'; organizationId: string; payload: InboxSseMessageLifecyclePayload }
@@ -66,8 +95,17 @@ export type InboxSseClientEvent =
   | { type: 'message.failed'; organizationId: string; payload: InboxSseMessageLifecyclePayload }
   | { type: 'status.updated'; organizationId: string; payload: InboxSseStatusUpdatedPayload }
   | { type: 'ai.handover.triggered'; organizationId: string; payload: InboxSseAiHandoverPayload }
+  | {
+      type: 'conversation.ai_mode.updated'
+      organizationId: string
+      payload: InboxSseAiModeUpdatedPayload
+    }
 
-const CLIENT_EVENT_TYPE_SET = new Set<string>([...INBOX_SSE_MESSAGE_TYPES, ...INBOX_SSE_AI_TYPES])
+const CLIENT_EVENT_TYPE_SET = new Set<string>([
+  ...INBOX_SSE_MESSAGE_TYPES,
+  ...INBOX_SSE_AI_TYPES,
+  ...INBOX_SSE_CONVERSATION_TYPES,
+])
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -75,6 +113,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function asString(value: unknown): string | null {
   return typeof value === 'string' && value.length > 0 ? value : null
+}
+
+function asNullableString(value: unknown): string | null | undefined {
+  if (value === null) return null
+  if (typeof value === 'string') return value
+  return undefined
 }
 
 function isClientEventType(value: string): value is InboxSseClientEventType {
@@ -133,12 +177,26 @@ function parseLifecyclePayload(payload: Record<string, unknown>): InboxSseMessag
   const dispatchId = asString(payload.dispatchId)
   if (!organizationId || !conversationId || !messageId || !dispatchId) return null
 
+  const direction = payload.direction === 'outbound' ? 'outbound' : undefined
+
   return {
     organizationId,
     conversationId,
     messageId,
     dispatchId,
-    providerMessageId: typeof payload.providerMessageId === 'string' ? payload.providerMessageId : null,
+    providerMessageId:
+      typeof payload.providerMessageId === 'string' ? payload.providerMessageId : null,
+    direction,
+    senderType: asString(payload.senderType) ?? undefined,
+    senderId: asNullableString(payload.senderId),
+    contentType: asString(payload.contentType) ?? undefined,
+    contentText: asNullableString(payload.contentText),
+    previewText: asNullableString(payload.previewText),
+    mediaUrl: asNullableString(payload.mediaUrl),
+    mediaAssetId: asNullableString(payload.mediaAssetId),
+    status: asString(payload.status) ?? undefined,
+    createdAt: asString(payload.createdAt) ?? undefined,
+    errorMessage: asNullableString(payload.errorMessage),
   }
 }
 
@@ -152,6 +210,23 @@ function parseHandoverPayload(payload: Record<string, unknown>): InboxSseAiHando
     reason,
     score: typeof payload.score === 'number' ? payload.score : undefined,
     matchedKeyword: typeof payload.matchedKeyword === 'string' ? payload.matchedKeyword : undefined,
+  }
+}
+
+function parseAiModeUpdatedPayload(
+  payload: Record<string, unknown>
+): InboxSseAiModeUpdatedPayload | null {
+  const conversationId = asString(payload.conversationId)
+  const aiMode = asString(payload.aiMode)
+  if (!conversationId || !aiMode) return null
+  if (typeof payload.automationBlocked !== 'boolean') return null
+
+  return {
+    conversationId,
+    aiMode,
+    aiHandoverReason: asNullableString(payload.aiHandoverReason) ?? null,
+    automationBlocked: payload.automationBlocked,
+    openFlowSessionStatus: asNullableString(payload.openFlowSessionStatus) ?? null,
   }
 }
 
@@ -208,8 +283,18 @@ export function parseInboxSseClientEvent(raw: unknown): InboxSseClientEvent | nu
     return payload ? { type, organizationId, payload } : null
   }
 
+  if (type === 'conversation.ai_mode.updated') {
+    const payload = parseAiModeUpdatedPayload(raw.payload)
+    return payload ? { type, organizationId, payload } : null
+  }
+
   const payload = parseLifecyclePayload(raw.payload)
   return payload ? { type, organizationId, payload } : null
+}
+
+/** True when lifecycle payload includes enough fields to append a thread bubble. */
+export function hasLifecycleMessageSnapshot(payload: InboxSseMessageLifecyclePayload): boolean {
+  return Boolean(payload.contentType && payload.createdAt && payload.senderType)
 }
 
 /** Parse one SSE block (`event:` / `data:` lines separated by a blank line). */

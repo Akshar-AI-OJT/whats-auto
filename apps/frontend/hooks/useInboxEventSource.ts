@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { getBaseUrl } from '@/lib/api-base'
 import {
   applyAuthTokenHeaders,
@@ -19,6 +19,10 @@ type UseInboxEventSourceOptions = {
   /** Reconnect when this changes (active organization id). */
   reconnectKey: string | null
   onEvent: (event: InboxSseClientEvent) => void
+  /** Fired after a successful HTTP handshake (before streaming). Use for cache catch-up. */
+  onConnected?: () => void
+  /** Tab became visible again — catch-up without tearing down a healthy stream. */
+  onVisible?: () => void
 }
 
 function sleep(ms: number, signal: AbortSignal): Promise<void> {
@@ -74,14 +78,38 @@ async function consumeSseStream(
  * Subscribe to GET /api/v1/inbox/events.
  *
  * Uses fetch + Bearer JWT (EventSource cannot set Authorization). Reconnects
- * with backoff when the stream ends or the handshake fails.
+ * with backoff when the stream ends or the handshake fails. Browser `online`
+ * forces reconnect; becoming visible only triggers catch-up (no stream thrash).
  */
 export function useInboxEventSource({
   enabled,
   reconnectKey,
   onEvent,
+  onConnected,
+  onVisible,
 }: UseInboxEventSourceOptions) {
   const onEventRef = useLatestRef(onEvent)
+  const onConnectedRef = useLatestRef(onConnected)
+  const onVisibleRef = useLatestRef(onVisible)
+  const [networkEpoch, setNetworkEpoch] = useState(0)
+
+  useEffect(() => {
+    if (!enabled) return
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        onVisibleRef.current?.()
+      }
+    }
+    const onOnline = () => setNetworkEpoch((n) => n + 1)
+
+    document.addEventListener('visibilitychange', onVisibility)
+    window.addEventListener('online', onOnline)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      window.removeEventListener('online', onOnline)
+    }
+  }, [enabled, onVisibleRef])
 
   useEffect(() => {
     if (!enabled || !reconnectKey) return
@@ -123,6 +151,7 @@ export function useInboxEventSource({
           }
 
           retryMs = INITIAL_RETRY_MS
+          onConnectedRef.current?.()
           await consumeSseStream(response.body, dispatch, abort.signal)
         } catch (error) {
           if (abort.signal.aborted || isAbortError(error)) return
@@ -143,5 +172,5 @@ export function useInboxEventSource({
     return () => {
       abort.abort()
     }
-  }, [enabled, onEventRef, reconnectKey])
+  }, [enabled, onConnectedRef, onEventRef, reconnectKey, networkEpoch])
 }

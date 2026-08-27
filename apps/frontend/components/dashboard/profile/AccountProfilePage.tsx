@@ -13,11 +13,7 @@ import {
 } from '@/components/auth/auth-field-styles'
 import { Field, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-
-export const profileQueryKeys = {
-  all: ['account-profile'] as const,
-  detail: () => [...profileQueryKeys.all, 'detail'] as const,
-}
+import { queryKeys } from '@/lib/query-keys'
 
 function unwrapProfile(data: unknown): ProfileUser | null {
   if (!data) return null
@@ -46,7 +42,7 @@ export function AccountProfilePage() {
   const t = useTranslations('dashboard.profile')
 
   const profileQuery = useQuery({
-    queryKey: profileQueryKeys.detail(),
+    queryKey: queryKeys.profile.detail(),
     queryFn: async () => {
       const { data } = await api.account.profile()
       return unwrapProfile(data)

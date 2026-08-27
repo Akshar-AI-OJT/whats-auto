@@ -1,4 +1,5 @@
 import type { Campaign, PaginationMeta } from '@/lib/api'
+import { formatCampaignScheduledAt } from '@/lib/org-datetime'
 
 export type CampaignViewMode = 'cards' | 'list'
 
@@ -55,8 +56,14 @@ export function ratePercent(part: number, total: number): number {
   return Math.round((part / total) * 1000) / 10
 }
 
-export function formatCampaignDate(value: string | null | undefined): string {
+export function formatCampaignDate(
+  value: string | null | undefined,
+  timeZone?: string | null
+): string {
   if (!value) return '—'
+  if (timeZone) {
+    return formatCampaignScheduledAt(value, timeZone) || '—'
+  }
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '—'
   return date.toLocaleString(undefined, {
@@ -70,6 +77,15 @@ export function formatCampaignDate(value: string | null | undefined): string {
 
 export function isEditableCampaignStatus(status: string): boolean {
   return status === 'draft' || status === 'scheduled'
+}
+
+/** PATCH /campaigns/:id/status only allows draft ↔ scheduled. */
+export const CAMPAIGN_CHANGE_STATUS_TARGETS = ['draft', 'scheduled'] as const
+
+export type CampaignChangeStatusTarget = (typeof CAMPAIGN_CHANGE_STATUS_TARGETS)[number]
+
+export function isStatusChangeableCampaignStatus(status: string): boolean {
+  return isEditableCampaignStatus(status)
 }
 
 export function isLaunchableCampaignStatus(status: string): boolean {

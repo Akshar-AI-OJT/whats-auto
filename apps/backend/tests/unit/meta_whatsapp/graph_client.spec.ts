@@ -217,4 +217,274 @@ test.group('HttpMetaGraphClient', () => {
     })
     assert.equal(result.messageId, 'wamid.img')
   })
+
+  test('sendInteractiveMessage posts Cloud API button shape', async ({ assert }) => {
+    let seenUrl = ''
+    let seenBody: Record<string, unknown> = {}
+
+    const fetchImpl: typeof fetch = async (input, init) => {
+      seenUrl = String(input)
+      seenBody = JSON.parse(String(init?.body)) as Record<string, unknown>
+      return new Response(JSON.stringify({ messages: [{ id: 'wamid.btn' }] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const client = new HttpMetaGraphClient({
+      appId: 'app',
+      appSecret: 'secret',
+      graphVersion: 'v25.0',
+      fetchImpl,
+    })
+
+    const result = await client.sendInteractiveMessage({
+      phoneNumberId: 'pn-1',
+      accessToken: 'tok',
+      to: '15551234567',
+      interactive: {
+        type: 'button',
+        header: { type: 'text', text: 'Menu' },
+        body: { text: 'How can we help?' },
+        footer: { text: 'WhatsAuto' },
+        action: {
+          buttons: [
+            { type: 'reply', reply: { id: 'btn_products', title: 'Products' } },
+            { type: 'reply', reply: { id: 'btn_stop', title: 'Stop' } },
+          ],
+        },
+      },
+    })
+
+    assert.include(seenUrl, '/v25.0/pn-1/messages')
+    assert.equal(seenBody.messaging_product, 'whatsapp')
+    assert.equal(seenBody.recipient_type, 'individual')
+    assert.equal(seenBody.type, 'interactive')
+    assert.deepEqual(seenBody.interactive, {
+      type: 'button',
+      header: { type: 'text', text: 'Menu' },
+      body: { text: 'How can we help?' },
+      footer: { text: 'WhatsAuto' },
+      action: {
+        buttons: [
+          { type: 'reply', reply: { id: 'btn_products', title: 'Products' } },
+          { type: 'reply', reply: { id: 'btn_stop', title: 'Stop' } },
+        ],
+      },
+    })
+    assert.equal(result.messageId, 'wamid.btn')
+  })
+
+  test('sendInteractiveMessage posts Cloud API list shape', async ({ assert }) => {
+    let seenBody: Record<string, unknown> = {}
+
+    const fetchImpl: typeof fetch = async (_input, init) => {
+      seenBody = JSON.parse(String(init?.body)) as Record<string, unknown>
+      return new Response(JSON.stringify({ messages: [{ id: 'wamid.list' }] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const client = new HttpMetaGraphClient({
+      appId: 'app',
+      appSecret: 'secret',
+      graphVersion: 'v25.0',
+      fetchImpl,
+    })
+
+    await client.sendInteractiveMessage({
+      phoneNumberId: 'pn-1',
+      accessToken: 'tok',
+      to: '15551234567',
+      interactive: {
+        type: 'list',
+        body: { text: 'Pick a product' },
+        action: {
+          button: 'View options',
+          sections: [
+            {
+              title: 'Catalog',
+              rows: [{ id: 'opt_a', title: 'Product A', description: 'First item' }],
+            },
+          ],
+        },
+      },
+    })
+
+    assert.equal(seenBody.type, 'interactive')
+    assert.deepEqual(seenBody.interactive, {
+      type: 'list',
+      body: { text: 'Pick a product' },
+      action: {
+        button: 'View options',
+        sections: [
+          {
+            title: 'Catalog',
+            rows: [{ id: 'opt_a', title: 'Product A', description: 'First item' }],
+          },
+        ],
+      },
+    })
+  })
+
+  test('sendInteractiveMessage rejects over-limit payloads before calling Meta', async ({
+    assert,
+  }) => {
+    let fetchCalls = 0
+    const fetchImpl: typeof fetch = async () => {
+      fetchCalls += 1
+      return new Response(JSON.stringify({ messages: [{ id: 'wamid.x' }] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const client = new HttpMetaGraphClient({
+      appId: 'app',
+      appSecret: 'secret',
+      graphVersion: 'v25.0',
+      fetchImpl,
+    })
+
+    await assert.rejects(() =>
+      client.sendInteractiveMessage({
+        phoneNumberId: 'pn-1',
+        accessToken: 'tok',
+        to: '15551234567',
+        interactive: {
+          type: 'button',
+          body: { text: 'Nope' },
+          action: {
+            buttons: [
+              { type: 'reply', reply: { id: 'a', title: 'A' } },
+              { type: 'reply', reply: { id: 'b', title: 'B' } },
+              { type: 'reply', reply: { id: 'c', title: 'C' } },
+              { type: 'reply', reply: { id: 'd', title: 'D' } },
+            ],
+          },
+        },
+      })
+    )
+    assert.equal(fetchCalls, 0)
+  })
+
+  test('createResumableUploadSession posts to app uploads endpoint', async ({ assert }) => {
+    let seenUrl = ''
+    let seenMethod = ''
+
+    const fetchImpl: typeof fetch = async (input, init) => {
+      seenUrl = String(input)
+      seenMethod = String(init?.method)
+      return new Response(JSON.stringify({ id: 'upload:session-1' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const client = new HttpMetaGraphClient({
+      appId: 'app-123',
+      appSecret: 'secret',
+      graphVersion: 'v25.0',
+      fetchImpl,
+    })
+
+    const result = await client.createResumableUploadSession({
+      accessToken: 'tok',
+      fileLength: 100,
+      fileType: 'image/png',
+      fileName: 'sample.png',
+    })
+
+    assert.include(seenUrl, '/v25.0/app-123/uploads?')
+    assert.include(seenUrl, 'file_length=100')
+    assert.include(seenUrl, 'file_type=image%2Fpng')
+    assert.equal(seenMethod, 'POST')
+    assert.equal(result.uploadSessionId, 'upload:session-1')
+  })
+
+  test('uploadResumableFile posts binary and returns handle', async ({ assert }) => {
+    let seenUrl = ''
+    let seenHeaders: HeadersInit | undefined
+    let seenBody: BodyInit | null | undefined
+
+    const fetchImpl: typeof fetch = async (input, init) => {
+      seenUrl = String(input)
+      seenHeaders = init?.headers
+      seenBody = init?.body
+      return new Response(JSON.stringify({ h: '4::handle-abc' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const client = new HttpMetaGraphClient({
+      appId: 'app',
+      appSecret: 'secret',
+      graphVersion: 'v25.0',
+      fetchImpl,
+    })
+
+    const bytes = new Uint8Array([1, 2, 3, 4])
+    const result = await client.uploadResumableFile({
+      accessToken: 'tok',
+      uploadSessionId: 'upload:session-1',
+      fileBytes: bytes,
+    })
+
+    assert.include(seenUrl, '/v25.0/upload:session-1')
+    const headers = new Headers(seenHeaders)
+    assert.equal(headers.get('Authorization'), 'OAuth tok')
+    assert.equal(headers.get('file_offset'), '0')
+    assert.equal(seenBody, bytes)
+    assert.equal(result.handle, '4::handle-abc')
+  })
+
+  test('createMessageTemplate includes parameter_format and components', async ({ assert }) => {
+    let seenBody: Record<string, unknown> = {}
+
+    const fetchImpl: typeof fetch = async (_input, init) => {
+      seenBody = JSON.parse(String(init?.body)) as Record<string, unknown>
+      return new Response(JSON.stringify({ id: 'tmpl-1', status: 'PENDING' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const client = new HttpMetaGraphClient({
+      appId: 'app',
+      appSecret: 'secret',
+      graphVersion: 'v25.0',
+      fetchImpl,
+    })
+
+    await client.createMessageTemplate({
+      wabaId: 'waba-1',
+      accessToken: 'tok',
+      name: 'promo_image',
+      category: 'MARKETING',
+      language: 'en_US',
+      parameterFormat: 'POSITIONAL',
+      components: [
+        {
+          type: 'HEADER',
+          format: 'IMAGE',
+          example: { header_handle: ['4::handle'] },
+        },
+        {
+          type: 'BODY',
+          text: 'Hello {{1}}',
+          example: { body_text: [['Ada']] },
+        },
+      ],
+    })
+
+    assert.equal(seenBody.parameter_format, 'POSITIONAL')
+    assert.equal(seenBody.name, 'promo_image')
+    const components = seenBody.components as Array<Record<string, unknown>>
+    assert.equal(components[0].format, 'IMAGE')
+    assert.deepEqual((components[0].example as Record<string, unknown>).header_handle, [
+      '4::handle',
+    ])
+  })
 })

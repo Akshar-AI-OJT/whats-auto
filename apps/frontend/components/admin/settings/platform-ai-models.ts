@@ -52,8 +52,7 @@ export const PLATFORM_AI_LIMITS = {
   debounceDelaySeconds: { min: 1, max: 15 },
   workingSetSize: { min: 2, max: 20 },
   summaryTurnThreshold: { min: 2, max: 200 },
-  keywordMaxLength: 80,
-  keywordMaxCount: 100,
+  maxOutputTokens: { min: 1, max: 8192 },
 } as const
 
 export function catalogForProvider(provider: string) {

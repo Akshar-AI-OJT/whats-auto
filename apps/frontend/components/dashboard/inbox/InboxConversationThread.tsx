@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { ArrowLeft } from 'lucide-react'
 import {
@@ -10,6 +11,7 @@ import {
   type InboxMessage,
   type OrganizationMember,
 } from '@/lib/api'
+import { queryKeys } from '@/lib/query-keys'
 import { cn } from '@/lib/utils'
 import { Link } from '@/i18n/navigation'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
@@ -19,7 +21,6 @@ import { InboxConversationHeader } from './InboxConversationHeader'
 import { InboxMessageList } from './InboxMessageList'
 import { InboxReplyComposer } from './InboxReplyComposer'
 import { InboxThreadHeaderSkeleton, InboxThreadMessagesSkeleton } from './InboxThreadSkeleton'
-import { useLatestRef } from '@/hooks/useLatestRef'
 import { useInboxWorkspace } from './InboxWorkspaceContext'
 import { applyInboxSseToConversation, applyInboxSseToMessages } from './apply-inbox-sse'
 import { contactLabel, unwrapPaginated, unwrapSingle, mergeConversationUpdate } from './inbox-utils'
@@ -69,24 +70,74 @@ export function InboxConversationThread({
 }: InboxConversationThreadProps) {
   const t = useTranslations('dashboard.inbox.thread')
   const tInbox = useTranslations('dashboard.inbox')
+  const queryClient = useQueryClient()
   const { tenantOrganizationId, canViewInbox, isLoading: orgsLoading } = useOrganizations()
   const workspace = useInboxWorkspace()
   const subscribeInboxEvents = workspace.subscribeInboxEvents
-
-  const [conversation, setConversation] = useState<InboxConversation | null>(null)
-  const [messages, setMessages] = useState<InboxMessage[]>([])
-  const [members, setMembers] = useState<OrganizationMember[]>([])
-  const [conversationLoading, setConversationLoading] = useState(true)
-  const [messagesLoading, setMessagesLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-
-  const organizationIdRef = useLatestRef(tenantOrganizationId)
-  const conversationIdRef = useLatestRef(conversationId)
 
   const setWorkspaceConversation = workspace.setConversation
   const setWorkspaceConversationId = workspace.setConversationId
   const setWorkspaceMembers = workspace.setMembers
   const mergeWorkspaceConversation = workspace.mergeConversation
+
+  const threadEnabled =
+    !orgsLoading && Boolean(tenantOrganizationId) && canViewInbox && Boolean(conversationId)
+
+  const detailKey = queryKeys.inbox.detail(tenantOrganizationId, conversationId)
+  const messagesKey = queryKeys.inbox.messages(tenantOrganizationId, conversationId)
+  const membersKey = queryKeys.team.members(tenantOrganizationId)
+
+  const conversationQuery = useQuery({
+    queryKey: detailKey,
+    queryFn: async () => {
+      const conversationRes = await api.inbox.getConversation(conversationId)
+      const detail = unwrapSingle<InboxConversation>(conversationRes.data)
+      if (!detail) {
+        throw new Error(t('errors.notFound'))
+      }
+      return detail
+    },
+    enabled: threadEnabled,
+    staleTime: 15_000,
+  })
+
+  const messagesQuery = useQuery({
+    queryKey: messagesKey,
+    queryFn: () => fetchAllMessages(conversationId),
+    enabled: threadEnabled,
+    staleTime: 10_000,
+  })
+
+  const membersQuery = useQuery({
+    queryKey: membersKey,
+    queryFn: async () => {
+      const membersRes = await api.members.list()
+      return unwrapMembers(membersRes.data)
+    },
+    enabled: threadEnabled,
+    staleTime: 60_000,
+  })
+
+  const conversation = conversationQuery.data ?? null
+  const messages = messagesQuery.data ?? []
+  const members = useMemo(() => membersQuery.data ?? [], [membersQuery.data])
+  const conversationLoading = conversationQuery.isLoading || orgsLoading
+  const messagesLoading = messagesQuery.isLoading
+  const error = conversationQuery.error
+    ? (conversationQuery.error as unknown as ApiError).message || t('errors.loadFailed')
+    : null
+
+  // Keep workspace in sync with the active thread (render-phase adjust).
+  const workspaceConversationId = workspace.conversationId
+  if (workspaceConversationId !== conversationId) {
+    setWorkspaceConversationId(conversationId)
+    setWorkspaceConversation(null)
+  } else if (conversation && workspace.conversation !== conversation) {
+    setWorkspaceConversation(conversation)
+  }
+  if (membersQuery.isSuccess && workspace.members !== members) {
+    setWorkspaceMembers(members)
+  }
 
   const agentNameByUserId = useMemo(() => {
     const map = new Map<string, string>()
@@ -95,84 +146,6 @@ export function InboxConversationThread({
     }
     return map
   }, [members])
-
-  const loadThread = useCallback(
-    async (organizationId: string, activeConversationId: string) => {
-      if (!canViewInbox) {
-        setConversation(null)
-        setMessages([])
-        setConversationLoading(false)
-        setMessagesLoading(false)
-        return
-      }
-
-      setConversationLoading(true)
-      setMessagesLoading(true)
-      setError(null)
-      setConversation(null)
-      setMessages([])
-      setWorkspaceConversationId(activeConversationId)
-      setWorkspaceConversation(null)
-
-      try {
-        const [conversationRes, membersRes, messageItems] = await Promise.all([
-          api.inbox.getConversation(activeConversationId),
-          api.members.list(),
-          fetchAllMessages(activeConversationId),
-        ])
-
-        if (
-          organizationId !== organizationIdRef.current ||
-          activeConversationId !== conversationIdRef.current
-        ) {
-          return
-        }
-
-        const detail = unwrapSingle<InboxConversation>(conversationRes.data)
-        if (!detail) {
-          setError(t('errors.notFound'))
-          return
-        }
-
-        const nextMembers = unwrapMembers(membersRes.data)
-        setConversation(detail)
-        setMembers(nextMembers)
-        setMessages(messageItems)
-        setWorkspaceConversation(detail)
-        setWorkspaceMembers(nextMembers)
-      } catch (err) {
-        if (
-          organizationId !== organizationIdRef.current ||
-          activeConversationId !== conversationIdRef.current
-        ) {
-          return
-        }
-        setError((err as ApiError).message || t('errors.loadFailed'))
-      } finally {
-        if (
-          organizationId === organizationIdRef.current &&
-          activeConversationId === conversationIdRef.current
-        ) {
-          setConversationLoading(false)
-          setMessagesLoading(false)
-        }
-      }
-    },
-    [canViewInbox, conversationIdRef, organizationIdRef, setWorkspaceConversation, setWorkspaceConversationId, setWorkspaceMembers, t]
-  )
-
-  useEffect(() => {
-    if (orgsLoading || !tenantOrganizationId) return
-    let cancelled = false
-    const scheduled = Promise.resolve().then(() => {
-      if (cancelled) return
-      return loadThread(tenantOrganizationId, conversationId)
-    })
-    return () => {
-      cancelled = true
-      void scheduled
-    }
-  }, [orgsLoading, tenantOrganizationId, conversationId, loadThread])
 
   const agentLabel = useMemo(() => {
     if (!conversation?.assignedAgentId) {
@@ -189,36 +162,72 @@ export function InboxConversationThread({
   const refreshMessages = useCallback(async () => {
     if (!tenantOrganizationId || !canViewInbox) return
     try {
-      const messageItems = await fetchAllMessages(conversationId)
-      if (conversationIdRef.current !== conversationId) return
-      setMessages(messageItems)
-      // Refresh conversation for unread/last message fields
-      const res = await api.inbox.getConversation(conversationId)
-      const detail = unwrapSingle<InboxConversation>(res.data)
-      if (detail && conversationIdRef.current === conversationId) {
-        setConversation((prev) => (prev ? mergeConversationUpdate(prev, detail) : detail))
-        setWorkspaceConversation(detail)
-      }
+      const [, detailResult] = await Promise.all([
+        queryClient.refetchQueries({ queryKey: messagesKey }),
+        queryClient.fetchQuery({
+          queryKey: detailKey,
+          queryFn: async () => {
+            const res = await api.inbox.getConversation(conversationId)
+            const detail = unwrapSingle<InboxConversation>(res.data)
+            if (!detail) throw new Error('not found')
+            return detail
+          },
+        }),
+      ])
+      setWorkspaceConversation(detailResult)
     } catch {
       // Keep existing messages; composer surfaces send errors via toast.
     }
-  }, [canViewInbox, conversationId, conversationIdRef, setWorkspaceConversation, tenantOrganizationId])
+  }, [
+    canViewInbox,
+    conversationId,
+    detailKey,
+    messagesKey,
+    queryClient,
+    setWorkspaceConversation,
+    tenantOrganizationId,
+  ])
+
+  const handleSent = useCallback(
+    async (sent?: InboxMessage | null) => {
+      if (sent) {
+        queryClient.setQueryData<InboxMessage[]>(messagesKey, (prev) => {
+          if (!prev) return [sent]
+          if (prev.some((message) => message.id === sent.id)) return prev
+          return [...prev, sent]
+        })
+        const patch: Partial<InboxConversation> = {
+          lastMessageText: sent.contentText,
+          lastMessageAt: sent.createdAt,
+          unreadCount: 0,
+          updatedAt: sent.createdAt,
+        }
+        queryClient.setQueryData<InboxConversation>(detailKey, (prev) =>
+          prev ? mergeConversationUpdate(prev, patch) : prev
+        )
+        mergeWorkspaceConversation(patch)
+        return
+      }
+      await refreshMessages()
+    },
+    [detailKey, mergeWorkspaceConversation, messagesKey, queryClient, refreshMessages]
+  )
 
   useEffect(() => {
     if (!canViewInbox) return
     return subscribeInboxEvents((event) => {
-      if (event.payload.conversationId !== conversationIdRef.current) return
+      if (event.payload.conversationId !== conversationId) return
 
       let missingMessage = false
       let conversationPatch: InboxConversation | null = null
 
-      setMessages((prev) => {
-        const result = applyInboxSseToMessages(prev, event, conversationIdRef.current)
+      queryClient.setQueryData<InboxMessage[]>(messagesKey, (prev) => {
+        const result = applyInboxSseToMessages(prev ?? [], event, conversationId)
         missingMessage = result.missingMessage
         return result.messages
       })
 
-      setConversation((prev) => {
+      queryClient.setQueryData<InboxConversation>(detailKey, (prev) => {
         if (!prev) return prev
         const next = applyInboxSseToConversation(prev, event)
         if (next !== prev) conversationPatch = next
@@ -233,20 +242,31 @@ export function InboxConversationThread({
         void refreshMessages()
       }
     })
-  }, [canViewInbox, conversationIdRef, mergeWorkspaceConversation, refreshMessages, subscribeInboxEvents])
+  }, [
+    canViewInbox,
+    conversationId,
+    detailKey,
+    mergeWorkspaceConversation,
+    messagesKey,
+    queryClient,
+    refreshMessages,
+    subscribeInboxEvents,
+  ])
 
   const handleRetry = () => {
-    if (tenantOrganizationId) {
-      void loadThread(tenantOrganizationId, conversationId)
-    }
+    void conversationQuery.refetch()
+    void messagesQuery.refetch()
+    void membersQuery.refetch()
   }
 
   const handleConversationUpdated = useCallback(
     (patch: Partial<InboxConversation>) => {
-      setConversation((prev) => (prev ? mergeConversationUpdate(prev, patch) : prev))
+      queryClient.setQueryData<InboxConversation>(detailKey, (prev) =>
+        prev ? mergeConversationUpdate(prev, patch) : prev
+      )
       mergeWorkspaceConversation(patch)
     },
-    [mergeWorkspaceConversation]
+    [detailKey, mergeWorkspaceConversation, queryClient]
   )
 
   if (!orgsLoading && !canViewInbox) {
@@ -317,7 +337,7 @@ export function InboxConversationThread({
             <InboxReplyComposer
               conversationId={conversationId}
               conversationStatus={conversation.status}
-              onSent={refreshMessages}
+              onSent={handleSent}
             />
           </div>
         </>

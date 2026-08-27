@@ -4,8 +4,9 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { Building2, CreditCard, ExternalLink, Loader2, ScrollText, Users } from 'lucide-react'
-import { api, type AuthorizationAuditEvent, type SuperAdminSubscription } from '@/lib/api'
+import { api, type AuthorizationAuditEvent, type SuperAdminPlan, type SuperAdminSubscription } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { queryKeys } from '@/lib/query-keys'
 import { Link } from '@/i18n/navigation'
 import { Button, buttonVariants } from '@/components/ui/button'
 import {
@@ -25,6 +26,7 @@ import { OrganizationPlanBadge, OrganizationStatusBadge } from './OrganizationAc
 
 export type OrganizationRow = AdminOrganizationListItem & {
   subscription: SuperAdminSubscription | null
+  /** Live plan UUID when the org has a subscription. */
   planKey: string | null
   planLabel: string
 }
@@ -33,6 +35,7 @@ type DrawerTab = 'overview' | 'users' | 'subscription' | 'activity'
 
 type OrganizationDetailDrawerProps = {
   organization: OrganizationRow | null
+  plans: SuperAdminPlan[]
   onClose: () => void
   onViewOrganization: (organization: OrganizationRow) => void
   onChangeStatus: (organization: OrganizationRow) => void
@@ -92,6 +95,7 @@ function unwrapAuditEvents(data: unknown): AuthorizationAuditEvent[] {
 
 export function OrganizationDetailDrawer({
   organization,
+  plans,
   onClose,
   onViewOrganization,
   onChangeStatus,
@@ -134,7 +138,7 @@ export function OrganizationDetailDrawer({
           <>
             <SheetHeader className="shrink-0 border-b border-dash-border p-5 sm:p-6">
               <div className="flex items-start gap-3 pr-8">
-                <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-sm font-bold text-on-primary shadow-[0_6px_16px_rgb(159_232_112/0.35)]">
+                <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-sm font-bold text-on-primary shadow-[0_6px_16px_rgb(37_99_235/0.35)]">
                   {getInitials(organization.name)}
                 </span>
                 <div className="min-w-0">
@@ -180,6 +184,7 @@ export function OrganizationDetailDrawer({
               {tab === 'overview' ? (
                 <OverviewTab
                   organization={organization}
+                  plans={plans}
                   empty={empty}
                   onViewUsers={() => setTab('users')}
                   onViewSubscription={() => setTab('subscription')}
@@ -189,7 +194,7 @@ export function OrganizationDetailDrawer({
               ) : null}
               {tab === 'users' ? <UsersTab /> : null}
               {tab === 'subscription' ? (
-                <SubscriptionTab organization={organization} empty={empty} />
+                <SubscriptionTab organization={organization} plans={plans} empty={empty} />
               ) : null}
               {tab === 'activity' ? (
                 <ActivityTab organizationId={organization.id} empty={empty} />
@@ -204,6 +209,7 @@ export function OrganizationDetailDrawer({
 
 function OverviewTab({
   organization,
+  plans,
   empty,
   onViewUsers,
   onViewSubscription,
@@ -211,6 +217,7 @@ function OverviewTab({
   onChangeStatus,
 }: {
   organization: OrganizationRow
+  plans: SuperAdminPlan[]
   empty: string
   onViewUsers: () => void
   onViewSubscription: () => void
@@ -235,7 +242,7 @@ function OverviewTab({
               website ? (
                 <a
                   href={website}
-                  className="text-positive-deep underline-offset-2 hover:underline"
+                  className="cursor-pointer text-positive-deep underline-offset-2 hover:underline"
                   target="_blank"
                   rel="noreferrer"
                 >
@@ -272,8 +279,8 @@ function OverviewTab({
             <p className="mt-1 text-lg font-semibold text-ink">{organization.planLabel}</p>
             {organization.subscription ? (
               <p className="mt-1 text-sm text-body">
-                {planAmountLabel(organization.subscription.planId, empty)}
-                {planBillingKind(organization.subscription.planId) === 'monthly'
+                {planAmountLabel(organization.subscription.planId, plans, empty)}
+                {planBillingKind(organization.subscription.planId, plans) === 'monthly'
                   ? ` / ${t('drawer.perMonth')}`
                   : ''}
               </p>
@@ -353,9 +360,11 @@ function UsersTab() {
 
 function SubscriptionTab({
   organization,
+  plans,
   empty,
 }: {
   organization: OrganizationRow
+  plans: SuperAdminPlan[]
   empty: string
 }) {
   const t = useTranslations('admin.organizations')
@@ -382,15 +391,18 @@ function SubscriptionTab({
       <section className="rounded-2xl border border-dash-border bg-dash-surface/40 p-4 sm:p-5">
         <h3 className="text-sm font-semibold text-ink">{t('drawer.planTitle')}</h3>
         <dl className="mt-1">
-          <DetailRow label={t('columns.plan')} value={resolvePlanLabel(subscription.planId)} />
+          <DetailRow
+            label={t('columns.plan')}
+            value={resolvePlanLabel(subscription.planId, plans)}
+          />
           <DetailRow
             label={t('drawer.fields.price')}
-            value={planAmountLabel(subscription.planId, empty)}
+            value={planAmountLabel(subscription.planId, plans, empty)}
           />
           <DetailRow
             label={t('drawer.fields.billing')}
             value={
-              planBillingKind(subscription.planId) === 'monthly'
+              planBillingKind(subscription.planId, plans) === 'monthly'
                 ? t('drawer.monthly')
                 : t('drawer.customBilling')
             }
@@ -420,7 +432,7 @@ function SubscriptionTab({
 function ActivityTab({ organizationId, empty }: { organizationId: string; empty: string }) {
   const t = useTranslations('admin.organizations')
   const activityQuery = useQuery({
-    queryKey: ['admin-org-activity', organizationId],
+    queryKey: queryKeys.admin.organizationActivity(organizationId),
     queryFn: async () => {
       const { data } = await api.superAdmin.auditLogs.list({ limit: 50, organizationId })
       return unwrapAuditEvents(data)

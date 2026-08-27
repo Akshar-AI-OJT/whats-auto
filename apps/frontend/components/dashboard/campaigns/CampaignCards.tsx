@@ -16,6 +16,7 @@ type CampaignActionsMenuProps = {
   onView: () => void
   onEdit: () => void
   onDuplicate: () => void
+  onChangeStatus?: () => void
   onPause: () => void
   onDelete: () => void
 }
@@ -29,6 +30,7 @@ export function CampaignActionsMenu({
   onView,
   onEdit,
   onDuplicate,
+  onChangeStatus,
   onPause,
   onDelete,
 }: CampaignActionsMenuProps) {
@@ -77,7 +79,7 @@ export function CampaignActionsMenu({
           <button
             type="button"
             role="menuitem"
-            className="block w-full px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
+            className="block w-full cursor-pointer px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
             onClick={() => {
               setOpen(false)
               onView()
@@ -89,7 +91,7 @@ export function CampaignActionsMenu({
             <button
               type="button"
               role="menuitem"
-              className="block w-full px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
+              className="block w-full cursor-pointer px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
               onClick={() => {
                 setOpen(false)
                 onEdit()
@@ -98,11 +100,24 @@ export function CampaignActionsMenu({
               {t('edit')}
             </button>
           ) : null}
+          {canEdit && editable && onChangeStatus ? (
+            <button
+              type="button"
+              role="menuitem"
+              className="block w-full cursor-pointer px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
+              onClick={() => {
+                setOpen(false)
+                onChangeStatus()
+              }}
+            >
+              {t('changeStatus')}
+            </button>
+          ) : null}
           {canCreate ? (
             <button
               type="button"
               role="menuitem"
-              className="block w-full px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
+              className="block w-full cursor-pointer px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
               onClick={() => {
                 setOpen(false)
                 onDuplicate()
@@ -153,8 +168,10 @@ type CampaignCardsProps = {
   onView: (campaign: Campaign) => void
   onEdit: (campaign: Campaign) => void
   onDuplicate: (campaign: Campaign) => void
+  onChangeStatus?: (campaign: Campaign) => void
   onPause: (campaign: Campaign) => void
   onDelete: (campaign: Campaign) => void
+  timeZone?: string | null
 }
 
 export function CampaignCards({
@@ -167,8 +184,10 @@ export function CampaignCards({
   onView,
   onEdit,
   onDuplicate,
+  onChangeStatus,
   onPause,
   onDelete,
+  timeZone,
 }: CampaignCardsProps) {
   const t = useTranslations('dashboard.campaigns')
 
@@ -195,7 +214,7 @@ export function CampaignCards({
                   <button
                     type="button"
                     onClick={() => onView(campaign)}
-                    className="truncate text-left font-semibold text-ink hover:underline"
+                    className="cursor-pointer truncate text-left font-semibold text-ink hover:underline"
                   >
                     {campaign.name}
                   </button>
@@ -208,6 +227,9 @@ export function CampaignCards({
                     onView={() => onView(campaign)}
                     onEdit={() => onEdit(campaign)}
                     onDuplicate={() => onDuplicate(campaign)}
+                    onChangeStatus={
+                      onChangeStatus ? () => onChangeStatus(campaign) : undefined
+                    }
                     onPause={() => onPause(campaign)}
                     onDelete={() => onDelete(campaign)}
                   />
@@ -247,7 +269,7 @@ export function CampaignCards({
             <div className="mt-4 flex items-center justify-between gap-2 border-t border-dash-border pt-3">
               <CampaignStatusBadge status={campaign.status} />
               <p className="text-xs text-mute">
-                {formatCampaignDate(campaign.scheduledAt ?? campaign.createdAt)}
+                {formatCampaignDate(campaign.scheduledAt ?? campaign.createdAt, timeZone)}
               </p>
             </div>
           </article>

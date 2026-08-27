@@ -11,13 +11,19 @@ export type AnswerCacheLookup = {
   organizationId: string
   question: string
   embeddingSpaceId: string
+  /**
+   * Fingerprint of the composed system prompt (platform + appendix + guardrails).
+   * Different prompts must not share cache entries.
+   */
+  promptFingerprint?: string
 }
 
 type AnswerCacheStore = Pick<TenantRedisStore, 'get' | 'set'>
 
 /**
  * Exact Q→A cache. Key is org + active embedding space + SHA-256 of the
- * normalized question. Value is the last AUTO_REPLIED WhatsApp text.
+ * normalized question (and optional prompt fingerprint). Value is the last
+ * AUTO_REPLIED WhatsApp text.
  */
 export default class AiAnswerCacheService {
   constructor(private store?: AnswerCacheStore) {}
@@ -66,7 +72,9 @@ export default class AiAnswerCacheService {
   #key(lookup: AnswerCacheLookup): string | null {
     const question = normalizeAnswerCacheQuestion(lookup.question)
     if (!question) return null
-    const questionHash = createHash('sha256').update(question, 'utf8').digest('hex')
+    const fingerprint = lookup.promptFingerprint?.trim() ?? ''
+    const material = fingerprint ? `${question}\0${fingerprint}` : question
+    const questionHash = createHash('sha256').update(material, 'utf8').digest('hex')
     try {
       return tenantAnswerCacheKey(lookup.organizationId, lookup.embeddingSpaceId, questionHash)
     } catch {

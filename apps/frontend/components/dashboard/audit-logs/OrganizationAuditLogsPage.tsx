@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { Loader2, RefreshCw, ScrollText, Search } from 'lucide-react'
 import { api, type ApiError, type AuthorizationAuditEvent } from '@/lib/api'
 import { cn } from '@/lib/utils'
+import { queryKeys } from '@/lib/query-keys'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -106,7 +107,7 @@ export function OrganizationAuditLogsPage() {
   const workspaceLabel = activeOrganization?.name || t('thisWorkspace')
 
   const auditQuery = useQuery({
-    queryKey: ['org-audit-logs', tenantOrganizationId, limit],
+    queryKey: queryKeys.audit.org(tenantOrganizationId, limit),
     enabled: Boolean(tenantOrganizationId),
     queryFn: async () => {
       const { data } = await api.audit.list({ limit })
@@ -174,7 +175,7 @@ export function OrganizationAuditLogsPage() {
   const selectedStatus = selected ? auditStatus(selected.granted) : null
 
   return (
-    <div className="mx-auto flex w-full max-w-300 flex-col gap-5 sm:gap-6">
+    <div className="flex w-full min-w-0 flex-col gap-5 sm:gap-6">
       <DashboardPanel
         as="section"
         className="relative overflow-hidden px-4 py-5 sm:px-6 sm:py-6 md:px-7 md:py-7"

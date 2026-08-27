@@ -13,7 +13,7 @@ export default class extends BaseSchema {
       table.uuid('conversationId').notNullable().references('conversations.id').onDelete('cascade')
       table.text('senderType').notNullable() // contact, agent, system, bot, ai
       table.uuid('senderId').nullable().references('users.id').onDelete('set null')
-      table.text('contentType').notNullable() //text, image, video, document, template, interactive
+      table.text('contentType').notNullable() //text, image, document, template, interactive
       table.text('contentText').nullable()
       table.text('mediaUrl').nullable()
       table.uuid('mediaAssetId').nullable().references('media_assets.id').onDelete('set null')

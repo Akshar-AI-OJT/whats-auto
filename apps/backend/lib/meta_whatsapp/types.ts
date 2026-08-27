@@ -68,7 +68,7 @@ export type MetaWebhookError = {
 }
 
 export type MetaWebhookMessageType =
-  'text' | 'image' | 'video' | 'document' | 'audio' | 'location' | 'interactive' | string
+  'text' | 'image' | 'document' | 'audio' | 'location' | 'interactive' | string
 
 export type MetaWebhookContext = {
   id?: string
@@ -91,8 +91,6 @@ export type MetaWebhookMessage = {
   type: MetaWebhookMessageType
   text?: MetaWebhookText
   image?: MetaWebhookMedia
-  audio?: MetaWebhookMedia
-  video?: MetaWebhookMedia
   document?: MetaWebhookMedia
   location?: MetaWebhookLocation
   interactive?: MetaWebhookInteractive
@@ -221,24 +219,46 @@ export type MetaSendTemplateDocumentParameter = {
 export type MetaSendTemplateParameter =
   MetaSendTemplateTextParameter | MetaSendTemplateImageParameter | MetaSendTemplateDocumentParameter
 
-export type MetaSendTemplateComponent = {
+export type MetaSendTemplateHeaderOrBodyComponent = {
   type: 'header' | 'body'
   parameters: MetaSendTemplateParameter[]
 }
 
+export type MetaSendTemplateUrlButtonComponent = {
+  type: 'button'
+  sub_type: 'url'
+  index: string
+  parameters: MetaSendTemplateTextParameter[]
+}
+
+export type MetaSendTemplateComponent =
+  MetaSendTemplateHeaderOrBodyComponent | MetaSendTemplateUrlButtonComponent
+
 /** Tenant-sendable header media is image-only; document is reserved for integrations. */
 export type TemplateHeaderMediaType = 'image' | 'document'
 
+export type TemplateUrlButtonParam = {
+  name: string
+  index: number
+}
+
 /**
- * Normalized named-variable contract stored on message_templates.parameterSchema.
+ * Normalized template-variable contract stored on message_templates.parameterSchema.
  * Media headers set headerMediaType and leave headerNames empty.
+ * URL-button vars live in urlButtons (Meta index + parameter name / positional key).
+ * parameterFormat is 'positional' for {{1}}/{{2}} and 'named' for {{name}}.
  */
+export type TemplateParameterFormat = 'named' | 'positional'
+
 export type TemplateParameterSchema = {
   headerNames: string[]
   bodyNames: string[]
+  urlButtons?: TemplateUrlButtonParam[]
   sendable: boolean
   unsupportedReason?: string
   headerMediaType?: TemplateHeaderMediaType
+  /** Present when sendable and the template has (or had) text placeholders. */
+  parameterFormat?: TemplateParameterFormat
 }
 
 export type MetaGraphErrorBody = {
@@ -253,7 +273,7 @@ export type MetaGraphErrorBody = {
 
 export type MetaTemplateComponent = {
   type: 'HEADER' | 'BODY' | 'FOOTER' | 'BUTTONS' | string
-  format?: 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT' | string
+  format?: 'TEXT' | 'IMAGE' | 'DOCUMENT' | string
   text?: string
   buttons?: Array<Record<string, unknown>>
   example?: Record<string, unknown>

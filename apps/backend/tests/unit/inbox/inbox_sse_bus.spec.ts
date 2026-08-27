@@ -1,7 +1,7 @@
 import { test } from '@japa/runner'
 import { createRedisConnection } from '#lib/redis/create_redis_connection'
 import { inboxEventsHub } from '#services/inbox_events_hub'
-import InboxSseBus from '#services/inbox_sse_bus'
+import InboxSseBus, { assertInboxSseRedisForProduction } from '#services/inbox_sse_bus'
 
 const ORG_A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const ORG_B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
@@ -84,6 +84,18 @@ test.group('InboxSseBus without Redis', () => {
       unsubA()
       unsubB()
     }
+  })
+
+  test('assertInboxSseRedisForProduction throws only in production without URL', ({ assert }) => {
+    assert.doesNotThrow(() => assertInboxSseRedisForProduction('', 'development'))
+    assert.doesNotThrow(() => assertInboxSseRedisForProduction('', 'test'))
+    assert.doesNotThrow(() =>
+      assertInboxSseRedisForProduction('redis://localhost:6379', 'production')
+    )
+    assert.throws(
+      () => assertInboxSseRedisForProduction('', 'production'),
+      /REDIS_URL is required in production/
+    )
   })
 })
 

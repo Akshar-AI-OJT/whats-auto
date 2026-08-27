@@ -26,7 +26,6 @@ test.group('PassthroughRerankerService', () => {
 
   test('registers AI job names', ({ assert }) => {
     assert.equal(JOB_NAMES.AI_PROCESS_DOCUMENT, 'ai.process_document')
-    assert.equal(JOB_NAMES.AI_DEBOUNCE_TURN, 'ai.debounce_turn')
     assert.equal(JOB_NAMES.AI_SUMMARIZE_CONVERSATION, 'ai.summarize_conversation')
     assert.equal(JOB_NAMES.AI_REINDEX_ALL_DOCUMENTS, 'ai.reindex_all_documents')
   })

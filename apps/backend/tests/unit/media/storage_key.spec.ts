@@ -127,34 +127,25 @@ test.group('SignatureContentInspection', () => {
   test('accepts JPEG/PNG/PDF signatures and rejects mismatches', async ({ assert }) => {
     const inspection = new SignatureContentInspection()
 
-    assert.isTrue(
-      (
-        await inspection.inspect({
-          mimeType: 'image/jpeg',
-          prefix: new Uint8Array([0xff, 0xd8, 0xff]),
-          sizeBytes: 3,
-        })
-      ).ok
-    )
+    const jpegOk = await inspection.inspect({
+      mimeType: 'image/jpeg',
+      prefix: new Uint8Array([0xff, 0xd8, 0xff]),
+      sizeBytes: 3,
+    })
+    assert.isTrue(jpegOk.ok)
 
-    assert.isFalse(
-      (
-        await inspection.inspect({
-          mimeType: 'image/jpeg',
-          prefix: new Uint8Array([0x00, 0x00]),
-          sizeBytes: 2,
-        })
-      ).ok
-    )
+    const jpegMismatch = await inspection.inspect({
+      mimeType: 'image/jpeg',
+      prefix: new Uint8Array([0x00, 0x00]),
+      sizeBytes: 2,
+    })
+    assert.isFalse(jpegMismatch.ok)
 
-    assert.isTrue(
-      (
-        await inspection.inspect({
-          mimeType: 'application/pdf',
-          prefix: new Uint8Array([0x25, 0x50, 0x44, 0x46]),
-          sizeBytes: 4,
-        })
-      ).ok
-    )
+    const pdfOk = await inspection.inspect({
+      mimeType: 'application/pdf',
+      prefix: new Uint8Array([0x25, 0x50, 0x44, 0x46]),
+      sizeBytes: 4,
+    })
+    assert.isTrue(pdfOk.ok)
   })
 })

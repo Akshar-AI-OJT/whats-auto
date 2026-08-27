@@ -4,7 +4,12 @@ import type { DemoSeedModule } from '#database/demo/types'
 
 export const billingModule: DemoSeedModule = {
   id: 'billing',
-  ownedTables: ['organization_subscriptions', 'payment_transactions', 'usage_meters'],
+  ownedTables: [
+    'billing_orders',
+    'organization_subscriptions',
+    'payment_transactions',
+    'usage_meters',
+  ],
   dependsOn: ['organizations', 'plans'],
   async seed(ctx) {
     const periodStart = daysAgo(10)

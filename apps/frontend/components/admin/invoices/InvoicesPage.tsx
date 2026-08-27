@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useId, useMemo, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   AlertTriangle,
   CheckCircle2,
@@ -20,6 +21,7 @@ import {
 import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
+import { queryKeys } from '@/lib/query-keys'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
@@ -42,13 +44,7 @@ import {
   getInitials,
   issueMonthOptions,
 } from './invoice-utils'
-import type {
-  Invoice,
-  InvoiceBillingPeriod,
-  InvoiceStatus,
-  InvoiceSummary,
-  ListInvoicesParams,
-} from './types'
+import type { Invoice, InvoiceBillingPeriod, InvoiceStatus, ListInvoicesParams } from './types'
 import { BILLING_PERIODS, INVOICE_STATUSES } from './types'
 
 const PER_PAGE = 10
@@ -66,15 +62,10 @@ type BillingFilter = InvoiceBillingPeriod | 'all'
 export function InvoicesPage() {
   const t = useTranslations('admin.invoices')
   const router = useRouter()
+  const queryClient = useQueryClient()
   const searchId = useId()
 
-  const [items, setItems] = useState<Invoice[]>([])
-  const [summary, setSummary] = useState<InvoiceSummary | null>(null)
   const [page, setPage] = useState(1)
-  const [lastPage, setLastPage] = useState(1)
-  const [total, setTotal] = useState(0)
-  const [listLoading, setListLoading] = useState(true)
-  const [listError, setListError] = useState<string | null>(null)
   const [actionMessage, setActionMessage] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
@@ -91,7 +82,10 @@ export function InvoicesPage() {
   const monthOptions = useMemo(() => issueMonthOptions(), [])
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setDebouncedSearch(search), 250)
+    const timer = window.setTimeout(() => {
+      setDebouncedSearch(search)
+      setPage(1)
+    }, 250)
     return () => window.clearTimeout(timer)
   }, [search])
 
@@ -105,37 +99,33 @@ export function InvoicesPage() {
     [debouncedSearch, statusFilter, issueMonth, billingFilter]
   )
 
-  const load = useCallback(
-    async (nextPage: number) => {
-      setListLoading(true)
-      setListError(null)
-      try {
-        const [listResult, summaryResult] = await Promise.all([
-          listInvoices({ ...filterParams, page: nextPage, perPage: PER_PAGE }),
-          getInvoiceSummary(filterParams),
-        ])
-        setItems(listResult.items)
-        setPage(listResult.page)
-        setLastPage(listResult.lastPage)
-        setTotal(listResult.total)
-        setSummary(summaryResult)
-      } catch {
-        setItems([])
-        setSummary(null)
-        setListError(t('errors.loadFailed'))
-      } finally {
-        setListLoading(false)
-      }
-    },
-    [filterParams, t]
-  )
+  const listKey = queryKeys.admin.invoices({ ...filterParams, page, perPage: PER_PAGE })
+  const summaryKey = queryKeys.admin.invoiceSummary(filterParams)
 
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      void load(1)
-    })
-    return () => window.cancelAnimationFrame(frame)
-  }, [load])
+  const listQuery = useQuery({
+    queryKey: listKey,
+    queryFn: async () => listInvoices({ ...filterParams, page, perPage: PER_PAGE }),
+    staleTime: 60_000,
+    placeholderData: (previous) => previous,
+  })
+
+  const summaryQuery = useQuery({
+    queryKey: summaryKey,
+    queryFn: async () => getInvoiceSummary(filterParams),
+    staleTime: 60_000,
+    placeholderData: (previous) => previous,
+  })
+
+  const items = useMemo(() => listQuery.data?.items ?? [], [listQuery.data])
+  const summary = summaryQuery.data ?? null
+  const lastPage = listQuery.data?.lastPage ?? 1
+  const total = listQuery.data?.total ?? 0
+  const listLoading = listQuery.isLoading || summaryQuery.isLoading
+  const listError = listQuery.error || summaryQuery.error ? t('errors.loadFailed') : null
+
+  async function refreshInvoices() {
+    await Promise.all([queryClient.invalidateQueries({ queryKey: queryKeys.admin.invoicesRoot })])
+  }
 
   const closeMenu = useCallback(() => {
     setMenuId(null)
@@ -154,6 +144,7 @@ export function InvoicesPage() {
     setStatusFilter('all')
     setIssueMonth('all')
     setBillingFilter('all')
+    setPage(1)
   }
 
   function showMessage(message: string) {
@@ -165,8 +156,15 @@ export function InvoicesPage() {
     setRowPendingId(invoice.id)
     closeMenu()
     try {
-      const result = await downloadInvoice(invoice.id)
-      showMessage(t(result.messageKey ?? 'actions.downloadSoon'))
+      const result = await downloadInvoice(invoice.id, invoice.invoiceNumber)
+      if (result.ok) showMessage(t(result.messageKey ?? 'toast.downloaded'))
+      else {
+        setActionError(null)
+        showMessage(t(result.messageKey))
+      }
+    } catch {
+      setActionError(t('errors.downloadFailed'))
+      setActionMessage(null)
     } finally {
       setRowPendingId(null)
     }
@@ -178,7 +176,13 @@ export function InvoicesPage() {
     try {
       const result = await sendInvoice(invoice.id)
       if (result.ok) showMessage(t(result.messageKey ?? 'toast.sent'))
-      else showMessage(t(result.messageKey))
+      else {
+        setActionError(null)
+        showMessage(t(result.messageKey))
+      }
+    } catch {
+      setActionError(t('errors.sendFailed'))
+      setActionMessage(null)
     } finally {
       setRowPendingId(null)
     }
@@ -195,7 +199,7 @@ export function InvoicesPage() {
         return
       }
       showMessage(t(result.messageKey ?? 'toast.markedPaid'))
-      await load(page)
+      await refreshInvoices()
     } finally {
       setRowPendingId(null)
     }
@@ -212,8 +216,9 @@ export function InvoicesPage() {
         return
       }
       showMessage(t(result.messageKey ?? 'toast.regenerated'))
-      await load(1)
-      router.push(`/admin/invoices/${result.invoice.id}`)
+      setPage(1)
+      await refreshInvoices()
+      if (result.invoice?.id) router.push(`/admin/invoices/${result.invoice.id}`)
     } finally {
       setRowPendingId(null)
     }
@@ -242,7 +247,11 @@ export function InvoicesPage() {
             <Download className="size-4" aria-hidden />
             {t('export')}
           </Button>
-          <Button type="button" className="gap-2" onClick={() => router.push('/admin/invoices/generate')}>
+          <Button
+            type="button"
+            className="gap-2"
+            onClick={() => router.push('/admin/invoices/generate')}
+          >
             <Plus className="size-4" aria-hidden />
             {t('generate')}
           </Button>
@@ -328,7 +337,10 @@ export function InvoicesPage() {
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+              onChange={(e) => {
+                setStatusFilter(e.target.value as StatusFilter)
+                setPage(1)
+              }}
               className={selectClassName}
               aria-label={t('filterStatus')}
             >
@@ -341,7 +353,10 @@ export function InvoicesPage() {
             </select>
             <select
               value={issueMonth}
-              onChange={(e) => setIssueMonth(e.target.value)}
+              onChange={(e) => {
+                setIssueMonth(e.target.value)
+                setPage(1)
+              }}
               className={selectClassName}
               aria-label={t('filterDate')}
             >
@@ -354,7 +369,10 @@ export function InvoicesPage() {
             </select>
             <select
               value={billingFilter}
-              onChange={(e) => setBillingFilter(e.target.value as BillingFilter)}
+              onChange={(e) => {
+                setBillingFilter(e.target.value as BillingFilter)
+                setPage(1)
+              }}
               className={selectClassName}
               aria-label={t('filterBilling')}
             >
@@ -395,7 +413,12 @@ export function InvoicesPage() {
             <p role="alert" className="text-sm text-negative">
               {listError}
             </p>
-            <Button type="button" variant="outline" size="sm" onClick={() => void load(page)}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => void refreshInvoices()}
+            >
               {t('retry')}
             </Button>
           </div>
@@ -440,7 +463,7 @@ export function InvoicesPage() {
                           <td className="px-4 py-3">
                             <button
                               type="button"
-                              className="font-medium text-positive-deep hover:underline"
+                              className="cursor-pointer font-medium text-positive-deep hover:underline"
                               onClick={() => router.push(`/admin/invoices/${invoice.id}`)}
                             >
                               {invoice.invoiceNumber}
@@ -483,7 +506,9 @@ export function InvoicesPage() {
                           <td
                             className={cn(
                               'px-4 py-3 text-sm tabular-nums',
-                              invoice.status === 'overdue' ? 'font-medium text-negative' : 'text-body'
+                              invoice.status === 'overdue'
+                                ? 'font-medium text-negative'
+                                : 'text-body'
                             )}
                           >
                             {formatInvoiceDate(invoice.dueDate)}
@@ -498,7 +523,7 @@ export function InvoicesPage() {
                             <div className="inline-flex items-center gap-1">
                               <button
                                 type="button"
-                                className="inline-flex size-8 items-center justify-center rounded-lg text-mute hover:bg-dash-surface hover:text-ink"
+                                className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-mute hover:bg-dash-surface hover:text-ink"
                                 aria-label={t('actions.view')}
                                 onClick={() => router.push(`/admin/invoices/${invoice.id}`)}
                               >
@@ -555,7 +580,7 @@ export function InvoicesPage() {
                   <li key={invoice.id}>
                     <button
                       type="button"
-                      className="w-full rounded-2xl border border-dash-border bg-dash-surface/60 p-4 text-left"
+                      className="w-full cursor-pointer rounded-2xl border border-dash-border bg-dash-surface/60 p-4 text-left"
                       onClick={() => router.push(`/admin/invoices/${invoice.id}`)}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -595,7 +620,7 @@ export function InvoicesPage() {
                     variant="outline"
                     size="sm"
                     disabled={page <= 1 || listLoading}
-                    onClick={() => void load(page - 1)}
+                    onClick={() => setPage(page - 1)}
                   >
                     {t('prevPage')}
                   </Button>
@@ -604,7 +629,7 @@ export function InvoicesPage() {
                     variant="outline"
                     size="sm"
                     disabled={page >= lastPage || listLoading}
-                    onClick={() => void load(page + 1)}
+                    onClick={() => setPage(page + 1)}
                   >
                     {t('nextPage')}
                   </Button>
@@ -624,7 +649,7 @@ export function InvoicesPage() {
           <>
             <button
               type="button"
-              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
+              className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
               onClick={() => {
                 closeMenu()
                 router.push(`/admin/invoices/${menuInvoice.id}`)

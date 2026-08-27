@@ -18,7 +18,7 @@ async function createOrg() {
       country: 'US',
       timezone: 'UTC',
       currency: 'USD',
-      status: true,
+      status: 'active',
     })
     .returning(['id'])
   return row.id as string
@@ -295,7 +295,7 @@ test.group('Campaign template variables', (group) => {
     assert.deepEqual(row.variables, {})
   })
 
-  test('numbered placeholders are rejected before snapshot', async ({ assert }) => {
+  test('numbered placeholders are sendable with positional schema', async ({ assert }) => {
     const organizationId = await createOrg()
     orgIds.push(organizationId)
     const userId = await seedUser()
@@ -304,13 +304,12 @@ test.group('Campaign template variables', (group) => {
       bodyText: 'Hi {{1}}, your order {{2}} has shipped.',
       parameterSchema: {
         headerNames: [],
-        bodyNames: [],
-        sendable: false,
-        unsupportedReason:
-          'Numbered placeholders like {{1}} are not supported; use named variables',
+        bodyNames: ['1', '2'],
+        sendable: true,
+        parameterFormat: 'positional',
       },
     })
-    const contactId = await seedContact(organizationId)
+    const contactId = await seedContact(organizationId, { name: 'Ada Lovelace' })
 
     const campaign = await runWithTenant(organizationId, () =>
       new CampaignService().createCampaign({
@@ -319,22 +318,25 @@ test.group('Campaign template variables', (group) => {
         name: 'Numbered',
         messageTemplateId: templateId,
         status: 'draft',
+        variableMappings: {
+          '1': { source: 'contact_field', field: 'name' },
+          '2': { source: 'static', value: 'NS-1001' },
+        },
       })
     )
 
-    try {
-      await runWithTenant(organizationId, () =>
-        new CampaignService().replaceRecipients({
-          organizationId,
-          campaignId: campaign.id,
-          contactIds: [contactId],
-        })
-      )
-      assert.fail('expected numbered template to reject')
-    } catch (error) {
-      assert.instanceOf(error, CampaignException)
-      assert.equal((error as CampaignException).code, 'E_CAMPAIGN_TEMPLATE_NOT_SENDABLE')
-    }
+    await runWithTenant(organizationId, () =>
+      new CampaignService().replaceRecipients({
+        organizationId,
+        campaignId: campaign.id,
+        contactIds: [contactId],
+      })
+    )
+
+    const row = await runWithTenant(organizationId, () =>
+      db.from('broadcast_recipients').where('broadcastId', campaign.id).first()
+    )
+    assert.deepEqual(row.variables, { '1': 'Ada Lovelace', '2': 'NS-1001' })
   })
 
   test('sendCampaign fails when required variables are still missing', async ({ assert }) => {

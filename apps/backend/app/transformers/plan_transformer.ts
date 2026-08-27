@@ -6,6 +6,7 @@ import type {
   PlanStatus,
   SuperAdminPlan,
   SuperAdminPlanSummary,
+  TenantBillingPlan,
 } from '#types/plans'
 
 type PlanMetadata = {
@@ -70,6 +71,15 @@ export function transformPlanLimits(row: Pick<PlanRow, 'limits'>): PlanLimits {
   return { users, messagesPerMonth, workspaces }
 }
 
+/**
+ * Tenant checkout eligibility — active paid plans (any billing interval).
+ * Keep in lockstep with `PlanRepository.findActiveCheckoutableById`.
+ */
+export function isPlanCheckoutable(row: Pick<PlanRow, 'isActive' | 'price'>): boolean {
+  if (row.isActive !== true) return false
+  return toNumber(row.price) > 0
+}
+
 export function transformPlan(row: PlanRow): SuperAdminPlan {
   const meta = asMetadata(row.metadata)
   const billingPeriod = deriveBillingPeriod(row)
@@ -98,6 +108,31 @@ export function transformPlan(row: PlanRow): SuperAdminPlan {
     sortOrder: row.sortOrder,
     createdAt: toIso(row.createdAt)!,
     updatedAt: toIso(row.updatedAt),
+  }
+}
+
+/** Tenant catalog projection — no gateway secrets or admin-only fields. */
+export function transformTenantBillingPlan(row: PlanRow): TenantBillingPlan {
+  const plan = transformPlan(row)
+  return {
+    id: plan.id,
+    code: plan.code,
+    name: plan.name,
+    description: plan.description,
+    price: plan.price,
+    currency: plan.currency,
+    billingPeriod: plan.billingPeriod,
+    popular: plan.popular,
+    trialDays: plan.trialDays,
+    limits: plan.limits,
+    features: (plan.features ?? []).map((feature) => ({
+      key: feature.key,
+      name: feature.name || feature.key,
+      enabled: Boolean(feature.enabled),
+      ...(feature.category ? { category: feature.category } : {}),
+    })),
+    checkoutable: isPlanCheckoutable(row),
+    sortOrder: plan.sortOrder,
   }
 }
 

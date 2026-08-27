@@ -28,6 +28,10 @@ export default class ContactPolicy extends BasePolicy {
     return user.memberPermissions?.has('contacts:create') ?? false
   }
 
+  import(user: AuthzPrincipal): boolean {
+    return user.memberPermissions?.has('contacts:import') ?? false
+  }
+
   update(user: AuthzPrincipal, contact?: ContactResource): boolean {
     if (!user.memberPermissions?.has('contacts:edit')) return false
     if (contact && contact.organizationId !== user.activeMember?.organizationId) {

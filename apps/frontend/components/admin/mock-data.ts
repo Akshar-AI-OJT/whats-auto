@@ -79,9 +79,9 @@ export type SubscriptionSlice = {
 
 export const MOCK_SUBSCRIPTION_DISTRIBUTION: SubscriptionSlice[] = [
   { id: 'starter', count: 94, colorClass: 'bg-mute', fill: '#94a3b8' },
-  { id: 'growth', count: 86, colorClass: 'bg-primary', fill: '#9fe870' },
+  { id: 'growth', count: 86, colorClass: 'bg-primary', fill: '#2563eb' },
   { id: 'pro', count: 48, colorClass: 'bg-accent-cyan', fill: '#38c8ff' },
-  { id: 'enterprise', count: 20, colorClass: 'bg-positive-deep', fill: '#3d8b40' },
+  { id: 'enterprise', count: 20, colorClass: 'bg-positive-deep', fill: '#2563eb' },
 ]
 
 export type RevenuePoint = {
@@ -578,90 +578,6 @@ export const MOCK_PLATFORM_PLANS: MockPlatformPlan[] = [
       'sla',
     ],
     activeOrgs: 20,
-  },
-]
-
-export type PlatformUserRole =
-  | 'superAdmin'
-  | 'platformAdmin'
-  | 'support'
-  | 'finance'
-
-export type PlatformUserStatus = 'active' | 'invited' | 'inactive'
-
-export type MockPlatformUser = {
-  id: string
-  name: string
-  email: string
-  role: PlatformUserRole
-  status: PlatformUserStatus
-  createdAt: string
-}
-
-export const MOCK_PLATFORM_USERS: MockPlatformUser[] = [
-  {
-    id: 'pu_1',
-    name: 'Ritika Sharma',
-    email: 'ritika@whatsauto.com',
-    role: 'superAdmin',
-    status: 'active',
-    createdAt: '2025-04-08',
-  },
-  {
-    id: 'pu_2',
-    name: 'Arjun Nair',
-    email: 'arjun@whatsauto.com',
-    role: 'platformAdmin',
-    status: 'active',
-    createdAt: '2025-06-12',
-  },
-  {
-    id: 'pu_3',
-    name: 'Neha Verma',
-    email: 'neha@whatsauto.com',
-    role: 'support',
-    status: 'active',
-    createdAt: '2025-09-03',
-  },
-  {
-    id: 'pu_4',
-    name: 'Kunal Rao',
-    email: 'kunal@whatsauto.com',
-    role: 'finance',
-    status: 'active',
-    createdAt: '2025-10-19',
-  },
-  {
-    id: 'pu_5',
-    name: 'Maya Singh',
-    email: 'maya@whatsauto.com',
-    role: 'support',
-    status: 'invited',
-    createdAt: '2026-01-05',
-  },
-  {
-    id: 'pu_6',
-    name: 'Dev Patel',
-    email: 'dev@whatsauto.com',
-    role: 'platformAdmin',
-    status: 'inactive',
-    createdAt: '2025-07-27',
-  },
-  {
-    id: 'pu_7',
-    name: 'Sara Khan',
-    email: 'sara@whatsauto.com',
-    role: 'finance',
-    status: 'active',
-    createdAt: '2026-02-14',
-  },
-  {
-    id: 'pu_8',
-    name: 'Ishan Mehta',
-    email: 'ishan@whatsauto.com',
-    role: 'support',
-    status: 'inactive',
-    createdAt: '2025-12-01',
   },
 ]
 

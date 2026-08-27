@@ -17,16 +17,34 @@ import { Link, useRouter } from '@/i18n/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
-import { campaignQueryKeys } from './CampaignsListPage'
+import { queryKeys } from '@/lib/query-keys'
 import { CAMPAIGN_RECIPIENT_MAX, unwrapCampaign, isEditableCampaignStatus } from './campaign-utils'
-import { unwrapTemplateList } from '@/components/dashboard/templates/template-utils'
+import { unwrapTemplateList, normalizeSampleValues } from '@/components/dashboard/templates/template-utils'
 import {
-  customerGroupQueryKeys,
   listCustomerGroupContacts,
   listCustomerGroups,
 } from '@/components/dashboard/customer-groups/customer-group-service'
-import { datetimeLocalToVineDate } from '@/lib/vine-date'
+import { getTimezoneOptions } from '@/lib/onboarding'
+import {
+  formatDateTimeLocalInput,
+  isCampaignScheduleInFuture,
+  isoInstantToDateTimeLocal,
+  resolveDisplayTimeZone,
+  toCampaignScheduledAtPayload,
+} from '@/lib/org-datetime'
 import { CampaignRecipientList } from './CampaignRecipientList'
+import { CampaignVariableMappingsSection } from './CampaignVariableMappingsSection'
+import {
+  buildVariableMappingsPayload,
+  draftsFromApiMappings,
+  extractTemplateVariableNames,
+  isTemplateSendable,
+  listUnmappedVariableNames,
+  reconcileMappingDrafts,
+  templateUnsupportedReason,
+  type CampaignVariableMappingDraft,
+  type CampaignVariableMappingDrafts,
+} from './campaign-variable-mappings'
 
 /** Avoid useSearchParams — it can stall the create page on hard refresh via Suspense. */
 function readDuplicateFromId(): string | null {
@@ -55,6 +73,7 @@ type FormState = {
   audienceLabel: string
   scheduleMode: 'now' | 'later'
   scheduledAt: string
+  timeZone: string
 }
 
 const emptyForm: FormState = {
@@ -63,6 +82,7 @@ const emptyForm: FormState = {
   audienceLabel: '',
   scheduleMode: 'now',
   scheduledAt: '',
+  timeZone: '',
 }
 
 export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
@@ -76,10 +96,12 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
     canLaunchCampaigns,
     canViewContacts,
     isLoading: orgsLoading,
+    activeOrganization,
   } = useOrganizations()
 
   const [fromId] = useState(() => (mode === 'create' ? readDuplicateFromId() : null))
   const [form, setForm] = useState<FormState>(emptyForm)
+  const [mappingDrafts, setMappingDrafts] = useState<CampaignVariableMappingDrafts>({})
   const [excludedContactIds, setExcludedContactIds] = useState<string[]>([])
   const [selectedGroupId, setSelectedGroupId] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -87,12 +109,20 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
     name?: string
     template?: string
     audience?: string
+    mappings?: string
   }>({})
 
   const canSubmit = mode === 'create' ? canCreateCampaigns : canEditCampaigns
+  const orgTimeZone = resolveDisplayTimeZone(activeOrganization?.timezone)
+  const scheduleTimeZone = form.timeZone || orgTimeZone
+  const timezones = useMemo(
+    () =>
+      Array.from(new Set([scheduleTimeZone, orgTimeZone, ...getTimezoneOptions()].filter(Boolean))),
+    [scheduleTimeZone, orgTimeZone]
+  )
 
   const sourceQuery = useQuery({
-    queryKey: campaignQueryKeys.detail(campaignId || fromId || 'none'),
+    queryKey: queryKeys.campaigns.detail(campaignId || fromId || 'none'),
     enabled:
       Boolean(tenantOrganizationId) && Boolean(campaignId || fromId) && !orgsLoading && canSubmit,
     queryFn: async () => {
@@ -104,7 +134,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
   })
 
   const templatesQuery = useQuery({
-    queryKey: [...campaignQueryKeys.all, 'form-templates', tenantOrganizationId],
+    queryKey: [...queryKeys.campaigns.all, 'form-templates', tenantOrganizationId],
     enabled: Boolean(tenantOrganizationId) && canSubmit && !orgsLoading,
     queryFn: async () => {
       const { data } = await api.whatsapp.listTemplates({
@@ -116,7 +146,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
   })
 
   const contactsQuery = useQuery({
-    queryKey: [...campaignQueryKeys.all, 'form-contacts', tenantOrganizationId],
+    queryKey: [...queryKeys.campaigns.all, 'form-contacts', tenantOrganizationId],
     enabled: Boolean(tenantOrganizationId) && canViewContacts && canSubmit && !orgsLoading,
     queryFn: async () => {
       const { data } = await api.contacts.list()
@@ -125,7 +155,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
   })
 
   const groupsQuery = useQuery({
-    queryKey: customerGroupQueryKeys.list(tenantOrganizationId),
+    queryKey: [...queryKeys.campaigns.all, 'customer-groups', tenantOrganizationId],
     enabled:
       Boolean(tenantOrganizationId) &&
       canViewContacts &&
@@ -136,7 +166,12 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
   })
 
   const groupMembersQuery = useQuery({
-    queryKey: customerGroupQueryKeys.members(tenantOrganizationId, selectedGroupId),
+    queryKey: [
+      ...queryKeys.campaigns.all,
+      'customer-group-members',
+      tenantOrganizationId,
+      selectedGroupId,
+    ],
     enabled:
       Boolean(tenantOrganizationId) &&
       canViewContacts &&
@@ -153,23 +188,85 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
     ? `${mode}:${fromId ?? ''}:${campaignId ?? ''}:${source.id}:${source.updatedAt ?? source.createdAt ?? ''}`
     : null
   const [hydratedSourceKey, setHydratedSourceKey] = useState<string | null>(null)
+  const [reconciledMappingKey, setReconciledMappingKey] = useState('')
   if (source && sourceKey && sourceKey !== hydratedSourceKey) {
     setHydratedSourceKey(sourceKey)
+    const nextTemplateId = source.messageTemplateId ?? ''
     setForm({
       name: mode === 'create' && fromId ? `${source.name} (copy)` : source.name,
-      messageTemplateId: source.messageTemplateId ?? '',
-      audienceLabel: source.totalRecipients > 0 ? 'all-contacts' : '',
+      messageTemplateId: nextTemplateId,
+      audienceLabel: source.audienceTagId
+        ? 'customer-group'
+        : source.totalRecipients > 0
+          ? 'all-contacts'
+          : '',
       scheduleMode: source.scheduledAt ? 'later' : 'now',
-      scheduledAt: source.scheduledAt
-        ? new Date(source.scheduledAt).toISOString().slice(0, 16)
-        : '',
+      scheduledAt: isoInstantToDateTimeLocal(source.scheduledAt, orgTimeZone),
+      timeZone: orgTimeZone,
     })
+    setSelectedGroupId(source.audienceTagId ?? '')
+    const fromApi = draftsFromApiMappings(source.variableMappings)
+    if (templatesQuery.data) {
+      const hydratedTemplate =
+        templatesQuery.data.find((item) => item.id === nextTemplateId) ?? null
+      const names = extractTemplateVariableNames(hydratedTemplate)
+      setMappingDrafts(reconcileMappingDrafts(fromApi, names))
+      setReconciledMappingKey(`${nextTemplateId}:${names.join('|')}`)
+    } else {
+      setMappingDrafts(fromApi)
+      setReconciledMappingKey('')
+    }
+  }
+  if (!form.timeZone && orgTimeZone) {
+    setForm((prev) => (prev.timeZone ? prev : { ...prev, timeZone: orgTimeZone }))
   }
 
   const selectedTemplate = useMemo(
     () => templatesQuery.data?.find((item) => item.id === form.messageTemplateId) ?? null,
     [templatesQuery.data, form.messageTemplateId]
   )
+
+  const templateVariableNames = useMemo(
+    () => extractTemplateVariableNames(selectedTemplate),
+    [selectedTemplate]
+  )
+
+  const templateSampleValues = useMemo(
+    () => normalizeSampleValues(selectedTemplate?.sampleValues),
+    [selectedTemplate]
+  )
+
+  const templateNotSendable = Boolean(selectedTemplate) && !isTemplateSendable(selectedTemplate)
+  const unsupportedReason = templateUnsupportedReason(selectedTemplate)
+
+  // When the selected template's variable list is known, keep surviving mappings and
+  // drop/add rows without inventing defaults for new variables.
+  const mappingTemplateKey = `${form.messageTemplateId}:${templateVariableNames.join('|')}`
+  if (
+    form.messageTemplateId &&
+    mappingTemplateKey !== reconciledMappingKey &&
+    // Wait until templates have loaded so we don't prune against an empty schema.
+    Boolean(templatesQuery.data)
+  ) {
+    setReconciledMappingKey(mappingTemplateKey)
+    setMappingDrafts((prev) => reconcileMappingDrafts(prev, templateVariableNames))
+  }
+
+  const unmappedVariableNames = useMemo(
+    () => listUnmappedVariableNames(mappingDrafts, templateVariableNames),
+    [mappingDrafts, templateVariableNames]
+  )
+
+  const willSendOrSchedule =
+    form.scheduleMode === 'later' ||
+    (form.scheduleMode === 'now' &&
+      canLaunchCampaigns &&
+      (form.audienceLabel === 'all-contacts' || form.audienceLabel === 'customer-group'))
+
+  const mappingsBlockLaunch =
+    willSendOrSchedule &&
+    (templateNotSendable ||
+      (templateVariableNames.length > 0 && unmappedVariableNames.length > 0))
 
   const allContacts = contactsQuery.data
   const selectedGroup = useMemo(
@@ -214,6 +311,20 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
     }
   }
 
+  function handleTemplateChange(templateId: string) {
+    setForm((prev) => ({ ...prev, messageTemplateId: templateId }))
+    setFieldErrors((prev) => ({ ...prev, template: undefined, mappings: undefined }))
+    const nextTemplate = templatesQuery.data?.find((item) => item.id === templateId) ?? null
+    const nextNames = extractTemplateVariableNames(nextTemplate)
+    setMappingDrafts((prev) => reconcileMappingDrafts(prev, nextNames))
+    setReconciledMappingKey(`${templateId}:${nextNames.join('|')}`)
+  }
+
+  function handleMappingChange(variable: string, next: CampaignVariableMappingDraft) {
+    setMappingDrafts((prev) => ({ ...prev, [variable]: next }))
+    setFieldErrors((prev) => ({ ...prev, mappings: undefined }))
+  }
+
   function handleRemoveRecipient(contactId: string) {
     setExcludedContactIds((prev) => (prev.includes(contactId) ? prev : [...prev, contactId]))
   }
@@ -221,10 +332,16 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
   const mutation = useMutation({
     mutationFn: async (): Promise<Campaign | null> => {
       const whatsappConfigId = selectedTemplate?.whatsappConfigId ?? undefined
+      const variableMappings = buildVariableMappingsPayload(
+        mappingDrafts,
+        templateVariableNames
+      )
       const bodyBase = {
         name: form.name.trim(),
         ...(form.messageTemplateId ? { messageTemplateId: form.messageTemplateId } : {}),
         ...(whatsappConfigId ? { whatsappConfigId } : {}),
+        // Always replace mappings for the current template variable set (may be {}).
+        variableMappings,
       }
 
       // Always persist as draft first; schedule/send APIs own lifecycle transitions.
@@ -268,15 +385,17 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
           throw new Error(t('form.errors.audienceTooLarge', { max: CAMPAIGN_RECIPIENT_MAX }))
         }
         const { data } = await api.campaigns.replaceRecipients(campaign.id, {
-          contactIds: groupContactIds,
+          tagId: selectedGroupId,
         })
         campaign = unwrapCampaign(data) ?? campaign
       }
 
       if (form.scheduleMode === 'later') {
-        // Vine vine.date() rejects ISO-8601 with T/Z — send YYYY-MM-DD HH:mm:ss.
-        const scheduledAt = datetimeLocalToVineDate(form.scheduledAt)
-        const { data } = await api.campaigns.schedule(campaign.id, { scheduledAt })
+        const scheduledAt = toCampaignScheduledAtPayload(form.scheduledAt, scheduleTimeZone)
+        const { data } = await api.campaigns.schedule(campaign.id, {
+          scheduledAt,
+          timeZone: scheduleTimeZone,
+        })
         campaign = unwrapCampaign(data) ?? campaign
       } else if (
         canLaunchCampaigns &&
@@ -289,7 +408,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
       return campaign
     },
     onSuccess: async (campaign) => {
-      await queryClient.invalidateQueries({ queryKey: campaignQueryKeys.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.all })
       if (campaign?.id) {
         router.push(`/dashboard/campaigns/${campaign.id}`)
       } else {
@@ -302,7 +421,12 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
   })
 
   function validate() {
-    const next: { name?: string; template?: string; audience?: string } = {}
+    const next: {
+      name?: string
+      template?: string
+      audience?: string
+      mappings?: string
+    } = {}
     if (!form.name.trim()) next.name = t('form.errors.nameRequired')
     if (form.name.trim().length > 200) next.name = t('form.errors.nameTooLong')
     if (!form.messageTemplateId) next.template = t('form.errors.templateRequired')
@@ -329,13 +453,25 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
         next.audience = t('form.errors.audienceTooLarge', { max: CAMPAIGN_RECIPIENT_MAX })
       }
     }
+
+    if (willSendOrSchedule) {
+      if (templateNotSendable) {
+        next.mappings =
+          unsupportedReason || t('form.errors.templateNotSendable')
+      } else if (unmappedVariableNames.length > 0) {
+        next.mappings = t('form.errors.variablesUnmapped', {
+          variables: unmappedVariableNames.map((name) => `{{${name}}}`).join(', '),
+        })
+      }
+    }
+
     if (form.scheduleMode === 'later') {
       if (!form.scheduledAt) {
         setError(t('form.errors.scheduledAtRequired'))
         setFieldErrors(next)
         return false
       }
-      if (new Date(form.scheduledAt).getTime() <= Date.now()) {
+      if (!isCampaignScheduleInFuture(form.scheduledAt, scheduleTimeZone)) {
         setError(t('form.errors.scheduledAtFuture'))
         setFieldErrors(next)
         return false
@@ -459,7 +595,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
               id="campaign-template"
               className="h-11 w-full rounded-md border border-dash-border bg-canvas px-3 text-sm text-ink"
               value={form.messageTemplateId}
-              onChange={(e) => setForm((prev) => ({ ...prev, messageTemplateId: e.target.value }))}
+              onChange={(e) => handleTemplateChange(e.target.value)}
             >
               <option value="">{t('form.templatePlaceholder')}</option>
               {(templatesQuery.data ?? []).map((template) => (
@@ -472,6 +608,21 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
               <p className="text-xs text-negative">{fieldErrors.template}</p>
             ) : null}
           </div>
+
+          <CampaignVariableMappingsSection
+            template={selectedTemplate}
+            variableNames={templateVariableNames}
+            drafts={mappingDrafts}
+            unsupportedReason={unsupportedReason}
+            sampleValues={templateSampleValues}
+            disabled={mutation.isPending}
+            onChange={handleMappingChange}
+          />
+          {fieldErrors.mappings ? (
+            <p role="alert" className="text-xs text-negative">
+              {fieldErrors.mappings}
+            </p>
+          ) : null}
 
           <fieldset className="space-y-3">
             <legend className="text-sm font-medium text-ink">{t('form.audience')}</legend>
@@ -607,14 +758,44 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
               {t('form.scheduleLater')}
             </label>
             {form.scheduleMode === 'later' ? (
-              <Input
-                type="datetime-local"
-                value={form.scheduledAt}
-                onChange={(e) => setForm((prev) => ({ ...prev, scheduledAt: e.target.value }))}
-                className="max-w-xs"
-              />
+              <div className="flex max-w-xl flex-col gap-3 sm:flex-row sm:items-end">
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <label htmlFor="campaign-scheduled-at" className="text-xs font-medium text-ink">
+                    {t('form.scheduledAt')}
+                  </label>
+                  <Input
+                    id="campaign-scheduled-at"
+                    type="datetime-local"
+                    value={form.scheduledAt}
+                    onChange={(e) => setForm((prev) => ({ ...prev, scheduledAt: e.target.value }))}
+                  />
+                </div>
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <label htmlFor="campaign-timezone" className="text-xs font-medium text-ink">
+                    {t('form.timezone')}
+                  </label>
+                  <select
+                    id="campaign-timezone"
+                    className="h-11 w-full rounded-md border border-dash-border bg-canvas px-3 text-sm text-ink"
+                    value={scheduleTimeZone}
+                    onChange={(e) => setForm((prev) => ({ ...prev, timeZone: e.target.value }))}
+                    aria-label={t('form.timezone')}
+                  >
+                    {timezones.map((zone) => (
+                      <option key={zone} value={zone}>
+                        {zone}
+                        {zone === orgTimeZone ? ` (${t('form.orgTimezone')})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
             ) : null}
-            <p className="text-xs text-mute">{t('form.scheduleHint')}</p>
+            <p className="text-xs text-mute">
+              {form.scheduleMode === 'later'
+                ? t('form.scheduleLaterHint', { timezone: scheduleTimeZone })
+                : t('form.scheduleHint')}
+            </p>
           </fieldset>
 
           {error ? (
@@ -643,6 +824,23 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
                 <dt className="text-mute">{t('summary.template')}</dt>
                 <dd className="text-right font-medium text-ink">{selectedTemplate?.name || '—'}</dd>
               </div>
+              {templateVariableNames.length > 0 || templateNotSendable ? (
+                <div className="flex justify-between gap-3 border-b border-dash-border pb-2">
+                  <dt className="text-mute">{t('summary.mappings')}</dt>
+                  <dd className="text-right font-medium text-ink">
+                    {templateNotSendable
+                      ? t('form.variableMappings.notSendable')
+                      : unmappedVariableNames.length === 0
+                        ? t('form.variableMappings.progressComplete', {
+                            total: templateVariableNames.length,
+                          })
+                        : t('form.variableMappings.progressIncomplete', {
+                            mapped: templateVariableNames.length - unmappedVariableNames.length,
+                            total: templateVariableNames.length,
+                          })}
+                  </dd>
+                </div>
+              ) : null}
               <div className="space-y-3 border-b border-dash-border pb-3">
                 <div className="flex justify-between gap-3">
                   <dt className="text-mute">{t('summary.audience')}</dt>
@@ -715,7 +913,9 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
                 <dt className="text-mute">{t('summary.schedule')}</dt>
                 <dd className="text-right font-medium text-ink">
                   {form.scheduleMode === 'later'
-                    ? form.scheduledAt || t('form.scheduleLater')
+                    ? form.scheduledAt
+                      ? `${formatDateTimeLocalInput(form.scheduledAt)} (${scheduleTimeZone})`
+                      : t('form.scheduleLater')
                     : t('form.sendNow')}
                 </dd>
               </div>
@@ -734,6 +934,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
               type="submit"
               disabled={
                 mutation.isPending ||
+                mappingsBlockLaunch ||
                 (form.audienceLabel === 'all-contacts' &&
                   (contactsQuery.isLoading ||
                     contactsQuery.isError ||

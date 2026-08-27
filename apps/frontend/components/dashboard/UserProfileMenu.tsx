@@ -113,7 +113,7 @@ export function UserProfileMenu({
           'inline-flex items-center gap-2 rounded-xl border border-dash-border bg-canvas py-1.5 pr-2 pl-1.5',
           'transition-[background-color,border-color,box-shadow] duration-200',
           'hover:border-dash-border-strong hover:bg-dash-surface',
-          open && 'border-primary/45 shadow-[0_0_0_3px_rgb(159_232_112/0.14)]'
+          open && 'border-primary/45 shadow-[0_0_0_3px_rgb(37_99_235/0.14)]'
         )}
       >
         <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-xs font-bold text-on-primary">
@@ -142,7 +142,7 @@ export function UserProfileMenu({
         >
           <div className="border-b border-dash-border px-3.5 py-3">
             <div className="flex items-center gap-3">
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-sm font-bold text-on-primary shadow-[0_4px_12px_rgb(159_232_112/0.3)]">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary text-sm font-bold text-on-primary shadow-[0_4px_12px_rgb(37_99_235/0.3)]">
                 {initials}
               </span>
               <div className="min-w-0">
@@ -163,7 +163,7 @@ export function UserProfileMenu({
                   type="button"
                   role="menuitem"
                   className={cn(
-                    'flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2.5 text-left text-sm font-medium text-ink',
+                    'flex w-full cursor-pointer items-center gap-2.5 rounded-xl px-2.5 py-2.5 text-left text-sm font-medium text-ink',
                     'transition-colors duration-150 hover:bg-dash-surface'
                   )}
                   onClick={() => void handleSelect(action.id)}
@@ -186,7 +186,7 @@ export function UserProfileMenu({
                   type="button"
                   role="menuitem"
                   className={cn(
-                    'flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2.5 text-left text-sm font-medium',
+                    'flex w-full cursor-pointer items-center gap-2.5 rounded-xl px-2.5 py-2.5 text-left text-sm font-medium',
                     'transition-colors duration-150',
                     action.tone === 'danger'
                       ? 'text-negative hover:bg-dash-danger-soft'

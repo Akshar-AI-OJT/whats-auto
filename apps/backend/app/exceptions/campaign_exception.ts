@@ -89,6 +89,25 @@ export default class CampaignException extends Exception {
     })
   }
 
+  static notCancellable(status: string) {
+    return this.notEligibleToCancel(status)
+  }
+
+  static templateRequired() {
+    return this.templateNotConfigured()
+  }
+
+  static whatsappConfigRequired() {
+    return this.whatsappConfigNotConfigured()
+  }
+
+  static recipientsRequired() {
+    return new this('Campaign must have at least one recipient', {
+      status: 422,
+      code: 'E_CAMPAIGN_RECIPIENTS_REQUIRED',
+    })
+  }
+
   static notEditable(status: string) {
     return new this(`Campaign with status "${status}" is not editable`, {
       status: 422,
@@ -100,6 +119,20 @@ export default class CampaignException extends Exception {
     return new this('scheduledAt must be in the future', {
       status: 422,
       code: 'E_CAMPAIGN_SCHEDULED_AT_MUST_BE_FUTURE',
+    })
+  }
+
+  static invalidScheduledAt() {
+    return new this('scheduledAt is not a valid datetime', {
+      status: 422,
+      code: 'E_CAMPAIGN_INVALID_SCHEDULED_AT',
+    })
+  }
+
+  static invalidTimeZone() {
+    return new this('timeZone is not a valid IANA timezone', {
+      status: 422,
+      code: 'E_CAMPAIGN_INVALID_TIMEZONE',
     })
   }
 
@@ -124,6 +157,16 @@ export default class CampaignException extends Exception {
     })
   }
 
+  static noEligibleRecipients() {
+    return new this(
+      'Campaign has no eligible recipients after excluding opted-out and deleted contacts',
+      {
+        status: 422,
+        code: 'E_CAMPAIGN_NO_ELIGIBLE_RECIPIENTS',
+      }
+    )
+  }
+
   static conflictingAudience() {
     return new this('Provide either contactIds or tagId, not both', {
       status: 422,
@@ -137,28 +180,6 @@ export default class CampaignException extends Exception {
       code: 'E_CAMPAIGN_ALREADY_DELETED',
     })
   }
-
-  static recipientsRequired() {
-    return new this('Campaign requires at least one recipient before schedule or send', {
-      status: 422,
-      code: 'E_CAMPAIGN_RECIPIENTS_REQUIRED',
-    })
-  }
-
-  /** Alias used by execution paths — same meaning as templateNotConfigured. */
-  static templateRequired() {
-    return this.templateNotConfigured()
-  }
-
-  /** Alias used by execution paths — same meaning as whatsappConfigNotConfigured. */
-  static whatsappConfigRequired() {
-    return this.whatsappConfigNotConfigured()
-  }
-
-  static notCancellable(status: string) {
-    return this.notEligibleToCancel(status)
-  }
-
 
   static templateNotSendable(reason?: string) {
     return new this(reason || 'Campaign template is not sendable', {

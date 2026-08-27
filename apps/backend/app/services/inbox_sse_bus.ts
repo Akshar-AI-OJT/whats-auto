@@ -19,6 +19,7 @@ const BUS_EVENT_TYPES = new Set<InboxSseEventType>([
   'ai.token.delta',
   'ai.generation.completed',
   'ai.handover.triggered',
+  'conversation.ai_mode.updated',
 ])
 
 function isBusEvent(value: unknown): value is InboxSseEvent {
@@ -33,6 +34,19 @@ function isBusEvent(value: unknown): value is InboxSseEvent {
     typeof event.payload === 'object' &&
     !Array.isArray(event.payload)
   )
+}
+
+/**
+ * Production web/worker must have REDIS_URL so multi-instance fan-out works.
+ * Dev/test may omit Redis and publish directly to the in-process hub.
+ */
+export function assertInboxSseRedisForProduction(redisUrl: string, nodeEnv: string): void {
+  if (nodeEnv === 'production' && !redisUrl.trim()) {
+    throw new Error(
+      'REDIS_URL is required in production for InboxSseBus (channel wa:inbox:sse). ' +
+        'Without Redis, worker-published inbox events never reach API SSE clients.'
+    )
+  }
 }
 
 export default class InboxSseBus {
@@ -108,6 +122,20 @@ export default class InboxSseBus {
         },
         'inbox.sse_bus_publish_failed'
       )
+      // Same-process SSE clients still get the event; other API replicas rely on
+      // client reconnect catch-up when Redis is down.
+      try {
+        inboxEventsHub.publish(event)
+      } catch (hubError) {
+        logger.warn(
+          {
+            type: event.type,
+            organizationId: event.organizationId,
+            err: hubError instanceof Error ? hubError.message : 'unknown',
+          },
+          'inbox.sse_bus_hub_fallback_failed'
+        )
+      }
     }
   }
 

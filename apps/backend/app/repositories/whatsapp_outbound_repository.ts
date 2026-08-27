@@ -5,6 +5,7 @@ import {
   MessageReceiptRepository,
   type ApplyDeliveryReceiptResult,
 } from '#repositories/message_receipt_repository'
+import type { MetaInteractivePayload } from '#lib/meta_whatsapp/interactive_message'
 import type { MetaSendTemplateComponent, MetaWebhookStatusName } from '#lib/meta_whatsapp/types'
 
 export const OUTBOUND_LEASE_MINUTES = 5
@@ -82,8 +83,14 @@ export type OutboundTemplatePayload = {
   components: MetaSendTemplateComponent[]
 }
 
+export type OutboundInteractivePayload = {
+  kind: 'interactive'
+  to: string
+  interactive: MetaInteractivePayload
+}
+
 export type OutboundDispatchPayload =
-  OutboundTextPayload | OutboundTemplatePayload | OutboundMediaPayload
+  OutboundTextPayload | OutboundTemplatePayload | OutboundMediaPayload | OutboundInteractivePayload
 
 export type OutboundDispatchRow = {
   id: string
@@ -140,7 +147,18 @@ export class WhatsappOutboundRepository {
       metadata?: Record<string, unknown>
       clientIdempotencyKey?: string | null
     }
-  ): Promise<{ messageId: string; dispatchId: string }> {
+  ): Promise<{
+    messageId: string
+    dispatchId: string
+    createdAt: Date
+    senderType: string
+    senderId: string | null
+    contentType: string
+    contentText: string | null
+    status: string
+    mediaUrl: string | null
+    mediaAssetId: string | null
+  }> {
     const now = new Date()
     const clientIdempotencyKey = params.clientIdempotencyKey?.trim() || null
     const fingerprint = buildIdempotencyFingerprint({
@@ -213,6 +231,14 @@ export class WhatsappOutboundRepository {
       return {
         messageId: message.id as string,
         dispatchId: dispatch.id as string,
+        createdAt: now,
+        senderType: params.senderType,
+        senderId: params.senderId,
+        contentType: params.contentType,
+        contentText: params.contentText,
+        status: 'queued',
+        mediaUrl: null,
+        mediaAssetId: null,
       }
     } catch (error) {
       if (clientIdempotencyKey && params.senderId && isUniqueViolation(error)) {
@@ -255,7 +281,19 @@ export class WhatsappOutboundRepository {
       .where('organizationId', params.organizationId)
       .where('senderId', params.senderId)
       .where('clientIdempotencyKey', params.clientIdempotencyKey)
-      .select('id', 'contentType', 'contentText', 'messageTemplateId', 'metadata')
+      .select(
+        'id',
+        'senderType',
+        'senderId',
+        'contentType',
+        'contentText',
+        'messageTemplateId',
+        'status',
+        'mediaUrl',
+        'mediaAssetId',
+        'createdAt',
+        'metadata'
+      )
       .first()
   }
 
@@ -266,7 +304,18 @@ export class WhatsappOutboundRepository {
       existing: Record<string, unknown>
       fingerprint: string
     }
-  ): Promise<{ messageId: string; dispatchId: string }> {
+  ): Promise<{
+    messageId: string
+    dispatchId: string
+    createdAt: Date
+    senderType: string
+    senderId: string | null
+    contentType: string
+    contentText: string | null
+    status: string
+    mediaUrl: string | null
+    mediaAssetId: string | null
+  }> {
     const dispatch = await trx
       .from('outbound_dispatches')
       .where('organizationId', params.organizationId)
@@ -297,9 +346,25 @@ export class WhatsappOutboundRepository {
       throw WhatsappOutboundException.idempotencyKeyConflict()
     }
 
+    const createdAtRaw = params.existing.createdAt
+    const createdAt =
+      createdAtRaw instanceof Date
+        ? createdAtRaw
+        : createdAtRaw
+          ? new Date(createdAtRaw as string)
+          : new Date()
+
     return {
       messageId: params.existing.id as string,
       dispatchId: dispatch.id as string,
+      createdAt,
+      senderType: String(params.existing.senderType ?? 'agent'),
+      senderId: (params.existing.senderId as string | null) ?? null,
+      contentType: String(params.existing.contentType),
+      contentText: (params.existing.contentText as string | null) ?? null,
+      status: String(params.existing.status ?? 'queued'),
+      mediaUrl: (params.existing.mediaUrl as string | null) ?? null,
+      mediaAssetId: (params.existing.mediaAssetId as string | null) ?? null,
     }
   }
 

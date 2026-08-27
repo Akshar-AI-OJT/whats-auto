@@ -4,8 +4,10 @@ import { useId, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Building2, Loader2, Mail, Phone, User, UserPlus } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { api, type ApiError } from '@/lib/api'
-import { isValidEmail, isValidPhone } from '@/lib/onboarding'
+import { api, type ApiError, type CreateContactBody } from '@/lib/api'
+import { isValidEmail } from '@/lib/onboarding'
+import { isInternationalContactPhone } from '@/lib/contact-phone'
+import { COUNTRY_OPTIONS } from '@/components/onboarding/organization-wizard-types'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { Button } from '@/components/ui/button'
 import {
@@ -32,6 +34,7 @@ type AddContactSheetProps = {
 
 type FieldErrors = {
   phone?: string
+  countryCode?: string
   name?: string
   email?: string
   company?: string
@@ -39,13 +42,16 @@ type FieldErrors = {
 
 export function AddContactSheet({ open, onOpenChange, onCreated }: AddContactSheetProps) {
   const t = useTranslations('dashboard.contacts.add')
+  const tCountries = useTranslations('onboarding.organization.step2.countries')
   const { canCreateContacts, isLoading: orgsLoading } = useOrganizations()
+  const countryId = useId()
   const phoneId = useId()
   const nameId = useId()
   const emailId = useId()
   const companyId = useId()
   const formErrorId = useId()
 
+  const [countryCode, setCountryCode] = useState('')
   const [phone, setPhone] = useState('')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -56,6 +62,7 @@ export function AddContactSheet({ open, onOpenChange, onCreated }: AddContactShe
   const [pending, setPending] = useState(false)
 
   function reset() {
+    setCountryCode('')
     setPhone('')
     setName('')
     setEmail('')
@@ -69,7 +76,9 @@ export function AddContactSheet({ open, onOpenChange, onCreated }: AddContactShe
   function validate(): FieldErrors {
     const next: FieldErrors = {}
     if (!phone.trim()) next.phone = t('errors.phoneRequired')
-    else if (!isValidPhone(phone)) next.phone = t('errors.phoneInvalid')
+    else if (!isInternationalContactPhone(phone) && !countryCode) {
+      next.countryCode = t('errors.countryRequired')
+    }
 
     if (email.trim() && !isValidEmail(email.trim())) {
       next.email = t('errors.emailInvalid')
@@ -102,13 +111,8 @@ export function AddContactSheet({ open, onOpenChange, onCreated }: AddContactShe
       return
     }
 
-    const body: {
-      phone: string
-      name?: string
-      email?: string
-      company?: string
-    } = { phone: phone.trim() }
-
+    const body: CreateContactBody = { phoneNumber: phone.trim() }
+    if (countryCode) body.countryCode = countryCode
     if (name.trim()) body.name = name.trim()
     if (email.trim()) body.email = email.trim()
     if (company.trim()) body.company = company.trim()
@@ -153,6 +157,37 @@ export function AddContactSheet({ open, onOpenChange, onCreated }: AddContactShe
           aria-describedby={error ? formErrorId : undefined}
         >
           <FieldGroup className="gap-5">
+            <Field
+              data-invalid={fieldErrors.countryCode ? true : undefined}
+              className="gap-2"
+            >
+              <FieldLabel htmlFor={countryId}>{t('country')}</FieldLabel>
+              <select
+                id={countryId}
+                value={countryCode}
+                disabled={pending}
+                aria-invalid={fieldErrors.countryCode ? true : undefined}
+                className={cn(
+                  'h-12 w-full appearance-none rounded-md border border-ink bg-canvas px-4 text-base leading-5 text-ink outline-none',
+                  'hover:border-body focus-visible:border-ink focus-visible:ring-2 focus-visible:ring-primary/50',
+                  'disabled:cursor-not-allowed disabled:border-border disabled:bg-canvas-soft disabled:text-mute',
+                  !countryCode && 'text-mute'
+                )}
+                onChange={(e) => {
+                  setCountryCode(e.target.value)
+                  setFieldErrors((prev) => ({ ...prev, countryCode: undefined }))
+                }}
+              >
+                <option value="">{t('countryPlaceholder')}</option>
+                {COUNTRY_OPTIONS.map((country) => (
+                  <option key={country.code} value={country.code}>
+                    {tCountries(country.labelKey)}
+                  </option>
+                ))}
+              </select>
+              {fieldErrors.countryCode ? <FieldError>{fieldErrors.countryCode}</FieldError> : null}
+            </Field>
+
             <Field data-invalid={fieldErrors.phone ? true : undefined} className="gap-2">
               <FieldLabel htmlFor={phoneId}>{t('phone')}</FieldLabel>
               <div className="relative">

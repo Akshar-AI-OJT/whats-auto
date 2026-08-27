@@ -1,14 +1,8 @@
 import db from '@adonisjs/lucid/services/db'
 import ContactException from '#exceptions/contact_exception'
+import { normalizeContactPhone } from '#lib/contact_phone'
 
-/** Digits-only form used for unique matching (org + phoneNormalized). */
-export function normalizeContactPhone(phone: string): string {
-  const digits = phone.replace(/\D/g, '')
-  if (!digits) {
-    throw ContactException.invalidPhone()
-  }
-  return digits
-}
+export { normalizeContactPhone }
 
 /** Postgres unique_violation, including Knex/Lucid-wrapped errors. */
 function isUniqueViolation(error: unknown): boolean {
@@ -93,13 +87,14 @@ export class ContactService {
   async createContact(params: {
     organizationId: string
     actorUserId: string
-    phone: string
+    phoneNumber: string
+    countryCode?: string
     name?: string
     email?: string
     company?: string
   }) {
-    const { organizationId, actorUserId, phone } = params
-    const phoneNormalized = normalizeContactPhone(phone)
+    const { organizationId, actorUserId, phoneNumber, countryCode } = params
+    const phoneNormalized = normalizeContactPhone(phoneNumber, countryCode)
     const name = params.name?.trim() || null
     const email = params.email?.trim().toLowerCase() || null
     const company = params.company?.trim() || null
@@ -109,7 +104,7 @@ export class ContactService {
         .table('contacts')
         .insert({
           organizationId,
-          phone: phone.trim(),
+          phone: phoneNumber.trim(),
           phoneNormalized,
           name,
           email,
@@ -126,5 +121,42 @@ export class ContactService {
       }
       throw error
     }
+  }
+
+  /**
+   * Soft-delete a contact without removing the row.
+   * History (inbox, campaigns) stays intact; the phone can be reused.
+   */
+  async softDeleteContact(params: {
+    contactId: string
+    organizationId: string
+  }): Promise<{ ok: true }> {
+    const row = await db
+      .from('contacts')
+      .where('id', params.contactId)
+      .where('organizationId', params.organizationId)
+      .select('id', 'deletedAt')
+      .first()
+
+    if (!row) {
+      throw ContactException.notFound()
+    }
+
+    if (row.deletedAt) {
+      throw ContactException.alreadyDeleted()
+    }
+
+    const updated = await db
+      .from('contacts')
+      .where('id', params.contactId)
+      .where('organizationId', params.organizationId)
+      .whereNull('deletedAt')
+      .update({ deletedAt: new Date() })
+
+    if (!updated) {
+      throw ContactException.notFound()
+    }
+
+    return { ok: true }
   }
 }

@@ -58,13 +58,16 @@ export class PlanRepository {
     return (row as PlanRow | undefined) ?? null
   }
 
+  /**
+   * Checkout acceptance SQL — keep in lockstep with `isPlanCheckoutable`
+   * (isActive + price > 0). Gateway plan id is unused for Orders API checkout.
+   */
   async findActiveCheckoutableById(planId: string, client: Db = db): Promise<PlanRow | null> {
     const row = await client
       .from('plans')
       .where('id', planId)
       .where('isActive', true)
-      .where('gateway', 'razorpay')
-      .whereNotNull('gatewayPlanId')
+      .where('price', '>', 0)
       .first()
     return (row as PlanRow | undefined) ?? null
   }

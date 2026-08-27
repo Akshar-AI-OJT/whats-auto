@@ -10,9 +10,11 @@ import { RecentConversations } from './overview/RecentConversations'
 import { RecentCampaigns } from './overview/RecentCampaigns'
 import { QuickActions } from './overview/QuickActions'
 import { RecentActivity } from './overview/RecentActivity'
+import { DashboardOverviewProvider } from './overview/DashboardOverviewProvider'
 
 export function DashboardHome() {
   const t = useTranslations('dashboard')
+  const tHome = useTranslations('dashboard.home')
   const { isLoading } = useAuth()
 
   if (isLoading) {
@@ -20,30 +22,32 @@ export function DashboardHome() {
   }
 
   return (
-    <div className="flex w-full min-w-0 flex-col gap-5 sm:gap-6 xl:gap-7">
-      <WelcomeSection />
-      <OnboardingChecklist />
-      <ConnectWhatsappCard />
-      <KpiGrid />
+    <DashboardOverviewProvider noDetailsLabel={tHome('activity.noDetails')}>
+      <div className="flex w-full min-w-0 flex-col gap-5 sm:gap-6 xl:gap-7">
+        <WelcomeSection />
+        <OnboardingChecklist />
+        <ConnectWhatsappCard />
+        <KpiGrid />
 
-      {/* Stack on mobile + tablet; side-by-side from xl (desktop) */}
-      <div className="grid grid-cols-1 gap-5 sm:gap-6 xl:grid-cols-12 xl:gap-6">
-        <div className="min-w-0 xl:col-span-7">
-          <RecentConversations />
+        {/* Stack on mobile + tablet; side-by-side from xl (desktop) */}
+        <div className="grid grid-cols-1 gap-5 sm:gap-6 xl:grid-cols-12 xl:gap-6">
+          <div className="min-w-0 xl:col-span-7">
+            <RecentConversations />
+          </div>
+          <div className="min-w-0 xl:col-span-5">
+            <RecentCampaigns />
+          </div>
         </div>
-        <div className="min-w-0 xl:col-span-5">
-          <RecentCampaigns />
+
+        <div className="grid grid-cols-1 gap-5 sm:gap-6 xl:grid-cols-12 xl:gap-6">
+          <div className="min-w-0 xl:col-span-7">
+            <QuickActions />
+          </div>
+          <div className="min-w-0 xl:col-span-5">
+            <RecentActivity />
+          </div>
         </div>
       </div>
-
-      <div className="grid grid-cols-1 gap-5 sm:gap-6 xl:grid-cols-12 xl:gap-6">
-        <div className="min-w-0 xl:col-span-7">
-          <QuickActions />
-        </div>
-        <div className="min-w-0 xl:col-span-5">
-          <RecentActivity />
-        </div>
-      </div>
-    </div>
+    </DashboardOverviewProvider>
   )
 }

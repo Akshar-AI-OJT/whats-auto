@@ -3,23 +3,25 @@ import createNextIntlPlugin from 'next-intl/plugin'
 
 const withNextIntl = createNextIntlPlugin('./i18n/request.ts')
 
-/** Local-only rewrite so `next dev` can keep same-origin `/api/*`. */
+/** Server-side rewrite target for `/api/*` when frontend is accessed same-origin. */
 const apiRewriteOrigin =
-  process.env.API_REWRITE_ORIGIN?.replace(/\/$/, '') || 'http://localhost:3333'
+  process.env.API_REWRITE_ORIGIN?.replace(/\/$/, '') ||
+  (process.env.NEXT_PUBLIC_API_URL &&
+  process.env.NEXT_PUBLIC_API_URL !== process.env.NEXT_PUBLIC_APP_URL
+    ? process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, '')
+    : null) ||
+  'http://localhost:3333'
 
 const nextConfig: NextConfig = {
   /** Self-contained Node server for Docker / Contabo (not Vercel serverless). */
   output: 'standalone',
   async rewrites() {
-    if (process.env.NODE_ENV === 'development') {
-      return [
-        {
-          source: '/api/:path*',
-          destination: `${apiRewriteOrigin}/api/:path*`,
-        },
-      ]
-    }
-    return []
+    return [
+      {
+        source: '/api/:path*',
+        destination: `${apiRewriteOrigin}/api/:path*`,
+      },
+    ]
   },
 }
 

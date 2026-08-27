@@ -16,11 +16,12 @@ export default class OrganizationsController {
    * @description Creates the org, makes the caller owner, and sets it as the active organization on the current session.
    * @tag Organizations
    * @security BearerAuth
-   * @requestBody { "name": "Acme Inc", "slug": "acme", "email": "ops@acme.com", "phone": "+919876543210", "organizationType": "company", "address": "221B Baker Street, Mumbai", "pan": "AAAAA0000A", "country": "IN", "timezone": "Asia/Kolkata" }
+   * @requestBody { "name": "Acme Inc", "slug": "acme", "email": "ops@acme.com", "phone": "+919876543210", "organizationType": "company", "address": "221B Baker Street, Mumbai", "country": "IN", "timezone": "Asia/Kolkata" }
    * @responseBody 200 - { "data": { "id": "uuid", "name": "Acme Inc", "slug": "acme", "role": "owner" } }
    * @responseHeader 200 - set-auth-jwt - Reminted access token for the new organization - @type(string)
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 409 - { "error": "Accept or decline your pending invitation before creating an organization", "code": "E_INVITE_PENDING" }
+   * @responseBody 409 - { "error": "Organization slug already in use", "code": "E_ORG_SLUG_ALREADY_EXISTS", "field": "slug" }
    */
   async store({ request, response, serialize }: HttpContext) {
     const payload = await request.validateUsing(createOrganizationValidator)
@@ -31,7 +32,11 @@ export default class OrganizationsController {
         sessionId: request.sessionId!,
         data: payload,
       })
-      await attachRemintedAccessToken({ request, response }, request.sessionId!)
+      // Only remint when the new (or reused) pending org became the active session.
+      // Creating a second workspace must not strand the owner on an unpaid org.
+      if (org.sessionActivated) {
+        await attachRemintedAccessToken({ request, response }, request.sessionId!)
+      }
       return serialize(org)
     } catch (error) {
       return mapRbacError(error, response)

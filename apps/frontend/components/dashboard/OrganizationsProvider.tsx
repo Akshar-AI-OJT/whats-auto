@@ -9,16 +9,10 @@ import {
   getValidAccessToken,
   peekAccessTokenOrgId,
 } from '@/lib/access-token'
+import { ONBOARDING_PAYMENT_PATH } from '@/lib/onboarding'
 import { hasPermission, PERMISSIONS } from '@/lib/rbac'
-
-/** Shared query keys for org-scoped cache invalidation after create/switch. */
-export const organizationQueryKeys = {
-  all: ['organizations'] as const,
-  list: (userId?: string | null) =>
-    [...organizationQueryKeys.all, userId ?? 'anonymous', 'list'] as const,
-  accessContext: (userId?: string | null) =>
-    [...organizationQueryKeys.all, userId ?? 'anonymous', 'access-context'] as const,
-}
+import { queryKeys } from '@/lib/query-keys'
+import { usePathname, useRouter } from '@/i18n/navigation'
 
 const EMPTY_ORGANIZATIONS: OrganizationSummary[] = []
 
@@ -47,6 +41,8 @@ type OrganizationsContextValue = {
   canManageRoles: boolean
   canViewContacts: boolean
   canCreateContacts: boolean
+  canDeleteContacts: boolean
+  canImportContacts: boolean
   canViewInbox: boolean
   canViewWhatsapp: boolean
   canConnectWhatsapp: boolean
@@ -157,6 +153,8 @@ async function ensureAccessTokenForOrganization(organizationId: string): Promise
  */
 export function OrganizationsProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient()
+  const router = useRouter()
+  const pathname = usePathname()
   const { data: sessionData, isPending: sessionPending } = authClient.useSession()
   const sessionOrgId = readSessionOrganizationId(sessionData?.session)
   const isSignedIn = Boolean(sessionData?.user)
@@ -167,7 +165,7 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
   useEffect(() => {
     if (previousUserIdRef.current === userId) return
     previousUserIdRef.current = userId
-    queryClient.removeQueries({ queryKey: organizationQueryKeys.all })
+    queryClient.removeQueries({ queryKey: queryKeys.organizations.all })
   }, [userId, queryClient])
 
   /** Optimistic UI selection while set-active + session remint are in flight. */
@@ -177,7 +175,7 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
   const bootstrapStarted = useRef(false)
 
   const orgsQuery = useQuery({
-    queryKey: organizationQueryKeys.list(userId),
+    queryKey: queryKeys.organizations.list(userId),
     queryFn: fetchOrganizationList,
     enabled: isSignedIn,
   })
@@ -188,7 +186,7 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
   // session.activeOrganizationId — Better Auth client often omits that field briefly
   // after login, which previously left KPIs/switcher stuck forever.
   const accessQuery = useQuery({
-    queryKey: organizationQueryKeys.accessContext(userId),
+    queryKey: queryKeys.organizations.accessContext(userId),
     queryFn: fetchAccessContext,
     enabled: isSignedIn,
   })
@@ -210,6 +208,18 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
     livePendingActiveId && livePendingActiveId !== accessQuery.data?.organizationId
       ? null
       : (accessQuery.data ?? null)
+
+  // Pending orgs must complete payment before using the dashboard.
+  useEffect(() => {
+    if (!accessContext || accessContext.status !== 'pending_setup') return
+    if (
+      pathname.startsWith('/onboarding/payment') ||
+      pathname.startsWith('/onboarding/organization')
+    ) {
+      return
+    }
+    router.replace(ONBOARDING_PAYMENT_PATH)
+  }, [accessContext, pathname, router])
 
   // Reset bootstrap latch when the session drops (logout / account switch).
   useEffect(() => {
@@ -246,7 +256,7 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
         await refreshSharedSession()
         await ensureAccessTokenForOrganization(fallbackId)
         await queryClient.invalidateQueries({
-          queryKey: organizationQueryKeys.accessContext(userId),
+          queryKey: queryKeys.organizations.accessContext(userId),
         })
         setSwitchError(null)
       } catch (err) {
@@ -272,16 +282,16 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
     try {
       await refreshSharedSession()
       const nextOrgs = await queryClient.fetchQuery({
-        queryKey: organizationQueryKeys.list(userId),
+        queryKey: queryKeys.organizations.list(userId),
         queryFn: fetchOrganizationList,
       })
       await queryClient.invalidateQueries({
-        queryKey: organizationQueryKeys.accessContext(userId),
+        queryKey: queryKeys.organizations.accessContext(userId),
       })
 
       const nextSessionOrgId = await refreshSharedSession()
       const access = await queryClient.fetchQuery({
-        queryKey: organizationQueryKeys.accessContext(userId),
+        queryKey: queryKeys.organizations.accessContext(userId),
         queryFn: fetchAccessContext,
       })
       const nextActiveId =
@@ -309,7 +319,7 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
       // omits activeOrganizationId; access-context + JWT are authoritative.
       await refreshSharedSession().catch(() => null)
       await queryClient.invalidateQueries({
-        queryKey: organizationQueryKeys.accessContext(userId),
+        queryKey: queryKeys.organizations.accessContext(userId),
       })
     } catch (err) {
       setSwitchError(errorMessage(err, 'Failed to switch workspace'))
@@ -325,9 +335,7 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
 
   const sessionOrgFromContext = accessContext?.organizationId ?? null
   const activeOrgId = activeOrganization?.id ?? null
-  const orgAligned = Boolean(
-    isSignedIn && activeOrgId && sessionOrgFromContext === activeOrgId
-  )
+  const orgAligned = Boolean(isSignedIn && activeOrgId && sessionOrgFromContext === activeOrgId)
   // Derive readiness when JWT already matches — avoids sync setState in an effect.
   const jwtAlreadyReady = orgAligned && peekAccessTokenOrgId() === activeOrgId
 
@@ -352,8 +360,7 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
     }
   }, [orgAligned, activeOrgId])
 
-  const tokenReadyOrgId =
-    jwtAlreadyReady || remintedForOrgId === activeOrgId ? activeOrgId : null
+  const tokenReadyOrgId = jwtAlreadyReady || remintedForOrgId === activeOrgId ? activeOrgId : null
 
   const tenantOrganizationId =
     sessionOrgFromContext &&
@@ -389,6 +396,8 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
     canManageRoles: hasPermission(permissions, PERMISSIONS.ROLES_MANAGE),
     canViewContacts: hasPermission(permissions, PERMISSIONS.CONTACTS_VIEW),
     canCreateContacts: hasPermission(permissions, PERMISSIONS.CONTACTS_CREATE),
+    canDeleteContacts: hasPermission(permissions, PERMISSIONS.CONTACTS_DELETE),
+    canImportContacts: hasPermission(permissions, PERMISSIONS.CONTACTS_IMPORT),
     canViewInbox: hasPermission(permissions, PERMISSIONS.INBOX_VIEW),
     canViewWhatsapp: hasPermission(permissions, PERMISSIONS.WHATSAPP_VIEW),
     canConnectWhatsapp: hasPermission(permissions, PERMISSIONS.WHATSAPP_CONNECT),

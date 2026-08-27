@@ -17,8 +17,10 @@ type CampaignTableProps = {
   onView: (campaign: Campaign) => void
   onEdit: (campaign: Campaign) => void
   onDuplicate: (campaign: Campaign) => void
+  onChangeStatus?: (campaign: Campaign) => void
   onPause: (campaign: Campaign) => void
   onDelete: (campaign: Campaign) => void
+  timeZone?: string | null
 }
 
 export function CampaignTable({
@@ -31,8 +33,10 @@ export function CampaignTable({
   onView,
   onEdit,
   onDuplicate,
+  onChangeStatus,
   onPause,
   onDelete,
+  timeZone,
 }: CampaignTableProps) {
   const t = useTranslations('dashboard.campaigns')
 
@@ -72,7 +76,7 @@ export function CampaignTable({
                   <button
                     type="button"
                     onClick={() => onView(campaign)}
-                    className="flex items-center gap-2 text-left font-medium text-ink hover:underline"
+                    className="flex cursor-pointer items-center gap-2 text-left font-medium text-ink hover:underline"
                   >
                     <span className="flex size-8 items-center justify-center rounded-lg bg-primary-pale text-positive-deep">
                       <Megaphone className="size-3.5" aria-hidden />
@@ -98,7 +102,7 @@ export function CampaignTable({
                   <span className="text-mute"> ({read}%)</span>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-body">
-                  {formatCampaignDate(campaign.createdAt)}
+                  {formatCampaignDate(campaign.createdAt, timeZone)}
                 </td>
                 <td className="px-4 py-3 text-right">
                   <CampaignActionsMenu
@@ -110,6 +114,9 @@ export function CampaignTable({
                     onView={() => onView(campaign)}
                     onEdit={() => onEdit(campaign)}
                     onDuplicate={() => onDuplicate(campaign)}
+                    onChangeStatus={
+                      onChangeStatus ? () => onChangeStatus(campaign) : undefined
+                    }
                     onPause={() => onPause(campaign)}
                     onDelete={() => onDelete(campaign)}
                   />

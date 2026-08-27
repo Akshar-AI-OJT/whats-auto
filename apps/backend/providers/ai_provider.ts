@@ -5,13 +5,10 @@ import {
   LlmProvider,
 } from '#services/ai/contracts/llm_provider'
 import { MemoryWorkingSetService } from '#services/ai/contracts/memory_working_set_service'
-import { ConversationAiRepository } from '#repositories/conversation_ai_repository'
 import PlatformAiConfigService from '#services/ai/platform_ai_config_service'
 import LlmProviderFactory from '#services/ai/llm_provider_factory'
 import PassthroughRerankerService from '#services/ai/drivers/passthrough_reranker_service'
-import AiDebounceService from '#services/ai/ai_debounce_service'
 import RedisMemoryWorkingSetService from '#services/ai/redis_memory_working_set_service'
-import JobQueueManager from '#services/job_queue/job_queue_manager'
 import TenantRedisStore from '#services/redis/tenant_redis_store'
 
 /**
@@ -40,14 +37,6 @@ export default class AiProvider {
     this.app.container.singleton(PassthroughRerankerService, () => new PassthroughRerankerService())
     this.app.container.singleton(MemoryWorkingSetService, async (resolver) => {
       return new RedisMemoryWorkingSetService(await resolver.make(TenantRedisStore))
-    })
-    this.app.container.singleton(AiDebounceService, async (resolver) => {
-      return new AiDebounceService(
-        await resolver.make(TenantRedisStore),
-        await resolver.make(PlatformAiConfigService),
-        new ConversationAiRepository(),
-        await resolver.make(JobQueueManager)
-      )
     })
   }
 }

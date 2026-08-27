@@ -19,7 +19,7 @@ export default class extends BaseSchema {
       table.text('name').notNullable()
       table.text('category').notNullable() // marketing | utility | authentication
       table.text('language').nullable()
-      table.text('headerType').nullable() // none | text | image | video | document
+      table.text('headerType').nullable() // none | text | image | document
       table.text('headerContent').nullable()
       table.text('headerMediaUrl').nullable()
       table.text('bodyText').notNullable()
