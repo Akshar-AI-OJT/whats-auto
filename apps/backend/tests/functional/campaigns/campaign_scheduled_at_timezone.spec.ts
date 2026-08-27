@@ -2,6 +2,7 @@ import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
 import { randomUUID } from 'node:crypto'
 import db from '@adonisjs/lucid/services/db'
+import { encryptWhatsappAccessToken } from '#lib/meta_whatsapp/access_token_crypto'
 import { CampaignService } from '#services/campaign_service'
 import { createCampaignValidator, scheduleCampaignValidator } from '#validators/campaign'
 import { runWithTenant } from '#services/tenant_context'
@@ -40,6 +41,45 @@ async function seedUser() {
   return id
 }
 
+async function seedTemplateAndConfig(organizationId: string) {
+  return runWithTenant(organizationId, async () => {
+    const [config] = await db
+      .table('whatsapp_configs')
+      .insert({
+        organizationId,
+        phoneNumberId: `pn-tz-${randomUUID().slice(0, 8)}`,
+        wabaId: 'waba-tz',
+        accessToken: encryptWhatsappAccessToken('plain-token-tz'),
+        status: 'connected',
+        connectedAt: new Date(),
+      })
+      .returning(['id'])
+
+    const [template] = await db
+      .table('message_templates')
+      .insert({
+        organizationId,
+        whatsappConfigId: config.id,
+        name: `hello_${randomUUID().slice(0, 6)}`,
+        language: 'en_US',
+        category: 'UTILITY',
+        status: 'approved',
+        bodyText: 'Hello',
+        parameterSchema: {
+          headerNames: [],
+          bodyNames: [],
+          sendable: true,
+        },
+      })
+      .returning(['id'])
+
+    return {
+      whatsappConfigId: config.id as string,
+      messageTemplateId: template.id as string,
+    }
+  })
+}
+
 async function seedRecipient(organizationId: string, campaignId: string) {
   await runWithTenant(organizationId, async () => {
     const phone = `1555${String(Math.floor(Math.random() * 1e7)).padStart(7, '0')}`
@@ -73,7 +113,11 @@ test.group('Campaign scheduledAt timezone', (group) => {
   group.teardown(async () => {
     for (const organizationId of orgIds) {
       await runWithTenant(organizationId, async () => {
+        await db.from('broadcast_recipients').where('organizationId', organizationId).delete()
         await db.from('broadcasts').where('organizationId', organizationId).delete()
+        await db.from('message_templates').where('organizationId', organizationId).delete()
+        await db.from('contacts').where('organizationId', organizationId).delete()
+        await db.from('whatsapp_configs').where('organizationId', organizationId).delete()
       })
       await db.from('organizations').where('id', organizationId).delete()
     }
@@ -142,11 +186,14 @@ test.group('Campaign scheduledAt timezone', (group) => {
     userIds.push(userId)
     const service = new CampaignService()
 
+    const seeded = await seedTemplateAndConfig(organizationId)
     const created = await service.createCampaign({
       organizationId,
       actorUserId: userId,
       name: 'Override zone',
       status: 'draft',
+      messageTemplateId: seeded.messageTemplateId,
+      whatsappConfigId: seeded.whatsappConfigId,
     })
     await seedRecipient(organizationId, created.id)
 
@@ -174,11 +221,14 @@ test.group('Campaign scheduledAt timezone', (group) => {
     userIds.push(userId)
     const service = new CampaignService()
 
+    const seeded = await seedTemplateAndConfig(organizationId)
     const created = await service.createCampaign({
       organizationId,
       actorUserId: userId,
       name: 'Draft then schedule',
       status: 'draft',
+      messageTemplateId: seeded.messageTemplateId,
+      whatsappConfigId: seeded.whatsappConfigId,
     })
     await seedRecipient(organizationId, created.id)
 

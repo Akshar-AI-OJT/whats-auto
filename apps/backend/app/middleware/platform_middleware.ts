@@ -35,6 +35,14 @@ export default class PlatformMiddleware {
       })
 
       if (!versionCheck.ok) {
+        // No platform grant: authenticated tenant (or any non-platform user), not a stale token.
+        if (versionCheck.reason === 'MISSING_GRANT') {
+          return response.forbidden({
+            error: 'Platform access required. Super Admin role is required.',
+            code: 'PLATFORM_ACCESS_DENIED',
+          })
+        }
+
         return response.unauthorized({
           error: 'Access token permissions are stale. Mint a new token.',
           code: 'TOKEN_PERMISSIONS_STALE',

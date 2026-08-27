@@ -36,6 +36,21 @@ async function createOrg() {
   return id
 }
 
+async function seedUser() {
+  const id = randomUUID()
+  await db.table('users').insert({
+    id,
+    name: 'KB Owner',
+    firstname: 'KB',
+    lastname: 'Owner',
+    email: `kb-${id.slice(0, 8)}@example.com`,
+    emailVerified: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  })
+  return id
+}
+
 function createMedia(storage: FakeObjectStorage) {
   return new MediaAssetService(
     new MediaAssetRepository(),
@@ -49,6 +64,7 @@ function createMedia(storage: FakeObjectStorage) {
 
 async function createTxtDocument(params: {
   organizationId: string
+  actorUserId: string
   storage: FakeObjectStorage
   title: string
   text: string
@@ -60,7 +76,7 @@ async function createTxtDocument(params: {
   const body = Buffer.from(params.text)
   const created = await docs.create({
     organizationId: params.organizationId,
-    actorUserId: randomUUID(),
+    actorUserId: params.actorUserId,
     title: params.title,
     sourceType: AiKnowledgeSourceType.FILE_TXT,
     fileName: `${params.title.toLowerCase().replace(/\s+/g, '-')}.txt`,
@@ -93,9 +109,11 @@ test.group('Knowledge ingest', () => {
       llm
     )
 
+    const actorUserId = await seedUser()
     const firstWords = Array.from({ length: 800 }, (_, i) => `alpha${i}`).join(' ')
     const created = await createTxtDocument({
       organizationId,
+      actorUserId,
       storage,
       title: 'Policy',
       text: firstWords,
@@ -167,9 +185,11 @@ test.group('Knowledge ingest', () => {
       llm
     )
 
+    const actorUserId = await seedUser()
     const text = Array.from({ length: 800 }, (_, i) => `beta${i}`).join(' ')
     const created = await createTxtDocument({
       organizationId,
+      actorUserId,
       storage,
       title: 'Hours',
       text,
@@ -206,8 +226,10 @@ test.group('Knowledge ingest', () => {
     const organizationId = await createOrg()
     const storage = new FakeObjectStorage()
     const llm = new FakeLlmProvider()
+    const actorUserId = await seedUser()
     const created = await createTxtDocument({
       organizationId,
+      actorUserId,
       storage,
       title: 'Missing',
       text: 'Open 9-5',

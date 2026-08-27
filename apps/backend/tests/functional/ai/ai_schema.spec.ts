@@ -5,6 +5,7 @@ import { ConversationAiMode } from '#enums/conversation_ai_mode'
 import { AiKnowledgeDocumentStatus } from '#enums/ai_knowledge_document_status'
 import { AiKnowledgeSourceType } from '#enums/ai_knowledge_source_type'
 import { runWithTenant } from '#services/tenant_context'
+import { ensureRlsReaderRole, selectRowsWithRls } from '#tests/helpers/rls_reader'
 
 async function createOrg(label: string) {
   const id = randomUUID()
@@ -30,6 +31,10 @@ async function cleanupOrg(organizationId: string) {
 
 test.group('AI schema', (group) => {
   const orgIds: string[] = []
+
+  group.setup(async () => {
+    await ensureRlsReaderRole()
+  })
 
   group.each.teardown(async () => {
     while (orgIds.length > 0) {
@@ -93,11 +98,9 @@ test.group('AI schema', (group) => {
       })
     )
 
-    const seenByA = await runWithTenant(orgA, () => db.from('ai_knowledge_documents').select('id'))
-    const seenByB = await runWithTenant(orgB, () =>
-      db.from('ai_knowledge_documents').where('id', docA.id).select('id')
-    )
-    const seenWithoutTenant = await db.from('ai_knowledge_documents').select('id')
+    const seenByA = await selectRowsWithRls(orgA, 'ai_knowledge_documents')
+    const seenByB = await selectRowsWithRls(orgB, 'ai_knowledge_documents', { id: docA.id })
+    const seenWithoutTenant = await selectRowsWithRls(null, 'ai_knowledge_documents')
 
     assert.lengthOf(seenByA, 1)
     assert.equal(seenByA[0].id, docA.id)
@@ -157,9 +160,9 @@ test.group('AI schema', (group) => {
       return conversation.id as string
     })
 
-    const seenByB = await runWithTenant(orgB, () =>
-      db.from('ai_usage_logs').where('conversationId', conversationId).select('id')
-    )
+    const seenByB = await selectRowsWithRls(orgB, 'ai_usage_logs', {
+      conversationId,
+    })
     assert.lengthOf(seenByB, 0)
   })
 })

@@ -20,11 +20,12 @@ export default class TagsController {
    * @responseBody 200 - { "data": [{ "id": "uuid", "name": "VIP", "color": "#22C55E", "description": "string", "status": "active", "contactCount": 0, "usedInCampaigns": 0, "createdAt": "2026-08-13T12:00:00.000Z" }] }
    * @responseBody 403 - { "error": "Permission denied: contacts:view", "code": "PERMISSION_DENIED" }
    */
-  async index({ bouncer, request, serialize }: HttpContext) {
+  async index({ bouncer, request }: HttpContext) {
     await bouncer.with(TagPolicy).authorize('viewList')
 
     const tags = await new TagService().listTags(request.activeMember!.organizationId)
-    return serialize(tags)
+    // Plain POJO arrays are not wrapped by ApiSerializer; keep the documented `{ data: [...] }`.
+    return { data: tags }
   }
 
   /**
@@ -151,7 +152,7 @@ export default class TagsController {
    * @responseBody 200 - { "data": [{ "id": "uuid", "phone": "+15551234567", "name": "Ada" }] }
    * @responseBody 404 - { "error": "Tag not found", "code": "E_TAG_NOT_FOUND" }
    */
-  async contacts({ bouncer, request, params, serialize }: HttpContext) {
+  async contacts({ bouncer, request, params }: HttpContext) {
     const { id } = await request.validateUsing(tagIdParamValidator, {
       data: params,
     })
@@ -165,7 +166,7 @@ export default class TagsController {
       organizationId: request.activeMember!.organizationId,
       tagId: id,
     })
-    return serialize(contacts)
+    return { data: contacts }
   }
 
   /**
