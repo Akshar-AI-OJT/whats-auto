@@ -52,7 +52,7 @@ const CURRENCY_MAX = 10
 
 const selectClassName = cn(
   authInputClassName,
-  'h-11 w-full appearance-none rounded-xl px-3.5 text-sm text-ink outline-none'
+  'h-11 w-full cursor-pointer appearance-none rounded-xl px-3.5 text-sm text-ink outline-none'
 )
 
 const readOnlyInputClassName = cn(authInputWithIconClassName, 'bg-dash-surface/70 text-body')

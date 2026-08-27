@@ -152,7 +152,7 @@ export function OnboardingChecklist({ className }: { className?: string }) {
                   <Link
                     href={step.href}
                     className={cn(
-                      'flex items-center gap-3 rounded-xl border border-dash-border bg-canvas px-3.5 py-3',
+                      'flex cursor-pointer items-center gap-3 rounded-xl border border-dash-border bg-canvas px-3.5 py-3',
                       'transition-[border-color,background-color] duration-150 hover:border-dash-border-strong hover:bg-dash-surface'
                     )}
                   >

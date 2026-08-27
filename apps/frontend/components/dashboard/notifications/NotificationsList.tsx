@@ -218,7 +218,7 @@ export function NotificationsList({
                   isPage ? 'rounded-2xl border border-dash-border px-4 py-3.5' : 'rounded-xl px-2.5 py-2.5',
                   isUnread
                     ? 'cursor-pointer bg-dash-surface/80 hover:bg-dash-hover'
-                    : 'cursor-default hover:bg-dash-surface',
+                    : 'cursor-not-allowed hover:bg-dash-surface',
                   isMarking && 'opacity-70'
                 )}
               >

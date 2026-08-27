@@ -37,6 +37,8 @@ export type CampaignCardProps = {
   deliveredPercent: number | null
   progress: number
   actions?: CampaignCardAction[]
+  /** Whole-card click (e.g. open campaign). Menu actions stop propagation. */
+  onClick?: () => void
   className?: string
 }
 
@@ -89,6 +91,7 @@ export function CampaignCard({
   deliveredPercent,
   progress,
   actions = [],
+  onClick,
   className,
 }: CampaignCardProps) {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -127,11 +130,25 @@ export function CampaignCard({
 
   return (
     <article
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={onClick}
+      onKeyDown={
+        onClick
+          ? (event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                onClick()
+              }
+            }
+          : undefined
+      }
       className={cn(
         'group relative rounded-2xl border border-dash-border/80 bg-dash-surface/60 px-3.5 py-3.5',
         'transition-[background-color,border-color,box-shadow,transform] duration-200 ease-out',
         'hover:-translate-y-px hover:border-dash-border-strong hover:bg-canvas',
         'hover:shadow-[0_8px_20px_rgb(15_23_42/0.05)]',
+        onClick && 'cursor-pointer',
         className
       )}
     >
@@ -160,9 +177,12 @@ export function CampaignCard({
                 aria-expanded={menuOpen}
                 aria-controls={menuId}
                 aria-label="Campaign actions"
-                onClick={() => setMenuOpen((open) => !open)}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  setMenuOpen((open) => !open)
+                }}
                 className={cn(
-                  'inline-flex size-7 items-center justify-center rounded-lg text-mute',
+                  'inline-flex size-7 cursor-pointer items-center justify-center rounded-lg text-mute',
                   'transition-[background-color,color,opacity] duration-150',
                   'opacity-70 hover:bg-canvas-soft hover:text-ink hover:opacity-100',
                   'group-hover:opacity-100',
@@ -192,7 +212,8 @@ export function CampaignCard({
                             ? 'text-negative hover:bg-dash-danger-soft'
                             : 'text-ink hover:bg-dash-surface'
                         )}
-                        onClick={() => {
+                        onClick={(event) => {
+                          event.stopPropagation()
                           setMenuOpen(false)
                           action.onSelect?.()
                         }}

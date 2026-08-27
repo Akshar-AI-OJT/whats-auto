@@ -16,7 +16,7 @@ import type {
 import { FLOW_HANDOVER_KEYWORD_LIMITS } from './flow-canvas-graph'
 
 const selectClassName = cn(
-  'h-11 w-full rounded-xl border border-dash-border bg-canvas px-3 text-sm text-ink outline-none',
+  'h-11 w-full cursor-pointer rounded-xl border border-dash-border bg-canvas px-3 text-sm text-ink outline-none',
   'focus-visible:border-primary/55 focus-visible:ring-2 focus-visible:ring-primary/30',
   'disabled:cursor-not-allowed disabled:opacity-60'
 )

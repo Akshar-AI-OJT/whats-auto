@@ -11,19 +11,21 @@ export const authInputWithIconClassName = cn(authInputClassName, 'pl-11')
 
 /** Primary CTA — brand blue accent on the action itself. */
 export const authPrimaryButtonClassName = cn(
-  'w-full border-transparent text-on-primary',
+  'w-full cursor-pointer border-transparent text-on-primary',
   'bg-gradient-to-b from-primary-active to-primary',
   'shadow-[0_1px_2px_rgb(14_15_12/0.06),0_8px_18px_rgb(37_99_235/0.28)]',
   'transition-[transform,box-shadow,background] duration-200',
   'hover:-translate-y-px hover:from-primary hover:to-primary-neutral',
   'hover:shadow-[0_2px_4px_rgb(14_15_12/0.06),0_12px_24px_rgb(37_99_235/0.32)]',
   'active:translate-y-0 active:shadow-[0_1px_2px_rgb(14_15_12/0.06),0_6px_12px_rgb(37_99_235/0.22)]',
-  'focus-visible:ring-primary/40'
+  'focus-visible:ring-primary/40',
+  'disabled:cursor-not-allowed'
 )
 
 export const authOutlineButtonClassName = cn(
-  'w-full border-[#E2E8F0] bg-canvas hover:border-[#CBD5E1] hover:bg-[#F8FAFC] hover:shadow-sm',
-  'active:bg-[#F1F5F9] focus-visible:ring-primary/40'
+  'w-full cursor-pointer border-[#E2E8F0] bg-canvas hover:border-[#CBD5E1] hover:bg-[#F8FAFC] hover:shadow-sm',
+  'active:bg-[#F1F5F9] focus-visible:ring-primary/40',
+  'disabled:cursor-not-allowed'
 )
 
 export const authDividerClassName =
