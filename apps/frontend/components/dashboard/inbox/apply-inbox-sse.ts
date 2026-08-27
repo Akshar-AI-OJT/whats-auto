@@ -121,6 +121,17 @@ export function applyInboxSseToConversation(
       ...conversation,
       aiMode: 'HANDOVER',
       aiHandoverReason: aiHandoverReasonFromSse(event.payload),
+      automationBlocked: true,
+    }
+  }
+
+  if (event.type === 'conversation.ai_mode.updated') {
+    return {
+      ...conversation,
+      aiMode: event.payload.aiMode,
+      aiHandoverReason: event.payload.aiHandoverReason,
+      automationBlocked: event.payload.automationBlocked,
+      openFlowSessionStatus: event.payload.openFlowSessionStatus,
     }
   }
 
@@ -181,6 +192,10 @@ export function applyInboxSseToMessages(
     return { messages, missingMessage: false }
   }
 
+  if (event.type === 'conversation.ai_mode.updated') {
+    return { messages, missingMessage: false }
+  }
+
   const status = lifecycleStatus(event)
   if (!status) return { messages, missingMessage: false }
 
@@ -233,7 +248,7 @@ export function applyInboxSseToList(
   const conversationId = event.payload.conversationId
   const index = conversations.findIndex((conversation) => conversation.id === conversationId)
 
-  if (event.type === 'ai.handover.triggered') {
+  if (event.type === 'ai.handover.triggered' || event.type === 'conversation.ai_mode.updated') {
     if (index < 0) return { conversations, fetchConversationId: null, notifyNewActivity: false }
     const updated = applyInboxSseToConversation(conversations[index]!, event)
     const next = conversations.slice()

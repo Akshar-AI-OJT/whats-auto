@@ -18,6 +18,7 @@ import KnowledgeRetrievalService, {
 import { matchHandoverKeyword } from '#services/ai/match_handover_keywords'
 import PlatformAiConfigService from '#services/ai/platform_ai_config_service'
 import { publishInboxAiEvent } from '#services/ai/publish_inbox_ai_sse'
+import { publishConversationAiModeUpdated } from '#services/ai/publish_conversation_ai_mode_sse'
 import FlowOutboundAdapter from '#services/flow/flow_outbound_adapter'
 import { runWithTenant } from '#services/tenant_context'
 
@@ -322,6 +323,13 @@ export default class FlowAiOrchestrator {
         usage: params.usage,
       })
     )
+
+    await publishConversationAiModeUpdated({
+      organizationId: params.organizationId,
+      conversationId: params.conversationId,
+      conversations: this.conversations,
+      publish: this.publishAi,
+    })
 
     if (!params.usage) return
     try {

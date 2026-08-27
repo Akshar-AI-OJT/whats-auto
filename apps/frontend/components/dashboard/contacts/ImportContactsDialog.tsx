@@ -52,7 +52,7 @@ type WizardStep = 1 | 2 | 3 | 4
 type Screen = WizardStep | 'result'
 
 const SELECT_CLASS = cn(
-  'h-12 w-full appearance-none rounded-md border border-ink bg-canvas px-4 text-base leading-5 text-ink outline-none',
+  'h-12 w-full cursor-pointer appearance-none rounded-md border border-ink bg-canvas px-4 text-base leading-5 text-ink outline-none',
   'hover:border-body focus-visible:border-ink focus-visible:ring-2 focus-visible:ring-primary/50',
   'disabled:cursor-not-allowed disabled:border-border disabled:bg-canvas-soft disabled:text-mute'
 )

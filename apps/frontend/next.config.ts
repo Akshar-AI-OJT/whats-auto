@@ -13,6 +13,8 @@ const apiRewriteOrigin =
   'http://localhost:3333'
 
 const nextConfig: NextConfig = {
+  /** Produces a minimal, self-contained `.next/standalone` server for Docker. */
+  output: 'standalone',
   async rewrites() {
     return [
       {

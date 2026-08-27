@@ -18,7 +18,7 @@ function Input({ className, type, ...props }: React.ComponentProps<'input'>) {
         'aria-invalid:border-negative aria-invalid:hover:border-negative aria-invalid:ring-2 aria-invalid:ring-negative/20 aria-invalid:focus-visible:ring-negative/25',
         /* Hide Edge/Chrome native password reveal so custom Eye/EyeOff is the only toggle */
         '[&::-ms-reveal]:hidden [&::-ms-clear]:hidden',
-        'file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-ink',
+        'file:inline-flex file:h-7 file:cursor-pointer file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-ink',
         className
       )}
       {...props}

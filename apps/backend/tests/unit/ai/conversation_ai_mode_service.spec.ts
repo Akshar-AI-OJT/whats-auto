@@ -44,6 +44,9 @@ function createService(aiMode: string) {
       terminated.push(params.conversationId)
       return 1
     },
+    async findOpenForConversation() {
+      return null
+    },
   } as unknown as FlowSessionRepository
 
   const inboundBuffer = {

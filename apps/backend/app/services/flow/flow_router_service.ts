@@ -1,7 +1,10 @@
+import logger from '@adonisjs/core/services/logger'
+import { ConversationAiMode } from '#enums/conversation_ai_mode'
 import { FlowStatus } from '#enums/flow_status'
 import { FlowSessionStatus } from '#enums/flow_session_status'
 import { FlowTriggerType } from '#enums/flow_trigger_type'
 import { parseTriggerConfig, type FlowTriggerConfig } from '#lib/flow/flow_graph'
+import { ConversationAiRepository } from '#repositories/conversation_ai_repository'
 import { FlowRepository, type FlowRow } from '#repositories/flow_repository'
 import { FlowSessionRepository } from '#repositories/flow_session_repository'
 import type { FlowAdvanceSessionJobPayload } from '#services/flow/contracts/flow_job_payloads'
@@ -26,17 +29,31 @@ export type FlowRouteDecision =
 
 /**
  * Decides whether inbound traffic continues an active flow, starts a published
- * flow from a trigger, or should fall through to AI debounce.
+ * flow from a trigger, or should fall through (no automatic reply).
+ *
+ * Strict gate ([D62](docs/decisions.md)): flows run only when aiMode === AI_AUTO
+ * and there is no open PAUSED_FOR_HUMAN session.
  */
 export default class FlowRouterService {
   constructor(
     private sessions: FlowSessionRepository = new FlowSessionRepository(),
     private flows: FlowRepository = new FlowRepository(),
-    private lifecycle: FlowSessionLifecycleService = new FlowSessionLifecycleService()
+    private lifecycle: FlowSessionLifecycleService = new FlowSessionLifecycleService(),
+    private conversations: ConversationAiRepository = new ConversationAiRepository()
   ) {}
 
   async decide(inbound: FlowInboundMessage): Promise<FlowRouteDecision> {
     return runWithTenant(inbound.organizationId, async () => {
+      const conversation = await this.conversations.findById({
+        organizationId: inbound.organizationId,
+        conversationId: inbound.conversationId,
+      })
+      const aiMode = conversation?.aiMode ?? ConversationAiMode.AI_AUTO
+
+      if (aiMode !== ConversationAiMode.AI_AUTO) {
+        return { kind: 'none' }
+      }
+
       const open = await this.sessions.findOpenForConversation({
         organizationId: inbound.organizationId,
         conversationId: inbound.conversationId,
@@ -44,6 +61,16 @@ export default class FlowRouterService {
 
       if (open) {
         if (open.status === FlowSessionStatus.PAUSED_FOR_HUMAN) {
+          // Orphan pause: AI_AUTO but session still blocked (stale before D56 / race).
+          logger.info(
+            {
+              organizationId: inbound.organizationId,
+              conversationId: inbound.conversationId,
+              sessionId: open.id,
+              aiMode,
+            },
+            'flow.router.blocked_orphan_pause'
+          )
           return { kind: 'none' }
         }
         const decision = await this.lifecycle.inboundDecision(open)

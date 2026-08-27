@@ -66,7 +66,7 @@ function CardActions({
       <button
         id={buttonId}
         type="button"
-        className="inline-flex size-8 items-center justify-center rounded-lg text-mute transition-colors hover:bg-dash-surface hover:text-ink"
+        className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-mute transition-colors hover:bg-dash-surface hover:text-ink"
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={t('menuAria')}
@@ -147,13 +147,20 @@ function TemplateCard({
   const statusLabel = key ? t(`status.${key}`) : template.status
 
   return (
-    <article className="flex flex-col rounded-2xl border border-dash-border bg-canvas p-4 transition-colors hover:border-dash-border-strong">
+    <article
+      role="button"
+      tabIndex={0}
+      onClick={onView}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          onView()
+        }
+      }}
+      className="flex cursor-pointer flex-col rounded-2xl border border-dash-border bg-canvas p-4 transition-colors hover:border-dash-border-strong"
+    >
       <div className="flex items-start justify-between gap-3">
-        <button
-          type="button"
-          className="flex min-w-0 flex-1 cursor-pointer items-start gap-3 text-left"
-          onClick={onView}
-        >
+        <div className="flex min-w-0 flex-1 items-start gap-3 text-left">
           <span className="mt-0.5 flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary-pale text-positive-deep">
             <FileText className="size-4" aria-hidden />
           </span>
@@ -163,13 +170,18 @@ function TemplateCard({
               {truncatePreview(template.bodyText, 110)}
             </span>
           </span>
-        </button>
-        <CardActions
-          canManage={canManage}
-          onView={onView}
-          onDuplicate={onDuplicate}
-          onDelete={onDelete}
-        />
+        </div>
+        <div
+          onClick={(event) => event.stopPropagation()}
+          onKeyDown={(event) => event.stopPropagation()}
+        >
+          <CardActions
+            canManage={canManage}
+            onView={onView}
+            onDuplicate={onDuplicate}
+            onDelete={onDelete}
+          />
+        </div>
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">

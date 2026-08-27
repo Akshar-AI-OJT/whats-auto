@@ -13,7 +13,6 @@ export const PLAN_FEATURE_CATEGORIES = [
 const planLimitsSchema = vine.object({
   users: vine.number().withoutDecimals().min(0).nullable().optional(),
   messagesPerMonth: vine.number().withoutDecimals().min(0).nullable().optional(),
-  workspaces: vine.number().withoutDecimals().min(0).nullable().optional(),
 })
 
 const planFeatureSchema = vine.object({

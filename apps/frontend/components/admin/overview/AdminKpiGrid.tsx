@@ -83,24 +83,28 @@ export function AdminKpiGrid() {
       icon: Building2,
       value: totalOrgs,
       trend: 'neutral' as const,
+      href: '/admin/organizations',
     },
     {
       key: 'activeOrganizations' as const,
       icon: Building,
       value: activeOrgs.length,
       trend: 'neutral' as const,
+      href: '/admin/organizations',
     },
     {
       key: 'trialOrganizations' as const,
       icon: Sparkles,
       value: trialCount,
       trend: 'neutral' as const,
+      href: '/admin/subscriptions',
     },
     {
       key: 'suspendedOrganizations' as const,
       icon: PauseCircle,
       value: suspendedOrgs.length,
       trend: 'neutral' as const,
+      href: '/admin/organizations',
     },
     {
       key: 'totalPlatformUsers' as const,
@@ -108,6 +112,7 @@ export function AdminKpiGrid() {
       value: '—' as string,
       format: 'plain' as const,
       trend: 'neutral' as const,
+      href: '/admin/platform-users',
     },
     {
       key: 'monthlyRevenue' as const,
@@ -115,6 +120,7 @@ export function AdminKpiGrid() {
       value: invoiceSummary?.thisMonthAmount ?? 0,
       prefix: '$',
       trend: 'neutral' as const,
+      href: '/admin/invoices',
     },
     {
       key: 'activeWhatsappNumbers' as const,
@@ -122,6 +128,7 @@ export function AdminKpiGrid() {
       value: '—' as string,
       format: 'plain' as const,
       trend: 'neutral' as const,
+      href: '/admin/analytics',
     },
     {
       key: 'pendingSupportTickets' as const,
@@ -144,6 +151,7 @@ export function AdminKpiGrid() {
           trend={item.trend}
           hint={t(`${item.key}.hint`)}
           icon={item.icon}
+          href={'href' in item ? item.href : undefined}
           className="h-full"
         />
       ))}

@@ -223,7 +223,8 @@ export function DashboardSidebarNav({
         type="button"
         title={collapsed ? `${label} — ${t('comingSoon')}` : t('comingSoon')}
         aria-label={collapsed ? `${label} — ${t('comingSoon')}` : undefined}
-        className={cn(itemClass, 'cursor-default opacity-80')}
+        className={cn(itemClass, 'cursor-not-allowed opacity-80')}
+        aria-disabled="true"
         onClick={(e) => e.preventDefault()}
       >
         <span className={iconWrap}>

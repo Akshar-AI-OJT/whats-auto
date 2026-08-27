@@ -18,7 +18,7 @@ test.group('PlanService', () => {
       billingPeriod: 'monthly',
       status: 'active',
       trialDays: 14,
-      limits: { users: 10, messagesPerMonth: 1000, workspaces: 2 },
+      limits: { users: 10, messagesPerMonth: 1000 },
       features: [{ key: 'campaigns', name: 'campaigns', enabled: true, category: 'automation' }],
     })
 

@@ -8,12 +8,12 @@ import '#types/http'
 export default class ConversationAiController {
   /**
    * @takeover
-   * @summary Take over a conversation from AI
-   * @description Sets aiMode to HUMAN_ACTIVE and cancels a pending debounce job. Requires inbox:reply.
+   * @summary Take over a conversation from automation
+   * @description Sets aiMode to HUMAN_ACTIVE, pauses open flow sessions, and cancels a pending advance job. Requires inbox:reply.
    * @tag Inbox Conversations
    * @security BearerAuth
    * @paramPath id - Conversation id - @type(string)
-   * @responseBody 200 - { "data": { "id": "uuid", "aiMode": "HUMAN_ACTIVE", "aiHandoverReason": "takeover" } }
+   * @responseBody 200 - { "data": { "id": "uuid", "aiMode": "HUMAN_ACTIVE", "aiHandoverReason": "takeover", "automationBlocked": true, "openFlowSessionStatus": "PAUSED_FOR_HUMAN" } }
    * @responseBody 404 - { "error": "Conversation not found", "code": "E_CONVERSATION_NOT_FOUND" }
    * @responseBody 422 - { "error": "Conversation AI mode cannot change that way", "code": "E_CONVERSATION_AI_TRANSITION" }
    * @responseBody 403 - { "error": "Permission denied: inbox:reply", "code": "PERMISSION_DENIED" }
@@ -30,7 +30,12 @@ export default class ConversationAiController {
 
     await bouncer.with(ConversationPolicy).authorize('takeoverAi', existing)
 
-    const conversation = await new ConversationAiModeService().takeover({
+    await new ConversationAiModeService().takeover({
+      organizationId: request.activeMember!.organizationId,
+      conversationId: id,
+    })
+
+    const conversation = await new ConversationService().getConversationById({
       organizationId: request.activeMember!.organizationId,
       conversationId: id,
     })
@@ -39,17 +44,19 @@ export default class ConversationAiController {
       id: conversation.id,
       aiMode: conversation.aiMode,
       aiHandoverReason: conversation.aiHandoverReason,
+      automationBlocked: conversation.automationBlocked,
+      openFlowSessionStatus: conversation.openFlowSessionStatus,
     })
   }
 
   /**
    * @resume
-   * @summary Resume AI auto-reply
-   * @description Sets aiMode to AI_AUTO from HANDOVER or HUMAN_ACTIVE. Requires inbox:reply.
+   * @summary Resume automation for a conversation
+   * @description Sets aiMode to AI_AUTO from HANDOVER or HUMAN_ACTIVE (or repairs orphan pause while already AI_AUTO). Requires inbox:reply.
    * @tag Inbox Conversations
    * @security BearerAuth
    * @paramPath id - Conversation id - @type(string)
-   * @responseBody 200 - { "data": { "id": "uuid", "aiMode": "AI_AUTO", "aiHandoverReason": "" } }
+   * @responseBody 200 - { "data": { "id": "uuid", "aiMode": "AI_AUTO", "aiHandoverReason": null, "automationBlocked": false, "openFlowSessionStatus": null } }
    * @responseBody 404 - { "error": "Conversation not found", "code": "E_CONVERSATION_NOT_FOUND" }
    * @responseBody 422 - { "error": "Conversation AI mode cannot change that way", "code": "E_CONVERSATION_AI_TRANSITION" }
    * @responseBody 403 - { "error": "Permission denied: inbox:reply", "code": "PERMISSION_DENIED" }
@@ -66,7 +73,12 @@ export default class ConversationAiController {
 
     await bouncer.with(ConversationPolicy).authorize('resumeAi', existing)
 
-    const conversation = await new ConversationAiModeService().resume({
+    await new ConversationAiModeService().resume({
+      organizationId: request.activeMember!.organizationId,
+      conversationId: id,
+    })
+
+    const conversation = await new ConversationService().getConversationById({
       organizationId: request.activeMember!.organizationId,
       conversationId: id,
     })
@@ -75,6 +87,8 @@ export default class ConversationAiController {
       id: conversation.id,
       aiMode: conversation.aiMode,
       aiHandoverReason: conversation.aiHandoverReason,
+      automationBlocked: conversation.automationBlocked,
+      openFlowSessionStatus: conversation.openFlowSessionStatus,
     })
   }
 }

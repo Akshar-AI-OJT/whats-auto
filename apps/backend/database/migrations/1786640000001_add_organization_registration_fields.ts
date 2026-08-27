@@ -1,7 +1,7 @@
 import { BaseSchema } from '@adonisjs/lucid/schema'
 
 /**
- * Organization master-data fields collected during workspace registration.
+ * Organization master-data fields collected during organization registration.
  * Columns are nullable so existing organizations remain readable/writable;
  * create-organization validation requires them for new tenants.
  */

@@ -39,7 +39,7 @@ function mapActionError(apiError: ApiError, t: (key: string) => string): string 
 }
 
 const selectClassName = cn(
-  'h-9 w-full appearance-none rounded-lg border border-dash-border bg-canvas pl-8 pr-8 text-xs font-medium text-ink outline-none',
+  'h-9 w-full cursor-pointer appearance-none rounded-lg border border-dash-border bg-canvas pl-8 pr-8 text-xs font-medium text-ink outline-none',
   'transition-[border-color,box-shadow]',
   'hover:border-dash-border-strong',
   'focus-visible:border-primary/55 focus-visible:ring-2 focus-visible:ring-primary/30',
@@ -69,8 +69,13 @@ export function InboxConversationActions({
   const isClosed = conversation.status === 'closed'
   const busy = pendingAction !== null || orgsLoading
   const aiMode = conversationAiMode(conversation)
-  const showTakeover = canReply && (aiMode === 'AI_AUTO' || aiMode === 'HANDOVER')
-  const showResume = canReply && (aiMode === 'HANDOVER' || aiMode === 'HUMAN_ACTIVE')
+  const orphanPause =
+    aiMode === 'AI_AUTO' &&
+    (conversation.automationBlocked === true ||
+      conversation.openFlowSessionStatus === 'PAUSED_FOR_HUMAN')
+  const showTakeover = canReply && (aiMode === 'AI_AUTO' || aiMode === 'HANDOVER') && !orphanPause
+  const showResume =
+    canReply && (aiMode === 'HANDOVER' || aiMode === 'HUMAN_ACTIVE' || orphanPause)
   const activeStatus: 'open' | 'pending' =
     conversation.status === 'pending' ? 'pending' : 'open'
 

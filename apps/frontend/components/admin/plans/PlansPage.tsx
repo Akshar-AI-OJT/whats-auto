@@ -36,7 +36,7 @@ import type { PlanStatus, SubscriptionPlan } from './types'
 import { PLAN_STATUSES } from './types'
 
 const selectClassName = cn(
-  'h-11 w-full min-w-0 rounded-xl border border-dash-border bg-canvas px-3 text-sm text-ink outline-none',
+  'h-11 w-full min-w-0 cursor-pointer rounded-xl border border-dash-border bg-canvas px-3 text-sm text-ink outline-none',
   'transition-[border-color,box-shadow] duration-200',
   'hover:border-dash-border-strong',
   'focus-visible:border-primary/55 focus-visible:ring-2 focus-visible:ring-primary/30'
@@ -318,10 +318,6 @@ export function PlansPage() {
                             <p>
                               {t('limits.messages')}:{' '}
                               {formatLimit(plan.limits.messagesPerMonth, t('unlimited'))}
-                            </p>
-                            <p>
-                              {t('limits.workspaces')}:{' '}
-                              {formatLimit(plan.limits.workspaces, t('unlimited'))}
                             </p>
                           </td>
                           <td className="px-4 py-3 text-sm tabular-nums text-ink">

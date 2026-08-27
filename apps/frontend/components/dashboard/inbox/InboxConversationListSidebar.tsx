@@ -19,10 +19,10 @@ import { hasPermission, PERMISSIONS } from '@/lib/rbac'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { WorkspaceAvatar } from '@/components/dashboard/WorkspaceSwitcher'
+import { OrganizationAvatar } from '@/components/dashboard/OrganizationSwitcher'
 import { InboxNewConversationSheet } from './InboxNewConversationSheet'
 import { InboxAiModePill } from './InboxAiModePill'
-import { useInboxWorkspace } from './InboxWorkspaceContext'
+import { useInboxOrganization } from './InboxOrganizationContext'
 import {
   applyInboxSseToList,
   upsertConversationInList,
@@ -98,7 +98,7 @@ export function InboxConversationListSidebar({
     permissions,
     isLoading: orgsLoading,
   } = useOrganizations()
-  const { subscribeInboxEvents, conversation: workspaceConversation } = useInboxWorkspace()
+  const { subscribeInboxEvents, conversation: inboxConversation } = useInboxOrganization()
 
   const canCreate =
     hasPermission(permissions, PERMISSIONS.INBOX_VIEW) &&
@@ -266,16 +266,16 @@ export function InboxConversationListSidebar({
   const lastPage = meta?.lastPage ?? 1
   const visibleConversations = useMemo(() => {
     const base = tenantOrganizationId ? conversations : []
-    if (!workspaceConversation) return base
+    if (!inboxConversation) return base
     return base.map((row) =>
-      row.id === workspaceConversation.id
+      row.id === inboxConversation.id
         ? mergeConversationUpdate(row, {
-            aiMode: workspaceConversation.aiMode,
-            aiHandoverReason: workspaceConversation.aiHandoverReason,
+            aiMode: inboxConversation.aiMode,
+            aiHandoverReason: inboxConversation.aiHandoverReason,
           })
         : row
     )
-  }, [conversations, tenantOrganizationId, workspaceConversation])
+  }, [conversations, tenantOrganizationId, inboxConversation])
   const total = meta?.total ?? visibleConversations.length
   const listBusy = orgsLoading || !tenantOrganizationId || listQuery.isLoading
 
@@ -444,7 +444,7 @@ export function InboxConversationListSidebar({
                     )}
                     aria-current={isSelected ? 'page' : undefined}
                   >
-                    <WorkspaceAvatar
+                    <OrganizationAvatar
                       initials={contactInitials(conversation)}
                       size="md"
                       className="rounded-lg"

@@ -168,7 +168,7 @@ export function AddContactSheet({ open, onOpenChange, onCreated }: AddContactShe
                 disabled={pending}
                 aria-invalid={fieldErrors.countryCode ? true : undefined}
                 className={cn(
-                  'h-12 w-full appearance-none rounded-md border border-ink bg-canvas px-4 text-base leading-5 text-ink outline-none',
+                  'h-12 w-full cursor-pointer appearance-none rounded-md border border-ink bg-canvas px-4 text-base leading-5 text-ink outline-none',
                   'hover:border-body focus-visible:border-ink focus-visible:ring-2 focus-visible:ring-primary/50',
                   'disabled:cursor-not-allowed disabled:border-border disabled:bg-canvas-soft disabled:text-mute',
                   !countryCode && 'text-mute'

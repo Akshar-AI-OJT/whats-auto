@@ -67,7 +67,7 @@ export function OnboardingChecklist({ className }: { className?: string }) {
   const configsQuery = useWhatsappConfigs()
   const whatsappConnected = Boolean(configsQuery.data?.isConnected)
 
-  // Same source of truth as the workspace switcher: never claim a workspace
+  // Same source of truth as the organization switcher: never claim an organization
   // exists unless the organizations API reports one.
   if (dismissed || !hasOrganizations) return null
 
@@ -120,7 +120,7 @@ export function OnboardingChecklist({ className }: { className?: string }) {
           </span>
           <span className="min-w-0">
             <span className="block text-sm font-semibold text-positive-deep">
-              {t('completed.workspace')}
+              {t('completed.organization')}
             </span>
             {activeOrganization ? (
               <span className="mt-0.5 block truncate text-xs text-mute">
@@ -152,7 +152,7 @@ export function OnboardingChecklist({ className }: { className?: string }) {
                   <Link
                     href={step.href}
                     className={cn(
-                      'flex items-center gap-3 rounded-xl border border-dash-border bg-canvas px-3.5 py-3',
+                      'flex cursor-pointer items-center gap-3 rounded-xl border border-dash-border bg-canvas px-3.5 py-3',
                       'transition-[border-color,background-color] duration-150 hover:border-dash-border-strong hover:bg-dash-surface'
                     )}
                   >
