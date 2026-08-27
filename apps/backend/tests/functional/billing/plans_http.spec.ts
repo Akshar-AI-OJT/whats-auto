@@ -90,7 +90,7 @@ test.group('Super-admin plans HTTP', (group) => {
         billingPeriod: 'custom',
         status: 'draft',
         trialDays: 0,
-        limits: { users: 5, messagesPerMonth: 100, workspaces: 1 },
+        limits: { users: 5, messagesPerMonth: 100 },
         features: [
           {
             key: 'whatsappMessaging',

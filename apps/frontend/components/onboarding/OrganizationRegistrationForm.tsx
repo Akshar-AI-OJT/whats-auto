@@ -48,7 +48,7 @@ import {
   SubscriptionPlanSelectionStep,
   type OnboardingCheckoutablePlanSelection,
 } from './SubscriptionPlanSelectionStep'
-import { WorkspacePreferencesStep } from './WorkspacePreferencesStep'
+import { OrganizationPreferencesStep } from './OrganizationPreferencesStep'
 import { OrganizationStepper } from './OrganizationStepper'
 import type {
   OrganizationWizardBasicsErrors,
@@ -107,7 +107,7 @@ export function OrganizationRegistrationForm({
   const [guardingInvite, setGuardingInvite] = useState(true)
 
   // Only bounce invitees / platform superadmins. Users who already have a
-  // workspace (Create workspace from the switcher) must stay on this page.
+  // organization (Create organization from the switcher) must stay on this page.
   useEffect(() => {
     let cancelled = false
     ;(async () => {
@@ -474,7 +474,7 @@ export function OrganizationRegistrationForm({
           ) : null}
 
           {step === 3 ? (
-            <WorkspacePreferencesStep
+            <OrganizationPreferencesStep
               state={state}
               errors={preferencesErrors}
               pending={pending}

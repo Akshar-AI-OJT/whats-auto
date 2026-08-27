@@ -144,7 +144,7 @@ function RequiredMark({ label }: { label: string }) {
   )
 }
 
-export function WorkspaceSettingsPage() {
+export function OrganizationSettingsPage() {
   const t = useTranslations('dashboard.settings')
   const tIndustries = useTranslations('onboarding.organization.step2.industries')
   const tOrgTypes = useTranslations('onboarding.organization.step2.organizationTypes')
@@ -184,7 +184,7 @@ export function WorkspaceSettingsPage() {
   const formErrorId = useId()
   const successId = useId()
 
-  // Reset form when the active organization changes (e.g. workspace switch).
+  // Reset form when the active organization changes (e.g. organization switch).
   // Adjust state during render (React-recommended) instead of a syncing effect.
   const activeOrgId = activeOrganization?.id ?? null
   const [prevOrgId, setPrevOrgId] = useState(activeOrgId)
@@ -906,18 +906,18 @@ export function WorkspaceSettingsPage() {
           <div
             role="alertdialog"
             aria-modal="true"
-            aria-labelledby="delete-workspace-title"
-            aria-describedby="delete-workspace-desc"
+            aria-labelledby="delete-organization-title"
+            aria-describedby="delete-organization-desc"
             className="w-full max-w-md rounded-2xl border border-dash-border bg-canvas p-5 shadow-[0_20px_50px_rgb(15_23_42/0.18)] sm:p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <h2
-              id="delete-workspace-title"
+              id="delete-organization-title"
               className="font-display text-lg tracking-tight text-ink"
             >
               {t('deleteConfirmTitle')}
             </h2>
-            <p id="delete-workspace-desc" className="mt-2 text-sm leading-6 text-body">
+            <p id="delete-organization-desc" className="mt-2 text-sm leading-6 text-body">
               {t('deleteConfirmBody', { name: activeOrganization.name })}
             </p>
 

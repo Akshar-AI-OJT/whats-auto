@@ -621,8 +621,8 @@ export class OrganizationService {
             organizationId: params.organizationId,
             userId,
             type: 'organization_soft_deleted',
-            title: 'Workspace unavailable',
-            body: 'This workspace has been deleted and is no longer available.',
+            title: 'Organization unavailable',
+            body: 'This organization has been deleted and is no longer available.',
             actorUserId: params.actorUserId,
           })
         } catch (error) {
@@ -781,10 +781,10 @@ export class OrganizationService {
         organizationId: params.organizationId,
         userId: params.userId,
         type: 'team_ownership_transferred',
-        title: 'You are now the workspace owner',
+        title: 'You are now the organization owner',
         body: params.workspaceName
           ? `Ownership of ${params.workspaceName} has been transferred to you.`
-          : 'Ownership of this workspace has been transferred to you.',
+          : 'Ownership of this organization has been transferred to you.',
         actorUserId: params.actorUserId,
       })
     } catch (error) {

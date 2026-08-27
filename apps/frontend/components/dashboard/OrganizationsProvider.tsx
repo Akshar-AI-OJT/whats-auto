@@ -62,7 +62,7 @@ type OrganizationsContextValue = {
   isLoading: boolean
   /**
    * True until session/orgs/access-context are ready for permission checks.
-   * Includes in-flight workspace activate/switch (when accessContext is cleared).
+   * Includes in-flight organization activate/switch (when accessContext is cleared).
    */
   isResolvingAccess: boolean
   error: string | null
@@ -136,19 +136,19 @@ async function refreshSharedSession(): Promise<string | null> {
   return readSessionOrganizationId(result.data?.session)
 }
 
-/** Ensure in-memory JWT org_id matches the selected workspace. */
+/** Ensure in-memory JWT org_id matches the selected organization. */
 async function ensureAccessTokenForOrganization(organizationId: string): Promise<void> {
   await getValidAccessToken()
   if (peekAccessTokenOrgId() === organizationId) return
 
   await forceRemintAccessToken()
   if (peekAccessTokenOrgId() !== organizationId) {
-    throw new Error('Access token organization did not match the selected workspace')
+    throw new Error('Access token organization did not match the selected organization')
   }
 }
 
 /**
- * Server-backed source of truth for the signed-in user's workspaces.
+ * Server-backed source of truth for the signed-in user's organizations.
  * Active org: Better Auth session, then access-context (JWT remint may update either).
  */
 export function OrganizationsProvider({ children }: { children: React.ReactNode }) {
@@ -261,7 +261,7 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
         setSwitchError(null)
       } catch (err) {
         bootstrapStarted.current = false
-        setSwitchError(errorMessage(err, 'Failed to activate workspace'))
+        setSwitchError(errorMessage(err, 'Failed to activate organization'))
       } finally {
         setPendingActiveId(null)
         setIsBootstrapping(false)
@@ -300,7 +300,7 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
       setSwitchError(null)
       return { organizations: nextOrgs, activeId: nextActiveId }
     } catch (err) {
-      setSwitchError(errorMessage(err, 'Failed to load workspaces'))
+      setSwitchError(errorMessage(err, 'Failed to load organizations'))
       return { organizations: [], activeId: null }
     }
   }
@@ -322,8 +322,8 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
         queryKey: queryKeys.organizations.accessContext(userId),
       })
     } catch (err) {
-      setSwitchError(errorMessage(err, 'Failed to switch workspace'))
-      throw err instanceof Error ? err : new Error(errorMessage(err, 'Failed to switch workspace'))
+      setSwitchError(errorMessage(err, 'Failed to switch organization'))
+      throw err instanceof Error ? err : new Error(errorMessage(err, 'Failed to switch organization'))
     } finally {
       setPendingActiveId(null)
     }
@@ -372,7 +372,7 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
 
   const permissions = accessContext?.permissions ?? []
   const listError = orgsQuery.error
-    ? errorMessage(orgsQuery.error, 'Failed to load workspaces')
+    ? errorMessage(orgsQuery.error, 'Failed to load organizations')
     : null
 
   const value: OrganizationsContextValue = {

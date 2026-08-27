@@ -1539,7 +1539,6 @@ export type SuperAdminPlanFeature = {
 export type SuperAdminPlanLimits = {
   users: number | null
   messagesPerMonth: number | null
-  workspaces: number | null
 }
 
 export type SuperAdminPlan = {
@@ -1586,7 +1585,6 @@ export type CreateSuperAdminPlanBody = {
   limits: {
     users?: number | null
     messagesPerMonth?: number | null
-    workspaces?: number | null
   }
   features?: SuperAdminPlanFeature[]
   sortOrder?: number
@@ -1666,7 +1664,6 @@ export type TenantBillingPlanFeature = {
 export type TenantBillingPlanLimits = {
   users: number | null
   messagesPerMonth: number | null
-  workspaces: number | null
 }
 
 export type TenantBillingPlan = {

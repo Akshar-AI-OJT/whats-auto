@@ -14,7 +14,6 @@ export type PlanFeature = {
 export type PlanLimits = {
   users: number | null
   messagesPerMonth: number | null
-  workspaces: number | null
 }
 
 export type SuperAdminPlan = {
@@ -86,7 +85,6 @@ export type CreateSuperAdminPlanInput = {
   limits: {
     users?: number | null
     messagesPerMonth?: number | null
-    workspaces?: number | null
   }
   features?: PlanFeature[]
   sortOrder?: number

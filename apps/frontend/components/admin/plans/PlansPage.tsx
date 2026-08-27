@@ -319,10 +319,6 @@ export function PlansPage() {
                               {t('limits.messages')}:{' '}
                               {formatLimit(plan.limits.messagesPerMonth, t('unlimited'))}
                             </p>
-                            <p>
-                              {t('limits.workspaces')}:{' '}
-                              {formatLimit(plan.limits.workspaces, t('unlimited'))}
-                            </p>
                           </td>
                           <td className="px-4 py-3 text-sm tabular-nums text-ink">
                             {t('featureCount', { count: enabledFeatureCount(plan) })}

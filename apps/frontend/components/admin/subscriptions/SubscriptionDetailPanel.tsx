@@ -213,11 +213,6 @@ export function SubscriptionDetailPanel({
               limit={plan?.limits?.messagesPerMonth}
               unlimited={t('unlimited')}
             />
-            <LimitRow
-              label={t('limits.workspaces')}
-              limit={plan?.limits?.workspaces}
-              unlimited={t('unlimited')}
-            />
           </div>
         </div>
 

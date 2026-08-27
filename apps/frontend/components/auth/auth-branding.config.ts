@@ -142,7 +142,7 @@ export const authBrandingConfig: Record<AuthBrandingVariant, AuthBrandingConfig>
   register: {
     heading: 'Start automating customer conversations.',
     subtitle:
-      'Create your workspace, connect WhatsApp, invite your team, and launch your first automation in minutes.',
+      'Create your organization, connect WhatsApp, invite your team, and launch your first automation in minutes.',
     footer: 'Join teams launching WhatsApp automation in minutes',
     headingClassName:
       'max-w-[16rem] font-display text-2xl leading-[1.1] tracking-tight text-ink sm:text-3xl md:max-w-[18rem] md:text-[2.05rem]',
@@ -156,7 +156,7 @@ export const authBrandingConfig: Record<AuthBrandingVariant, AuthBrandingConfig>
         subtitle: 'Your first 4 steps',
         listStyle: 'stepper',
         items: [
-          { label: 'Workspace Created', done: true },
+          { label: 'Organization Created', done: true },
           { label: 'WhatsApp Connected', done: false },
           { label: 'Team Invited', done: false },
           { label: 'Automation Active', done: false },
@@ -199,10 +199,10 @@ export const authBrandingConfig: Record<AuthBrandingVariant, AuthBrandingConfig>
   },
 
   organization: {
-    heading: 'Set up your organization workspace.',
+    heading: 'Set up your organization.',
     subtitle:
       'You become the Owner automatically. Invite Admins, Agents, and Viewers after you land in the dashboard.',
-    footer: 'One workspace. Clear ownership. Ready for your team.',
+    footer: 'One organization. Clear ownership. Ready for your team.',
     headingClassName:
       'max-w-[16rem] font-display text-2xl leading-[1.1] tracking-tight text-ink sm:text-3xl md:max-w-[18rem] md:text-[2.05rem]',
     subtitleClassName: subtitleClassNameDefault,
@@ -211,7 +211,7 @@ export const authBrandingConfig: Record<AuthBrandingVariant, AuthBrandingConfig>
         kind: 'checklist',
         className: 'absolute top-2 left-0 z-20 w-[90%] -rotate-2 p-4 sm:w-[92%]',
         icon: Users,
-        title: 'Workspace setup',
+        title: 'Organization setup',
         subtitle: 'Next up',
         listStyle: 'stepper',
         items: [
@@ -234,14 +234,14 @@ export const authBrandingConfig: Record<AuthBrandingVariant, AuthBrandingConfig>
         kind: 'pill',
         className: 'absolute bottom-2 left-2 z-10',
         icon: MessageCircle,
-        label: 'WhatsApp-ready workspace',
+        label: 'WhatsApp-ready organization',
       },
     ],
   },
 
   'forgot-password': {
     heading: 'Forgot your password?',
-    subtitle: "No worries. We'll help you get back into your workspace securely.",
+    subtitle: "No worries. We'll help you get back into your account securely.",
     footer: 'Secure recovery that gets you back to work fast',
     headingClassName: headingClassNameDefault,
     subtitleClassName: subtitleClassNameDefault,
@@ -276,15 +276,15 @@ export const authBrandingConfig: Record<AuthBrandingVariant, AuthBrandingConfig>
         iconWrapClassName: 'size-8 bg-[#F1F5F9] text-brand',
         iconSizeClassName: 'size-4',
         title: 'Back to Work',
-        subtitle: 'Workspace unlocked',
+        subtitle: 'Account unlocked',
       },
     ],
   },
 
   'reset-password': {
     heading: 'Create a secure new password.',
-    subtitle: 'Protect your workspace with a strong password.',
-    footer: 'Strong passwords keep your WhatsApp workspace safe',
+    subtitle: 'Protect your account with a strong password.',
+    footer: 'Strong passwords keep your WhatsApp organization safe',
     headingClassName: headingClassNameDefault,
     subtitleClassName: subtitleClassNameDefault,
     floatingCards: [
@@ -297,7 +297,7 @@ export const authBrandingConfig: Record<AuthBrandingVariant, AuthBrandingConfig>
         listStyle: 'all-done',
         items: [
           { label: 'Strong Password', done: true },
-          { label: 'Secure Workspace', done: true },
+          { label: 'Secure Account', done: true },
         ],
       },
       {
@@ -316,7 +316,7 @@ export const authBrandingConfig: Record<AuthBrandingVariant, AuthBrandingConfig>
         icon: ShieldCheck,
         iconWrapClassName: 'size-8 bg-[#F1F5F9] text-brand',
         iconSizeClassName: 'size-4',
-        title: 'Secure Workspace',
+        title: 'Secure Account',
         subtitle: 'Sessions protected',
       },
     ],
@@ -325,7 +325,7 @@ export const authBrandingConfig: Record<AuthBrandingVariant, AuthBrandingConfig>
   otp: {
     heading: 'Verify your identity.',
     subtitle: 'Enter the verification code to continue securely.',
-    footer: 'Secure verification keeps your WhatsApp workspace protected',
+    footer: 'Secure verification keeps your WhatsApp organization protected',
     headingClassName: headingClassNameDefault,
     subtitleClassName: subtitleClassNameDefault,
     floatingCards: [

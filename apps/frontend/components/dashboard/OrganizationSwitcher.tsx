@@ -4,7 +4,7 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { Check, ChevronDown, Plus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-export type WorkspaceSwitcherItem = {
+export type OrganizationSwitcherItem = {
   id: string
   name: string
   plan?: string
@@ -13,12 +13,12 @@ export type WorkspaceSwitcherItem = {
   members?: number
 }
 
-export type WorkspaceSwitcherProps = {
-  workspaces: WorkspaceSwitcherItem[]
+export type OrganizationSwitcherProps = {
+  organizations: OrganizationSwitcherItem[]
   value?: string
   defaultValue?: string
   /** May be async — switcher stays open and disables items until it resolves. */
-  onChange?: (workspaceId: string) => void | Promise<void>
+  onChange?: (organizationId: string) => void | Promise<void>
   onOpenChange?: (open: boolean) => void
   /** Close when parent requests (e.g. another menu opens). */
   open?: boolean
@@ -31,8 +31,8 @@ export type WorkspaceSwitcherProps = {
     create?: string
   }
   className?: string
-  /** Create-workspace action — shown below the org list when provided. */
-  onCreateWorkspace?: () => void
+  /** Create-organization action — shown below the org list when provided. */
+  onCreateOrganization?: () => void
 }
 
 const ACCENT_STYLES = {
@@ -41,14 +41,14 @@ const ACCENT_STYLES = {
   amber: 'bg-warning text-warning-content',
 } as const
 
-export function WorkspaceAvatar({
+export function OrganizationAvatar({
   initials,
   accent = 'green',
   size = 'md',
   className,
 }: {
   initials: string
-  accent?: WorkspaceSwitcherItem['accent']
+  accent?: OrganizationSwitcherItem['accent']
   size?: 'sm' | 'md' | 'lg'
   className?: string
 }) {
@@ -70,8 +70,8 @@ export function WorkspaceAvatar({
   )
 }
 
-export function WorkspaceSwitcher({
-  workspaces,
+export function OrganizationSwitcher({
+  organizations,
   value,
   defaultValue,
   onChange,
@@ -80,28 +80,28 @@ export function WorkspaceSwitcher({
   error = null,
   labels,
   className,
-  onCreateWorkspace,
-}: WorkspaceSwitcherProps) {
+  onCreateOrganization,
+}: OrganizationSwitcherProps) {
   const isControlled = value !== undefined
   const [internalId, setInternalId] = useState(
-    defaultValue ?? workspaces[0]?.id ?? ''
+    defaultValue ?? organizations[0]?.id ?? ''
   )
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false)
   const [pendingId, setPendingId] = useState<string | null>(null)
   const open = openProp ?? uncontrolledOpen
-  const workspaceId = isControlled ? (value ?? '') : internalId
+  const organizationId = isControlled ? (value ?? '') : internalId
   const rootRef = useRef<HTMLDivElement>(null)
   const listId = useId()
   const errorId = useId()
   const isSwitching = Boolean(pendingId)
 
   const active =
-    workspaces.find((w) => w.id === workspaceId) ?? workspaces[0] ?? null
+    organizations.find((org) => org.id === organizationId) ?? organizations[0] ?? null
 
-  const listLabel = labels?.listLabel ?? 'Workspaces'
+  const listLabel = labels?.listLabel ?? 'Organizations'
   const activeLabel = labels?.active ?? 'Active'
   const membersLabel = labels?.members ?? 'members'
-  const createLabel = labels?.create ?? 'Create workspace'
+  const createLabel = labels?.create ?? 'Create organization'
 
   function setOpen(next: boolean) {
     if (isSwitching) return
@@ -114,8 +114,8 @@ export function WorkspaceSwitcher({
     onOpenChange?.(false)
   }
 
-  async function selectWorkspace(id: string) {
-    if (id === workspaceId || isSwitching) return
+  async function selectOrganization(id: string) {
+    if (id === organizationId || isSwitching) return
 
     setPendingId(id)
     try {
@@ -176,7 +176,7 @@ export function WorkspaceSwitcher({
           isSwitching && 'cursor-wait opacity-80'
         )}
       >
-        <WorkspaceAvatar
+        <OrganizationAvatar
           initials={active.initials}
           accent={active.accent}
           size="sm"
@@ -219,11 +219,11 @@ export function WorkspaceSwitcher({
             className="max-h-72 overflow-y-auto p-1.5"
             aria-describedby={error ? errorId : undefined}
           >
-            {workspaces.map((ws) => {
-              const selected = ws.id === active.id
-              const rowPending = pendingId === ws.id
+            {organizations.map((org) => {
+              const selected = org.id === active.id
+              const rowPending = pendingId === org.id
               return (
-                <li key={ws.id} role="option" aria-selected={selected}>
+                <li key={org.id} role="option" aria-selected={selected}>
                   <button
                     type="button"
                     disabled={isSwitching}
@@ -236,11 +236,11 @@ export function WorkspaceSwitcher({
                         : 'hover:bg-dash-surface',
                       isSwitching && 'cursor-wait opacity-70'
                     )}
-                    onClick={() => void selectWorkspace(ws.id)}
+                    onClick={() => void selectOrganization(org.id)}
                   >
-                    <WorkspaceAvatar
-                      initials={ws.initials}
-                      accent={ws.accent}
+                    <OrganizationAvatar
+                      initials={org.initials}
+                      accent={org.accent}
                       size="md"
                     />
                     <span className="min-w-0 flex-1">
@@ -251,7 +251,7 @@ export function WorkspaceSwitcher({
                             selected ? 'text-positive-deep' : 'text-ink'
                           )}
                         >
-                          {ws.name}
+                          {org.name}
                         </span>
                         {selected ? (
                           <span className="inline-flex shrink-0 items-center rounded-md bg-primary px-1.5 py-0.5 text-[10px] font-bold text-on-primary">
@@ -260,13 +260,13 @@ export function WorkspaceSwitcher({
                         ) : null}
                       </span>
                       <span className="mt-0.5 flex items-center gap-1.5 text-xs text-mute">
-                        {ws.plan ? <span>{ws.plan}</span> : null}
-                        {ws.plan && typeof ws.members === 'number' ? (
+                        {org.plan ? <span>{org.plan}</span> : null}
+                        {org.plan && typeof org.members === 'number' ? (
                           <span aria-hidden>·</span>
                         ) : null}
-                        {typeof ws.members === 'number' ? (
+                        {typeof org.members === 'number' ? (
                           <span>
-                            {ws.members} {membersLabel}
+                            {org.members} {membersLabel}
                           </span>
                         ) : null}
                       </span>
@@ -293,7 +293,7 @@ export function WorkspaceSwitcher({
             </p>
           ) : null}
 
-          {onCreateWorkspace ? (
+          {onCreateOrganization ? (
             <div className="border-t border-dash-border p-1.5">
               <button
                 type="button"
@@ -305,7 +305,7 @@ export function WorkspaceSwitcher({
                 )}
                 onClick={() => {
                   setOpen(false)
-                  onCreateWorkspace()
+                  onCreateOrganization()
                 }}
               >
                 <span className="flex size-8 items-center justify-center rounded-lg border border-dashed border-primary/50 bg-primary-pale/60">

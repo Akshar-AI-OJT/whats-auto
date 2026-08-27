@@ -150,7 +150,7 @@ test.group('Audit scope isolation', (group) => {
         billingPeriod: 'custom',
         status: 'draft',
         trialDays: 0,
-        limits: { users: 1, messagesPerMonth: 10, workspaces: 1 },
+        limits: { users: 1, messagesPerMonth: 10 },
         features: [],
       })
 

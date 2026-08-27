@@ -3,7 +3,6 @@ export type PlanId = 'starter' | 'growth' | 'scale' | 'enterprise'
 export type PlanLimits = {
   userLimit: number | null
   messageLimit: number | null
-  workspaceLimit: number | null
 }
 
 export type PlanConfig = {
@@ -39,7 +38,7 @@ export const PLANS: PlanConfig[] = [
     priceMonthly: 29,
     currency: 'USD',
     interval: 'month',
-    limits: { userLimit: 3, messageLimit: 5_000, workspaceLimit: 1 },
+    limits: { userLimit: 3, messageLimit: 5_000 },
     featureKeys: ['inbox', 'basicCampaigns', 'templates', 'emailSupport'],
     popular: false,
     checkoutPlanId: '55c5e165-97f1-45b0-b3d1-801b79f4ff98',
@@ -51,7 +50,7 @@ export const PLANS: PlanConfig[] = [
     priceMonthly: 99,
     currency: 'USD',
     interval: 'month',
-    limits: { userLimit: 10, messageLimit: 25_000, workspaceLimit: 3 },
+    limits: { userLimit: 10, messageLimit: 25_000 },
     featureKeys: [
       'inbox',
       'campaigns',
@@ -70,7 +69,7 @@ export const PLANS: PlanConfig[] = [
     priceMonthly: 249,
     currency: 'USD',
     interval: 'month',
-    limits: { userLimit: 40, messageLimit: 100_000, workspaceLimit: 10 },
+    limits: { userLimit: 40, messageLimit: 100_000 },
     featureKeys: [
       'inbox',
       'campaigns',
@@ -91,7 +90,7 @@ export const PLANS: PlanConfig[] = [
     priceMonthly: null,
     currency: 'USD',
     interval: 'month',
-    limits: { userLimit: null, messageLimit: null, workspaceLimit: null },
+    limits: { userLimit: null, messageLimit: null },
     featureKeys: [
       'inbox',
       'campaigns',
