@@ -1,14 +1,16 @@
-# Contabo VPS stack: frontend + API + worker + Postgres (pgvector) + Redis.
+# Contabo VPS stack: frontend + API + worker + Redis.
+# Postgres is EXTERNAL — set PG_HOST to the DB server IP in .env.
+#
 # Usage (from repo root):
 #   cp deploy/contabo/.env.example deploy/contabo/.env
-#   # edit deploy/contabo/.env
+#   # set PG_HOST=<postgres-ip> and other secrets
 #   docker compose -f deploy/contabo/docker-compose.yml --env-file deploy/contabo/.env up -d --build
 # Migrations (after api is up):
 #   bash deploy/contabo/migrate.sh status
 #   bash deploy/contabo/migrate.sh
 #   # same as: cd apps/backend && node ace migration:status && node ace migration:run
 #
-# Put Caddy/Nginx in front for TLS. See deploy/contabo/Caddyfile.
+# TLS: put Caddy/Nginx on the host (see Caddyfile). Compose only binds localhost ports.
 
 name: whats-auto
 
@@ -48,14 +50,17 @@ services:
     networks:
       - internal
 
+  # --------------------------------------------------------------------
+  # api — AdonisJS HTTP (auth, webhooks, REST, inbox SSE)
+  # Image CMD: node bin/server.js  →  host :${API_HOST_PORT:-3333}
+  # Connects to Postgres via PG_HOST IP from .env (outbound from container).
+  # --------------------------------------------------------------------
   api:
     build:
       context: ../..
       dockerfile: apps/backend/Dockerfile
     restart: unless-stopped
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     env_file:
@@ -74,6 +79,10 @@ services:
       - internal
       - edge
 
+  # --------------------------------------------------------------------
+  # worker — same backend image, BullMQ consumer (outbound, campaigns, AI, flows)
+  # Override CMD: node bin/worker.js  (no public ports)
+  # --------------------------------------------------------------------
   worker:
     build:
       context: ../..
@@ -81,8 +90,6 @@ services:
     restart: unless-stopped
     command: ['node', 'bin/worker.js']
     depends_on:
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
       api:
@@ -100,6 +107,10 @@ services:
     networks:
       - internal
 
+  # --------------------------------------------------------------------
+  # frontend — Next.js standalone (UI). NEXT_PUBLIC_* baked at build time.
+  # Image CMD: node apps/frontend/server.js  →  host :${FRONTEND_HOST_PORT:-3000}
+  # --------------------------------------------------------------------
   frontend:
     build:
       context: ../..
@@ -120,7 +131,6 @@ services:
       - edge
 
 volumes:
-  postgres_data:
   redis_data:
 
 networks:
