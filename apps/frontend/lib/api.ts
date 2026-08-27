@@ -542,6 +542,8 @@ export type InboxConversation = {
   updatedAt?: string | null
   aiMode?: InboxAiMode | string
   aiHandoverReason?: string | null
+  automationBlocked?: boolean
+  openFlowSessionStatus?: string | null
   contact: InboxConversationContact
 }
 
@@ -553,6 +555,8 @@ export type InboxAiModePatch = {
   id: string
   aiMode: InboxAiMode | string
   aiHandoverReason: string | null
+  automationBlocked?: boolean
+  openFlowSessionStatus?: string | null
 }
 
 export type CreateInboxConversationBody = {

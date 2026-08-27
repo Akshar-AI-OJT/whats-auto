@@ -2489,14 +2489,14 @@
           "closeConfirm": "Close this conversation? You can reopen it later.",
           "reopen": "Reopen",
           "takeover": "Take Over",
-          "resume": "Resume AI",
+          "resume": "Resume automation",
           "errors": {
             "actionFailed": "Couldn’t update this conversation. Please try again.",
             "sessionExpired": "Your session expired. Please sign in again.",
             "permissionDenied": "You don’t have permission to change this conversation.",
             "notFound": "Conversation not found.",
             "agentNotFound": "That agent is not a member of this workspace.",
-            "invalidAiTransition": "This conversation’s AI mode cannot change that way."
+            "invalidAiTransition": "This conversation’s automation mode cannot change that way."
           }
         },
         "panelsLabel": "Conversation panels",
@@ -2550,7 +2550,7 @@
           "email": "Email",
           "company": "Company",
           "status": "Status",
-          "aiMode": "AI mode",
+          "aiMode": "Automation",
           "assignedTo": "Assigned to",
           "whatsappConfig": "WhatsApp number",
           "unreadCount": "Unread",
@@ -2562,16 +2562,20 @@
       },
       "aiMode": {
         "pill": {
-          "AI_AUTO": "AI Mode",
-          "HANDOVER": "Handover",
+          "AI_AUTO": "Automation",
+          "HANDOVER": "Needs human",
           "HUMAN_ACTIVE": "Human"
         },
         "banner": {
-          "title": "AI handed this conversation to your team",
+          "title": "Automation handed this conversation to your team",
           "keyword": "The customer asked for a human ({keyword}).",
           "keywordGeneric": "The customer asked for a human.",
-          "low_confidence": "AI is not confident enough to reply automatically.",
-          "error": "AI paused because of an error."
+          "low_confidence": "Automation is not confident enough to reply automatically.",
+          "error": "Automation paused because of an error.",
+          "humanTitle": "Human owns this chat — automation paused",
+          "humanBody": "Inbound flow replies stay off until you resume automation.",
+          "orphanTitle": "Automation is blocked on a paused flow",
+          "orphanBody": "Resume automation to clear the pause so the next keyword can start a fresh flow."
         }
       }
     },

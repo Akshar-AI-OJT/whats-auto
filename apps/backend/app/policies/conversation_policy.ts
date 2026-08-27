@@ -100,9 +100,7 @@ export default class ConversationPolicy extends BasePolicy {
     if (conversation && conversation.organizationId !== user.activeMember?.organizationId) {
       return false
     }
-    if (conversation?.aiMode === 'AI_AUTO') {
-      return AuthorizationResponse.deny('Conversation AI mode is already AI_AUTO', 422)
-    }
+    // Allow already-AI_AUTO so orphan PAUSED_FOR_HUMAN rows can be terminated ([D62]).
     return true
   }
 }

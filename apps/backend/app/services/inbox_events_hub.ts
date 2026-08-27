@@ -13,6 +13,7 @@ export type InboxSseEventType =
   | 'ai.token.delta'
   | 'ai.generation.completed'
   | 'ai.handover.triggered'
+  | 'conversation.ai_mode.updated'
   | 'ping'
 
 export type InboxSseEvent = {

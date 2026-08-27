@@ -149,6 +149,33 @@ export class FlowSessionRepository {
     return Number(updated)
   }
 
+  /**
+   * Latest blocking session status per conversation (ACTIVE / WAITING / PAUSED_*).
+   * Used for inbox automationBlocked / openFlowSessionStatus.
+   */
+  async mapBlockingStatusByConversationIds(
+    params: { organizationId: string; conversationIds: string[] },
+    client: Db = db
+  ): Promise<Map<string, string>> {
+    const result = new Map<string, string>()
+    if (params.conversationIds.length === 0) return result
+
+    const rows = await client
+      .from('flow_sessions')
+      .where('organizationId', params.organizationId)
+      .whereIn('conversationId', params.conversationIds)
+      .whereIn('status', [...BLOCKING_STATUSES])
+      .select('conversationId', 'status', 'createdAt')
+      .orderBy('createdAt', 'desc')
+
+    for (const row of rows as Array<{ conversationId: string; status: string }>) {
+      if (!result.has(row.conversationId)) {
+        result.set(row.conversationId, row.status)
+      }
+    }
+    return result
+  }
+
   async insert(params: InsertFlowSessionParams, client: Db = db): Promise<FlowSessionRow> {
     const [row] = await client
       .table('flow_sessions')

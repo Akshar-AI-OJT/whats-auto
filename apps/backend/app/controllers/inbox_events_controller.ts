@@ -10,7 +10,7 @@ export default class InboxEventsController {
   /**
    * @stream
    * @summary Subscribe to inbox realtime events
-   * @description SSE stream scoped to the active organization. Emits message.received, message.queued, message.sent, message.failed, status.updated, ai.generation.started, ai.token.delta, ai.generation.completed, ai.handover.triggered, and periodic ping events.
+   * @description SSE stream scoped to the active organization. Emits message.received, message.queued, message.sent, message.failed, status.updated, ai.generation.started, ai.token.delta, ai.generation.completed, ai.handover.triggered, conversation.ai_mode.updated, and periodic ping events.
    * @tag Inbox Events
    * @security BearerAuth
    * @responseBody 200 - text/event-stream

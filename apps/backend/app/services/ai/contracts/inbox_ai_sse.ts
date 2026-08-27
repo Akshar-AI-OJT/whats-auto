@@ -27,3 +27,13 @@ export type InboxAiSseEvent =
         matchedKeyword?: string
       }
     }
+  | {
+      type: 'conversation.ai_mode.updated'
+      data: {
+        conversationId: string
+        aiMode: string
+        aiHandoverReason: string | null
+        automationBlocked: boolean
+        openFlowSessionStatus: string | null
+      }
+    }

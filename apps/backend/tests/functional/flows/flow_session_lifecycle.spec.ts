@@ -499,6 +499,153 @@ test.group('Flows | session lifecycle', (group) => {
     assert.notEqual(sessions[1].id, session!.id)
   })
 
+  test('HUMAN_ACTIVE with no open session blocks keyword start', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const fixture = await seedConversation(organizationId)
+    await seedPublishedFlow(organizationId, 'RESUME_PROMPT')
+
+    await runWithTenant(organizationId, () =>
+      db.from('conversations').where('id', fixture.conversationId).update({
+        aiMode: ConversationAiMode.HUMAN_ACTIVE,
+        aiHandoverReason: 'takeover',
+      })
+    )
+
+    queue.clearEnqueued()
+    await dispatchInbound({
+      organizationId,
+      conversationId: fixture.conversationId,
+      contactId: fixture.contactId,
+      contentText: 'hi',
+    })
+    await drainFlowAdvanceJobs(queue)
+
+    assert.isFalse(queue.enqueued.some((job) => job.name === JOB_NAMES.FLOWS_ADVANCE_SESSION))
+    const sessions = await runWithTenant(organizationId, () =>
+      db.from('flow_sessions').where('conversationId', fixture.conversationId)
+    )
+    assert.equal(sessions.length, 0)
+  })
+
+  test('HANDOVER with no pause row blocks keyword start', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const fixture = await seedConversation(organizationId)
+    await seedPublishedFlow(organizationId, 'RESUME_PROMPT')
+
+    await runWithTenant(organizationId, () =>
+      db.from('conversations').where('id', fixture.conversationId).update({
+        aiMode: ConversationAiMode.HANDOVER,
+        aiHandoverReason: 'low_confidence',
+      })
+    )
+
+    queue.clearEnqueued()
+    await dispatchInbound({
+      organizationId,
+      conversationId: fixture.conversationId,
+      contactId: fixture.contactId,
+      contentText: 'hi',
+    })
+    await drainFlowAdvanceJobs(queue)
+
+    assert.isFalse(queue.enqueued.some((job) => job.name === JOB_NAMES.FLOWS_ADVANCE_SESSION))
+  })
+
+  test('COMPLETED session then keyword starts a fresh flow while AI_AUTO', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const { fixture, session } = await startWaitingSession({
+      organizationId,
+      queue,
+      onExpiry: 'RESUME_PROMPT',
+    })
+
+    await runWithTenant(organizationId, () =>
+      db.from('flow_sessions').where('id', session!.id).update({
+        status: FlowSessionStatus.COMPLETED,
+        updatedAt: new Date(),
+      })
+    )
+
+    queue.clearEnqueued()
+    await dispatchInbound({
+      organizationId,
+      conversationId: fixture.conversationId,
+      contactId: fixture.contactId,
+      contentText: 'hi',
+    })
+    await drainFlowAdvanceJobs(queue)
+
+    const sessions = await runWithTenant(organizationId, () =>
+      db
+        .from('flow_sessions')
+        .where('conversationId', fixture.conversationId)
+        .orderBy('createdAt', 'asc')
+    )
+    assert.equal(sessions.length, 2)
+    assert.equal(sessions[0].status, FlowSessionStatus.COMPLETED)
+    assert.equal(sessions[1].status, FlowSessionStatus.WAITING_FOR_INPUT)
+  })
+
+  test('orphan PAUSED_FOR_HUMAN with AI_AUTO blocks until resume terminates it', async ({
+    assert,
+  }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const { fixture, session } = await startWaitingSession({
+      organizationId,
+      queue,
+      onExpiry: 'RESUME_PROMPT',
+    })
+
+    await runWithTenant(organizationId, () =>
+      db.from('flow_sessions').where('id', session!.id).update({
+        status: FlowSessionStatus.PAUSED_FOR_HUMAN,
+        updatedAt: new Date(),
+      })
+    )
+
+    queue.clearEnqueued()
+    await dispatchInbound({
+      organizationId,
+      conversationId: fixture.conversationId,
+      contactId: fixture.contactId,
+      contentText: 'hi',
+    })
+    await drainFlowAdvanceJobs(queue)
+    assert.isFalse(queue.enqueued.some((job) => job.name === JOB_NAMES.FLOWS_ADVANCE_SESSION))
+
+    await new ConversationAiModeService().resume({
+      organizationId,
+      conversationId: fixture.conversationId,
+    })
+
+    const terminated = await runWithTenant(organizationId, () =>
+      db.from('flow_sessions').where('id', session!.id).first()
+    )
+    assert.equal(terminated?.status, FlowSessionStatus.TERMINATED)
+
+    queue.clearEnqueued()
+    await dispatchInbound({
+      organizationId,
+      conversationId: fixture.conversationId,
+      contactId: fixture.contactId,
+      contentText: 'hi',
+    })
+    await drainFlowAdvanceJobs(queue)
+
+    const sessions = await runWithTenant(organizationId, () =>
+      db
+        .from('flow_sessions')
+        .where('conversationId', fixture.conversationId)
+        .orderBy('createdAt', 'asc')
+    )
+    assert.equal(sessions.length, 2)
+    assert.equal(sessions[1].status, FlowSessionStatus.WAITING_FOR_INPUT)
+  })
+
   test('recovery job purges execution logs older than the retention window', async ({ assert }) => {
     const organizationId = await createOrg()
     orgIds.push(organizationId)
