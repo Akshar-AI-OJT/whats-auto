@@ -3,14 +3,10 @@ import { defineConfig, services } from '@adonisjs/drive'
 import type { InferDriveDisks } from '@adonisjs/drive/types'
 
 /**
- * Private S3 (or S3-compatible) disk. WhatsApp/public fetch uses
- * MEDIA_PUBLIC_BASE_URL (CDN / Contabo public base), not bucket ACLs.
- *
- * Contabo Object Storage (and MinIO/R2): set S3_ENDPOINT + S3_FORCE_PATH_STYLE=true.
- * Native AWS S3: leave S3_ENDPOINT unset.
+ * Private Contabo Object Storage (S3-compatible). Public WhatsApp/media links use
+ * MEDIA_PUBLIC_BASE_URL, not bucket ACLs.
  */
-const s3Endpoint = env.get('S3_ENDPOINT')
-const forcePathStyle = env.get('S3_FORCE_PATH_STYLE') ?? Boolean(s3Endpoint)
+const forcePathStyle = env.get('S3_FORCE_PATH_STYLE') ?? true
 
 const driveConfig = defineConfig({
   default: env.get('DRIVE_DISK'),
@@ -18,12 +14,12 @@ const driveConfig = defineConfig({
   services: {
     s3: services.s3({
       credentials: {
-        accessKeyId: env.get('AWS_ACCESS_KEY_ID'),
-        secretAccessKey: env.get('AWS_SECRET_ACCESS_KEY').release(),
+        accessKeyId: env.get('S3_ACCESS_KEY_ID'),
+        secretAccessKey: env.get('S3_SECRET_ACCESS_KEY').release(),
       },
-      region: env.get('AWS_REGION'),
+      region: env.get('S3_REGION'),
       bucket: env.get('S3_BUCKET'),
-      ...(s3Endpoint ? { endpoint: s3Endpoint } : {}),
+      endpoint: env.get('S3_ENDPOINT'),
       forcePathStyle,
       visibility: 'private',
     }),

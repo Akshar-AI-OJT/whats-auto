@@ -3,14 +3,16 @@ import S3ObjectStorage from '#services/object_storage/drivers/s3_object_storage'
 import env from '#start/env'
 
 /**
- * Resolves S3 object storage from env. Prefer IoC `ObjectStorage` in app code;
+ * Resolves Contabo Object Storage from env. Prefer IoC `ObjectStorage` in app code;
  * this factory is for Ace/scripts that skip the provider.
  */
 export function createObjectStorageFromEnv(): ObjectStorage {
   return new S3ObjectStorage({
-    region: env.get('AWS_REGION'),
+    region: env.get('S3_REGION'),
     bucket: env.get('S3_BUCKET'),
-    accessKeyId: env.get('AWS_ACCESS_KEY_ID'),
-    secretAccessKey: env.get('AWS_SECRET_ACCESS_KEY').release(),
+    accessKeyId: env.get('S3_ACCESS_KEY_ID'),
+    secretAccessKey: env.get('S3_SECRET_ACCESS_KEY').release(),
+    endpoint: env.get('S3_ENDPOINT'),
+    forcePathStyle: env.get('S3_FORCE_PATH_STYLE') ?? true,
   })
 }
