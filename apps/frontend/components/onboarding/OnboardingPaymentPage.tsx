@@ -23,6 +23,7 @@ import {
   ORG_SETUP_PATH,
   type OnboardingCheckoutSession,
 } from '@/lib/onboarding'
+import { ORG_PROFILE_PATH } from '@/lib/organization-profile'
 import { OnboardingPaymentView, type OnboardingPaymentViewState } from './OnboardingPaymentView'
 
 function viewFromSubscription(
@@ -100,7 +101,7 @@ export function OnboardingPaymentPage() {
 
   function handleContinueToDashboard() {
     clearOnboardingCheckoutSession()
-    router.push('/dashboard')
+    router.push(ORG_PROFILE_PATH)
   }
 
   if (!session) {

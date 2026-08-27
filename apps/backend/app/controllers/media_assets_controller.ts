@@ -55,6 +55,23 @@ export default class MediaAssetsController {
   }
 
   /**
+   * @organizationLogo
+   * @summary Get the canonical organization profile logo (if any)
+   * @tag Media
+   * @security BearerAuth
+   * @responseBody 200 - { "data": { "id": "uuid", "deliveryUrl": "https://…", "state": "ready" } }
+   * @responseBody 200 - { "data": null }
+   */
+  async organizationLogo({ bouncer, request, serialize }: HttpContext) {
+    await bouncer.with(MediaAssetPolicy).authorize('viewList')
+
+    const logo = await new MediaAssetService().getOrganizationLogo({
+      organizationId: request.activeMember!.organizationId,
+    })
+    return serialize(logo)
+  }
+
+  /**
    * @show
    * @summary Get one Media Library asset
    * @tag Media

@@ -138,7 +138,7 @@ function isAssignableRole(role: string): role is AssignableRole {
 }
 
 const roleSelectClassName = cn(
-  'h-9 shrink-0 rounded-lg border border-dash-border bg-canvas px-2.5 text-xs font-semibold tracking-wide text-ink uppercase outline-none',
+  'h-9 shrink-0 cursor-pointer rounded-lg border border-dash-border bg-canvas px-2.5 text-xs font-semibold tracking-wide text-ink uppercase outline-none',
   'transition-[border-color,box-shadow] duration-200',
   'hover:border-dash-border-strong',
   'focus-visible:border-primary/55 focus-visible:ring-2 focus-visible:ring-primary/30',
@@ -146,7 +146,7 @@ const roleSelectClassName = cn(
 )
 
 const filterSelectClassName = cn(
-  'h-10 shrink-0 rounded-xl border border-dash-border bg-canvas px-3 text-sm text-ink outline-none',
+  'h-10 shrink-0 cursor-pointer rounded-xl border border-dash-border bg-canvas px-3 text-sm text-ink outline-none',
   'transition-[border-color,box-shadow] duration-200',
   'hover:border-dash-border-strong',
   'focus-visible:border-primary/55 focus-visible:ring-2 focus-visible:ring-primary/30'

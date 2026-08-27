@@ -1427,6 +1427,115 @@
         "planNotCheckoutable": "This plan isn't available for checkout. Please choose a different plan.",
         "checkoutFailed": "Couldn't start checkout. Please try again."
       }
+    },
+    "organizationProfile": {
+      "loading": "Loading your organization…",
+      "stepBadge": "Step {step} of {total}",
+      "optional": "Optional",
+      "sidebar": {
+        "title": "Complete Your Organization Profile",
+        "subtitle": "Finish the required details so your workspace is ready. Optional fields can be completed later.",
+        "completionLabel": "Profile completion"
+      },
+      "steps": {
+        "organization": {
+          "title": "Organization Details",
+          "description": "Basic information about your organization"
+        },
+        "business": {
+          "title": "Business Information",
+          "description": "Tell us more about your business"
+        },
+        "address": {
+          "title": "Address",
+          "description": "Your organization address details"
+        },
+        "review": {
+          "title": "Review & Confirm",
+          "description": "Review and confirm your details"
+        }
+      },
+      "fields": {
+        "name": "Organization Name",
+        "email": "Business Email",
+        "phone": "Phone Number",
+        "phoneHint": "Include country code when possible.",
+        "alternatePhone": "Alternate Phone",
+        "website": "Website",
+        "industry": "Industry",
+        "industryPlaceholder": "Select industry",
+        "logoUpload": "Upload Logo",
+        "logoHint": "PNG, JPG or WEBP (Max. 2MB)",
+        "logoPreview": "Logo Preview",
+        "businessSize": "Business Size",
+        "businessSizePlaceholder": "Select business size",
+        "businessType": "Business Type",
+        "businessTypePlaceholder": "Select business type",
+        "description": "Description",
+        "defaultLanguage": "Default Language",
+        "defaultLanguagePlaceholder": "Select language",
+        "registrationNumber": "Business Registration Number",
+        "addressLine1": "Address Line 1",
+        "addressLine1Placeholder": "House / building and street",
+        "addressLine2": "Address Line 2",
+        "addressLine2Placeholder": "Apartment, suite, etc.",
+        "city": "City",
+        "state": "State / Province",
+        "postalCode": "Postal Code",
+        "country": "Country",
+        "countryPlaceholder": "Select country"
+      },
+      "languages": {
+        "en": "English",
+        "hi": "Hindi"
+      },
+      "actions": {
+        "cancel": "Cancel",
+        "back": "Back",
+        "continue": "Continue",
+        "completeSetup": "Complete Setup",
+        "saving": "Saving…",
+        "edit": "Edit",
+        "createOrganization": "Create organization"
+      },
+      "review": {
+        "organization": "Organization Details",
+        "business": "Business Information",
+        "address": "Address",
+        "empty": "—",
+        "confirmLabel": "I confirm that the above information is correct."
+      },
+      "success": {
+        "title": "Your organization is ready",
+        "subtitle": "Required profile details are saved. You can finish optional fields anytime from the dashboard.",
+        "completion": "Profile completion: {percent}%",
+        "cta": "Go to Dashboard"
+      },
+      "help": {
+        "needHelp": "Need help?",
+        "contactSupport": "Contact Support"
+      },
+      "errors": {
+        "noOrganization": "No organization found. Create a workspace first.",
+        "nameRequired": "Organization name is required (at least 2 characters).",
+        "emailInvalid": "Enter a valid business email.",
+        "phoneInvalid": "Enter a valid phone number.",
+        "websiteInvalid": "Enter a valid website URL (https://…).",
+        "industryRequired": "Select an industry.",
+        "businessSizeRequired": "Select a business size.",
+        "descriptionTooLong": "Description must be 500 characters or fewer.",
+        "addressLine1Required": "Address line 1 is required.",
+        "cityRequired": "City is required.",
+        "stateRequired": "State / province is required.",
+        "postalCodeRequired": "Postal code is required.",
+        "countryRequired": "Select a country.",
+        "requiredIncomplete": "Complete all required fields before finishing setup.",
+        "confirmRequired": "Please confirm that the information is correct.",
+        "logoType": "Logo must be PNG, JPG, or WEBP.",
+        "logoSize": "Logo must be 2MB or smaller.",
+        "logoUploadFailed": "Couldn't upload the logo. Please try again.",
+        "saveFailed": "Couldn't save your profile. Please try again."
+      }
     }
   },
   "dashboard": {
@@ -3321,6 +3430,11 @@
         "emptyTitle": "No activity yet",
         "emptyDescription": "Workspace events will show up here as your team starts using Whats-Auto.",
         "noDetails": "No additional details"
+      },
+      "profileReminder": {
+        "title": "Profile {percent}% complete",
+        "subtitle": "Add the remaining optional details to finish your organization profile.",
+        "cta": "Complete Profile"
       }
     },
     "analytics": {

@@ -24,6 +24,7 @@ export type BuildOrganizationStorageKeyParams = {
  * media_library:   organizations/{orgId}/media-library/{images|documents}/{assetId}.{ext}
  * campaigns:       organizations/{orgId}/campaigns/{campaignId}/{images|documents}/{assetId}.{ext}
  * knowledge_base:  organizations/{orgId}/knowledge-base/{images|documents}/{assetId}.{ext}
+ * profile logo:    organizations/{orgId}/profile/logo.{ext}
  * temp uploads:    organizations/{orgId}/temp/uploads/{assetId}
  */
 export function buildOrganizationStorageKey(params: BuildOrganizationStorageKeyParams): string {
@@ -55,6 +56,11 @@ export function buildOrganizationStorageKey(params: BuildOrganizationStorageKeyP
     return ['organizations', params.organizationId, nsPath, folder, `${params.assetId}${ext}`].join(
       '/'
     )
+  }
+
+  if (params.namespace === StorageNamespace.Profile) {
+    // Canonical org logo key (favicon/cover not implemented).
+    return ['organizations', params.organizationId, nsPath, `logo${ext}`].join('/')
   }
 
   if (params.namespace === StorageNamespace.Temp) {

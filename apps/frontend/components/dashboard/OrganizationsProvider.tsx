@@ -10,6 +10,10 @@ import {
   peekAccessTokenOrgId,
 } from '@/lib/access-token'
 import { ONBOARDING_PAYMENT_PATH } from '@/lib/onboarding'
+import {
+  isOrganizationRequiredProfileComplete,
+  ORG_PROFILE_PATH,
+} from '@/lib/organization-profile'
 import { hasPermission, PERMISSIONS } from '@/lib/rbac'
 import { queryKeys } from '@/lib/query-keys'
 import { usePathname, useRouter } from '@/i18n/navigation'
@@ -28,6 +32,8 @@ type OrganizationsContextValue = {
   accessContext: AccessContext | null
   /** Flat permission list from GET /api/v1/access-context. */
   permissions: string[]
+  /** True when the active membership role is owner. */
+  isOwner: boolean
   hasOrganizations: boolean
   /** Convenience flags — derived only from permission keys, never role names. */
   canManageSettings: boolean
@@ -333,6 +339,18 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
     ? (organizations.find((org) => org.id === activeId) ?? null)
     : null
 
+  // Required profile fields: owner-only gate before dashboard (invitees are never blocked).
+  useEffect(() => {
+    if (!accessContext || accessContext.status === 'pending_setup') return
+    if (!activeOrganization) return
+    if (pathname.startsWith(ORG_PROFILE_PATH)) return
+    if (!pathname.startsWith('/dashboard')) return
+    if (!accessContext.isOwner) return
+    if (isOrganizationRequiredProfileComplete(activeOrganization)) return
+
+    router.replace(ORG_PROFILE_PATH)
+  }, [accessContext, activeOrganization, pathname, router])
+
   const sessionOrgFromContext = accessContext?.organizationId ?? null
   const activeOrgId = activeOrganization?.id ?? null
   const orgAligned = Boolean(isSignedIn && activeOrgId && sessionOrgFromContext === activeOrgId)
@@ -382,6 +400,7 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
     tenantOrganizationId,
     accessContext,
     permissions,
+    isOwner: Boolean(accessContext?.isOwner),
     hasOrganizations: organizations.length > 0,
     canViewOrg: hasPermission(permissions, PERMISSIONS.ORG_VIEW),
     canManageSettings: hasPermission(permissions, PERMISSIONS.ORG_SETTINGS_MANAGE),

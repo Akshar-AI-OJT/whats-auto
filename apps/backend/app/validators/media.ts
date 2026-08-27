@@ -5,6 +5,11 @@ export const initiateMediaUploadValidator = vine.create(
     fileName: vine.string().trim().minLength(1).maxLength(255),
     mimeType: vine.string().trim().minLength(3).maxLength(255),
     fileSize: vine.number().withoutDecimals().min(1),
+    /**
+     * Optional upload purpose. `organization_logo` routes the asset into the
+     * profile storage namespace (`organizations/{orgId}/profile/logo.{ext}`).
+     */
+    purpose: vine.enum(['organization_logo'] as const).optional(),
   })
 )
 

@@ -7,6 +7,7 @@ const PENDING_PLAN_KEY = 'wa-onboarding-plan'
 
 export const ORG_SETUP_PATH = '/onboarding/organization'
 export const ONBOARDING_PAYMENT_PATH = '/onboarding/payment'
+export { ORG_PROFILE_PATH } from '@/lib/organization-profile'
 export const TEAM_MEMBERS_PATH = '/dashboard/team'
 export const ASSIGNABLE_ROLES = ['admin', 'agent', 'viewer'] as const
 export type AssignableRole = (typeof ASSIGNABLE_ROLES)[number]
@@ -239,6 +240,19 @@ export function savePendingWorkspacePreferences(
     window.sessionStorage.setItem(PREFERENCES_KEY, JSON.stringify(prefs))
   } catch {
     /* ignore */
+  }
+}
+
+export function readPendingWorkspacePreferences(): PendingWorkspacePreferences | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.sessionStorage.getItem(PREFERENCES_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as PendingWorkspacePreferences
+    if (!parsed || typeof parsed !== 'object') return null
+    return parsed
+  } catch {
+    return null
   }
 }
 

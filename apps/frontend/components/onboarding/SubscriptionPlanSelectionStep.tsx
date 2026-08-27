@@ -149,8 +149,9 @@ export function SubscriptionPlanSelectionStep({
                   }
                   aria-pressed={isSelected}
                   className={cn(
-                    'group relative flex h-full min-h-0 flex-col rounded-2xl p-5 text-left sm:p-6',
+                    'group relative flex h-full min-h-0 cursor-pointer flex-col rounded-2xl p-5 text-left sm:p-6',
                     'border bg-canvas transition-[border-color,box-shadow,background-color,transform] duration-200 ease-out',
+                    'disabled:cursor-not-allowed disabled:opacity-70',
                     isSelected
                       ? 'border-primary bg-primary/[0.03] shadow-[0_0_0_1px_rgb(37_99_235/0.35),0_12px_28px_rgb(37_99_235/0.08)]'
                       : 'border-[#E2E8F0] shadow-[0_1px_2px_rgb(15_23_42/0.04)] hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-[0_10px_24px_rgb(15_23_42/0.06)]'

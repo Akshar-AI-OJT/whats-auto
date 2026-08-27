@@ -71,6 +71,23 @@ test.group('Media storage key + delivery URL', () => {
     )
   })
 
+  test('builds v2 organization profile logo key', ({ assert }) => {
+    const key = buildOrganizationStorageKey({
+      organizationId: '7bd23286-0000-4000-8000-000000000001',
+      namespace: StorageNamespace.Profile,
+      mediaType: 'image',
+      assetId: '550e8400-e29b-41d4-a716-446655440000',
+      mimeType: 'image/png',
+      fileName: 'brand logo.PNG',
+    })
+
+    assert.equal(key, 'organizations/7bd23286-0000-4000-8000-000000000001/profile/logo.png')
+    assert.equal(
+      retentionForNamespace(StorageNamespace.Profile),
+      StorageRetentionPolicy.UntilDeleted
+    )
+  })
+
   test('maps document mime types and inbound source segment', ({ assert }) => {
     assert.equal(extensionForMedia({ mimeType: 'application/pdf' }), '.pdf')
 
