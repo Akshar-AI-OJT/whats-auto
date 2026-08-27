@@ -85,6 +85,32 @@ export class MediaAssetRepository {
     return row ? mapRow(row) : null
   }
 
+  /**
+   * Canonical organization profile logo (namespace=profile, state=ready).
+   * At most one active logo key exists per org; returns the latest ready asset.
+   */
+  async findReadyProfileLogo(
+    params: { organizationId: string },
+    client: Db = db
+  ): Promise<MediaAssetRow | null> {
+    const row = await client
+      .from('media_assets')
+      .where('organizationId', params.organizationId)
+      .where('state', 'ready')
+      .whereExists((builder) => {
+        builder
+          .from('organization_storage_objects as o')
+          .whereRaw('o.id = media_assets."storageObjectId"')
+          .where('o.namespace', 'profile')
+          .where('o.state', 'ready')
+          .whereNull('o.deletedAt')
+      })
+      .orderBy('updatedAt', 'desc')
+      .first()
+
+    return row ? mapRow(row) : null
+  }
+
   async markReady(
     params: {
       organizationId: string

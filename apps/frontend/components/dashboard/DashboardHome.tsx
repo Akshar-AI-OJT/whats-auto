@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl'
 import { useAuth } from '@/hooks/useAuth'
 import { OnboardingChecklist } from './overview/OnboardingChecklist'
 import { ConnectWhatsappCard } from './overview/ConnectWhatsappCard'
+import { ProfileCompletionReminder } from './overview/ProfileCompletionReminder'
 import { WelcomeSection } from './overview/WelcomeSection'
 import { KpiGrid } from './overview/KpiGrid'
 import { RecentConversations } from './overview/RecentConversations'
@@ -25,6 +26,7 @@ export function DashboardHome() {
     <DashboardOverviewProvider noDetailsLabel={tHome('activity.noDetails')}>
       <div className="flex w-full min-w-0 flex-col gap-5 sm:gap-6 xl:gap-7">
         <WelcomeSection />
+        <ProfileCompletionReminder />
         <OnboardingChecklist />
         <ConnectWhatsappCard />
         <KpiGrid />

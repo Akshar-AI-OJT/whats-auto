@@ -23,14 +23,13 @@ const phoneSchema = vine
   .maxLength(30)
   .regex(/^\+?[0-9\s\-().]+$/)
 
-/** Structured address preferred for profile completion. */
+/** Structured address preferred for profile completion (country is organizations.country). */
 export const organizationAddressObjectSchema = vine.object({
   addressLine1: vine.string().trim().minLength(1).maxLength(200),
   addressLine2: vine.string().trim().maxLength(200).nullable().optional(),
   city: vine.string().trim().minLength(1).maxLength(100),
   state: vine.string().trim().minLength(1).maxLength(100),
   postalCode: vine.string().trim().minLength(1).maxLength(32),
-  country: vine.string().trim().minLength(2).maxLength(100),
 })
 
 /**
@@ -84,6 +83,7 @@ export const updateOrganizationValidator = vine.create(
     address: addressInputSchema.optional(),
     pan: panSchema.optional(),
     gstin: gstinSchema.optional(),
+    country: vine.string().trim().minLength(2).maxLength(100).optional(),
     timezone: vine.string().trim().minLength(1).maxLength(100).optional(),
     currency: vine.string().trim().maxLength(10).optional(),
     description: vine.string().trim().maxLength(2000).nullable().optional(),

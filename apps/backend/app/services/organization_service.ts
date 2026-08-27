@@ -60,6 +60,7 @@ export type UpdateOrganizationInput = {
   address?: string | OrganizationAddress
   pan?: string
   gstin?: string
+  country?: string
   timezone?: string
   currency?: string
   description?: string | null
@@ -565,13 +566,11 @@ export class OrganizationService {
     if (patch.industry !== undefined) updates.industry = patch.industry
     if (patch.organizationType !== undefined) updates.organizationType = patch.organizationType
     if (patch.address !== undefined) {
-      updates.address = normalizeOrganizationAddress(
-        patch.address,
-        (existing.country as string | undefined) ?? null
-      )
+      updates.address = normalizeOrganizationAddress(patch.address)
     }
     if (patch.pan !== undefined) updates.pan = patch.pan.replace(/\s+/g, '').toUpperCase()
     if (patch.gstin !== undefined) updates.gstin = patch.gstin.replace(/\s+/g, '').toUpperCase()
+    if (patch.country !== undefined) updates.country = patch.country
     if (patch.timezone !== undefined) updates.timezone = patch.timezone
     if (patch.currency !== undefined) updates.currency = patch.currency
     if (patch.description !== undefined) updates.description = patch.description
@@ -625,6 +624,7 @@ export class OrganizationService {
           address: existing.address,
           pan: existing.pan,
           gstin: existing.gstin,
+          country: existing.country,
           timezone: existing.timezone,
           currency: existing.currency,
           description: existing.description,

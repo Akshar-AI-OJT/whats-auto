@@ -1,5 +1,6 @@
 /**
  * Structured organization address stored in `organizations.address` (jsonb).
+ * Country is NOT stored here — source of truth is `organizations.country`.
  */
 export type OrganizationAddress = {
   addressLine1: string
@@ -7,7 +8,6 @@ export type OrganizationAddress = {
   city: string
   state: string
   postalCode: string
-  country: string
 }
 
 export function isOrganizationAddress(value: unknown): value is OrganizationAddress {
@@ -18,11 +18,11 @@ export function isOrganizationAddress(value: unknown): value is OrganizationAddr
 
 /**
  * Normalize API input (legacy free-text string or structured object) to jsonb shape.
- * Legacy strings are preserved in `addressLine1`; optional fallbackCountry fills `country`.
+ * Strips any legacy `country` property from objects — country lives on organizations.country.
  */
 export function normalizeOrganizationAddress(
-  value: string | OrganizationAddress,
-  fallbackCountry?: string | null
+  value: string | OrganizationAddress | (OrganizationAddress & { country?: string }),
+  _fallbackCountry?: string | null
 ): OrganizationAddress {
   if (typeof value === 'string') {
     const line = value.trim()
@@ -32,7 +32,6 @@ export function normalizeOrganizationAddress(
       city: '',
       state: '',
       postalCode: '',
-      country: (fallbackCountry ?? '').trim(),
     }
   }
 
@@ -42,7 +41,6 @@ export function normalizeOrganizationAddress(
     city: value.city.trim(),
     state: value.state.trim(),
     postalCode: value.postalCode.trim(),
-    country: value.country.trim(),
   }
 }
 
@@ -62,7 +60,6 @@ export function parseOrganizationAddress(value: unknown): OrganizationAddress | 
           city: '',
           state: '',
           postalCode: '',
-          country: '',
         }
       }
     }
@@ -72,7 +69,6 @@ export function parseOrganizationAddress(value: unknown): OrganizationAddress | 
       city: '',
       state: '',
       postalCode: '',
-      country: '',
     }
   }
 
@@ -88,12 +84,17 @@ export function parseOrganizationAddress(value: unknown): OrganizationAddress | 
     city: typeof row.city === 'string' ? row.city : '',
     state: typeof row.state === 'string' ? row.state : '',
     postalCode: typeof row.postalCode === 'string' ? row.postalCode : '',
-    country: typeof row.country === 'string' ? row.country : '',
   }
 }
 
-/** Flatten structured address for invoice / legacy string consumers. */
-export function formatOrganizationAddress(value: unknown): string | null {
+/**
+ * Flatten structured address for invoice / legacy string consumers.
+ * Pass `country` separately when available (organizations.country).
+ */
+export function formatOrganizationAddress(
+  value: unknown,
+  country?: string | null
+): string | null {
   const parsed = parseOrganizationAddress(value)
   if (!parsed) return null
 
@@ -103,7 +104,7 @@ export function formatOrganizationAddress(value: unknown): string | null {
     parsed.city,
     parsed.state,
     parsed.postalCode,
-    parsed.country,
+    typeof country === 'string' ? country.trim() : '',
   ]
     .map((part) => (typeof part === 'string' ? part.trim() : ''))
     .filter(Boolean)

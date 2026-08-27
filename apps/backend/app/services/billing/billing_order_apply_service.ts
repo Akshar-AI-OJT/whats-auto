@@ -323,7 +323,7 @@ export class BillingOrderApplyService {
         billToName: (org?.name as string | undefined)?.trim() || 'Organization',
         billToEmail: (org?.email as string | undefined)?.trim() || 'billing@example.com',
         billToPhone: (org?.phone as string | undefined)?.trim() || null,
-        billToAddress: formatOrganizationAddress(org?.address) || null,
+        billToAddress: formatOrganizationAddress(org?.address, org?.country) || null,
         billToGstin: (org?.gstin as string | undefined)?.trim() || null,
         paidAt: params.paidAt,
         metadata: { billingOrderId: params.order.id },

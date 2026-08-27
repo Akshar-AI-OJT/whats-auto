@@ -19,6 +19,7 @@ import {
   normalizeTaxId,
   ORG_SETUP_PATH,
 } from '@/lib/onboarding'
+import { formatOrganizationAddressLines } from '@/lib/organization-profile'
 import {
   INDUSTRY_OPTIONS,
   ORGANIZATION_TYPE_OPTIONS,
@@ -83,7 +84,7 @@ function detailsFromOrg(org: OrganizationSummary | null): FormState {
       organizationType && ORGANIZATION_TYPE_OPTIONS.includes(organizationType)
         ? organizationType
         : '',
-    address: org?.address ?? '',
+    address: formatOrganizationAddressLines(org?.address, org?.country),
     pan: org?.pan ?? '',
     gstin: org?.gstin ?? '',
     timezone: org?.timezone || getTimezoneOptions()[0] || 'UTC',
@@ -286,7 +287,7 @@ export function WorkspaceSettingsPage() {
             ORGANIZATION_TYPE_OPTIONS.includes(updated.organizationType)
               ? updated.organizationType
               : '',
-          address: updated.address ?? '',
+          address: formatOrganizationAddressLines(updated.address, updated.country),
           pan: updated.pan ?? '',
           gstin: updated.gstin ?? '',
           timezone: updated.timezone,

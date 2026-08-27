@@ -165,6 +165,16 @@ export class MediaAssetService {
     return toDto(asset, referenceCount)
   }
 
+  /** Ready organization profile logo, or null when none uploaded. */
+  async getOrganizationLogo(params: {
+    organizationId: string
+  }): Promise<MediaAssetDto | null> {
+    const asset = await runWithTenant(params.organizationId, () =>
+      this.repo.findReadyProfileLogo({ organizationId: params.organizationId })
+    )
+    return asset ? toDto(asset) : null
+  }
+
   async getQuota(organizationId: string): Promise<MediaQuotaDto> {
     const [usage, limitBytes] = await Promise.all([
       this.quota.getUsage(organizationId),

@@ -392,7 +392,7 @@ export function OrganizationRegistrationForm({
       savePendingWorkspacePlan(selectedPlan.id)
       await startBillingPayment(selectedPlan.id)
       setConfirmOpen(false)
-      router.replace('/dashboard')
+      router.replace('/onboarding/organization-profile')
     } catch (err) {
       checkoutLockRef.current = false
       const apiError = err as ApiError
