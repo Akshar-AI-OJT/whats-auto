@@ -2,6 +2,7 @@ import type { HttpContext } from '@adonisjs/core/http'
 import MediaException from '#exceptions/media_exception'
 import MediaAssetPolicy from '#policies/media_asset_policy'
 import { MediaAssetService } from '#services/media_asset_service'
+import { StorageNamespace } from '#lib/media/storage_types'
 import { initiateMediaUploadValidator, mediaUploadIdParamValidator } from '#validators/media'
 import vine from '@vinejs/vine'
 import '#types/http'
@@ -19,7 +20,7 @@ export default class MediaUploadsController {
   /**
    * @store
    * @summary Initiate a direct media upload
-   * @description Creates a pending media asset and returns a short-lived PUT contract (S3 presign or local HMAC URL). Call complete after the browser uploads bytes.
+   * @description Creates a pending media asset and returns a short-lived PUT contract (S3-compatible presign or local HMAC URL). Call complete after the browser uploads bytes. Pass purpose=organization_logo for org profile logo keys.
    * @tag Media
    * @security BearerAuth
    * @requestBody { "fileName": "banner.jpg", "mimeType": "image/jpeg", "fileSize": 102400 }
@@ -38,6 +39,7 @@ export default class MediaUploadsController {
       fileName: payload.fileName,
       mimeType: payload.mimeType,
       fileSize: payload.fileSize,
+      namespace: payload.purpose === 'organization_logo' ? StorageNamespace.Profile : undefined,
     })
 
     return serialize(result)

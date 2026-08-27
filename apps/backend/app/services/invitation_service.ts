@@ -224,7 +224,7 @@ export class InvitationService {
       organizationId,
       inviterId,
       inviteeEmail: normalizedEmail,
-      workspaceName: org.name as string,
+      organizationName: org.name as string,
       role,
     })
 
@@ -284,7 +284,7 @@ export class InvitationService {
     organizationId: string
     inviterId: string
     inviteeEmail: string
-    workspaceName: string
+    organizationName: string
     role: string
   }): Promise<void> {
     let recipientUserId: string | undefined
@@ -304,7 +304,7 @@ export class InvitationService {
         userId: recipientUserId,
         type: 'team_invitation_created',
         title: "You've been invited",
-        body: `You've been invited to join ${params.workspaceName} as ${params.role}.`,
+        body: `You've been invited to join ${params.organizationName} as ${params.role}.`,
         actorUserId: params.inviterId,
       })
     } catch (error) {
@@ -511,14 +511,14 @@ export class InvitationService {
       ])
 
       const userName = (accepter?.name as string | undefined) ?? 'A user'
-      const workspaceName = (org?.name as string | undefined) ?? 'the workspace'
+      const organizationName = (org?.name as string | undefined) ?? 'the organization'
 
       await new NotificationService().createNotification({
         organizationId: params.organizationId,
         userId: params.inviterId,
         type: 'team_invitation_accepted',
         title: 'Invitation accepted',
-        body: `${userName} accepted your invitation and joined ${workspaceName}.`,
+        body: `${userName} accepted your invitation and joined ${organizationName}.`,
         actorUserId: params.actorUserId,
       })
     } catch (error) {

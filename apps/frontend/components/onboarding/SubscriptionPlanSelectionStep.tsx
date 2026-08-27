@@ -5,7 +5,6 @@ import { useQuery } from '@tanstack/react-query'
 import {
   Check,
   Crown,
-  LayoutGrid,
   Loader2,
   MessageSquareText,
   Users,
@@ -131,7 +130,6 @@ export function SubscriptionPlanSelectionStep({
               const checkoutable = plan.checkoutable
               const users = formatLimit(plan.limits.users, unlimited)
               const messages = formatLimit(plan.limits.messagesPerMonth, unlimited)
-              const workspaces = formatLimit(plan.limits.workspaces, unlimited)
               const enabledFeatures = plan.features.filter((f) => f.enabled)
               const priceLabel = formatTenantPlanPrice(plan.price, plan.currency, customPrice)
 
@@ -149,8 +147,9 @@ export function SubscriptionPlanSelectionStep({
                   }
                   aria-pressed={isSelected}
                   className={cn(
-                    'group relative flex h-full min-h-0 flex-col rounded-2xl p-5 text-left sm:p-6',
+                    'group relative flex h-full min-h-0 cursor-pointer flex-col rounded-2xl p-5 text-left sm:p-6',
                     'border bg-canvas transition-[border-color,box-shadow,background-color,transform] duration-200 ease-out',
+                    'disabled:cursor-not-allowed disabled:opacity-70',
                     isSelected
                       ? 'border-primary bg-primary/[0.03] shadow-[0_0_0_1px_rgb(37_99_235/0.35),0_12px_28px_rgb(37_99_235/0.08)]'
                       : 'border-[#E2E8F0] shadow-[0_1px_2px_rgb(15_23_42/0.04)] hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-[0_10px_24px_rgb(15_23_42/0.06)]'
@@ -199,13 +198,6 @@ export function SubscriptionPlanSelectionStep({
                           {tSubs('limits.messages')}
                         </span>
                         <span className="font-semibold tabular-nums text-ink">{messages}</span>
-                      </li>
-                      <li className="flex items-center justify-between gap-3 text-sm">
-                        <span className="inline-flex items-center gap-2 text-mute">
-                          <LayoutGrid className="size-4 shrink-0 text-primary" aria-hidden />
-                          {tSubs('limits.workspaces')}
-                        </span>
-                        <span className="font-semibold tabular-nums text-ink">{workspaces}</span>
                       </li>
                     </ul>
                   </div>

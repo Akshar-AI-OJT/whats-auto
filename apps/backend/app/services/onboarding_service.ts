@@ -18,7 +18,7 @@ export type PendingInvitation = {
  * Decide what the client should show after login / signup verification.
  *
  * Invitations only take over onboarding for users with no organization yet —
- * an existing member who gets invited elsewhere keeps landing in their workspace
+ * an existing member who gets invited elsewhere keeps landing in their organization
  * and sees the invite as a notification instead.
  */
 export function resolveNextStep(params: {

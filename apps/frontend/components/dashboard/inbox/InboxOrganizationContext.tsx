@@ -22,7 +22,7 @@ export type InboxSseHandler = (event: InboxSseClientEvent) => void
 
 const SOFT_CATCHUP_MS = 90_000
 
-type InboxWorkspaceContextValue = {
+type InboxOrganizationContextValue = {
   conversationId: string | null
   conversation: InboxConversation | null
   members: OrganizationMember[]
@@ -35,9 +35,9 @@ type InboxWorkspaceContextValue = {
   setDetailsOpen: (open: boolean) => void
 }
 
-const InboxWorkspaceContext = createContext<InboxWorkspaceContextValue | null>(null)
+const InboxOrganizationContext = createContext<InboxOrganizationContextValue | null>(null)
 
-export function InboxWorkspaceProvider({ children }: { children: ReactNode }) {
+export function InboxOrganizationProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
   const { tenantOrganizationId, canViewInbox, isResolvingAccess } = useOrganizations()
   const [conversationId, setConversationId] = useState<string | null>(null)
@@ -108,14 +108,14 @@ export function InboxWorkspaceProvider({ children }: { children: ReactNode }) {
   )
 
   return (
-    <InboxWorkspaceContext.Provider value={value}>{children}</InboxWorkspaceContext.Provider>
+    <InboxOrganizationContext.Provider value={value}>{children}</InboxOrganizationContext.Provider>
   )
 }
 
-export function useInboxWorkspace() {
-  const ctx = useContext(InboxWorkspaceContext)
+export function useInboxOrganization() {
+  const ctx = useContext(InboxOrganizationContext)
   if (!ctx) {
-    throw new Error('useInboxWorkspace must be used within InboxWorkspaceProvider')
+    throw new Error('useInboxOrganization must be used within InboxOrganizationProvider')
   }
   return ctx
 }

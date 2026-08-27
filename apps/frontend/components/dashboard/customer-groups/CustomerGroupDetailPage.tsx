@@ -12,7 +12,7 @@ import { Link, useRouter } from '@/i18n/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
-import { WorkspaceAvatar } from '@/components/dashboard/WorkspaceSwitcher'
+import { OrganizationAvatar } from '@/components/dashboard/OrganizationSwitcher'
 import { DashboardToast, useDashboardToast } from '@/components/dashboard/ui/use-dashboard-toast'
 import { queryKeys } from '@/lib/query-keys'
 import { CustomerGroupDeleteDialog } from './CustomerGroupDeleteDialog'
@@ -327,7 +327,7 @@ export function CustomerGroupDetailPage({ groupId }: CustomerGroupDetailPageProp
                   className="flex flex-col gap-3 bg-canvas px-4 py-3.5 sm:flex-row sm:items-center sm:gap-4 sm:px-5"
                 >
                   <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <WorkspaceAvatar initials={initialsFromContact(contact)} size="md" />
+                    <OrganizationAvatar initials={initialsFromContact(contact)} size="md" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium text-ink">{name}</p>
                       <p className="truncate text-sm text-body">{contact.phone}</p>

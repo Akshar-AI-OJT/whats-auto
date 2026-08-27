@@ -508,7 +508,7 @@ export function CustomerGroupsPage() {
                 <li key={group.id}>
                   <Link
                     href={`/dashboard/customer-groups/${group.id}`}
-                    className="block rounded-2xl border border-dash-border bg-dash-surface/60 p-4"
+                    className="block cursor-pointer rounded-2xl border border-dash-border bg-dash-surface/60 p-4"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex min-w-0 items-start gap-3">

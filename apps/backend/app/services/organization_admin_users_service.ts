@@ -141,15 +141,15 @@ export class OrganizationAdminUsersService {
     })
 
     if (previousIsActive === true && nextIsActive === false) {
-      const workspaceName = await this.#loadOrganizationName(organizationId)
+      const organizationName = await this.#loadOrganizationName(organizationId)
       await this.#notifyUserBestEffort({
         organizationId,
         userId,
         actorUserId,
         type: 'team_user_deactivated',
         title: 'Your account was deactivated',
-        body: workspaceName
-          ? `Your account was deactivated in ${workspaceName}.`
+        body: organizationName
+          ? `Your account was deactivated in ${organizationName}.`
           : 'Your account was deactivated.',
       })
     }

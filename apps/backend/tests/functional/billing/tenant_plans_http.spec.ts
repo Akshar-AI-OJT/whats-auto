@@ -279,7 +279,7 @@ test.group('Tenant billing plans HTTP', (group) => {
         billingPeriod: 'custom',
         status: 'active',
         trialDays: 0,
-        limits: { users: 2, messagesPerMonth: 50, workspaces: 1 },
+        limits: { users: 2, messagesPerMonth: 50 },
         features: [{ key: 'inbox', name: 'Inbox', enabled: true, category: 'messaging' }],
       })
 

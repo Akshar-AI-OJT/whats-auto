@@ -39,7 +39,7 @@ function mapActionError(apiError: ApiError, t: (key: string) => string): string 
 }
 
 const selectClassName = cn(
-  'h-9 w-full appearance-none rounded-lg border border-dash-border bg-canvas pl-8 pr-8 text-xs font-medium text-ink outline-none',
+  'h-9 w-full cursor-pointer appearance-none rounded-lg border border-dash-border bg-canvas pl-8 pr-8 text-xs font-medium text-ink outline-none',
   'transition-[border-color,box-shadow]',
   'hover:border-dash-border-strong',
   'focus-visible:border-primary/55 focus-visible:ring-2 focus-visible:ring-primary/30',

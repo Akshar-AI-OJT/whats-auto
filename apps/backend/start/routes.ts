@@ -122,6 +122,7 @@ const requestBodySchemas: Record<string, JsonSchema> = {
     phone: { type: 'string', example: '+919876543210' },
     website: { type: 'string', format: 'uri', example: 'https://krishnademo.com' },
     industry: { type: 'string', example: 'Software' },
+    country: { type: 'string', example: 'IN' },
     timezone: { type: 'string', example: 'Asia/Kolkata' },
     currency: { type: 'string', example: 'INR' },
   }),
@@ -912,6 +913,7 @@ router
   .group(() => {
     router.get('/', [MediaAssetsController, 'index'])
     router.get('/quota', [MediaAssetsController, 'quota'])
+    router.get('/organization-logo', [MediaAssetsController, 'organizationLogo'])
     router.get('/:id', [MediaAssetsController, 'show'])
     router.post('/uploads', [MediaUploadsController, 'store'])
     router.post('/uploads/:id/complete', [MediaUploadsController, 'complete'])

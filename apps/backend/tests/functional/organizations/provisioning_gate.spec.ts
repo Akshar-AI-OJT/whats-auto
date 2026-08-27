@@ -280,7 +280,7 @@ test.group('Org provisioning gate', (group) => {
     assert.equal(org.status, OrganizationStatus.ACTIVE)
   })
 
-  test('second workspace create does not switch session away from active org', async ({
+  test('second organization create does not switch session away from active org', async ({
     assert,
   }) => {
     const owner = await db
@@ -307,7 +307,7 @@ test.group('Org provisioning gate', (group) => {
       userId: owner.id as string,
       sessionId: session!.id as string,
       data: {
-        name: 'Second Workspace',
+        name: 'Second Organization',
         slug,
         email: `${slug}@example.com`,
         phone: '+919876543210',

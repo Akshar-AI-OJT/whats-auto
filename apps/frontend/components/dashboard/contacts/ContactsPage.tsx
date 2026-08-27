@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
-import { WorkspaceAvatar } from '@/components/dashboard/WorkspaceSwitcher'
+import { OrganizationAvatar } from '@/components/dashboard/OrganizationSwitcher'
 import { AddContactSheet } from '@/components/dashboard/contacts/AddContactSheet'
 import { ContactDeleteDialog } from '@/components/dashboard/contacts/ContactDeleteDialog'
 import { ImportContactsDialog } from '@/components/dashboard/contacts/ImportContactsDialog'
@@ -131,7 +131,7 @@ export function ContactsPage() {
     router.replace(pathname)
   }, [orgsLoading, canCreateContacts, addFromQuery, pathname, router])
 
-  // Clear local search and delete dialog when the workspace changes.
+  // Clear local search and delete dialog when the organization changes.
   const orgScope = tenantOrganizationId ?? ''
   const [prevOrgScope, setPrevOrgScope] = useState(orgScope)
   if (prevOrgScope !== orgScope) {
@@ -310,7 +310,7 @@ export function ContactsPage() {
                 className="flex flex-col gap-3 bg-canvas px-4 py-3.5 sm:flex-row sm:items-center sm:gap-4 sm:px-5"
               >
                 <div className="flex min-w-0 flex-1 items-center gap-3">
-                  <WorkspaceAvatar initials={initialsFromContact(contact)} size="md" />
+                  <OrganizationAvatar initials={initialsFromContact(contact)} size="md" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-ink">
                       {contact.name?.trim() || contact.phone}

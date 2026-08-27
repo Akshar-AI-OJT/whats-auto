@@ -253,6 +253,15 @@ export type ProfileUser = {
 
 export type OrganizationType = 'company' | 'partnership' | 'sole_proprietorship' | 'other'
 
+/** Structured org address stored as jsonb — country lives on organizations.country. */
+export type OrganizationAddress = {
+  addressLine1: string
+  addressLine2?: string | null
+  city: string
+  state: string
+  postalCode: string
+}
+
 export type CreateOrganizationBody = {
   name: string
   slug: string
@@ -261,12 +270,19 @@ export type CreateOrganizationBody = {
   website?: string
   industry?: string
   organizationType: OrganizationType
-  address: string
+  /** Legacy free-text or structured address object. */
+  address: string | OrganizationAddress
   pan?: string
   gstin?: string
   country: string
   timezone: string
   currency?: string
+  description?: string
+  businessSize?: string
+  alternatePhone?: string
+  defaultLanguage?: string
+  businessRegistrationNumber?: string
+  designation?: string
 }
 
 export type CreatedOrganization = {
@@ -288,12 +304,17 @@ export type OrganizationSummary = {
   website?: string | null
   industry?: string | null
   organizationType?: OrganizationType | null
-  address?: string | null
+  address?: OrganizationAddress | string | null
   pan?: string | null
   gstin?: string | null
   country: string
   timezone: string
   currency?: string | null
+  description?: string | null
+  businessSize?: string | null
+  alternatePhone?: string | null
+  defaultLanguage?: string | null
+  businessRegistrationNumber?: string | null
   role: string
   createdAt: string
   status?: 'pending_setup' | 'active' | 'suspended' | 'false'
@@ -301,15 +322,22 @@ export type OrganizationSummary = {
 
 export type UpdateOrganizationBody = {
   name?: string
-  phone?: string
-  website?: string
-  industry?: string
-  organizationType?: OrganizationType
-  address?: string
-  pan?: string
-  gstin?: string
+  phone?: string | null
+  website?: string | null
+  industry?: string | null
+  organizationType?: OrganizationType | null
+  address?: string | OrganizationAddress
+  pan?: string | null
+  gstin?: string | null
+  country?: string
   timezone?: string
-  currency?: string
+  currency?: string | null
+  description?: string | null
+  businessSize?: string | null
+  alternatePhone?: string | null
+  defaultLanguage?: string | null
+  businessRegistrationNumber?: string | null
+  designation?: string | null
 }
 
 export type OrganizationDetails = {
@@ -321,12 +349,17 @@ export type OrganizationDetails = {
   website: string | null
   industry: string | null
   organizationType: OrganizationType | null
-  address: string | null
+  address: OrganizationAddress | string | null
   pan: string | null
   gstin: string | null
   country: string
   timezone: string
   currency: string | null
+  description?: string | null
+  businessSize?: string | null
+  alternatePhone?: string | null
+  defaultLanguage?: string | null
+  businessRegistrationNumber?: string | null
 }
 
 export type AccessContext = {
@@ -649,6 +682,8 @@ export type InitiateMediaUploadBody = {
   fileName: string
   mimeType: string
   fileSize: number
+  /** Routes upload into organizations/{orgId}/profile/logo.{ext}. */
+  purpose?: 'organization_logo'
 }
 
 export type InitiateMediaUploadResult = {
@@ -1539,7 +1574,6 @@ export type SuperAdminPlanFeature = {
 export type SuperAdminPlanLimits = {
   users: number | null
   messagesPerMonth: number | null
-  workspaces: number | null
 }
 
 export type SuperAdminPlan = {
@@ -1586,7 +1620,6 @@ export type CreateSuperAdminPlanBody = {
   limits: {
     users?: number | null
     messagesPerMonth?: number | null
-    workspaces?: number | null
   }
   features?: SuperAdminPlanFeature[]
   sortOrder?: number
@@ -1666,7 +1699,6 @@ export type TenantBillingPlanFeature = {
 export type TenantBillingPlanLimits = {
   users: number | null
   messagesPerMonth: number | null
-  workspaces: number | null
 }
 
 export type TenantBillingPlan = {
@@ -2302,6 +2334,13 @@ export const api = {
       protectedRequest<{ data?: MediaQuota } & MediaQuota>('/api/v1/media/quota', {
         method: 'GET',
       }),
+
+    /** Canonical org profile logo (namespace=profile), or null. */
+    organizationLogo: () =>
+      protectedRequest<{ data?: MediaAsset | null } & { data?: MediaAsset | null }>(
+        '/api/v1/media/organization-logo',
+        { method: 'GET' }
+      ),
 
     get: (mediaAssetId: string) =>
       protectedRequest<{ data?: MediaAsset } & MediaAsset>(`/api/v1/media/${mediaAssetId}`, {

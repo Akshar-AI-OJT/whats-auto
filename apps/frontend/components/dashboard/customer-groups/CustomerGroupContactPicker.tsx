@@ -6,7 +6,7 @@ import { Loader2, Search } from 'lucide-react'
 import type { ContactSummary } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { WorkspaceAvatar } from '@/components/dashboard/WorkspaceSwitcher'
+import { OrganizationAvatar } from '@/components/dashboard/OrganizationSwitcher'
 import { cn } from '@/lib/utils'
 import { contactDisplayName, initialsFromContact } from './customer-group-utils'
 
@@ -126,7 +126,7 @@ export function CustomerGroupContactPicker({
                     disabled={disabled}
                     onChange={() => toggle(contact.id)}
                   />
-                  <WorkspaceAvatar initials={initialsFromContact(contact)} size="sm" />
+                  <OrganizationAvatar initials={initialsFromContact(contact)} size="sm" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-ink">{name}</p>
                     <p className="truncate text-sm text-body">{contact.phone}</p>

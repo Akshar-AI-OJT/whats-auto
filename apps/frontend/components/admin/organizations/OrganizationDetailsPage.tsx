@@ -161,7 +161,7 @@ function SubscriptionSection() {
   )
 }
 
-function WorkspaceStatistics() {
+function OrganizationStatistics() {
   const t = useTranslations('admin.organizations.detail.stats')
 
   const items = useMemo(
@@ -315,7 +315,7 @@ export function OrganizationDetailsPage({ orgId }: { orgId: string }) {
         </div>
       </div>
 
-      <WorkspaceStatistics />
+      <OrganizationStatistics />
       <TeamMembersSection />
       <RecentActivitySection />
     </div>

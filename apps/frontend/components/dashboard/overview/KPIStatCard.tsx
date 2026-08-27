@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { LucideIcon } from 'lucide-react'
 import { ArrowDown, ArrowUp, Minus } from 'lucide-react'
+import { Link } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
 import { DashboardPanel } from '../ui/DashboardPanel'
 
@@ -25,6 +26,8 @@ export type KPIStatCardProps = {
   loading?: boolean
   /** Animate value on mount. Respects `prefers-reduced-motion`. */
   animate?: boolean
+  /** When set, the card is a navigational link and shows a pointer cursor. */
+  href?: string
   className?: string
 }
 
@@ -186,6 +189,7 @@ export function KPIStatCard({
   icon: Icon,
   loading = false,
   animate = true,
+  href,
   className,
 }: KPIStatCardProps) {
   const parsed = useMemo(
@@ -206,13 +210,14 @@ export function KPIStatCard({
     return <KPIStatCardSkeleton className={className} />
   }
 
-  return (
+  const panel = (
     <DashboardPanel
       className={cn(
-        'group flex h-full flex-col p-4 sm:p-5 lg:p-6',
+        'group relative flex h-full flex-col p-4 sm:p-5 lg:p-6',
         'transition-[transform,box-shadow,border-color] duration-200 ease-out',
         'hover:-translate-y-0.5 hover:border-dash-border-strong',
         'hover:dash-elevated-shadow',
+        href && 'cursor-pointer',
         className
       )}
     >
@@ -252,4 +257,14 @@ export function KPIStatCard({
       </div>
     </DashboardPanel>
   )
+
+  if (href) {
+    return (
+      <Link href={href} className="block h-full cursor-pointer rounded-[24px]" aria-label={label}>
+        {panel}
+      </Link>
+    )
+  }
+
+  return panel
 }

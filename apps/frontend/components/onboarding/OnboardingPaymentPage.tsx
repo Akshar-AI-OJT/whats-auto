@@ -19,10 +19,11 @@ import { useRouter } from '@/i18n/navigation'
 import {
   clearOnboardingCheckoutSession,
   readOnboardingCheckoutSession,
-  readPendingWorkspacePlan,
+  readPendingOrganizationPlan,
   ORG_SETUP_PATH,
   type OnboardingCheckoutSession,
 } from '@/lib/onboarding'
+import { ORG_PROFILE_PATH } from '@/lib/organization-profile'
 import { OnboardingPaymentView, type OnboardingPaymentViewState } from './OnboardingPaymentView'
 
 function viewFromSubscription(
@@ -36,7 +37,7 @@ function viewFromSubscription(
 function readCheckoutSession(): OnboardingCheckoutSession | null {
   const stored = readOnboardingCheckoutSession()
   if (stored) return stored
-  const pendingPlan = readPendingWorkspacePlan()
+  const pendingPlan = readPendingOrganizationPlan()
   if (!pendingPlan) return null
   return {
     planId: pendingPlan,
@@ -100,7 +101,7 @@ export function OnboardingPaymentPage() {
 
   function handleContinueToDashboard() {
     clearOnboardingCheckoutSession()
-    router.push('/dashboard')
+    router.push(ORG_PROFILE_PATH)
   }
 
   if (!session) {

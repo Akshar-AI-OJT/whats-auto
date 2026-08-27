@@ -11,6 +11,11 @@ import { getGlobalRoleIdByName, resolveAssignableRoleForOrg } from '#services/ro
 import { bumpAllOrgMembersPermissionVersion } from '#lib/permission_version_bumps'
 import { isPostgresUniqueViolation } from '#lib/pg_unique_violation'
 import { NotificationService } from '#services/notification_service'
+import {
+  normalizeOrganizationAddress,
+  parseOrganizationAddress,
+  type OrganizationAddress,
+} from '#lib/organization_address'
 
 export const ORGANIZATION_TYPES = [
   'company',
@@ -21,6 +26,8 @@ export const ORGANIZATION_TYPES = [
 
 export type OrganizationType = (typeof ORGANIZATION_TYPES)[number]
 
+export type { OrganizationAddress }
+
 export type CreateOrganizationInput = {
   name: string
   slug: string
@@ -29,12 +36,19 @@ export type CreateOrganizationInput = {
   website?: string
   industry?: string
   organizationType: OrganizationType
-  address: string
+  address: string | OrganizationAddress
   pan?: string
   gstin?: string
   country: string
   timezone: string
   currency?: string
+  description?: string
+  businessSize?: string
+  alternatePhone?: string
+  defaultLanguage?: string
+  businessRegistrationNumber?: string
+  /** Optional title stored on the creating owner's membership. */
+  designation?: string
 }
 
 export type UpdateOrganizationInput = {
@@ -43,11 +57,19 @@ export type UpdateOrganizationInput = {
   website?: string
   industry?: string
   organizationType?: OrganizationType
-  address?: string
+  address?: string | OrganizationAddress
   pan?: string
   gstin?: string
+  country?: string
   timezone?: string
   currency?: string
+  description?: string | null
+  businessSize?: string | null
+  alternatePhone?: string | null
+  defaultLanguage?: string | null
+  businessRegistrationNumber?: string | null
+  /** Optional title for the caller's membership row. */
+  designation?: string | null
 }
 
 export type OrganizationPublicFields = {
@@ -59,12 +81,17 @@ export type OrganizationPublicFields = {
   website: string | null
   industry: string | null
   organizationType: OrganizationType | null
-  address: string | null
+  address: OrganizationAddress | null
   pan: string | null
   gstin: string | null
   country: string
   timezone: string
   currency: string | null
+  description: string | null
+  businessSize: string | null
+  alternatePhone: string | null
+  defaultLanguage: string | null
+  businessRegistrationNumber: string | null
 }
 
 const ORGANIZATION_PUBLIC_COLUMNS = [
@@ -82,6 +109,11 @@ const ORGANIZATION_PUBLIC_COLUMNS = [
   'country',
   'timezone',
   'currency',
+  'description',
+  'businessSize',
+  'alternatePhone',
+  'defaultLanguage',
+  'businessRegistrationNumber',
 ] as const
 
 function asOrganizationType(value: unknown): OrganizationType | null {
@@ -106,12 +138,17 @@ function mapOrganizationPublicFields(row: Record<string, unknown>): Organization
     website: (row.website as string | null) ?? null,
     industry: (row.industry as string | null) ?? null,
     organizationType: asOrganizationType(row.organizationType),
-    address: (row.address as string | null) ?? null,
+    address: parseOrganizationAddress(row.address),
     pan: (row.pan as string | null) ?? null,
     gstin: (row.gstin as string | null) ?? null,
     country: row.country as string,
     timezone: row.timezone as string,
     currency: (row.currency as string | null) ?? null,
+    description: (row.description as string | null) ?? null,
+    businessSize: (row.businessSize as string | null) ?? null,
+    alternatePhone: (row.alternatePhone as string | null) ?? null,
+    defaultLanguage: (row.defaultLanguage as string | null) ?? null,
+    businessRegistrationNumber: (row.businessRegistrationNumber as string | null) ?? null,
   }
 }
 
@@ -125,7 +162,7 @@ export class OrganizationService {
 
   /**
    * A user who belongs to no organization yet must resolve a pending invitation first,
-   * otherwise invitees end up creating a second workspace instead of joining the inviter's.
+   * otherwise invitees end up creating a second organization instead of joining the inviter's.
    * Users who already belong to an organization stay free to create more.
    */
   protected async assertNoBlockingInvitation(userId: string) {
@@ -161,7 +198,7 @@ export class OrganizationService {
   /**
    * Create an organization and make the caller the owner.
    * New orgs start as pending_setup. Session switches to the new org only when
-   * the caller has no already-active workspace (avoids stranding a paid owner).
+   * the caller has no already-active organization (avoids stranding a paid owner).
    * Reuses the caller's existing pending_setup org on retry to avoid email/slug collisions.
    */
   async createOrganization(params: {
@@ -174,7 +211,7 @@ export class OrganizationService {
     await this.assertNoBlockingInvitation(userId)
 
     const ownerRoleId = await getGlobalRoleIdByName('owner')
-    const hasActiveWorkspace = await this.#userHasActiveWorkspace(userId)
+    const hasActiveOrganization = await this.#userHasActiveOrganization(userId)
 
     const existingPending = await this.#findOwnedPendingSetupOrg(userId)
     if (existingPending) {
@@ -183,12 +220,13 @@ export class OrganizationService {
         userId,
         sessionId,
         data,
-        activateSession: !hasActiveWorkspace,
+        activateSession: !hasActiveOrganization,
       })
     }
 
     try {
       return await db.transaction(async (trx) => {
+        const address = normalizeOrganizationAddress(data.address, data.country)
         const [org] = await trx
           .table('organizations')
           .insert({
@@ -199,12 +237,17 @@ export class OrganizationService {
             website: data.website ?? null,
             industry: data.industry ?? null,
             organizationType: data.organizationType,
-            address: data.address,
+            address,
             pan: data.pan ? data.pan.replace(/\s+/g, '').toUpperCase() : null,
             gstin: data.gstin ? data.gstin.replace(/\s+/g, '').toUpperCase() : null,
             country: data.country,
             timezone: data.timezone,
             currency: data.currency ?? null,
+            description: data.description ?? null,
+            businessSize: data.businessSize ?? null,
+            alternatePhone: data.alternatePhone ?? null,
+            defaultLanguage: data.defaultLanguage ?? null,
+            businessRegistrationNumber: data.businessRegistrationNumber ?? null,
             status: OrganizationStatus.PENDING_SETUP,
           })
           .returning([...ORGANIZATION_PUBLIC_COLUMNS, 'status', 'createdAt'])
@@ -213,6 +256,7 @@ export class OrganizationService {
           organizationId: org.id,
           userId,
           roleId: ownerRoleId,
+          designation: data.designation ?? null,
         })
 
         await trx.table('user_roles').insert({
@@ -221,7 +265,7 @@ export class OrganizationService {
           organizationId: org.id,
         })
 
-        const sessionActivated = !hasActiveWorkspace
+        const sessionActivated = !hasActiveOrganization
         if (sessionActivated) {
           await trx.from('sessions').where('id', sessionId).update({
             activeOrganizationId: org.id,
@@ -262,7 +306,7 @@ export class OrganizationService {
             userId,
             sessionId,
             data,
-            activateSession: !hasActiveWorkspace,
+            activateSession: !hasActiveOrganization,
           })
         }
       }
@@ -285,7 +329,7 @@ export class OrganizationService {
     await query
   }
 
-  async #userHasActiveWorkspace(userId: string): Promise<boolean> {
+  async #userHasActiveOrganization(userId: string): Promise<boolean> {
     const row = await db
       .from('organization_members as m')
       .innerJoin('organizations as o', 'o.id', 'm.organizationId')
@@ -323,6 +367,11 @@ export class OrganizationService {
         'o.country',
         'o.timezone',
         'o.currency',
+        'o.description',
+        'o.businessSize',
+        'o.alternatePhone',
+        'o.defaultLanguage',
+        'o.businessRegistrationNumber',
         'o.status',
         'o.createdAt'
       )
@@ -339,6 +388,7 @@ export class OrganizationService {
   }) {
     const { org, userId, sessionId, data, activateSession } = params
     const organizationId = org.id as string
+    const address = normalizeOrganizationAddress(data.address, data.country)
 
     return db.transaction(async (trx) => {
       const [updated] = await trx
@@ -351,15 +401,28 @@ export class OrganizationService {
           website: data.website ?? null,
           industry: data.industry ?? null,
           organizationType: data.organizationType,
-          address: data.address,
+          address,
           pan: data.pan ? data.pan.replace(/\s+/g, '').toUpperCase() : null,
           gstin: data.gstin ? data.gstin.replace(/\s+/g, '').toUpperCase() : null,
           country: data.country,
           timezone: data.timezone,
           currency: data.currency ?? null,
+          description: data.description ?? null,
+          businessSize: data.businessSize ?? null,
+          alternatePhone: data.alternatePhone ?? null,
+          defaultLanguage: data.defaultLanguage ?? null,
+          businessRegistrationNumber: data.businessRegistrationNumber ?? null,
         })
         .returning([...ORGANIZATION_PUBLIC_COLUMNS, 'status', 'createdAt'])
 
+      if (data.designation !== undefined) {
+        await trx
+          .from('organization_members')
+          .where('organizationId', organizationId)
+          .where('userId', userId)
+          .where('isDeleted', false)
+          .update({ designation: data.designation ?? null })
+      }
       if (activateSession) {
         await trx.from('sessions').where('id', sessionId).update({
           activeOrganizationId: organizationId,
@@ -411,6 +474,11 @@ export class OrganizationService {
         'o.country',
         'o.timezone',
         'o.currency',
+        'o.description',
+        'o.businessSize',
+        'o.alternatePhone',
+        'o.defaultLanguage',
+        'o.businessRegistrationNumber',
         'o.status',
         'r.name as role',
         'o.createdAt'
@@ -491,28 +559,55 @@ export class OrganizationService {
       })
     }
 
-    const updates: Record<string, string | null> = {}
+    const updates: Record<string, string | null | OrganizationAddress> = {}
     if (patch.name !== undefined) updates.name = patch.name
     if (patch.phone !== undefined) updates.phone = patch.phone
     if (patch.website !== undefined) updates.website = patch.website
     if (patch.industry !== undefined) updates.industry = patch.industry
     if (patch.organizationType !== undefined) updates.organizationType = patch.organizationType
-    if (patch.address !== undefined) updates.address = patch.address
+    if (patch.address !== undefined) {
+      updates.address = normalizeOrganizationAddress(patch.address)
+    }
     if (patch.pan !== undefined) updates.pan = patch.pan.replace(/\s+/g, '').toUpperCase()
     if (patch.gstin !== undefined) updates.gstin = patch.gstin.replace(/\s+/g, '').toUpperCase()
+    if (patch.country !== undefined) updates.country = patch.country
     if (patch.timezone !== undefined) updates.timezone = patch.timezone
     if (patch.currency !== undefined) updates.currency = patch.currency
+    if (patch.description !== undefined) updates.description = patch.description
+    if (patch.businessSize !== undefined) updates.businessSize = patch.businessSize
+    if (patch.alternatePhone !== undefined) updates.alternatePhone = patch.alternatePhone
+    if (patch.defaultLanguage !== undefined) updates.defaultLanguage = patch.defaultLanguage
+    if (patch.businessRegistrationNumber !== undefined) {
+      updates.businessRegistrationNumber = patch.businessRegistrationNumber
+    }
 
-    if (Object.keys(updates).length === 0) {
+    const hasOrgUpdates = Object.keys(updates).length > 0
+    const hasDesignationUpdate = patch.designation !== undefined
+
+    if (!hasOrgUpdates && !hasDesignationUpdate) {
       return mapOrganizationPublicFields(existing as Record<string, unknown>)
     }
 
     return db.transaction(async (trx) => {
-      const [updated] = await trx
-        .from('organizations')
-        .where('id', organizationId)
-        .update(updates)
-        .returning([...ORGANIZATION_PUBLIC_COLUMNS])
+      let updated = existing as Record<string, unknown>
+
+      if (hasOrgUpdates) {
+        const [row] = await trx
+          .from('organizations')
+          .where('id', organizationId)
+          .update(updates)
+          .returning([...ORGANIZATION_PUBLIC_COLUMNS])
+        updated = row as Record<string, unknown>
+      }
+
+      if (hasDesignationUpdate) {
+        await trx
+          .from('organization_members')
+          .where('organizationId', organizationId)
+          .where('userId', actorUserId)
+          .where('isDeleted', false)
+          .update({ designation: patch.designation ?? null })
+      }
 
       await trx.table('authorization_audits').insert({
         organizationId,
@@ -529,13 +624,22 @@ export class OrganizationService {
           address: existing.address,
           pan: existing.pan,
           gstin: existing.gstin,
+          country: existing.country,
           timezone: existing.timezone,
           currency: existing.currency,
+          description: existing.description,
+          businessSize: existing.businessSize,
+          alternatePhone: existing.alternatePhone,
+          defaultLanguage: existing.defaultLanguage,
+          businessRegistrationNumber: existing.businessRegistrationNumber,
         }),
-        after: JSON.stringify(updates),
+        after: JSON.stringify({
+          ...updates,
+          ...(hasDesignationUpdate ? { designation: patch.designation ?? null } : {}),
+        }),
       })
 
-      return mapOrganizationPublicFields(updated as Record<string, unknown>)
+      return mapOrganizationPublicFields(updated)
     })
   }
 
@@ -621,8 +725,8 @@ export class OrganizationService {
             organizationId: params.organizationId,
             userId,
             type: 'organization_soft_deleted',
-            title: 'Workspace unavailable',
-            body: 'This workspace has been deleted and is no longer available.',
+            title: 'Organization unavailable',
+            body: 'This organization has been deleted and is no longer available.',
             actorUserId: params.actorUserId,
           })
         } catch (error) {
@@ -758,12 +862,12 @@ export class OrganizationService {
 
     // After ownership transfer commits — best-effort notify must not roll back transfer.
     const org = await db.from('organizations').where('id', organizationId).select('name').first()
-    const workspaceName = (org?.name as string | undefined) ?? null
+    const organizationName = (org?.name as string | undefined) ?? null
     await this.#notifyOwnershipTransferredBestEffort({
       organizationId,
       userId: newOwnerUserId,
       actorUserId,
-      workspaceName,
+      organizationName,
     })
   }
 
@@ -774,17 +878,17 @@ export class OrganizationService {
     organizationId: string
     userId: string
     actorUserId: string
-    workspaceName: string | null
+    organizationName: string | null
   }): Promise<void> {
     try {
       await new NotificationService().createNotification({
         organizationId: params.organizationId,
         userId: params.userId,
         type: 'team_ownership_transferred',
-        title: 'You are now the workspace owner',
-        body: params.workspaceName
-          ? `Ownership of ${params.workspaceName} has been transferred to you.`
-          : 'Ownership of this workspace has been transferred to you.',
+        title: 'You are now the organization owner',
+        body: params.organizationName
+          ? `Ownership of ${params.organizationName} has been transferred to you.`
+          : 'Ownership of this organization has been transferred to you.',
         actorUserId: params.actorUserId,
       })
     } catch (error) {
