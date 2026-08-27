@@ -60,8 +60,22 @@ export const organizationsModule: DemoSeedModule = {
         organizationType: 'company',
         address:
           key === 'northstar'
-            ? '12 MG Road, Bengaluru, Karnataka 560001'
-            : '200 Harbor Blvd, New York, NY 10004',
+            ? {
+                addressLine1: '12 MG Road',
+                addressLine2: null,
+                city: 'Bengaluru',
+                state: 'Karnataka',
+                postalCode: '560001',
+                country: org.country,
+              }
+            : {
+                addressLine1: '200 Harbor Blvd',
+                addressLine2: null,
+                city: 'New York',
+                state: 'NY',
+                postalCode: '10004',
+                country: org.country,
+              },
         pan: key === 'northstar' ? 'AAAAA0000A' : 'BBBBB0000B',
         gstin: key === 'northstar' ? '29AAAAA0000A1Z5' : null,
         country: org.country,

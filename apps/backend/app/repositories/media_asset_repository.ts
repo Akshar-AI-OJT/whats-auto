@@ -145,6 +145,34 @@ export class MediaAssetRepository {
     return row ? mapRow(row) : null
   }
 
+  /**
+   * Retire assets occupying a canonical key (profile logo) before re-upload.
+   */
+  async retireStorageKey(
+    params: { organizationId: string; storageKey: string },
+    client: Db = db
+  ): Promise<void> {
+    const now = new Date()
+    const rows = await client
+      .from('media_assets')
+      .where('organizationId', params.organizationId)
+      .where('storageKey', params.storageKey)
+      .select('id')
+
+    for (const row of rows) {
+      const id = row.id as string
+      await client
+        .from('media_assets')
+        .where('id', id)
+        .where('organizationId', params.organizationId)
+        .update({
+          storageKey: `${params.storageKey}.replaced.${id}`,
+          state: 'deleted',
+          updatedAt: now,
+        })
+    }
+  }
+
   async markRestored(
     params: { organizationId: string; mediaAssetId: string },
     client: Db = db

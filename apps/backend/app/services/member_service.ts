@@ -42,7 +42,15 @@ export class MemberService {
       .innerJoin('roles as r', 'r.id', 'm.roleId')
       .where('m.organizationId', organizationId)
       .where('m.isDeleted', false)
-      .select('m.id', 'm.createdAt', 'u.id as userId', 'u.name', 'u.email', 'r.name as role')
+      .select(
+        'm.id',
+        'm.createdAt',
+        'm.designation',
+        'u.id as userId',
+        'u.name',
+        'u.email',
+        'r.name as role'
+      )
       .orderBy('u.name', 'asc')
 
     return rows.map((r) => ({
@@ -51,6 +59,7 @@ export class MemberService {
       name: r.name as string,
       email: r.email as string,
       role: r.role as string,
+      designation: (r.designation as string | null) ?? null,
       createdAt: r.createdAt as string,
     }))
   }

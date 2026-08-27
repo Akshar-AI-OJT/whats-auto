@@ -170,6 +170,37 @@ export class OrganizationStorageObjectRepository {
     return row ? mapRow(row) : null
   }
 
+  /**
+   * Free a canonical storage key (e.g. profile logo) so a replacement upload can
+   * insert under the same key. Renames prior rows off the unique index.
+   */
+  async retireStorageKey(
+    params: { organizationId: string; storageKey: string; purgeAfter: Date },
+    client: Db = db
+  ): Promise<void> {
+    const now = new Date()
+    const rows = await client
+      .from('organization_storage_objects')
+      .where('organizationId', params.organizationId)
+      .where('storageKey', params.storageKey)
+      .select('id')
+
+    for (const row of rows) {
+      const id = row.id as string
+      await client
+        .from('organization_storage_objects')
+        .where('id', id)
+        .where('organizationId', params.organizationId)
+        .update({
+          storageKey: `${params.storageKey}.replaced.${id}`,
+          state: 'deleted',
+          deletedAt: now,
+          purgeAfter: params.purgeAfter,
+          updatedAt: now,
+        })
+    }
+  }
+
   async restore(
     params: { organizationId: string; storageObjectId: string },
     client: Db = db

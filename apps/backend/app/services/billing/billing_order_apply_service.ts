@@ -2,6 +2,7 @@ import { inject } from '@adonisjs/core'
 import db from '@adonisjs/lucid/services/db'
 import { DateTime } from 'luxon'
 import { insertAuthorizationAudit } from '#lib/authorization_audit'
+import { formatOrganizationAddress } from '#lib/organization_address'
 import {
   BillingOrderRepository,
   type BillingOrderRow,
@@ -322,7 +323,7 @@ export class BillingOrderApplyService {
         billToName: (org?.name as string | undefined)?.trim() || 'Organization',
         billToEmail: (org?.email as string | undefined)?.trim() || 'billing@example.com',
         billToPhone: (org?.phone as string | undefined)?.trim() || null,
-        billToAddress: (org?.address as string | undefined)?.trim() || null,
+        billToAddress: formatOrganizationAddress(org?.address) || null,
         billToGstin: (org?.gstin as string | undefined)?.trim() || null,
         paidAt: params.paidAt,
         metadata: { billingOrderId: params.order.id },

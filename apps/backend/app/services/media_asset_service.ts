@@ -228,9 +228,13 @@ export class MediaAssetService {
       throw MediaException.fileTooLarge(OUTBOUND_MEDIA_MAX_BYTES[mediaType])
     }
 
+    const namespace = params.namespace ?? StorageNamespace.MediaLibrary
+    if (namespace === StorageNamespace.Profile && mediaType !== 'image') {
+      throw MediaException.unsupportedMimeType()
+    }
+
     const assetId = randomUUID()
     const storageObjectId = randomUUID()
-    const namespace = params.namespace ?? StorageNamespace.MediaLibrary
     const keyVersion = 2
     const storageKey = buildOrganizationStorageKey({
       organizationId: params.organizationId,
@@ -242,6 +246,11 @@ export class MediaAssetService {
     })
     const deliveryUrl = buildMediaDeliveryUrl(env.get('MEDIA_PUBLIC_BASE_URL'), storageKey)
     const storageDisk = env.get('DRIVE_DISK')
+    const storageOwnerType =
+      namespace === StorageNamespace.Profile
+        ? StorageOwnerType.OrganizationProfile
+        : StorageOwnerType.MediaAsset
+    const storageOwnerId = namespace === StorageNamespace.Profile ? params.organizationId : assetId
 
     const asset = await runWithTenant(params.organizationId, async () => {
       return db.transaction(async (trx) => {
@@ -250,6 +259,25 @@ export class MediaAssetService {
           trx
         )
 
+        if (namespace === StorageNamespace.Profile) {
+          const purgeAfter = new Date(Date.now() + STORAGE_SOFT_DELETE_GRACE_MS)
+          await this.storageObjects.retireStorageKey(
+            {
+              organizationId: params.organizationId,
+              storageKey,
+              purgeAfter,
+            },
+            trx
+          )
+          await this.repo.retireStorageKey(
+            {
+              organizationId: params.organizationId,
+              storageKey,
+            },
+            trx
+          )
+        }
+
         await this.storageObjects.insertPending(
           {
             id: storageObjectId,
@@ -257,8 +285,8 @@ export class MediaAssetService {
             storageKey,
             storageDisk,
             namespace,
-            ownerType: StorageOwnerType.MediaAsset,
-            ownerId: assetId,
+            ownerType: storageOwnerType,
+            ownerId: storageOwnerId,
             mimeType,
             sizeBytes: params.fileSize,
             retentionPolicy: retentionForNamespace(namespace),
