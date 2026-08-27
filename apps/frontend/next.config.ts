@@ -8,6 +8,8 @@ const apiRewriteOrigin =
   process.env.API_REWRITE_ORIGIN?.replace(/\/$/, '') || 'http://localhost:3333'
 
 const nextConfig: NextConfig = {
+  /** Self-contained Node server for Docker / Contabo (not Vercel serverless). */
+  output: 'standalone',
   async rewrites() {
     if (process.env.NODE_ENV === 'development') {
       return [

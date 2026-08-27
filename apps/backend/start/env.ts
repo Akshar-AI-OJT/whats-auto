@@ -79,11 +79,15 @@ export default await Env.create(new URL('../', import.meta.url), {
   RAZORPAY_KEY_SECRET: Env.schema.secret(),
   RAZORPAY_WEBHOOK_SECRET: Env.schema.secret(),
 
-  // Media object storage (private S3 + public CDN base for WhatsApp link delivery)
+  // Media object storage (private S3 / Contabo / R2 + public base for WhatsApp links)
   AWS_ACCESS_KEY_ID: Env.schema.string(),
   AWS_SECRET_ACCESS_KEY: Env.schema.secret(),
   AWS_REGION: Env.schema.string(),
   S3_BUCKET: Env.schema.string(),
+  /** S3-compatible API base (Contabo: https://eu2.contabostorage.com). Omit for AWS. */
+  S3_ENDPOINT: Env.schema.string.optional(),
+  /** Contabo/MinIO need path-style. Defaults to true when S3_ENDPOINT is set. */
+  S3_FORCE_PATH_STYLE: Env.schema.boolean.optional(),
   DRIVE_DISK: Env.schema.enum(['s3'] as const),
   MEDIA_PUBLIC_BASE_URL: Env.schema.string({ format: 'url', tld: false }),
   /**

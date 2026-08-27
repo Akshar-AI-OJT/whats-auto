@@ -8,7 +8,7 @@ const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '')
 /**
  * Better Auth browser client.
  * Local: no baseURL — same-origin `/api/auth/*` via the Next rewrite.
- * Deployed: NEXT_PUBLIC_API_URL is the Railway origin (cross-origin + credentials).
+ * Contabo (cross-origin): NEXT_PUBLIC_API_URL=https://api.… (credentials + CORS).
  */
 export const authClient = createAuthClient({
   ...(apiBaseUrl ? { baseURL: apiBaseUrl } : {}),

@@ -1,0 +1,17 @@
+# Build context is the monorepo root (docker compose build context: ../..)
+.git
+.github
+**/node_modules
+**/.next
+**/build
+**/dist
+**/.turbo
+**/.env
+**/.env.*
+!**/.env.example
+**/coverage
+**/*.md
+!deploy/contabo/README.md
+apps/backend/tmp
+apps/backend/uploads
+**/.DS_Store

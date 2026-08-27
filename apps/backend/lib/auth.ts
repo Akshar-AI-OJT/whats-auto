@@ -50,15 +50,32 @@ export const auth = betterAuth({
 
   // DB columns are Postgres `uuid`. better-auth's default nanoid IDs are not valid UUIDs.
   advanced: {
+    // Contabo (Caddy/Nginx) or other reverse proxies: trust private hops so
+    // Better Auth rate-limits by real client IP instead of one shared bucket.
+    ipAddress: {
+      ipAddressHeaders: ['x-real-ip', 'x-forwarded-for'],
+      trustedProxies: [
+        '10.0.0.0/8',
+        '172.16.0.0/12',
+        '192.168.0.0/16',
+        '100.64.0.0/10',
+        '127.0.0.1',
+        '::1',
+      ],
+    },
     database: {
       generateId: 'uuid',
     },
     ...(env.get('NODE_ENV') === 'production'
       ? {
           defaultCookieAttributes: {
+            // Cross-origin Contabo (app. → api.): SameSite=None; Secure.
+            // Do NOT set Partitioned (CHIPS): OAuth state is set on a cross-site
+            // fetch then read on a top-level Google redirect to BETTER_AUTH_URL —
+            // partitioned cookies are dropped → state_mismatch.
             sameSite: 'none' as const,
             secure: true,
-            partitioned: true,
+            partitioned: false,
           },
         }
       : {}),

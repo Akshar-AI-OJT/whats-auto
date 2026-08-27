@@ -1,0 +1,120 @@
+# Contabo VPS stack: frontend + API + worker + Postgres (pgvector) + Redis.
+# Usage (from repo root):
+#   cp deploy/contabo/.env.example deploy/contabo/.env
+#   # edit deploy/contabo/.env
+#   docker compose -f deploy/contabo/docker-compose.yml --env-file deploy/contabo/.env up -d --build
+#
+# Put Caddy/Nginx in front for TLS. See deploy/contabo/Caddyfile.
+
+name: whats-auto
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${PG_USER:-whatsauto}
+      POSTGRES_PASSWORD: ${PG_PASSWORD:?set PG_PASSWORD}
+      POSTGRES_DB: ${PG_DB_NAME:-whatsauto}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - internal
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    networks:
+      - internal
+
+  api:
+    build:
+      context: ../..
+      dockerfile: apps/backend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3333
+      PG_HOST: postgres
+      PG_PORT: 5432
+      REDIS_URL: redis://redis:6379
+      JOB_QUEUE_DRIVER: bullmq
+    ports:
+      - '${API_HOST_PORT:-3333}:3333'
+    networks:
+      - internal
+      - edge
+
+  worker:
+    build:
+      context: ../..
+      dockerfile: apps/backend/Dockerfile
+    restart: unless-stopped
+    command: ['node', 'bin/worker.js']
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3333
+      PG_HOST: postgres
+      PG_PORT: 5432
+      REDIS_URL: redis://redis:6379
+      JOB_QUEUE_DRIVER: bullmq
+    networks:
+      - internal
+
+  frontend:
+    build:
+      context: ../..
+      dockerfile: apps/frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:?set NEXT_PUBLIC_APP_URL}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?set NEXT_PUBLIC_API_URL to https://api.yourdomain.com}
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+    ports:
+      - '${FRONTEND_HOST_PORT:-3000}:3000'
+    networks:
+      - edge
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  internal:
+  edge:
