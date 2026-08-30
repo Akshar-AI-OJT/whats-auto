@@ -362,6 +362,53 @@ export type OrganizationDetails = {
   businessRegistrationNumber?: string | null
 }
 
+export type OrganizationSmtpTransport = 'smtp' | 'api'
+
+export type OrganizationSmtpProviderPreset =
+  | 'gmail'
+  | 'sendgrid'
+  | 'resend'
+  | 'ses'
+  | 'brevo'
+  | 'custom'
+
+export type OrganizationSmtpConfig = {
+  id: string
+  organizationId: string
+  transport: OrganizationSmtpTransport
+  providerPreset: OrganizationSmtpProviderPreset
+  senderName: string
+  senderEmail: string
+  host: string | null
+  port: number | null
+  secure: boolean | null
+  username: string | null
+  status: string
+  lastTestedAt: string | null
+  lastErrorMessage: string | null
+  hasPassword: boolean
+  hasApiKey: boolean
+  createdAt: string
+  updatedAt: string | null
+}
+
+export type UpsertOrganizationSmtpBody = {
+  transport: OrganizationSmtpTransport
+  providerPreset: OrganizationSmtpProviderPreset
+  senderName: string
+  senderEmail: string
+  host?: string | null
+  port?: number | null
+  secure?: boolean | null
+  username?: string | null
+  password?: string | null
+  apiKey?: string | null
+}
+
+export type TestOrganizationSmtpBody = {
+  draftConfig?: Partial<UpsertOrganizationSmtpBody>
+}
+
 export type AccessContext = {
   organizationId: string
   organizationName: string
@@ -1836,6 +1883,36 @@ export const api = {
     destroy: (organizationId: string) =>
       protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
         `/api/v1/organizations/${organizationId}`,
+        { method: 'DELETE' }
+      ),
+
+    getSmtp: (organizationId: string) =>
+      protectedRequest<{ data: OrganizationSmtpConfig | null }>(
+        `/api/v1/organizations/${organizationId}/smtp`,
+        { method: 'GET' }
+      ),
+
+    updateSmtp: (organizationId: string, body: UpsertOrganizationSmtpBody) =>
+      protectedRequest<{ data: OrganizationSmtpConfig }>(
+        `/api/v1/organizations/${organizationId}/smtp`,
+        {
+          method: 'PUT',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    testSmtp: (organizationId: string, body?: TestOrganizationSmtpBody) =>
+      protectedRequest<{ data: { ok: boolean } }>(
+        `/api/v1/organizations/${organizationId}/smtp/test`,
+        {
+          method: 'POST',
+          body: JSON.stringify(body ?? {}),
+        }
+      ),
+
+    deleteSmtp: (organizationId: string) =>
+      protectedRequest<{ data: { deleted: boolean } }>(
+        `/api/v1/organizations/${organizationId}/smtp`,
         { method: 'DELETE' }
       ),
   },

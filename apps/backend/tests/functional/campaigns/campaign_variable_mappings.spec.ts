@@ -154,12 +154,12 @@ test.group('Campaign variableMappings persistence', (group) => {
         campaignId: campaign.id,
         organizationId,
         variableMappings: {
-          customer_name: { source: 'contact_field', field: 'email' },
+          customer_name: { source: 'contact_field', field: 'name' },
         },
       })
     )
     assert.deepEqual(updated.variableMappings, {
-      customer_name: { source: 'contact_field', field: 'email' },
+      customer_name: { source: 'contact_field', field: 'name' },
     })
     assert.equal(updated.name, 'Patch maps')
 

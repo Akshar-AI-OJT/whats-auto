@@ -1526,6 +1526,63 @@ export class OrganizationRolePermissionSchema extends BaseModel {
   declare roleId: string
 }
 
+export class OrganizationSmtpConfigSchema extends BaseModel {
+  static $columns = [
+    'apiKeyEncrypted',
+    'createdAt',
+    'host',
+    'id',
+    'lastErrorMessage',
+    'lastTestedAt',
+    'organizationId',
+    'passwordEncrypted',
+    'port',
+    'providerPreset',
+    'secure',
+    'senderEmail',
+    'senderName',
+    'status',
+    'transport',
+    'updatedAt',
+    'username',
+  ] as const
+  $columns = OrganizationSmtpConfigSchema.$columns
+  @column()
+  declare apiKeyEncrypted: string | null
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare host: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare lastErrorMessage: string | null
+  @column.dateTime()
+  declare lastTestedAt: DateTime | null
+  @column()
+  declare organizationId: string
+  @column()
+  declare passwordEncrypted: string | null
+  @column()
+  declare port: number | null
+  @column()
+  declare providerPreset: string
+  @column()
+  declare secure: boolean | null
+  @column()
+  declare senderEmail: string
+  @column()
+  declare senderName: string
+  @column()
+  declare status: string
+  @column()
+  declare transport: string
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+  @column()
+  declare username: string | null
+}
+
 export class OrganizationStorageObjectSchema extends BaseModel {
   static $columns = [
     'checksum',

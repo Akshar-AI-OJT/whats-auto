@@ -183,27 +183,8 @@ export function CampaignVariableMappingsSection({
 
                     {draft.source === 'contact_field' ? (
                       <div className="space-y-1.5">
-                        <label
-                          htmlFor={`campaign-var-field-${variable}`}
-                          className="text-xs font-medium text-body"
-                        >
-                          {t('contactField')}
-                        </label>
-                        <select
-                          id={`campaign-var-field-${variable}`}
-                          className={selectClassName}
-                          value={draft.field}
-                          disabled={disabled}
-                          onChange={(e) =>
-                            onChange(variable, { ...draft, field: e.target.value })
-                          }
-                        >
-                          {CAMPAIGN_CONTACT_MAPPING_FIELDS.map((field) => (
-                            <option key={field} value={field}>
-                              {t(`contactFields.${field}`)}
-                            </option>
-                          ))}
-                        </select>
+                        <p className="text-xs font-medium text-body">{t('contactField')}</p>
+                        <p className="text-xs text-mute">{t('contactFieldNameHint')}</p>
                       </div>
                     ) : null}
 
