@@ -388,7 +388,7 @@ test.group('TagService', (group) => {
     const pivot = await runWithTenant(organizationId, () =>
       db.from('contact_tags').where('tagId', tag.id).first()
     )
-    assert.isUndefined(pivot)
+    assert.isNull(pivot)
 
     const contact = await runWithTenant(organizationId, () =>
       db.from('contacts').where('id', contactId).select('id').first()

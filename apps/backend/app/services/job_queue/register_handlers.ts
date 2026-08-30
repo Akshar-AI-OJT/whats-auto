@@ -16,6 +16,7 @@ import { createFlowsAdvanceSessionHandler } from '#services/job_queue/handlers/f
 import { createFlowsSessionRecoveryHandler } from '#services/job_queue/handlers/flows_session_recovery_handler'
 import { createBillingSubscriptionLifecycleHandler } from '#services/job_queue/handlers/billing_subscription_lifecycle_handler'
 import { createOnboardingCleanupHandler } from '#services/job_queue/handlers/onboarding_cleanup_handler'
+import { createSmtpEmailRetryHandler } from '#services/job_queue/handlers/smtp_email_retry_handler'
 import { CampaignExecutionService } from '#services/campaign_execution_service'
 
 /**
@@ -45,4 +46,5 @@ export async function registerJobHandlers(driver: JobQueueDriver): Promise<void>
     createBillingSubscriptionLifecycleHandler()
   )
   await driver.work(JOB_NAMES.ONBOARDING_CLEANUP, createOnboardingCleanupHandler())
+  await driver.work(JOB_NAMES.SMTP_EMAIL_RETRY, createSmtpEmailRetryHandler())
 }

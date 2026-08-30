@@ -35,6 +35,7 @@ import {
 } from '#lib/meta_whatsapp/outbound_retry'
 import {
   mapNamedParametersToMetaComponents,
+  parseParameterSchema,
   resolveParameterSchema,
   TemplateParameterError,
 } from '#lib/meta_whatsapp/template_parameters'
@@ -367,11 +368,19 @@ export default class WhatsappOutboundService {
         throw WhatsappOutboundException.templateNotApproved()
       }
 
+      const storedSchema =
+        typeof template.parameterSchema === 'string'
+          ? JSON.parse(template.parameterSchema)
+          : template.parameterSchema
+      const parsedStored = parseParameterSchema(storedSchema)
+      if (!parsedStored.sendable) {
+        throw WhatsappOutboundException.templateNotSendable(
+          parsedStored.unsupportedReason ?? 'Template is not sendable'
+        )
+      }
+
       const schema = resolveParameterSchema({
-        stored:
-          typeof template.parameterSchema === 'string'
-            ? JSON.parse(template.parameterSchema)
-            : template.parameterSchema,
+        stored: storedSchema,
         headerType: (template.headerType as string | null) ?? null,
         headerContent: (template.headerContent as string | null) ?? null,
         bodyText: (template.bodyText as string) ?? '',

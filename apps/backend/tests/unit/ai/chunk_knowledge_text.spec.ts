@@ -6,7 +6,10 @@ import {
 } from '#services/ai/chunk_knowledge_text'
 import { sha256Hex } from '#services/ai/knowledge_hash'
 
-test.group('chunkKnowledgeText', () => {
+test.group('chunkKnowledgeText', (group) => {
+  // TokenTextSplitter loads cl100k_base on first use; unit suite default is 2s.
+  group.tap((t) => t.timeout(15_000))
+
   test('hashes each chunk and keeps a short note as one chunk', async ({ assert }) => {
     const chunks = await chunkKnowledgeText('Open 9-5 Monday to Friday.')
     assert.lengthOf(chunks, 1)

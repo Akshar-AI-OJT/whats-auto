@@ -12,6 +12,8 @@ export const queryKeys = {
       [...queryKeys.organizations.all, userId ?? 'anonymous', 'access-context'] as const,
     ownershipMembers: (orgId?: string | null) =>
       [...queryKeys.organizations.all, 'ownership-members', orgId ?? null] as const,
+    smtp: (orgId?: string | null) =>
+      [...queryKeys.organizations.all, 'smtp', orgId ?? null] as const,
   },
   profile: {
     all: ['account-profile'] as const,

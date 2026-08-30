@@ -222,6 +222,15 @@ export function deriveParameterSchema(params: {
   const headerNames = sortPlaceholders(rawHeaderNames, parameterFormat)
   const bodyNames = sortPlaceholders(rawBodyNames, parameterFormat)
 
+  if (
+    headerType !== 'none' &&
+    headerType !== 'text' &&
+    !HEADER_MEDIA_TYPES.has(headerType as TemplateHeaderMediaType)
+  ) {
+    const label = headerType.charAt(0).toUpperCase() + headerType.slice(1)
+    return nonSendable(`${label} header templates are not supported`)
+  }
+
   if (HEADER_MEDIA_TYPES.has(headerType as TemplateHeaderMediaType)) {
     return {
       headerNames: [],
@@ -331,11 +340,6 @@ export function resolveParameterSchema(params: {
   bodyText: string
   buttons?: unknown
 }): TemplateParameterSchema {
-  const stored = parseParameterSchema(params.stored)
-  if (stored.sendable) {
-    return stored
-  }
-
   const derived = deriveParameterSchema({
     headerType: params.headerType,
     headerContent: params.headerContent,
@@ -343,11 +347,29 @@ export function resolveParameterSchema(params: {
     buttons: params.buttons,
   })
 
-  if (derived.sendable) {
+  // Current fields win when they are unsupported (e.g. video header).
+  if (!derived.sendable) {
     return derived
   }
 
-  return stored
+  const stored = parseParameterSchema(params.stored)
+  if (stored.sendable) {
+    return stored
+  }
+
+  // Heal explicit legacy rejections (e.g. numbered placeholders). Empty/invalid
+  // stored blobs must stay non-sendable so callers fail as NOT_SENDABLE, not PARAMS.
+  const storedIsEmptyInvalid =
+    stored.headerNames.length === 0 &&
+    stored.bodyNames.length === 0 &&
+    (stored.urlButtons?.length ?? 0) === 0 &&
+    !stored.unsupportedReason &&
+    !stored.headerMediaType
+  if (storedIsEmptyInvalid) {
+    return emptySchema()
+  }
+
+  return derived
 }
 
 /**

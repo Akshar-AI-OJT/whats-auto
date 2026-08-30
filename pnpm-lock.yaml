@@ -120,6 +120,9 @@ importers:
       mammoth:
         specifier: ^1.12.1
         version: 1.12.1
+      nodemailer:
+        specifier: ^9.0.5
+        version: 9.0.5
       pdf-parse:
         specifier: ^2.4.5
         version: 2.4.5
@@ -160,6 +163,9 @@ importers:
       '@types/node':
         specifier: ~25.9.1
         version: 25.9.5
+      '@types/nodemailer':
+        specifier: ^6.4.17
+        version: 6.4.24
       eslint:
         specifier: ^9.39.4
         version: 9.39.4(jiti@2.7.0)(supports-color@10.2.2)
@@ -2164,6 +2170,9 @@ packages:
 
   '@types/node@25.9.5':
     resolution: {integrity: sha512-OScDchr2fwuUmWdf4kZ9h7PcJiYDVInhJizG/biAq3cAvqwYktuy/TYGGdZNMtNTFUP7rnb0NU4TUdm82kt4Rg==}
+
+  '@types/nodemailer@6.4.24':
+    resolution: {integrity: sha512-Ww4u0rT9wQNXh4JiQaIwx3QWdcOFXzOjQA2zc+jtFYNmQiT4mIUqcDin51bDFdkzKubFnQCZNK7FIHlPKQ/q9w==}
 
   '@types/nodemailer@8.0.1':
     resolution: {integrity: sha512-PxpaInm8V1JQDd4j0ds5HfvWQk8JupS1C0Picb96QJsrrRDjBH+DlK7L4ZdNSqNULhiZRQHc40nLVShaGxXAMw==}
@@ -8018,6 +8027,10 @@ snapshots:
   '@types/node@25.9.5':
     dependencies:
       undici-types: 7.24.6
+
+  '@types/nodemailer@6.4.24':
+    dependencies:
+      '@types/node': 25.9.5
 
   '@types/nodemailer@8.0.1':
     dependencies:

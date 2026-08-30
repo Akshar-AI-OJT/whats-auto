@@ -20,6 +20,7 @@ test.group('audit event catalogs', () => {
     assert.isFalse(types.includes('ownership.transferred'))
     assert.isTrue(types.includes('role.created'))
     assert.isTrue(types.includes('role.permission_override'))
+    assert.isTrue(types.includes('smtp_config.created'))
     assert.deepEqual([...types], [...TENANT_AUDIT_EVENT_TYPES])
   })
 })

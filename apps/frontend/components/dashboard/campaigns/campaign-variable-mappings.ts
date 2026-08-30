@@ -5,15 +5,8 @@ import type {
 } from '@/lib/api'
 import { extractTemplateVariables, isNumericTemplateVariable } from '../templates/template-utils'
 
-/** Contact columns supported by backend `readMappedContactField`. */
-export const CAMPAIGN_CONTACT_MAPPING_FIELDS = [
-  'name',
-  'first_name',
-  'last_name',
-  'email',
-  'company',
-  'phone',
-] as const
+/** Contact columns supported by backend `readMappedContactField` (campaign UI exposes Name only). */
+export const CAMPAIGN_CONTACT_MAPPING_FIELDS = ['name'] as const
 
 export type CampaignContactMappingField = (typeof CAMPAIGN_CONTACT_MAPPING_FIELDS)[number]
 

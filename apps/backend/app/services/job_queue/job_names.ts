@@ -15,6 +15,7 @@ export const JOB_NAMES = {
   FLOWS_SESSION_RECOVERY: 'flows.session.recovery',
   BILLING_SUBSCRIPTION_LIFECYCLE: 'billing.subscription.lifecycle',
   ONBOARDING_CLEANUP: 'onboarding.cleanup',
+  SMTP_EMAIL_RETRY: 'smtp.email.retry',
 } as const
 
 /** Singleton key so only one platform KB reindex runs at a time. */

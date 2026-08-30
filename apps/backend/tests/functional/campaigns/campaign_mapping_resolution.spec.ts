@@ -92,6 +92,23 @@ async function seedTemplate(
   })
 }
 
+async function seedWhatsappConfig(organizationId: string) {
+  return runWithTenant(organizationId, async () => {
+    const [row] = await db
+      .table('whatsapp_configs')
+      .insert({
+        organizationId,
+        phoneNumberId: `pn-map-${randomUUID().slice(0, 8)}`,
+        wabaId: 'waba-map',
+        accessToken: 'test-token',
+        status: 'connected',
+        connectedAt: new Date(),
+      })
+      .returning(['id'])
+    return row.id as string
+  })
+}
+
 test.group('Campaign variableMappings recipient resolution', (group) => {
   const orgIds: string[] = []
   const userIds: string[] = []
@@ -104,6 +121,7 @@ test.group('Campaign variableMappings recipient resolution', (group) => {
         await db.from('broadcast_recipients').where('organizationId', organizationId).delete()
         await db.from('broadcasts').where('organizationId', organizationId).delete()
         await db.from('message_templates').where('organizationId', organizationId).delete()
+        await db.from('whatsapp_configs').where('organizationId', organizationId).delete()
         await db.from('contacts').where('organizationId', organizationId).delete()
       })
       await db.from('organizations').where('id', organizationId).delete()
@@ -291,14 +309,21 @@ test.group('Campaign variableMappings recipient resolution', (group) => {
     })
   })
 
-  test('E. campaigns without variableMappings still use automatic same-key resolution', async ({
+  test('E. campaigns without variableMappings still use automatic same-key resolution for name', async ({
     assert,
   }) => {
     const organizationId = await createOrg()
     orgIds.push(organizationId)
     const userId = await seedUser()
     userIds.push(userId)
-    const templateId = await seedTemplate(organizationId)
+    const templateId = await seedTemplate(organizationId, {
+      bodyText: 'Hello {{name}}',
+      parameterSchema: {
+        headerNames: [],
+        bodyNames: ['name'],
+        sendable: true,
+      },
+    })
     const contactId = await seedContact(organizationId, { name: 'John Doe' })
 
     const campaign = await runWithTenant(organizationId, () =>
@@ -322,7 +347,7 @@ test.group('Campaign variableMappings recipient resolution', (group) => {
     const row = await runWithTenant(organizationId, () =>
       db.from('broadcast_recipients').where('broadcastId', campaign.id).first()
     )
-    assert.deepEqual(row.variables, { customer_name: 'John Doe' })
+    assert.deepEqual(row.variables, { name: 'John Doe' })
   })
 
   test('F. request-level variables override mapped and automatic values', async ({ assert }) => {
@@ -595,5 +620,84 @@ test.group('Campaign variableMappings recipient resolution', (group) => {
       db.from('broadcast_recipients').where('broadcastId', campaign.id).first()
     )
     assert.deepEqual(afterResnapshot.variables, { customer_name: 'SUMMER26' })
+  })
+
+  test('J. contact_field name mapping uses Customer when contact name is empty', async ({
+    assert,
+  }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const userId = await seedUser()
+    userIds.push(userId)
+    const templateId = await seedTemplate(organizationId)
+    const contactId = await seedContact(organizationId, { name: null })
+
+    const campaign = await runWithTenant(organizationId, () =>
+      new CampaignService().createCampaign({
+        organizationId,
+        actorUserId: userId,
+        name: 'Empty name fallback',
+        messageTemplateId: templateId,
+        status: 'draft',
+        variableMappings: {
+          customer_name: { source: 'contact_field', field: 'name' },
+        },
+      })
+    )
+
+    await runWithTenant(organizationId, () =>
+      new CampaignService().replaceRecipients({
+        organizationId,
+        campaignId: campaign.id,
+        contactIds: [contactId],
+      })
+    )
+
+    const row = await runWithTenant(organizationId, () =>
+      db.from('broadcast_recipients').where('broadcastId', campaign.id).first()
+    )
+    assert.deepEqual(row.variables, { customer_name: 'Customer' })
+  })
+
+  test('K. sendCampaign preflight passes when contact name is empty and mapped to name', async ({
+    assert,
+  }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const userId = await seedUser()
+    userIds.push(userId)
+    const whatsappConfigId = await seedWhatsappConfig(organizationId)
+    const templateId = await seedTemplate(organizationId)
+    const contactId = await seedContact(organizationId, { name: null })
+
+    const campaign = await runWithTenant(organizationId, () =>
+      new CampaignService().createCampaign({
+        organizationId,
+        actorUserId: userId,
+        name: 'Send empty name fallback',
+        messageTemplateId: templateId,
+        whatsappConfigId,
+        status: 'draft',
+        variableMappings: {
+          customer_name: { source: 'contact_field', field: 'name' },
+        },
+      })
+    )
+
+    await runWithTenant(organizationId, () =>
+      new CampaignService().replaceRecipients({
+        organizationId,
+        campaignId: campaign.id,
+        contactIds: [contactId],
+      })
+    )
+
+    const sent = await runWithTenant(organizationId, () =>
+      new CampaignService().sendCampaign({
+        campaignId: campaign.id,
+        organizationId,
+      })
+    )
+    assert.equal(sent.status, 'sending')
   })
 })

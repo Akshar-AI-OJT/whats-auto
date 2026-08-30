@@ -372,7 +372,7 @@ export class CampaignExecutionService {
           .where('organizationId', organizationId)
           .where('status', 'sending')
           .whereNull('messageId')
-          .where('updatedAt', '<', new Date(now.getTime() - 10 * 60 * 1000))
+          .where('createdAt', '<', new Date(now.getTime() - 10 * 60 * 1000))
           .update({ status: 'pending' })
 
         return db
