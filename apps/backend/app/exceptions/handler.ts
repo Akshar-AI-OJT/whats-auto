@@ -2,6 +2,16 @@ import app from '@adonisjs/core/services/app'
 import { type HttpContext, ExceptionHandler } from '@adonisjs/core/http'
 import { extractPostgresError, extractUniqueViolationField } from '#lib/pg_unique_violation'
 
+function isBouncerForbidden(
+  error: unknown
+): error is { status: number; code: string; message?: string } {
+  if (!error || typeof error !== 'object') {
+    return false
+  }
+  const candidate = error as { status?: unknown; code?: unknown }
+  return candidate.code === 'E_AUTHORIZATION_FAILURE' && candidate.status === 403
+}
+
 export default class HttpExceptionHandler extends ExceptionHandler {
   /**
    * In debug mode, the exception handler will display verbose errors
@@ -24,6 +34,16 @@ export default class HttpExceptionHandler extends ExceptionHandler {
         error: `A record with this ${field} already exists.`,
         code: 'E_DUPLICATE_RESOURCE',
         field,
+      })
+    }
+
+    // Bouncer authorize() throws E_AUTHORIZATION_FAILURE. Map 403s onto the documented
+    // API contract used by requirePermission middleware and Swagger (`PERMISSION_DENIED`).
+    // Preserve non-403 AuthorizationResponse.deny statuses (404/422) for super.handle.
+    if (isBouncerForbidden(error)) {
+      return ctx.response.status(403).send({
+        error: error.message || 'Permission denied',
+        code: 'PERMISSION_DENIED',
       })
     }
 

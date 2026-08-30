@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import db from '@adonisjs/lucid/services/db'
 import { FlowStatus } from '#enums/flow_status'
 import { runWithTenant } from '#services/tenant_context'
+import { ensureRlsReaderRole, selectRowsWithRls } from '#tests/helpers/rls_reader'
 
 async function createOrg(label: string) {
   const id = randomUUID()
@@ -55,6 +56,10 @@ async function assertForceRls(tableName: string, assert: { isTrue: (v: unknown) 
 test.group('Flows | RLS', (group) => {
   const orgIds: string[] = []
 
+  group.setup(async () => {
+    await ensureRlsReaderRole()
+  })
+
   group.each.teardown(async () => {
     while (orgIds.length > 0) {
       const id = orgIds.pop()
@@ -101,11 +106,9 @@ test.group('Flows | RLS', (group) => {
       })
     )
 
-    const seenByA = await runWithTenant(orgA, () => db.from('flows').select('id'))
-    const seenByB = await runWithTenant(orgB, () =>
-      db.from('flows').where('id', flowA.id).select('id')
-    )
-    const seenWithoutTenant = await db.from('flows').select('id')
+    const seenByA = await selectRowsWithRls(orgA, 'flows')
+    const seenByB = await selectRowsWithRls(orgB, 'flows', { id: flowA.id })
+    const seenWithoutTenant = await selectRowsWithRls(null, 'flows')
 
     assert.lengthOf(seenByA, 1)
     assert.equal(seenByA[0].id, flowA.id)
@@ -125,12 +128,8 @@ test.group('Flows | RLS', (group) => {
         .returning(['id'])
     )
 
-    const versionsForB = await runWithTenant(orgB, () =>
-      db.from('flow_versions').where('id', versionA.id).select('id')
-    )
-    const versionsForA = await runWithTenant(orgA, () =>
-      db.from('flow_versions').where('id', versionA.id).select('id')
-    )
+    const versionsForB = await selectRowsWithRls(orgB, 'flow_versions', { id: versionA.id })
+    const versionsForA = await selectRowsWithRls(orgA, 'flow_versions', { id: versionA.id })
 
     assert.lengthOf(versionsForB, 0)
     assert.lengthOf(versionsForA, 1)

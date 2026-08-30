@@ -39,6 +39,41 @@ test.group('HttpExceptionHandler unique violation sanitizer', () => {
     assert.notInclude(JSON.stringify(body), 'insert into')
   })
 
+  test('maps Bouncer 403 E_AUTHORIZATION_FAILURE to PERMISSION_DENIED', async ({ assert }) => {
+    const handler = new HttpExceptionHandler()
+    let status: number | undefined
+    let body: Record<string, unknown> | undefined
+
+    const ctx = {
+      response: {
+        status(code: number) {
+          status = code
+          return {
+            send(payload: Record<string, unknown>) {
+              body = payload
+              return payload
+            },
+          }
+        },
+      },
+    }
+
+    await handler.handle(
+      {
+        status: 403,
+        code: 'E_AUTHORIZATION_FAILURE',
+        message: 'Permission denied: media:upload',
+      },
+      ctx as never
+    )
+
+    assert.equal(status, 403)
+    assert.deepEqual(body, {
+      error: 'Permission denied: media:upload',
+      code: 'PERMISSION_DENIED',
+    })
+  })
+
   test('maps nested cause 23505', async ({ assert }) => {
     const handler = new HttpExceptionHandler()
     let status: number | undefined
