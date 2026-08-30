@@ -1,16 +1,18 @@
-# Contabo VPS stack: frontend + API + worker + Redis.
-# Postgres is EXTERNAL — set PG_HOST to the DB server IP in .env.
+# Contabo VPS stack: frontend + API + worker + Redis + Postgres (pgvector).
 # Media files: host bind dir shared by api + worker; Caddy serves /media publicly.
+#
+# Postgres: bundled `postgres` service (pgvector/pg17). api/worker connect via PG_HOST=postgres.
+# Schema: Lucid migrations — bash deploy/contabo/migrate.sh (not whatsapp_schema.sql).
+# Alternative: external Postgres by IP — see deploy/contabo/DEPLOY_CONFIG.md.
 #
 # Usage (from repo root):
 #   sudo mkdir -p /var/lib/whats-auto/media && sudo chown 1001:1001 /var/lib/whats-auto/media
 #   cp deploy/contabo/.env.example deploy/contabo/.env
-#   # set PG_HOST=<postgres-ip>, domains, OBJECT_STORAGE_DRIVER=fs, …
+#   # set PG_PASSWORD, domains, OBJECT_STORAGE_DRIVER=fs, …
 #   docker compose -f deploy/contabo/docker-compose.yml --env-file deploy/contabo/.env up -d --build
-# Migrations (after api is up):
+# Migrations (after api + postgres are up):
 #   bash deploy/contabo/migrate.sh status
 #   bash deploy/contabo/migrate.sh
-#   # same as: cd apps/backend && node ace migration:status && node ace migration:run
 #
 # TLS: put Caddy/Nginx on the host (see Caddyfile). Compose only binds localhost ports.
 
@@ -26,10 +28,6 @@ services:
       POSTGRES_DB: ${PG_DB_NAME:-whatsapp_production}
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ../../whatsapp_schema.sql:/schema/whatsapp_schema.sql:ro
-      - ./initdb/01-load-schema.sh:/docker-entrypoint-initdb.d/01-load-schema.sh:ro
-    # Schema is applied only on first start (empty volume). To reload:
-    #   docker compose ... down -v   then up again (destroys DB data).
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
       interval: 10s
@@ -54,7 +52,7 @@ services:
 
   # --------------------------------------------------------------------
   # api — AdonisJS HTTP (auth, webhooks, REST, inbox SSE, media PUT)
-  # Image CMD: node bin/server.js  →  host :${API_HOST_PORT:-3333}
+  # Image CMD: node bin/server.js  →  host :${API_HOST_PORT:-3201}
   # --------------------------------------------------------------------
   api:
     build:
@@ -62,6 +60,8 @@ services:
       dockerfile: apps/backend/Dockerfile
     restart: unless-stopped
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
     env_file:
@@ -145,6 +145,7 @@ services:
       - edge
 
 volumes:
+  postgres_data:
   redis_data:
 
 networks:
