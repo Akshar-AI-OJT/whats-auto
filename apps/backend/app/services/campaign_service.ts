@@ -254,11 +254,6 @@ function contactTemplateValueCandidates(contact: CampaignContactValues): Record<
   }
 
   set('name', contact.name)
-  set('first_name', contact.name)
-  set('customer_name', contact.name)
-  set('email', contact.email)
-  set('company', contact.company)
-  set('phone', contact.phone)
 
   for (const [key, value] of Object.entries(toVariableMap(contact.customFields))) {
     set(key, value)
@@ -267,22 +262,11 @@ function contactTemplateValueCandidates(contact: CampaignContactValues): Record<
   return out
 }
 
-/** Existing contact columns (plus the same name aliases used by automatic resolution). */
+const CONTACT_NAME_FALLBACK = 'Customer'
+
 function readMappedContactField(contact: CampaignContactValues, field: string): string | undefined {
-  switch (field) {
-    case 'name':
-    case 'first_name':
-    case 'customer_name':
-      return usableTemplateString(contact.name)
-    case 'email':
-      return usableTemplateString(contact.email)
-    case 'company':
-      return usableTemplateString(contact.company)
-    case 'phone':
-      return usableTemplateString(contact.phone)
-    default:
-      return undefined
-  }
+  if (field !== 'name') return undefined
+  return usableTemplateString(contact.name)
 }
 
 function valuesFromVariableMappings(params: {
@@ -316,8 +300,10 @@ function resolveMappedValue(
   const source = (mapping as { source?: unknown }).source
   if (source === 'contact_field') {
     const field = usableTemplateString((mapping as { field?: unknown }).field)
-    if (!field || !contact) return undefined
-    return readMappedContactField(contact, field)
+    if (!field) return undefined
+    const resolved = contact ? readMappedContactField(contact, field) : undefined
+    if (resolved) return resolved
+    return field === 'name' ? CONTACT_NAME_FALLBACK : undefined
   }
 
   if (source === 'custom_field') {

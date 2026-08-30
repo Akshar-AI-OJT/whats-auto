@@ -3247,6 +3247,51 @@
         "generic": "कुछ गलत हुआ। कृपया फिर से प्रयास करें।",
         "noOrganization": "कोई सक्रिय संगठन चयनित नहीं है।"
       },
+      "smtp": {
+        "title": "कस्टम SMTP ईमेल",
+        "description": "अपने डोमेन से संगठन ईमेल भेजें।",
+        "status": {
+          "verified": "सत्यापित और सक्रिय",
+          "failed": "कनेक्शन विफल",
+          "default": "प्लेटफ़ॉर्म डिफ़ॉल्ट उपयोग में"
+        },
+        "provider": {
+          "label": "प्रदाता प्रीसेट",
+          "gmail": "Gmail",
+          "sendgrid": "SendGrid",
+          "resend": "Resend",
+          "ses": "Amazon SES",
+          "brevo": "Brevo",
+          "custom": "कस्टम SMTP"
+        },
+        "fields": {
+          "senderName": "प्रेषक नाम",
+          "senderEmail": "प्रेषक ईमेल",
+          "host": "SMTP होस्ट",
+          "port": "पोर्ट",
+          "username": "उपयोगकर्ता नाम",
+          "password": "पासवर्ड / ऐप की",
+          "passwordPlaceholder": "मौजूदा पासवर्ड रखने के लिए खाली छोड़ें",
+          "secure": "SSL/TLS उपयोग करें"
+        },
+        "actions": {
+          "save": "कॉन्फ़िगरेशन सहेजें",
+          "test": "कनेक्शन परीक्षण",
+          "reset": "डिफ़ॉल्ट पर रीसेट",
+          "resetConfirm": "क्या आप सुनिश्चित हैं? यह प्लेटफ़ॉर्म डिफ़ॉल्ट मेल पर वापस कर देगा।",
+          "resetCancel": "रद्द करें"
+        },
+        "toast": {
+          "saveSuccess": "SMTP कॉन्फ़िगरेशन सहेजा और सत्यापित किया गया।",
+          "saveFailed": "कॉन्फ़िगरेशन सहेजने में विफल: {reason}",
+          "testSuccess": "परीक्षण ईमेल सफलतापूर्वक भेजा गया। अपना इनबॉक्स देखें।",
+          "testFailed": "कनेक्शन परीक्षण विफल: {reason}",
+          "deleteSuccess": "कस्टम SMTP हटाया गया। प्लेटफ़ॉर्म डिफ़ॉल्ट पर वापस।",
+          "deleteFailed": "कॉन्फ़िगरेशन हटाने में विफल।"
+        },
+        "lastTested": "अंतिम परीक्षण {date}",
+        "lastError": "अंतिम त्रुटि: {message}"
+      },
       "ownership": {
         "title": "संगठन स्वामित्व स्थानांतरित करें",
         "description": "स्वामित्व स्थानांतरित करने पर कोई अन्य संगठन सदस्य स्वामी बन जाएगा। आप स्वामित्व विशेषाधिकार खो देंगे और नीचे चुनी गई प्रतिस्थापन भूमिका रखेंगे।",
@@ -3761,27 +3806,22 @@
         "saving": "सहेजा जा रहा है…",
         "variableMappings": {
           "title": "वेरिएबल मैपिंग",
-          "hint": "भेजने या शेड्यूल करने से पहले प्रत्येक टेम्पलेट वेरिएबल को संपर्क फ़ील्ड, कस्टम फ़ील्ड या स्थिर मान से मैप करें।",
+          "hint": "भेजने या शेड्यूल करने से पहले प्रत्येक टेम्पलेट वेरिएबल को संपर्क नाम, कस्टम फ़ील्ड या स्थिर मान से मैप करें।",
           "source": "स्रोत",
           "sourcePlaceholder": "स्रोत चुनें",
           "sources": {
-            "contact_field": "संपर्क फ़ील्ड",
+            "contact_field": "संपर्क नाम",
             "custom_field": "कस्टम फ़ील्ड",
             "static": "स्थिर मान"
           },
-          "contactField": "फ़ील्ड",
+          "contactField": "संपर्क नाम",
+          "contactFieldNameHint": "संपर्क का नाम उपयोग होगा। नाम न होने पर \"Customer\" भेजा जाएगा।",
           "customField": "कस्टम फ़ील्ड कुंजी",
           "customFieldPlaceholder": "उदा. order_id",
           "staticValue": "मान",
           "staticValuePlaceholder": "खाली न छोड़ें",
           "contactFields": {
-            "name": "नाम",
-            "first_name": "पहला नाम",
-            "last_name": "अंतिम नाम",
-            "customer_name": "ग्राहक नाम",
-            "email": "ईमेल",
-            "company": "कंपनी",
-            "phone": "फ़ोन"
+            "name": "नाम"
           },
           "statusMapped": "मैप किया गया",
           "statusUnmapped": "मैप नहीं",

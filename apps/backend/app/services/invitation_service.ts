@@ -2,12 +2,12 @@ import db from '@adonisjs/lucid/services/db'
 import logger from '@adonisjs/core/services/logger'
 import { DateTime } from 'luxon'
 import env from '#start/env'
-import mail from '@adonisjs/mail/services/main'
 import InvitationException from '#exceptions/invitation_exception'
 import OrganizationException from '#exceptions/organization_exception'
 import { OrganizationStatus } from '#enums/organization_status'
 import { resolveAssignableRoleForOrg } from '#services/role_service'
 import { NotificationService } from '#services/notification_service'
+import { OrganizationSmtpService } from '#services/organization_smtp_service'
 
 const INVITE_TTL_HOURS = 24
 
@@ -211,6 +211,7 @@ export class InvitationService {
     const inviteLink = `${inviteFrontendBase()}/accept-invitation/${invitation.id}`
 
     await this.#sendInviteEmailOrRollback({
+      organizationId,
       invitationId: invitation.id,
       to: normalizedEmail,
       orgName: org.name as string,
@@ -243,6 +244,7 @@ export class InvitationService {
    * the frontend never lists an invite the recipient did not receive.
    */
   async #sendInviteEmailOrRollback(params: {
+    organizationId: string
     invitationId: string
     to: string
     orgName: string
@@ -250,20 +252,26 @@ export class InvitationService {
     role: string
     inviteLink: string
   }): Promise<void> {
+    const html = buildInvitationEmailHtml({
+      orgName: params.orgName,
+      inviterName: params.inviterName,
+      role: params.role,
+      inviteLink: params.inviteLink,
+    })
+
     try {
-      await mail.send((message) => {
-        message
-          .to(params.to)
-          .subject(`You've been invited to ${params.orgName}`)
-          .html(
-            buildInvitationEmailHtml({
-              orgName: params.orgName,
-              inviterName: params.inviterName,
-              role: params.role,
-              inviteLink: params.inviteLink,
-            })
-          )
+      const result = await new OrganizationSmtpService().sendOrgEmail({
+        organizationId: params.organizationId,
+        to: params.to,
+        subject: `You've been invited to ${params.orgName}`,
+        html,
+        emailKind: 'invitation',
+        invitationId: params.invitationId,
       })
+
+      if (result.deferred) {
+        return
+      }
     } catch (error) {
       await db.from('organization_invitations').where('id', params.invitationId).delete()
 

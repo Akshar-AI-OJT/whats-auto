@@ -3247,6 +3247,51 @@
         "generic": "Something went wrong. Please try again.",
         "noOrganization": "No active organization selected."
       },
+      "smtp": {
+        "title": "Custom SMTP Email",
+        "description": "Send organization emails from your own domain.",
+        "status": {
+          "verified": "Verified & Active",
+          "failed": "Connection Failed",
+          "default": "Using Platform Default"
+        },
+        "provider": {
+          "label": "Provider Preset",
+          "gmail": "Gmail",
+          "sendgrid": "SendGrid",
+          "resend": "Resend",
+          "ses": "Amazon SES",
+          "brevo": "Brevo",
+          "custom": "Custom SMTP"
+        },
+        "fields": {
+          "senderName": "Sender Name",
+          "senderEmail": "Sender Email",
+          "host": "SMTP Host",
+          "port": "Port",
+          "username": "Username",
+          "password": "Password / App Key",
+          "passwordPlaceholder": "Leave blank to keep existing password",
+          "secure": "Use SSL/TLS"
+        },
+        "actions": {
+          "save": "Save Configuration",
+          "test": "Test Connection",
+          "reset": "Reset to Default",
+          "resetConfirm": "Are you sure? This will revert to the platform default mail sender.",
+          "resetCancel": "Cancel"
+        },
+        "toast": {
+          "saveSuccess": "SMTP configuration saved and verified.",
+          "saveFailed": "Failed to save configuration: {reason}",
+          "testSuccess": "Test email sent successfully. Check your inbox.",
+          "testFailed": "Connection test failed: {reason}",
+          "deleteSuccess": "Custom SMTP removed. Reverted to platform default.",
+          "deleteFailed": "Failed to remove configuration."
+        },
+        "lastTested": "Last tested {date}",
+        "lastError": "Last error: {message}"
+      },
       "ownership": {
         "title": "Transfer Organization Ownership",
         "description": "Transfer ownership will make another organization member the owner. You will lose ownership privileges and keep the replacement role you choose below.",
@@ -3908,27 +3953,22 @@
         "saving": "Saving…",
         "variableMappings": {
           "title": "Variable mapping",
-          "hint": "Map each template variable to a contact field, custom field, or static value before sending or scheduling.",
+          "hint": "Map each template variable to contact name, a custom field, or a static value before sending or scheduling.",
           "source": "Source",
           "sourcePlaceholder": "Select source",
           "sources": {
-            "contact_field": "Contact field",
+            "contact_field": "Contact name",
             "custom_field": "Custom field",
             "static": "Static value"
           },
-          "contactField": "Field",
+          "contactField": "Contact name",
+          "contactFieldNameHint": "Uses the contact's name. Contacts without a name receive \"Customer\".",
           "customField": "Custom field key",
           "customFieldPlaceholder": "e.g. order_id",
           "staticValue": "Value",
           "staticValuePlaceholder": "Enter a non-empty value",
           "contactFields": {
-            "name": "Name",
-            "first_name": "First name",
-            "last_name": "Last name",
-            "customer_name": "Customer name",
-            "email": "Email",
-            "company": "Company",
-            "phone": "Phone"
+            "name": "Name"
           },
           "statusMapped": "Mapped",
           "statusUnmapped": "Not mapped",

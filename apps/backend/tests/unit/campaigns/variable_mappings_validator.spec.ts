@@ -96,4 +96,26 @@ test.group('Campaign variableMappings validator', () => {
       })
     )
   })
+
+  test('rejects a contact_field mapping with an unsupported field', async ({ assert }) => {
+    await assert.rejects(() =>
+      createCampaignValidator.validate({
+        name: 'July Product Launch',
+        variableMappings: {
+          customer_name: { source: 'contact_field', field: 'last_name' },
+        },
+      })
+    )
+  })
+
+  test('rejects a contact_field mapping with email', async ({ assert }) => {
+    await assert.rejects(() =>
+      createCampaignValidator.validate({
+        name: 'July Product Launch',
+        variableMappings: {
+          customer_name: { source: 'contact_field', field: 'email' },
+        },
+      })
+    )
+  })
 })

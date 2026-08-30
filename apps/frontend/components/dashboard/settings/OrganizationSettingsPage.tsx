@@ -43,6 +43,7 @@ import {
   authInputWithIconClassName,
 } from '@/components/auth/auth-field-styles'
 import { OwnershipTransferSection } from '@/components/dashboard/settings/OwnershipTransferSection'
+import { OrganizationSmtpSection } from '@/components/dashboard/settings/OrganizationSmtpSection'
 import { useRouter } from '@/i18n/navigation'
 
 /** Matches PATCH /api/v1/organizations/:id body (updateOrganizationValidator). */
@@ -870,6 +871,8 @@ export function OrganizationSettingsPage() {
           ) : null}
         </form>
       </DashboardPanel>
+
+      <OrganizationSmtpSection />
 
       <OwnershipTransferSection />
 

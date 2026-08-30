@@ -72,12 +72,17 @@ export type CampaignVariableMapping =
 
 export type CampaignVariableMappings = Record<string, CampaignVariableMapping>
 
+/** Contact field supported by campaign `contact_field` mappings. */
+export const CAMPAIGN_CONTACT_MAPPING_FIELDS = ['name'] as const
+
+export type CampaignContactMappingField = (typeof CAMPAIGN_CONTACT_MAPPING_FIELDS)[number]
+
 const campaignVariableMappingSchema = vine.union([
   vine.union.if(
     (value) => vine.helpers.isObject(value) && value.source === 'contact_field',
     vine.object({
       source: vine.enum(['contact_field'] as const),
-      field: vine.string().trim().minLength(1),
+      field: vine.enum(CAMPAIGN_CONTACT_MAPPING_FIELDS),
     })
   ),
   vine.union.if(
