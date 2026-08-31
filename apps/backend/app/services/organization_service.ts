@@ -213,19 +213,32 @@ export class OrganizationService {
     const ownerRoleId = await getGlobalRoleIdByName('owner')
     const hasActiveOrganization = await this.#userHasActiveOrganization(userId)
 
+    const notifyCreated = async <T extends { id: string; name: string }>(
+      created: T
+    ): Promise<T> => {
+      await this.#notifySuperAdminsOrganizationOnboardedBestEffort({
+        organizationId: created.id,
+        actorUserId: userId,
+        organizationName: created.name,
+      })
+      return created
+    }
+
     const existingPending = await this.#findOwnedPendingSetupOrg(userId)
     if (existingPending) {
-      return this.#reusePendingSetupOrg({
-        org: existingPending,
-        userId,
-        sessionId,
-        data,
-        activateSession: !hasActiveOrganization,
-      })
+      return notifyCreated(
+        await this.#reusePendingSetupOrg({
+          org: existingPending,
+          userId,
+          sessionId,
+          data,
+          activateSession: !hasActiveOrganization,
+        })
+      )
     }
 
     try {
-      return await db.transaction(async (trx) => {
+      const created = await db.transaction(async (trx) => {
         const address = normalizeOrganizationAddress(data.address, data.country)
         const [org] = await trx
           .table('organizations')
@@ -293,6 +306,8 @@ export class OrganizationService {
           sessionActivated,
         }
       })
+
+      return await notifyCreated(created)
     } catch (error) {
       if (isPostgresUniqueViolation(error, 'organizations_slug_unique')) {
         throw OrganizationException.slugAlreadyExists(data.slug)
@@ -301,13 +316,15 @@ export class OrganizationService {
       if (isPostgresUniqueViolation(error, 'organizations_email_unique')) {
         const pending = await this.#findOwnedPendingSetupOrg(userId)
         if (pending) {
-          return this.#reusePendingSetupOrg({
-            org: pending,
-            userId,
-            sessionId,
-            data,
-            activateSession: !hasActiveOrganization,
-          })
+          return notifyCreated(
+            await this.#reusePendingSetupOrg({
+              org: pending,
+              userId,
+              sessionId,
+              data,
+              activateSession: !hasActiveOrganization,
+            })
+          )
         }
       }
       throw error
@@ -900,6 +917,72 @@ export class OrganizationService {
           err: error instanceof Error ? error.message : 'unknown',
         },
         'team.notification_failed'
+      )
+    }
+  }
+
+  /**
+   * Best-effort in-app notifications for platform Super Admins after an organization
+   * is created (the current onboarding event). Never throws.
+   */
+  async #notifySuperAdminsOrganizationOnboardedBestEffort(params: {
+    organizationId: string
+    actorUserId: string
+    organizationName: string
+  }): Promise<void> {
+    const type = 'organization_onboarding'
+    try {
+      const superadmins = await db
+        .from('user_roles as ur')
+        .innerJoin('roles as r', 'r.id', 'ur.roleId')
+        .innerJoin('users as u', 'u.id', 'ur.userId')
+        .whereNull('ur.organizationId')
+        .where('r.name', 'superadmin')
+        .where('u.isDeleted', false)
+        .select('ur.userId')
+
+      const notifications = new NotificationService()
+      for (const row of superadmins) {
+        const userId = row.userId as string
+        try {
+          const existing = await db
+            .from('notifications')
+            .where('organizationId', params.organizationId)
+            .where('userId', userId)
+            .where('type', type)
+            .select('id')
+            .first()
+
+          if (existing) continue
+
+          await notifications.createNotification({
+            organizationId: params.organizationId,
+            userId,
+            type,
+            title: 'New Organization Onboarding',
+            body: `A new organization "${params.organizationName}" has been created.`,
+            actorUserId: params.actorUserId,
+          })
+        } catch (error) {
+          logger.error(
+            {
+              organizationId: params.organizationId,
+              userId,
+              type,
+              err: error instanceof Error ? error.message : 'unknown',
+            },
+            'organization.notification_failed'
+          )
+        }
+      }
+    } catch (error) {
+      logger.error(
+        {
+          organizationId: params.organizationId,
+          type,
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'organization.notification_failed'
       )
     }
   }
