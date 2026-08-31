@@ -74,7 +74,7 @@ export class RazorpayOrderService {
   }
 
   async createCheckout(params: CreateCheckoutParams): Promise<CreateCheckoutResult> {
-    const plan = await this.plans.findActiveCheckoutableById(params.planId)
+    const plan = await this.plans.findActivePaidCheckoutableById(params.planId)
     if (!plan || !isPlanCheckoutable(plan)) {
       const existing = await this.plans.findById(params.planId)
       if (!existing) {
