@@ -17,7 +17,7 @@ import {
   formatPlanDate,
   formatPlanPrice,
 } from './plan-utils'
-import { PLAN_FEATURE_CATALOG } from './mock-plans'
+import { PLAN_FEATURE_CATALOG } from './plan-feature-catalog'
 import type { PlanFeatureCategoryId, SubscriptionPlan } from './types'
 
 const CATEGORIES: PlanFeatureCategoryId[] = [

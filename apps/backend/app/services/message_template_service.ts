@@ -14,6 +14,7 @@ import type {
   TemplateParameterSchema,
 } from '#lib/meta_whatsapp/types'
 import { NotificationService } from '#services/notification_service'
+import { PlanEnforcementService } from '#services/billing/plan_enforcement_service'
 import { ObjectStorage } from '#services/object_storage/contracts/object_storage'
 import { runWithTenant } from '#services/tenant_context'
 
@@ -386,6 +387,19 @@ export class MessageTemplateService {
    * Create message template locally and submit to Meta Graph API.
    */
   async createTemplate(payload: CreateMessageTemplateInput): Promise<MessageTemplateDto> {
+    await new PlanEnforcementService().requireFeature(payload.organizationId, 'customTemplates')
+
+    const templateCountRow = await db
+      .from('message_templates')
+      .where('organizationId', payload.organizationId)
+      .count('* as total')
+      .first()
+    await new PlanEnforcementService().requireUnderLimit(
+      payload.organizationId,
+      'maxTemplates',
+      Number(templateCountRow?.total ?? 0)
+    )
+
     const name = payload.name.toLowerCase().trim()
     const category = payload.category.toUpperCase().trim()
     const language = payload.language.trim()

@@ -4,6 +4,7 @@ import db from '@adonisjs/lucid/services/db'
 import CampaignException from '#exceptions/campaign_exception'
 import { MediaAssetReferenceRepository } from '#repositories/media_asset_reference_repository'
 import { WhatsappWebhookRepository } from '#repositories/whatsapp_webhook_repository'
+import { PlanEnforcementService } from '#services/billing/plan_enforcement_service'
 import {
   assertApprovedTemplate,
   assertConnectedWhatsappConfig,
@@ -93,6 +94,29 @@ export class CampaignExecutionService {
 
       const now = new Date()
       const isImmediate = scheduledAt.getTime() <= now.getTime() + 1000
+      const enforcement = new PlanEnforcementService()
+
+      if (!isImmediate) {
+        await enforcement.requireFeature(params.organizationId, 'scheduledCampaigns')
+      }
+
+      const totalRecipients = Number(campaign.totalRecipients)
+      if (totalRecipients > 0) {
+        const recipientCount = totalRecipients - 1
+        await enforcement.requireUnderLimit(
+          params.organizationId,
+          'maxBroadcastRecipients',
+          recipientCount
+        )
+        await enforcement.requireUnderLimit(
+          params.organizationId,
+          'maxCampaignRecipientListSize',
+          recipientCount
+        )
+      }
+
+      await enforcement.requireMeter(params.organizationId, 'campaigns', 'campaignsPerMonth')
+
       const previousStatus = campaign.status as string
       const previousScheduledAt = campaign.scheduledAt
         ? new Date(campaign.scheduledAt as string | Date)
@@ -445,25 +469,15 @@ export class CampaignExecutionService {
       idempotencyKey: `campaign:${params.campaignId}:recipient:${params.recipient.id}`,
     })
 
-    const now = new Date()
-    await db.transaction(async (trx) => {
-      await trx
-        .from('broadcast_recipients')
-        .where('id', params.recipient.id)
-        .where('organizationId', params.organizationId)
-        .update({
-          status: 'queued',
-          messageId: queued.messageId,
-          sentAt: now,
-          errorMessage: null,
-        })
-
-      await trx
-        .from('broadcasts')
-        .where('id', params.campaignId)
-        .where('organizationId', params.organizationId)
-        .increment('sentCount', 1)
-    })
+    await db
+      .from('broadcast_recipients')
+      .where('id', params.recipient.id)
+      .where('organizationId', params.organizationId)
+      .update({
+        status: 'queued',
+        messageId: queued.messageId,
+        errorMessage: null,
+      })
   }
 
   async #claimRecipientBatch(params: {

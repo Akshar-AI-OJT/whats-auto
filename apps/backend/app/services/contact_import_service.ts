@@ -11,6 +11,7 @@ import {
   normalizeContactPhone,
   normalizeIsoCountryCode,
 } from '#lib/contact_phone'
+import { PlanEnforcementService } from '#services/billing/plan_enforcement_service'
 import { ContactService } from '#services/contact_service'
 import { validateContactProfileFields } from '#validators/contact'
 
@@ -90,6 +91,27 @@ export class ContactImportService {
     const mapping: ContactCsvColumnMapping = { ...params.columnMapping }
     const parsed = parseContactCsv(params.csvContent)
     resolvePhoneHeader(parsed.headers, mapping)
+
+    await new PlanEnforcementService().requireFeature(
+      params.organizationId,
+      'contactCsvImportExport'
+    )
+
+    const countRow = await db
+      .from('contacts')
+      .where('organizationId', params.organizationId)
+      .whereNull('deletedAt')
+      .count('* as total')
+      .first()
+    const currentCount = Number(countRow?.total ?? 0)
+    const projectedNew = parsed.rows.length
+    if (projectedNew > 0) {
+      await new PlanEnforcementService().requireUnderLimit(
+        params.organizationId,
+        'maxContacts',
+        currentCount + projectedNew - 1
+      )
+    }
 
     const [importRow] = await db
       .table('contact_imports')

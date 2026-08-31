@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import app from '@adonisjs/core/services/app'
 import db from '@adonisjs/lucid/services/db'
 import MediaException from '#exceptions/media_exception'
+import PlanRestrictionException from '#exceptions/plan_restriction_exception'
 import { buildMediaDeliveryUrl } from '#lib/media/delivery_url'
 import {
   buildOrganizationStorageKey,
@@ -31,6 +32,7 @@ import { ContentInspection } from '#services/content_inspection/contracts/conten
 import { ObjectStorage } from '#services/object_storage/contracts/object_storage'
 import type { PresignedUpload } from '#services/object_storage/contracts/object_storage'
 import { StorageQuotaService } from '#services/storage_quota_service'
+import { PlanEnforcementService } from '#services/billing/plan_enforcement_service'
 import { runWithTenant } from '#services/tenant_context'
 import env from '#start/env'
 import { verifyMediaUploadSignature } from '#lib/media/media_upload_signature'
@@ -167,9 +169,7 @@ export class MediaAssetService {
   }
 
   /** Ready organization profile logo, or null when none uploaded. */
-  async getOrganizationLogo(params: {
-    organizationId: string
-  }): Promise<MediaAssetDto | null> {
+  async getOrganizationLogo(params: { organizationId: string }): Promise<MediaAssetDto | null> {
     const asset = await runWithTenant(params.organizationId, () =>
       this.repo.findReadyProfileLogo({ organizationId: params.organizationId })
     )
@@ -235,8 +235,15 @@ export class MediaAssetService {
     if (!mediaType) {
       throw MediaException.unsupportedMimeType()
     }
-    if (params.fileSize > OUTBOUND_MEDIA_MAX_BYTES[mediaType]) {
-      throw MediaException.fileTooLarge(OUTBOUND_MEDIA_MAX_BYTES[mediaType])
+    const maxBytesFromMeta = OUTBOUND_MEDIA_MAX_BYTES[mediaType]
+    const maxUploadMb = await new PlanEnforcementService().getNumericLimit(
+      params.organizationId,
+      'maxFileUploadMb'
+    )
+    const maxBytesFromPlan = maxUploadMb !== null ? maxUploadMb * 1024 * 1024 : maxBytesFromMeta
+    const maxBytes = Math.min(maxBytesFromMeta, maxBytesFromPlan)
+    if (params.fileSize > maxBytes) {
+      throw PlanRestrictionException.sizeLimitExceeded('maxFileUploadMb', params.fileSize, maxBytes)
     }
 
     const namespace = params.namespace ?? StorageNamespace.MediaLibrary

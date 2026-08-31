@@ -64,6 +64,19 @@ export default class TenantRedisStore {
     await client.set(key, value, 'EX', ttlSeconds)
   }
 
+  /**
+   * Atomic INCR with TTL set only when the key is first created (value === 1).
+   */
+  async incr(key: string, ttlSeconds: number): Promise<number> {
+    assertTenantRedisKey(key)
+    const client = await this.#connect()
+    const value = await client.incr(key)
+    if (value === 1) {
+      await client.expire(key, ttlSeconds)
+    }
+    return value
+  }
+
   async expire(key: string, ttlSeconds: number): Promise<void> {
     assertTenantRedisKey(key)
     const client = await this.#connect()

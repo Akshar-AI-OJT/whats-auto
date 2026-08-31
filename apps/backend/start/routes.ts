@@ -1006,6 +1006,7 @@ router
   .group(() => {
     router.get('/plans', [BillingController, 'listPlans'])
     router.get('/subscription', [BillingController, 'showSubscription'])
+    router.get('/entitlements', [BillingController, 'showEntitlements'])
     router.post('/checkout', [BillingController, 'checkout'])
     router.post('/verify', [BillingController, 'verify'])
   })

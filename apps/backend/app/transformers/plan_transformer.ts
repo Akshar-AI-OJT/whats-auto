@@ -56,18 +56,59 @@ export function deriveBillingPeriod(
   return 'monthly'
 }
 
+function asNullableNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
+function asRequiredNumber(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 1 ? value : fallback
+}
+
+/**
+ * Prefer `aiRepliesPerMonth`. Legacy plans only stored `aiTokensPerMonth`;
+ * map known marketing budgets to reply counts once at read time.
+ */
+function resolveAiRepliesPerMonth(limits: Record<string, unknown>): number | null {
+  const replies = asNullableNumber(limits.aiRepliesPerMonth)
+  if (replies !== null) return replies
+
+  const tokens = asNullableNumber(limits.aiTokensPerMonth)
+  if (tokens === null) return null
+  if (tokens === 25_000) return 100
+  if (tokens === 250_000) return 1000
+  return null
+}
+
 export function transformPlanLimits(row: Pick<PlanRow, 'limits'>): PlanLimits {
   const limits = (row.limits ?? {}) as Record<string, unknown>
-  const users =
-    typeof limits.users === 'number'
-      ? limits.users
-      : typeof limits.seats === 'number'
-        ? limits.seats
-        : null
-  const messagesPerMonth =
-    typeof limits.messagesPerMonth === 'number' ? limits.messagesPerMonth : null
+  const seats = asNullableNumber(limits.seats) ?? asNullableNumber(limits.users)
+  const users = asNullableNumber(limits.users) ?? seats
 
-  return { users, messagesPerMonth }
+  return {
+    users,
+    seats,
+    whatsappNumbers: asNullableNumber(limits.whatsappNumbers),
+    maxContacts: asNullableNumber(limits.maxContacts),
+    messagesPerMonth: asNullableNumber(limits.messagesPerMonth),
+    campaignsPerMonth: asNullableNumber(limits.campaignsPerMonth),
+    maxBroadcastRecipients: asNullableNumber(limits.maxBroadcastRecipients),
+    storageBytes: asNullableNumber(limits.storageBytes),
+    maxFileUploadMb: asRequiredNumber(limits.maxFileUploadMb, 10),
+    maxActiveFlows: asNullableNumber(limits.maxActiveFlows),
+    maxKnowledgeDocs: asNullableNumber(limits.maxKnowledgeDocs),
+    maxKnowledgeDocSizeMb: asNullableNumber(limits.maxKnowledgeDocSizeMb),
+    aiRepliesPerMonth: resolveAiRepliesPerMonth(limits),
+    maxStoreConnections: asNullableNumber(limits.maxStoreConnections),
+    maxApiKeys: asNullableNumber(limits.maxApiKeys),
+    maxWebhookEndpoints: asNullableNumber(limits.maxWebhookEndpoints),
+    analyticsRetentionDays: asNullableNumber(limits.analyticsRetentionDays),
+    auditLogRetentionDays: asNullableNumber(limits.auditLogRetentionDays),
+    maxTemplates: asNullableNumber(limits.maxTemplates),
+    maxCampaignRecipientListSize: asNullableNumber(limits.maxCampaignRecipientListSize),
+    conversationInboxRetentionDays: asNullableNumber(limits.conversationInboxRetentionDays),
+    aiGenerationsPerConversationHour: asRequiredNumber(limits.aiGenerationsPerConversationHour, 10),
+    dispatchRatePerSec: asRequiredNumber(limits.dispatchRatePerSec, 10),
+  }
 }
 
 /**

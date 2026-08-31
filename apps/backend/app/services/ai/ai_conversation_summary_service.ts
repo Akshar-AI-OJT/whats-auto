@@ -1,5 +1,7 @@
 import app from '@adonisjs/core/services/app'
 import logger from '@adonisjs/core/services/logger'
+import { AiUsageDecision } from '#enums/ai_usage_decision'
+import { AiUsageLogRepository } from '#repositories/ai_usage_log_repository'
 import { ConversationAiRepository } from '#repositories/conversation_ai_repository'
 import { MemoryWorkingSetRepository } from '#repositories/memory_working_set_repository'
 import type { SummarizeConversationJobPayload } from '#services/ai/contracts/ai_job_payloads'
@@ -7,6 +9,7 @@ import type { MemoryTurn } from '#services/ai/contracts/memory_working_set_servi
 import { ChatLlmProvider } from '#services/ai/contracts/llm_provider'
 import { MemoryWorkingSetService } from '#services/ai/contracts/memory_working_set_service'
 import PlatformAiConfigService from '#services/ai/platform_ai_config_service'
+import { AiQuotaService } from '#services/billing/ai_quota_service'
 import JobQueueManager from '#services/job_queue/job_queue_manager'
 import { JOB_NAMES } from '#services/job_queue/job_names'
 import { runWithTenant } from '#services/tenant_context'
@@ -33,7 +36,9 @@ export default class AiConversationSummaryService {
     private turns: MemoryWorkingSetRepository = new MemoryWorkingSetRepository(),
     private memory?: MemoryWorkingSetService,
     private llm?: ChatLlmProvider,
-    private queue?: JobQueueManager
+    private queue?: JobQueueManager,
+    private usage: AiUsageLogRepository = new AiUsageLogRepository(),
+    private aiQuota: AiQuotaService = new AiQuotaService()
   ) {}
 
   async scheduleAfterAutoReply(input: ScheduleSummaryInput): Promise<void> {
@@ -95,6 +100,12 @@ export default class AiConversationSummaryService {
     const config = await this.platform.get()
     if (!config.isEnabled) return { outcome: 'skipped', reason: 'disabled' }
 
+    const quota = await this.aiQuota.peek(payload.organizationId)
+    if (!quota.allowed) {
+      await this.aiQuota.notifyExceeded(payload.organizationId)
+      return { outcome: 'skipped', reason: 'quota_exceeded' }
+    }
+
     const conversation = await this.conversations.findById({
       organizationId: payload.organizationId,
       conversationId: payload.conversationId,
@@ -124,6 +135,32 @@ export default class AiConversationSummaryService {
       conversationId: payload.conversationId,
       summary,
     })
+
+    try {
+      await this.usage.insert({
+        organizationId: payload.organizationId,
+        conversationId: payload.conversationId,
+        provider: config.chatProvider,
+        operationType: 'conversation_summary',
+        promptTokens: completion.promptTokens,
+        completionTokens: completion.completionTokens,
+        totalTokens: completion.totalTokens,
+        modelName: completion.modelName,
+        latencyMs: completion.latencyMs,
+        decision: AiUsageDecision.CONVERSATION_SUMMARY,
+      })
+      await this.aiQuota.incrementOnSuccess(payload.organizationId)
+    } catch (error) {
+      logger.warn(
+        {
+          organizationId: payload.organizationId,
+          conversationId: payload.conversationId,
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'ai.summarize.usage_log_failed'
+      )
+    }
+
     return { outcome: 'updated' }
   }
 }

@@ -11,6 +11,8 @@ import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
 import { cn } from '@/lib/utils'
 import { BillingCheckoutDialog } from './BillingCheckoutDialog'
+import { LimitMeter } from '@/components/dashboard/ui/LimitMeter'
+import { useEntitlements } from '@/hooks/use-entitlements'
 import { queryKeys } from '@/lib/query-keys'
 import {
   billingStatusTone,
@@ -108,6 +110,8 @@ export function BillingPage() {
       return unwrapBillingPlans(data)
     },
   })
+
+  const { usage: entitlementsUsage, refetch: refetchEntitlements } = useEntitlements()
 
   const checkoutMutation = useMutation({
     mutationFn: async (planId: string) => startBillingPayment(planId),
@@ -207,6 +211,7 @@ export function BillingPage() {
               onClick={() => {
                 void subscriptionQuery.refetch()
                 void plansQuery.refetch()
+                void refetchEntitlements()
               }}
             >
               <RefreshCw
@@ -336,6 +341,39 @@ export function BillingPage() {
                 />
                 <DetailRow label={t('fields.subscriptionId')} value={subscription.id} />
               </dl>
+
+              {entitlementsUsage ? (
+                <div className="space-y-4 rounded-2xl border border-dash-border bg-dash-surface/30 p-5">
+                  <p className="text-sm font-semibold text-ink">Usage this period</p>
+                  <LimitMeter
+                    label="Messages"
+                    used={entitlementsUsage.messages.used}
+                    limit={entitlementsUsage.messages.limit}
+                  />
+                  <LimitMeter
+                    label="Campaigns"
+                    used={entitlementsUsage.campaigns.used}
+                    limit={entitlementsUsage.campaigns.limit}
+                  />
+                  <LimitMeter
+                    label="AI replies"
+                    used={entitlementsUsage.aiCustomerLlmCalls.used}
+                    limit={entitlementsUsage.aiCustomerLlmCalls.limit}
+                  />
+                  <LimitMeter
+                    label="Storage (bytes)"
+                    used={entitlementsUsage.storageBytes.used}
+                    limit={entitlementsUsage.storageBytes.limit}
+                    formatValue={(n) =>
+                      n >= 1_000_000_000
+                        ? `${(n / 1_000_000_000).toFixed(1)} GB`
+                        : n >= 1_000_000
+                          ? `${(n / 1_000_000).toFixed(1)} MB`
+                          : `${n}`
+                    }
+                  />
+                </div>
+              ) : null}
 
               <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 {canManageBilling ? (
