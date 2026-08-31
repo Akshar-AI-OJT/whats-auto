@@ -22,6 +22,11 @@ import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/c
 import { Input } from '@/components/ui/input'
 import { authInputClassName } from '@/components/auth/auth-field-styles'
 
+function normalizeMailSecret(value: string): string | null {
+  const normalized = value.trim().replace(/\s/g, '')
+  return normalized.length > 0 ? normalized : null
+}
+
 const PRESET_OPTIONS: OrganizationSmtpProviderPreset[] = [
   'gmail',
   'sendgrid',
@@ -168,8 +173,8 @@ export function OrganizationSmtpSection() {
         secure: form.transport === 'smtp' ? form.secure : null,
         username: form.transport === 'smtp' ? form.username.trim() : null,
         password:
-          form.transport === 'smtp' && form.password.trim() ? form.password.trim() : undefined,
-        apiKey: form.transport === 'api' && form.apiKey.trim() ? form.apiKey.trim() : undefined,
+          form.transport === 'smtp' ? (normalizeMailSecret(form.password) ?? undefined) : undefined,
+        apiKey: form.transport === 'api' ? (normalizeMailSecret(form.apiKey) ?? undefined) : undefined,
       }
       return api.organizations.updateSmtp(tenantOrganizationId!, body)
     },
@@ -198,8 +203,8 @@ export function OrganizationSmtpSection() {
         port: form.transport === 'smtp' ? Number(form.port) : null,
         secure: form.transport === 'smtp' ? form.secure : null,
         username: form.transport === 'smtp' ? form.username.trim() : null,
-        password: form.transport === 'smtp' && form.password.trim() ? form.password.trim() : null,
-        apiKey: form.transport === 'api' && form.apiKey.trim() ? form.apiKey.trim() : null,
+        password: form.transport === 'smtp' ? normalizeMailSecret(form.password) : null,
+        apiKey: form.transport === 'api' ? normalizeMailSecret(form.apiKey) : null,
       }
       return api.organizations.testSmtp(tenantOrganizationId!, { draftConfig })
     },
