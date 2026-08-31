@@ -5,10 +5,10 @@
 # Runs Lucid migrations inside the api container (targets whatever PG_* the api uses).
 #
 # Usage (from repo root or this directory):
-#   bash deploy/contabo/migrate.sh              # Run pending migrations + sync RBAC seed
+#   bash deploy/contabo/migrate.sh              # Run pending migrations + RBAC + superadmin bootstrap
 #   bash deploy/contabo/migrate.sh status       # View migration status
 #   bash deploy/contabo/migrate.sh rollback     # Rollback the last migration batch
-#   bash deploy/contabo/migrate.sh seed         # Run RBAC seed only
+#   bash deploy/contabo/migrate.sh seed         # Run RBAC + superadmin seed only
 #   bash deploy/contabo/migrate.sh fresh        # [DANGER] Drop all tables & re-run all migrations
 # ==============================================================================
 set -euo pipefail
@@ -50,14 +50,17 @@ case "$cmd" in
 
   run)
     require_api
-    echo "==> [1/3] Pre-migration status check..."
+    echo "==> [1/4] Pre-migration status check..."
     ace migration:status
 
-    echo "==> [2/3] Executing pending migrations..."
+    echo "==> [2/4] Executing pending migrations..."
     ace migration:run --force
 
-    echo "==> [3/3] Synchronizing RBAC roles and permissions catalog..."
+    echo "==> [3/4] Synchronizing RBAC roles and permissions catalog..."
     ace db:seed --files=database/seeders/rbac_seeder.ts
+
+    echo "==> [4/4] Bootstrapping platform superadmin (skipped if one already exists)..."
+    ace db:seed --files=database/seeders/superadmin_seeder.ts
 
     echo "==> Migration & seeding complete. Current status:"
     ace migration:status
@@ -72,8 +75,10 @@ case "$cmd" in
 
   seed)
     require_api
-    echo "==> Running RBAC seeder (idempotent sync of roles & permissions)..."
+    echo "==> [1/2] Running RBAC seeder (idempotent sync of roles & permissions)..."
     ace db:seed --files=database/seeders/rbac_seeder.ts
+    echo "==> [2/2] Bootstrapping platform superadmin (skipped if one already exists)..."
+    ace db:seed --files=database/seeders/superadmin_seeder.ts
     ;;
 
   fresh)
@@ -90,6 +95,8 @@ case "$cmd" in
     ace migration:fresh --force
     echo "==> Seeding essential RBAC roles and permissions..."
     ace db:seed --files=database/seeders/rbac_seeder.ts
+    echo "==> Bootstrapping platform superadmin..."
+    ace db:seed --files=database/seeders/superadmin_seeder.ts
     echo "==> Database re-initialized cleanly."
     ;;
 

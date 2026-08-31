@@ -9,6 +9,7 @@ import { OrganizationSmtpTransport } from '#enums/organization_smtp_transport'
 import OrganizationSmtpException from '#exceptions/organization_smtp_exception'
 import { insertAuthorizationAudit } from '#lib/authorization_audit'
 import { decryptIntegrationSecret, encryptIntegrationSecret } from '#lib/integrations/secret_crypto'
+import { normalizeMailSecret } from '#lib/mail/normalize_mail_secret'
 import {
   OrganizationSmtpConfigRepository,
   type OrganizationSmtpConfigRow,
@@ -319,7 +320,7 @@ export class OrganizationSmtpService {
   ): UpsertOrganizationSmtpInput {
     if (input.transport === OrganizationSmtpTransport.SMTP) {
       const password =
-        input.password?.trim() ||
+        normalizeMailSecret(input.password) ||
         (existing?.passwordEncrypted ? decryptIntegrationSecret(existing.passwordEncrypted) : null)
       if (!password) {
         throw OrganizationSmtpException.connectionFailed('Password is required')
@@ -328,7 +329,7 @@ export class OrganizationSmtpService {
     }
 
     const apiKey =
-      input.apiKey?.trim() ||
+      normalizeMailSecret(input.apiKey) ||
       (existing?.apiKeyEncrypted ? decryptIntegrationSecret(existing.apiKeyEncrypted) : null)
     if (!apiKey) {
       throw OrganizationSmtpException.connectionFailed('API key is required')
