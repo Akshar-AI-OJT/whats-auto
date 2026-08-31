@@ -1,12 +1,12 @@
 # Contabo VPS stack: frontend + API + worker + Redis + Postgres (pgvector).
 # Media files: host bind dir shared by api + worker; Caddy serves /media publicly.
 #
-# Postgres: bundled `postgres` service (pgvector/pg17). api/worker connect via PG_HOST=postgres.
+# Postgres: bundled `postgres` service (pgvector/pgvector:pg18). api/worker connect via PG_HOST=postgres.
 # Schema: Lucid migrations — bash deploy/contabo/migrate.sh (not whatsapp_schema.sql).
 # Alternative: external Postgres by IP — see deploy/contabo/DEPLOY_CONFIG.md.
 #
 # Usage (from repo root):
-#   sudo mkdir -p /var/www/whats-auto && sudo chown 1001:1001 /var/www/whats-auto
+#   sudo mkdir -p /var/www/whats-auto/media && sudo chown 1001:1001 /var/www/whats-auto/media
 #   cp deploy/contabo/.env.example deploy/contabo/.env
 #   # set PG_PASSWORD, domains, OBJECT_STORAGE_DRIVER=fs, …
 #   docker compose -f deploy/contabo/docker-compose.yml --env-file deploy/contabo/.env up -d --build
@@ -76,13 +76,13 @@ services:
       JOB_QUEUE_DRIVER: bullmq
       OBJECT_STORAGE_DRIVER: ${OBJECT_STORAGE_DRIVER:-fs}
       DRIVE_DISK: ${DRIVE_DISK:-fs}
-      MEDIA_LOCAL_ROOT: ${MEDIA_LOCAL_ROOT:-/var/www/whats-auto}
+      MEDIA_LOCAL_ROOT: ${MEDIA_LOCAL_ROOT:-/var/www/whats-auto/media}
     volumes:
       - type: bind
-        source: ${MEDIA_HOST_PATH:-/var/www/whats-auto}
-        target: ${MEDIA_LOCAL_ROOT:-/var/www/whats-auto}
+        source: ${MEDIA_HOST_PATH:-/var/www/whats-auto/media}
+        target: ${MEDIA_LOCAL_ROOT:-/var/www/whats-auto/media}
     ports:
-      - '${API_HOST_PORT:-3201}:3201'
+      - '127.0.0.1:${API_HOST_PORT:-3201}:3201'
     networks:
       - internal
       - edge
@@ -98,6 +98,8 @@ services:
     restart: unless-stopped
     command: ['node', 'bin/worker.js']
     depends_on:
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
       api:
@@ -114,11 +116,11 @@ services:
       JOB_QUEUE_DRIVER: bullmq
       OBJECT_STORAGE_DRIVER: ${OBJECT_STORAGE_DRIVER:-fs}
       DRIVE_DISK: ${DRIVE_DISK:-fs}
-      MEDIA_LOCAL_ROOT: ${MEDIA_LOCAL_ROOT:-/var/www/whats-auto}
+      MEDIA_LOCAL_ROOT: ${MEDIA_LOCAL_ROOT:-/var/www/whats-auto/media}
     volumes:
       - type: bind
-        source: ${MEDIA_HOST_PATH:-/var/www/whats-auto}
-        target: ${MEDIA_LOCAL_ROOT:-/var/www/whats-auto}
+        source: ${MEDIA_HOST_PATH:-/var/www/whats-auto/media}
+        target: ${MEDIA_LOCAL_ROOT:-/var/www/whats-auto/media}
     networks:
       - internal
 
@@ -140,7 +142,7 @@ services:
       PORT: 3200
       HOSTNAME: 0.0.0.0
     ports:
-      - '${FRONTEND_HOST_PORT:-3200}:3200'
+      - '127.0.0.1:${FRONTEND_HOST_PORT:-3200}:3200'
     networks:
       - edge
 
