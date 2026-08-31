@@ -1551,6 +1551,7 @@
         "addressLine2Placeholder": "अपार्टमेंट, सुइट, आदि",
         "city": "शहर",
         "state": "राज्य / प्रदेश",
+        "statePlaceholder": "राज्य / प्रदेश चुनें",
         "postalCode": "पिन / पोस्टल कोड",
         "country": "देश",
         "countryPlaceholder": "देश चुनें"
@@ -1660,6 +1661,7 @@
         "addressLine2Placeholder": "अपार्टमेंट, सुइट, आदि",
         "city": "शहर",
         "state": "राज्य / प्रदेश",
+        "statePlaceholder": "राज्य / प्रदेश चुनें",
         "postalCode": "पिन / पोस्टल कोड",
         "country": "देश",
         "countryPlaceholder": "देश चुनें"

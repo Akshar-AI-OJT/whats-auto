@@ -1551,6 +1551,7 @@
         "addressLine2Placeholder": "Apartment, suite, etc.",
         "city": "City",
         "state": "State / Province",
+        "statePlaceholder": "Select state / province",
         "postalCode": "Postal Code",
         "country": "Country",
         "countryPlaceholder": "Select country"
@@ -1660,6 +1661,7 @@
         "addressLine2Placeholder": "Apartment, suite, etc.",
         "city": "City",
         "state": "State / Province",
+        "statePlaceholder": "Select state / province",
         "postalCode": "Postal Code",
         "country": "Country",
         "countryPlaceholder": "Select country"
