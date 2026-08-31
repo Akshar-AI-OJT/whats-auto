@@ -3,7 +3,6 @@ import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { Exception } from '@adonisjs/core/exceptions'
 import logger from '@adonisjs/core/services/logger'
 import { DateTime } from 'luxon'
-import Organization from '#models/organization'
 import InvitationException from '#exceptions/invitation_exception'
 import { getGlobalRoleIdByName, resolveAssignableRoleForOrg } from '#services/role_service'
 import { bumpAllOrgMembersPermissionVersion } from '#lib/permission_version_bumps'
@@ -88,7 +87,7 @@ export class OrganizationService {
 
     const ownerRoleId = await getGlobalRoleIdByName('owner')
 
-    return db.transaction(async (trx) => {
+    const created = await db.transaction(async (trx) => {
       const [org] = await trx
         .table('organizations')
         .insert({
@@ -158,6 +157,15 @@ export class OrganizationService {
         role: 'owner',
       }
     })
+
+    // After create commits — best-effort notify must not roll back onboarding.
+    await this.#notifySuperAdminsOrganizationOnboardedBestEffort({
+      organizationId: created.id,
+      actorUserId: userId,
+      organizationName: created.name,
+    })
+
+    return created
   }
 
   /**
@@ -598,6 +606,72 @@ export class OrganizationService {
           err: error instanceof Error ? error.message : 'unknown',
         },
         'team.notification_failed'
+      )
+    }
+  }
+
+  /**
+   * Best-effort in-app notifications for platform Super Admins after an organization
+   * is created (the current onboarding event). Never throws.
+   */
+  async #notifySuperAdminsOrganizationOnboardedBestEffort(params: {
+    organizationId: string
+    actorUserId: string
+    organizationName: string
+  }): Promise<void> {
+    const type = 'organization_onboarding'
+    try {
+      const superadmins = await db
+        .from('user_roles as ur')
+        .innerJoin('roles as r', 'r.id', 'ur.roleId')
+        .innerJoin('users as u', 'u.id', 'ur.userId')
+        .whereNull('ur.organizationId')
+        .where('r.name', 'superadmin')
+        .where('u.isDeleted', false)
+        .select('ur.userId')
+
+      const notifications = new NotificationService()
+      for (const row of superadmins) {
+        const userId = row.userId as string
+        try {
+          const existing = await db
+            .from('notifications')
+            .where('organizationId', params.organizationId)
+            .where('userId', userId)
+            .where('type', type)
+            .select('id')
+            .first()
+
+          if (existing) continue
+
+          await notifications.createNotification({
+            organizationId: params.organizationId,
+            userId,
+            type,
+            title: 'New Organization Onboarding',
+            body: `A new organization "${params.organizationName}" has been created.`,
+            actorUserId: params.actorUserId,
+          })
+        } catch (error) {
+          logger.error(
+            {
+              organizationId: params.organizationId,
+              userId,
+              type,
+              err: error instanceof Error ? error.message : 'unknown',
+            },
+            'organization.notification_failed'
+          )
+        }
+      }
+    } catch (error) {
+      logger.error(
+        {
+          organizationId: params.organizationId,
+          type,
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'organization.notification_failed'
       )
     }
   }
