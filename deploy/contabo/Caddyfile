@@ -4,7 +4,7 @@
 #   ottobot.codecolonies.com → VPS
 #   api.ottobot.codecolonies.com → VPS
 #
-# Media: host dir /var/lib/whats-auto/media is bind-mounted into api+worker
+# Media: host dir /var/www/whats-auto is bind-mounted into api+worker
 # and served publicly at https://api.yourdomain.com/media/<storageKey>
 # (WhatsApp GETs never hit Node).
 #
@@ -24,7 +24,7 @@ api.ottobot.codecolonies.com {
 	}
 
 	handle_path /media/* {
-		root * /var/lib/whats-auto/media
+		root * /var/www/whats-auto
 		file_server
 	}
 

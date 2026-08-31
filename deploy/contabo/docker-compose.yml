@@ -6,7 +6,7 @@
 # Alternative: external Postgres by IP — see deploy/contabo/DEPLOY_CONFIG.md.
 #
 # Usage (from repo root):
-#   sudo mkdir -p /var/lib/whats-auto/media && sudo chown 1001:1001 /var/lib/whats-auto/media
+#   sudo mkdir -p /var/www/whats-auto && sudo chown 1001:1001 /var/www/whats-auto
 #   cp deploy/contabo/.env.example deploy/contabo/.env
 #   # set PG_PASSWORD, domains, OBJECT_STORAGE_DRIVER=fs, …
 #   docker compose -f deploy/contabo/docker-compose.yml --env-file deploy/contabo/.env up -d --build
@@ -20,7 +20,7 @@ name: whats-auto
 
 services:
   postgres:
-    image: pgvector/pgvector:pg17
+    image: pgvector/pgvector:pg18
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${PG_USER:-postgres}
@@ -76,11 +76,11 @@ services:
       JOB_QUEUE_DRIVER: bullmq
       OBJECT_STORAGE_DRIVER: ${OBJECT_STORAGE_DRIVER:-fs}
       DRIVE_DISK: ${DRIVE_DISK:-fs}
-      MEDIA_LOCAL_ROOT: ${MEDIA_LOCAL_ROOT:-/var/lib/whats-auto/media}
+      MEDIA_LOCAL_ROOT: ${MEDIA_LOCAL_ROOT:-/var/www/whats-auto}
     volumes:
       - type: bind
-        source: ${MEDIA_HOST_PATH:-/var/lib/whats-auto/media}
-        target: ${MEDIA_LOCAL_ROOT:-/var/lib/whats-auto/media}
+        source: ${MEDIA_HOST_PATH:-/var/www/whats-auto}
+        target: ${MEDIA_LOCAL_ROOT:-/var/www/whats-auto}
     ports:
       - '${API_HOST_PORT:-3201}:3201'
     networks:
@@ -114,11 +114,11 @@ services:
       JOB_QUEUE_DRIVER: bullmq
       OBJECT_STORAGE_DRIVER: ${OBJECT_STORAGE_DRIVER:-fs}
       DRIVE_DISK: ${DRIVE_DISK:-fs}
-      MEDIA_LOCAL_ROOT: ${MEDIA_LOCAL_ROOT:-/var/lib/whats-auto/media}
+      MEDIA_LOCAL_ROOT: ${MEDIA_LOCAL_ROOT:-/var/www/whats-auto}
     volumes:
       - type: bind
-        source: ${MEDIA_HOST_PATH:-/var/lib/whats-auto/media}
-        target: ${MEDIA_LOCAL_ROOT:-/var/lib/whats-auto/media}
+        source: ${MEDIA_HOST_PATH:-/var/www/whats-auto}
+        target: ${MEDIA_LOCAL_ROOT:-/var/www/whats-auto}
     networks:
       - internal
 
