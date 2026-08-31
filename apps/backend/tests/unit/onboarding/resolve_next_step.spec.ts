@@ -24,7 +24,9 @@ test.group('resolveNextStep', () => {
     )
   })
 
-  test('existing member with a pending invitation still lands in their organization', ({ assert }) => {
+  test('existing member with a pending invitation still lands in their organization', ({
+    assert,
+  }) => {
     assert.equal(
       resolveNextStep({
         organizationCount: 1,

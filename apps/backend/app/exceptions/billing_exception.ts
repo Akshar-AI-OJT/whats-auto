@@ -19,6 +19,13 @@ export default class BillingException extends Exception {
     })
   }
 
+  static planNotActivatable() {
+    return new this('Plan is not available for activation', {
+      status: 422,
+      code: 'E_BILLING_PLAN_NOT_ACTIVATABLE',
+    })
+  }
+
   static organizationNotFound() {
     return new this('Organization not found', {
       status: 404,

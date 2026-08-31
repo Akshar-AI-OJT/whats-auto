@@ -91,10 +91,7 @@ export function parseOrganizationAddress(value: unknown): OrganizationAddress | 
  * Flatten structured address for invoice / legacy string consumers.
  * Pass `country` separately when available (organizations.country).
  */
-export function formatOrganizationAddress(
-  value: unknown,
-  country?: string | null
-): string | null {
+export function formatOrganizationAddress(value: unknown, country?: string | null): string | null {
   const parsed = parseOrganizationAddress(value)
   if (!parsed) return null
 

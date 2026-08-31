@@ -1308,7 +1308,10 @@
       "back": "Back",
       "continueToDashboard": "Continue to dashboard",
       "proceedToCheckout": "Continue to checkout",
+      "startFreeTrial": "Start free trial",
+      "startingFreeTrial": "Starting free trial…",
       "checkoutHint": "You won't be charged yet.",
+      "freeTrialHint": "No payment required for the free trial.",
       "creating": "Creating organization…",
       "step1": {
         "title": "Create your organization",
@@ -1435,11 +1438,15 @@
         "emptyDescription": "No active monthly plans are available right now.",
         "chooseCta": "Select plan",
         "selectedCta": "Selected",
+        "freeBadge": "Free",
+        "freeChooseCta": "Start free trial",
+        "freeSelectedCta": "Free trial selected",
         "enterpriseCta": "Contact sales",
         "enterpriseCustomPrice": "Custom",
         "allPlansInclude": "All plans include",
         "summaryLabel": "Selected plan",
-        "summaryNote": "You'll confirm this plan and complete Razorpay checkout before entering the dashboard."
+        "summaryNote": "You'll confirm this plan and complete Razorpay checkout before entering the dashboard.",
+        "summaryNoteFree": "No payment is required. You'll activate your free trial and continue to profile setup."
       },
       "payment": {
         "redirectingTitle": "Preparing checkout",
@@ -1485,6 +1492,8 @@
         "themeRequired": "Select a theme preference.",
         "planRequired": "Please select a subscription plan.",
         "planNotCheckoutable": "This plan isn't available for checkout. Please choose a different plan.",
+        "planNotActivatable": "This plan isn't available for activation. Please choose a different plan.",
+        "activationFailed": "Couldn't activate this plan. Please try again.",
         "checkoutFailed": "Couldn't start checkout. Please try again."
       },
       "createOrganization": "Create Organization"
@@ -3398,7 +3407,8 @@
         "cancel": "Cancel",
         "confirm": "Pay now",
         "starting": "Opening payment…",
-        "success": "Payment confirmed. Your subscription is active."
+        "success": "Payment confirmed. Your subscription is active.",
+        "freeSuccess": "Free trial activated. Your subscription is active."
       },
       "errors": {
         "permissionDenied": "You don’t have permission to view billing in this organization.",
@@ -3410,6 +3420,7 @@
       "featuresLabel": "Features",
       "currentPlanBadge": "Current plan",
       "changePlanCta": "Change plan",
+      "startFreeTrialCta": "Start free trial",
       "enterpriseCta": "Contact sales",
       "changeDialogTitle": "Confirm plan change",
       "changeDialogDescription": "Switching plans updates your entitlements. This is UI-only for now.",
