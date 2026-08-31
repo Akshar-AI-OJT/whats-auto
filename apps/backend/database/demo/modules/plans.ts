@@ -56,7 +56,7 @@ export const plansModule: DemoSeedModule = {
         id: FIXTURE_IDS.plans.scale,
         code: 'scale',
         name: 'Scale',
-        description: 'High-volume workspaces',
+        description: 'High-volume organizations',
         price: 7499,
         currency: 'INR',
         billingInterval: 'month',

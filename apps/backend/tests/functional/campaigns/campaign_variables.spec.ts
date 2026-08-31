@@ -128,12 +128,21 @@ test.group('Campaign template variables', (group) => {
     }
   })
 
-  test('replaceRecipients resolves contact fields per recipient', async ({ assert }) => {
+  test('replaceRecipients resolves contact name per recipient without explicit mappings', async ({
+    assert,
+  }) => {
     const organizationId = await createOrg()
     orgIds.push(organizationId)
     const userId = await seedUser()
     userIds.push(userId)
-    const templateId = await seedTemplate(organizationId)
+    const templateId = await seedTemplate(organizationId, {
+      bodyText: 'Hello {{name}}',
+      parameterSchema: {
+        headerNames: [],
+        bodyNames: ['name'],
+        sendable: true,
+      },
+    })
     const ada = await seedContact(organizationId, { name: 'Ada' })
     const priya = await seedContact(organizationId, { name: 'Priya' })
 
@@ -164,8 +173,8 @@ test.group('Campaign template variables', (group) => {
     )
 
     const byContact = new Map(rows.map((row) => [row.contactId as string, row.variables]))
-    assert.deepEqual(byContact.get(ada), { customer_name: 'Ada' })
-    assert.deepEqual(byContact.get(priya), { customer_name: 'Priya' })
+    assert.deepEqual(byContact.get(ada), { name: 'Ada' })
+    assert.deepEqual(byContact.get(priya), { name: 'Priya' })
   })
 
   test('explicit variables override contact fields and customFields fill params', async ({

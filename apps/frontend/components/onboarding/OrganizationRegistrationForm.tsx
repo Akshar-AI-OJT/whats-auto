@@ -11,7 +11,6 @@ import { queryKeys } from '@/lib/query-keys'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   buildCreateOrganizationPayload,
-  clearLegacyOrganizationCache,
   clearPendingOnboardingContact,
   isValidEmail,
   isValidOrganizationSlug,
@@ -19,8 +18,8 @@ import {
   isValidWebsiteUrl,
   markOnboardingChecklistVisible,
   readPendingOnboardingContact,
-  savePendingWorkspacePlan,
-  savePendingWorkspacePreferences,
+  savePendingOrganizationPlan,
+  savePendingOrganizationPreferences,
   ORG_SETUP_PATH,
 } from '@/lib/onboarding'
 import {
@@ -48,7 +47,7 @@ import {
   SubscriptionPlanSelectionStep,
   type OnboardingCheckoutablePlanSelection,
 } from './SubscriptionPlanSelectionStep'
-import { WorkspacePreferencesStep } from './WorkspacePreferencesStep'
+import { OrganizationPreferencesStep } from './OrganizationPreferencesStep'
 import { OrganizationStepper } from './OrganizationStepper'
 import type {
   OrganizationWizardBasicsErrors,
@@ -107,7 +106,7 @@ export function OrganizationRegistrationForm({
   const [guardingInvite, setGuardingInvite] = useState(true)
 
   // Only bounce invitees / platform superadmins. Users who already have a
-  // workspace (Create workspace from the switcher) must stay on this page.
+  // organization (Create organization from the switcher) must stay on this page.
   useEffect(() => {
     let cancelled = false
     ;(async () => {
@@ -228,7 +227,7 @@ export function OrganizationRegistrationForm({
     return next
   }
 
-  async function handleCreateWorkspace() {
+  async function handleCreateOrganization() {
     setError(null)
     const nextErrors = validatePreferences()
     setPreferencesErrors(nextErrors)
@@ -273,9 +272,7 @@ export function OrganizationRegistrationForm({
       await getValidAccessToken()
       await queryClient.invalidateQueries({ queryKey: queryKeys.organizations.all })
 
-      clearLegacyOrganizationCache()
-
-      savePendingWorkspacePreferences({
+      savePendingOrganizationPreferences({
         companySize: state.companySize,
         logoFileName: state.logoFileName,
         defaultLanguage: state.defaultLanguage,
@@ -352,7 +349,7 @@ export function OrganizationRegistrationForm({
     }
 
     if (step === 3) {
-      await handleCreateWorkspace()
+      await handleCreateOrganization()
       return
     }
 
@@ -389,10 +386,10 @@ export function OrganizationRegistrationForm({
 
     try {
       // Persist the real backend plan UUID so other screens can resume/refresh state.
-      savePendingWorkspacePlan(selectedPlan.id)
+      savePendingOrganizationPlan(selectedPlan.id)
       await startBillingPayment(selectedPlan.id)
       setConfirmOpen(false)
-      router.replace('/dashboard')
+      router.replace('/onboarding/organization-profile')
     } catch (err) {
       checkoutLockRef.current = false
       const apiError = err as ApiError
@@ -474,7 +471,7 @@ export function OrganizationRegistrationForm({
           ) : null}
 
           {step === 3 ? (
-            <WorkspacePreferencesStep
+            <OrganizationPreferencesStep
               state={state}
               errors={preferencesErrors}
               pending={pending}
@@ -562,7 +559,7 @@ export function OrganizationRegistrationForm({
                       <span>{t('creating')}</span>
                     </>
                   ) : step === 3 ? (
-                    t('createWorkspace')
+                    t('createOrganization')
                   ) : (
                     t('continue')
                   )}

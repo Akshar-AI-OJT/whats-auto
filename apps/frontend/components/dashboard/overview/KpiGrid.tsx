@@ -17,18 +17,21 @@ export function KpiGrid() {
       icon: Users,
       value: kpis.contactsCount,
       format: 'number' as const,
+      href: '/dashboard/contacts',
     },
     {
       key: 'conversations' as const,
       icon: MessageCircle,
       value: kpis.conversationsCount,
       format: 'number' as const,
+      href: '/dashboard/inbox',
     },
     {
       key: 'campaigns' as const,
       icon: Megaphone,
       value: kpis.campaignsCount,
       format: 'number' as const,
+      href: '/dashboard/campaigns',
     },
     {
       key: 'delivery' as const,
@@ -36,6 +39,7 @@ export function KpiGrid() {
       value: kpis.deliveryRate,
       format: 'percent' as const,
       suffix: '%',
+      href: '/dashboard/analytics',
     },
   ]
 
@@ -50,6 +54,7 @@ export function KpiGrid() {
           suffix={'suffix' in item ? item.suffix : undefined}
           hint={t(`${item.key}.hint`)}
           icon={item.icon}
+          href={item.href}
           loading={loading}
           className="h-full"
         />

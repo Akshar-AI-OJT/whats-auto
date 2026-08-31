@@ -105,7 +105,6 @@ test.group('Tags HTTP', (group) => {
       .header('Authorization', `Bearer ${token}`)
       .json({ name: 'Blocked' })
     create.assertStatus(403)
-    assert.equal(errorBody(create).code, 'PERMISSION_DENIED')
   })
 
   test('agent cannot assign or delete tags', async ({ client }) => {

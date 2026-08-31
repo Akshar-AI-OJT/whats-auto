@@ -75,13 +75,19 @@ export default await Env.create(new URL('../', import.meta.url), {
   RAZORPAY_KEY_SECRET: Env.schema.secret(),
   RAZORPAY_WEBHOOK_SECRET: Env.schema.secret(),
 
-  // Media object storage (private S3 + public CDN base for WhatsApp link delivery)
-  AWS_ACCESS_KEY_ID: Env.schema.string(),
-  AWS_SECRET_ACCESS_KEY: Env.schema.secret(),
-  AWS_REGION: Env.schema.string(),
-  S3_BUCKET: Env.schema.string(),
-  DRIVE_DISK: Env.schema.enum(['s3'] as const),
+  // Object storage: fs (Contabo disk) | s3 (S3-compatible / Contabo Object Storage)
+  OBJECT_STORAGE_DRIVER: Env.schema.enum(['fs', 's3'] as const),
+  DRIVE_DISK: Env.schema.enum(['fs', 's3'] as const),
   MEDIA_PUBLIC_BASE_URL: Env.schema.string({ format: 'url', tld: false }),
+  /** Absolute path when OBJECT_STORAGE_DRIVER=fs */
+  MEDIA_LOCAL_ROOT: Env.schema.string.optional(),
+  // Required when OBJECT_STORAGE_DRIVER=s3 (validated in createObjectStorageFromEnv)
+  S3_ACCESS_KEY_ID: Env.schema.string.optional(),
+  S3_SECRET_ACCESS_KEY: Env.schema.secret.optional(),
+  S3_REGION: Env.schema.string.optional(),
+  S3_BUCKET: Env.schema.string.optional(),
+  S3_ENDPOINT: Env.schema.string.optional(),
+  S3_FORCE_PATH_STYLE: Env.schema.boolean.optional(),
 
   /**
    * Optional smoke-test only. When the mapped shopenup_* template is missing

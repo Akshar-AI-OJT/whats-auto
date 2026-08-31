@@ -28,6 +28,10 @@ export const TENANT_AUDIT_EVENT_TYPES = [
   'invitation.accepted',
   'invitation.rejected',
   'invitation.canceled',
+  'smtp_config.created',
+  'smtp_config.updated',
+  'smtp_config.deleted',
+  'smtp_config.test_sent',
 ] as const
 
 export type AuditListScope = 'platform' | 'tenant'

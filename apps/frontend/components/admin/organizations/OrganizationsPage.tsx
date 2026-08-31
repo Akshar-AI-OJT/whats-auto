@@ -50,7 +50,7 @@ type PlanFilter = 'all' | string
 
 const PER_PAGE = 20
 const selectClassName = cn(
-  'h-11 w-full min-w-0 rounded-xl border border-dash-border bg-canvas px-3 text-sm text-ink outline-none',
+  'h-11 w-full min-w-0 cursor-pointer rounded-xl border border-dash-border bg-canvas px-3 text-sm text-ink outline-none',
   'transition-[border-color,box-shadow] duration-200',
   'hover:border-dash-border-strong',
   'focus-visible:border-primary/55 focus-visible:ring-2 focus-visible:ring-primary/30'
@@ -643,7 +643,7 @@ export function OrganizationsPage() {
                   <li key={org.id}>
                     <article
                       className={cn(
-                        'rounded-2xl border border-dash-border bg-dash-surface/60 p-4',
+                        'cursor-pointer rounded-2xl border border-dash-border bg-dash-surface/60 p-4',
                         'transition-colors duration-150',
                         selectedId === org.id && 'border-primary/40 bg-primary-pale/30'
                       )}

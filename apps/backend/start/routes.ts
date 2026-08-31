@@ -22,6 +22,7 @@ const TagsController = () => import('#controllers/tags_controller')
 const CampaignsController = () => import('#controllers/campaigns_controller')
 const ConversationsController = () => import('#controllers/conversations_controller')
 const OrganizationsController = () => import('#controllers/organizations_controller')
+const OrganizationSmtpController = () => import('#controllers/organization_smtp_controller')
 const InvitationsController = () => import('#controllers/invitations_controller')
 const OnboardingController = () => import('#controllers/onboarding_controller')
 const SuperAdminOrganizationsController = () =>
@@ -122,6 +123,7 @@ const requestBodySchemas: Record<string, JsonSchema> = {
     phone: { type: 'string', example: '+919876543210' },
     website: { type: 'string', format: 'uri', example: 'https://krishnademo.com' },
     industry: { type: 'string', example: 'Software' },
+    country: { type: 'string', example: 'IN' },
     timezone: { type: 'string', example: 'Asia/Kolkata' },
     currency: { type: 'string', example: 'INR' },
   }),
@@ -794,6 +796,10 @@ router
     router.patch('/:id', [OrganizationsController, 'update'])
     router.delete('/:id', [OrganizationsController, 'destroy'])
     router.post('/:id/invitations', [InvitationsController, 'store'])
+    router.get('/:id/smtp', [OrganizationSmtpController, 'show'])
+    router.put('/:id/smtp', [OrganizationSmtpController, 'update'])
+    router.post('/:id/smtp/test', [OrganizationSmtpController, 'test'])
+    router.delete('/:id/smtp', [OrganizationSmtpController, 'destroy'])
   })
   .prefix('/api/v1/organizations')
   .use([middleware.jwtAuth(), middleware.tenant({ skipActiveGate: true })])
@@ -902,11 +908,17 @@ router
   .prefix('/api/v1/integrations')
   .use([middleware.jwtAuth(), middleware.tenant()])
 
-// media uploads — direct-to-S3 pending → ready lifecycle + Media Library
+// media uploads — HMAC PUT (local disk) is public; initiate/complete stay authenticated
+router
+  .put('/api/v1/media/uploads/:id/content', [MediaUploadsController, 'putContent'])
+  .use([middleware.rateLimit({ max: 60, windowMs: 60 * 1000, name: 'media-upload-content' })])
+
+// media uploads — direct-to-storage pending → ready lifecycle + Media Library
 router
   .group(() => {
     router.get('/', [MediaAssetsController, 'index'])
     router.get('/quota', [MediaAssetsController, 'quota'])
+    router.get('/organization-logo', [MediaAssetsController, 'organizationLogo'])
     router.get('/:id', [MediaAssetsController, 'show'])
     router.post('/uploads', [MediaUploadsController, 'store'])
     router.post('/uploads/:id/complete', [MediaUploadsController, 'complete'])

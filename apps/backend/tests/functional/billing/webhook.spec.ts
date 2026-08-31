@@ -194,7 +194,9 @@ test.group('Billing webhook worker', () => {
     const sub = await runWithTenant(seeded.organizationId, async () => {
       return db.from('organization_subscriptions').where('id', seeded.subscriptionId).first()
     })
-    assert.equal(sub?.status, 'active')
+    // payment.captured is ledger-only; activation happens on subscription.charged.
+    assert.equal(sub?.status, 'trialing')
+    assert.equal(sub?.lastPaymentStatus, 'captured')
 
     const ledger = await db.from('payment_webhook_events').where('id', row.id).first()
     assert.equal(ledger?.status, 'processed')

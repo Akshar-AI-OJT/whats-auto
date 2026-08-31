@@ -66,6 +66,7 @@ export function RecentCampaigns() {
                 sent={Number(campaign.sentCount ?? 0).toLocaleString()}
                 deliveredPercent={campaignCardDeliveryPercent(campaign)}
                 progress={campaignCardProgress(campaign)}
+                onClick={() => router.push(`/dashboard/campaigns/${campaign.id}`)}
                 actions={[
                   {
                     id: 'view',

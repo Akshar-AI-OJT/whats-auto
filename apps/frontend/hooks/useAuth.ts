@@ -4,7 +4,6 @@ import { useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { authClient } from '@/lib/auth-client'
 import { clearAccessToken } from '@/lib/access-token'
-import { clearLegacyOrganizationCache } from '@/lib/onboarding'
 import type { ProfileUser } from '@/lib/api'
 
 type AuthState = {
@@ -59,7 +58,6 @@ export function useAuth(): AuthState {
       // Session cookie is gone; in-memory JWT would otherwise stay valid until exp.
       // Clear React Query so the next account does not reuse orgs/permissions/UI cache.
       clearAccessToken()
-      clearLegacyOrganizationCache()
       queryClient.clear()
     }
   }, [queryClient])

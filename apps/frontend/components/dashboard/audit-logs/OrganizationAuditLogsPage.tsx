@@ -104,7 +104,7 @@ export function OrganizationAuditLogsPage() {
   const [dateTo, setDateTo] = useState('')
   const [selected, setSelected] = useState<AuthorizationAuditEvent | null>(null)
 
-  const workspaceLabel = activeOrganization?.name || t('thisWorkspace')
+  const organizationLabel = activeOrganization?.name || t('thisOrganization')
 
   const auditQuery = useQuery({
     queryKey: queryKeys.audit.org(tenantOrganizationId, limit),
@@ -193,7 +193,7 @@ export function OrganizationAuditLogsPage() {
               {t('title')}
             </h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-body sm:text-base sm:leading-7">
-              {t('subtitle', { workspace: workspaceLabel })}
+              {t('subtitle', { organization: organizationLabel })}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -498,8 +498,8 @@ export function OrganizationAuditLogsPage() {
                   </dd>
                 </div>
                 <div className="flex justify-between gap-3">
-                  <dt className="text-mute">{t('columns.workspace')}</dt>
-                  <dd className="max-w-[70%] break-all text-right text-ink">{workspaceLabel}</dd>
+                  <dt className="text-mute">{t('columns.organization')}</dt>
+                  <dd className="max-w-[70%] break-all text-right text-ink">{organizationLabel}</dd>
                 </div>
                 <div className="flex justify-between gap-3">
                   <dt className="text-mute">{t('columns.event')}</dt>

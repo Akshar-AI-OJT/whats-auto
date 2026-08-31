@@ -18,7 +18,7 @@
   "hero": {
     "badge": "AI Powered WhatsApp Automation",
     "headline": "Run Your Entire WhatsApp Business on Autopilot",
-    "description": "Manage customer conversations, automate replies, launch broadcast campaigns, and collaborate with your team—all from one intelligent WhatsApp workspace.",
+    "description": "Manage customer conversations, automate replies, launch broadcast campaigns, and collaborate with your team—all from one intelligent WhatsApp organization.",
     "cta": "Get Started",
     "ctaSecondary": "Book Demo",
     "ctaSecondaryBadge": "Soon",
@@ -49,7 +49,7 @@
         "broadcastStatus": "Create & Send",
         "inboxTitle": "Shared Inbox",
         "inboxStatus": "Manage Conversations",
-        "teamTitle": "Team Workspace",
+        "teamTitle": "Team Organization",
         "teamStatus": "Multi-Tenant",
         "authTitle": "Secure Authentication",
         "authStatus": "RBAC Enabled",
@@ -62,7 +62,7 @@
     "featurePreview": {
       "badge": "✨ Platform Features",
       "title": "Everything You Need to Grow on WhatsApp",
-      "subtitle": "From AI-powered conversations to team collaboration, Whats-Auto helps you manage customer communication from one intelligent workspace.",
+      "subtitle": "From AI-powered conversations to team collaboration, Whats-Auto helps you manage customer communication from one intelligent organization.",
       "cta": "Explore All Features",
       "items": {
         "ai": {
@@ -75,14 +75,14 @@
         },
         "inbox": {
           "title": "Shared Team Inbox",
-          "description": "Collaborate with your team from one shared workspace."
+          "description": "Collaborate with your team from one shared organization."
         },
         "analytics": {
           "title": "Analytics",
           "description": "Track conversations, engagement, and campaign performance."
         },
         "multiTenant": {
-          "title": "Multi-Tenant Workspace",
+          "title": "Multi-Tenant Organization",
           "description": "Manage multiple organizations securely from one account."
         },
         "auth": {
@@ -93,7 +93,7 @@
     },
     "features": {
       "title": "Everything you need on WhatsApp",
-      "subtitle": "Broadcast, sell, and support from one workspace.",
+      "subtitle": "Broadcast, sell, and support from one organization.",
       "viewAll": "See all features",
       "items": {
         "broadcasting": {
@@ -145,7 +145,7 @@
         },
         "inbox": {
           "title": "Shared Team Inbox",
-          "description": "Collaborate with your entire support team from one WhatsApp workspace."
+          "description": "Collaborate with your entire support team from one WhatsApp organization."
         },
         "whatsappApi": {
           "title": "Official WhatsApp API",
@@ -156,7 +156,7 @@
           "description": "Track campaign performance, customer engagement, and response trends."
         },
         "multiTenant": {
-          "title": "Multi-Tenant Workspace",
+          "title": "Multi-Tenant Organization",
           "description": "Manage multiple organizations and teams securely from one platform."
         }
       }
@@ -212,7 +212,11 @@
           "name": "Starter",
           "price": "₹499/mo",
           "cta": "Get Started",
-          "features": ["AI Assistant", "Shared Inbox", "Broadcast Campaigns"]
+          "features": [
+            "AI Assistant",
+            "Shared Inbox",
+            "Broadcast Campaigns"
+          ]
         },
         "growth": {
           "name": "Growth",
@@ -230,7 +234,11 @@
           "name": "Enterprise",
           "price": "Custom",
           "cta": "Contact Sales",
-          "features": ["Dedicated Support", "Custom Integrations", "Enterprise Security"]
+          "features": [
+            "Dedicated Support",
+            "Custom Integrations",
+            "Enterprise Security"
+          ]
         }
       }
     },
@@ -268,7 +276,11 @@
       "secondary": "Book Demo",
       "secondaryBadge": "Coming Soon",
       "secondaryTooltip": "Demo booking will be available soon.",
-      "perks": ["No credit card required", "Setup in minutes", "Secure authentication"]
+      "perks": [
+        "No credit card required",
+        "Setup in minutes",
+        "Secure authentication"
+      ]
     }
   },
   "footer": {
@@ -474,7 +486,7 @@
   },
   "aboutPage": {
     "metaTitle": "About — Whats-Auto",
-    "metaDescription": "Learn how Whats-Auto helps businesses automate WhatsApp conversations with AI, shared inboxes, and secure multi-tenant workspaces.",
+    "metaDescription": "Learn how Whats-Auto helps businesses automate WhatsApp conversations with AI, shared inboxes, and secure multi-tenant organizations.",
     "hero": {
       "badge": "🚀 About Whats-Auto",
       "title": "Building Smarter WhatsApp Automation for Modern Businesses",
@@ -715,18 +727,17 @@
   },
   "featuresPage": {
     "metaTitle": "Features — Whats-Auto",
-    "metaDescription": "Everything you need to automate WhatsApp conversations — AI assistant, broadcasts, shared inbox, analytics, and secure multi-tenant workspaces.",
+    "metaDescription": "Everything you need to automate WhatsApp conversations — AI assistant, broadcasts, shared inbox, analytics, and secure multi-tenant organizations.",
     "title": "Features",
     "subtitle": "Everything Whats-Auto offers to automate WhatsApp for your business.",
     "hero": {
       "badge": "✨ Product Features",
       "title": "Everything you need to automate WhatsApp conversations.",
-      "description": "Manage conversations, automate replies, launch campaigns, collaborate with your team, and grow your business using one intelligent workspace.",
+      "description": "Manage conversations, automate replies, launch campaigns, collaborate with your team, and grow your business using one intelligent organization.",
       "ctaPrimary": "Get Started",
       "ctaSecondary": "Explore Features",
-      "visualLabel": "WhatsApp workspace preview",
+      "visualLabel": "WhatsApp organization preview",
       "mock": {
-        "workspaceTitle": "Whats-Auto Workspace",
         "inboxLabel": "Shared inbox · Live",
         "online": "Online",
         "threadName": "Whats-Auto Store",
@@ -740,7 +751,8 @@
           "analytics": "Analytics",
           "auth": "Secure Authentication",
           "tenant": "Multi Tenant"
-        }
+        },
+        "organizationTitle": "Whats-Auto Organization"
       }
     },
     "grid": {
@@ -749,35 +761,67 @@
       "items": {
         "ai": {
           "title": "AI Assistant",
-          "bullets": ["AI-generated replies", "Context-aware suggestions", "Smart automation"]
+          "bullets": [
+            "AI-generated replies",
+            "Context-aware suggestions",
+            "Smart automation"
+          ]
         },
         "broadcast": {
           "title": "Broadcast Campaigns",
-          "bullets": ["Create campaigns", "Schedule broadcasts", "Delivery tracking"]
+          "bullets": [
+            "Create campaigns",
+            "Schedule broadcasts",
+            "Delivery tracking"
+          ]
         },
         "inbox": {
           "title": "Shared Team Inbox",
-          "bullets": ["Assign conversations", "Collaborate", "Notes & mentions"]
+          "bullets": [
+            "Assign conversations",
+            "Collaborate",
+            "Notes & mentions"
+          ]
         },
         "analytics": {
           "title": "Analytics",
-          "bullets": ["Conversation metrics", "Response time", "Campaign performance"]
+          "bullets": [
+            "Conversation metrics",
+            "Response time",
+            "Campaign performance"
+          ]
         },
         "multiTenant": {
           "title": "Multi-Tenant",
-          "bullets": ["Separate organizations", "Workspace isolation", "Role management"]
+          "bullets": [
+            "Separate organizations",
+            "Organization isolation",
+            "Role management"
+          ]
         },
         "auth": {
           "title": "Secure Authentication",
-          "bullets": ["Google OAuth", "OTP verification", "Password recovery & JWT"]
+          "bullets": [
+            "Google OAuth",
+            "OTP verification",
+            "Password recovery & JWT"
+          ]
         },
         "workflow": {
           "title": "Workflow Automation",
-          "bullets": ["Automated flows", "Message triggers", "Conditional actions"]
+          "bullets": [
+            "Automated flows",
+            "Message triggers",
+            "Conditional actions"
+          ]
         },
         "templates": {
           "title": "Templates",
-          "bullets": ["Saved responses", "Reusable campaigns", "Quick deployment"]
+          "bullets": [
+            "Saved responses",
+            "Reusable campaigns",
+            "Quick deployment"
+          ]
         }
       }
     },
@@ -789,25 +833,42 @@
           "title": "AI Assistant",
           "description": "Answer customers instantly with human-like AI replies, then hand off to your team when needed.",
           "visualLabel": "AI assistant conversation",
-          "points": ["AI replies", "Human handoff", "Smart suggestions", "Instant responses"]
+          "points": [
+            "AI replies",
+            "Human handoff",
+            "Smart suggestions",
+            "Instant responses"
+          ]
         },
         "broadcast": {
           "title": "Broadcast Campaigns",
           "description": "Reach opted-in audiences with scheduled campaigns and clear delivery visibility.",
           "visualLabel": "Broadcast campaign mockup",
-          "points": ["Schedule", "Segment contacts", "Delivery insights"]
+          "points": [
+            "Schedule",
+            "Segment contacts",
+            "Delivery insights"
+          ]
         },
         "inbox": {
           "title": "Team Collaboration",
-          "description": "Run support from one shared WhatsApp workspace with assignment and internal context.",
+          "description": "Run support from one shared WhatsApp organization with assignment and internal context.",
           "visualLabel": "Shared inbox illustration",
-          "points": ["Assign chats", "Internal notes", "Multi-agent support"]
+          "points": [
+            "Assign chats",
+            "Internal notes",
+            "Multi-agent support"
+          ]
         },
         "analytics": {
           "title": "Analytics & Reports",
-          "description": "Understand engagement and campaign performance without leaving your workspace.",
+          "description": "Understand engagement and campaign performance without leaving your organization.",
           "visualLabel": "Analytics illustration",
-          "points": ["Campaign metrics", "Reply rates", "Team performance"]
+          "points": [
+            "Campaign metrics",
+            "Reply rates",
+            "Team performance"
+          ]
         }
       }
     },
@@ -839,7 +900,7 @@
     },
     "security": {
       "title": "Enterprise-grade security",
-      "subtitle": "Protect every workspace with authentication, access control, and encrypted APIs.",
+      "subtitle": "Protect every organization with authentication, access control, and encrypted APIs.",
       "comingSoon": "Coming Soon",
       "items": {
         "oauth": {
@@ -856,7 +917,7 @@
         },
         "rbac": {
           "title": "RBAC",
-          "description": "Role-based access control across teams and workspaces."
+          "description": "Role-based access control across teams and organizations."
         },
         "encrypted": {
           "title": "Encrypted API",
@@ -870,7 +931,7 @@
     },
     "cta": {
       "title": "Ready to automate your customer conversations?",
-      "description": "Start your workspace in minutes.",
+      "description": "Start your organization in minutes.",
       "primary": "Get Started",
       "secondary": "Book Demo"
     }
@@ -911,7 +972,7 @@
         "cta": "Start Growing",
         "features": [
           "Everything in Starter",
-          "Multi-Tenant Workspace",
+          "Multi-Tenant Organization",
           "Team Collaboration",
           "Advanced Analytics",
           "Workflow Automation",
@@ -966,7 +1027,7 @@
       "items": {
         "upgrade": {
           "question": "How can I upgrade?",
-          "answer": "You can upgrade anytime from your workspace settings. Changes apply to your next billing cycle, and your team keeps access to new features immediately after upgrading."
+          "answer": "You can upgrade anytime from your organization settings. Changes apply to your next billing cycle, and your team keeps access to new features immediately after upgrading."
         },
         "cancel": {
           "question": "Can I cancel anytime?",
@@ -974,7 +1035,7 @@
         },
         "trial": {
           "question": "Do you offer free trials?",
-          "answer": "We offer a free trial so you can explore the workspace before committing. Start with Get Started to create your account and evaluate core features."
+          "answer": "We offer a free trial so you can explore the organization before committing. Start with Get Started to create your account and evaluate core features."
         },
         "enterprise": {
           "question": "Do you support enterprise deployments?",
@@ -988,7 +1049,7 @@
     },
     "cta": {
       "title": "Ready to automate your WhatsApp conversations?",
-      "description": "Start your workspace today and scale with confidence.",
+      "description": "Start your organization today and scale with confidence.",
       "primary": "Get Started",
       "secondary": "Contact Sales"
     }
@@ -1050,7 +1111,7 @@
   "auth": {
     "login": {
       "title": "Welcome back",
-      "subtitle": "Sign in to continue to your workspace.",
+      "subtitle": "Sign in to continue to your organization.",
       "email": "Email",
       "password": "Password",
       "rememberMe": "Remember me",
@@ -1188,7 +1249,7 @@
   },
   "inviteAccept": {
     "eyebrow": "Team invitation",
-    "title": "Join a workspace",
+    "title": "Join a organization",
     "subtitle": "Review this invitation, then accept or decline.",
     "loading": "Loading invitation…",
     "checkingSession": "Checking your session…",
@@ -1203,7 +1264,7 @@
     "backHome": "Back to home",
     "status": "Status: {status}",
     "fields": {
-      "organization": "Workspace",
+      "organization": "Organization",
       "role": "Role",
       "invitedBy": "Invited by",
       "email": "Invited email"
@@ -1216,7 +1277,7 @@
       "notPending": "This invitation is no longer pending.",
       "emailMismatch": "Sign in with the email address that received this invitation.",
       "wrongAccount": "This invite was sent to {invited}, but you’re signed in as {signedIn}.",
-      "alreadyMember": "You’re already a member of this workspace.",
+      "alreadyMember": "You’re already a member of this organization.",
       "slowNetwork": "That took too long. Please try again.",
       "generic": "Something went wrong. Please try again."
     }
@@ -1232,9 +1293,9 @@
       },
       "ownerNote": "You become the Owner automatically when you create this organization. Owner is never selected manually.",
       "name": "Business / Organization Name",
-      "namePlaceholder": "Acme Workspace",
+      "namePlaceholder": "Acme Organization",
       "slug": "Organization Slug",
-      "slugPlaceholder": "acme-workspace",
+      "slugPlaceholder": "acme-organization",
       "slugHint": "Lowercase letters, numbers, and hyphens only. Auto-generated from the name — you can edit it.",
       "email": "Organization Email",
       "emailPlaceholder": "ops@acme.com",
@@ -1245,18 +1306,17 @@
       "optionalHint": "Optional",
       "continue": "Continue",
       "back": "Back",
-      "createWorkspace": "Create Workspace",
       "continueToDashboard": "Continue to dashboard",
       "proceedToCheckout": "Continue to checkout",
       "checkoutHint": "You won't be charged yet.",
-      "creating": "Creating workspace…",
+      "creating": "Creating organization…",
       "step1": {
         "title": "Create your organization",
-        "subtitle": "This workspace is where your WhatsApp team will collaborate."
+        "subtitle": "This organization is where your WhatsApp team will collaborate."
       },
       "step2": {
         "title": "Tell us about your company",
-        "subtitle": "A few details help us tailor your Whats-Auto workspace.",
+        "subtitle": "A few details help us tailor your Whats-Auto organization.",
         "logo": "Company Logo",
         "logoUpload": "Upload company logo",
         "logoEmpty": "No logo uploaded",
@@ -1329,7 +1389,7 @@
         }
       },
       "step3": {
-        "title": "Workspace Preferences",
+        "title": "Organization Preferences",
         "subtitle": "Choose defaults for language, time, theme, and notifications.",
         "defaultLanguage": "Default Language",
         "dateFormat": "Date Format",
@@ -1357,7 +1417,7 @@
           },
           "productTips": {
             "label": "Product tips",
-            "description": "Occasional tips to get more from your workspace."
+            "description": "Occasional tips to get more from your organization."
           },
           "campaignAlerts": {
             "label": "Campaign alerts",
@@ -1367,7 +1427,7 @@
       },
       "step4": {
         "title": "Choose a subscription plan",
-        "subtitle": "Pick the plan that fits your workspace today. You can upgrade or cancel anytime from the Dashboard.",
+        "subtitle": "Pick the plan that fits your organization today. You can upgrade or cancel anytime from the Dashboard.",
         "loadingPlans": "Loading plans…",
         "loadingPlansFailed": "Couldn't load plans. Please try again.",
         "retry": "Retry",
@@ -1387,7 +1447,7 @@
         "pendingTitle": "Complete your payment",
         "pendingSubtitle": "Pay with UPI, card, or netbanking. This page updates once payment is verified.",
         "successTitle": "Payment successful",
-        "successSubtitle": "Your subscription is confirmed. Continue to your workspace dashboard when you're ready.",
+        "successSubtitle": "Your subscription is confirmed. Continue to your organization dashboard when you're ready.",
         "failedTitle": "Payment unsuccessful",
         "failedSubtitle": "We couldn't confirm your payment. You can try again without leaving onboarding.",
         "cancelledTitle": "Checkout cancelled",
@@ -1426,14 +1486,233 @@
         "planRequired": "Please select a subscription plan.",
         "planNotCheckoutable": "This plan isn't available for checkout. Please choose a different plan.",
         "checkoutFailed": "Couldn't start checkout. Please try again."
+      },
+      "createOrganization": "Create Organization"
+    },
+    "organizationProfile": {
+      "loading": "Loading your organization…",
+      "stepBadge": "Step {step} of {total}",
+      "optional": "Optional",
+      "sidebar": {
+        "title": "Complete Your Organization Profile",
+        "subtitle": "Finish the required details so your organization is ready. Optional fields can be completed later.",
+        "completionLabel": "Profile completion"
+      },
+      "steps": {
+        "organization": {
+          "title": "Organization Details",
+          "description": "Basic information about your organization"
+        },
+        "business": {
+          "title": "Business Information",
+          "description": "Tell us more about your business"
+        },
+        "address": {
+          "title": "Address",
+          "description": "Your organization address details"
+        },
+        "review": {
+          "title": "Review & Confirm",
+          "description": "Review and confirm your details"
+        }
+      },
+      "fields": {
+        "name": "Organization Name",
+        "email": "Business Email",
+        "phone": "Phone Number",
+        "phoneHint": "Include country code when possible.",
+        "alternatePhone": "Alternate Phone",
+        "website": "Website",
+        "industry": "Industry",
+        "industryPlaceholder": "Select industry",
+        "logoUpload": "Upload Logo",
+        "logoHint": "PNG, JPG or WEBP (Max. 2MB)",
+        "logoPreview": "Logo Preview",
+        "businessSize": "Business Size",
+        "businessSizePlaceholder": "Select business size",
+        "businessType": "Business Type",
+        "businessTypePlaceholder": "Select business type",
+        "description": "Description",
+        "defaultLanguage": "Default Language",
+        "defaultLanguagePlaceholder": "Select language",
+        "registrationNumber": "Business Registration Number",
+        "addressLine1": "Address Line 1",
+        "addressLine1Placeholder": "House / building and street",
+        "addressLine2": "Address Line 2",
+        "addressLine2Placeholder": "Apartment, suite, etc.",
+        "city": "City",
+        "state": "State / Province",
+        "postalCode": "Postal Code",
+        "country": "Country",
+        "countryPlaceholder": "Select country"
+      },
+      "languages": {
+        "en": "English",
+        "hi": "Hindi"
+      },
+      "actions": {
+        "cancel": "Cancel",
+        "back": "Back",
+        "continue": "Continue",
+        "completeSetup": "Complete Setup",
+        "saving": "Saving…",
+        "edit": "Edit",
+        "createOrganization": "Create organization"
+      },
+      "review": {
+        "organization": "Organization Details",
+        "business": "Business Information",
+        "address": "Address",
+        "empty": "—",
+        "confirmLabel": "I confirm that the above information is correct."
+      },
+      "success": {
+        "title": "Your organization is ready",
+        "subtitle": "Required profile details are saved. You can finish optional fields anytime from the dashboard.",
+        "completion": "Profile completion: {percent}%",
+        "cta": "Go to Dashboard"
+      },
+      "help": {
+        "needHelp": "Need help?",
+        "contactSupport": "Contact Support"
+      },
+      "errors": {
+        "noOrganization": "No organization found. Create an organization first.",
+        "nameRequired": "Organization name is required (at least 2 characters).",
+        "emailInvalid": "Enter a valid business email.",
+        "phoneInvalid": "Enter a valid phone number.",
+        "websiteInvalid": "Enter a valid website URL (https://…).",
+        "industryRequired": "Select an industry.",
+        "businessSizeRequired": "Select a business size.",
+        "descriptionTooLong": "Description must be 500 characters or fewer.",
+        "addressLine1Required": "Address line 1 is required.",
+        "cityRequired": "City is required.",
+        "stateRequired": "State / province is required.",
+        "postalCodeRequired": "Postal code is required.",
+        "countryRequired": "Select a country.",
+        "requiredIncomplete": "Complete all required fields before finishing setup.",
+        "confirmRequired": "Please confirm that the information is correct.",
+        "logoType": "Logo must be PNG, JPG, or WEBP.",
+        "logoSize": "Logo must be 2MB or smaller.",
+        "logoUploadFailed": "Couldn't upload the logo. Please try again.",
+        "saveFailed": "Couldn't save your profile. Please try again."
+      }
+    },
+    "organizationProfile": {
+      "loading": "Loading your organization…",
+      "stepBadge": "Step {step} of {total}",
+      "optional": "Optional",
+      "sidebar": {
+        "title": "Complete Your Organization Profile",
+        "subtitle": "Finish the required details so your workspace is ready. Optional fields can be completed later.",
+        "completionLabel": "Profile completion"
+      },
+      "steps": {
+        "organization": {
+          "title": "Organization Details",
+          "description": "Basic information about your organization"
+        },
+        "business": {
+          "title": "Business Information",
+          "description": "Tell us more about your business"
+        },
+        "address": {
+          "title": "Address",
+          "description": "Your organization address details"
+        },
+        "review": {
+          "title": "Review & Confirm",
+          "description": "Review and confirm your details"
+        }
+      },
+      "fields": {
+        "name": "Organization Name",
+        "email": "Business Email",
+        "phone": "Phone Number",
+        "phoneHint": "Include country code when possible.",
+        "alternatePhone": "Alternate Phone",
+        "website": "Website",
+        "industry": "Industry",
+        "industryPlaceholder": "Select industry",
+        "logoUpload": "Upload Logo",
+        "logoHint": "PNG, JPG or WEBP (Max. 2MB)",
+        "logoPreview": "Logo Preview",
+        "businessSize": "Business Size",
+        "businessSizePlaceholder": "Select business size",
+        "businessType": "Business Type",
+        "businessTypePlaceholder": "Select business type",
+        "description": "Description",
+        "defaultLanguage": "Default Language",
+        "defaultLanguagePlaceholder": "Select language",
+        "registrationNumber": "Business Registration Number",
+        "addressLine1": "Address Line 1",
+        "addressLine1Placeholder": "House / building and street",
+        "addressLine2": "Address Line 2",
+        "addressLine2Placeholder": "Apartment, suite, etc.",
+        "city": "City",
+        "state": "State / Province",
+        "postalCode": "Postal Code",
+        "country": "Country",
+        "countryPlaceholder": "Select country"
+      },
+      "languages": {
+        "en": "English",
+        "hi": "Hindi"
+      },
+      "actions": {
+        "cancel": "Cancel",
+        "back": "Back",
+        "continue": "Continue",
+        "completeSetup": "Complete Setup",
+        "saving": "Saving…",
+        "edit": "Edit",
+        "createOrganization": "Create organization"
+      },
+      "review": {
+        "organization": "Organization Details",
+        "business": "Business Information",
+        "address": "Address",
+        "empty": "—",
+        "confirmLabel": "I confirm that the above information is correct."
+      },
+      "success": {
+        "title": "Your organization is ready",
+        "subtitle": "Required profile details are saved. You can finish optional fields anytime from the dashboard.",
+        "completion": "Profile completion: {percent}%",
+        "cta": "Go to Dashboard"
+      },
+      "help": {
+        "needHelp": "Need help?",
+        "contactSupport": "Contact Support"
+      },
+      "errors": {
+        "noOrganization": "No organization found. Create a workspace first.",
+        "nameRequired": "Organization name is required (at least 2 characters).",
+        "emailInvalid": "Enter a valid business email.",
+        "phoneInvalid": "Enter a valid phone number.",
+        "websiteInvalid": "Enter a valid website URL (https://…).",
+        "industryRequired": "Select an industry.",
+        "businessSizeRequired": "Select a business size.",
+        "descriptionTooLong": "Description must be 500 characters or fewer.",
+        "addressLine1Required": "Address line 1 is required.",
+        "cityRequired": "City is required.",
+        "stateRequired": "State / province is required.",
+        "postalCodeRequired": "Postal code is required.",
+        "countryRequired": "Select a country.",
+        "requiredIncomplete": "Complete all required fields before finishing setup.",
+        "confirmRequired": "Please confirm that the information is correct.",
+        "logoType": "Logo must be PNG, JPG, or WEBP.",
+        "logoSize": "Logo must be 2MB or smaller.",
+        "logoUploadFailed": "Couldn't upload the logo. Please try again.",
+        "saveFailed": "Couldn't save your profile. Please try again."
       }
     }
   },
   "dashboard": {
     "brand": "Whats-Auto",
-    "brandTagline": "Workspace",
+    "brandTagline": "Organization",
     "title": "Dashboard",
-    "subtitle": "Welcome back! Here's an overview of your WhatsApp workspace.",
+    "subtitle": "Welcome back! Here's an overview of your WhatsApp organization.",
     "loading": "Loading…",
     "signOut": "Sign out",
     "nav": {
@@ -1470,7 +1749,7 @@
         "insights": "Insights",
         "teamAccess": "Team & Access",
         "billing": "Billing",
-      "settings": "Settings"
+        "settings": "Settings"
       }
     },
     "flows": {
@@ -1700,7 +1979,7 @@
     "knowledge": {
       "eyebrow": "AI",
       "title": "Knowledge Base",
-      "subtitle": "Upload PDF, DOCX, or TXT files that ground auto-replies for this workspace.",
+      "subtitle": "Upload PDF, DOCX, or TXT files that ground auto-replies for this organization.",
       "uploadCta": "Upload file",
       "uploadProgress": "Uploading…",
       "loading": "Loading documents…",
@@ -1798,16 +2077,16 @@
     "accessDenied": {
       "eyebrow": "Access",
       "title": "Access denied",
-      "description": "You don’t have permission to view this page in the active workspace.",
+      "description": "You don’t have permission to view this page in the active organization.",
       "loading": "Checking permissions…"
     },
     "team": {
-      "eyebrow": "Workspace access",
+      "eyebrow": "Organization access",
       "title": "Team Management",
       "subtitle": "Invite teammates and manage roles. The organization creator is Owner automatically — Owner is never assigned from invites.",
       "inviteCta": "Invite Member",
       "membersTitle": "Team Members",
-      "membersDescription": "People with access to this WhatsApp workspace.",
+      "membersDescription": "People with access to this WhatsApp organization.",
       "searchPlaceholder": "Search by name, email, or role",
       "searchPageHint": "Search and role filters apply to the current page. Use pagination to browse all members.",
       "roleFilterAria": "Filter by role",
@@ -1818,7 +2097,7 @@
       "prevPage": "Previous",
       "nextPage": "Next",
       "emptyTitle": "No teammates yet",
-      "emptyDescription": "Invite Admins, Agents, or Viewers to collaborate. Owner stays with the workspace creator.",
+      "emptyDescription": "Invite Admins, Agents, or Viewers to collaborate. Owner stays with the organization creator.",
       "loading": "Loading team…",
       "pendingTitle": "Pending invitations",
       "pendingDescription": "Invites that haven’t been accepted yet.",
@@ -1828,7 +2107,7 @@
       "editAria": "Edit {name}",
       "removeAria": "Remove {name}",
       "removeConfirmTitle": "Remove this member?",
-      "removeConfirmBody": "“{name}” will lose access to this workspace immediately.",
+      "removeConfirmBody": "“{name}” will lose access to this organization immediately.",
       "removeConfirm": "Remove member",
       "removeCancel": "Cancel",
       "removing": "Removing…",
@@ -1846,7 +2125,7 @@
       },
       "editUser": {
         "title": "Edit member",
-        "subtitle": "Update profile details for this workspace member.",
+        "subtitle": "Update profile details for this organization member.",
         "loading": "Loading member…",
         "firstname": "First name",
         "lastname": "Last name",
@@ -1860,7 +2139,7 @@
         "errors": {
           "loadFailed": "Couldn’t load this member.",
           "saveFailed": "Couldn’t save member changes.",
-          "notFound": "This member was not found in the workspace.",
+          "notFound": "This member was not found in the organization.",
           "firstnameRequired": "First name is required.",
           "lastnameRequired": "Last name is required.",
           "emailRequired": "Email is required.",
@@ -1870,7 +2149,7 @@
       },
       "errors": {
         "loadFailed": "Couldn’t load team members. Please try again.",
-        "permissionDenied": "You don’t have permission to view team members in this workspace.",
+        "permissionDenied": "You don’t have permission to view team members in this organization.",
         "adminOnlyList": "Only Owners and Admins can browse the paginated team directory.",
         "sessionExpired": "Your session expired. Please sign in again.",
         "actionPermissionDenied": "You don’t have permission to manage this member.",
@@ -1878,7 +2157,7 @@
         "changeOwner": "Owner role can’t be changed here. Use ownership transfer.",
         "removeOwner": "Owner can’t be removed. Transfer ownership first.",
         "permissionEscalation": "That role includes permissions you don’t hold.",
-        "roleInvalid": "That role isn’t available for this workspace.",
+        "roleInvalid": "That role isn’t available for this organization.",
         "inviteNotPending": "This invitation is no longer pending.",
         "inviteNotFound": "This invitation was not found.",
         "actionFailed": "Couldn’t update this member. Please try again."
@@ -1905,13 +2184,13 @@
           "emailInvalid": "Enter a valid email address.",
           "phoneInvalid": "Enter a valid phone number.",
           "roleRequired": "Select a role.",
-          "noActiveOrg": "Select or create a workspace before inviting teammates.",
+          "noActiveOrg": "Select or create a organization before inviting teammates.",
           "sessionExpired": "Your session expired. Please sign in again.",
           "permissionDenied": "You don’t have permission to invite members.",
-          "orgMismatch": "Active workspace mismatch. Switch workspace and try again.",
-          "alreadyMember": "That email is already a member of this workspace.",
+          "orgMismatch": "Active organization mismatch. Switch organization and try again.",
+          "alreadyMember": "That email is already a member of this organization.",
           "alreadyPending": "An invitation is already pending for that email. Cancel it first or wait for a response.",
-          "roleInvalid": "That role isn’t available for this workspace.",
+          "roleInvalid": "That role isn’t available for this organization.",
           "emailFailed": "Couldn’t send the invitation email. Check email delivery settings and try again.",
           "generic": "Couldn’t send the invitation. Please try again."
         }
@@ -1920,9 +2199,9 @@
     "roles": {
       "eyebrow": "Access control",
       "title": "Roles & Permissions",
-      "subtitle": "System roles ship with defaults. Create custom roles or override admin/agent/viewer permissions for this workspace.",
+      "subtitle": "System roles ship with defaults. Create custom roles or override admin/agent/viewer permissions for this organization.",
       "createCta": "Create Role",
-      "listTitle": "Workspace roles",
+      "listTitle": "Organization roles",
       "listDescription": "Effective permissions for each role in the active organization.",
       "loading": "Loading roles…",
       "emptyTitle": "No roles found",
@@ -1939,7 +2218,7 @@
       "deleteAria": "Delete role {role}",
       "errors": {
         "loadFailed": "Couldn’t load roles. Please try again.",
-        "permissionDenied": "You don’t have permission to view roles in this workspace.",
+        "permissionDenied": "You don’t have permission to view roles in this organization.",
         "sessionExpired": "Your session expired. Please sign in again.",
         "actionPermissionDenied": "You don’t have permission to manage roles.",
         "escalation": "That role would include permissions you don’t hold.",
@@ -1962,7 +2241,7 @@
       },
       "reset": {
         "title": "Reset to defaults?",
-        "body": "Clear workspace overrides for “{role}” and restore the seeded permission set.",
+        "body": "Clear organization overrides for “{role}” and restore the seeded permission set.",
         "reason": "Reason",
         "reasonPlaceholder": "Why are defaults being restored?",
         "reasonRequired": "Enter a reason (at least 5 characters).",
@@ -1974,7 +2253,7 @@
         "createTitle": "Create Role",
         "createSubtitle": "Define a role and set permissions for your team members.",
         "editTitle": "Edit {role}",
-        "editSubtitle": "Update permissions for this role. System roles store overrides for this workspace only.",
+        "editSubtitle": "Update permissions for this role. System roles store overrides for this organization only.",
         "breadcrumb": "Roles & Permissions",
         "detailsTitle": "Role Details",
         "name": "Role name",
@@ -2006,7 +2285,7 @@
         "keyPreview": "Key: {key}",
         "roleKey": "Role key",
         "systemEditHint": "Editing a system role writes org-level overrides, not the global seed.",
-        "systemOverrideBanner": "You’re editing a system role (admin, agent, or viewer). Saving creates organization-specific permission overrides for this workspace only — the global seed is unchanged.",
+        "systemOverrideBanner": "You’re editing a system role (admin, agent, or viewer). Saving creates organization-specific permission overrides for this organization only — the global seed is unchanged.",
         "permissions": "Permissions",
         "permissionsHint": "Select the modules and actions this role can access.",
         "selectAllGlobal": "Grant all permissions",
@@ -2029,7 +2308,7 @@
         "helpBanner": "You can only grant permissions you already hold. Selecting a template fills the matrix from existing product permissions.",
         "moduleDescriptions": {
           "inbox": "Manage and respond to conversations.",
-          "contacts": "View and manage workspace contacts.",
+          "contacts": "View and manage organization contacts.",
           "campaigns": "Create and run broadcast campaigns.",
           "templates": "Manage WhatsApp message templates.",
           "reports": "View analytics and export reports.",
@@ -2062,7 +2341,7 @@
           "readyToast": "Permission preview ready.",
           "close": "Close",
           "role": "Role",
-          "systemRoleHint": "System role — saving writes workspace overrides only.",
+          "systemRoleHint": "System role — saving writes organization overrides only.",
           "resultingTitle": "Access after save",
           "resultingCount": "{count} permissions selected",
           "resultingEmpty": "No permissions selected.",
@@ -2093,11 +2372,11 @@
     "contacts": {
       "eyebrow": "CRM",
       "title": "Contacts",
-      "subtitle": "People you message from this WhatsApp workspace.",
+      "subtitle": "People you message from this WhatsApp organization.",
       "addCta": "Add Contact",
       "importCta": "Import Contacts",
       "listTitle": "All contacts",
-      "listDescription": "Stored per workspace. Phone numbers must be unique.",
+      "listDescription": "Stored per organization. Phone numbers must be unique.",
       "loading": "Loading contacts…",
       "searchPlaceholder": "Search by name, phone, email, or company",
       "emptyTitle": "No contacts yet",
@@ -2106,13 +2385,13 @@
       "addedAt": "Added {date}",
       "deleteAria": "Delete {name}",
       "deleteConfirmTitle": "Delete this contact?",
-      "deleteConfirmBody": "“{name}” will be removed from this workspace. You can add the same phone number again later.",
+      "deleteConfirmBody": "“{name}” will be removed from this organization. You can add the same phone number again later.",
       "deleteConfirm": "Delete contact",
       "deleteCancel": "Cancel",
       "deleting": "Deleting…",
       "errors": {
         "loadFailed": "Couldn’t load contacts. Please try again.",
-        "permissionDenied": "You don’t have permission to view contacts in this workspace.",
+        "permissionDenied": "You don’t have permission to view contacts in this organization.",
         "deleteFailed": "Couldn’t delete this contact. Please try again.",
         "deletePermissionDenied": "You don’t have permission to delete contacts.",
         "deleteNotFound": "This contact was not found.",
@@ -2346,7 +2625,7 @@
         "memberRemoved": "Contact removed from the group."
       },
       "errors": {
-        "permissionDenied": "You don’t have permission to view customer groups in this workspace.",
+        "permissionDenied": "You don’t have permission to view customer groups in this organization.",
         "loadFailed": "Couldn’t load customer groups. Please try again.",
         "saveFailed": "Couldn’t save this group. Please try again.",
         "deleteFailed": "Couldn’t delete this group. Please try again.",
@@ -2354,14 +2633,14 @@
         "notFound": "This customer group could not be found.",
         "nameExists": "A group with this name already exists.",
         "alreadyMember": "This contact is already in the group.",
-        "invalidContact": "That contact could not be found in this workspace.",
+        "invalidContact": "That contact could not be found in this organization.",
         "membersPartialFailed": "Couldn’t add {failed} of {total} contacts to the group. The group was saved — try adding the remaining contacts again."
       }
     },
     "inbox": {
       "eyebrow": "Messaging",
       "title": "Inbox",
-      "subtitle": "Manage customer conversations across your workspace.",
+      "subtitle": "Manage customer conversations across your organization.",
       "listTitle": "Conversations",
       "listDescription": "{count, plural, =0 {No conversations} one {# conversation} other {# conversations}}",
       "loading": "Loading conversations…",
@@ -2413,7 +2692,7 @@
       },
       "errors": {
         "loadFailed": "Couldn’t load conversations. Please try again.",
-        "permissionDenied": "You don’t have permission to view the inbox in this workspace."
+        "permissionDenied": "You don’t have permission to view the inbox in this organization."
       },
       "newConversation": {
         "title": "New Conversation",
@@ -2440,11 +2719,11 @@
         "errors": {
           "loadFailed": "Couldn’t load contacts or WhatsApp numbers. Please try again.",
           "createFailed": "Couldn’t create the conversation. Please try again.",
-          "permissionDenied": "You don’t have permission to start a conversation in this workspace.",
+          "permissionDenied": "You don’t have permission to start a conversation in this organization.",
           "sessionExpired": "Your session expired. Please sign in again."
         }
       },
-      "sidebarDescription": "Recent conversations in this workspace.",
+      "sidebarDescription": "Recent conversations in this organization.",
       "thread": {
         "back": "Back to inbox",
         "agentSender": "Agent",
@@ -2469,7 +2748,7 @@
           "send": "Send reply",
           "attach": "Attach media",
           "clearAttachment": "Remove attachment",
-          "readOnly": "You don’t have permission to reply in this workspace.",
+          "readOnly": "You don’t have permission to reply in this organization.",
           "closedHint": "This conversation is closed. Reopen it to send a reply.",
           "errors": {
             "sendFailed": "Couldn’t send your reply. Please try again.",
@@ -2489,14 +2768,14 @@
           "closeConfirm": "Close this conversation? You can reopen it later.",
           "reopen": "Reopen",
           "takeover": "Take Over",
-          "resume": "Resume AI",
+          "resume": "Resume automation",
           "errors": {
             "actionFailed": "Couldn’t update this conversation. Please try again.",
             "sessionExpired": "Your session expired. Please sign in again.",
             "permissionDenied": "You don’t have permission to change this conversation.",
             "notFound": "Conversation not found.",
-            "agentNotFound": "That agent is not a member of this workspace.",
-            "invalidAiTransition": "This conversation’s AI mode cannot change that way."
+            "agentNotFound": "That agent is not a member of this organization.",
+            "invalidAiTransition": "This conversation’s automation mode cannot change that way."
           }
         },
         "panelsLabel": "Conversation panels",
@@ -2510,9 +2789,9 @@
           "emptyDescription": "Add private notes for your team. Customers never see these.",
           "label": "Internal note",
           "placeholder": "Write an internal note…",
-          "hint": "Notes stay inside your workspace and are never sent on WhatsApp.",
+          "hint": "Notes stay inside your organization and are never sent on WhatsApp.",
           "save": "Add note",
-          "readOnly": "You don’t have permission to add notes in this workspace.",
+          "readOnly": "You don’t have permission to add notes in this organization.",
           "unknownAuthor": "Team member",
           "errors": {
             "saveFailed": "Couldn’t save this note. Please try again.",
@@ -2550,7 +2829,7 @@
           "email": "Email",
           "company": "Company",
           "status": "Status",
-          "aiMode": "AI mode",
+          "aiMode": "Automation",
           "assignedTo": "Assigned to",
           "whatsappConfig": "WhatsApp number",
           "unreadCount": "Unread",
@@ -2562,16 +2841,20 @@
       },
       "aiMode": {
         "pill": {
-          "AI_AUTO": "AI Mode",
-          "HANDOVER": "Handover",
+          "AI_AUTO": "Automation",
+          "HANDOVER": "Needs human",
           "HUMAN_ACTIVE": "Human"
         },
         "banner": {
-          "title": "AI handed this conversation to your team",
+          "title": "Automation handed this conversation to your team",
           "keyword": "The customer asked for a human ({keyword}).",
           "keywordGeneric": "The customer asked for a human.",
-          "low_confidence": "AI is not confident enough to reply automatically.",
-          "error": "AI paused because of an error."
+          "low_confidence": "Automation is not confident enough to reply automatically.",
+          "error": "Automation paused because of an error.",
+          "humanTitle": "Human owns this chat — automation paused",
+          "humanBody": "Inbound flow replies stay off until you resume automation.",
+          "orphanTitle": "Automation is blocked on a paused flow",
+          "orphanBody": "Resume automation to clear the pause so the next keyword can start a fresh flow."
         }
       }
     },
@@ -2583,7 +2866,7 @@
       "refresh": "Refresh",
       "loading": "Loading WhatsApp numbers…",
       "listTitle": "Connected numbers",
-      "listDescription": "WhatsApp Business numbers linked to this workspace.",
+      "listDescription": "WhatsApp Business numbers linked to this organization.",
       "emptyTitle": "No WhatsApp number connected",
       "emptyDescription": "Connect your WhatsApp Business account to start receiving conversations in Inbox.",
       "disconnect": "Disconnect",
@@ -2606,7 +2889,7 @@
       "errors": {
         "generic": "Something went wrong. Please try again.",
         "sessionExpired": "Your session expired. Please sign in again.",
-        "permissionDenied": "You don’t have permission to manage WhatsApp in this workspace.",
+        "permissionDenied": "You don’t have permission to manage WhatsApp in this organization.",
         "sessionMissing": "WhatsApp signup session is not configured. Check Meta app settings.",
         "signupCancelled": "WhatsApp connection was cancelled.",
         "sessionInfoMissing": "Couldn’t read WhatsApp account details from Meta. Please try again.",
@@ -2631,7 +2914,7 @@
       "copyWebhook": "Copy URL",
       "copied": "Copied",
       "keysTitle": "API keys",
-      "keysDescription": "Shopenup authenticates with a workspace API key. The secret is shown only once.",
+      "keysDescription": "Shopenup authenticates with a organization API key. The secret is shown only once.",
       "generateCta": "Generate key",
       "revoke": "Revoke",
       "prefix": "Prefix: {prefix}",
@@ -2660,7 +2943,7 @@
       "errors": {
         "generic": "Something went wrong. Please try again.",
         "sessionExpired": "Your session expired. Please sign in again.",
-        "permissionDenied": "You don’t have permission to manage integrations in this workspace.",
+        "permissionDenied": "You don’t have permission to manage integrations in this organization.",
         "secretMissing": "The API key was created, but the secret was not returned. Generate a new key.",
         "clipboard": "Couldn’t copy. Select the text and copy it manually."
       }
@@ -2668,7 +2951,7 @@
     "templates": {
       "eyebrow": "Messaging",
       "title": "Templates",
-      "subtitle": "Create, review, and sync WhatsApp message templates for this workspace.",
+      "subtitle": "Create, review, and sync WhatsApp message templates for this organization.",
       "createCta": "Create Template",
       "syncCta": "Sync from Meta",
       "browseCta": "Browse Templates",
@@ -2862,7 +3145,7 @@
       },
       "delete": {
         "title": "Delete this template?",
-        "body": "“{name}” will be removed from this workspace and Meta if connected.",
+        "body": "“{name}” will be removed from this organization and Meta if connected.",
         "cancel": "Cancel",
         "confirm": "Delete template",
         "deleting": "Deleting…"
@@ -2884,7 +3167,7 @@
       },
       "errors": {
         "loadFailed": "Couldn’t load templates. Please try again.",
-        "permissionDenied": "You don’t have permission to view templates in this workspace.",
+        "permissionDenied": "You don’t have permission to view templates in this organization.",
         "manageDenied": "You don’t have permission to manage templates.",
         "createFailed": "Couldn’t create this template. Please try again.",
         "deleteFailed": "Couldn’t delete this template. Please try again.",
@@ -2893,20 +3176,20 @@
       }
     },
     "settings": {
-      "eyebrow": "Workspace",
-      "title": "Workspace Settings",
-      "subtitle": "View and update organization details for the active workspace.",
-      "loading": "Loading workspace…",
-      "emptyDescription": "Create a workspace before managing settings.",
-      "emptyAction": "Create workspace",
-      "identityTitle": "Workspace identity",
-      "identityDescription": "Set when the workspace was created. Slug, email, and country cannot be changed here.",
+      "eyebrow": "Organization",
+      "title": "Organization Settings",
+      "subtitle": "View and update organization details for the active organization.",
+      "loading": "Loading organization…",
+      "emptyDescription": "Create a organization before managing settings.",
+      "emptyAction": "Create organization",
+      "identityTitle": "Organization identity",
+      "identityDescription": "Set when the organization was created. Slug, email, and country cannot be changed here.",
       "detailsTitle": "Editable details",
       "detailsDescription": "Update organization details including contact, type, address, PAN, GSTIN, timezone, and currency.",
-      "readOnlyNotice": "You can view this workspace, but you need permission to edit organization settings.",
+      "readOnlyNotice": "You can view this organization, but you need permission to edit organization settings.",
       "fields": {
         "slug": "Slug",
-        "slugHint": "URL-safe workspace id. Not editable after creation.",
+        "slugHint": "URL-safe organization id. Not editable after creation.",
         "email": "Organization email",
         "emailHint": "Set at creation. Not editable from settings.",
         "country": "Country",
@@ -2936,13 +3219,13 @@
       },
       "save": "Save changes",
       "saving": "Saving…",
-      "saved": "Workspace settings saved.",
+      "saved": "Organization settings saved.",
       "dangerTitle": "Danger zone",
-      "dangerDescription": "Deleting a workspace soft-deletes it and removes member access. This cannot be undone from the dashboard.",
-      "deleteCta": "Delete workspace",
-      "deleteConfirmTitle": "Delete this workspace?",
+      "dangerDescription": "Deleting a organization soft-deletes it and removes member access. This cannot be undone from the dashboard.",
+      "deleteCta": "Delete organization",
+      "deleteConfirmTitle": "Delete this organization?",
       "deleteConfirmBody": "“{name}” will be deleted. Members will lose access immediately.",
-      "deleteConfirm": "Delete workspace",
+      "deleteConfirm": "Delete organization",
       "deleteCancel": "Cancel",
       "deleting": "Deleting…",
       "errors": {
@@ -2959,10 +3242,55 @@
         "gstinInvalid": "Enter a valid GSTIN (15 characters), or leave it blank.",
         "timezoneRequired": "Select a timezone.",
         "currencyInvalid": "Currency must be at most 10 characters.",
-        "noWorkspace": "No active workspace selected.",
         "permissionDenied": "You do not have permission to perform this action.",
         "sessionExpired": "Your session expired. Please sign in again.",
-        "generic": "Something went wrong. Please try again."
+        "generic": "Something went wrong. Please try again.",
+        "noOrganization": "No active organization selected."
+      },
+      "smtp": {
+        "title": "Custom SMTP Email",
+        "description": "Send organization emails from your own domain.",
+        "status": {
+          "verified": "Verified & Active",
+          "failed": "Connection Failed",
+          "default": "Using Platform Default"
+        },
+        "provider": {
+          "label": "Provider Preset",
+          "gmail": "Gmail",
+          "sendgrid": "SendGrid",
+          "resend": "Resend",
+          "ses": "Amazon SES",
+          "brevo": "Brevo",
+          "custom": "Custom SMTP"
+        },
+        "fields": {
+          "senderName": "Sender Name",
+          "senderEmail": "Sender Email",
+          "host": "SMTP Host",
+          "port": "Port",
+          "username": "Username",
+          "password": "Password / App Key",
+          "passwordPlaceholder": "Leave blank to keep existing password",
+          "secure": "Use SSL/TLS"
+        },
+        "actions": {
+          "save": "Save Configuration",
+          "test": "Test Connection",
+          "reset": "Reset to Default",
+          "resetConfirm": "Are you sure? This will revert to the platform default mail sender.",
+          "resetCancel": "Cancel"
+        },
+        "toast": {
+          "saveSuccess": "SMTP configuration saved and verified.",
+          "saveFailed": "Failed to save configuration: {reason}",
+          "testSuccess": "Test email sent successfully. Check your inbox.",
+          "testFailed": "Connection test failed: {reason}",
+          "deleteSuccess": "Custom SMTP removed. Reverted to platform default.",
+          "deleteFailed": "Failed to remove configuration."
+        },
+        "lastTested": "Last tested {date}",
+        "lastError": "Last error: {message}"
       },
       "ownership": {
         "title": "Transfer Organization Ownership",
@@ -2972,7 +3300,7 @@
         "currentOwnerRole": "Role: Owner",
         "newOwner": "New owner",
         "newOwnerPlaceholder": "Select a member",
-        "newOwnerHint": "Choose a current workspace member. The current owner cannot be selected.",
+        "newOwnerHint": "Choose a current organization member. The current owner cannot be selected.",
         "replacementRole": "Your role after transfer",
         "replacementRoleHint": "Role assigned to you after you step down as owner.",
         "reason": "Reason",
@@ -2983,7 +3311,7 @@
         "noEligibleMembers": "No other members are available to receive ownership. Invite someone first.",
         "confirmTitle": "Transfer organization ownership?",
         "confirmBody": "You are about to transfer ownership to {name}. After the transfer, you will no longer be the organization owner.",
-        "confirmWarning": "This cannot be undone from Settings. The new owner will control ownership privileges for this workspace.",
+        "confirmWarning": "This cannot be undone from Settings. The new owner will control ownership privileges for this organization.",
         "cancel": "Cancel",
         "confirmTransfer": "Transfer Ownership",
         "transferring": "Transferring…",
@@ -3031,9 +3359,9 @@
       }
     },
     "billing": {
-      "eyebrow": "Workspace",
+      "eyebrow": "Organization",
       "title": "Billing",
-      "subtitle": "View your current subscription and start Razorpay checkout for this workspace.",
+      "subtitle": "View your current subscription and start Razorpay checkout for this organization.",
       "refresh": "Refresh",
       "loading": "Loading subscription…",
       "subscriptionTitle": "Current subscription",
@@ -3044,7 +3372,7 @@
       "completeCheckoutCta": "Complete payment",
       "cancelAtPeriodEnd": "Cancels at period end",
       "emptyTitle": "No subscription yet",
-      "emptyDescription": "This workspace has no subscription on record. Start checkout with a plan ID to subscribe.",
+      "emptyDescription": "This organization has no subscription on record. Start checkout with a plan ID to subscribe.",
       "fields": {
         "planId": "Plan ID",
         "status": "Status",
@@ -3073,7 +3401,7 @@
         "success": "Payment confirmed. Your subscription is active."
       },
       "errors": {
-        "permissionDenied": "You don’t have permission to view billing in this workspace.",
+        "permissionDenied": "You don’t have permission to view billing in this organization.",
         "loadFailed": "Couldn’t load subscription. Please try again.",
         "checkoutFailed": "Couldn’t start checkout. Please try again."
       },
@@ -3090,15 +3418,13 @@
       "cancel": "Cancel",
       "limits": {
         "users": "User limit",
-        "messages": "Message limit",
-        "workspaces": "Workspace limit"
+        "messages": "Message limit"
       }
     },
     "auditLogs": {
-      "eyebrow": "Workspace access",
+      "eyebrow": "Organization access",
       "title": "Audit Logs",
-      "subtitle": "Role, member, and invitation changes in {workspace}. Events stay in this organization.",
-      "thisWorkspace": "this workspace",
+      "subtitle": "Role, member, and invitation changes in {organization}. Events stay in this organization.",
       "tableTitle": "Recent access events",
       "tableDescription": "{count, plural, one {# event} other {# events}}",
       "tableDescriptionLoading": "Loading events…",
@@ -3107,7 +3433,7 @@
       "loading": "Loading audit events…",
       "searchPlaceholder": "Search event, teammate, role, or target…",
       "emptyTitle": "No audit events",
-      "emptyDescription": "Role, member, and invitation changes for this workspace will appear here.",
+      "emptyDescription": "Role, member, and invitation changes for this organization will appear here.",
       "emptyFilteredTitle": "No matching events",
       "emptyFilteredDescription": "Try a different search, teammate, or date range.",
       "emptyValue": "—",
@@ -3132,11 +3458,11 @@
         "event": "Event",
         "actor": "Actor",
         "target": "Target",
-        "workspace": "Workspace",
         "timestamp": "Date & Time",
         "status": "Status",
         "reason": "Reason",
-        "actions": "Actions"
+        "actions": "Actions",
+        "organization": "Organization"
       },
       "details": {
         "title": "Audit event details",
@@ -3149,8 +3475,9 @@
       },
       "errors": {
         "loadFailed": "Couldn’t load audit events.",
-        "loadFailedHint": "This page lists role, member, and invitation events for the active workspace. You need audit view permission."
-      }
+        "loadFailedHint": "This page lists role, member, and invitation events for the active organization. You need audit view permission."
+      },
+      "thisOrganization": "this organization"
     },
     "sidebar": {
       "planLabel": "Current plan",
@@ -3158,35 +3485,27 @@
       "collapse": "Collapse sidebar",
       "expand": "Expand sidebar"
     },
-    "workspace": {
-      "listLabel": "Workspaces",
-      "active": "Active",
-      "members": "members",
-      "create": "Create workspace",
-      "emptyTitle": "No workspace yet",
-      "emptyAction": "Create your organization"
-    },
     "topbar": {
       "openMenu": "Open navigation",
-      "searchLabel": "Search workspace",
+      "searchLabel": "Search organization",
       "searchPlaceholder": "Find contacts, conversations, campaigns, or templates…",
-      "searchPlaceholderShort": "Search workspace…",
+      "searchPlaceholderShort": "Search organization…",
       "searchUnavailablePlaceholder": "Global search requires a backend API…",
-      "searchUnavailableHint": "Global search is not available yet. A backend search endpoint is required before this field can query your workspace.",
+      "searchUnavailableHint": "Global search is not available yet. A backend search endpoint is required before this field can query your organization.",
       "searchShortcutLabel": "Focus search ({shortcut})",
       "notifications": "Notifications",
       "profile": "Profile",
       "profileMenu": "Open account menu",
       "myProfile": "My Profile",
-      "workspace": "Workspace",
       "billing": "Billing",
       "settings": "Settings",
-      "guestName": "Account"
+      "guestName": "Account",
+      "organization": "Organization"
     },
     "notifications": {
       "title": "Notifications",
       "eyebrow": "Activity",
-      "subtitle": "Updates about your workspace, inbox, campaigns, billing, and team.",
+      "subtitle": "Updates about your organization, inbox, campaigns, billing, and team.",
       "listTitle": "All notifications",
       "viewAll": "View all notifications",
       "markAllRead": "Mark all as read",
@@ -3213,14 +3532,14 @@
       "eyebrow": "Overview",
       "welcome": "Welcome back",
       "welcomeNamed": "Welcome back, {name}",
-      "subtitle": "Here’s what’s happening across your WhatsApp automation workspace today.",
+      "subtitle": "Here’s what’s happening across your WhatsApp automation organization today.",
       "checklist": {
         "eyebrow": "Getting started",
         "title": "Onboarding checklist",
         "dismiss": "Dismiss checklist",
         "completed": {
-          "workspace": "Workspace Created",
-          "whatsapp": "WhatsApp Connected"
+          "whatsapp": "WhatsApp Connected",
+          "organization": "Organization Created"
         },
         "nextStepsTitle": "Next Steps",
         "nextSteps": {
@@ -3238,7 +3557,7 @@
       "kpis": {
         "contacts": {
           "label": "Total Contacts",
-          "hint": "in this workspace"
+          "hint": "in this organization"
         },
         "conversations": {
           "label": "Active Conversations",
@@ -3246,7 +3565,7 @@
         },
         "campaigns": {
           "label": "Campaigns Sent",
-          "hint": "in this workspace"
+          "hint": "in this organization"
         },
         "delivery": {
           "label": "Delivery Rate",
@@ -3317,16 +3636,21 @@
       },
       "activity": {
         "title": "Recent Activity",
-        "description": "A live trail of workspace events.",
+        "description": "A live trail of organization events.",
         "emptyTitle": "No activity yet",
-        "emptyDescription": "Workspace events will show up here as your team starts using Whats-Auto.",
+        "emptyDescription": "Organization events will show up here as your team starts using Whats-Auto.",
         "noDetails": "No additional details"
+      },
+      "profileReminder": {
+        "title": "Profile {percent}% complete",
+        "subtitle": "Add the remaining optional details to finish your organization profile.",
+        "cta": "Complete Profile"
       }
     },
     "analytics": {
       "eyebrow": "Insights",
       "title": "Organization Analytics",
-      "subtitle": "Track contacts, campaigns, conversations, WhatsApp connections, templates, customer groups, and audit activity using your live workspace data.",
+      "subtitle": "Track contacts, campaigns, conversations, WhatsApp connections, templates, customer groups, and audit activity using your live organization data.",
       "retry": "Retry",
       "unavailable": "Data unavailable",
       "kpis": {
@@ -3360,7 +3684,7 @@
       "contacts": {
         "title": "Contact Analytics",
         "description": "Contact totals and monthly growth over the last 6 months.",
-        "totalContacts": "Contacts in workspace",
+        "totalContacts": "Contacts in organization",
         "monthsTracked": "Months shown",
         "emptyTitle": "No contacts yet",
         "emptyDescription": "Contacts will appear here once your team starts adding or importing them.",
@@ -3387,7 +3711,7 @@
         "totalConversations": "Total Conversations",
         "unreadMessages": "Unread Count",
         "emptyTitle": "No conversations yet",
-        "emptyDescription": "Conversation analytics will appear after customers start messaging your workspace.",
+        "emptyDescription": "Conversation analytics will appear after customers start messaging your organization.",
         "emptyChart": "No conversation status data yet."
       },
       "campaignPerformance": {
@@ -3409,7 +3733,7 @@
       },
       "whatsapp": {
         "title": "WhatsApp Analytics",
-        "description": "Connection status across the WhatsApp numbers linked to this workspace.",
+        "description": "Connection status across the WhatsApp numbers linked to this organization.",
         "connectedNumbers": "Connected Numbers",
         "emptyTitle": "No WhatsApp numbers yet",
         "emptyDescription": "Connect a WhatsApp Business number to start tracking status here.",
@@ -3436,7 +3760,7 @@
       },
       "audit": {
         "title": "Recent Audit Activity",
-        "description": "Latest authorization and audit events for this workspace.",
+        "description": "Latest authorization and audit events for this organization.",
         "emptyTitle": "No audit activity yet",
         "emptyDescription": "Audit events will appear here when permissioned actions are performed.",
         "noDetails": "No additional details"
@@ -3485,7 +3809,7 @@
     "campaigns": {
       "eyebrow": "Outreach",
       "title": "Campaigns",
-      "subtitle": "Create and track WhatsApp broadcast campaigns for this workspace.",
+      "subtitle": "Create and track WhatsApp broadcast campaigns for this organization.",
       "createCta": "Create Campaign",
       "loading": "Loading campaigns…",
       "searchPlaceholder": "Search campaigns by name...",
@@ -3619,7 +3943,7 @@
         "scheduleLater": "Schedule for Later",
         "scheduledAt": "Date and time",
         "timezone": "Timezone",
-        "orgTimezone": "workspace default",
+        "orgTimezone": "organization default",
         "scheduleHint": "Send Now launches immediately after recipients are saved. Schedule for Later queues a future send.",
         "scheduleLaterHint": "The campaign launches automatically at this time in {timezone}. Messages are not sent until then.",
         "cancel": "Cancel",
@@ -3629,27 +3953,22 @@
         "saving": "Saving…",
         "variableMappings": {
           "title": "Variable mapping",
-          "hint": "Map each template variable to a contact field, custom field, or static value before sending or scheduling.",
+          "hint": "Map each template variable to contact name, a custom field, or a static value before sending or scheduling.",
           "source": "Source",
           "sourcePlaceholder": "Select source",
           "sources": {
-            "contact_field": "Contact field",
+            "contact_field": "Contact name",
             "custom_field": "Custom field",
             "static": "Static value"
           },
-          "contactField": "Field",
+          "contactField": "Contact name",
+          "contactFieldNameHint": "Uses the contact's name. Contacts without a name receive \"Customer\".",
           "customField": "Custom field key",
           "customFieldPlaceholder": "e.g. order_id",
           "staticValue": "Value",
           "staticValuePlaceholder": "Enter a non-empty value",
           "contactFields": {
-            "name": "Name",
-            "first_name": "First name",
-            "last_name": "Last name",
-            "customer_name": "Customer name",
-            "email": "Email",
-            "company": "Company",
-            "phone": "Phone"
+            "name": "Name"
           },
           "statusMapped": "Mapped",
           "statusUnmapped": "Not mapped",
@@ -3705,7 +4024,7 @@
         "pending": "Pending"
       },
       "errors": {
-        "permissionDenied": "You do not have permission to manage campaigns in this workspace.",
+        "permissionDenied": "You do not have permission to manage campaigns in this organization.",
         "loadFailed": "Could not load campaigns. Please try again.",
         "deleteFailed": "Could not delete this campaign.",
         "saveFailed": "Could not save this campaign.",
@@ -3719,6 +4038,14 @@
         "previewFailed": "Could not preview this campaign.",
         "notEditable": "Only draft or scheduled campaigns can be edited."
       }
+    },
+    "organizationSwitcher": {
+      "listLabel": "Organizations",
+      "active": "Active",
+      "members": "members",
+      "create": "Create organization",
+      "emptyTitle": "No organization yet",
+      "emptyAction": "Create your organization"
     }
   },
   "admin": {
@@ -3828,7 +4155,7 @@
           "orgCreated": "New organization created",
           "orgCreatedDetail": "Nova Retail joined Whats-Auto on the Growth plan.",
           "planUpgraded": "Subscription upgraded",
-          "planUpgradedDetail": "Acme Workspace moved from Starter to Pro.",
+          "planUpgradedDetail": "Acme Organization moved from Starter to Pro.",
           "ticketOpened": "Support ticket opened",
           "ticketOpenedDetail": "Priority billing issue from Contoso Logistics.",
           "userInvited": "Platform user invited",
@@ -3964,7 +4291,7 @@
         "noPlan": "No current plan",
         "noPlanHint": "This organization has no subscription in the platform billing list.",
         "usersUnavailableTitle": "Users aren’t listed here",
-        "usersUnavailable": "There is no Super Admin users-by-organization API. Manage members from the tenant workspace.",
+        "usersUnavailable": "There is no Super Admin users-by-organization API. Manage members from the tenant organization.",
         "activityLoading": "Loading activity…",
         "activityFailed": "Couldn’t load activity for this organization.",
         "activityEmpty": "No audit events for this organization.",
@@ -4045,12 +4372,12 @@
           }
         },
         "stats": {
-          "title": "Workspace Statistics",
+          "title": "Organization Statistics",
           "description": "Usage snapshot for this organization.",
           "cards": {
             "contacts": {
               "label": "Contacts",
-              "hint": "In workspace lists"
+              "hint": "In organization lists"
             },
             "conversations": {
               "label": "Conversations",
@@ -4075,7 +4402,7 @@
           }
         },
         "members": {
-          "title": "Workspace Members",
+          "title": "Organization Members",
           "description": "{count, plural, one {Showing # member} other {Showing # members}}",
           "unavailable": "Member roster isn’t available from the API yet.",
           "columns": {
@@ -4091,7 +4418,7 @@
         },
         "activity": {
           "title": "Recent Activity",
-          "description": "Latest events inside this workspace.",
+          "description": "Latest events inside this organization.",
           "unavailable": "Activity isn’t available from the API yet."
         }
       }
@@ -4175,8 +4502,7 @@
       },
       "limits": {
         "users": "Users",
-        "messages": "Messages / month",
-        "workspaces": "Workspaces"
+        "messages": "Messages / month"
       },
       "steps": {
         "details": "Plan Details",
@@ -4208,8 +4534,6 @@
         "usersHelp": "Maximum number of users",
         "messages": "Messages / month",
         "messagesHelp": "Outgoing messages per month",
-        "workspaces": "Maximum Workspaces",
-        "workspacesHelp": "Maximum number of workspaces",
         "trialDays": "Trial period (days)",
         "status": "Status",
         "benefitPlaceholder": "Optional benefit description"
@@ -4218,7 +4542,7 @@
         "messaging": "Messaging",
         "automation": "Automation",
         "ai": "AI",
-        "team": "Team & Workspace",
+        "team": "Team & Organization",
         "integrations": "Integrations"
       },
       "featureItems": {
@@ -4234,11 +4558,11 @@
         "aiAutomation": "AI-powered automation",
         "aiVoiceCalling": "AI Voice Calling",
         "multipleUsers": "Multiple users",
-        "multipleWorkspaces": "Multiple workspaces",
         "rolesPermissions": "Roles & permissions",
         "whatsappAccounts": "WhatsApp accounts",
         "thirdPartyIntegrations": "Third-party integrations",
-        "apiAccess": "API access"
+        "apiAccess": "API access",
+        "multipleOrganizations": "Multiple organizations"
       },
       "view": {
         "overview": "Overview"
@@ -4383,8 +4707,7 @@
       "featuresLabel": "Features",
       "limits": {
         "users": "User limit",
-        "messages": "Message limit",
-        "workspaces": "Workspace limit"
+        "messages": "Message limit"
       },
       "plans": {
         "starter": {
@@ -4393,11 +4716,11 @@
         },
         "growth": {
           "name": "Growth",
-          "description": "For growing workspaces that need campaigns and automation."
+          "description": "For growing organizations that need campaigns and automation."
         },
         "scale": {
           "name": "Scale",
-          "description": "For multi-workspace teams with higher volume and controls."
+          "description": "For multi-organization teams with higher volume and controls."
         },
         "enterprise": {
           "name": "Enterprise",
@@ -4765,18 +5088,18 @@
       },
       "ai": {
         "title": "Conversation AI",
-        "description": "Platform-wide auto-reply knobs. Changes apply to every workspace after the in-process cache refreshes (up to 30 seconds).",
+        "description": "Platform-wide auto-reply knobs. Changes apply to every organization after the in-process cache refreshes (up to 30 seconds).",
         "loading": "Loading AI settings…",
         "retry": "Retry",
         "save": "Save AI settings",
         "saving": "Saving…",
         "saved": "AI settings saved.",
-        "saveFooterHint": "Changes apply to all workspaces.",
+        "saveFooterHint": "Changes apply to all organizations.",
         "killConfirm": {
           "titleDisable": "Disable platform AI?",
           "titleEnable": "Enable platform AI?",
-          "bodyDisable": "This turns off flow RAG and the answer cache for every workspace. Type {phrase} exactly to confirm.",
-          "bodyEnable": "This turns platform flow RAG back on for every workspace. Type {phrase} exactly to confirm.",
+          "bodyDisable": "This turns off flow RAG and the answer cache for every organization. Type {phrase} exactly to confirm.",
+          "bodyEnable": "This turns platform flow RAG back on for every organization. Type {phrase} exactly to confirm.",
           "phraseLabel": "Type {phrase} to confirm",
           "confirm": "Confirm",
           "cancel": "Cancel"

@@ -55,7 +55,6 @@ function toSubscriptionPlan(plan: SuperAdminPlan): SubscriptionPlan {
     limits: {
       users: plan.limits?.users ?? null,
       messagesPerMonth: plan.limits?.messagesPerMonth ?? null,
-      workspaces: plan.limits?.workspaces ?? null,
     },
     features,
     createdAt: plan.createdAt,

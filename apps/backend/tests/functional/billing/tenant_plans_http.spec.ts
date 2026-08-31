@@ -100,7 +100,7 @@ test.group('Tenant billing plans HTTP', (group) => {
     assert.isAbove(items.length, 0)
 
     const ids = items.map((item) => item.id)
-    assert.include(ids, FIXTURE_IDS.plans.starter)
+    assert.notInclude(ids, FIXTURE_IDS.plans.starter)
     assert.include(ids, FIXTURE_IDS.plans.growth)
     assert.include(ids, FIXTURE_IDS.plans.scale)
   })
@@ -167,6 +167,7 @@ test.group('Tenant billing plans HTTP', (group) => {
   test('excludes inactive plans and marks checkoutable correctly', async ({ client, assert }) => {
     const draftId = randomUUID()
     const archivedId = randomUUID()
+    const freeActiveId = randomUUID()
 
     await db.table('plans').insert([
       {
@@ -203,6 +204,23 @@ test.group('Tenant billing plans HTTP', (group) => {
         sortOrder: 100,
         metadata: { status: 'archived' },
       },
+      {
+        id: freeActiveId,
+        code: `free_${freeActiveId.slice(0, 8)}`,
+        name: 'Free Active',
+        description: 'Active but not checkoutable',
+        price: 0,
+        currency: 'INR',
+        billingInterval: 'month',
+        billingIntervalCount: 1,
+        trialDays: 0,
+        gateway: null,
+        gatewayPlanId: null,
+        limits: {},
+        isActive: true,
+        sortOrder: 15,
+        metadata: { status: 'active' },
+      },
     ])
 
     try {
@@ -217,16 +235,19 @@ test.group('Tenant billing plans HTTP', (group) => {
 
       assert.notInclude(ids, draftId)
       assert.notInclude(ids, archivedId)
+      assert.notInclude(ids, FIXTURE_IDS.plans.starter)
+      assert.include(ids, FIXTURE_IDS.plans.growth)
+      assert.include(ids, FIXTURE_IDS.plans.scale)
 
-      const starter = items.find((item) => item.id === FIXTURE_IDS.plans.starter)
+      const freeActive = items.find((item) => item.id === freeActiveId)
       const growth = items.find((item) => item.id === FIXTURE_IDS.plans.growth)
 
-      assert.exists(starter)
-      assert.isFalse(starter!.checkoutable)
+      assert.exists(freeActive)
+      assert.isFalse(freeActive!.checkoutable)
       assert.exists(growth)
       assert.isTrue(growth!.checkoutable)
     } finally {
-      await db.from('plans').whereIn('id', [draftId, archivedId]).delete()
+      await db.from('plans').whereIn('id', [draftId, archivedId, freeActiveId]).delete()
     }
   })
 
@@ -279,7 +300,7 @@ test.group('Tenant billing plans HTTP', (group) => {
         billingPeriod: 'custom',
         status: 'active',
         trialDays: 0,
-        limits: { users: 2, messagesPerMonth: 50, workspaces: 1 },
+        limits: { users: 2, messagesPerMonth: 50 },
         features: [{ key: 'inbox', name: 'Inbox', enabled: true, category: 'messaging' }],
       })
 

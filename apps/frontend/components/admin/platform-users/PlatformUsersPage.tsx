@@ -21,7 +21,7 @@ const SEARCH_DEBOUNCE_MS = 350
 type StatusFilter = 'all' | 'active' | 'inactive'
 
 const selectClassName = cn(
-  'h-10 w-full rounded-xl border border-dash-border bg-canvas px-3 text-sm text-ink outline-none',
+  'h-10 w-full cursor-pointer rounded-xl border border-dash-border bg-canvas px-3 text-sm text-ink outline-none',
   'transition-[border-color,box-shadow] duration-200',
   'hover:border-dash-border-strong',
   'focus-visible:border-primary/55 focus-visible:ring-2 focus-visible:ring-primary/30'

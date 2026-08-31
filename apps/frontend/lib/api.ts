@@ -253,6 +253,15 @@ export type ProfileUser = {
 
 export type OrganizationType = 'company' | 'partnership' | 'sole_proprietorship' | 'other'
 
+/** Structured org address stored as jsonb — country lives on organizations.country. */
+export type OrganizationAddress = {
+  addressLine1: string
+  addressLine2?: string | null
+  city: string
+  state: string
+  postalCode: string
+}
+
 export type CreateOrganizationBody = {
   name: string
   slug: string
@@ -261,12 +270,19 @@ export type CreateOrganizationBody = {
   website?: string
   industry?: string
   organizationType: OrganizationType
-  address: string
+  /** Legacy free-text or structured address object. */
+  address: string | OrganizationAddress
   pan?: string
   gstin?: string
   country: string
   timezone: string
   currency?: string
+  description?: string
+  businessSize?: string
+  alternatePhone?: string
+  defaultLanguage?: string
+  businessRegistrationNumber?: string
+  designation?: string
 }
 
 export type CreatedOrganization = {
@@ -288,12 +304,17 @@ export type OrganizationSummary = {
   website?: string | null
   industry?: string | null
   organizationType?: OrganizationType | null
-  address?: string | null
+  address?: OrganizationAddress | string | null
   pan?: string | null
   gstin?: string | null
   country: string
   timezone: string
   currency?: string | null
+  description?: string | null
+  businessSize?: string | null
+  alternatePhone?: string | null
+  defaultLanguage?: string | null
+  businessRegistrationNumber?: string | null
   role: string
   createdAt: string
   status?: 'pending_setup' | 'active' | 'suspended' | 'false'
@@ -301,15 +322,22 @@ export type OrganizationSummary = {
 
 export type UpdateOrganizationBody = {
   name?: string
-  phone?: string
-  website?: string
-  industry?: string
-  organizationType?: OrganizationType
-  address?: string
-  pan?: string
-  gstin?: string
+  phone?: string | null
+  website?: string | null
+  industry?: string | null
+  organizationType?: OrganizationType | null
+  address?: string | OrganizationAddress
+  pan?: string | null
+  gstin?: string | null
+  country?: string
   timezone?: string
-  currency?: string
+  currency?: string | null
+  description?: string | null
+  businessSize?: string | null
+  alternatePhone?: string | null
+  defaultLanguage?: string | null
+  businessRegistrationNumber?: string | null
+  designation?: string | null
 }
 
 export type OrganizationDetails = {
@@ -321,12 +349,64 @@ export type OrganizationDetails = {
   website: string | null
   industry: string | null
   organizationType: OrganizationType | null
-  address: string | null
+  address: OrganizationAddress | string | null
   pan: string | null
   gstin: string | null
   country: string
   timezone: string
   currency: string | null
+  description?: string | null
+  businessSize?: string | null
+  alternatePhone?: string | null
+  defaultLanguage?: string | null
+  businessRegistrationNumber?: string | null
+}
+
+export type OrganizationSmtpTransport = 'smtp' | 'api'
+
+export type OrganizationSmtpProviderPreset =
+  | 'gmail'
+  | 'sendgrid'
+  | 'resend'
+  | 'ses'
+  | 'brevo'
+  | 'custom'
+
+export type OrganizationSmtpConfig = {
+  id: string
+  organizationId: string
+  transport: OrganizationSmtpTransport
+  providerPreset: OrganizationSmtpProviderPreset
+  senderName: string
+  senderEmail: string
+  host: string | null
+  port: number | null
+  secure: boolean | null
+  username: string | null
+  status: string
+  lastTestedAt: string | null
+  lastErrorMessage: string | null
+  hasPassword: boolean
+  hasApiKey: boolean
+  createdAt: string
+  updatedAt: string | null
+}
+
+export type UpsertOrganizationSmtpBody = {
+  transport: OrganizationSmtpTransport
+  providerPreset: OrganizationSmtpProviderPreset
+  senderName: string
+  senderEmail: string
+  host?: string | null
+  port?: number | null
+  secure?: boolean | null
+  username?: string | null
+  password?: string | null
+  apiKey?: string | null
+}
+
+export type TestOrganizationSmtpBody = {
+  draftConfig?: Partial<UpsertOrganizationSmtpBody>
 }
 
 export type AccessContext = {
@@ -542,6 +622,8 @@ export type InboxConversation = {
   updatedAt?: string | null
   aiMode?: InboxAiMode | string
   aiHandoverReason?: string | null
+  automationBlocked?: boolean
+  openFlowSessionStatus?: string | null
   contact: InboxConversationContact
 }
 
@@ -553,6 +635,8 @@ export type InboxAiModePatch = {
   id: string
   aiMode: InboxAiMode | string
   aiHandoverReason: string | null
+  automationBlocked?: boolean
+  openFlowSessionStatus?: string | null
 }
 
 export type CreateInboxConversationBody = {
@@ -645,6 +729,8 @@ export type InitiateMediaUploadBody = {
   fileName: string
   mimeType: string
   fileSize: number
+  /** Routes upload into organizations/{orgId}/profile/logo.{ext}. */
+  purpose?: 'organization_logo'
 }
 
 export type InitiateMediaUploadResult = {
@@ -1535,7 +1621,6 @@ export type SuperAdminPlanFeature = {
 export type SuperAdminPlanLimits = {
   users: number | null
   messagesPerMonth: number | null
-  workspaces: number | null
 }
 
 export type SuperAdminPlan = {
@@ -1582,7 +1667,6 @@ export type CreateSuperAdminPlanBody = {
   limits: {
     users?: number | null
     messagesPerMonth?: number | null
-    workspaces?: number | null
   }
   features?: SuperAdminPlanFeature[]
   sortOrder?: number
@@ -1662,7 +1746,6 @@ export type TenantBillingPlanFeature = {
 export type TenantBillingPlanLimits = {
   users: number | null
   messagesPerMonth: number | null
-  workspaces: number | null
 }
 
 export type TenantBillingPlan = {
@@ -1800,6 +1883,36 @@ export const api = {
     destroy: (organizationId: string) =>
       protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
         `/api/v1/organizations/${organizationId}`,
+        { method: 'DELETE' }
+      ),
+
+    getSmtp: (organizationId: string) =>
+      protectedRequest<{ data: OrganizationSmtpConfig | null }>(
+        `/api/v1/organizations/${organizationId}/smtp`,
+        { method: 'GET' }
+      ),
+
+    updateSmtp: (organizationId: string, body: UpsertOrganizationSmtpBody) =>
+      protectedRequest<{ data: OrganizationSmtpConfig }>(
+        `/api/v1/organizations/${organizationId}/smtp`,
+        {
+          method: 'PUT',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    testSmtp: (organizationId: string, body?: TestOrganizationSmtpBody) =>
+      protectedRequest<{ data: { ok: boolean } }>(
+        `/api/v1/organizations/${organizationId}/smtp/test`,
+        {
+          method: 'POST',
+          body: JSON.stringify(body ?? {}),
+        }
+      ),
+
+    deleteSmtp: (organizationId: string) =>
+      protectedRequest<{ data: { deleted: boolean } }>(
+        `/api/v1/organizations/${organizationId}/smtp`,
         { method: 'DELETE' }
       ),
   },
@@ -2298,6 +2411,13 @@ export const api = {
       protectedRequest<{ data?: MediaQuota } & MediaQuota>('/api/v1/media/quota', {
         method: 'GET',
       }),
+
+    /** Canonical org profile logo (namespace=profile), or null. */
+    organizationLogo: () =>
+      protectedRequest<{ data?: MediaAsset | null } & { data?: MediaAsset | null }>(
+        '/api/v1/media/organization-logo',
+        { method: 'GET' }
+      ),
 
     get: (mediaAssetId: string) =>
       protectedRequest<{ data?: MediaAsset } & MediaAsset>(`/api/v1/media/${mediaAssetId}`, {

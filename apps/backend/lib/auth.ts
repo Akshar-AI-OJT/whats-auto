@@ -74,28 +74,27 @@ export const auth = betterAuth({
 
   // DB columns are Postgres `uuid`. better-auth's default nanoid IDs are not valid UUIDs.
   advanced: {
-    // Production sits behind Railway's reverse proxy. Better Auth will not trust
-    // multi-hop X-Forwarded-For unless trustedProxies is set — otherwise it
-    // falls back to one shared per-path rate-limit bucket and logs a WARN.
-    // Prefer x-real-ip (single value Railway sets) then walk XFF with private
-    // proxy hops stripped.
+    // Production sits behind a reverse proxy (Caddy/Nginx on Contabo, or Railway).
+    // Better Auth will not trust multi-hop X-Forwarded-For unless trustedProxies
+    // is set — otherwise it falls back to one shared per-path rate-limit bucket.
+    // Prefer x-real-ip then walk XFF with private proxy hops stripped.
     ipAddress: {
       ipAddressHeaders: ['x-real-ip', 'x-forwarded-for'],
       trustedProxies: [
         '10.0.0.0/8',
         '172.16.0.0/12',
         '192.168.0.0/16',
-        '100.64.0.0/10', // CGNAT (common Railway edge hop)
+        '100.64.0.0/10', // CGNAT (common cloud edge hop)
         '127.0.0.1',
         '::1',
       ],
     },
     defaultCookieAttributes: {
-      // Cross-origin SPA (Vercel) → API (Railway): SameSite=None; Secure is required.
+      // Cross-origin Contabo (app. → api.) or Vercel→Railway: SameSite=None; Secure.
       // Do NOT set Partitioned (CHIPS): the OAuth state cookie is set during a
       // cross-site fetch from the frontend, then read on a top-level Google
       // redirect to BETTER_AUTH_URL. Partitioned cookies are keyed by top-level
-      // site, so the callback would omit the cookie → state_mismatch / state_security_mismatch.
+      // site, so the callback would omit the cookie → state_mismatch.
       // See better-auth#5871 and better-auth.com/docs/reference/errors/state_mismatch.
       sameSite: env.get('NODE_ENV') === 'production' ? ('none' as const) : ('lax' as const),
       secure: env.get('NODE_ENV') === 'production',

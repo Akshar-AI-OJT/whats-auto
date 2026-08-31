@@ -23,7 +23,6 @@ type PersistedLimits = {
   users: number | null
   seats: number | null
   messagesPerMonth: number | null
-  workspaces: number | null
 }
 
 type PlanMetadata = {
@@ -67,7 +66,6 @@ function buildLimits(input: CreateSuperAdminPlanInput['limits'] | undefined): Pe
     users,
     seats: users,
     messagesPerMonth: input?.messagesPerMonth ?? null,
-    workspaces: input?.workspaces ?? null,
   }
 }
 

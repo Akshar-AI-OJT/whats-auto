@@ -33,7 +33,7 @@ export default class OrganizationsController {
         data: payload,
       })
       // Only remint when the new (or reused) pending org became the active session.
-      // Creating a second workspace must not strand the owner on an unpaid org.
+      // Creating a second organization must not strand the owner on an unpaid org.
       if (org.sessionActivated) {
         await attachRemintedAccessToken({ request, response }, request.sessionId!)
       }
@@ -83,7 +83,7 @@ export default class OrganizationsController {
   /**
    * @update
    * @summary Update an organization
-   * @description Path `:id` must match the session active organization. Editable fields: name, phone, website, industry, organizationType, address, pan, gstin, timezone, currency. Slug and email cannot be changed.
+   * @description Path `:id` must match the session active organization. Editable fields include name, phone, website, industry, organizationType, address (structured JSON), pan, gstin, timezone, currency, description, businessSize, alternatePhone, defaultLanguage, businessRegistrationNumber, and designation (caller's membership). Slug and email cannot be changed.
    * @tag Organizations
    * @security BearerAuth
    * @paramPath id - Organization id - @type(string)

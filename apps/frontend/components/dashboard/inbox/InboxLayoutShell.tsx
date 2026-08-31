@@ -7,7 +7,7 @@ import {
   InboxDetailsEmpty,
 } from './InboxConversationDetails'
 import { InboxSelectConversation } from './InboxSelectConversation'
-import { InboxWorkspaceProvider, useInboxWorkspace } from './InboxWorkspaceContext'
+import { InboxOrganizationProvider, useInboxOrganization } from './InboxOrganizationContext'
 import {
   Dialog,
   DialogContent,
@@ -24,7 +24,7 @@ function InboxLayoutShellInner({ children }: InboxLayoutShellProps) {
   const segments = useSelectedLayoutSegments()
   const conversationId = segments[0] ?? null
   const isThread = Boolean(conversationId)
-  const { detailsOpen, setDetailsOpen } = useInboxWorkspace()
+  const { detailsOpen, setDetailsOpen } = useInboxOrganization()
   const t = useTranslations('dashboard.inbox.details')
 
   return (
@@ -40,7 +40,7 @@ function InboxLayoutShellInner({ children }: InboxLayoutShellProps) {
         )}
       </div>
 
-      {/* Desktop: persistent 3-pane workspace */}
+      {/* Desktop: persistent 3-pane layout */}
       <div className="hidden lg:flex lg:h-[calc(100dvh-7.5rem)] lg:min-h-0 lg:gap-0">
         <InboxConversationListSidebar
           selectedConversationId={conversationId ?? undefined}
@@ -86,8 +86,8 @@ function InboxLayoutShellInner({ children }: InboxLayoutShellProps) {
 
 export function InboxLayoutShell({ children }: InboxLayoutShellProps) {
   return (
-    <InboxWorkspaceProvider>
+    <InboxOrganizationProvider>
       <InboxLayoutShellInner>{children}</InboxLayoutShellInner>
-    </InboxWorkspaceProvider>
+    </InboxOrganizationProvider>
   )
 }

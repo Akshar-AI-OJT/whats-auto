@@ -14,7 +14,7 @@ import { cn } from '@/lib/utils'
 
 export type UserProfileMenuItemId =
   | 'profile'
-  | 'workspace'
+  | 'organization'
   | 'billing'
   | 'settings'
   | 'signOut'
@@ -27,7 +27,7 @@ export type UserProfileMenuProps = {
   initials: string
   labels: {
     myProfile: string
-    workspace: string
+    organization: string
     billing: string
     settings: string
     signOut: string
@@ -62,7 +62,7 @@ export function UserProfileMenu({
 
   const actions: MenuAction[] = [
     { id: 'profile', label: labels.myProfile, icon: UserRound },
-    { id: 'workspace', label: labels.workspace, icon: Building2 },
+    { id: 'organization', label: labels.organization, icon: Building2 },
     { id: 'billing', label: labels.billing, icon: CreditCard },
     { id: 'settings', label: labels.settings, icon: Settings },
     { id: 'signOut', label: labels.signOut, icon: LogOut, tone: 'danger' },

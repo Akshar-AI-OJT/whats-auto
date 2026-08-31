@@ -33,6 +33,7 @@ import type { PresignedUpload } from '#services/object_storage/contracts/object_
 import { StorageQuotaService } from '#services/storage_quota_service'
 import { runWithTenant } from '#services/tenant_context'
 import env from '#start/env'
+import { verifyMediaUploadSignature } from '#lib/media/media_upload_signature'
 
 /** Presigned upload lifetime — orphan cleanup uses a longer 24h window. */
 export const MEDIA_UPLOAD_PRESIGN_SECONDS = 15 * 60
@@ -165,6 +166,16 @@ export class MediaAssetService {
     return toDto(asset, referenceCount)
   }
 
+  /** Ready organization profile logo, or null when none uploaded. */
+  async getOrganizationLogo(params: {
+    organizationId: string
+  }): Promise<MediaAssetDto | null> {
+    const asset = await runWithTenant(params.organizationId, () =>
+      this.repo.findReadyProfileLogo({ organizationId: params.organizationId })
+    )
+    return asset ? toDto(asset) : null
+  }
+
   async getQuota(organizationId: string): Promise<MediaQuotaDto> {
     const [usage, limitBytes] = await Promise.all([
       this.quota.getUsage(organizationId),
@@ -228,9 +239,13 @@ export class MediaAssetService {
       throw MediaException.fileTooLarge(OUTBOUND_MEDIA_MAX_BYTES[mediaType])
     }
 
+    const namespace = params.namespace ?? StorageNamespace.MediaLibrary
+    if (namespace === StorageNamespace.Profile && mediaType !== 'image') {
+      throw MediaException.unsupportedMimeType()
+    }
+
     const assetId = randomUUID()
     const storageObjectId = randomUUID()
-    const namespace = params.namespace ?? StorageNamespace.MediaLibrary
     const keyVersion = 2
     const storageKey = buildOrganizationStorageKey({
       organizationId: params.organizationId,
@@ -242,6 +257,11 @@ export class MediaAssetService {
     })
     const deliveryUrl = buildMediaDeliveryUrl(env.get('MEDIA_PUBLIC_BASE_URL'), storageKey)
     const storageDisk = env.get('DRIVE_DISK')
+    const storageOwnerType =
+      namespace === StorageNamespace.Profile
+        ? StorageOwnerType.OrganizationProfile
+        : StorageOwnerType.MediaAsset
+    const storageOwnerId = namespace === StorageNamespace.Profile ? params.organizationId : assetId
 
     const asset = await runWithTenant(params.organizationId, async () => {
       return db.transaction(async (trx) => {
@@ -250,6 +270,25 @@ export class MediaAssetService {
           trx
         )
 
+        if (namespace === StorageNamespace.Profile) {
+          const purgeAfter = new Date(Date.now() + STORAGE_SOFT_DELETE_GRACE_MS)
+          await this.storageObjects.retireStorageKey(
+            {
+              organizationId: params.organizationId,
+              storageKey,
+              purgeAfter,
+            },
+            trx
+          )
+          await this.repo.retireStorageKey(
+            {
+              organizationId: params.organizationId,
+              storageKey,
+            },
+            trx
+          )
+        }
+
         await this.storageObjects.insertPending(
           {
             id: storageObjectId,
@@ -257,8 +296,8 @@ export class MediaAssetService {
             storageKey,
             storageDisk,
             namespace,
-            ownerType: StorageOwnerType.MediaAsset,
-            ownerId: assetId,
+            ownerType: storageOwnerType,
+            ownerId: storageOwnerId,
             mimeType,
             sizeBytes: params.fileSize,
             retentionPolicy: retentionForNamespace(namespace),
@@ -294,6 +333,8 @@ export class MediaAssetService {
         contentType: mimeType,
         contentLength: params.fileSize,
         expiresInSeconds: MEDIA_UPLOAD_PRESIGN_SECONDS,
+        assetId: asset.id,
+        organizationId: params.organizationId,
       })
 
       return {
@@ -319,6 +360,67 @@ export class MediaAssetService {
       })
       throw error
     }
+  }
+
+  /**
+   * Browser PUT target for local-disk storage (HMAC URL from createPresignedUpload).
+   * S3 mode never hits this route.
+   */
+  async putUploadContent(params: {
+    mediaAssetId: string
+    organizationId: string
+    storageKey: string
+    expiresAtUnix: number
+    signature: string
+    body: Uint8Array
+    contentType: string | null
+  }): Promise<void> {
+    const valid = verifyMediaUploadSignature({
+      secret: env.get('APP_KEY').release(),
+      signature: params.signature,
+      payload: {
+        assetId: params.mediaAssetId,
+        storageKey: params.storageKey,
+        organizationId: params.organizationId,
+        expiresAtUnix: params.expiresAtUnix,
+      },
+    })
+    if (!valid) {
+      throw MediaException.invalidUploadSignature()
+    }
+
+    const existing = await runWithTenant(params.organizationId, () =>
+      this.repo.findByIdForOrg({
+        organizationId: params.organizationId,
+        mediaAssetId: params.mediaAssetId,
+      })
+    )
+
+    if (!existing) {
+      throw MediaException.notFound()
+    }
+    if (existing.state !== MediaAssetState.PendingUpload) {
+      throw MediaException.notPending()
+    }
+    if (existing.storageKey !== params.storageKey) {
+      throw MediaException.invalidUploadSignature()
+    }
+    if (params.body.byteLength !== existing.fileSize) {
+      throw MediaException.uploadMismatch(
+        `expected size ${existing.fileSize}, got ${params.body.byteLength}`
+      )
+    }
+
+    const contentType = params.contentType
+      ? normalizeMimeType(params.contentType)
+      : existing.mimeType
+
+    const storage = await this.#objectStorage()
+    await storage.writeObject({
+      key: existing.storageKey,
+      body: params.body,
+      contentType,
+    })
   }
 
   async completeUpload(params: {

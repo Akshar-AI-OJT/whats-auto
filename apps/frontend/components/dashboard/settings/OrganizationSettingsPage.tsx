@@ -19,6 +19,7 @@ import {
   normalizeTaxId,
   ORG_SETUP_PATH,
 } from '@/lib/onboarding'
+import { formatOrganizationAddressLines } from '@/lib/organization-profile'
 import {
   INDUSTRY_OPTIONS,
   ORGANIZATION_TYPE_OPTIONS,
@@ -42,6 +43,7 @@ import {
   authInputWithIconClassName,
 } from '@/components/auth/auth-field-styles'
 import { OwnershipTransferSection } from '@/components/dashboard/settings/OwnershipTransferSection'
+import { OrganizationSmtpSection } from '@/components/dashboard/settings/OrganizationSmtpSection'
 import { useRouter } from '@/i18n/navigation'
 
 /** Matches PATCH /api/v1/organizations/:id body (updateOrganizationValidator). */
@@ -52,7 +54,7 @@ const CURRENCY_MAX = 10
 
 const selectClassName = cn(
   authInputClassName,
-  'h-11 w-full appearance-none rounded-xl px-3.5 text-sm text-ink outline-none'
+  'h-11 w-full cursor-pointer appearance-none rounded-xl px-3.5 text-sm text-ink outline-none'
 )
 
 const readOnlyInputClassName = cn(authInputWithIconClassName, 'bg-dash-surface/70 text-body')
@@ -83,7 +85,7 @@ function detailsFromOrg(org: OrganizationSummary | null): FormState {
       organizationType && ORGANIZATION_TYPE_OPTIONS.includes(organizationType)
         ? organizationType
         : '',
-    address: org?.address ?? '',
+    address: formatOrganizationAddressLines(org?.address, org?.country),
     pan: org?.pan ?? '',
     gstin: org?.gstin ?? '',
     timezone: org?.timezone || getTimezoneOptions()[0] || 'UTC',
@@ -144,7 +146,7 @@ function RequiredMark({ label }: { label: string }) {
   )
 }
 
-export function WorkspaceSettingsPage() {
+export function OrganizationSettingsPage() {
   const t = useTranslations('dashboard.settings')
   const tIndustries = useTranslations('onboarding.organization.step2.industries')
   const tOrgTypes = useTranslations('onboarding.organization.step2.organizationTypes')
@@ -184,7 +186,7 @@ export function WorkspaceSettingsPage() {
   const formErrorId = useId()
   const successId = useId()
 
-  // Reset form when the active organization changes (e.g. workspace switch).
+  // Reset form when the active organization changes (e.g. organization switch).
   // Adjust state during render (React-recommended) instead of a syncing effect.
   const activeOrgId = activeOrganization?.id ?? null
   const [prevOrgId, setPrevOrgId] = useState(activeOrgId)
@@ -255,7 +257,7 @@ export function WorkspaceSettingsPage() {
     setSuccess(null)
 
     if (!activeOrganizationId) {
-      setError(t('errors.noWorkspace'))
+      setError(t('errors.noOrganization'))
       return
     }
     if (!canManageSettings) {
@@ -286,7 +288,7 @@ export function WorkspaceSettingsPage() {
             ORGANIZATION_TYPE_OPTIONS.includes(updated.organizationType)
               ? updated.organizationType
               : '',
-          address: updated.address ?? '',
+          address: formatOrganizationAddressLines(updated.address, updated.country),
           pan: updated.pan ?? '',
           gstin: updated.gstin ?? '',
           timezone: updated.timezone,
@@ -870,6 +872,8 @@ export function WorkspaceSettingsPage() {
         </form>
       </DashboardPanel>
 
+      <OrganizationSmtpSection />
+
       <OwnershipTransferSection />
 
       {canDeleteOrganization ? (
@@ -906,18 +910,18 @@ export function WorkspaceSettingsPage() {
           <div
             role="alertdialog"
             aria-modal="true"
-            aria-labelledby="delete-workspace-title"
-            aria-describedby="delete-workspace-desc"
+            aria-labelledby="delete-organization-title"
+            aria-describedby="delete-organization-desc"
             className="w-full max-w-md rounded-2xl border border-dash-border bg-canvas p-5 shadow-[0_20px_50px_rgb(15_23_42/0.18)] sm:p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <h2
-              id="delete-workspace-title"
+              id="delete-organization-title"
               className="font-display text-lg tracking-tight text-ink"
             >
               {t('deleteConfirmTitle')}
             </h2>
-            <p id="delete-workspace-desc" className="mt-2 text-sm leading-6 text-body">
+            <p id="delete-organization-desc" className="mt-2 text-sm leading-6 text-body">
               {t('deleteConfirmBody', { name: activeOrganization.name })}
             </p>
 

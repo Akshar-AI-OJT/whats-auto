@@ -1,0 +1,153 @@
+# Contabo VPS stack: frontend + API + worker + Redis + Postgres (pgvector).
+# Media files: host bind dir shared by api + worker; Caddy serves /media publicly.
+#
+# Postgres: bundled `postgres` service (pgvector/pg17). api/worker connect via PG_HOST=postgres.
+# Schema: Lucid migrations — bash deploy/contabo/migrate.sh (not whatsapp_schema.sql).
+# Alternative: external Postgres by IP — see deploy/contabo/DEPLOY_CONFIG.md.
+#
+# Usage (from repo root):
+#   sudo mkdir -p /var/www/whats-auto && sudo chown 1001:1001 /var/www/whats-auto
+#   cp deploy/contabo/.env.example deploy/contabo/.env
+#   # set PG_PASSWORD, domains, OBJECT_STORAGE_DRIVER=fs, …
+#   docker compose -f deploy/contabo/docker-compose.yml --env-file deploy/contabo/.env up -d --build
+# Migrations (after api + postgres are up):
+#   bash deploy/contabo/migrate.sh status
+#   bash deploy/contabo/migrate.sh
+#
+# TLS: put Caddy/Nginx on the host (see Caddyfile). Compose only binds localhost ports.
+
+name: whats-auto
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${PG_USER:-postgres}
+      POSTGRES_PASSWORD: ${PG_PASSWORD:?set PG_PASSWORD}
+      POSTGRES_DB: ${PG_DB_NAME:-whatsapp_production}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 10s
+      timeout: 5s
+      retries: 15
+    networks:
+      - internal
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    networks:
+      - internal
+
+  # --------------------------------------------------------------------
+  # api — AdonisJS HTTP (auth, webhooks, REST, inbox SSE, media PUT)
+  # Image CMD: node bin/server.js  →  host :${API_HOST_PORT:-3201}
+  # --------------------------------------------------------------------
+  api:
+    build:
+      context: ../..
+      dockerfile: apps/backend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3201
+      PG_HOST: postgres
+      PG_PORT: 5432
+      REDIS_URL: redis://redis:6379
+      JOB_QUEUE_DRIVER: bullmq
+      OBJECT_STORAGE_DRIVER: ${OBJECT_STORAGE_DRIVER:-fs}
+      DRIVE_DISK: ${DRIVE_DISK:-fs}
+      MEDIA_LOCAL_ROOT: ${MEDIA_LOCAL_ROOT:-/var/www/whats-auto}
+    volumes:
+      - type: bind
+        source: ${MEDIA_HOST_PATH:-/var/www/whats-auto}
+        target: ${MEDIA_LOCAL_ROOT:-/var/www/whats-auto}
+    ports:
+      - '${API_HOST_PORT:-3201}:3201'
+    networks:
+      - internal
+      - edge
+
+  # --------------------------------------------------------------------
+  # worker — same backend image, BullMQ consumer (needs same media disk)
+  # Override CMD: node bin/worker.js  (no public ports)
+  # --------------------------------------------------------------------
+  worker:
+    build:
+      context: ../..
+      dockerfile: apps/backend/Dockerfile
+    restart: unless-stopped
+    command: ['node', 'bin/worker.js']
+    depends_on:
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_started
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3201
+      PG_HOST: postgres
+      PG_PORT: 5432
+      REDIS_URL: redis://redis:6379
+      JOB_QUEUE_DRIVER: bullmq
+      OBJECT_STORAGE_DRIVER: ${OBJECT_STORAGE_DRIVER:-fs}
+      DRIVE_DISK: ${DRIVE_DISK:-fs}
+      MEDIA_LOCAL_ROOT: ${MEDIA_LOCAL_ROOT:-/var/www/whats-auto}
+    volumes:
+      - type: bind
+        source: ${MEDIA_HOST_PATH:-/var/www/whats-auto}
+        target: ${MEDIA_LOCAL_ROOT:-/var/www/whats-auto}
+    networks:
+      - internal
+
+  # --------------------------------------------------------------------
+  # frontend — Next.js standalone (UI). NEXT_PUBLIC_* baked at build time.
+  # --------------------------------------------------------------------
+  frontend:
+    build:
+      context: ../..
+      dockerfile: apps/frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:?set NEXT_PUBLIC_APP_URL}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?set NEXT_PUBLIC_API_URL to https://api.ottobot.codecolonies.com}
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      NODE_ENV: production
+      PORT: 3200
+      HOSTNAME: 0.0.0.0
+    ports:
+      - '${FRONTEND_HOST_PORT:-3200}:3200'
+    networks:
+      - edge
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  internal:
+  edge:

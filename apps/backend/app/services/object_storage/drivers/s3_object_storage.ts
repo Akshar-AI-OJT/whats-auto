@@ -17,6 +17,9 @@ export type S3ObjectStorageConfig = {
   bucket: string
   accessKeyId: string
   secretAccessKey: string
+  /** Contabo / S3-compatible API base URL */
+  endpoint?: string
+  forcePathStyle?: boolean
 }
 
 export default class S3ObjectStorage extends ObjectStorage {
@@ -32,6 +35,8 @@ export default class S3ObjectStorage extends ObjectStorage {
         accessKeyId: config.accessKeyId,
         secretAccessKey: config.secretAccessKey,
       },
+      ...(config.endpoint ? { endpoint: config.endpoint } : {}),
+      forcePathStyle: config.forcePathStyle ?? Boolean(config.endpoint),
       // Browser PUTs via presigned URL cannot satisfy flexible request checksums.
       requestChecksumCalculation: 'WHEN_REQUIRED',
       responseChecksumValidation: 'WHEN_REQUIRED',
@@ -43,6 +48,8 @@ export default class S3ObjectStorage extends ObjectStorage {
     contentType: string
     contentLength: number
     expiresInSeconds?: number
+    assetId?: string
+    organizationId?: string
   }): Promise<PresignedUpload> {
     const expiresInSeconds = params.expiresInSeconds ?? 15 * 60
     // Sign ContentType only — Content-Length in SignedHeaders makes browser

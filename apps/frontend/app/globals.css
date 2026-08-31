@@ -335,6 +335,64 @@ html.light-locked {
     font-feature-settings: 'calt';
     overflow-x: clip;
   }
+
+  /* Interactive affordance — Tenant + Super Admin (and shared chrome).
+     Avoid :where() so specificity beats UA `cursor: default` on buttons. */
+  a[href],
+  button:not(:disabled):not([disabled]):not([aria-disabled='true']),
+  summary,
+  select:not(:disabled):not([disabled]):not([aria-disabled='true']),
+  label[for],
+  input[type='button']:not(:disabled):not([disabled]),
+  input[type='submit']:not(:disabled):not([disabled]),
+  input[type='reset']:not(:disabled):not([disabled]),
+  input[type='checkbox']:not(:disabled):not([disabled]),
+  input[type='radio']:not(:disabled):not([disabled]),
+  input[type='file']:not(:disabled):not([disabled]),
+  input[type='color']:not(:disabled):not([disabled]),
+  input[type='range']:not(:disabled):not([disabled]),
+  [role='button']:not([aria-disabled='true']),
+  [role='link'],
+  [role='tab']:not([aria-disabled='true']),
+  [role='menuitem']:not([aria-disabled='true']),
+  [role='menuitemcheckbox']:not([aria-disabled='true']),
+  [role='menuitemradio']:not([aria-disabled='true']),
+  [role='option']:not([aria-disabled='true']),
+  [role='switch']:not([aria-disabled='true']),
+  [role='checkbox']:not([aria-disabled='true']),
+  [role='radio']:not([aria-disabled='true']),
+  [role='combobox']:not([aria-disabled='true']),
+  [role='treeitem']:not([aria-disabled='true']),
+  [data-slot='button']:not(:disabled):not([disabled]):not([aria-disabled='true']) {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  button[disabled],
+  button[aria-disabled='true'],
+  select:disabled,
+  select[disabled],
+  select[aria-disabled='true'],
+  textarea:disabled,
+  textarea[disabled],
+  textarea[aria-disabled='true'],
+  input:disabled,
+  input[disabled],
+  input[aria-disabled='true'],
+  [role='button'][aria-disabled='true'],
+  [role='tab'][aria-disabled='true'],
+  [role='menuitem'][aria-disabled='true'],
+  [role='option'][aria-disabled='true'],
+  [role='switch'][aria-disabled='true'],
+  [role='checkbox'][aria-disabled='true'],
+  [role='radio'][aria-disabled='true'],
+  [role='combobox'][aria-disabled='true'],
+  [data-slot='button']:disabled,
+  [data-slot='button'][disabled],
+  [data-slot='button'][aria-disabled='true'],
+  a[aria-disabled='true'] {
+    cursor: not-allowed;
+  }
 }
 
 @layer utilities {
@@ -405,5 +463,16 @@ html.light-locked {
 
   .dark .dash-soft-shadow {
     box-shadow: 0 1px 2px rgb(0 0 0 / 0.28);
+  }
+
+  /* Clickable non-button surfaces (table rows, cards) that use onClick */
+  .cursor-interactive {
+    cursor: pointer;
+  }
+
+  .cursor-interactive:disabled,
+  .cursor-interactive[aria-disabled='true'],
+  .cursor-interactive[data-disabled='true'] {
+    cursor: not-allowed;
   }
 }

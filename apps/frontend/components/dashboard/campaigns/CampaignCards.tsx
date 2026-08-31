@@ -62,11 +62,14 @@ export function CampaignActionsMenu({
       <button
         id={buttonId}
         type="button"
-        className="inline-flex size-8 items-center justify-center rounded-lg text-mute transition-colors hover:bg-dash-surface hover:text-ink"
+        className="inline-flex size-8 cursor-pointer items-center justify-center rounded-lg text-mute transition-colors hover:bg-dash-surface hover:text-ink"
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label={t('menuAria')}
-        onClick={() => setOpen((prev) => !prev)}
+        onClick={(event) => {
+          event.stopPropagation()
+          setOpen((prev) => !prev)
+        }}
       >
         <MoreVertical className="size-4" aria-hidden />
       </button>
@@ -203,7 +206,16 @@ export function CampaignCards({
         return (
           <article
             key={campaign.id}
-            className="flex flex-col rounded-2xl border border-dash-border bg-canvas p-4 shadow-sm transition-shadow hover:shadow-md"
+            role="button"
+            tabIndex={0}
+            onClick={() => onView(campaign)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                onView(campaign)
+              }
+            }}
+            className="flex cursor-pointer flex-col rounded-2xl border border-dash-border bg-canvas p-4 shadow-sm transition-shadow hover:shadow-md"
           >
             <div className="flex items-start gap-3">
               <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary-pale text-positive-deep">
@@ -211,28 +223,27 @@ export function CampaignCards({
               </span>
               <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-2">
-                  <button
-                    type="button"
-                    onClick={() => onView(campaign)}
-                    className="cursor-pointer truncate text-left font-semibold text-ink hover:underline"
+                  <p className="truncate font-semibold text-ink">{campaign.name}</p>
+                  <div
+                    onClick={(event) => event.stopPropagation()}
+                    onKeyDown={(event) => event.stopPropagation()}
                   >
-                    {campaign.name}
-                  </button>
-                  <CampaignActionsMenu
-                    campaign={campaign}
-                    canEdit={canEdit}
-                    canCreate={canCreate}
-                    canDelete={canDelete}
-                    canPause={canPause}
-                    onView={() => onView(campaign)}
-                    onEdit={() => onEdit(campaign)}
-                    onDuplicate={() => onDuplicate(campaign)}
-                    onChangeStatus={
-                      onChangeStatus ? () => onChangeStatus(campaign) : undefined
-                    }
-                    onPause={() => onPause(campaign)}
-                    onDelete={() => onDelete(campaign)}
-                  />
+                    <CampaignActionsMenu
+                      campaign={campaign}
+                      canEdit={canEdit}
+                      canCreate={canCreate}
+                      canDelete={canDelete}
+                      canPause={canPause}
+                      onView={() => onView(campaign)}
+                      onEdit={() => onEdit(campaign)}
+                      onDuplicate={() => onDuplicate(campaign)}
+                      onChangeStatus={
+                        onChangeStatus ? () => onChangeStatus(campaign) : undefined
+                      }
+                      onPause={() => onPause(campaign)}
+                      onDelete={() => onDelete(campaign)}
+                    />
+                  </div>
                 </div>
                 <span className="mt-1 inline-flex rounded-full bg-primary-pale px-2 py-0.5 text-[11px] font-semibold tracking-wide text-positive-deep uppercase">
                   {t('type.broadcast')}

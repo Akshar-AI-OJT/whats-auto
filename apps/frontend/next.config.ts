@@ -13,6 +13,8 @@ const apiRewriteOrigin =
   'http://localhost:3333'
 
 const nextConfig: NextConfig = {
+  /** Self-contained Node server for Docker / Contabo (not Vercel serverless). */
+  output: 'standalone',
   async rewrites() {
     return [
       {

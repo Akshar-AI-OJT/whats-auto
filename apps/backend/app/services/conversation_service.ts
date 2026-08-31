@@ -1,6 +1,8 @@
 import db from '@adonisjs/lucid/services/db'
 import logger from '@adonisjs/core/services/logger'
 import ConversationException from '#exceptions/conversation_exception'
+import { FlowSessionRepository } from '#repositories/flow_session_repository'
+import { deriveAutomationVisibility } from '#services/ai/automation_visibility'
 import { NotificationService } from '#services/notification_service'
 
 export type ConversationStatus = 'open' | 'pending' | 'closed'
@@ -28,6 +30,8 @@ export type ConversationRecord = {
   unreadCount: number
   aiMode: string
   aiHandoverReason: string | null
+  automationBlocked: boolean
+  openFlowSessionStatus: string | null
   createdAt: string
   updatedAt: string | null
 }
@@ -65,7 +69,12 @@ function toIso(value: unknown): string | null {
   return String(value)
 }
 
-function mapConversationRow(r: Record<string, unknown>): ConversationRecord {
+function mapConversationRow(
+  r: Record<string, unknown>,
+  openFlowSessionStatus: string | null = null
+): ConversationRecord {
+  const aiMode = (r.aiMode as string) || 'AI_AUTO'
+  const visibility = deriveAutomationVisibility(aiMode, openFlowSessionStatus)
   return {
     id: r.id as string,
     organizationId: r.organizationId as string,
@@ -78,8 +87,10 @@ function mapConversationRow(r: Record<string, unknown>): ConversationRecord {
     firstResponseAt: toIso(r.firstResponseAt),
     closedAt: toIso(r.closedAt),
     unreadCount: Number(r.unreadCount ?? 0),
-    aiMode: (r.aiMode as string) || 'AI_AUTO',
+    aiMode,
     aiHandoverReason: (r.aiHandoverReason as string | null) ?? null,
+    automationBlocked: visibility.automationBlocked,
+    openFlowSessionStatus: visibility.openFlowSessionStatus,
     createdAt: toIso(r.createdAt) as string,
     updatedAt: toIso(r.updatedAt),
   }
@@ -107,6 +118,8 @@ function isUniqueViolation(error: unknown): boolean {
 }
 
 export class ConversationService {
+  constructor(private sessions: FlowSessionRepository = new FlowSessionRepository()) {}
+
   /**
    * Paginated inbox conversation list with optional filters and contact search.
    */
@@ -180,10 +193,14 @@ export class ConversationService {
       .limit(limit)
 
     const lastPage = Math.ceil(total / limit) || 1
+    const statusByConv = await this.sessions.mapBlockingStatusByConversationIds({
+      organizationId: params.organizationId,
+      conversationIds: (rows as Array<{ id: string }>).map((r) => r.id as string),
+    })
 
     return {
       data: rows.map((r) => ({
-        ...mapConversationRow(r),
+        ...mapConversationRow(r, statusByConv.get(r.id as string) ?? null),
         contact: mapContactSummary(r),
       })) as ConversationListItem[],
       meta: {
@@ -203,7 +220,11 @@ export class ConversationService {
     conversationId: string
   }): Promise<ConversationDetail> {
     const row = await this.findConversationWithContactOrFail(params)
-    const conversation = mapConversationRow(row)
+    const statusByConv = await this.sessions.mapBlockingStatusByConversationIds({
+      organizationId: params.organizationId,
+      conversationIds: [params.conversationId],
+    })
+    const conversation = mapConversationRow(row, statusByConv.get(params.conversationId) ?? null)
 
     return {
       ...conversation,

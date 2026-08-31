@@ -35,7 +35,7 @@ import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
 import { InviteMemberSheet } from '@/components/dashboard/team/InviteMemberSheet'
 import { EditOrgAdminUserDialog } from '@/components/dashboard/team/EditOrgAdminUserDialog'
-import { WorkspaceAvatar } from '@/components/dashboard/WorkspaceSwitcher'
+import { OrganizationAvatar } from '@/components/dashboard/OrganizationSwitcher'
 
 const DEFAULT_PER_PAGE = 20
 
@@ -138,7 +138,7 @@ function isAssignableRole(role: string): role is AssignableRole {
 }
 
 const roleSelectClassName = cn(
-  'h-9 shrink-0 rounded-lg border border-dash-border bg-canvas px-2.5 text-xs font-semibold tracking-wide text-ink uppercase outline-none',
+  'h-9 shrink-0 cursor-pointer rounded-lg border border-dash-border bg-canvas px-2.5 text-xs font-semibold tracking-wide text-ink uppercase outline-none',
   'transition-[border-color,box-shadow] duration-200',
   'hover:border-dash-border-strong',
   'focus-visible:border-primary/55 focus-visible:ring-2 focus-visible:ring-primary/30',
@@ -146,7 +146,7 @@ const roleSelectClassName = cn(
 )
 
 const filterSelectClassName = cn(
-  'h-10 shrink-0 rounded-xl border border-dash-border bg-canvas px-3 text-sm text-ink outline-none',
+  'h-10 shrink-0 cursor-pointer rounded-xl border border-dash-border bg-canvas px-3 text-sm text-ink outline-none',
   'transition-[border-color,box-shadow] duration-200',
   'hover:border-dash-border-strong',
   'focus-visible:border-primary/55 focus-visible:ring-2 focus-visible:ring-primary/30'
@@ -191,10 +191,10 @@ export function TeamMembersPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [roleFilter, setRoleFilter] = useState<'all' | AssignableRole | 'owner'>('all')
 
-  // Reset filter/pagination when workspace changes.
-  const [listWorkspaceId, setListWorkspaceId] = useState(tenantOrganizationId)
-  if (tenantOrganizationId !== listWorkspaceId) {
-    setListWorkspaceId(tenantOrganizationId)
+  // Reset filter/pagination when organization changes.
+  const [listOrganizationId, setListOrganizationId] = useState(tenantOrganizationId)
+  if (tenantOrganizationId !== listOrganizationId) {
+    setListOrganizationId(tenantOrganizationId)
     setPage(1)
     setSearchQuery('')
     setRoleFilter('all')
@@ -553,7 +553,7 @@ export function TeamMembersPage() {
                     className="flex flex-col gap-3 bg-canvas px-4 py-3.5 sm:flex-row sm:items-center sm:gap-3 sm:px-5"
                   >
                     <div className="flex min-w-0 flex-1 items-center gap-3">
-                      <WorkspaceAvatar
+                      <OrganizationAvatar
                         initials={initialsFromName(member.name, member.email)}
                         size="md"
                       />

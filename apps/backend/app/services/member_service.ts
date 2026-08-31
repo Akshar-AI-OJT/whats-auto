@@ -42,7 +42,15 @@ export class MemberService {
       .innerJoin('roles as r', 'r.id', 'm.roleId')
       .where('m.organizationId', organizationId)
       .where('m.isDeleted', false)
-      .select('m.id', 'm.createdAt', 'u.id as userId', 'u.name', 'u.email', 'r.name as role')
+      .select(
+        'm.id',
+        'm.createdAt',
+        'm.designation',
+        'u.id as userId',
+        'u.name',
+        'u.email',
+        'r.name as role'
+      )
       .orderBy('u.name', 'asc')
 
     return rows.map((r) => ({
@@ -51,6 +59,7 @@ export class MemberService {
       name: r.name as string,
       email: r.email as string,
       role: r.role as string,
+      designation: (r.designation as string | null) ?? null,
       createdAt: r.createdAt as string,
     }))
   }
@@ -123,15 +132,15 @@ export class MemberService {
     })
 
     if (oldRole !== newRole) {
-      const workspaceName = await this.#loadOrganizationName(organizationId)
+      const organizationName = await this.#loadOrganizationName(organizationId)
       await this.#notifyMemberBestEffort({
         organizationId,
         userId: member.userId as string,
         actorUserId,
         type: 'team_member_role_changed',
         title: 'Your role was updated',
-        body: workspaceName
-          ? `Your role in ${workspaceName} changed from ${oldRole} to ${newRole}.`
+        body: organizationName
+          ? `Your role in ${organizationName} changed from ${oldRole} to ${newRole}.`
           : `Your role changed from ${oldRole} to ${newRole}.`,
       })
     }
@@ -177,16 +186,16 @@ export class MemberService {
       })
     })
 
-    const workspaceName = await this.#loadOrganizationName(organizationId)
+    const organizationName = await this.#loadOrganizationName(organizationId)
     await this.#notifyMemberBestEffort({
       organizationId,
       userId: member.userId as string,
       actorUserId,
       type: 'team_member_removed',
-      title: 'You were removed from this workspace',
-      body: workspaceName
-        ? `You were removed from ${workspaceName}.`
-        : 'You were removed from this workspace.',
+      title: 'You were removed from this organization',
+      body: organizationName
+        ? `You were removed from ${organizationName}.`
+        : 'You were removed from this organization.',
     })
   }
 

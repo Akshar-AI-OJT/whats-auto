@@ -5,11 +5,11 @@ import { PanelRight } from 'lucide-react'
 import type { InboxConversation, InboxConversationStatus, OrganizationMember } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
-import { WorkspaceAvatar } from '@/components/dashboard/WorkspaceSwitcher'
+import { OrganizationAvatar } from '@/components/dashboard/OrganizationSwitcher'
 import { InboxConversationActions } from './InboxConversationActions'
 import { InboxAiModePill } from './InboxAiModePill'
 import { InboxAiHandoverBanner } from './InboxAiHandoverBanner'
-import { useInboxWorkspace } from './InboxWorkspaceContext'
+import { useInboxOrganization } from './InboxOrganizationContext'
 import {
   contactInitials,
   contactLabel,
@@ -57,7 +57,7 @@ export function InboxConversationHeader({
 }: InboxConversationHeaderProps) {
   const t = useTranslations('dashboard.inbox')
   const tDetails = useTranslations('dashboard.inbox.details')
-  const { setDetailsOpen } = useInboxWorkspace()
+  const { setDetailsOpen } = useInboxOrganization()
   const contact = conversation.contact
   const updated =
     conversation.lastMessageAt || conversation.updatedAt || conversation.createdAt
@@ -75,7 +75,7 @@ export function InboxConversationHeader({
       <div className="px-4 py-3.5 sm:px-5">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="flex min-w-0 items-start gap-3">
-          <WorkspaceAvatar
+          <OrganizationAvatar
             initials={contactInitials(conversation)}
             size="md"
             className="rounded-xl"

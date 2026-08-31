@@ -1482,6 +1482,7 @@ export class OrganizationMemberSchema extends BaseModel {
   static $columns = [
     'createdAt',
     'deletedAt',
+    'designation',
     'id',
     'isDeleted',
     'organizationId',
@@ -1494,6 +1495,8 @@ export class OrganizationMemberSchema extends BaseModel {
   declare createdAt: DateTime
   @column.dateTime()
   declare deletedAt: DateTime | null
+  @column()
+  declare designation: string | null
   @column({ isPrimary: true })
   declare id: string
   @column()
@@ -1521,6 +1524,63 @@ export class OrganizationRolePermissionSchema extends BaseModel {
   declare permissionId: string
   @column()
   declare roleId: string
+}
+
+export class OrganizationSmtpConfigSchema extends BaseModel {
+  static $columns = [
+    'apiKeyEncrypted',
+    'createdAt',
+    'host',
+    'id',
+    'lastErrorMessage',
+    'lastTestedAt',
+    'organizationId',
+    'passwordEncrypted',
+    'port',
+    'providerPreset',
+    'secure',
+    'senderEmail',
+    'senderName',
+    'status',
+    'transport',
+    'updatedAt',
+    'username',
+  ] as const
+  $columns = OrganizationSmtpConfigSchema.$columns
+  @column()
+  declare apiKeyEncrypted: string | null
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare host: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare lastErrorMessage: string | null
+  @column.dateTime()
+  declare lastTestedAt: DateTime | null
+  @column()
+  declare organizationId: string
+  @column()
+  declare passwordEncrypted: string | null
+  @column()
+  declare port: number | null
+  @column()
+  declare providerPreset: string
+  @column()
+  declare secure: boolean | null
+  @column()
+  declare senderEmail: string
+  @column()
+  declare senderName: string
+  @column()
+  declare status: string
+  @column()
+  declare transport: string
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+  @column()
+  declare username: string | null
 }
 
 export class OrganizationStorageObjectSchema extends BaseModel {
@@ -1688,10 +1748,15 @@ export class OrganizationSubscriptionSchema extends BaseModel {
 export class OrganizationSchema extends BaseModel {
   static $columns = [
     'address',
+    'alternatePhone',
+    'businessRegistrationNumber',
+    'businessSize',
     'country',
     'createdAt',
     'currency',
+    'defaultLanguage',
     'deletedAt',
+    'description',
     'email',
     'gateway',
     'gatewayCustomerId',
@@ -1710,15 +1775,25 @@ export class OrganizationSchema extends BaseModel {
   ] as const
   $columns = OrganizationSchema.$columns
   @column()
-  declare address: string | null
+  declare address: any | null
+  @column()
+  declare alternatePhone: string | null
+  @column()
+  declare businessRegistrationNumber: string | null
+  @column()
+  declare businessSize: string | null
   @column()
   declare country: string
   @column.dateTime()
   declare createdAt: DateTime
   @column()
   declare currency: string | null
+  @column()
+  declare defaultLanguage: string | null
   @column.dateTime()
   declare deletedAt: DateTime | null
+  @column()
+  declare description: string | null
   @column()
   declare email: string
   @column()

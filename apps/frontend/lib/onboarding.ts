@@ -7,6 +7,7 @@ const PENDING_PLAN_KEY = 'wa-onboarding-plan'
 
 export const ORG_SETUP_PATH = '/onboarding/organization'
 export const ONBOARDING_PAYMENT_PATH = '/onboarding/payment'
+export { ORG_PROFILE_PATH } from '@/lib/organization-profile'
 export const TEAM_MEMBERS_PATH = '/dashboard/team'
 export const ASSIGNABLE_ROLES = ['admin', 'agent', 'viewer'] as const
 export type AssignableRole = (typeof ASSIGNABLE_ROLES)[number]
@@ -112,25 +113,6 @@ export function clearPendingOnboardingContact() {
   }
 }
 
-/**
- * Organizations now come from the API, but earlier builds cached them in
- * localStorage, which is shared across accounts on the same browser. Drop the
- * old keys so testers don't keep another account's workspaces around.
- */
-const LEGACY_ORG_CACHE_KEYS = [
-  'wa-local-organizations',
-  'wa-local-active-organization',
-]
-
-export function clearLegacyOrganizationCache() {
-  if (typeof window === 'undefined') return
-  try {
-    LEGACY_ORG_CACHE_KEYS.forEach((key) => window.localStorage.removeItem(key))
-  } catch {
-    /* ignore */
-  }
-}
-
 /** Common IANA zones for the company-info dropdown (browser zone always prepended). */
 export const COMMON_TIMEZONES = [
   'Asia/Kolkata',
@@ -219,9 +201,9 @@ export function buildCreateOrganizationPayload(input: {
   return payload
 }
 
-const PREFERENCES_KEY = 'wa-workspace-preferences'
+const PREFERENCES_KEY = 'wa-organization-preferences'
 
-export type PendingWorkspacePreferences = {
+export type PendingOrganizationPreferences = {
   companySize: string
   logoFileName: string
   defaultLanguage: string
@@ -231,8 +213,8 @@ export type PendingWorkspacePreferences = {
   notifications: string[]
 }
 
-export function savePendingWorkspacePreferences(
-  prefs: PendingWorkspacePreferences
+export function savePendingOrganizationPreferences(
+  prefs: PendingOrganizationPreferences
 ) {
   if (typeof window === 'undefined') return
   try {
@@ -242,7 +224,20 @@ export function savePendingWorkspacePreferences(
   }
 }
 
-export function clearPendingWorkspacePreferences() {
+export function readPendingOrganizationPreferences(): PendingOrganizationPreferences | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.sessionStorage.getItem(PREFERENCES_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as PendingOrganizationPreferences
+    if (!parsed || typeof parsed !== 'object') return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+export function clearPendingOrganizationPreferences() {
   if (typeof window === 'undefined') return
   try {
     window.sessionStorage.removeItem(PREFERENCES_KEY)
@@ -284,7 +279,7 @@ export function dismissOnboardingChecklist() {
  * Stores the onboarding-selected subscription plan so the app can read it
  * after redirecting to the dashboard (UI-only for now).
  */
-export function savePendingWorkspacePlan(planId: string) {
+export function savePendingOrganizationPlan(planId: string) {
   if (typeof window === 'undefined') return
   try {
     window.sessionStorage.setItem(PENDING_PLAN_KEY, planId)
@@ -293,7 +288,7 @@ export function savePendingWorkspacePlan(planId: string) {
   }
 }
 
-export function readPendingWorkspacePlan(): string | null {
+export function readPendingOrganizationPlan(): string | null {
   if (typeof window === 'undefined') return null
   try {
     return window.sessionStorage.getItem(PENDING_PLAN_KEY)
@@ -302,7 +297,7 @@ export function readPendingWorkspacePlan(): string | null {
   }
 }
 
-export function clearPendingWorkspacePlan() {
+export function clearPendingOrganizationPlan() {
   if (typeof window === 'undefined') return
   try {
     window.sessionStorage.removeItem(PENDING_PLAN_KEY)

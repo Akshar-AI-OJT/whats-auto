@@ -16,7 +16,7 @@ type Fixture = {
   phoneNumberId: string
 }
 
-async function createOrg(params?: { status?: boolean; deletedAt?: Date | null }) {
+async function createOrg(params?: { status?: string; deletedAt?: Date | null }) {
   const id = randomUUID()
   const slug = `wa-ingest-${id.slice(0, 8)}`
   const [row] = await db
@@ -29,7 +29,7 @@ async function createOrg(params?: { status?: boolean; deletedAt?: Date | null })
       country: 'US',
       timezone: 'UTC',
       currency: 'USD',
-      status: params?.status ?? true,
+      status: params?.status ?? 'active',
       deletedAt: params?.deletedAt ?? null,
     })
     .returning(['id'])

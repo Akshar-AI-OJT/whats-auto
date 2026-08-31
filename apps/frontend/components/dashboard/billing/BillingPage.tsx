@@ -22,7 +22,7 @@ import {
   unwrapBillingPlans,
   unwrapBillingSubscription,
 } from './billing-utils'
-import { clearPendingWorkspacePlan, readPendingWorkspacePlan } from '@/lib/onboarding'
+import { clearPendingOrganizationPlan, readPendingOrganizationPlan } from '@/lib/onboarding'
 
 function StatusBadge({ status }: { status: string }) {
   const t = useTranslations('dashboard.billing.status')
@@ -129,8 +129,8 @@ export function BillingPage() {
   const [selectedPlanId] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null
     // Prefer any plan selected during onboarding so the UI feels continuous.
-    const pending = readPendingWorkspacePlan()
-    clearPendingWorkspacePlan()
+    const pending = readPendingOrganizationPlan()
+    clearPendingOrganizationPlan()
     return pending
   })
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -489,14 +489,6 @@ export function BillingPage() {
                           : plan.limits.messagesPerMonth.toLocaleString('en-US')}
                       </dd>
                     </div>
-                    <div className="flex items-center justify-between gap-3 text-sm">
-                      <dt className="text-mute">{tSubs('limits.workspaces')}</dt>
-                      <dd className="font-semibold tabular-nums text-ink">
-                        {plan.limits.workspaces == null
-                          ? tSubs('unlimited')
-                          : plan.limits.workspaces.toLocaleString('en-US')}
-                      </dd>
-                    </div>
                   </dl>
 
                   <div className="mt-5">
@@ -603,17 +595,6 @@ export function BillingPage() {
                     {plan.limits.messagesPerMonth == null
                       ? tCompareValues('custom')
                       : plan.limits.messagesPerMonth}
-                  </div>
-                ))}
-
-                <div className="col-span-1 pt-3 text-sm font-medium text-ink">
-                  {tSubs('limits.workspaces')}
-                </div>
-                {plans.map((plan) => (
-                  <div key={`${plan.id}-workspaces`} className="pt-3 text-center text-sm text-body">
-                    {plan.limits.workspaces == null
-                      ? tCompareValues('custom')
-                      : plan.limits.workspaces}
                   </div>
                 ))}
 

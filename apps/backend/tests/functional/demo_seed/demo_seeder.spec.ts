@@ -2,14 +2,40 @@ import { test } from '@japa/runner'
 import db from '@adonisjs/lucid/services/db'
 import { auth } from '#lib/auth'
 import { mintAccessToken } from '#lib/mint_access_token'
-import { runWithTenant } from '#services/tenant_context'
 import DemoSeeder from '#database/seeders/demo_seeder'
 import { DEMO_PASSWORD, DEMO_USERS } from '#database/demo/credentials'
 import { FIXTURE_IDS } from '#database/demo/fixture_ids'
 
+const RLS_READER_ROLE = 'whats_auto_rls_reader'
+
 async function runDemoSeeder() {
   const seeder = new DemoSeeder(db.connection())
   await seeder.run()
+}
+
+/** Test DB connects as superuser (`postgres`), which bypasses RLS. */
+async function ensureRlsReaderRole() {
+  await db.rawQuery(`
+    DO $role$
+    BEGIN
+      IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '${RLS_READER_ROLE}') THEN
+        CREATE ROLE ${RLS_READER_ROLE} NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE INHERIT NOLOGIN;
+      END IF;
+    END
+    $role$;
+  `)
+  await db.rawQuery(`GRANT USAGE ON SCHEMA public TO ${RLS_READER_ROLE}`)
+  await db.rawQuery(`GRANT SELECT ON ALL TABLES IN SCHEMA public TO ${RLS_READER_ROLE}`)
+}
+
+async function selectWithRls(organizationId: string, table: string, id: string) {
+  return db.transaction(async (trx) => {
+    await trx.rawQuery(`SET LOCAL ROLE ${RLS_READER_ROLE}`)
+    await trx.rawQuery(`SELECT set_config('app.current_organization_id', ?, true)`, [
+      organizationId,
+    ])
+    return trx.from(table).where('id', id).first()
+  })
 }
 
 test.group('Demo seeder functional', (group) => {
@@ -60,6 +86,7 @@ test.group('Demo seeder functional', (group) => {
     const [extraPlan] = await db
       .table('plans')
       .insert({
+        code: 'non_demo_plan',
         name: 'NonDemo Plan',
         price: 1,
         currency: 'INR',
@@ -79,23 +106,28 @@ test.group('Demo seeder functional', (group) => {
   test('sign-in mint JWT and JWKS endpoint work for demo owner', async ({ client, assert }) => {
     await runDemoSeeder()
 
-    const signIn = await auth.api.signInEmail({
+    const signIn = (await auth.api.signInEmail({
       body: { email: DEMO_USERS.northstarOwner, password: DEMO_PASSWORD },
-    })
-    const session = (signIn as { session?: { id: string }; user?: { id: string; name: string } })
-      ?.session
-    const user = (signIn as { user?: { id: string; name: string; email: string } })?.user
-    assert.exists(session?.id)
-    assert.exists(user?.id)
+    })) as { token?: string; user?: { id: string; name: string; email: string } }
+    assert.exists(signIn.token)
+    assert.exists(signIn.user?.id)
+
+    const sessionRow = await db.from('sessions').where('token', signIn.token).select('id').first()
+    assert.exists(sessionRow?.id)
 
     const token = await mintAccessToken({
-      userId: user!.id,
+      userId: signIn.user!.id,
       email: DEMO_USERS.northstarOwner,
-      name: user!.name,
-      sessionId: session!.id,
+      name: signIn.user!.name,
+      sessionId: sessionRow!.id as string,
     })
     assert.isString(token)
     assert.isAbove(token!.length, 20)
+
+    const authed = await client
+      .get('/api/v1/onboarding/state')
+      .header('Authorization', `Bearer ${token}`)
+    authed.assertStatus(200)
 
     const jwksResponse = await client.get('/api/auth/jwks')
     jwksResponse.assertStatus(200)
@@ -114,41 +146,48 @@ test.group('Demo seeder functional', (group) => {
 
   test('RLS isolates contacts and messages between orgs', async ({ assert }) => {
     await runDemoSeeder()
+    await ensureRlsReaderRole()
 
-    const northstarVisible = await runWithTenant(FIXTURE_IDS.orgs.northstar, async () => {
-      return db.from('contacts').where('id', FIXTURE_IDS.contacts.harborJordan).first()
-    })
+    const northstarVisible = await selectWithRls(
+      FIXTURE_IDS.orgs.northstar,
+      'contacts',
+      FIXTURE_IDS.contacts.harborJordan
+    )
     assert.notExists(northstarVisible)
 
-    const harborContactFromHarbor = await runWithTenant(FIXTURE_IDS.orgs.harbor, async () => {
-      return db.from('contacts').where('id', FIXTURE_IDS.contacts.harborJordan).first()
-    })
+    const harborContactFromHarbor = await selectWithRls(
+      FIXTURE_IDS.orgs.harbor,
+      'contacts',
+      FIXTURE_IDS.contacts.harborJordan
+    )
     assert.exists(harborContactFromHarbor)
 
-    const crossMessage = await runWithTenant(FIXTURE_IDS.orgs.harbor, async () => {
-      return db.from('messages').where('id', FIXTURE_IDS.messages.northstarInboundText).first()
-    })
+    const crossMessage = await selectWithRls(
+      FIXTURE_IDS.orgs.harbor,
+      'messages',
+      FIXTURE_IDS.messages.northstarInboundText
+    )
     assert.notExists(crossMessage)
 
-    const crossTemplate = await runWithTenant(FIXTURE_IDS.orgs.harbor, async () => {
-      return db
-        .from('message_templates')
-        .where('id', FIXTURE_IDS.templates.northstarApprovedMarketing)
-        .first()
-    })
+    const crossTemplate = await selectWithRls(
+      FIXTURE_IDS.orgs.harbor,
+      'message_templates',
+      FIXTURE_IDS.templates.northstarApprovedMarketing
+    )
     assert.notExists(crossTemplate)
 
-    const crossSub = await runWithTenant(FIXTURE_IDS.orgs.harbor, async () => {
-      return db
-        .from('organization_subscriptions')
-        .where('id', FIXTURE_IDS.subscriptions.northstar)
-        .first()
-    })
+    const crossSub = await selectWithRls(
+      FIXTURE_IDS.orgs.harbor,
+      'organization_subscriptions',
+      FIXTURE_IDS.subscriptions.northstar
+    )
     assert.notExists(crossSub)
 
-    const crossUsage = await runWithTenant(FIXTURE_IDS.orgs.harbor, async () => {
-      return db.from('usage_meters').where('id', FIXTURE_IDS.usageMeters.northstarMessages).first()
-    })
+    const crossUsage = await selectWithRls(
+      FIXTURE_IDS.orgs.harbor,
+      'usage_meters',
+      FIXTURE_IDS.usageMeters.northstarMessages
+    )
     assert.notExists(crossUsage)
   })
 })
