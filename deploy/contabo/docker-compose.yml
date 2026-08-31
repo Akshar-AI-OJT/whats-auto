@@ -1,14 +1,14 @@
-# Contabo VPS stack: frontend + API + worker + Redis + Postgres (pgvector).
+# Contabo VPS stack: frontend + backend + worker + Redis + Postgres (pgvector).
 # TLS: existing ServeOS Caddy (`serveos-production-proxy`) owns host 80/443.
 # This stack does NOT run Caddy and does NOT publish 80/443.
 #
-# Public HTTP: attach `frontend` + `api` to external network serveos-production_public.
-# Private: postgres, redis, worker stay on `internal` only (not reachable by Caddy).
+# Public HTTP: attach `whats-auto-frontend` + `whats-auto-backend` to
+# serveos-production_public. Private: postgres, redis, worker on whats-auto-internal.
 #
-# ServeOS Caddyfile import + extra bind mounts: deploy/contabo/serveos-caddy.snippet
+# ServeOS Caddy: /etc/caddy/sites/whats-auto.caddy — see deploy/contabo/serveos-caddy.snippet
 #
-# Postgres: bundled `postgres` service (pgvector/pgvector:pg18). api/worker use PG_HOST=postgres.
-# Schema: Lucid migrations — bash deploy/contabo/migrate.sh
+# Postgres: whats-auto-postgres (pgvector/pgvector:pg18). Backend/worker use
+# PG_HOST=whats-auto-postgres. Schema: bash deploy/contabo/migrate.sh
 #
 # Usage (from repo root):
 #   sudo mkdir -p /var/www/whats-auto/apps/backend/media && sudo chown 1001:1001 /var/www/whats-auto/apps/backend/media
@@ -19,8 +19,9 @@
 name: whats-auto
 
 services:
-  postgres:
+  whats-auto-postgres:
     image: pgvector/pgvector:pg18
+    container_name: whats-auto-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${PG_USER:-postgres}
@@ -36,8 +37,9 @@ services:
     networks:
       - internal
 
-  redis:
+  whats-auto-redis:
     image: redis:7-alpine
+    container_name: whats-auto-redis
     restart: unless-stopped
     command: ['redis-server', '--appendonly', 'yes']
     volumes:
@@ -51,18 +53,20 @@ services:
       - internal
 
   # --------------------------------------------------------------------
-  # api — AdonisJS HTTP (auth, webhooks, REST, inbox SSE, media PUT)
-  # Listens HOST=0.0.0.0 PORT=3201. Reachable as `api` on serveos-production_public.
+  # AdonisJS HTTP (auth, webhooks, REST, inbox SSE, media PUT)
+  # HOST=0.0.0.0 PORT=3201. DNS name on serveos-production_public: whats-auto-backend
   # --------------------------------------------------------------------
-  api:
+  whats-auto-backend:
+    image: whats-auto-backend:latest
+    container_name: whats-auto-backend
     build:
       context: ../..
       dockerfile: apps/backend/Dockerfile
     restart: unless-stopped
     depends_on:
-      postgres:
+      whats-auto-postgres:
         condition: service_healthy
-      redis:
+      whats-auto-redis:
         condition: service_healthy
     env_file:
       - .env
@@ -70,9 +74,9 @@ services:
       NODE_ENV: production
       HOST: 0.0.0.0
       PORT: 3201
-      PG_HOST: postgres
+      PG_HOST: whats-auto-postgres
       PG_PORT: 5432
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://whats-auto-redis:6379
       JOB_QUEUE_DRIVER: bullmq
       OBJECT_STORAGE_DRIVER: ${OBJECT_STORAGE_DRIVER:-fs}
       DRIVE_DISK: ${DRIVE_DISK:-fs}
@@ -88,21 +92,22 @@ services:
       - serveos-production_public
 
   # --------------------------------------------------------------------
-  # worker — same backend image, BullMQ consumer (needs same media disk)
-  # No HTTP. Not on the Caddy network.
+  # Same backend image, BullMQ consumer (needs same media disk). No HTTP.
   # --------------------------------------------------------------------
-  worker:
+  whats-auto-worker:
+    image: whats-auto-backend:latest
+    container_name: whats-auto-worker
     build:
       context: ../..
       dockerfile: apps/backend/Dockerfile
     restart: unless-stopped
     command: ['node', 'bin/worker.js']
     depends_on:
-      postgres:
+      whats-auto-postgres:
         condition: service_healthy
-      redis:
+      whats-auto-redis:
         condition: service_healthy
-      api:
+      whats-auto-backend:
         condition: service_started
     env_file:
       - .env
@@ -110,9 +115,9 @@ services:
       NODE_ENV: production
       HOST: 0.0.0.0
       PORT: 3201
-      PG_HOST: postgres
+      PG_HOST: whats-auto-postgres
       PG_PORT: 5432
-      REDIS_URL: redis://redis:6379
+      REDIS_URL: redis://whats-auto-redis:6379
       JOB_QUEUE_DRIVER: bullmq
       OBJECT_STORAGE_DRIVER: ${OBJECT_STORAGE_DRIVER:-fs}
       DRIVE_DISK: ${DRIVE_DISK:-fs}
@@ -125,10 +130,12 @@ services:
       - internal
 
   # --------------------------------------------------------------------
-  # frontend — Next.js standalone. NEXT_PUBLIC_* baked at image build.
-  # Listens HOSTNAME=0.0.0.0 PORT=3200. Reachable as `frontend` on serveos-production_public.
+  # Next.js standalone. NEXT_PUBLIC_* baked at image build.
+  # HOSTNAME=0.0.0.0 PORT=3200. DNS name: whats-auto-frontend
   # --------------------------------------------------------------------
-  frontend:
+  whats-auto-frontend:
+    image: whats-auto-frontend:latest
+    container_name: whats-auto-frontend
     build:
       context: ../..
       dockerfile: apps/frontend/Dockerfile
@@ -137,7 +144,7 @@ services:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?set NEXT_PUBLIC_API_URL to https://api.ottobot.codecolonies.com}
     restart: unless-stopped
     depends_on:
-      - api
+      - whats-auto-backend
     environment:
       NODE_ENV: production
       PORT: 3200
@@ -153,5 +160,6 @@ volumes:
 
 networks:
   internal:
+    name: whats-auto-internal
   serveos-production_public:
     external: true

@@ -1,0 +1,41 @@
+# Whats Auto site only. Loaded by ServeOS Caddy via:
+#   /etc/caddy/Caddyfile  →  import /etc/caddy/sites/*.caddy
+#
+# Inside serveos-production-proxy this file must appear as:
+#   /etc/caddy/sites/whats-auto.caddy
+#
+# Host source: /var/www/whats-auto/deploy/contabo/whats-auto.caddy
+# Bind-mount or copy it into the Caddy `sites/` directory.
+# See deploy/contabo/serveos-caddy.snippet
+#
+# Reverse-proxy targets on serveos-production_public:
+#   whats-auto-frontend → 3200
+#   whats-auto-backend  → 3201
+#
+# Media: mount /var/www/whats-auto/apps/backend/media (read-only) into the
+# same Caddy container so file_server can read it.
+
+ottobot.codecolonies.com {
+	reverse_proxy whats-auto-frontend:3200
+}
+
+api.ottobot.codecolonies.com {
+	request_body {
+		max_size 110MB
+	}
+
+	handle_path /media/* {
+		root * /var/www/whats-auto/apps/backend/media
+		file_server
+	}
+
+	handle /api/v1/inbox/events {
+		reverse_proxy whats-auto-backend:3201 {
+			flush_interval -1
+		}
+	}
+
+	handle {
+		reverse_proxy whats-auto-backend:3201
+	}
+}

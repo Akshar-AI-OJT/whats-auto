@@ -4,16 +4,16 @@
 #
 #   bash deploy/contabo/inspect-serveos-caddy.sh
 #
-# Expected:
-#   container: serveos-production-proxy
-#   network:   serveos-production_public
-#   Caddyfile: /var/www/serveos/docker/production/Caddyfile → /etc/caddy/Caddyfile
+# Expected inside serveos-production-proxy:
+#   /etc/caddy/Caddyfile
+#   /etc/caddy/sites/whats-auto.caddy
+#   network: serveos-production_public
 # ==============================================================================
 set -euo pipefail
 
 PROXY="${PROXY_CONTAINER:-serveos-production-proxy}"
 NETWORK="${CADDY_NETWORK:-serveos-production_public}"
-WA_CADDY="/var/www/whats-auto/deploy/contabo/Caddyfile"
+WA_SITE="/etc/caddy/sites/whats-auto.caddy"
 WA_MEDIA="/var/www/whats-auto/apps/backend/media"
 
 bold() { printf '\033[1m%s\033[0m\n' "$*"; }
@@ -43,34 +43,36 @@ bold "3. Bind mounts on ${PROXY}"
 hr
 docker inspect -f '{{range .Mounts}}{{printf "%s -> %s\n" .Source .Destination}}{{end}}' "$PROXY"
 
-if docker inspect -f '{{range .Mounts}}{{.Destination}}{{println}}{{end}}' "$PROXY" \
-  | grep -qx "$WA_CADDY"; then
-  ok "Whats Auto Caddyfile is mounted at ${WA_CADDY}"
+if docker exec "$PROXY" test -f "$WA_SITE" 2>/dev/null; then
+  ok "${WA_SITE} exists in the container"
 else
-  bad "Whats Auto Caddyfile is NOT mounted inside ${PROXY}"
-  echo "       Add the bind mount from deploy/contabo/serveos-caddy.snippet"
-  echo "       then recreate the proxy container (reload will not add volumes)."
+  bad "${WA_SITE} is missing inside ${PROXY}"
+  echo "       Mount or copy deploy/contabo/whats-auto.caddy there"
+  echo "       (see deploy/contabo/serveos-caddy.snippet)."
 fi
 
 if docker inspect -f '{{range .Mounts}}{{.Destination}}{{println}}{{end}}' "$PROXY" \
   | grep -qx "$WA_MEDIA"; then
   ok "media directory is mounted at ${WA_MEDIA}"
+elif docker exec "$PROXY" test -d "$WA_MEDIA" 2>/dev/null; then
+  ok "media path ${WA_MEDIA} exists in the container"
 else
-  bad "media directory is NOT mounted inside ${PROXY} (needed for /media file_server)"
+  bad "media directory is NOT available inside ${PROXY} (needed for /media file_server)"
 fi
 
-bold "4. ServeOS Caddyfile import"
+bold "4. Central Caddyfile imports sites/"
 hr
-if docker exec "$PROXY" grep -q "import ${WA_CADDY}" /etc/caddy/Caddyfile 2>/dev/null; then
-  ok "import ${WA_CADDY} is present in /etc/caddy/Caddyfile"
+if docker exec "$PROXY" grep -E 'import .*/sites/\*\.caddy|import sites/\*\.caddy' /etc/caddy/Caddyfile >/dev/null 2>&1; then
+  ok "main Caddyfile imports /etc/caddy/sites/*.caddy"
 else
-  bad "import line missing. Append to /var/www/serveos/docker/production/Caddyfile:"
-  echo "       import ${WA_CADDY}"
+  bad "main Caddyfile does not import sites/*.caddy"
+  echo "       Add this to /etc/caddy/Caddyfile (keep existing ServeOS global options):"
+  echo "       import /etc/caddy/sites/*.caddy"
 fi
 
-bold "5. DNS from ${PROXY} (Compose service names on ${NETWORK})"
+bold "5. DNS from ${PROXY} (Compose names on ${NETWORK})"
 hr
-for host in frontend api; do
+for host in whats-auto-frontend whats-auto-backend; do
   if docker exec "$PROXY" getent hosts "$host" >/dev/null 2>&1; then
     ok "$(docker exec "$PROXY" getent hosts "$host" | awk '{print $2" -> "$1}')"
   else
