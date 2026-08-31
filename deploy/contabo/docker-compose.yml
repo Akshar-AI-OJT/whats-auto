@@ -1,16 +1,5 @@
-# Contabo VPS stack: frontend + backend + worker + Redis + Postgres (pgvector).
-# TLS: existing ServeOS Caddy (`serveos-production-proxy`) owns host 80/443.
-# This stack does NOT run Caddy and does NOT publish 80/443.
-#
-# Public HTTP: attach `whats-auto-frontend` + `whats-auto-backend` to
-# serveos-production_public. Private: postgres, redis, worker on whats-auto-internal.
-#
-# ServeOS Caddy: /etc/caddy/sites/whats-auto.caddy — see deploy/contabo/serveos-caddy.snippet
-#
-# Postgres: whats-auto-postgres (pgvector/pgvector:pg18). Backend/worker use
-# PG_HOST=whats-auto-postgres. Schema: bash deploy/contabo/migrate.sh
-#
-# Usage (from repo root):
+# Linux production (ServeOS Caddy already owns 80/443).
+# From repo root:
 #   sudo mkdir -p /var/www/whats-auto/apps/backend/media && sudo chown 1001:1001 /var/www/whats-auto/apps/backend/media
 #   cp deploy/contabo/.env.example deploy/contabo/.env
 #   docker compose -f deploy/contabo/docker-compose.yml --env-file deploy/contabo/.env up -d --build
