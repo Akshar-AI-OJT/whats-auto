@@ -1,20 +1,20 @@
 # Contabo VPS stack: frontend + API + worker + Redis + Postgres (pgvector).
-# Media files: host bind dir shared by api + worker; Caddy serves /media publicly.
+# TLS: existing ServeOS Caddy (`serveos-production-proxy`) owns host 80/443.
+# This stack does NOT run Caddy and does NOT publish 80/443.
 #
-# Postgres: bundled `postgres` service (pgvector/pgvector:pg18). api/worker connect via PG_HOST=postgres.
-# Schema: Lucid migrations — bash deploy/contabo/migrate.sh (not whatsapp_schema.sql).
-# Alternative: external Postgres by IP — see deploy/contabo/DEPLOY_CONFIG.md.
+# Public HTTP: attach `frontend` + `api` to external network serveos-production_public.
+# Private: postgres, redis, worker stay on `internal` only (not reachable by Caddy).
+#
+# ServeOS Caddyfile import + extra bind mounts: deploy/contabo/serveos-caddy.snippet
+#
+# Postgres: bundled `postgres` service (pgvector/pgvector:pg18). api/worker use PG_HOST=postgres.
+# Schema: Lucid migrations — bash deploy/contabo/migrate.sh
 #
 # Usage (from repo root):
-#   sudo mkdir -p /var/www/whats-auto/media && sudo chown 1001:1001 /var/www/whats-auto/media
+#   sudo mkdir -p /var/www/whats-auto/apps/backend/media && sudo chown 1001:1001 /var/www/whats-auto/apps/backend/media
 #   cp deploy/contabo/.env.example deploy/contabo/.env
-#   # set PG_PASSWORD, domains, OBJECT_STORAGE_DRIVER=fs, …
 #   docker compose -f deploy/contabo/docker-compose.yml --env-file deploy/contabo/.env up -d --build
-# Migrations (after api + postgres are up):
-#   bash deploy/contabo/migrate.sh status
 #   bash deploy/contabo/migrate.sh
-#
-# TLS: put Caddy/Nginx on the host (see Caddyfile). Compose only binds localhost ports.
 
 name: whats-auto
 
@@ -52,7 +52,7 @@ services:
 
   # --------------------------------------------------------------------
   # api — AdonisJS HTTP (auth, webhooks, REST, inbox SSE, media PUT)
-  # Image CMD: node bin/server.js  →  host :${API_HOST_PORT:-3201}
+  # Listens HOST=0.0.0.0 PORT=3201. Reachable as `api` on serveos-production_public.
   # --------------------------------------------------------------------
   api:
     build:
@@ -76,20 +76,20 @@ services:
       JOB_QUEUE_DRIVER: bullmq
       OBJECT_STORAGE_DRIVER: ${OBJECT_STORAGE_DRIVER:-fs}
       DRIVE_DISK: ${DRIVE_DISK:-fs}
-      MEDIA_LOCAL_ROOT: ${MEDIA_LOCAL_ROOT:-/var/www/whats-auto/media}
+      MEDIA_LOCAL_ROOT: ${MEDIA_LOCAL_ROOT:-/var/www/whats-auto/apps/backend/media}
     volumes:
       - type: bind
-        source: ${MEDIA_HOST_PATH:-/var/www/whats-auto/media}
-        target: ${MEDIA_LOCAL_ROOT:-/var/www/whats-auto/media}
-    ports:
-      - '127.0.0.1:${API_HOST_PORT:-3201}:3201'
+        source: ${MEDIA_HOST_PATH:-/var/www/whats-auto/apps/backend/media}
+        target: ${MEDIA_LOCAL_ROOT:-/var/www/whats-auto/apps/backend/media}
+    expose:
+      - '3201'
     networks:
       - internal
-      - edge
+      - serveos-production_public
 
   # --------------------------------------------------------------------
   # worker — same backend image, BullMQ consumer (needs same media disk)
-  # Override CMD: node bin/worker.js  (no public ports)
+  # No HTTP. Not on the Caddy network.
   # --------------------------------------------------------------------
   worker:
     build:
@@ -116,16 +116,17 @@ services:
       JOB_QUEUE_DRIVER: bullmq
       OBJECT_STORAGE_DRIVER: ${OBJECT_STORAGE_DRIVER:-fs}
       DRIVE_DISK: ${DRIVE_DISK:-fs}
-      MEDIA_LOCAL_ROOT: ${MEDIA_LOCAL_ROOT:-/var/www/whats-auto/media}
+      MEDIA_LOCAL_ROOT: ${MEDIA_LOCAL_ROOT:-/var/www/whats-auto/apps/backend/media}
     volumes:
       - type: bind
-        source: ${MEDIA_HOST_PATH:-/var/www/whats-auto/media}
-        target: ${MEDIA_LOCAL_ROOT:-/var/www/whats-auto/media}
+        source: ${MEDIA_HOST_PATH:-/var/www/whats-auto/apps/backend/media}
+        target: ${MEDIA_LOCAL_ROOT:-/var/www/whats-auto/apps/backend/media}
     networks:
       - internal
 
   # --------------------------------------------------------------------
-  # frontend — Next.js standalone (UI). NEXT_PUBLIC_* baked at build time.
+  # frontend — Next.js standalone. NEXT_PUBLIC_* baked at image build.
+  # Listens HOSTNAME=0.0.0.0 PORT=3200. Reachable as `frontend` on serveos-production_public.
   # --------------------------------------------------------------------
   frontend:
     build:
@@ -141,10 +142,10 @@ services:
       NODE_ENV: production
       PORT: 3200
       HOSTNAME: 0.0.0.0
-    ports:
-      - '127.0.0.1:${FRONTEND_HOST_PORT:-3200}:3200'
+    expose:
+      - '3200'
     networks:
-      - edge
+      - serveos-production_public
 
 volumes:
   postgres_data:
@@ -152,4 +153,5 @@ volumes:
 
 networks:
   internal:
-  edge:
+  serveos-production_public:
+    external: true

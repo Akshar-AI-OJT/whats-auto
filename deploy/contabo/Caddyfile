@@ -1,31 +1,38 @@
-# Contabo reverse proxy — cross-origin (app + api).
+# Whats Auto routes only. Imported by ServeOS Caddy — do not run a second Caddy.
 #
-# Install Caddy on the VPS host (not in compose). DNS:
-#   ottobot.codecolonies.com → VPS
-#   api.ottobot.codecolonies.com → VPS
+# Host file: /var/www/whats-auto/deploy/contabo/Caddyfile
+# ServeOS Caddy container (serveos-production-proxy) must bind-mount this file
+# at the SAME path (host paths are not visible inside Docker otherwise).
+# See deploy/contabo/serveos-caddy.snippet
 #
-# Media: host dir /var/www/whats-auto/media is bind-mounted into api+worker
-# and served publicly at https://api.ottobot.codecolonies.com/media/<storageKey>
-# (WhatsApp GETs never hit Node).
+# Reverse-proxy targets are Compose service names on serveos-production_public:
+#   frontend → 3200
+#   api      → 3201
 #
-# Frontend: 127.0.0.1:3200   API: 127.0.0.1:3201
+# Media files are served by this Caddy (file_server), not Node. Mount:
+#   /var/www/whats-auto/apps/backend/media  (read-only) into serveos-production-proxy
 
 ottobot.codecolonies.com {
-	reverse_proxy 127.0.0.1:3200
+	reverse_proxy frontend:3200
 }
 
 api.ottobot.codecolonies.com {
-	# Raise body size for local-disk media PUTs (documents up to 100 MiB)
 	request_body {
 		max_size 110MB
 	}
 
 	handle_path /media/* {
-		root * /var/www/whats-auto/media
+		root * /var/www/whats-auto/apps/backend/media
 		file_server
 	}
 
+	handle /api/v1/inbox/events {
+		reverse_proxy api:3201 {
+			flush_interval -1
+		}
+	}
+
 	handle {
-		reverse_proxy 127.0.0.1:3201
+		reverse_proxy api:3201
 	}
 }

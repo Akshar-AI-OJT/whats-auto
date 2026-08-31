@@ -38,6 +38,10 @@ yarn-error.log
 # Frontend compiled assets
 public/assets
 
+# Uploaded media files (local disk driver)
+/apps/backend/media/*
+!/apps/backend/media/.gitkeep
+
 
 *.md
 todo.md

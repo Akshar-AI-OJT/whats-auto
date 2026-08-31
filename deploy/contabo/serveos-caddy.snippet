@@ -1,0 +1,18 @@
+# =============================================================================
+# One-time changes on the VPS for ServeOS Caddy (serveos-production-proxy).
+# Do NOT replace existing basilvalleycafe.com (or other) site blocks.
+# Do NOT add a second Caddy container or bind 80/443 from Whats Auto.
+# =============================================================================
+#
+# 1) Extra read-only volumes on serveos-production-proxy
+#    (add alongside the existing Caddyfile mount; then recreate the proxy
+#    container once so the new mounts exist — reload is not enough for new volumes)
+#
+#    /var/www/whats-auto/deploy/contabo/Caddyfile:/var/www/whats-auto/deploy/contabo/Caddyfile:ro
+#    /var/www/whats-auto/apps/backend/media:/var/www/whats-auto/apps/backend/media:ro
+#
+# 2) Append this single line to the END of:
+#      /var/www/serveos/docker/production/Caddyfile
+#    (that file is already mounted as /etc/caddy/Caddyfile inside the container)
+
+import /var/www/whats-auto/deploy/contabo/Caddyfile
