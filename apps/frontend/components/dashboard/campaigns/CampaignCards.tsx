@@ -7,6 +7,12 @@ import type { Campaign } from '@/lib/api'
 import { CampaignStatusBadge } from './CampaignStatusBadge'
 import { formatCampaignDate, ratePercent } from './campaign-utils'
 
+export {
+  CampaignCancelDialog,
+  CampaignDeleteDialog,
+  CampaignPreviewDialog,
+} from './CampaignDialogs'
+
 type CampaignActionsMenuProps = {
   campaign: Campaign
   canEdit: boolean

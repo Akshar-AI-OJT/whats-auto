@@ -18,8 +18,8 @@ import {
   filterCampaignsByDateRange,
   unwrapCampaign,
   unwrapCampaignList,
+  unwrapTemplateItems,
 } from './campaign-utils'
-import { unwrapTemplateList } from '@/components/dashboard/templates/template-utils'
 import { queryKeys } from '@/lib/query-keys'
 
 export function CampaignsListPage() {
@@ -76,7 +76,7 @@ export function CampaignsListPage() {
     enabled: Boolean(tenantOrganizationId) && canViewCampaigns && !orgsLoading,
     queryFn: async () => {
       const { data } = await api.whatsapp.listTemplates({ perPage: 100 })
-      return unwrapTemplateList(data).items
+      return unwrapTemplateItems(data)
     },
   })
 

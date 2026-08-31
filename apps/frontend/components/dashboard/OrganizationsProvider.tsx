@@ -51,6 +51,12 @@ type OrganizationsContextValue = {
   canViewWhatsapp: boolean
   canConnectWhatsapp: boolean
   canManageWhatsapp: boolean
+  canViewCampaigns: boolean
+  canCreateCampaigns: boolean
+  canEditCampaigns: boolean
+  canDeleteCampaigns: boolean
+  canLaunchCampaigns: boolean
+  canPauseCampaigns: boolean
   isLoading: boolean
   error: string | null
   refresh: () => Promise<{
@@ -330,6 +336,12 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
     canViewWhatsapp: hasPermission(permissions, PERMISSIONS.WHATSAPP_VIEW),
     canConnectWhatsapp: hasPermission(permissions, PERMISSIONS.WHATSAPP_CONNECT),
     canManageWhatsapp: hasPermission(permissions, PERMISSIONS.WHATSAPP_MANAGE),
+    canViewCampaigns: hasPermission(permissions, PERMISSIONS.CAMPAIGNS_VIEW),
+    canCreateCampaigns: hasPermission(permissions, PERMISSIONS.CAMPAIGNS_CREATE),
+    canEditCampaigns: hasPermission(permissions, PERMISSIONS.CAMPAIGNS_EDIT),
+    canDeleteCampaigns: hasPermission(permissions, PERMISSIONS.CAMPAIGNS_DELETE),
+    canLaunchCampaigns: hasPermission(permissions, PERMISSIONS.CAMPAIGNS_LAUNCH),
+    canPauseCampaigns: hasPermission(permissions, PERMISSIONS.CAMPAIGNS_PAUSE),
     // Do not treat workspace switch / access refetch as full-shell loading.
     isLoading: sessionPending || orgsQuery.isLoading || liveBootstrapping,
     error: liveSwitchError ?? listError,

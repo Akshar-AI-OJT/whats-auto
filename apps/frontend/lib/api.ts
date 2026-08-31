@@ -546,6 +546,58 @@ export type TestWhatsappConfigResult = {
   messageId?: string | null
 }
 
+export type WhatsappTemplateCategory = 'MARKETING' | 'UTILITY' | 'AUTHENTICATION'
+export type WhatsappTemplateHeaderType = 'NONE' | 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT'
+
+export type WhatsappTemplateButton = {
+  type?: string
+  text?: string
+  url?: string
+  phone_number?: string
+}
+
+export type WhatsappMessageTemplate = {
+  id: string
+  organizationId?: string
+  whatsappConfigId?: string | null
+  name: string
+  category: WhatsappTemplateCategory | string
+  language: string | null
+  status: string
+  headerType?: string | null
+  headerContent?: string | null
+  headerMediaUrl?: string | null
+  bodyText: string
+  footerText?: string | null
+  buttons?: WhatsappTemplateButton[] | null
+  sampleValues?: Record<string, string> | null
+  rejectionReason?: string | null
+  submissionError?: string | null
+  lastSubmittedAt?: string | null
+  createdAt?: string
+  updatedAt?: string | null
+}
+
+export type ListWhatsappTemplatesParams = {
+  page?: number
+  perPage?: number
+  status?: string
+  category?: string
+  search?: string
+}
+
+export type CreateWhatsappTemplateBody = {
+  name: string
+  category: WhatsappTemplateCategory | string
+  language: string
+  headerType?: WhatsappTemplateHeaderType | string
+  headerContent?: string
+  bodyText: string
+  footerText?: string
+  buttons?: WhatsappTemplateButton[]
+  sampleValues?: Record<string, string>
+}
+
 export type CreateInvitationBody = {
   email: string
   role: string
@@ -1152,6 +1204,46 @@ export const api = {
           method: 'POST',
           body: JSON.stringify(body),
         }
+      ),
+
+    listTemplates: (params: ListWhatsappTemplatesParams = {}) => {
+      const qs = new URLSearchParams()
+      if (params.page != null) qs.set('page', String(params.page))
+      if (params.perPage != null) qs.set('perPage', String(params.perPage))
+      if (params.status) qs.set('status', params.status)
+      if (params.category) qs.set('category', params.category)
+      if (params.search?.trim()) qs.set('search', params.search.trim())
+      const query = qs.toString()
+      return protectedRequest<
+        Paginated<WhatsappMessageTemplate> | { data?: WhatsappMessageTemplate[]; meta?: PaginationMeta }
+      >(`/api/v1/whatsapp/templates${query ? `?${query}` : ''}`, { method: 'GET' })
+    },
+
+    getTemplate: (templateId: string) =>
+      protectedRequest<{ data?: WhatsappMessageTemplate } & WhatsappMessageTemplate>(
+        `/api/v1/whatsapp/templates/${templateId}`,
+        { method: 'GET' }
+      ),
+
+    createTemplate: (body: CreateWhatsappTemplateBody) =>
+      protectedRequest<{ data?: WhatsappMessageTemplate } & WhatsappMessageTemplate>(
+        '/api/v1/whatsapp/templates',
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    syncTemplates: () =>
+      protectedRequest<{ data?: { syncedCount?: number } } & { syncedCount?: number }>(
+        '/api/v1/whatsapp/templates/sync',
+        { method: 'POST' }
+      ),
+
+    deleteTemplate: (templateId: string) =>
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/whatsapp/templates/${templateId}`,
+        { method: 'DELETE' }
       ),
   },
 

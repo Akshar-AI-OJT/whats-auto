@@ -18,8 +18,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { queryKeys } from '@/lib/query-keys'
-import { CAMPAIGN_RECIPIENT_MAX, unwrapCampaign, isEditableCampaignStatus } from './campaign-utils'
-import { unwrapTemplateList } from '@/components/dashboard/templates/template-utils'
+import { CAMPAIGN_RECIPIENT_MAX, unwrapCampaign, unwrapTemplateItems, isEditableCampaignStatus } from './campaign-utils'
 import {
   listCustomerGroupContacts,
   listCustomerGroups,
@@ -127,7 +126,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
         perPage: 100,
         status: 'approved',
       })
-      return unwrapTemplateList(data).items
+      return unwrapTemplateItems(data)
     },
   })
 

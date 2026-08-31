@@ -1990,6 +1990,83 @@
       }
     },
     "campaigns": {
+      "loading": "Loading campaign…",
+      "backToList": "Back to campaigns",
+      "noTemplate": "No template",
+      "type": {
+        "broadcast": "Broadcast"
+      },
+      "actions": {
+        "preview": "Preview",
+        "launch": "Launch",
+        "cancel": "Cancel",
+        "edit": "Edit",
+        "duplicate": "Duplicate",
+        "menuAria": "Campaign actions"
+      },
+      "metrics": {
+        "recipients": "Recipients",
+        "sent": "Sent",
+        "delivered": "Delivered",
+        "read": "Read",
+        "failed": "Failed",
+        "pending": "Pending"
+      },
+      "details": {
+        "createdMeta": "Created {date} · Template {template}",
+        "timeline": "Timeline",
+        "performance": "Performance"
+      },
+      "timeline": {
+        "created": "Created",
+        "scheduled": "Scheduled",
+        "processing": "Processing",
+        "completed": "Completed"
+      },
+      "status": {
+        "draft": "Draft",
+        "scheduled": "Scheduled",
+        "processing": "Processing",
+        "completed": "Completed",
+        "failed": "Failed"
+      },
+      "delete": {
+        "title": "Delete this campaign?",
+        "body": "“{name}” will be permanently deleted.",
+        "cancel": "Keep campaign",
+        "confirm": "Delete campaign",
+        "deleting": "Deleting…"
+      },
+      "cancelDialog": {
+        "title": "Cancel this campaign?",
+        "body": "“{name}” will stop sending. This cannot be undone.",
+        "dismiss": "Keep running",
+        "confirm": "Cancel campaign",
+        "cancelling": "Cancelling…"
+      },
+      "previewDialog": {
+        "title": "Message preview",
+        "body": "Preview for “{name}”.",
+        "bodyFallback": "Preview of the campaign message.",
+        "loading": "Loading preview…",
+        "dismiss": "Close"
+      },
+      "pauseComingSoon": {
+        "title": "Pause coming soon",
+        "body": "Campaign pause is not available yet. You can cancel a scheduled or sending campaign instead.",
+        "dismiss": "Got it"
+      },
+      "errors": {
+        "permissionDenied": "You do not have permission to view campaigns in this workspace.",
+        "loadFailed": "Couldn’t load this campaign. Please try again.",
+        "deleteFailed": "Couldn’t delete this campaign. Please try again.",
+        "cancelFailed": "Couldn’t cancel this campaign. Please try again.",
+        "launchFailed": "Couldn’t launch this campaign. Please try again.",
+        "duplicateFailed": "Couldn’t duplicate this campaign. Please try again.",
+        "previewFailed": "Couldn’t load the message preview. Please try again.",
+        "templateNotApproved": "This campaign’s template is not approved yet.",
+        "whatsappNotConnected": "Connect WhatsApp before launching this campaign."
+      },
       "form": {
         "scheduledAt": "Date and time",
         "timezone": "Timezone",

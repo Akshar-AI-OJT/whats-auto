@@ -4,28 +4,29 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { ArrowLeft, Copy, Eye, Loader2, PauseCircle, Pencil, Rocket } from 'lucide-react'
-import { api, type ApiError, type CampaignPreview } from '@/lib/api'
+import { api, type ApiError, type CampaignPreview, type WhatsappMessageTemplate } from '@/lib/api'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { Link, useRouter } from '@/i18n/navigation'
 import { Button } from '@/components/ui/button'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
-import { CampaignActionsMenu } from './CampaignCards'
 import {
+  CampaignActionsMenu,
   CampaignCancelDialog,
   CampaignDeleteDialog,
   CampaignPreviewDialog,
-} from './CampaignDialogs'
+} from './CampaignCards'
 import { CampaignStatusBadge } from './CampaignStatusBadge'
-import { queryKeys } from '@/lib/query-keys'
 import {
+  campaignQueryKeys,
   formatCampaignDate,
   isCancellableCampaignStatus,
   isEditableCampaignStatus,
   isLaunchableCampaignStatus,
   ratePercent,
   unwrapCampaign,
+  unwrapTemplateItems,
 } from './campaign-utils'
-import { unwrapTemplateList } from '@/components/dashboard/templates/template-utils'
+
 
 type CampaignDetailsPageProps = {
   campaignId: string
@@ -59,7 +60,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
   const [previewError, setPreviewError] = useState<string | null>(null)
 
   const campaignQuery = useQuery({
-    queryKey: queryKeys.campaigns.detail(campaignId),
+    queryKey: campaignQueryKeys.detail(campaignId),
     enabled: Boolean(tenantOrganizationId) && canViewCampaigns && !orgsLoading,
     queryFn: async () => {
       const { data } = await api.campaigns.get(campaignId)
@@ -68,11 +69,11 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
   })
 
   const templatesQuery = useQuery({
-    queryKey: [...queryKeys.campaigns.all, 'detail-templates', tenantOrganizationId],
+    queryKey: [...campaignQueryKeys.all, 'detail-templates', tenantOrganizationId],
     enabled: Boolean(tenantOrganizationId) && canViewCampaigns && !orgsLoading,
     queryFn: async () => {
       const { data } = await api.whatsapp.listTemplates({ perPage: 100 })
-      return unwrapTemplateList(data).items
+      return unwrapTemplateItems(data)
     },
   })
 
@@ -81,7 +82,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
       await api.campaigns.delete(campaignId)
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.all })
+      await queryClient.invalidateQueries({ queryKey: campaignQueryKeys.all })
       router.push('/dashboard/campaigns')
     },
     onError: (err) => {
@@ -97,7 +98,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
     onSuccess: async () => {
       setCancelOpen(false)
       setCancelError(null)
-      await queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.all })
+      await queryClient.invalidateQueries({ queryKey: campaignQueryKeys.all })
     },
     onError: (err) => {
       setCancelError((err as unknown as ApiError).message || t('errors.cancelFailed'))
@@ -111,7 +112,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
     },
     onSuccess: async () => {
       setActionError(null)
-      await queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.all })
+      await queryClient.invalidateQueries({ queryKey: campaignQueryKeys.all })
     },
     onError: (err) => {
       const apiErr = err as unknown as ApiError
@@ -133,7 +134,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
       return unwrapCampaign(data)
     },
     onSuccess: async (campaign) => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.all })
+      await queryClient.invalidateQueries({ queryKey: campaignQueryKeys.all })
       if (campaign?.id) {
         router.push(`/dashboard/campaigns/${campaign.id}/edit`)
       }
@@ -165,7 +166,10 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
   const campaign = campaignQuery.data
   const linkedTemplate = useMemo(() => {
     if (!campaign?.messageTemplateId || !templatesQuery.data) return null
-    return templatesQuery.data.find((item) => item.id === campaign.messageTemplateId) ?? null
+    return (
+      templatesQuery.data.find((item: WhatsappMessageTemplate) => item.id === campaign.messageTemplateId) ??
+      null
+    )
   }, [campaign, templatesQuery.data])
 
   const templateName = useMemo(() => {
@@ -447,7 +451,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
         campaign={campaign}
         pending={deleteMutation.isPending}
         error={deleteError}
-        onOpenChange={(open) => {
+        onOpenChange={(open: boolean) => {
           if (!open && !deleteMutation.isPending) setDeleteOpen(false)
         }}
         onConfirm={() => deleteMutation.mutate()}
@@ -457,7 +461,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
         campaign={campaign}
         pending={cancelMutation.isPending}
         error={cancelError}
-        onOpenChange={(open) => {
+        onOpenChange={(open: boolean) => {
           if (!open && !cancelMutation.isPending) setCancelOpen(false)
         }}
         onConfirm={() => cancelMutation.mutate()}
