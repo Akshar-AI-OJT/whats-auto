@@ -1,5 +1,6 @@
 import env from '#start/env'
 import { defineConfig, transports } from '@adonisjs/mail'
+import { normalizeMailSecret } from '#lib/mail/normalize_mail_secret'
 
 const mailer = env.get('MAIL_MAILER')
 
@@ -37,11 +38,11 @@ const mailConfig = defineConfig({
       auth: {
         type: 'login',
         user: env.get('SMTP_USERNAME', ''),
-        pass: env.get('SMTP_PASSWORD')?.release() ?? '',
+        pass: normalizeMailSecret(env.get('SMTP_PASSWORD')?.release()) ?? '',
       },
     }),
     brevo: transports.brevo({
-      key: env.get('BREVO_API')?.release() ?? '',
+      key: normalizeMailSecret(env.get('BREVO_API')?.release()) ?? '',
       baseUrl: 'https://api.brevo.com/v3',
     }),
   },
