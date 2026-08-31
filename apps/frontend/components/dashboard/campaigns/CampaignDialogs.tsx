@@ -119,6 +119,7 @@ export function CampaignCancelDialog({
             </Button>
             <Button
               type="button"
+              variant="destructive"
               disabled={pending || !campaign}
               className="gap-2"
               onClick={onConfirm}
@@ -163,7 +164,7 @@ export function CampaignPreviewDialog({
         </DialogHeader>
         <div className="space-y-4 px-5 py-4 sm:px-6">
           {pending ? (
-            <p className="flex items-center gap-2 text-sm text-body">
+            <p className="inline-flex items-center gap-2 text-sm text-body">
               <Loader2 className="size-4 animate-spin" aria-hidden />
               {t('loading')}
             </p>
@@ -174,8 +175,19 @@ export function CampaignPreviewDialog({
             </p>
           ) : null}
           {!pending && !error && preview ? (
-            <div className="rounded-xl border border-dash-border bg-dash-surface/60 px-4 py-3 text-sm leading-6 text-ink whitespace-pre-wrap">
-              {preview.bodyPreview}
+            <div className="rounded-2xl border border-dash-border bg-dash-surface/40 p-4 text-sm">
+              {preview.templateName ? (
+                <p className="text-xs font-semibold tracking-wide text-mute uppercase">
+                  {preview.templateName}
+                </p>
+              ) : null}
+              {preview.headerPreview ? (
+                <p className="mt-2 font-semibold text-ink">{preview.headerPreview}</p>
+              ) : null}
+              <p className="mt-2 whitespace-pre-wrap text-ink">{preview.bodyPreview}</p>
+              {preview.footerPreview ? (
+                <p className="mt-2 text-xs text-mute">{preview.footerPreview}</p>
+              ) : null}
             </div>
           ) : null}
           <DialogFooter className="border-0 bg-transparent p-0 sm:justify-end">
