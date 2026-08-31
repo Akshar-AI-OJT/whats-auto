@@ -38,12 +38,16 @@ yarn-error.log
 # Frontend compiled assets
 public/assets
 
+# Uploaded media files (local disk driver)
+/apps/backend/media/*
+!/apps/backend/media/.gitkeep
+
 
 *.md
+!deploy/contabo/*.md
 todo.md
 *.sql
 !whatsapp_schema.sql
-!deploy/contabo/initdb/*.sh
 !deploy/contabo/*.sh
 .agents/
 skills-lock.json

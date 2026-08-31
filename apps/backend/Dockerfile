@@ -33,7 +33,7 @@ RUN pnpm install --frozen-lockfile
 
 COPY --from=pruner /app/out/full/ .
 RUN pnpm turbo run build --filter=backend
-RUN pnpm --filter=backend deploy --prod /prod/backend
+RUN pnpm --filter=backend deploy --prod --legacy /prod/backend
 
 ##################################################
 # 4. Minimal runtime image
