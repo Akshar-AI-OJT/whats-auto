@@ -1633,7 +1633,6 @@ export type SuperAdminPlanLimits = {
   analyticsRetentionDays?: number | null
   auditLogRetentionDays?: number | null
   maxTemplates?: number | null
-  maxCampaignRecipientListSize?: number | null
   conversationInboxRetentionDays?: number | null
   aiGenerationsPerConversationHour?: number
   dispatchRatePerSec?: number

@@ -81,7 +81,6 @@ function buildLimits(input: CreateSuperAdminPlanInput['limits'] | undefined): Pe
     analyticsRetentionDays: input?.analyticsRetentionDays ?? null,
     auditLogRetentionDays: input?.auditLogRetentionDays ?? null,
     maxTemplates: input?.maxTemplates ?? null,
-    maxCampaignRecipientListSize: input?.maxCampaignRecipientListSize ?? null,
     conversationInboxRetentionDays: input?.conversationInboxRetentionDays ?? null,
     aiGenerationsPerConversationHour:
       input?.aiGenerationsPerConversationHour ??

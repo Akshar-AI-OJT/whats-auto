@@ -18,6 +18,7 @@ import {
   formatTenantPlanPrice,
   isFreeActivatablePlan,
   isPlanSelfServe,
+  PLAN_FEATURE_I18N_NS,
   resolvePlanFeatureLabel,
   unwrapBillingPlans,
 } from '@/components/dashboard/billing/billing-utils'
@@ -230,7 +231,9 @@ export function SubscriptionPlanSelectionStep({
                           <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-primary-pale text-primary">
                             <Check className="size-3 stroke-[2.5]" aria-hidden />
                           </span>
-                          <span>{resolvePlanFeatureLabel(tFeatures, f.key, f.name)}</span>
+                          <span>
+                            {resolvePlanFeatureLabel(tFeatures, f.key, f.name, PLAN_FEATURE_I18N_NS)}
+                          </span>
                         </li>
                       ))}
                     </ul>
@@ -282,7 +285,14 @@ export function SubscriptionPlanSelectionStep({
                 {sharedFeatures.map((feature) => (
                   <li key={feature.key} className="inline-flex items-center gap-1.5 text-sm text-body">
                     <Check className="size-3.5 shrink-0 text-primary" aria-hidden />
-                    <span>{resolvePlanFeatureLabel(tFeatures, feature.key, feature.name)}</span>
+                    <span>
+                      {resolvePlanFeatureLabel(
+                        tFeatures,
+                        feature.key,
+                        feature.name,
+                        PLAN_FEATURE_I18N_NS
+                      )}
+                    </span>
                   </li>
                 ))}
               </ul>

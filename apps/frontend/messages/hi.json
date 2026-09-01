@@ -4558,24 +4558,17 @@
         "team": "टीम और संगठन",
         "integrations": "इंटीग्रेशन"
       },
-      "featureItems": {
-        "whatsappMessaging": "WhatsApp मैसेजिंग",
-        "bulkMessaging": "बल्क मैसेजिंग",
-        "scheduledMessages": "शेड्यूल्ड संदेश",
-        "messageTemplates": "संदेश टेम्पलेट्स",
-        "automationWorkflows": "ऑटोमेशन वर्कफ़्लो",
-        "campaigns": "कैंपेन",
+      "features": {
+        "wabaConnection": "Meta और WABA कनेक्ट करें",
+        "contactCsvImportExport": "CSV संपर्क आयात और निर्यात",
+        "customTemplates": "कस्टम WhatsApp टेम्पलेट",
+        "scheduledCampaigns": "शेड्यूल्ड ब्रॉडकास्ट कैंपेन",
         "flowBuilder": "फ़्लो बिल्डर",
-        "formBuilder": "फ़ॉर्म बिल्डर",
-        "aiAssistant": "AI असिस्टेंट",
-        "aiAutomation": "AI-संचालित ऑटोमेशन",
-        "aiVoiceCalling": "AI वॉइस कॉलिंग",
-        "multipleUsers": "एकाधिक उपयोगकर्ता",
-        "rolesPermissions": "भूमिकाएँ और अनुमतियाँ",
-        "whatsappAccounts": "WhatsApp अकाउंट",
-        "thirdPartyIntegrations": "थर्ड-पार्टी इंटीग्रेशन",
+        "flowAdvancedNodes": "एडवांस्ड फ़्लो नोड्स",
+        "aiAutonomous": "AI स्वचालित उत्तर",
+        "eCommerceIntegrations": "ई-कॉमर्स स्टोर इंटीग्रेशन",
         "apiAccess": "API एक्सेस",
-        "multipleOrganizations": "एकाधिक संगठन"
+        "customRoles": "कस्टम भूमिकाएँ और अनुमतियाँ"
       },
       "view": {
         "overview": "ओवरव्यू"
@@ -4741,19 +4734,16 @@
         }
       },
       "features": {
-        "inbox": "साझा टीम इनबॉक्स",
-        "basicCampaigns": "बेसिक ब्रॉडकास्ट कैंपेन",
-        "campaigns": "एडवांस्ड कैंपेन और सेगमेंट",
-        "templates": "संदेश टेम्पलेट्स",
-        "emailSupport": "ईमेल सपोर्ट",
-        "automation": "वर्कफ़्लो ऑटोमेशन",
-        "analytics": "एनालिटिक्स डैशबोर्ड",
-        "prioritySupport": "प्राथमिकता सपोर्ट",
-        "webhooks": "वेबहुक और API एक्सेस",
-        "roles": "एडवांस्ड भूमिकाएँ और अनुमतियाँ",
-        "sso": "SSO / SAML",
-        "dedicatedSupport": "समर्पित सक्सेस मैनेजर",
-        "sla": "कस्टम SLA"
+        "wabaConnection": "Meta और WABA कनेक्ट करें",
+        "contactCsvImportExport": "CSV संपर्क आयात और निर्यात",
+        "customTemplates": "कस्टम WhatsApp टेम्पलेट",
+        "scheduledCampaigns": "शेड्यूल्ड ब्रॉडकास्ट कैंपेन",
+        "flowBuilder": "फ़्लो बिल्डर",
+        "flowAdvancedNodes": "एडवांस्ड फ़्लो नोड्स",
+        "aiAutonomous": "AI स्वचालित उत्तर",
+        "eCommerceIntegrations": "ई-कॉमर्स स्टोर इंटीग्रेशन",
+        "apiAccess": "API एक्सेस",
+        "customRoles": "कस्टम भूमिकाएँ और अनुमतियाँ"
       }
     },
     "invoices": {

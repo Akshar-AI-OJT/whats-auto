@@ -108,11 +108,6 @@ export class CampaignExecutionService {
           'maxBroadcastRecipients',
           recipientCount
         )
-        await enforcement.requireUnderLimit(
-          params.organizationId,
-          'maxCampaignRecipientListSize',
-          recipientCount
-        )
       }
 
       await enforcement.requireMeter(params.organizationId, 'campaigns', 'campaignsPerMonth')
