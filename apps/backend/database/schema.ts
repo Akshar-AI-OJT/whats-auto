@@ -8,7 +8,21 @@ import { BaseModel, column } from '@adonisjs/lucid/orm'
 import { DateTime } from 'luxon'
 
 export class AccountSchema extends BaseModel {
-  static $columns = ['accessToken', 'accessTokenExpiresAt', 'accountId', 'createdAt', 'id', 'idToken', 'password', 'providerId', 'refreshToken', 'refreshTokenExpiresAt', 'scope', 'updatedAt', 'userId'] as const
+  static $columns = [
+    'accessToken',
+    'accessTokenExpiresAt',
+    'accountId',
+    'createdAt',
+    'id',
+    'idToken',
+    'password',
+    'providerId',
+    'refreshToken',
+    'refreshTokenExpiresAt',
+    'scope',
+    'updatedAt',
+    'userId',
+  ] as const
   $columns = AccountSchema.$columns
   @column()
   declare accessToken: string | null
@@ -39,7 +53,19 @@ export class AccountSchema extends BaseModel {
 }
 
 export class AiKnowledgeChunkSchema extends BaseModel {
-  static $columns = ['chunkIndex', 'content', 'contentHash', 'createdAt', 'documentId', 'embedding', 'embeddingSpaceId', 'id', 'metadata', 'organizationId', 'updatedAt'] as const
+  static $columns = [
+    'chunkIndex',
+    'content',
+    'contentHash',
+    'createdAt',
+    'documentId',
+    'embedding',
+    'embeddingSpaceId',
+    'id',
+    'metadata',
+    'organizationId',
+    'updatedAt',
+  ] as const
   $columns = AiKnowledgeChunkSchema.$columns
   @column()
   declare chunkIndex: number
@@ -66,7 +92,21 @@ export class AiKnowledgeChunkSchema extends BaseModel {
 }
 
 export class AiKnowledgeDocumentSchema extends BaseModel {
-  static $columns = ['chunkCount', 'createdAt', 'deletedAt', 'documentHash', 'embeddingModel', 'errorMessage', 'id', 'mediaAssetId', 'organizationId', 'sourceType', 'status', 'title', 'updatedAt'] as const
+  static $columns = [
+    'chunkCount',
+    'createdAt',
+    'deletedAt',
+    'documentHash',
+    'embeddingModel',
+    'errorMessage',
+    'id',
+    'mediaAssetId',
+    'organizationId',
+    'sourceType',
+    'status',
+    'title',
+    'updatedAt',
+  ] as const
   $columns = AiKnowledgeDocumentSchema.$columns
   @column()
   declare chunkCount: number
@@ -97,7 +137,23 @@ export class AiKnowledgeDocumentSchema extends BaseModel {
 }
 
 export class AiUsageLogSchema extends BaseModel {
-  static $columns = ['completionTokens', 'conversationId', 'createdAt', 'decision', 'estimatedCostUsd', 'id', 'latencyMs', 'messageId', 'modelName', 'operationType', 'organizationId', 'promptTokens', 'provider', 'retrievalScore', 'totalTokens'] as const
+  static $columns = [
+    'completionTokens',
+    'conversationId',
+    'createdAt',
+    'decision',
+    'estimatedCostUsd',
+    'id',
+    'latencyMs',
+    'messageId',
+    'modelName',
+    'operationType',
+    'organizationId',
+    'promptTokens',
+    'provider',
+    'retrievalScore',
+    'totalTokens',
+  ] as const
   $columns = AiUsageLogSchema.$columns
   @column()
   declare completionTokens: number
@@ -132,7 +188,20 @@ export class AiUsageLogSchema extends BaseModel {
 }
 
 export class ApiKeySchema extends BaseModel {
-  static $columns = ['createdAt', 'createdByUserId', 'expiresAt', 'id', 'keyHash', 'keyPrefix', 'lastUsedAt', 'name', 'organizationId', 'revokedAt', 'scopes', 'updatedAt'] as const
+  static $columns = [
+    'createdAt',
+    'createdByUserId',
+    'expiresAt',
+    'id',
+    'keyHash',
+    'keyPrefix',
+    'lastUsedAt',
+    'name',
+    'organizationId',
+    'revokedAt',
+    'scopes',
+    'updatedAt',
+  ] as const
   $columns = ApiKeySchema.$columns
   @column.dateTime()
   declare createdAt: DateTime
@@ -161,7 +230,21 @@ export class ApiKeySchema extends BaseModel {
 }
 
 export class AuthorizationAuditSchema extends BaseModel {
-  static $columns = ['actorUserId', 'after', 'before', 'createdAt', 'eventType', 'granted', 'id', 'organizationId', 'permissionId', 'reason', 'roleId', 'targetId', 'targetType'] as const
+  static $columns = [
+    'actorUserId',
+    'after',
+    'before',
+    'createdAt',
+    'eventType',
+    'granted',
+    'id',
+    'organizationId',
+    'permissionId',
+    'reason',
+    'roleId',
+    'targetId',
+    'targetType',
+  ] as const
   $columns = AuthorizationAuditSchema.$columns
   @column()
   declare actorUserId: string | null
@@ -192,7 +275,33 @@ export class AuthorizationAuditSchema extends BaseModel {
 }
 
 export class BillingOrderSchema extends BaseModel {
-  static $columns = ['amount', 'appliedAt', 'createdAt', 'currency', 'expiresAt', 'failureReason', 'gateway', 'gatewayOrderId', 'id', 'invoiceId', 'metadata', 'organizationId', 'paymentTransactionId', 'periodEnd', 'periodStart', 'planId', 'planSnapshot', 'purpose', 'receipt', 'status', 'subscriptionId', 'tax', 'taxRate', 'total', 'updatedAt'] as const
+  static $columns = [
+    'amount',
+    'appliedAt',
+    'createdAt',
+    'currency',
+    'expiresAt',
+    'failureReason',
+    'gateway',
+    'gatewayOrderId',
+    'id',
+    'invoiceId',
+    'metadata',
+    'organizationId',
+    'paymentTransactionId',
+    'periodEnd',
+    'periodStart',
+    'planId',
+    'planSnapshot',
+    'purpose',
+    'receipt',
+    'status',
+    'subscriptionId',
+    'tax',
+    'taxRate',
+    'total',
+    'updatedAt',
+  ] as const
   $columns = BillingOrderSchema.$columns
   @column()
   declare amount: string
@@ -247,7 +356,21 @@ export class BillingOrderSchema extends BaseModel {
 }
 
 export class BroadcastRecipientSchema extends BaseModel {
-  static $columns = ['broadcastId', 'contactId', 'createdAt', 'deliveredAt', 'errorMessage', 'id', 'messageId', 'organizationId', 'readAt', 'repliedAt', 'sentAt', 'status', 'variables'] as const
+  static $columns = [
+    'broadcastId',
+    'contactId',
+    'createdAt',
+    'deliveredAt',
+    'errorMessage',
+    'id',
+    'messageId',
+    'organizationId',
+    'readAt',
+    'repliedAt',
+    'sentAt',
+    'status',
+    'variables',
+  ] as const
   $columns = BroadcastRecipientSchema.$columns
   @column()
   declare broadcastId: string
@@ -278,7 +401,29 @@ export class BroadcastRecipientSchema extends BaseModel {
 }
 
 export class BroadcastSchema extends BaseModel {
-  static $columns = ['audienceTagId', 'cancelledAt', 'createdAt', 'createdByUserId', 'deliveredCount', 'failedCount', 'finalizedAt', 'headerMediaAssetId', 'id', 'messageTemplateId', 'name', 'organizationId', 'readCount', 'repliedCount', 'scheduledAt', 'sentCount', 'status', 'totalRecipients', 'updatedAt', 'variableMappings', 'whatsappConfigId'] as const
+  static $columns = [
+    'audienceTagId',
+    'cancelledAt',
+    'createdAt',
+    'createdByUserId',
+    'deliveredCount',
+    'failedCount',
+    'finalizedAt',
+    'headerMediaAssetId',
+    'id',
+    'messageTemplateId',
+    'name',
+    'organizationId',
+    'readCount',
+    'repliedCount',
+    'scheduledAt',
+    'sentCount',
+    'status',
+    'totalRecipients',
+    'updatedAt',
+    'variableMappings',
+    'whatsappConfigId',
+  ] as const
   $columns = BroadcastSchema.$columns
   @column()
   declare audienceTagId: string | null
@@ -325,7 +470,14 @@ export class BroadcastSchema extends BaseModel {
 }
 
 export class ContactConsentEventSchema extends BaseModel {
-  static $columns = ['contactId', 'createdAt', 'eventType', 'id', 'organizationId', 'source'] as const
+  static $columns = [
+    'contactId',
+    'createdAt',
+    'eventType',
+    'id',
+    'organizationId',
+    'source',
+  ] as const
   $columns = ContactConsentEventSchema.$columns
   @column()
   declare contactId: string
@@ -342,7 +494,18 @@ export class ContactConsentEventSchema extends BaseModel {
 }
 
 export class ContactImportRowSchema extends BaseModel {
-  static $columns = ['action', 'contactId', 'createdAt', 'errorMessage', 'id', 'importId', 'organizationId', 'rawData', 'rowNumber', 'status'] as const
+  static $columns = [
+    'action',
+    'contactId',
+    'createdAt',
+    'errorMessage',
+    'id',
+    'importId',
+    'organizationId',
+    'rawData',
+    'rowNumber',
+    'status',
+  ] as const
   $columns = ContactImportRowSchema.$columns
   @column()
   declare action: string | null
@@ -367,7 +530,23 @@ export class ContactImportRowSchema extends BaseModel {
 }
 
 export class ContactImportSchema extends BaseModel {
-  static $columns = ['columnMapping', 'completedAt', 'createdAt', 'createdByUserId', 'defaultCountryCode', 'errorCount', 'fileName', 'id', 'organizationId', 'processedRows', 'status', 'successCount', 'totalRows', 'updatedAt'] as const
+  static $columns = [
+    'columnMapping',
+    'completedAt',
+    'createdAt',
+    'createdByUserId',
+    'csvContent',
+    'defaultCountryCode',
+    'errorCount',
+    'fileName',
+    'id',
+    'organizationId',
+    'processedRows',
+    'status',
+    'successCount',
+    'totalRows',
+    'updatedAt',
+  ] as const
   $columns = ContactImportSchema.$columns
   @column()
   declare columnMapping: any | null
@@ -377,6 +556,8 @@ export class ContactImportSchema extends BaseModel {
   declare createdAt: DateTime
   @column()
   declare createdByUserId: string | null
+  @column()
+  declare csvContent: string | null
   @column()
   declare defaultCountryCode: string | null
   @column()
@@ -413,7 +594,22 @@ export class ContactTagSchema extends BaseModel {
 }
 
 export class ContactSchema extends BaseModel {
-  static $columns = ['company', 'createdAt', 'createdByUserId', 'customFields', 'deletedAt', 'email', 'id', 'marketingOptIn', 'name', 'optedOutAt', 'organizationId', 'phone', 'phoneNormalized', 'updatedAt'] as const
+  static $columns = [
+    'company',
+    'createdAt',
+    'createdByUserId',
+    'customFields',
+    'deletedAt',
+    'email',
+    'id',
+    'marketingOptIn',
+    'name',
+    'optedOutAt',
+    'organizationId',
+    'phone',
+    'phoneNormalized',
+    'updatedAt',
+  ] as const
   $columns = ContactSchema.$columns
   @column()
   declare company: string | null
@@ -446,7 +642,15 @@ export class ContactSchema extends BaseModel {
 }
 
 export class ConversationAssignmentSchema extends BaseModel {
-  static $columns = ['agentUserId', 'assignedByUserId', 'conversationId', 'createdAt', 'id', 'organizationId', 'reason'] as const
+  static $columns = [
+    'agentUserId',
+    'assignedByUserId',
+    'conversationId',
+    'createdAt',
+    'id',
+    'organizationId',
+    'reason',
+  ] as const
   $columns = ConversationAssignmentSchema.$columns
   @column()
   declare agentUserId: string | null
@@ -465,7 +669,15 @@ export class ConversationAssignmentSchema extends BaseModel {
 }
 
 export class ConversationNoteSchema extends BaseModel {
-  static $columns = ['authorUserId', 'body', 'conversationId', 'createdAt', 'id', 'organizationId', 'updatedAt'] as const
+  static $columns = [
+    'authorUserId',
+    'body',
+    'conversationId',
+    'createdAt',
+    'id',
+    'organizationId',
+    'updatedAt',
+  ] as const
   $columns = ConversationNoteSchema.$columns
   @column()
   declare authorUserId: string
@@ -484,7 +696,25 @@ export class ConversationNoteSchema extends BaseModel {
 }
 
 export class ConversationSchema extends BaseModel {
-  static $columns = ['aiHandoverReason', 'aiMode', 'aiSummary', 'assignedAgentId', 'attributedCampaignId', 'closedAt', 'contactId', 'createdAt', 'firstResponseAt', 'id', 'lastMessageAt', 'lastMessageText', 'organizationId', 'status', 'unreadCount', 'updatedAt', 'whatsappConfigId'] as const
+  static $columns = [
+    'aiHandoverReason',
+    'aiMode',
+    'aiSummary',
+    'assignedAgentId',
+    'attributedCampaignId',
+    'closedAt',
+    'contactId',
+    'createdAt',
+    'firstResponseAt',
+    'id',
+    'lastMessageAt',
+    'lastMessageText',
+    'organizationId',
+    'status',
+    'unreadCount',
+    'updatedAt',
+    'whatsappConfigId',
+  ] as const
   $columns = ConversationSchema.$columns
   @column()
   declare aiHandoverReason: string | null
@@ -523,7 +753,19 @@ export class ConversationSchema extends BaseModel {
 }
 
 export class FlowExecutionLogSchema extends BaseModel {
-  static $columns = ['actionTaken', 'conversationId', 'createdAt', 'errorMessage', 'flowSessionId', 'id', 'inputPayload', 'nodeId', 'nodeType', 'organizationId', 'outputPayload'] as const
+  static $columns = [
+    'actionTaken',
+    'conversationId',
+    'createdAt',
+    'errorMessage',
+    'flowSessionId',
+    'id',
+    'inputPayload',
+    'nodeId',
+    'nodeType',
+    'organizationId',
+    'outputPayload',
+  ] as const
   $columns = FlowExecutionLogSchema.$columns
   @column()
   declare actionTaken: string
@@ -550,7 +792,22 @@ export class FlowExecutionLogSchema extends BaseModel {
 }
 
 export class FlowSessionSchema extends BaseModel {
-  static $columns = ['callStack', 'contactId', 'conversationId', 'createdAt', 'currentNodeId', 'expiresAt', 'flowId', 'flowVersionId', 'id', 'lastInteractionAt', 'organizationId', 'status', 'updatedAt', 'variables'] as const
+  static $columns = [
+    'callStack',
+    'contactId',
+    'conversationId',
+    'createdAt',
+    'currentNodeId',
+    'expiresAt',
+    'flowId',
+    'flowVersionId',
+    'id',
+    'lastInteractionAt',
+    'organizationId',
+    'status',
+    'updatedAt',
+    'variables',
+  ] as const
   $columns = FlowSessionSchema.$columns
   @column()
   declare callStack: any
@@ -583,7 +840,19 @@ export class FlowSessionSchema extends BaseModel {
 }
 
 export class FlowVersionSchema extends BaseModel {
-  static $columns = ['createdAt', 'createdByUserId', 'edges', 'flowId', 'id', 'nodes', 'organizationId', 'validationErrors', 'validationStatus', 'versionNumber', 'viewport'] as const
+  static $columns = [
+    'createdAt',
+    'createdByUserId',
+    'edges',
+    'flowId',
+    'id',
+    'nodes',
+    'organizationId',
+    'validationErrors',
+    'validationStatus',
+    'versionNumber',
+    'viewport',
+  ] as const
   $columns = FlowVersionSchema.$columns
   @column.dateTime()
   declare createdAt: DateTime
@@ -610,7 +879,21 @@ export class FlowVersionSchema extends BaseModel {
 }
 
 export class FlowSchema extends BaseModel {
-  static $columns = ['createdAt', 'createdByUserId', 'description', 'id', 'isDefault', 'name', 'organizationId', 'publishedVersionId', 'settings', 'status', 'triggerConfig', 'triggerType', 'updatedAt'] as const
+  static $columns = [
+    'createdAt',
+    'createdByUserId',
+    'description',
+    'id',
+    'isDefault',
+    'name',
+    'organizationId',
+    'publishedVersionId',
+    'settings',
+    'status',
+    'triggerConfig',
+    'triggerType',
+    'updatedAt',
+  ] as const
   $columns = FlowSchema.$columns
   @column.dateTime()
   declare createdAt: DateTime
@@ -641,7 +924,21 @@ export class FlowSchema extends BaseModel {
 }
 
 export class IntegrationConnectionSchema extends BaseModel {
-  static $columns = ['config', 'createdAt', 'displayName', 'encryptedSecret', 'externalAccountId', 'id', 'lastErrorCode', 'lastErrorMessage', 'lastSyncAt', 'organizationId', 'provider', 'status', 'updatedAt'] as const
+  static $columns = [
+    'config',
+    'createdAt',
+    'displayName',
+    'encryptedSecret',
+    'externalAccountId',
+    'id',
+    'lastErrorCode',
+    'lastErrorMessage',
+    'lastSyncAt',
+    'organizationId',
+    'provider',
+    'status',
+    'updatedAt',
+  ] as const
   $columns = IntegrationConnectionSchema.$columns
   @column()
   declare config: any
@@ -672,7 +969,19 @@ export class IntegrationConnectionSchema extends BaseModel {
 }
 
 export class IntegrationEventSchema extends BaseModel {
-  static $columns = ['connectionId', 'errorCode', 'eventType', 'externalEventId', 'id', 'organizationId', 'payload', 'processedAt', 'provider', 'receivedAt', 'status'] as const
+  static $columns = [
+    'connectionId',
+    'errorCode',
+    'eventType',
+    'externalEventId',
+    'id',
+    'organizationId',
+    'payload',
+    'processedAt',
+    'provider',
+    'receivedAt',
+    'status',
+  ] as const
   $columns = IntegrationEventSchema.$columns
   @column()
   declare connectionId: string | null
@@ -699,7 +1008,18 @@ export class IntegrationEventSchema extends BaseModel {
 }
 
 export class InvoiceLineItemSchema extends BaseModel {
-  static $columns = ['amount', 'createdAt', 'description', 'detail', 'id', 'invoiceId', 'organizationId', 'quantity', 'sortOrder', 'unitPrice'] as const
+  static $columns = [
+    'amount',
+    'createdAt',
+    'description',
+    'detail',
+    'id',
+    'invoiceId',
+    'organizationId',
+    'quantity',
+    'sortOrder',
+    'unitPrice',
+  ] as const
   $columns = InvoiceLineItemSchema.$columns
   @column()
   declare amount: string
@@ -724,7 +1044,40 @@ export class InvoiceLineItemSchema extends BaseModel {
 }
 
 export class InvoiceSchema extends BaseModel {
-  static $columns = ['billingPeriod', 'billToAddress', 'billToEmail', 'billToGstin', 'billToName', 'billToPhone', 'cancelledAt', 'createdAt', 'currency', 'discount', 'dueDate', 'id', 'invoiceNumber', 'issueDate', 'metadata', 'notes', 'organizationId', 'paidAt', 'paymentMethod', 'paymentTransactionId', 'periodEnd', 'periodStart', 'planId', 'planName', 'sourceInvoiceId', 'status', 'subscriptionId', 'subtotal', 'tax', 'taxRate', 'total', 'updatedAt'] as const
+  static $columns = [
+    'billingPeriod',
+    'billToAddress',
+    'billToEmail',
+    'billToGstin',
+    'billToName',
+    'billToPhone',
+    'cancelledAt',
+    'createdAt',
+    'currency',
+    'discount',
+    'dueDate',
+    'id',
+    'invoiceNumber',
+    'issueDate',
+    'metadata',
+    'notes',
+    'organizationId',
+    'paidAt',
+    'paymentMethod',
+    'paymentTransactionId',
+    'periodEnd',
+    'periodStart',
+    'planId',
+    'planName',
+    'sourceInvoiceId',
+    'status',
+    'subscriptionId',
+    'subtotal',
+    'tax',
+    'taxRate',
+    'total',
+    'updatedAt',
+  ] as const
   $columns = InvoiceSchema.$columns
   @column()
   declare billingPeriod: string
@@ -793,7 +1146,15 @@ export class InvoiceSchema extends BaseModel {
 }
 
 export class JwkSchema extends BaseModel {
-  static $columns = ['alg', 'createdAt', 'crv', 'expiresAt', 'id', 'privateKey', 'publicKey'] as const
+  static $columns = [
+    'alg',
+    'createdAt',
+    'crv',
+    'expiresAt',
+    'id',
+    'privateKey',
+    'publicKey',
+  ] as const
   $columns = JwkSchema.$columns
   @column()
   declare alg: string | null
@@ -812,7 +1173,16 @@ export class JwkSchema extends BaseModel {
 }
 
 export class MediaAssetReferenceSchema extends BaseModel {
-  static $columns = ['createdAt', 'id', 'mediaAssetId', 'organizationId', 'ownerId', 'ownerType', 'protectedUntil', 'updatedAt'] as const
+  static $columns = [
+    'createdAt',
+    'id',
+    'mediaAssetId',
+    'organizationId',
+    'ownerId',
+    'ownerType',
+    'protectedUntil',
+    'updatedAt',
+  ] as const
   $columns = MediaAssetReferenceSchema.$columns
   @column.dateTime()
   declare createdAt: DateTime
@@ -833,7 +1203,25 @@ export class MediaAssetReferenceSchema extends BaseModel {
 }
 
 export class MediaAssetSchema extends BaseModel {
-  static $columns = ['checksum', 'createdAt', 'deliveryUrl', 'fileName', 'filePath', 'fileSize', 'id', 'mimeType', 'organizationId', 'source', 'state', 'storageDisk', 'storageKey', 'storageObjectId', 'updatedAt', 'uploadedAt', 'uploadedBy'] as const
+  static $columns = [
+    'checksum',
+    'createdAt',
+    'deliveryUrl',
+    'fileName',
+    'filePath',
+    'fileSize',
+    'id',
+    'mimeType',
+    'organizationId',
+    'source',
+    'state',
+    'storageDisk',
+    'storageKey',
+    'storageObjectId',
+    'updatedAt',
+    'uploadedAt',
+    'uploadedBy',
+  ] as const
   $columns = MediaAssetSchema.$columns
   @column()
   declare checksum: string | null
@@ -872,7 +1260,31 @@ export class MediaAssetSchema extends BaseModel {
 }
 
 export class MessageTemplateSchema extends BaseModel {
-  static $columns = ['bodyText', 'buttons', 'category', 'createdAt', 'createdByUserId', 'footerText', 'headerContent', 'headerMediaUrl', 'headerType', 'id', 'language', 'lastSubmittedAt', 'metaTemplateId', 'name', 'organizationId', 'parameterSchema', 'qualityScore', 'rejectionReason', 'sampleValues', 'status', 'submissionError', 'updatedAt', 'whatsappConfigId'] as const
+  static $columns = [
+    'bodyText',
+    'buttons',
+    'category',
+    'createdAt',
+    'createdByUserId',
+    'footerText',
+    'headerContent',
+    'headerMediaUrl',
+    'headerType',
+    'id',
+    'language',
+    'lastSubmittedAt',
+    'metaTemplateId',
+    'name',
+    'organizationId',
+    'parameterSchema',
+    'qualityScore',
+    'rejectionReason',
+    'sampleValues',
+    'status',
+    'submissionError',
+    'updatedAt',
+    'whatsappConfigId',
+  ] as const
   $columns = MessageTemplateSchema.$columns
   @column()
   declare bodyText: string
@@ -923,7 +1335,34 @@ export class MessageTemplateSchema extends BaseModel {
 }
 
 export class MessageSchema extends BaseModel {
-  static $columns = ['clientIdempotencyKey', 'contentText', 'contentType', 'conversationId', 'createdAt', 'deliveredAt', 'errorMessage', 'failedAt', 'id', 'interactivePayload', 'interactiveReplyId', 'mediaAssetId', 'mediaUrl', 'messageTemplateId', 'metadata', 'occurredAt', 'organizationId', 'providerMessageId', 'providerStatusAt', 'readAt', 'replyToMessageId', 'senderId', 'senderType', 'sentAt', 'status', 'updatedAt'] as const
+  static $columns = [
+    'clientIdempotencyKey',
+    'contentText',
+    'contentType',
+    'conversationId',
+    'createdAt',
+    'deliveredAt',
+    'errorMessage',
+    'failedAt',
+    'id',
+    'interactivePayload',
+    'interactiveReplyId',
+    'mediaAssetId',
+    'mediaUrl',
+    'messageTemplateId',
+    'metadata',
+    'occurredAt',
+    'organizationId',
+    'providerMessageId',
+    'providerStatusAt',
+    'readAt',
+    'replyToMessageId',
+    'senderId',
+    'senderType',
+    'sentAt',
+    'status',
+    'updatedAt',
+  ] as const
   $columns = MessageSchema.$columns
   @column()
   declare clientIdempotencyKey: string | null
@@ -980,7 +1419,19 @@ export class MessageSchema extends BaseModel {
 }
 
 export class NotificationSchema extends BaseModel {
-  static $columns = ['actorUserId', 'body', 'contactId', 'conversationId', 'createdAt', 'id', 'organizationId', 'readAt', 'title', 'type', 'userId'] as const
+  static $columns = [
+    'actorUserId',
+    'body',
+    'contactId',
+    'conversationId',
+    'createdAt',
+    'id',
+    'organizationId',
+    'readAt',
+    'title',
+    'type',
+    'userId',
+  ] as const
   $columns = NotificationSchema.$columns
   @column()
   declare actorUserId: string | null
@@ -1007,7 +1458,18 @@ export class NotificationSchema extends BaseModel {
 }
 
 export class OrganizationInvitationSchema extends BaseModel {
-  static $columns = ['createdAt', 'email', 'expiresAt', 'id', 'inviterId', 'organizationId', 'roleId', 'status'] as const
+  static $columns = [
+    'createdAt',
+    'email',
+    'expiresAt',
+    'id',
+    'inviterId',
+    'organizationId',
+    'roleId',
+    'status',
+    'tokenHash',
+    'userId',
+  ] as const
   $columns = OrganizationInvitationSchema.$columns
   @column.dateTime()
   declare createdAt: DateTime
@@ -1025,10 +1487,24 @@ export class OrganizationInvitationSchema extends BaseModel {
   declare roleId: string
   @column()
   declare status: string
+  @column()
+  declare tokenHash: string | null
+  @column()
+  declare userId: string | null
 }
 
 export class OrganizationMemberSchema extends BaseModel {
-  static $columns = ['createdAt', 'deletedAt', 'designation', 'id', 'isDeleted', 'organizationId', 'permissionVersion', 'roleId', 'userId'] as const
+  static $columns = [
+    'createdAt',
+    'deletedAt',
+    'designation',
+    'id',
+    'isDeleted',
+    'organizationId',
+    'permissionVersion',
+    'roleId',
+    'userId',
+  ] as const
   $columns = OrganizationMemberSchema.$columns
   @column.dateTime()
   declare createdAt: DateTime
@@ -1066,7 +1542,25 @@ export class OrganizationRolePermissionSchema extends BaseModel {
 }
 
 export class OrganizationSmtpConfigSchema extends BaseModel {
-  static $columns = ['apiKeyEncrypted', 'createdAt', 'host', 'id', 'lastErrorMessage', 'lastTestedAt', 'organizationId', 'passwordEncrypted', 'port', 'providerPreset', 'secure', 'senderEmail', 'senderName', 'status', 'transport', 'updatedAt', 'username'] as const
+  static $columns = [
+    'apiKeyEncrypted',
+    'createdAt',
+    'host',
+    'id',
+    'lastErrorMessage',
+    'lastTestedAt',
+    'organizationId',
+    'passwordEncrypted',
+    'port',
+    'providerPreset',
+    'secure',
+    'senderEmail',
+    'senderName',
+    'status',
+    'transport',
+    'updatedAt',
+    'username',
+  ] as const
   $columns = OrganizationSmtpConfigSchema.$columns
   @column()
   declare apiKeyEncrypted: string | null
@@ -1105,7 +1599,30 @@ export class OrganizationSmtpConfigSchema extends BaseModel {
 }
 
 export class OrganizationStorageObjectSchema extends BaseModel {
-  static $columns = ['checksum', 'createdAt', 'deleteAttempts', 'deletedAt', 'id', 'keyVersion', 'lastDeleteError', 'lastDeleteErrorAt', 'mimeType', 'namespace', 'organizationId', 'ownerId', 'ownerType', 'provenance', 'purgeAfter', 'purgedAt', 'retentionPolicy', 'sizeBytes', 'state', 'storageDisk', 'storageKey', 'updatedAt'] as const
+  static $columns = [
+    'checksum',
+    'createdAt',
+    'deleteAttempts',
+    'deletedAt',
+    'id',
+    'keyVersion',
+    'lastDeleteError',
+    'lastDeleteErrorAt',
+    'mimeType',
+    'namespace',
+    'organizationId',
+    'ownerId',
+    'ownerType',
+    'provenance',
+    'purgeAfter',
+    'purgedAt',
+    'retentionPolicy',
+    'sizeBytes',
+    'state',
+    'storageDisk',
+    'storageKey',
+    'updatedAt',
+  ] as const
   $columns = OrganizationStorageObjectSchema.$columns
   @column()
   declare checksum: string | null
@@ -1154,7 +1671,13 @@ export class OrganizationStorageObjectSchema extends BaseModel {
 }
 
 export class OrganizationStorageUsageSchema extends BaseModel {
-  static $columns = ['createdAt', 'organizationId', 'readyBytes', 'reservedBytes', 'updatedAt'] as const
+  static $columns = [
+    'createdAt',
+    'organizationId',
+    'readyBytes',
+    'reservedBytes',
+    'updatedAt',
+  ] as const
   $columns = OrganizationStorageUsageSchema.$columns
   @column.dateTime()
   declare createdAt: DateTime
@@ -1169,7 +1692,29 @@ export class OrganizationStorageUsageSchema extends BaseModel {
 }
 
 export class OrganizationSubscriptionSchema extends BaseModel {
-  static $columns = ['activatedAt', 'cancelAt', 'cancelAtPeriodEnd', 'cancelledAt', 'checkoutUrl', 'createdAt', 'currentPeriodEnd', 'currentPeriodStart', 'endedAt', 'gateway', 'gatewaySubscriptionId', 'graceEndsAt', 'id', 'lastPaymentAt', 'lastPaymentStatus', 'metadata', 'organizationId', 'planId', 'status', 'trialEndsAt', 'updatedAt'] as const
+  static $columns = [
+    'activatedAt',
+    'cancelAt',
+    'cancelAtPeriodEnd',
+    'cancelledAt',
+    'checkoutUrl',
+    'createdAt',
+    'currentPeriodEnd',
+    'currentPeriodStart',
+    'endedAt',
+    'gateway',
+    'gatewaySubscriptionId',
+    'graceEndsAt',
+    'id',
+    'lastPaymentAt',
+    'lastPaymentStatus',
+    'metadata',
+    'organizationId',
+    'planId',
+    'status',
+    'trialEndsAt',
+    'updatedAt',
+  ] as const
   $columns = OrganizationSubscriptionSchema.$columns
   @column.dateTime()
   declare activatedAt: DateTime | null
@@ -1216,7 +1761,33 @@ export class OrganizationSubscriptionSchema extends BaseModel {
 }
 
 export class OrganizationSchema extends BaseModel {
-  static $columns = ['address', 'alternatePhone', 'businessRegistrationNumber', 'businessSize', 'country', 'createdAt', 'currency', 'defaultLanguage', 'deletedAt', 'description', 'email', 'gateway', 'gatewayCustomerId', 'gstin', 'id', 'industry', 'name', 'organizationType', 'pan', 'phone', 'slug', 'status', 'timezone', 'updatedAt', 'website'] as const
+  static $columns = [
+    'address',
+    'alternatePhone',
+    'businessRegistrationNumber',
+    'businessSize',
+    'country',
+    'createdAt',
+    'currency',
+    'defaultLanguage',
+    'deletedAt',
+    'description',
+    'email',
+    'gateway',
+    'gatewayCustomerId',
+    'gstin',
+    'id',
+    'industry',
+    'name',
+    'organizationType',
+    'pan',
+    'phone',
+    'slug',
+    'status',
+    'timezone',
+    'updatedAt',
+    'website',
+  ] as const
   $columns = OrganizationSchema.$columns
   @column()
   declare address: any | null
@@ -1271,7 +1842,24 @@ export class OrganizationSchema extends BaseModel {
 }
 
 export class OutboundDispatchSchema extends BaseModel {
-  static $columns = ['attempts', 'completedAt', 'createdAt', 'errorCode', 'errorMessage', 'id', 'lockedAt', 'lockExpiresAt', 'lockOwner', 'messageId', 'nextAttemptAt', 'organizationId', 'payload', 'status', 'updatedAt', 'whatsappConfigId'] as const
+  static $columns = [
+    'attempts',
+    'completedAt',
+    'createdAt',
+    'errorCode',
+    'errorMessage',
+    'id',
+    'lockedAt',
+    'lockExpiresAt',
+    'lockOwner',
+    'messageId',
+    'nextAttemptAt',
+    'organizationId',
+    'payload',
+    'status',
+    'updatedAt',
+    'whatsappConfigId',
+  ] as const
   $columns = OutboundDispatchSchema.$columns
   @column()
   declare attempts: number
@@ -1308,7 +1896,28 @@ export class OutboundDispatchSchema extends BaseModel {
 }
 
 export class PaymentTransactionSchema extends BaseModel {
-  static $columns = ['amount', 'createdAt', 'currency', 'failureCode', 'failureReason', 'gateway', 'gatewayInvoiceId', 'gatewayOrderId', 'gatewayPaymentId', 'id', 'invoiceUrl', 'metadata', 'organizationId', 'paidAt', 'paymentMethod', 'receiptNumber', 'refundedAmount', 'status', 'subscriptionId', 'updatedAt'] as const
+  static $columns = [
+    'amount',
+    'createdAt',
+    'currency',
+    'failureCode',
+    'failureReason',
+    'gateway',
+    'gatewayInvoiceId',
+    'gatewayOrderId',
+    'gatewayPaymentId',
+    'id',
+    'invoiceUrl',
+    'metadata',
+    'organizationId',
+    'paidAt',
+    'paymentMethod',
+    'receiptNumber',
+    'refundedAmount',
+    'status',
+    'subscriptionId',
+    'updatedAt',
+  ] as const
   $columns = PaymentTransactionSchema.$columns
   @column()
   declare amount: string
@@ -1353,7 +1962,22 @@ export class PaymentTransactionSchema extends BaseModel {
 }
 
 export class PaymentWebhookEventSchema extends BaseModel {
-  static $columns = ['createdAt', 'eventId', 'eventType', 'id', 'lockedAt', 'lockExpiresAt', 'nextAttemptAt', 'organizationId', 'payload', 'processedAt', 'processingError', 'provider', 'retryCount', 'status'] as const
+  static $columns = [
+    'createdAt',
+    'eventId',
+    'eventType',
+    'id',
+    'lockedAt',
+    'lockExpiresAt',
+    'nextAttemptAt',
+    'organizationId',
+    'payload',
+    'processedAt',
+    'processingError',
+    'provider',
+    'retryCount',
+    'status',
+  ] as const
   $columns = PaymentWebhookEventSchema.$columns
   @column.dateTime()
   declare createdAt: DateTime
@@ -1403,7 +2027,25 @@ export class PermissionSchema extends BaseModel {
 }
 
 export class PlanSchema extends BaseModel {
-  static $columns = ['billingInterval', 'billingIntervalCount', 'code', 'createdAt', 'currency', 'description', 'gateway', 'gatewayPlanId', 'id', 'isActive', 'limits', 'metadata', 'name', 'price', 'sortOrder', 'trialDays', 'updatedAt'] as const
+  static $columns = [
+    'billingInterval',
+    'billingIntervalCount',
+    'code',
+    'createdAt',
+    'currency',
+    'description',
+    'gateway',
+    'gatewayPlanId',
+    'id',
+    'isActive',
+    'limits',
+    'metadata',
+    'name',
+    'price',
+    'sortOrder',
+    'trialDays',
+    'updatedAt',
+  ] as const
   $columns = PlanSchema.$columns
   @column()
   declare billingInterval: string
@@ -1442,7 +2084,34 @@ export class PlanSchema extends BaseModel {
 }
 
 export class PlatformAiConfigSchema extends BaseModel {
-  static $columns = ['activeEmbeddingSpaceId', 'campaignAttributionWindowHours', 'chatModel', 'chatProvider', 'createdAt', 'debounceDelaySeconds', 'embeddingModel', 'embeddingProvider', 'id', 'isEnabled', 'maxOutputTokens', 'minConfidenceScore', 'modelName', 'reindexEmbeddingModel', 'reindexEmbeddingProvider', 'reindexFromSpaceId', 'reindexStatus', 'reindexToSpaceId', 'singletonKey', 'summaryModel', 'summaryTurnThreshold', 'systemPrompt', 'temperature', 'updatedAt', 'updatedByUserId', 'workingSetSize'] as const
+  static $columns = [
+    'activeEmbeddingSpaceId',
+    'campaignAttributionWindowHours',
+    'chatModel',
+    'chatProvider',
+    'createdAt',
+    'debounceDelaySeconds',
+    'embeddingModel',
+    'embeddingProvider',
+    'id',
+    'isEnabled',
+    'maxOutputTokens',
+    'minConfidenceScore',
+    'modelName',
+    'reindexEmbeddingModel',
+    'reindexEmbeddingProvider',
+    'reindexFromSpaceId',
+    'reindexStatus',
+    'reindexToSpaceId',
+    'singletonKey',
+    'summaryModel',
+    'summaryTurnThreshold',
+    'systemPrompt',
+    'temperature',
+    'updatedAt',
+    'updatedByUserId',
+    'workingSetSize',
+  ] as const
   $columns = PlatformAiConfigSchema.$columns
   @column()
   declare activeEmbeddingSpaceId: string
@@ -1523,7 +2192,17 @@ export class RoleSchema extends BaseModel {
 }
 
 export class SessionSchema extends BaseModel {
-  static $columns = ['activeOrganizationId', 'createdAt', 'expiresAt', 'id', 'ipAddress', 'token', 'updatedAt', 'userAgent', 'userId'] as const
+  static $columns = [
+    'activeOrganizationId',
+    'createdAt',
+    'expiresAt',
+    'id',
+    'ipAddress',
+    'token',
+    'updatedAt',
+    'userAgent',
+    'userId',
+  ] as const
   $columns = SessionSchema.$columns
   @column()
   declare activeOrganizationId: string | null
@@ -1546,7 +2225,16 @@ export class SessionSchema extends BaseModel {
 }
 
 export class TagSchema extends BaseModel {
-  static $columns = ['color', 'createdAt', 'createdByUserId', 'description', 'id', 'name', 'organizationId', 'status'] as const
+  static $columns = [
+    'color',
+    'createdAt',
+    'createdByUserId',
+    'description',
+    'id',
+    'name',
+    'organizationId',
+    'status',
+  ] as const
   $columns = TagSchema.$columns
   @column()
   declare color: string | null
@@ -1567,7 +2255,20 @@ export class TagSchema extends BaseModel {
 }
 
 export class UnmatchedProviderReceiptSchema extends BaseModel {
-  static $columns = ['createdAt', 'errorMessage', 'expiresAt', 'id', 'metadata', 'organizationId', 'providerMessageId', 'providerStatusAt', 'receivedAt', 'status', 'updatedAt', 'whatsappConfigId'] as const
+  static $columns = [
+    'createdAt',
+    'errorMessage',
+    'expiresAt',
+    'id',
+    'metadata',
+    'organizationId',
+    'providerMessageId',
+    'providerStatusAt',
+    'receivedAt',
+    'status',
+    'updatedAt',
+    'whatsappConfigId',
+  ] as const
   $columns = UnmatchedProviderReceiptSchema.$columns
   @column.dateTime()
   declare createdAt: DateTime
@@ -1596,7 +2297,16 @@ export class UnmatchedProviderReceiptSchema extends BaseModel {
 }
 
 export class UsageMeterSchema extends BaseModel {
-  static $columns = ['id', 'limitCount', 'metric', 'organizationId', 'periodEnd', 'periodStart', 'updatedAt', 'usedCount'] as const
+  static $columns = [
+    'id',
+    'limitCount',
+    'metric',
+    'organizationId',
+    'periodEnd',
+    'periodStart',
+    'updatedAt',
+    'usedCount',
+  ] as const
   $columns = UsageMeterSchema.$columns
   @column({ isPrimary: true })
   declare id: string
@@ -1632,7 +2342,21 @@ export class UserRoleSchema extends BaseModel {
 }
 
 export class UserSchema extends BaseModel {
-  static $columns = ['createdAt', 'deletedAt', 'email', 'emailVerified', 'firstname', 'id', 'image', 'isActive', 'isDeleted', 'lastname', 'name', 'updatedAt', 'updatedBy'] as const
+  static $columns = [
+    'createdAt',
+    'deletedAt',
+    'email',
+    'emailVerified',
+    'firstname',
+    'id',
+    'image',
+    'isActive',
+    'isDeleted',
+    'lastname',
+    'name',
+    'updatedAt',
+    'updatedBy',
+  ] as const
   $columns = UserSchema.$columns
   @column.dateTime()
   declare createdAt: DateTime
@@ -1680,7 +2404,21 @@ export class VerificationSchema extends BaseModel {
 }
 
 export class WhatsappConfigSchema extends BaseModel {
-  static $columns = ['accessToken', 'connectedAt', 'createdAt', 'createdByUserId', 'id', 'organizationId', 'phoneNumberId', 'registeredAt', 'status', 'subscribedAppsAt', 'updatedAt', 'verifyToken', 'wabaId'] as const
+  static $columns = [
+    'accessToken',
+    'connectedAt',
+    'createdAt',
+    'createdByUserId',
+    'id',
+    'organizationId',
+    'phoneNumberId',
+    'registeredAt',
+    'status',
+    'subscribedAppsAt',
+    'updatedAt',
+    'verifyToken',
+    'wabaId',
+  ] as const
   $columns = WhatsappConfigSchema.$columns
   @column()
   declare accessToken: string

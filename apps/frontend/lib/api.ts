@@ -1019,24 +1019,21 @@ export type ReplaceCampaignRecipientsBody = {
 
 export type CreateInvitationBody = {
   email: string
+  firstname: string
+  lastname?: string
   role: string
+  designation?: string
 }
 
 export type CreatedInvitation = {
-  id: string
+  userId: string
+  invitationId: string
   email: string
-  role?: string
-  status: string
-  expiresAt?: string
-}
-
-export type InvitationPreview = {
-  id: string
-  organizationName: string
   role: string
-  inviterName: string
-  email: string
-  status: string
+  isNewUser: boolean
+  hasExistingPassword: boolean
+  emailSent: boolean
+  needsSetup: boolean
 }
 
 export type OrganizationMember = {
@@ -1045,6 +1042,8 @@ export type OrganizationMember = {
   role: string
   email: string
   name: string
+  emailVerified?: boolean
+  designation?: string | null
   createdAt?: string
 }
 
@@ -1062,6 +1061,7 @@ export type OrganizationAdminUser = {
   firstname?: string | null
   lastname?: string | null
   email: string
+  emailVerified?: boolean
   isActive?: boolean
   memberId: string
   role: string
@@ -1121,32 +1121,12 @@ export type ListAuditParams = {
   organizationId?: string
 }
 
-export type PendingInvitation = {
-  id: string
-  email: string
-  role: string
-  inviterName: string
-  createdAt: string
-  expiresAt: string
-}
-
-/** Row from GET /api/v1/onboarding/state pendingInvitations. */
-export type OnboardingPendingInvitation = {
-  id: string
-  organizationId?: string
-  organizationName: string
-  role: string
-  inviterName: string
-  expiresAt: string
-}
-
 export type OnboardingNextStep =
-  'accept_invitation' | 'create_organization' | 'select_organization' | 'complete_payment' | 'ready'
+  'create_organization' | 'select_organization' | 'complete_payment' | 'ready'
 
 export type OnboardingState = {
   activeOrganizationId: string | null
   organizations: Array<{ id: string; name: string; role?: string }>
-  pendingInvitations: OnboardingPendingInvitation[]
   nextStep: OnboardingNextStep
 }
 
@@ -2658,6 +2638,12 @@ export const api = {
         `/api/v1/members/${memberId}`,
         { method: 'DELETE' }
       ),
+
+    resendInvite: (memberId: string) =>
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/members/${memberId}/resend-invite`,
+        { method: 'POST' }
+      ),
   },
 
   ownership: {
@@ -2743,41 +2729,6 @@ export const api = {
           method: 'POST',
           body: JSON.stringify(body),
         }
-      ),
-
-    list: () =>
-      protectedRequest<{ data?: PendingInvitation[] } | PendingInvitation[]>(
-        '/api/v1/invitations',
-        { method: 'GET' }
-      ),
-
-    /** Public preview — invitation id is the secret. */
-    get: (invitationId: string) =>
-      publicRequest<{ data?: InvitationPreview } & InvitationPreview>(
-        `/api/v1/invitations/${invitationId}`,
-        { method: 'GET' }
-      ),
-
-    accept: (invitationId: string) =>
-      protectedRequest<{ data?: { organizationId: string } } & { organizationId: string }>(
-        `/api/v1/invitations/${invitationId}/accept`,
-        { method: 'POST' }
-      ),
-
-    reject: (invitationId: string) =>
-      publicRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
-        `/api/v1/invitations/${invitationId}/reject`,
-        {
-          method: 'POST',
-          // Local DB can be slow on first hit; keep UI from hanging forever.
-          signal: AbortSignal.timeout(15000),
-        }
-      ),
-
-    cancel: (invitationId: string) =>
-      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
-        `/api/v1/invitations/${invitationId}/cancel`,
-        { method: 'POST' }
       ),
   },
 

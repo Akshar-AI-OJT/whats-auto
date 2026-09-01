@@ -143,13 +143,13 @@ test.group('Phase 1 Policies - InvitationPolicy', () => {
     assert.instanceOf(policy.store(admin, 'org-2'), AuthorizationResponse)
   })
 
-  test('cancel allows team:invite permission', ({ assert }) => {
+  test('resend allows team:invite permission', ({ assert }) => {
     const admin = makePrincipal({
       role: 'admin',
       orgId: 'org-1',
       permissions: ['team:invite'],
     })
-    assert.isTrue(policy.cancel(admin))
+    assert.isTrue(policy.resend(admin))
   })
 })
 

@@ -28,12 +28,7 @@ import {
   authPrimaryButtonClassName,
 } from '@/components/auth/auth-field-styles'
 import { Link, useRouter } from '@/i18n/navigation'
-import {
-  authHandoffHref,
-  invitationIdFromPath,
-  resolvePostAuthPath,
-  savePendingInvitationId,
-} from '@/lib/post-auth-redirect'
+import { authHandoffHref, resolvePostAuthPath } from '@/lib/post-auth-redirect'
 
 const REMEMBER_EMAIL_KEY = 'whats-auto-remember-email'
 
@@ -60,10 +55,16 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
   const searchParams = useSearchParams()
   const callbackPath = safeCallbackPath(searchParams.get('callbackURL'))
   const oauthErrorParam = searchParams.get('error')
+  const isAccountNotFound =
+    oauthErrorParam === 'account_not_found' ||
+    oauthErrorParam === 'sign_up_disabled' ||
+    oauthErrorParam === 'signup_disabled' ||
+    oauthErrorParam === 'user_not_found'
   const oauthFailed =
-    oauthErrorParam === 'oauth_failed' ||
-    oauthErrorParam === 'state_mismatch' ||
-    oauthErrorParam === 'state_security_mismatch'
+    !isAccountNotFound &&
+    (oauthErrorParam === 'oauth_failed' ||
+      oauthErrorParam === 'state_mismatch' ||
+      oauthErrorParam === 'state_security_mismatch')
   const formErrorId = useId()
   const emailId = useId()
   const passwordId = useId()
@@ -79,12 +80,9 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState<'idle' | 'email' | 'google'>('idle')
   const isPending = pending !== 'idle'
-  const displayError = error ?? (oauthFailed ? t('errors.oauthFailed') : null)
-
-  useEffect(() => {
-    const inviteId = invitationIdFromPath(callbackPath)
-    if (inviteId) savePendingInvitationId(inviteId)
-  }, [callbackPath])
+  const displayError =
+    error ??
+    (isAccountNotFound ? t('errors.accountNotFound') : oauthFailed ? t('errors.oauthFailed') : null)
 
   useEffect(() => {
     try {
@@ -136,7 +134,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
     try {
       const redirectPath = callbackPath ?? '/dashboard'
       const callbackURL = buildLocalizedAppUrl(locale, redirectPath)
-      const errorCallbackURL = buildLocalizedAppUrl(locale, '/login?error=oauth_failed')
+      const errorCallbackURL = buildLocalizedAppUrl(locale, '/login')
       const { error: authErr } = await authClient.signIn.social({
         provider: 'google',
         callbackURL,
@@ -146,7 +144,13 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
       // Successful social auth redirects the browser; keep pending if we somehow stay.
     } catch (err) {
       const apiError = err as ApiError
-      if (apiError.code === 'EMAIL_ALREADY_EXISTS') {
+      if (
+        apiError.code === 'ACCOUNT_NOT_FOUND' ||
+        apiError.code === 'SIGN_UP_DISABLED' ||
+        apiError.code === 'SIGNUP_DISABLED'
+      ) {
+        setError(t('errors.accountNotFound'))
+      } else if (apiError.code === 'EMAIL_ALREADY_EXISTS') {
         setError(t('errors.emailExists'))
       } else {
         setError(apiError.message || t('errors.generic'))

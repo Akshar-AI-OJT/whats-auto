@@ -23,10 +23,7 @@ import {
   ORG_SETUP_PATH,
 } from '@/lib/onboarding'
 import {
-  acceptInvitationPath,
-  isAcceptInvitationPath,
   normalizeAppPath,
-  readPendingInvitationId,
   resolvePostAuthPath,
   SUPER_ADMIN_HOME_PATH,
 } from '@/lib/post-auth-redirect'
@@ -121,20 +118,12 @@ export function OrganizationRegistrationForm({
         })
         if (cancelled) return
         const normalized = normalizeAppPath(nextPath)
-        if (
-          isAcceptInvitationPath(normalized) ||
-          normalized === SUPER_ADMIN_HOME_PATH ||
-          normalized.startsWith('/admin')
-        ) {
+        if (normalized === SUPER_ADMIN_HOME_PATH || normalized.startsWith('/admin')) {
           router.replace(nextPath)
           return
         }
       } catch {
-        const stored = readPendingInvitationId()
-        if (!cancelled && stored) {
-          router.replace(acceptInvitationPath(stored))
-          return
-        }
+        // stay on org setup
       } finally {
         if (!cancelled) setGuardingInvite(false)
       }

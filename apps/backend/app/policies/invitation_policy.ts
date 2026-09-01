@@ -7,10 +7,6 @@ export default class InvitationPolicy extends BasePolicy {
     return undefined
   }
 
-  viewAny(user: AuthzPrincipal): boolean {
-    return user.memberPermissions?.has('team:view') ?? false
-  }
-
   store(user: AuthzPrincipal, organizationId: string): boolean | AuthorizationResponse {
     if (organizationId !== user.activeMember?.organizationId) {
       return AuthorizationResponse.deny(
@@ -21,7 +17,7 @@ export default class InvitationPolicy extends BasePolicy {
     return user.memberPermissions?.has('team:invite') ?? false
   }
 
-  cancel(user: AuthzPrincipal): boolean {
+  resend(user: AuthzPrincipal): boolean {
     return user.memberPermissions?.has('team:invite') ?? false
   }
 }

@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { betterAuth } from 'better-auth'
 import { createAuthMiddleware, APIError } from 'better-auth/api'
 import { jwt } from 'better-auth/plugins'
@@ -234,6 +235,14 @@ export const auth = betterAuth({
       })
     },
     resetPasswordTokenExpiresIn: 3600,
+    onPasswordReset: async ({ user }) => {
+      await pool.query(
+        `UPDATE "users"
+         SET "emailVerified" = true
+         WHERE "id" = $1 AND "emailVerified" = false`,
+        [user.id]
+      )
+    },
   },
 
   // Google OAuth (only when credentials are present)
@@ -243,6 +252,7 @@ export const auth = betterAuth({
           google: {
             clientId: googleClientId!,
             clientSecret: googleClientSecret!.release(),
+            disableSignUp: true,
             mapProfileToUser: (profile: {
               given_name?: string
               family_name?: string
@@ -317,6 +327,23 @@ export const auth = betterAuth({
       if (!rows[0].isActive) {
         throw new APIError('FORBIDDEN', { message: 'Account is suspended. Contact support.' })
       }
+    }),
+    after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== '/reset-password') return
+
+      const body = ctx.body as { token?: string }
+      const query = ctx.query as { token?: string } | undefined
+      const token = body.token ?? query?.token
+      if (!token) return
+
+      const tokenHash = createHash('sha256').update(token).digest('hex')
+
+      await pool.query(
+        `UPDATE "organization_invitations"
+         SET "status" = 'accepted', "tokenHash" = NULL
+         WHERE "tokenHash" = $1 AND "status" = 'pending'`,
+        [tokenHash]
+      )
     }),
   },
 
