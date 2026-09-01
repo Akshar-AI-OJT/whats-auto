@@ -167,9 +167,7 @@ export class MediaAssetService {
   }
 
   /** Ready organization profile logo, or null when none uploaded. */
-  async getOrganizationLogo(params: {
-    organizationId: string
-  }): Promise<MediaAssetDto | null> {
+  async getOrganizationLogo(params: { organizationId: string }): Promise<MediaAssetDto | null> {
     const asset = await runWithTenant(params.organizationId, () =>
       this.repo.findReadyProfileLogo({ organizationId: params.organizationId })
     )

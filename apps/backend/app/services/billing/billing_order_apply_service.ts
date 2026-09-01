@@ -19,10 +19,15 @@ import { OrganizationService } from '#services/organization_service'
 import { runWithTenant } from '#services/tenant_context'
 import { deriveBillingPeriod } from '#transformers/plan_transformer'
 import { computeInvoiceTotals, formatInvoiceNumber } from '#transformers/invoice_transformer'
+import { computeOrderPeriod, type BillingOrderPurpose } from '#services/billing/billing_period'
+import { PlanRepository } from '#repositories/plan_repository'
+import BillingException from '#exceptions/billing_exception'
+import { isPlanFreeActivatable } from '#transformers/plan_transformer'
 import type { InvoiceBillingPeriod } from '#types/invoices'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 
 const GATEWAY = 'razorpay'
+const FREE_GATEWAY = 'free'
 /** Arbitrary int4 key so invoice-number locks do not collide with other advisory locks. */
 const INVOICE_NUMBER_LOCK_NS = 872514
 
@@ -34,6 +39,35 @@ export type ApplyPaidOrderParams = {
   source: 'verify' | 'webhook'
   /** When set, the order must belong to this org (client-verify path). */
   organizationId?: string
+}
+
+export type ActivateFreePlanParams = {
+  organizationId: string
+  planId: string
+  actorUserId?: string | null
+}
+
+export type ActivateFreePlanResult = {
+  organizationId: string
+  orderId: string
+  subscriptionId: string
+  alreadyApplied: boolean
+  plan: { id: string; code: string; name: string; price: number }
+}
+
+function toMajorPrice(value: string | number): number {
+  return typeof value === 'number' ? value : Number(value)
+}
+
+function toDateTime(value: Date | string | null | undefined): DateTime | null {
+  if (!value) return null
+  if (value instanceof Date) return DateTime.fromJSDate(value).toUTC()
+  const parsed = DateTime.fromISO(String(value), { zone: 'utc' })
+  return parsed.isValid ? parsed : DateTime.fromJSDate(new Date(value)).toUTC()
+}
+
+function freeGatewayOrderId(organizationId: string, planId: string): string {
+  return `free_${organizationId}_${planId}`
 }
 
 export type ApplyPaidOrderResult = {
@@ -86,8 +120,190 @@ export class BillingOrderApplyService {
     protected orders: BillingOrderRepository = new BillingOrderRepository(),
     protected subscriptions: OrganizationSubscriptionRepository = new OrganizationSubscriptionRepository(),
     protected payments: PaymentTransactionRepository = new PaymentTransactionRepository(),
-    protected invoices: InvoiceRepository = new InvoiceRepository()
+    protected invoices: InvoiceRepository = new InvoiceRepository(),
+    protected plans: PlanRepository = new PlanRepository()
   ) {}
+
+  async activateFreePlan(params: ActivateFreePlanParams): Promise<ActivateFreePlanResult> {
+    const plan = await this.plans.findActiveFreeActivatableById(params.planId)
+    if (!plan || !isPlanFreeActivatable(plan)) {
+      const existing = await this.plans.findById(params.planId)
+      if (!existing) {
+        throw BillingException.planNotFound()
+      }
+      throw BillingException.planNotActivatable()
+    }
+
+    const org = await db
+      .from('organizations')
+      .where('id', params.organizationId)
+      .whereNull('deletedAt')
+      .select('id')
+      .first()
+
+    if (!org) {
+      throw BillingException.organizationNotFound()
+    }
+
+    const gatewayOrderId = freeGatewayOrderId(params.organizationId, plan.id)
+    const planSummary = {
+      id: plan.id,
+      code: plan.code,
+      name: plan.name,
+      price: toMajorPrice(plan.price),
+    }
+
+    return runWithTenant(params.organizationId, async () => {
+      const existingOrder = await this.orders.findByGatewayOrderId({
+        gateway: FREE_GATEWAY,
+        gatewayOrderId,
+      })
+      if (
+        existingOrder?.status === 'paid' &&
+        existingOrder.subscriptionId &&
+        existingOrder.organizationId === params.organizationId
+      ) {
+        await new OrganizationService().promoteToActive(params.organizationId)
+        return {
+          organizationId: params.organizationId,
+          orderId: existingOrder.id,
+          subscriptionId: existingOrder.subscriptionId,
+          alreadyApplied: true,
+          plan: planSummary,
+        }
+      }
+
+      const result = await db.transaction(async (trx) => {
+        const current = await this.subscriptions.findCurrentForEntitlements(
+          params.organizationId,
+          trx
+        )
+        const purpose = this.#purposeFromCurrent(current, plan.id)
+        const now = DateTime.utc()
+        const { periodStart, periodEnd } = computeOrderPeriod({
+          purpose,
+          billingInterval: plan.billingInterval,
+          billingIntervalCount: plan.billingIntervalCount,
+          now,
+          existingPeriodEnd: toDateTime(current?.currentPeriodEnd ?? null),
+        })
+
+        const snapshot: BillingPlanSnapshot = {
+          code: plan.code,
+          name: plan.name,
+          price: 0,
+          currency: plan.currency.toUpperCase(),
+          interval: plan.billingInterval,
+          intervalCount: plan.billingIntervalCount,
+          limits: (plan.limits ?? {}) as Record<string, unknown>,
+        }
+
+        const activatedAt = now.toJSDate()
+        const trialDays = plan.trialDays > 0 ? plan.trialDays : 0
+        const subscriptionStatus = trialDays > 0 ? 'trialing' : 'active'
+        const trialEndsAt = trialDays > 0 ? now.plus({ days: trialDays }).toJSDate() : null
+
+        const order =
+          existingOrder ??
+          (await this.orders.insert(
+            {
+              organizationId: params.organizationId,
+              planId: plan.id,
+              gateway: FREE_GATEWAY,
+              gatewayOrderId,
+              purpose,
+              status: 'created',
+              amount: 0,
+              taxRate: 0,
+              tax: 0,
+              total: 0,
+              currency: snapshot.currency,
+              periodStart: periodStart.toJSDate(),
+              periodEnd: periodEnd.toJSDate(),
+              planSnapshot: snapshot,
+              receipt: `free_${params.organizationId.slice(0, 8)}_${Date.now()}`,
+              expiresAt: null,
+              metadata: { source: 'free_activation' },
+            },
+            trx
+          ))
+
+        const subscription = await this.#extendOrInsertSubscription(
+          order,
+          snapshot,
+          activatedAt,
+          trx,
+          {
+            gateway: FREE_GATEWAY,
+            subscriptionStatus,
+            lastPaymentStatus: null,
+            trialEndsAt,
+          }
+        )
+
+        const updated = await this.orders.updateById(
+          {
+            organizationId: params.organizationId,
+            orderId: order.id,
+            patch: {
+              status: 'paid',
+              subscriptionId: subscription.id,
+              appliedAt: activatedAt,
+              failureReason: null,
+            },
+          },
+          trx
+        )
+
+        await insertAuthorizationAudit(
+          {
+            organizationId: params.organizationId,
+            actorUserId: params.actorUserId ?? null,
+            targetType: 'subscription',
+            targetId: subscription.id,
+            eventType: 'subscription.activated',
+            after: {
+              planId: plan.id,
+              status: subscriptionStatus,
+              source: 'free_activation',
+              billingOrderId: order.id,
+            },
+          },
+          trx
+        )
+
+        await new OrganizationService().promoteToActive(params.organizationId, trx)
+
+        return {
+          organizationId: params.organizationId,
+          orderId: updated?.id ?? order.id,
+          subscriptionId: subscription.id,
+          alreadyApplied: false,
+          plan: planSummary,
+        }
+      })
+
+      if (result && !result.alreadyApplied) {
+        await notifyBillingOwnerBestEffort({
+          organizationId: result.organizationId,
+          type: 'billing_subscription_activated',
+          title: 'Free trial started',
+          body: 'Your free plan is now active.',
+        })
+      }
+
+      return result
+    })
+  }
+
+  #purposeFromCurrent(
+    current: OrganizationSubscriptionRow | null,
+    planId: string
+  ): BillingOrderPurpose {
+    if (!current) return 'new_subscription'
+    if (current.planId === planId) return 'renewal'
+    return 'plan_change'
+  }
 
   async applyPaidOrder(params: ApplyPaidOrderParams): Promise<ApplyPaidOrderResult | null> {
     const preview = await this.orders.findByGatewayOrderId({
@@ -126,7 +342,11 @@ export class BillingOrderApplyService {
 
         const paidAt = params.paidAt ?? new Date()
         const snapshot = asSnapshot(order.planSnapshot)
-        const subscription = await this.#extendOrInsertSubscription(order, snapshot, paidAt, trx)
+        const subscription = await this.#extendOrInsertSubscription(order, snapshot, paidAt, trx, {
+          gateway: GATEWAY,
+          subscriptionStatus: 'active',
+          lastPaymentStatus: 'captured',
+        })
 
         const payment = await this.payments.upsertByGatewayPaymentId(
           {
@@ -213,8 +433,14 @@ export class BillingOrderApplyService {
   async #extendOrInsertSubscription(
     order: BillingOrderRow,
     snapshot: BillingPlanSnapshot,
-    paidAt: Date,
-    trx: TransactionClientContract
+    activatedAt: Date,
+    trx: TransactionClientContract,
+    options: {
+      gateway: string
+      subscriptionStatus: 'active' | 'trialing'
+      lastPaymentStatus: string | null
+      trialEndsAt?: Date | null
+    }
   ): Promise<OrganizationSubscriptionRow> {
     const current = await this.subscriptions.findCurrentForEntitlements(order.organizationId, trx)
 
@@ -222,13 +448,14 @@ export class BillingOrderApplyService {
     const periodEnd = toJsDate(order.periodEnd)
     const patch = {
       planId: order.planId,
-      gateway: GATEWAY,
-      status: 'active',
+      gateway: options.gateway,
+      status: options.subscriptionStatus,
       currentPeriodStart: periodStart,
       currentPeriodEnd: periodEnd,
-      lastPaymentStatus: 'captured',
-      lastPaymentAt: paidAt,
-      activatedAt: current?.activatedAt ?? paidAt,
+      trialEndsAt: options.trialEndsAt ?? null,
+      lastPaymentStatus: options.lastPaymentStatus,
+      lastPaymentAt: options.lastPaymentStatus ? activatedAt : null,
+      activatedAt: current?.activatedAt ?? activatedAt,
       checkoutUrl: null,
       graceEndsAt: null,
       endedAt: null,
@@ -257,13 +484,14 @@ export class BillingOrderApplyService {
       {
         organizationId: order.organizationId,
         planId: order.planId,
-        gateway: GATEWAY,
-        status: 'active',
+        gateway: options.gateway,
+        status: options.subscriptionStatus,
         currentPeriodStart: periodStart,
         currentPeriodEnd: periodEnd,
-        activatedAt: paidAt,
-        lastPaymentStatus: 'captured',
-        lastPaymentAt: paidAt,
+        trialEndsAt: options.trialEndsAt ?? null,
+        activatedAt,
+        lastPaymentStatus: options.lastPaymentStatus,
+        lastPaymentAt: options.lastPaymentStatus ? activatedAt : null,
         metadata: { planCode: snapshot.code, checkoutPending: false },
       },
       trx

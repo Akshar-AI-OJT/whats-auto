@@ -14,11 +14,13 @@ import { BillingCheckoutDialog } from './BillingCheckoutDialog'
 import { queryKeys } from '@/lib/query-keys'
 import {
   billingStatusTone,
+  completePlanCheckout,
   formatBillingDate,
   formatTenantPlanPrice,
+  isFreeActivatablePlan,
+  isPlanSelfServe,
   isSubscriptionNotFound,
   resolvePlanFeatureLabel,
-  startBillingPayment,
   unwrapBillingPlans,
   unwrapBillingSubscription,
 } from './billing-utils'
@@ -110,11 +112,13 @@ export function BillingPage() {
   })
 
   const checkoutMutation = useMutation({
-    mutationFn: async (planId: string) => startBillingPayment(planId),
-    onSuccess: async () => {
+    mutationFn: async (planId: string) => completePlanCheckout(planId),
+    onSuccess: async (completion) => {
       setCheckoutError(null)
       setConfirmOpen(false)
-      setCheckoutSuccess(t('checkout.success'))
+      setCheckoutSuccess(
+        completion.kind === 'free' ? t('checkout.freeSuccess') : t('checkout.success')
+      )
       await queryClient.invalidateQueries({ queryKey: queryKeys.billing.all })
     },
     onError: (err) => {
@@ -156,9 +160,15 @@ export function BillingPage() {
 
   function openCheckoutConfirm(planId: string | null) {
     if (!planId) return
+    const plan = plans.find((item) => item.id === planId)
+    if (!plan || !isPlanSelfServe(plan)) return
     setCheckoutError(null)
     setCheckoutSuccess(null)
     setConfirmPlanId(planId)
+    if (isFreeActivatablePlan(plan)) {
+      checkoutMutation.mutate(planId)
+      return
+    }
     setConfirmOpen(true)
   }
 
@@ -513,7 +523,7 @@ export function BillingPage() {
                   </div>
 
                   <div className="mt-6">
-                    {!plan.checkoutable ? (
+                    {!isPlanSelfServe(plan) ? (
                       <Button
                         type="button"
                         className="w-full gap-2"
@@ -522,6 +532,15 @@ export function BillingPage() {
                         onClick={() => openCheckoutConfirm(plan.id)}
                       >
                         {t('enterpriseCta')}
+                      </Button>
+                    ) : isFreeActivatablePlan(plan) ? (
+                      <Button
+                        type="button"
+                        className="w-full gap-2"
+                        disabled={isCurrent || !canManageBilling || checkoutMutation.isPending}
+                        onClick={() => openCheckoutConfirm(plan.id)}
+                      >
+                        {t('startFreeTrialCta')}
                       </Button>
                     ) : (
                       <Button
@@ -644,7 +663,7 @@ export function BillingPage() {
           }
         }}
         onConfirm={() => {
-          if (!confirmPlan?.checkoutable) return
+          if (!confirmPlan || !confirmPlan.checkoutable) return
           checkoutMutation.mutate(confirmPlan.id)
         }}
       />

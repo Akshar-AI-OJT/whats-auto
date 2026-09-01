@@ -71,12 +71,37 @@ export function transformPlanLimits(row: Pick<PlanRow, 'limits'>): PlanLimits {
 }
 
 /**
- * Tenant checkout eligibility — active paid plans (any billing interval).
- * Keep in lockstep with `PlanRepository.findActiveCheckoutableById`.
+ * Razorpay checkout eligibility — active paid plans (price > 0).
+ * Keep in lockstep with `PlanRepository.findActivePaidCheckoutableById`.
  */
 export function isPlanCheckoutable(row: Pick<PlanRow, 'isActive' | 'price'>): boolean {
   if (row.isActive !== true) return false
   return toNumber(row.price) > 0
+}
+
+function isCustomPricingRow(row: Pick<PlanRow, 'metadata' | 'billingInterval'>): boolean {
+  const meta = asMetadata(row.metadata)
+  return Boolean(meta.customPricing) || deriveBillingPeriod(row) === 'custom'
+}
+
+/**
+ * Self-serve free activation — active catalog plans priced at zero (excludes custom/enterprise).
+ * Keep in lockstep with `PlanRepository.findActiveFreeActivatableById`.
+ */
+export function isPlanFreeActivatable(
+  row: Pick<PlanRow, 'isActive' | 'price' | 'metadata' | 'billingInterval'>
+): boolean {
+  if (row.isActive !== true) return false
+  if (derivePlanStatus(row) !== 'active') return false
+  if (isCustomPricingRow(row)) return false
+  return toNumber(row.price) === 0
+}
+
+/** User may select and activate during onboarding or billing (free or paid Razorpay). */
+export function isPlanSelfServeActivatable(
+  row: Pick<PlanRow, 'isActive' | 'price' | 'metadata' | 'billingInterval'>
+): boolean {
+  return isPlanFreeActivatable(row) || isPlanCheckoutable(row)
 }
 
 export function transformPlan(row: PlanRow): SuperAdminPlan {
@@ -131,6 +156,7 @@ export function transformTenantBillingPlan(row: PlanRow): TenantBillingPlan {
       ...(feature.category ? { category: feature.category } : {}),
     })),
     checkoutable: isPlanCheckoutable(row),
+    freeActivatable: isPlanFreeActivatable(row),
     sortOrder: plan.sortOrder,
   }
 }
