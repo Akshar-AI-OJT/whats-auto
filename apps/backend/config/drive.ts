@@ -5,7 +5,8 @@ import env from '#start/env'
 
 /**
  * Drive disks mirror OBJECT_STORAGE_DRIVER.
- * Media uploads use ObjectStorage; Drive stays available for other disk ops.
+ * Media uploads use ObjectStorage; Drive stays available for other disk ops
+ * (including contact-import CSVs under organizations/{id}/imports/contacts/).
  * Public WhatsApp/media links use MEDIA_PUBLIC_BASE_URL, not ACLs.
  *
  * Both disks are registered so InferDriveDisks stays stable across fs/s3 env;

@@ -2013,6 +2013,11 @@ export const api = {
         }
       )
     },
+
+    getImport: (importId: string) =>
+      protectedRequest<{ data?: ContactImportResult } & ContactImportResult>(
+        `/api/v1/contacts/import/${importId}`
+      ),
   },
 
   tags: {

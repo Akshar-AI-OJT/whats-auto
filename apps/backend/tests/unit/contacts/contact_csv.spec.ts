@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
 import type ContactException from '#exceptions/contact_exception'
-import { mappedCell, parseContactCsv, resolvePhoneHeader } from '#lib/contact_csv'
+import { mappedCell, parseContactCsv, resolvePhoneHeader, iterateContactCsvRows } from '#lib/contact_csv'
 
 test.group('parseContactCsv', () => {
   test('parses international numbers and quoted commas', ({ assert }) => {
@@ -103,5 +103,16 @@ test.group('parseContactCsv', () => {
       'rahul@example.com'
     )
     assert.equal(mappedCell(parsed.rows[0] ?? {}, parsed.headers, mapping, 'company'), 'Acme')
+  })
+
+  test('streams CSV rows one at a time', async ({ assert }) => {
+    const csv = ['name,phone', 'Rahul,+919876543210', 'John,+14155552671'].join('\n')
+    const rows: Record<string, string>[] = []
+    for await (const row of iterateContactCsvRows(csv)) {
+      rows.push(row)
+    }
+    assert.lengthOf(rows, 2)
+    assert.equal(rows[0]?.phone, '+919876543210')
+    assert.equal(rows[1]?.phone, '+14155552671')
   })
 })
