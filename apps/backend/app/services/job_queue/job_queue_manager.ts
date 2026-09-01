@@ -1,12 +1,10 @@
 import type { ApplicationService } from '@adonisjs/core/types'
 import type { JobQueueDriver } from '#services/job_queue/contracts/job_queue_driver'
 import NullJobQueueDriver from '#services/job_queue/drivers/null_driver'
-import PgBossJobQueueDriver, {
-  defaultPgBossQueues,
-} from '#services/job_queue/drivers/pg_boss_driver'
+import BullmqJobQueueDriver from '#services/job_queue/drivers/bullmq_driver'
 
 /**
- * Resolves the configured job-queue driver (pgboss | null).
+ * Resolves the configured job-queue driver (bullmq | null).
  * Cache one instance per driver name for the process lifetime.
  */
 export default class JobQueueManager {
@@ -65,16 +63,13 @@ export default class JobQueueManager {
     switch (name) {
       case 'null':
         return new NullJobQueueDriver()
-      case 'pgboss': {
-        const schema = this.app.config.get<string>('job_queue.drivers.pgboss.schema', 'pgboss')
-        const queues =
-          this.app.config.get<string[]>('job_queue.drivers.pgboss.queues') ?? defaultPgBossQueues()
-        return new PgBossJobQueueDriver({ schema, queues })
+      case 'bullmq': {
+        const redisUrl = this.app.config.get<string>('job_queue.drivers.bullmq.redisUrl', '')
+        const prefix = this.app.config.get<string>('job_queue.drivers.bullmq.prefix', 'wa:bullmq')
+        return new BullmqJobQueueDriver({ redisUrl, prefix })
       }
       default:
-        throw new Error(
-          `Unknown job queue driver "${name}". Supported: pgboss, null (redis reserved for later).`
-        )
+        throw new Error(`Unknown job queue driver "${name}". Supported: bullmq, null.`)
     }
   }
 }

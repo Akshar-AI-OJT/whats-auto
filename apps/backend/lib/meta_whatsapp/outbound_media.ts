@@ -3,15 +3,18 @@
  *
  * Product policy:
  * - Platform outbound kinds: image | document
- * - Tenant agents / upload API: images only.
- * - Connected integrations (system channel): may send documents (e.g. invoices).
+ * - Tenant agents / upload API: image + document (JPEG/PNG + PDF/CSV/Office docs)
+ * - Connected integrations (system channel): same image + document set
  * Host allowlist is optional via OUTBOUND_MEDIA_ALLOWED_HOSTS (comma-separated).
+ *
+ * Note: text/csv is accepted for library upload and outbound link delivery; Meta's
+ * official document list does not include CSV, so client rendering may vary.
  */
 
 export type OutboundMediaType = 'image' | 'document'
 
 /** Media kinds tenants may upload or free-form send. */
-export const TENANT_OUTBOUND_MEDIA_TYPES = ['image'] as const
+export const TENANT_OUTBOUND_MEDIA_TYPES = ['image', 'document'] as const
 export type TenantOutboundMediaType = (typeof TENANT_OUTBOUND_MEDIA_TYPES)[number]
 
 /** Media kinds system/integration sends may use. */
@@ -27,13 +30,15 @@ const ALLOWED_MIME_TYPES: Record<OutboundMediaType, ReadonlySet<string>> = {
   image: new Set(['image/jpeg', 'image/png']),
   document: new Set([
     'application/pdf',
+    'text/csv',
+    'application/csv',
+    'text/plain',
     'application/msword',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     'application/vnd.ms-excel',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     'application/vnd.ms-powerpoint',
     'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-    'text/plain',
   ]),
 }
 
@@ -95,10 +100,11 @@ export function outboundMediaTypeForMime(mimeType: string): OutboundMediaType | 
   return null
 }
 
-/** Tenant upload/send: images only. */
+/** Tenant upload/send: image + document from the shared allowlist. */
 export function tenantOutboundMediaTypeForMime(mimeType: string): TenantOutboundMediaType | null {
   const mediaType = outboundMediaTypeForMime(mimeType)
-  return mediaType === 'image' ? 'image' : null
+  if (!mediaType) return null
+  return isTenantOutboundMediaType(mediaType) ? mediaType : null
 }
 
 export function isTenantOutboundMediaType(mediaType: string): mediaType is TenantOutboundMediaType {
@@ -111,4 +117,9 @@ export function isOutboundMediaSizeAllowed(
 ): boolean {
   if (!Number.isFinite(fileSize) || fileSize < 0) return false
   return fileSize <= OUTBOUND_MEDIA_MAX_BYTES[mediaType]
+}
+
+/** MIME types accepted for Media Library upload (tenant + integration). */
+export function listAllowedUploadMimeTypes(): string[] {
+  return [...ALLOWED_MIME_TYPES.image, ...ALLOWED_MIME_TYPES.document]
 }

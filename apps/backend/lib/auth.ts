@@ -4,9 +4,9 @@ import { jwt } from 'better-auth/plugins'
 import env from '#start/env'
 import hash from '@adonisjs/core/services/hash'
 import { pool } from '#lib/db'
-import { resend } from '#lib/mail'
 import accessTokenConfig from '#config/access_token'
 import { AccessTokenClaimsService } from '#services/access_token_claims_service'
+import mail from '@adonisjs/mail/services/main'
 
 const googleClientId = env.get('GOOGLE_CLIENT_ID')
 const googleClientSecret = env.get('GOOGLE_CLIENT_SECRET')
@@ -14,17 +14,100 @@ const hasGoogle = Boolean(googleClientId) && Boolean(googleClientSecret)
 
 const accessTokenClaimsService = new AccessTokenClaimsService()
 
+/**
+ * Better Auth compares Origin strictly. Local Swagger/docs often hit
+ * `http://127.0.0.1:3333` while BETTER_AUTH_URL is `http://localhost:3333`
+ * (or the reverse) — treat them as equivalent in development.
+ */
+function withLocalhostAlias(origin: string): string[] {
+  const normalized = origin.replace(/\/$/, '')
+  const aliases = new Set<string>([normalized])
+
+  try {
+    const url = new URL(normalized)
+    if (url.hostname === 'localhost') {
+      url.hostname = '127.0.0.1'
+      aliases.add(url.origin)
+    } else if (url.hostname === '127.0.0.1') {
+      url.hostname = 'localhost'
+      aliases.add(url.origin)
+    }
+  } catch {
+    // Keep the raw origin if URL parsing fails.
+  }
+
+  return [...aliases]
+}
+
+function parseOrigins(raw?: string): string[] {
+  if (!raw) return []
+  return raw
+    .split(',')
+    .map((s) => s.trim().replace(/\/$/, ''))
+    .filter(Boolean)
+}
+
+function getTrustedOrigins(): string[] {
+  const origins = new Set<string>([
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://localhost:3333',
+    'http://127.0.0.1:3333',
+  ])
+
+  for (const raw of [env.get('CORS_ORIGIN'), env.get('BETTER_AUTH_URL')]) {
+    for (const origin of parseOrigins(raw)) {
+      for (const alias of withLocalhostAlias(origin)) {
+        origins.add(alias)
+      }
+    }
+  }
+
+  return [...origins]
+}
+
 export const auth = betterAuth({
   database: pool,
   baseURL: env.get('BETTER_AUTH_URL'),
   secret: env.get('BETTER_AUTH_SECRET').release(),
-  trustedOrigins: [env.get('CORS_ORIGIN'), env.get('BETTER_AUTH_URL')],
+  trustedOrigins: getTrustedOrigins(),
 
   // DB columns are Postgres `uuid`. better-auth's default nanoid IDs are not valid UUIDs.
   advanced: {
+    // Production sits behind a reverse proxy (Caddy/Nginx on Contabo, or Railway).
+    // Better Auth will not trust multi-hop X-Forwarded-For unless trustedProxies
+    // is set — otherwise it falls back to one shared per-path rate-limit bucket.
+    // Prefer x-real-ip then walk XFF with private proxy hops stripped.
+    ipAddress: {
+      ipAddressHeaders: ['x-real-ip', 'x-forwarded-for'],
+      trustedProxies: [
+        '10.0.0.0/8',
+        '172.16.0.0/12',
+        '192.168.0.0/16',
+        '100.64.0.0/10', // CGNAT (common cloud edge hop)
+        '127.0.0.1',
+        '::1',
+      ],
+    },
+    defaultCookieAttributes: {
+      // Cross-origin Contabo (app. → api.) or Vercel→Railway: SameSite=None; Secure.
+      // Do NOT set Partitioned (CHIPS): the OAuth state cookie is set during a
+      // cross-site fetch from the frontend, then read on a top-level Google
+      // redirect to BETTER_AUTH_URL. Partitioned cookies are keyed by top-level
+      // site, so the callback would omit the cookie → state_mismatch.
+      // See better-auth#5871 and better-auth.com/docs/reference/errors/state_mismatch.
+      sameSite: env.get('NODE_ENV') === 'production' ? ('none' as const) : ('lax' as const),
+      secure: env.get('NODE_ENV') === 'production',
+      partitioned: false,
+    },
     database: {
       generateId: 'uuid',
     },
+  },
+
+  // Prefer frontend when OAuth state cannot be recovered (missing cookie, etc.).
+  onAPIError: {
+    errorURL: `${parseOrigins(env.get('CORS_ORIGIN'))[0] ?? 'http://localhost:3000'}/login?error=oauth_failed`,
   },
 
   // ─── Table name overrides (migrations use plural names) ───────────────
@@ -82,21 +165,73 @@ export const auth = betterAuth({
       },
     },
     sendResetPassword: async ({ user, url }) => {
-      const { error } = await resend.emails.send({
-        from: env.get('EMAIL_FROM'),
-        to: user.email,
-        subject: 'Reset your Whats-Auto password',
-        html: `
-          <p>Hi ${user.name ?? user.email},</p>
-          <p>Click the link below to reset your password. It expires in 1 hour.</p>
-          <p><a href="${url}">Reset Password</a></p>
-          <p>If you didn't request this, ignore this email.</p>
-        `,
-      })
+      await mail.send((message) => {
+        message.to(user.email).subject('Reset your Whats-Auto password').html(`
+  <div style="margin:0; padding:40px 20px; background-color:#f4f6f8; font-family:Arial,Helvetica,sans-serif;">
+    <div style="max-width:560px; margin:0 auto; background:#ffffff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden;">
 
-      if (error) {
-        throw new Error(`Failed to send reset email: ${error.message}`)
-      }
+      <!-- Header -->
+      <div style="padding:28px 32px; border-bottom:1px solid #e5e7eb;">
+        <div style="font-size:22px; font-weight:700; color:#111827;">
+          WhatsAuto
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div style="padding:32px;">
+        <h1 style="margin:0 0 16px; font-size:24px; line-height:32px; color:#111827;">
+          Reset your password
+        </h1>
+
+        <p style="margin:0 0 16px; font-size:15px; line-height:24px; color:#4b5563;">
+          Hi ${user.name ?? user.email},
+        </p>
+
+        <p style="margin:0 0 24px; font-size:15px; line-height:24px; color:#4b5563;">
+          We received a request to reset the password for your WhatsAuto account.
+          Click the button below to choose a new password.
+        </p>
+
+        <!-- Button -->
+        <div style="margin:0 0 24px;">
+          <a
+            href="${url}"
+            style="
+              display:inline-block;
+              padding:12px 22px;
+              background-color:#111827;
+              color:#ffffff;
+              text-decoration:none;
+              font-size:15px;
+              font-weight:600;
+              border-radius:8px;
+            "
+          >
+            Reset Password
+          </a>
+        </div>
+
+        <p style="margin:0 0 16px; font-size:13px; line-height:20px; color:#6b7280;">
+          This link will expire in <strong>1 hour</strong>.
+        </p>
+
+        <p style="margin:0; font-size:13px; line-height:20px; color:#6b7280;">
+          If you didn't request a password reset, you can safely ignore this email.
+          Your password will remain unchanged.
+        </p>
+      </div>
+
+      <!-- Footer -->
+      <div style="padding:20px 32px; background:#f9fafb; border-top:1px solid #e5e7eb;">
+        <p style="margin:0; font-size:12px; line-height:18px; color:#9ca3af; text-align:center;">
+          This is an automated email from WhatsAuto. Please do not reply to this email.
+        </p>
+      </div>
+
+    </div>
+  </div>
+`)
+      })
     },
     resetPasswordTokenExpiresIn: 3600,
   },

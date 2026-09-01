@@ -68,7 +68,21 @@ export type MetaWebhookError = {
 }
 
 export type MetaWebhookMessageType =
-  'text' | 'image' | 'video' | 'document' | 'location' | 'interactive' | string
+  'text' | 'image' | 'document' | 'audio' | 'location' | 'interactive' | string
+
+export type MetaWebhookContext = {
+  id?: string
+  from?: string
+}
+
+export type MetaWebhookReferral = {
+  source_url?: string
+  source_type?: string
+  source_id?: string
+  headline?: string
+  body?: string
+  ctwa_clid?: string
+}
 
 export type MetaWebhookMessage = {
   from: string
@@ -77,10 +91,11 @@ export type MetaWebhookMessage = {
   type: MetaWebhookMessageType
   text?: MetaWebhookText
   image?: MetaWebhookMedia
-  video?: MetaWebhookMedia
   document?: MetaWebhookMedia
   location?: MetaWebhookLocation
   interactive?: MetaWebhookInteractive
+  context?: MetaWebhookContext
+  referral?: MetaWebhookReferral
   errors?: MetaWebhookError[]
 }
 
@@ -142,11 +157,28 @@ export type MessageMetadataError = {
   details?: string
 }
 
+export type MessageMetadataContext = {
+  id?: string
+  from?: string
+}
+
+export type MessageMetadataReferral = {
+  sourceUrl?: string
+  sourceType?: string
+  sourceId?: string
+  headline?: string
+  body?: string
+  ctwaClid?: string
+}
+
 export type MessageMetadata = {
   media?: MessageMetadataMedia
   location?: MessageMetadataLocation
   interactive?: MessageMetadataInteractive
   errors?: MessageMetadataError[]
+  context?: MessageMetadataContext
+  referral?: MessageMetadataReferral
+  [key: string]: unknown
 }
 
 export type MetaTokenExchangeResult = {
@@ -187,24 +219,46 @@ export type MetaSendTemplateDocumentParameter = {
 export type MetaSendTemplateParameter =
   MetaSendTemplateTextParameter | MetaSendTemplateImageParameter | MetaSendTemplateDocumentParameter
 
-export type MetaSendTemplateComponent = {
+export type MetaSendTemplateHeaderOrBodyComponent = {
   type: 'header' | 'body'
   parameters: MetaSendTemplateParameter[]
 }
 
+export type MetaSendTemplateUrlButtonComponent = {
+  type: 'button'
+  sub_type: 'url'
+  index: string
+  parameters: MetaSendTemplateTextParameter[]
+}
+
+export type MetaSendTemplateComponent =
+  MetaSendTemplateHeaderOrBodyComponent | MetaSendTemplateUrlButtonComponent
+
 /** Tenant-sendable header media is image-only; document is reserved for integrations. */
 export type TemplateHeaderMediaType = 'image' | 'document'
 
+export type TemplateUrlButtonParam = {
+  name: string
+  index: number
+}
+
 /**
- * Normalized named-variable contract stored on message_templates.parameterSchema.
+ * Normalized template-variable contract stored on message_templates.parameterSchema.
  * Media headers set headerMediaType and leave headerNames empty.
+ * URL-button vars live in urlButtons (Meta index + parameter name / positional key).
+ * parameterFormat is 'positional' for {{1}}/{{2}} and 'named' for {{name}}.
  */
+export type TemplateParameterFormat = 'named' | 'positional'
+
 export type TemplateParameterSchema = {
   headerNames: string[]
   bodyNames: string[]
+  urlButtons?: TemplateUrlButtonParam[]
   sendable: boolean
   unsupportedReason?: string
   headerMediaType?: TemplateHeaderMediaType
+  /** Present when sendable and the template has (or had) text placeholders. */
+  parameterFormat?: TemplateParameterFormat
 }
 
 export type MetaGraphErrorBody = {
@@ -219,7 +273,7 @@ export type MetaGraphErrorBody = {
 
 export type MetaTemplateComponent = {
   type: 'HEADER' | 'BODY' | 'FOOTER' | 'BUTTONS' | string
-  format?: 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT' | string
+  format?: 'TEXT' | 'IMAGE' | 'DOCUMENT' | string
   text?: string
   buttons?: Array<Record<string, unknown>>
   example?: Record<string, unknown>

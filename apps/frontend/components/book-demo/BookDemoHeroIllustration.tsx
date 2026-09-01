@@ -73,7 +73,7 @@ export function BookDemoHeroIllustration({
             className="pointer-events-none absolute -top-8 -right-6 size-28 rounded-full bg-primary/25 blur-2xl"
           />
           <div className="relative flex items-start gap-3">
-            <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-on-primary shadow-[0_8px_20px_rgb(159_232_112/0.4)]">
+            <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary text-on-primary shadow-[0_8px_20px_rgb(37_99_235/0.4)]">
               <Calendar className="size-5" aria-hidden />
             </span>
             <div className="min-w-0 pt-0.5">
@@ -87,7 +87,7 @@ export function BookDemoHeroIllustration({
 
         <div className="flex flex-col gap-3 px-5 py-4">
           <div className="flex items-center gap-3 rounded-2xl border border-[#E2E8F0] bg-[#F8FAFC] px-3 py-2.5">
-            <span className="flex size-9 items-center justify-center rounded-xl bg-canvas text-[#00897B]">
+            <span className="flex size-9 items-center justify-center rounded-xl bg-canvas text-[#2563eb]">
               <SiGooglemeet className="size-4" aria-hidden />
             </span>
             <div className="min-w-0">
@@ -145,7 +145,7 @@ export function BookDemoHeroIllustration({
             'flex items-center gap-2.5 rounded-xl p-2.5'
           )}
         >
-          <span className="flex size-8 items-center justify-center rounded-lg bg-canvas text-[#00897B] shadow-inner">
+          <span className="flex size-8 items-center justify-center rounded-lg bg-canvas text-[#2563eb] shadow-inner">
             <SiGooglemeet className="size-3.5" aria-hidden />
           </span>
           <p className="truncate text-[11px] font-semibold text-ink sm:text-xs">

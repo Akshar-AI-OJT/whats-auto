@@ -7,6 +7,7 @@ import { FcGoogle } from 'react-icons/fc'
 import { cn } from '@/lib/utils'
 import { api, type ApiError } from '@/lib/api'
 import { authClient, formatBetterAuthError } from '@/lib/auth-client'
+import { buildLocalizedAppUrl } from '@/lib/app-origin'
 import { getValidAccessToken } from '@/lib/access-token'
 import {
   isValidEmail,
@@ -61,18 +62,27 @@ function safeCallbackPath(raw: string | null): string | null {
   return raw
 }
 
-function readSignupQuery(): { callbackPath: string | null; email: string } {
+function readSignupQuery(): {
+  callbackPath: string | null
+  email: string
+  oauthFailed: boolean
+} {
   if (typeof window === 'undefined') {
-    return { callbackPath: null, email: '' }
+    return { callbackPath: null, email: '', oauthFailed: false }
   }
   try {
     const params = new URLSearchParams(window.location.search)
+    const oauthError = params.get('error')
     return {
       callbackPath: safeCallbackPath(params.get('callbackURL')),
       email: (params.get('email') ?? '').trim(),
+      oauthFailed:
+        oauthError === 'oauth_failed' ||
+        oauthError === 'state_mismatch' ||
+        oauthError === 'state_security_mismatch',
     }
   } catch {
-    return { callbackPath: null, email: '' }
+    return { callbackPath: null, email: '', oauthFailed: false }
   }
 }
 
@@ -167,11 +177,13 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
   const [pending, setPending] = useState<Pending>('idle')
   const [resendCooldown, setResendCooldown] = useState(0)
   const [cooldownUntil, setCooldownUntil] = useState<number | null>(null)
+  const displayError = error ?? (signupQuery.oauthFailed ? t('errors.oauthFailed') : null)
 
   useEffect(() => {
     const inviteId = invitationIdFromPath(callbackPath)
     if (inviteId) savePendingInvitationId(inviteId)
   }, [callbackPath])
+
   const otpInputRefs = useRef<Array<HTMLInputElement | null>>([])
 
   const isPending = pending !== 'idle'
@@ -258,13 +270,14 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
     setPending('google')
 
     try {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL
       // Pre-auth: only invite callbackURL (or create-org default) can be used.
       const redirectPath = callbackPath ?? ORG_SETUP_PATH
-      const callbackURL = `${appUrl}/${locale}${redirectPath}`
+      const callbackURL = buildLocalizedAppUrl(locale, redirectPath)
+      const errorCallbackURL = buildLocalizedAppUrl(locale, '/signup?error=oauth_failed')
       const { error: authErr } = await authClient.signIn.social({
         provider: 'google',
         callbackURL,
+        errorCallbackURL,
       })
       if (authErr) throw formatBetterAuthError(authErr)
       // Successful social auth redirects the browser; keep pending if we somehow stay.
@@ -434,7 +447,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
           onSubmit={handleVerifyOtp}
           noValidate
           aria-busy={isPending}
-          aria-describedby={error ? formErrorId : undefined}
+          aria-describedby={displayError ? formErrorId : undefined}
           {...props}
         >
           <FieldGroup className="gap-4">
@@ -442,7 +455,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
               <h1 className="font-display text-[1.5rem] leading-7 tracking-tight text-ink sm:text-[1.65rem]">
                 {t('otpTitle')}
               </h1>
-              <p className="text-sm leading-5 text-pretty break-words text-body">
+              <p className="text-sm leading-5 text-pretty wrap-break-word text-body">
                 {email ? t('otpSubtitleWithEmail', { email }) : t('otpSubtitle')}
               </p>
               <button
@@ -539,13 +552,13 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
               </button>
             </div>
 
-            {error ? (
+            {displayError ? (
               <div
                 id={formErrorId}
                 role="alert"
                 className="rounded-xl border border-negative/25 bg-negative/5 px-4 py-3 text-left text-sm leading-5 text-negative"
               >
-                {error}
+                {displayError}
               </div>
             ) : null}
 
@@ -589,7 +602,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
         onSubmit={handleRegister}
         noValidate
         aria-busy={isPending}
-        aria-describedby={error ? formErrorId : undefined}
+        aria-describedby={displayError ? formErrorId : undefined}
         {...props}
       >
         <FieldGroup className="gap-3.5">
@@ -891,13 +904,13 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
             ) : null}
           </Field>
 
-          {error ? (
+          {displayError ? (
             <div
               id={formErrorId}
               role="alert"
               className="rounded-xl border border-negative/25 bg-negative/5 px-4 py-3 text-left text-sm leading-5 text-negative"
             >
-              {error}
+              {displayError}
             </div>
           ) : null}
 

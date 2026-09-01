@@ -1,35 +1,53 @@
 'use client'
 
 import { useId, useMemo } from 'react'
-import { useTranslations } from 'next-intl'
+import { useQuery } from '@tanstack/react-query'
+import { useLocale, useTranslations } from 'next-intl'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
-import { MOCK_ORG_GROWTH } from '../mock-data'
+import { queryKeys } from '@/lib/query-keys'
 import { cn } from '@/lib/utils'
+import { fetchAllOrganizations, buildOrganizationGrowth } from '../analytics/super-admin-analytics'
 
 const WIDTH = 560
 const HEIGHT = 220
 const PAD = { top: 16, right: 16, bottom: 32, left: 40 }
+const STALE_MS = 60_000
 
 export function OrganizationGrowthChart({ className }: { className?: string }) {
   const t = useTranslations('admin.home.charts.orgGrowth')
+  const tAnalytics = useTranslations('admin.analytics')
+  const locale = useLocale()
   const gradientId = useId()
 
+  const orgQuery = useQuery({
+    queryKey: queryKeys.admin.analytics.organizations,
+    queryFn: fetchAllOrganizations,
+    staleTime: STALE_MS,
+  })
+
+  const growthData = useMemo(
+    () => buildOrganizationGrowth(orgQuery.data?.items ?? [], locale),
+    [orgQuery.data?.items, locale]
+  )
+
   const { points, path, area, yTicks } = useMemo(() => {
-    const values = MOCK_ORG_GROWTH.map((d) => d.organizations)
+    if (growthData.length === 0) return { points: [], path: '', area: '', yTicks: [] }
+
+    const values = growthData.map((d) => d.cumulative)
     const min = Math.min(...values) * 0.92
     const max = Math.max(...values) * 1.04
     const innerW = WIDTH - PAD.left - PAD.right
     const innerH = HEIGHT - PAD.top - PAD.bottom
 
-    const coords = MOCK_ORG_GROWTH.map((d, i) => {
+    const coords = growthData.map((d, i) => {
       const x =
         PAD.left +
-        (MOCK_ORG_GROWTH.length === 1
+        (growthData.length === 1
           ? innerW / 2
-          : (i / (MOCK_ORG_GROWTH.length - 1)) * innerW)
-      const y = PAD.top + innerH - ((d.organizations - min) / (max - min)) * innerH
-      return { x, y, ...d }
+          : (i / (growthData.length - 1)) * innerW)
+      const y = PAD.top + innerH - ((d.cumulative - min) / (max - min)) * innerH
+      return { x, y, month: d.label, organizations: d.cumulative }
     })
 
     const line = coords
@@ -44,7 +62,10 @@ export function OrganizationGrowthChart({ className }: { className?: string }) {
     }))
 
     return { points: coords, path: line, area: areaPath, yTicks: ticks }
-  }, [])
+  }, [growthData])
+
+  const loading = orgQuery.isLoading
+  const error = orgQuery.error
 
   return (
     <DashboardPanel
@@ -54,70 +75,82 @@ export function OrganizationGrowthChart({ className }: { className?: string }) {
       <DashboardSectionHeader title={t('title')} description={t('description')} />
 
       <div className="mt-5 min-h-0 flex-1">
-        <svg
-          viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-          className="h-auto w-full"
-          role="img"
-          aria-label={t('ariaLabel')}
-        >
-          <defs>
-            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#9fe870" stopOpacity="0.35" />
-              <stop offset="100%" stopColor="#9fe870" stopOpacity="0.02" />
-            </linearGradient>
-          </defs>
+        {loading ? (
+          <div className="flex h-full items-center justify-center">
+            <div className="size-6 animate-spin rounded-full border-2 border-dash-border border-t-primary" />
+          </div>
+        ) : error ? (
+          <p className="text-center text-sm text-mute">
+            {error instanceof Error ? error.message : tAnalytics('unavailable')}
+          </p>
+        ) : growthData.length === 0 ? (
+          <p className="text-center text-sm text-mute">{tAnalytics('unavailable')}</p>
+        ) : (
+          <svg
+            viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+            className="h-auto w-full"
+            role="img"
+            aria-label={t('ariaLabel')}
+          >
+            <defs>
+              <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#2563eb" stopOpacity="0.35" />
+                <stop offset="100%" stopColor="#2563eb" stopOpacity="0.02" />
+              </linearGradient>
+            </defs>
 
-          {yTicks.map((tick) => (
-            <g key={tick.value}>
-              <line
-                x1={PAD.left}
-                x2={WIDTH - PAD.right}
-                y1={tick.y}
-                y2={tick.y}
-                className="stroke-dash-border"
-                strokeWidth={1}
-              />
-              <text
-                x={PAD.left - 8}
-                y={tick.y + 4}
-                textAnchor="end"
-                className="fill-mute text-[10px]"
-              >
-                {tick.value}
-              </text>
-            </g>
-          ))}
+            {yTicks.map((tick) => (
+              <g key={tick.value}>
+                <line
+                  x1={PAD.left}
+                  x2={WIDTH - PAD.right}
+                  y1={tick.y}
+                  y2={tick.y}
+                  className="stroke-dash-border"
+                  strokeWidth={1}
+                />
+                <text
+                  x={PAD.left - 8}
+                  y={tick.y + 4}
+                  textAnchor="end"
+                  className="fill-mute text-[10px]"
+                >
+                  {tick.value}
+                </text>
+              </g>
+            ))}
 
-          <path d={area} fill={`url(#${gradientId})`} />
-          <path
-            d={path}
-            fill="none"
-            stroke="#9fe870"
-            strokeWidth={2.5}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
+            <path d={area} fill={`url(#${gradientId})`} />
+            <path
+              d={path}
+              fill="none"
+              stroke="#2563eb"
+              strokeWidth={2.5}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
 
-          {points.map((p) => (
-            <g key={p.month}>
-              <circle
-                cx={p.x}
-                cy={p.y}
-                r={4.5}
-                className="fill-canvas stroke-primary"
-                strokeWidth={2}
-              />
-              <text
-                x={p.x}
-                y={HEIGHT - 10}
-                textAnchor="middle"
-                className="fill-mute text-[11px] font-medium"
-              >
-                {p.month}
-              </text>
-            </g>
-          ))}
-        </svg>
+            {points.map((p) => (
+              <g key={p.month}>
+                <circle
+                  cx={p.x}
+                  cy={p.y}
+                  r={4.5}
+                  className="fill-canvas stroke-primary"
+                  strokeWidth={2}
+                />
+                <text
+                  x={p.x}
+                  y={HEIGHT - 10}
+                  textAnchor="middle"
+                  className="fill-mute text-[11px] font-medium"
+                >
+                  {p.month}
+                </text>
+              </g>
+            ))}
+          </svg>
+        )}
       </div>
     </DashboardPanel>
   )

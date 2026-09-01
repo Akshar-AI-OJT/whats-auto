@@ -1,20 +1,22 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
-import { Loader2, Search, UserPlus, Users } from 'lucide-react'
-import {
-  api,
-  type ApiError,
-  type ContactSummary,
-} from '@/lib/api'
+import { useSearchParams } from 'next/navigation'
+import { useRouter, usePathname } from '@/i18n/navigation'
+import { Loader2, Search, Trash2, Upload, UserPlus, Users } from 'lucide-react'
+import { api, type ApiError, type ContactSummary } from '@/lib/api'
+import { queryKeys } from '@/lib/query-keys'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
-import { WorkspaceAvatar } from '@/components/dashboard/WorkspaceSwitcher'
+import { OrganizationAvatar } from '@/components/dashboard/OrganizationSwitcher'
 import { AddContactSheet } from '@/components/dashboard/contacts/AddContactSheet'
+import { ContactDeleteDialog } from '@/components/dashboard/contacts/ContactDeleteDialog'
+import { ImportContactsDialog } from '@/components/dashboard/contacts/ImportContactsDialog'
 
 function unwrapList<T>(data: { data?: T[] } | T[] | undefined): T[] {
   if (!data) return []
@@ -45,61 +47,111 @@ function formatCreatedAt(value: string) {
 
 export function ContactsPage() {
   const t = useTranslations('dashboard.contacts')
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
+  const queryClient = useQueryClient()
   const {
     tenantOrganizationId,
     canViewContacts,
     canCreateContacts,
+    canDeleteContacts,
+    canImportContacts,
     isLoading: orgsLoading,
   } = useOrganizations()
 
-  const [contacts, setContacts] = useState<ContactSummary[]>([])
-  const [listLoading, setListLoading] = useState(true)
-  const [listError, setListError] = useState<string | null>(null)
+  const addFromQuery = searchParams.get('add') === '1'
+  const [addForced, setAddForced] = useState(false)
+  const addOpen = canCreateContacts && (addFromQuery || addForced)
   const [query, setQuery] = useState('')
-  const [addOpen, setAddOpen] = useState(false)
-  const organizationIdRef = useRef(tenantOrganizationId)
-  organizationIdRef.current = tenantOrganizationId
+  const [importOpen, setImportOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<ContactSummary | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [deletePending, setDeletePending] = useState(false)
 
-  const loadContacts = useCallback(
-    async (organizationId: string) => {
-      if (!canViewContacts) {
-        setContacts([])
-        setListLoading(false)
-        return
-      }
-
-      setListLoading(true)
-      setListError(null)
-      try {
-        const { data } = await api.contacts.list()
-        // Ignore stale responses from a previous workspace switch.
-        if (organizationId !== organizationIdRef.current) return
-        const rows = unwrapList(data).filter((c) => c.organizationId === organizationId)
-        setContacts(rows)
-      } catch (err) {
-        if (organizationId !== organizationIdRef.current) return
-        setContacts([])
-        setListError((err as ApiError).message || t('errors.loadFailed'))
-      } finally {
-        if (organizationId === organizationIdRef.current) {
-          setListLoading(false)
-        }
-      }
+  const contactsQuery = useQuery({
+    queryKey: queryKeys.contacts.list(tenantOrganizationId),
+    queryFn: async () => {
+      const organizationId = tenantOrganizationId!
+      const { data } = await api.contacts.list()
+      return unwrapList(data).filter((c) => c.organizationId === organizationId)
     },
-    [canViewContacts, t]
-  )
+    enabled: !orgsLoading && Boolean(tenantOrganizationId) && canViewContacts,
+    staleTime: 2 * 60_000,
+  })
+
+  const contacts = useMemo(() => contactsQuery.data ?? [], [contactsQuery.data])
+  const listLoading = contactsQuery.isLoading || orgsLoading
+  const listError = contactsQuery.error
+    ? (contactsQuery.error as unknown as ApiError).message || t('errors.loadFailed')
+    : null
+
+  function mapDeleteError(apiError: ApiError): string {
+    if (apiError.status === 401) return t('add.errors.sessionExpired')
+    if (apiError.status === 403 || apiError.code === 'PERMISSION_DENIED') {
+      return t('errors.deletePermissionDenied')
+    }
+    if (apiError.status === 404 || apiError.code === 'E_CONTACT_NOT_FOUND') {
+      return t('errors.deleteNotFound')
+    }
+    if (apiError.code === 'E_CONTACT_ALREADY_DELETED') {
+      return t('errors.alreadyDeleted')
+    }
+    return apiError.message || t('errors.deleteFailed')
+  }
+
+  async function refreshContacts() {
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.contacts.all(tenantOrganizationId),
+    })
+  }
+
+  async function handleDeleteConfirm() {
+    if (!deleteTarget || deletePending) return
+
+    setDeletePending(true)
+    setDeleteError(null)
+    try {
+      await api.contacts.delete(deleteTarget.id)
+      setDeleteTarget(null)
+      await refreshContacts()
+    } catch (err) {
+      const apiError = err as ApiError
+      if (apiError.status === 404 || apiError.code === 'E_CONTACT_ALREADY_DELETED') {
+        await refreshContacts()
+      }
+      setDeleteError(mapDeleteError(apiError))
+    } finally {
+      setDeletePending(false)
+    }
+  }
 
   useEffect(() => {
-    if (orgsLoading) return
-    if (!tenantOrganizationId) {
-      setContacts([])
-      setQuery('')
-      setListLoading(true)
-      setListError(null)
+    if (orgsLoading || canCreateContacts || !addFromQuery) return
+    router.replace(pathname)
+  }, [orgsLoading, canCreateContacts, addFromQuery, pathname, router])
+
+  // Clear local search and delete dialog when the organization changes.
+  const orgScope = tenantOrganizationId ?? ''
+  const [prevOrgScope, setPrevOrgScope] = useState(orgScope)
+  if (prevOrgScope !== orgScope) {
+    setPrevOrgScope(orgScope)
+    setQuery('')
+    setDeleteTarget(null)
+    setDeleteError(null)
+  }
+
+  function handleAddOpenChange(open: boolean) {
+    if (open) {
+      if (!canCreateContacts) return
+      setAddForced(true)
       return
     }
-    void loadContacts(tenantOrganizationId)
-  }, [orgsLoading, tenantOrganizationId, loadContacts])
+    setAddForced(false)
+    if (addFromQuery) {
+      router.replace(pathname)
+    }
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -115,7 +167,7 @@ export function ContactsPage() {
 
   if (!orgsLoading && !canViewContacts) {
     return (
-      <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 sm:gap-6">
+      <div className="flex w-full min-w-0 flex-col gap-5 sm:gap-6">
         <DashboardPanel as="section" className="px-4 py-5 sm:px-6 sm:py-6">
           <p className="text-sm font-semibold tracking-wide text-positive-deep uppercase">
             {t('eyebrow')}
@@ -138,7 +190,7 @@ export function ContactsPage() {
   const showNoMatches = !listLoading && !listError && contacts.length > 0 && filtered.length === 0
 
   return (
-    <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 sm:gap-6">
+    <div className="flex w-full min-w-0 flex-col gap-5 sm:gap-6">
       <DashboardPanel
         as="section"
         className="relative overflow-hidden px-4 py-5 sm:px-6 sm:py-6 md:px-7 md:py-7"
@@ -155,24 +207,36 @@ export function ContactsPage() {
               {t('subtitle')}
             </p>
           </div>
-          {canCreateContacts ? (
-            <Button
-              type="button"
-              className="shrink-0 gap-2"
-              onClick={() => setAddOpen(true)}
-            >
-              <UserPlus className="size-4" aria-hidden />
-              {t('addCta')}
-            </Button>
+          {canCreateContacts || canImportContacts ? (
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
+              {canImportContacts ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => setImportOpen(true)}
+                >
+                  <Upload className="size-4" aria-hidden />
+                  {t('importCta')}
+                </Button>
+              ) : null}
+              {canCreateContacts ? (
+                <Button
+                  type="button"
+                  className="gap-2"
+                  onClick={() => handleAddOpenChange(true)}
+                >
+                  <UserPlus className="size-4" aria-hidden />
+                  {t('addCta')}
+                </Button>
+              ) : null}
+            </div>
           ) : null}
         </div>
       </DashboardPanel>
 
       <DashboardPanel as="section" className="p-4 sm:p-5 md:p-6">
-        <DashboardSectionHeader
-          title={t('listTitle')}
-          description={t('listDescription')}
-        />
+        <DashboardSectionHeader title={t('listTitle')} description={t('listDescription')} />
 
         {!showEmpty && !listError ? (
           <div className="relative mt-5 max-w-md">
@@ -191,7 +255,7 @@ export function ContactsPage() {
           </div>
         ) : null}
 
-        {listLoading || orgsLoading ? (
+        {listLoading ? (
           <div className="mt-8 flex items-center justify-center gap-2 py-16 text-sm text-body">
             <Loader2 className="size-4 animate-spin" aria-hidden />
             {t('loading')}
@@ -210,15 +274,30 @@ export function ContactsPage() {
             </span>
             <p className="font-medium text-ink">{t('emptyTitle')}</p>
             <p className="max-w-sm text-sm text-body">{t('emptyDescription')}</p>
-            {canCreateContacts ? (
-              <Button
-                type="button"
-                className="mt-2 gap-2"
-                onClick={() => setAddOpen(true)}
-              >
-                <UserPlus className="size-4" aria-hidden />
-                {t('addCta')}
-              </Button>
+            {canCreateContacts || canImportContacts ? (
+              <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+                {canImportContacts ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="gap-2"
+                    onClick={() => setImportOpen(true)}
+                  >
+                    <Upload className="size-4" aria-hidden />
+                    {t('importCta')}
+                  </Button>
+                ) : null}
+                {canCreateContacts ? (
+                  <Button
+                    type="button"
+                    className="gap-2"
+                    onClick={() => handleAddOpenChange(true)}
+                  >
+                    <UserPlus className="size-4" aria-hidden />
+                    {t('addCta')}
+                  </Button>
+                ) : null}
+              </div>
             ) : null}
           </div>
         ) : showNoMatches ? (
@@ -231,7 +310,7 @@ export function ContactsPage() {
                 className="flex flex-col gap-3 bg-canvas px-4 py-3.5 sm:flex-row sm:items-center sm:gap-4 sm:px-5"
               >
                 <div className="flex min-w-0 flex-1 items-center gap-3">
-                  <WorkspaceAvatar initials={initialsFromContact(contact)} size="md" />
+                  <OrganizationAvatar initials={initialsFromContact(contact)} size="md" />
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-ink">
                       {contact.name?.trim() || contact.phone}
@@ -239,16 +318,31 @@ export function ContactsPage() {
                     <p className="truncate text-sm text-body">{contact.phone}</p>
                   </div>
                 </div>
-                <div className="flex min-w-0 flex-col gap-0.5 text-sm text-body sm:items-end">
-                  {contact.email ? (
-                    <p className="truncate">{contact.email}</p>
+                <div className="flex min-w-0 items-center justify-between gap-3 sm:contents">
+                  <div className="flex min-w-0 flex-col gap-0.5 text-sm text-body sm:items-end">
+                    {contact.email ? <p className="truncate">{contact.email}</p> : null}
+                    {contact.company ? <p className="truncate text-mute">{contact.company}</p> : null}
+                    <p className="text-xs text-mute">
+                      {t('addedAt', { date: formatCreatedAt(contact.createdAt) })}
+                    </p>
+                  </div>
+                  {canDeleteContacts ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="shrink-0 text-mute hover:bg-negative/10 hover:text-negative"
+                      aria-label={t('deleteAria', {
+                        name: contact.name?.trim() || contact.phone,
+                      })}
+                      onClick={() => {
+                        setDeleteError(null)
+                        setDeleteTarget(contact)
+                      }}
+                    >
+                      <Trash2 className="size-4" aria-hidden />
+                    </Button>
                   ) : null}
-                  {contact.company ? (
-                    <p className="truncate text-mute">{contact.company}</p>
-                  ) : null}
-                  <p className="text-xs text-mute">
-                    {t('addedAt', { date: formatCreatedAt(contact.createdAt) })}
-                  </p>
                 </div>
               </li>
             ))}
@@ -259,9 +353,36 @@ export function ContactsPage() {
       {canCreateContacts ? (
         <AddContactSheet
           open={addOpen}
-          onOpenChange={setAddOpen}
+          onOpenChange={handleAddOpenChange}
           onCreated={() => {
-            if (tenantOrganizationId) void loadContacts(tenantOrganizationId)
+            void refreshContacts()
+          }}
+        />
+      ) : null}
+
+      {canImportContacts ? (
+        <ImportContactsDialog
+          open={importOpen}
+          onOpenChange={setImportOpen}
+          onImported={() => {
+            void refreshContacts()
+          }}
+        />
+      ) : null}
+
+      {canDeleteContacts ? (
+        <ContactDeleteDialog
+          contact={deleteTarget}
+          pending={deletePending}
+          error={deleteError}
+          onOpenChange={(open) => {
+            if (!open && !deletePending) {
+              setDeleteTarget(null)
+              setDeleteError(null)
+            }
+          }}
+          onConfirm={() => {
+            void handleDeleteConfirm()
           }}
         />
       ) : null}

@@ -6,12 +6,12 @@ import {
   getValidAccessToken,
 } from '@/lib/access-token'
 import { authClient } from '@/lib/auth-client'
-
 export type ApiError = {
   message: string
   status: number
   code?: string
   retryAfter?: number
+  chunkCount?: number
 }
 
 export type AuthRequestMode = 'public' | 'protected'
@@ -44,10 +44,32 @@ function isTokenAuthError(error: ApiError): boolean {
   return !error.code || /token|bearer|unauthorized|jwt/i.test(error.message)
 }
 
+function isOrgPaymentRequired(error: ApiError): boolean {
+  return error.status === 402 && error.code === 'E_ORG_PAYMENT_REQUIRED'
+}
+
+/** Soft navigate to the payment step without treating it as a permission denial. */
+function redirectToOnboardingPayment() {
+  if (typeof window === 'undefined') return
+  const { pathname } = window.location
+  if (
+    pathname.includes('/onboarding/payment') ||
+    pathname.includes('/onboarding/organization') ||
+    pathname.includes('/onboarding/')
+  ) {
+    return
+  }
+  const parts = pathname.split('/').filter(Boolean)
+  const maybeLocale = parts[0]
+  const locale = maybeLocale && /^[a-z]{2}(-[A-Za-z]{2})?$/.test(maybeLocale) ? maybeLocale : 'en'
+  window.location.assign(`/${locale}/onboarding/payment`)
+}
+
 async function parseError(response: Response): Promise<ApiError> {
   let message = response.statusText || 'Request failed'
   let code: string | undefined
   let retryAfter: number | undefined
+  let chunkCount: number | undefined
 
   try {
     const data = (await response.json()) as {
@@ -55,6 +77,7 @@ async function parseError(response: Response): Promise<ApiError> {
       error?: string | { message?: string; code?: string }
       code?: string
       retryAfter?: number
+      chunkCount?: number
       errors?: Array<{ message?: string; field?: string }>
     }
 
@@ -88,11 +111,15 @@ async function parseError(response: Response): Promise<ApiError> {
         if (!Number.isNaN(parsed)) retryAfter = parsed
       }
     }
+
+    if (typeof data.chunkCount === 'number') {
+      chunkCount = data.chunkCount
+    }
   } catch {
     // non-JSON body — keep statusText
   }
 
-  return { message, status: response.status, code, retryAfter }
+  return { message, status: response.status, code, retryAfter, chunkCount }
 }
 
 /**
@@ -115,7 +142,7 @@ async function request<T>(
   const { authMode, _authRetried, ...fetchInit } = init
   const headers = new Headers(fetchInit.headers)
 
-  if (fetchInit.body && !headers.has('Content-Type')) {
+  if (fetchInit.body && !headers.has('Content-Type') && !(fetchInit.body instanceof FormData)) {
     headers.set('Content-Type', 'application/json')
   }
 
@@ -147,6 +174,10 @@ async function request<T>(
       }
     }
 
+    if (authMode === 'protected' && isOrgPaymentRequired(error)) {
+      redirectToOnboardingPayment()
+    }
+
     throw error
   }
 
@@ -166,6 +197,35 @@ function publicRequest<T>(path: string, init: RequestInit = {}) {
 
 function protectedRequest<T>(path: string, init: RequestInit = {}) {
   return request<T>(path, { ...init, authMode: 'protected' })
+}
+
+/**
+ * Like protectedRequest but returns the raw Blob instead of parsing JSON.
+ * Used for binary downloads (PDF, etc.) that carry a Bearer token.
+ */
+async function protectedBlobRequest(
+  path: string,
+  init: RequestInit = {}
+): Promise<{ blob: Blob; response: Response }> {
+  const headers = new Headers(init.headers)
+  const token = await getValidAccessToken()
+  headers.set('Authorization', `Bearer ${token}`)
+
+  const response = await fetch(`${getBaseUrl()}${path}`, {
+    ...init,
+    headers,
+    credentials: 'include',
+  })
+
+  applyAuthTokenHeaders(response)
+
+  if (!response.ok) {
+    const error = await parseError(response)
+    throw error
+  }
+
+  const blob = await response.blob()
+  return { blob, response }
 }
 
 export type SignupBody = {
@@ -191,16 +251,38 @@ export type ProfileUser = {
   updatedAt: string | null
 }
 
+export type OrganizationType = 'company' | 'partnership' | 'sole_proprietorship' | 'other'
+
+/** Structured org address stored as jsonb — country lives on organizations.country. */
+export type OrganizationAddress = {
+  addressLine1: string
+  addressLine2?: string | null
+  city: string
+  state: string
+  postalCode: string
+}
+
 export type CreateOrganizationBody = {
   name: string
   slug: string
   email: string
-  phone?: string
+  phone: string
   website?: string
   industry?: string
+  organizationType: OrganizationType
+  /** Legacy free-text or structured address object. */
+  address: string | OrganizationAddress
+  pan?: string
+  gstin?: string
   country: string
   timezone: string
   currency?: string
+  description?: string
+  businessSize?: string
+  alternatePhone?: string
+  defaultLanguage?: string
+  businessRegistrationNumber?: string
+  designation?: string
 }
 
 export type CreatedOrganization = {
@@ -208,6 +290,9 @@ export type CreatedOrganization = {
   name: string
   slug: string
   role: string
+  status?: 'pending_setup' | 'active' | 'suspended' | 'false'
+  sessionActivated?: boolean
+  reused?: boolean
 }
 
 export type OrganizationSummary = {
@@ -218,20 +303,41 @@ export type OrganizationSummary = {
   phone?: string | null
   website?: string | null
   industry?: string | null
-  country?: string
-  timezone?: string
+  organizationType?: OrganizationType | null
+  address?: OrganizationAddress | string | null
+  pan?: string | null
+  gstin?: string | null
+  country: string
+  timezone: string
   currency?: string | null
+  description?: string | null
+  businessSize?: string | null
+  alternatePhone?: string | null
+  defaultLanguage?: string | null
+  businessRegistrationNumber?: string | null
   role: string
   createdAt: string
+  status?: 'pending_setup' | 'active' | 'suspended' | 'false'
 }
 
 export type UpdateOrganizationBody = {
   name?: string
-  phone?: string
-  website?: string
-  industry?: string
+  phone?: string | null
+  website?: string | null
+  industry?: string | null
+  organizationType?: OrganizationType | null
+  address?: string | OrganizationAddress
+  pan?: string | null
+  gstin?: string | null
+  country?: string
   timezone?: string
-  currency?: string
+  currency?: string | null
+  description?: string | null
+  businessSize?: string | null
+  alternatePhone?: string | null
+  defaultLanguage?: string | null
+  businessRegistrationNumber?: string | null
+  designation?: string | null
 }
 
 export type OrganizationDetails = {
@@ -242,14 +348,71 @@ export type OrganizationDetails = {
   phone: string | null
   website: string | null
   industry: string | null
+  organizationType: OrganizationType | null
+  address: OrganizationAddress | string | null
+  pan: string | null
+  gstin: string | null
   country: string
   timezone: string
   currency: string | null
+  description?: string | null
+  businessSize?: string | null
+  alternatePhone?: string | null
+  defaultLanguage?: string | null
+  businessRegistrationNumber?: string | null
+}
+
+export type OrganizationSmtpTransport = 'smtp' | 'api'
+
+export type OrganizationSmtpProviderPreset =
+  | 'gmail'
+  | 'sendgrid'
+  | 'resend'
+  | 'ses'
+  | 'brevo'
+  | 'custom'
+
+export type OrganizationSmtpConfig = {
+  id: string
+  organizationId: string
+  transport: OrganizationSmtpTransport
+  providerPreset: OrganizationSmtpProviderPreset
+  senderName: string
+  senderEmail: string
+  host: string | null
+  port: number | null
+  secure: boolean | null
+  username: string | null
+  status: string
+  lastTestedAt: string | null
+  lastErrorMessage: string | null
+  hasPassword: boolean
+  hasApiKey: boolean
+  createdAt: string
+  updatedAt: string | null
+}
+
+export type UpsertOrganizationSmtpBody = {
+  transport: OrganizationSmtpTransport
+  providerPreset: OrganizationSmtpProviderPreset
+  senderName: string
+  senderEmail: string
+  host?: string | null
+  port?: number | null
+  secure?: boolean | null
+  username?: string | null
+  password?: string | null
+  apiKey?: string | null
+}
+
+export type TestOrganizationSmtpBody = {
+  draftConfig?: Partial<UpsertOrganizationSmtpBody>
 }
 
 export type AccessContext = {
   organizationId: string
   organizationName: string
+  status?: 'pending_setup' | 'active' | 'suspended' | 'false'
   memberId: string
   role: string
   displayName: string
@@ -271,11 +434,164 @@ export type ContactSummary = {
   updatedAt?: string | null
 }
 
+export type CustomerGroupSummary = {
+  id: string
+  name: string
+  color?: string | null
+  status?: string
+  createdAt?: string
+}
+
 export type CreateContactBody = {
-  phone: string
+  phoneNumber: string
+  countryCode?: string
   name?: string
   email?: string
   company?: string
+}
+
+export type ContactCsvColumnMapping = {
+  phone?: string
+  name?: string
+  email?: string
+  company?: string
+}
+
+export type ContactImportRowResult = {
+  rowNumber: number
+  status: 'processed' | 'failed' | 'skipped'
+  action: 'inserted' | 'skipped' | null
+  errorMessage: string | null
+  contactId: string | null
+  rawData: Record<string, string>
+}
+
+export type ContactImportResult = {
+  id: string
+  organizationId: string
+  fileName: string
+  status: string
+  defaultCountryCode: string | null
+  columnMapping: ContactCsvColumnMapping
+  totalRows: number
+  processedRows: number
+  successCount: number
+  errorCount: number
+  completedAt: string | null
+  rows: ContactImportRowResult[]
+}
+
+export type ImportContactsBody = {
+  file: File
+  columnMapping: ContactCsvColumnMapping
+  defaultCountryCode?: string
+}
+
+/**
+ * UI model for Customer Groups. Backed by `/api/v1/tags` — see `api.tags`
+ * and `customer-group-service.ts`. Fields the Tags API does not persist
+ * (description, status, type, campaign usage) stay as UI defaults.
+ */
+export type CustomerGroupStatus = 'active' | 'inactive'
+
+/** Only Static groups are supported in this frontend version. */
+export type CustomerGroupType = 'static'
+
+export type CustomerGroup = {
+  id: string
+  organizationId: string
+  name: string
+  description: string
+  type: CustomerGroupType
+  status: CustomerGroupStatus
+  contactIds: string[]
+  contactCount: number
+  /** Campaign usage is not returned by Tags. `null` means not available. */
+  usedInCampaigns: number | null
+  createdAt: string
+  updatedAt: string | null
+}
+
+export type CampaignPreview = {
+  campaignId: string
+  campaignName: string
+  campaignStatus?: string
+  messageTemplateId?: string
+  templateName?: string
+  templateStatus?: string
+  category?: string
+  language?: string | null
+  headerType?: string | null
+  headerContent?: string | null
+  headerMediaUrl?: string | null
+  variables?: Record<string, string>
+  bodyPreview: string
+  headerPreview?: string | null
+  footerPreview?: string | null
+  footerText?: string | null
+  buttons?: unknown
+}
+
+/** Raw `/api/v1/tags` record. */
+export type TagRecord = {
+  id: string
+  organizationId: string
+  createdByUserId: string | null
+  name: string
+  color: string | null
+  createdAt: string
+  contactCount: number
+}
+
+export type TagAssignmentRecord = {
+  id: string
+  organizationId: string
+  tagId: string
+  contactId: string
+}
+
+export type CreateTagBody = {
+  name: string
+  color?: string | null
+}
+
+export type UpdateTagBody = {
+  name?: string
+  color?: string | null
+}
+
+export type AssignTagContactBody = {
+  contactId: string
+}
+
+export type CustomerGroupSummaryStats = {
+  totalGroups: number
+  totalContacts: number
+  usedInCampaigns: number | null
+  engagementRate: number | null
+}
+
+export type ListCustomerGroupsParams = {
+  search?: string
+  status?: CustomerGroupStatus | 'all'
+}
+
+export type CreateCustomerGroupBody = {
+  name: string
+  description?: string
+  status?: CustomerGroupStatus
+  contactIds?: string[]
+}
+
+export type UpdateCustomerGroupBody = {
+  name?: string
+  description?: string
+  status?: CustomerGroupStatus
+  contactIds?: string[]
+}
+
+export type AddCustomerGroupContactsBody = {
+  contactIds: string[]
 }
 
 export type InboxConversationStatus = 'open' | 'pending' | 'closed'
@@ -304,7 +620,23 @@ export type InboxConversation = {
   unreadCount: number
   createdAt: string
   updatedAt?: string | null
+  aiMode?: InboxAiMode | string
+  aiHandoverReason?: string | null
+  automationBlocked?: boolean
+  openFlowSessionStatus?: string | null
   contact: InboxConversationContact
+}
+
+export type InboxAiMode = 'AI_AUTO' | 'HANDOVER' | 'HUMAN_ACTIVE'
+
+export type InboxAiHandoverReason = 'low_confidence' | 'keyword_match' | 'business_exception'
+
+export type InboxAiModePatch = {
+  id: string
+  aiMode: InboxAiMode | string
+  aiHandoverReason: string | null
+  automationBlocked?: boolean
+  openFlowSessionStatus?: string | null
 }
 
 export type CreateInboxConversationBody = {
@@ -354,8 +686,61 @@ export type ListInboxMessagesParams = {
 }
 
 export type SendInboxMessageBody = {
-  contentType: 'text'
-  contentText: string
+  contentType: 'text' | 'image' | 'document' | 'template'
+  contentText?: string
+  mediaAssetId?: string
+  templateId?: string
+  templateParameters?: Record<string, string>
+  headerMediaAssetId?: string
+}
+
+export type MediaAssetKind = 'image' | 'document'
+
+export type MediaAsset = {
+  id: string
+  fileName: string
+  mimeType: string
+  fileSize: number
+  state: string
+  source: string
+  deliveryUrl: string
+  uploadedAt: string
+  createdAt: string
+  kind: MediaAssetKind
+  referenceCount?: number
+}
+
+export type MediaQuota = {
+  readyBytes: number
+  reservedBytes: number
+  usedBytes: number
+  limitBytes: number
+}
+
+export type ListMediaParams = {
+  page?: number
+  perPage?: number
+  kind?: MediaAssetKind
+  state?: 'ready' | 'deleted'
+  search?: string
+}
+
+export type InitiateMediaUploadBody = {
+  fileName: string
+  mimeType: string
+  fileSize: number
+  /** Routes upload into organizations/{orgId}/profile/logo.{ext}. */
+  purpose?: 'organization_logo'
+}
+
+export type InitiateMediaUploadResult = {
+  asset: MediaAsset
+  upload: {
+    method: 'PUT'
+    url: string
+    headers: Record<string, string>
+    expiresInSeconds: number
+  }
 }
 
 export type AssignInboxConversationBody = {
@@ -387,6 +772,30 @@ export type CreateInboxConversationNoteBody = {
   noteText: string
 }
 
+/** Row from GET /api/v1/notifications */
+export type Notification = {
+  id: string
+  organizationId: string
+  userId: string
+  type: string
+  conversationId: string | null
+  contactId: string | null
+  actorUserId: string | null
+  title: string
+  body: string | null
+  readAt: string | null
+  createdAt: string
+}
+
+export type ListNotificationsParams = {
+  page?: number
+  limit?: number
+}
+
+export type MarkAllNotificationsReadResult = {
+  updatedCount: number
+}
+
 export type WhatsappConfigSummary = {
   id: string
   organizationId?: string
@@ -400,6 +809,45 @@ export type WhatsappConfigSummary = {
   createdByUserId?: string | null
   createdAt?: string
   updatedAt?: string | null
+}
+
+export type IntegrationConnection = {
+  id: string
+  organizationId: string
+  provider: string
+  externalAccountId: string | null
+  displayName: string
+  config: Record<string, unknown>
+  status: string
+  lastSyncAt: string | null
+  lastErrorCode: string | null
+  lastErrorMessage: string | null
+  createdAt: string
+  updatedAt: string | null
+}
+
+export type UpsertIntegrationConnectionBody = {
+  displayName: string
+  externalAccountId?: string | null
+  config?: Record<string, unknown>
+}
+
+export type IntegrationApiKey = {
+  id: string
+  organizationId: string
+  name: string
+  keyPrefix: string
+  scopes: string[]
+  lastUsedAt: string | null
+  expiresAt: string | null
+  revokedAt: string | null
+  createdAt: string
+  secretToken?: string
+}
+
+export type CreateIntegrationApiKeyBody = {
+  name: string
+  scopes?: Array<'events:write'>
 }
 
 export type WhatsappEmbeddedSignupSession = {
@@ -427,23 +875,19 @@ export type TestWhatsappConfigResult = {
 
 export type WhatsappTemplateCategory = 'MARKETING' | 'UTILITY' | 'AUTHENTICATION'
 
-export type WhatsappTemplateHeaderType = 'NONE' | 'TEXT' | 'IMAGE' | 'VIDEO' | 'DOCUMENT'
+export type WhatsappTemplateHeaderType = 'NONE' | 'TEXT' | 'IMAGE' | 'DOCUMENT'
 
 export type WhatsappTemplateStatus =
-  | 'draft'
-  | 'pending'
-  | 'approved'
-  | 'rejected'
-  | 'deleted'
-  | 'paused'
-  | 'disabled'
-  | string
+  'draft' | 'pending' | 'approved' | 'rejected' | 'deleted' | 'paused' | 'disabled' | string
 
 export type WhatsappTemplateParameterSchema = {
   headerNames?: string[]
   bodyNames?: string[]
+  urlButtons?: Array<{ name: string; index: number }>
   sendable?: boolean
   unsupportedReason?: string | null
+  headerMediaType?: 'image' | 'document'
+  parameterFormat?: 'named' | 'positional'
 }
 
 export type WhatsappTemplateButton = {
@@ -494,6 +938,8 @@ export type CreateWhatsappTemplateBody = {
   language: string
   headerType?: WhatsappTemplateHeaderType | string
   headerContent?: string
+  headerMediaAssetId?: string
+  headerMediaUrl?: string
   bodyText: string
   footerText?: string
   buttons?: WhatsappTemplateButton[]
@@ -502,6 +948,78 @@ export type CreateWhatsappTemplateBody = {
 
 export type SyncWhatsappTemplatesResult = {
   syncedCount: number
+}
+
+export type CampaignStatus =
+  'draft' | 'scheduled' | 'sending' | 'sent' | 'failed' | 'cancelled' | string
+
+/** Maps a template parameter to a contact field, custom field, or static value. */
+export type CampaignVariableMapping =
+  | { source: 'contact_field'; field: string }
+  | { source: 'custom_field'; field: string }
+  | { source: 'static'; value: string }
+
+export type CampaignVariableMappings = Record<string, CampaignVariableMapping>
+
+export type Campaign = {
+  id: string
+  organizationId: string
+  createdByUserId?: string | null
+  name: string
+  whatsappConfigId?: string | null
+  messageTemplateId?: string | null
+  headerMediaAssetId?: string | null
+  audienceTagId?: string | null
+  scheduledAt?: string | null
+  finalizedAt?: string | null
+  cancelledAt?: string | null
+  status: CampaignStatus
+  totalRecipients: number
+  sentCount: number
+  deliveredCount: number
+  readCount: number
+  repliedCount?: number
+  failedCount: number
+  /** Named template param → source mapping (resolved into recipient.variables on send). */
+  variableMappings?: CampaignVariableMappings | null
+  createdAt?: string
+  updatedAt?: string | null
+}
+
+export type ListCampaignsParams = {
+  page?: number
+  limit?: number
+  perPage?: number
+  search?: string
+  status?: string
+  sortBy?: string
+  sortOrder?: 'asc' | 'desc'
+}
+
+export type CreateCampaignBody = {
+  name: string
+  whatsappConfigId?: string
+  messageTemplateId?: string
+  headerMediaAssetId?: string
+  scheduledAt?: string
+  status?: 'draft' | 'scheduled'
+  variableMappings?: CampaignVariableMappings
+}
+
+export type UpdateCampaignBody = {
+  name?: string
+  whatsappConfigId?: string | null
+  messageTemplateId?: string | null
+  headerMediaAssetId?: string | null
+  scheduledAt?: string | null
+  status?: 'draft' | 'scheduled'
+  variableMappings?: CampaignVariableMappings | null
+}
+
+export type ReplaceCampaignRecipientsBody = {
+  contactIds?: string[]
+  tagId?: string
+  variables?: Record<string, string>
 }
 
 export type CreateInvitationBody = {
@@ -533,6 +1051,13 @@ export type OrganizationMember = {
   email: string
   name: string
   createdAt?: string
+}
+
+/** POST /api/v1/ownership/transfer */
+export type TransferOwnershipBody = {
+  targetMemberId: string
+  replacementRoleForCurrentOwner: string
+  reason: string
 }
 
 /** Row from GET /api/v1/organization-admin/users (id = userId). */
@@ -567,6 +1092,40 @@ export type ListOrganizationAdminUsersParams = {
   perPage?: number
 }
 
+/** PATCH /api/v1/organization-admin/users/:id */
+export type UpdateOrganizationAdminUserBody = {
+  firstname?: string
+  lastname?: string
+  email?: string
+  isActive?: boolean
+}
+
+/** Row from GET /api/v1/audit */
+export type AuthorizationAuditEvent = {
+  id: string
+  actorUserId: string | null
+  actorName?: string | null
+  actorEmail?: string | null
+  roleId?: string | null
+  targetType: string
+  targetId: string | null
+  eventType: string
+  granted?: boolean | null
+  before: unknown
+  after: unknown
+  reason: string | null
+  createdAt: string | Date
+  organizationId?: string | null
+  organizationName?: string | null
+}
+
+export type ListAuditParams = {
+  /** 1–100, backend default 50 */
+  limit?: number
+  /** Super Admin platform list only — omit for platform-wide events. */
+  organizationId?: string
+}
+
 export type PendingInvitation = {
   id: string
   email: string
@@ -587,7 +1146,7 @@ export type OnboardingPendingInvitation = {
 }
 
 export type OnboardingNextStep =
-  'accept_invitation' | 'create_organization' | 'select_organization' | 'ready'
+  'accept_invitation' | 'create_organization' | 'select_organization' | 'complete_payment' | 'ready'
 
 export type OnboardingState = {
   activeOrganizationId: string | null
@@ -630,6 +1189,42 @@ export type RoleUpdatePreview = {
   affectedMembers: Array<{ id: string; userId: string }>
 }
 
+/** Nested org membership from GET /api/v1/super-admin/platform-users */
+export type SuperAdminPlatformUserOrganization = {
+  memberId: string
+  organizationId: string
+  organizationName: string
+  organizationSlug: string
+  organizationStatus: string
+  role: string
+  roleId: string
+}
+
+/** Row from GET /api/v1/super-admin/platform-users */
+export type SuperAdminPlatformUser = {
+  id: string
+  name: string
+  firstname: string
+  lastname: string
+  email: string
+  isActive: boolean
+  status: 'active' | 'inactive'
+  emailVerified: boolean
+  createdAt: string
+  updatedAt: string | null
+  platformRole: 'superadmin' | null
+  organizations: SuperAdminPlatformUserOrganization[]
+}
+
+export type ListSuperAdminPlatformUsersParams = {
+  page?: number
+  perPage?: number
+  search?: string
+  status?: 'active' | 'inactive' | 'all'
+  organizationId?: string
+  role?: string
+}
+
 /** Row from GET /api/v1/super-admin/organizations */
 export type SuperAdminOrganization = {
   id: string
@@ -639,11 +1234,15 @@ export type SuperAdminOrganization = {
   phone?: string | null
   website?: string | null
   industry?: string | null
+  organizationType?: OrganizationType | null
+  address?: string | null
+  pan?: string | null
+  gstin?: string | null
   country: string
   timezone: string
   currency?: string | null
-  /** Backend boolean: true = active, false = inactive */
-  status: boolean
+  /** pending_setup | active | suspended | false (soft-deleted) */
+  status: 'pending_setup' | 'active' | 'suspended' | 'false' | string
   createdAt: string
   updatedAt?: string | null
   deletedAt?: string | null
@@ -654,6 +1253,10 @@ export type UpdateSuperAdminOrganizationBody = {
   phone?: string
   website?: string
   industry?: string
+  organizationType?: OrganizationType
+  address?: string
+  pan?: string
+  gstin?: string
   timezone?: string
   currency?: string
 }
@@ -682,12 +1285,506 @@ export type CreateSuperAdminSubscriptionBody = {
   cancelAt?: string
 }
 
+/** Row from GET /api/v1/super-admin/ai-config (no API keys). */
+export type PlatformAiConfig = {
+  id: string
+  isEnabled: boolean
+  chatProvider: 'openai' | 'google' | 'mistral' | string
+  chatModel: string
+  summaryModel: string | null
+  modelName: string
+  temperature: number
+  campaignAttributionWindowHours: number
+  minConfidenceScore: number
+  debounceDelaySeconds: number
+  systemPrompt: string | null
+  workingSetSize: number
+  summaryTurnThreshold: number
+  embeddingProvider: 'openai' | 'google' | 'mistral' | string
+  embeddingModel: string
+  activeEmbeddingSpaceId?: string
+  maxOutputTokens: number
+  reindexStatus?: 'idle' | 'running' | 'failed'
+  reindexFromSpaceId?: string | null
+  reindexToSpaceId?: string | null
+  reindexEmbeddingModel?: string | null
+  reindexEmbeddingProvider?: string | null
+  updatedByUserId: string | null
+  createdAt: string
+  updatedAt: string | null
+}
+
+export type UpdatePlatformAiConfigBody = {
+  isEnabled?: boolean
+  chatProvider?: string
+  chatModel?: string
+  summaryModel?: string | null
+  modelName?: string
+  temperature?: number
+  campaignAttributionWindowHours?: number
+  minConfidenceScore?: number
+  debounceDelaySeconds?: number
+  systemPrompt?: string | null
+  workingSetSize?: number
+  summaryTurnThreshold?: number
+  embeddingProvider?: string
+  embeddingModel?: string
+  maxOutputTokens?: number
+  confirmReindex?: boolean
+}
+
+export type KnowledgeDocumentStatus = 'PENDING' | 'PROCESSING' | 'INDEXED' | 'FAILED'
+
+export type KnowledgeDocumentSourceType = 'FILE_PDF' | 'FILE_DOCX' | 'FILE_TXT'
+
+export type KnowledgeDocument = {
+  id: string
+  title: string
+  sourceType: KnowledgeDocumentSourceType | string
+  status: KnowledgeDocumentStatus | string
+  chunkCount: number
+  mediaAssetId: string | null
+  embeddingModel: string
+  documentHash: string | null
+  errorMessage: string | null
+  deletedAt?: string | null
+  createdAt: string
+  updatedAt: string | null
+}
+
+export type ListKnowledgeDocumentsParams = {
+  page?: number
+  perPage?: number
+  status?: KnowledgeDocumentStatus
+  lifecycle?: 'active' | 'deleted'
+}
+
+export type CreateKnowledgeDocumentBody = {
+  title: string
+  sourceType: 'FILE_PDF' | 'FILE_DOCX' | 'FILE_TXT'
+  fileName: string
+  mimeType: string
+  fileSize: number
+}
+
+export type KnowledgeDocumentPresignedUpload = {
+  method: 'PUT'
+  url: string
+  headers: Record<string, string>
+  expiresInSeconds: number
+}
+
+export type CreateKnowledgeDocumentResult = {
+  document: KnowledgeDocument
+  upload?: KnowledgeDocumentPresignedUpload
+}
+
+export type ConversationFlowStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
+
+export type ConversationFlowTriggerType =
+  'KEYWORD' | 'INBOUND_ANY' | 'CAMPAIGN_REPLY' | 'SUBFLOW_ENTRY'
+
+export type ConversationFlowKeywordMatchType = 'exact' | 'contains' | 'regex'
+
+export type ConversationFlowExpiryMode = 'RESUME_PROMPT' | 'RESTART' | 'RESUME_SILENT'
+
+export type ConversationFlowTangentResume = 'IMMEDIATE_REPROMPT' | 'WAIT_FOR_NEXT'
+
+export type ConversationFlowTriggerConfig = {
+  keywords?: string[]
+  matchType?: ConversationFlowKeywordMatchType
+}
+
+export type ConversationFlowSettings = {
+  sessionTtlMinutes: number
+  onExpiry: ConversationFlowExpiryMode
+  tangentResume: ConversationFlowTangentResume
+  handoverKeywords: string[]
+}
+
+export type ConversationFlowGraphNode = {
+  id: string
+  type: string
+  position?: { x: number; y: number }
+  data?: Record<string, unknown>
+}
+
+export type ConversationFlowGraphEdge = {
+  id: string
+  source: string
+  target: string
+  sourceHandle?: string | null
+  targetHandle?: string | null
+}
+
+export type ConversationFlowViewport = {
+  x: number
+  y: number
+  zoom: number
+}
+
+export type ConversationFlowValidationError = {
+  code?: string
+  message?: string
+  nodeId?: string
+}
+
+export type ConversationFlow = {
+  id: string
+  organizationId: string
+  name: string
+  description: string | null
+  status: ConversationFlowStatus | string
+  isDefault: boolean
+  triggerType: ConversationFlowTriggerType | string
+  publishedVersionId: string | null
+  createdAt: string
+  updatedAt: string | null
+  triggerConfig?: ConversationFlowTriggerConfig
+  settings?: ConversationFlowSettings
+  createdByUserId?: string | null
+  version?: {
+    id: string
+    versionNumber: number
+    nodes: ConversationFlowGraphNode[]
+    edges: ConversationFlowGraphEdge[]
+    viewport: ConversationFlowViewport
+    validationStatus: string
+    validationErrors: ConversationFlowValidationError[] | unknown
+    createdAt: string
+  }
+}
+
+export type ListConversationFlowsParams = {
+  page?: number
+  perPage?: number
+  status?: ConversationFlowStatus
+  search?: string
+}
+
+export type CreateConversationFlowBody = {
+  name: string
+  description?: string | null
+  triggerType?: ConversationFlowTriggerType
+  triggerConfig?: ConversationFlowTriggerConfig
+  settings?: Partial<ConversationFlowSettings>
+  isDefault?: boolean
+}
+
+export type UpdateConversationFlowBody = {
+  name?: string
+  description?: string | null
+  triggerType?: ConversationFlowTriggerType
+  triggerConfig?: ConversationFlowTriggerConfig
+  settings?: Partial<ConversationFlowSettings>
+  isDefault?: boolean
+  nodes?: ConversationFlowGraphNode[]
+  edges?: ConversationFlowGraphEdge[]
+  viewport?: ConversationFlowViewport
+}
+
+export type ConversationFlowValidateResult = {
+  valid: boolean
+  errors: ConversationFlowValidationError[]
+}
+
 export type UpdateSuperAdminSubscriptionBody = {
   planId?: string
   status?: SuperAdminSubscriptionStatus
   currentPeriodStart?: string
   currentPeriodEnd?: string
   cancelAt?: string | null
+}
+
+export type SuperAdminInvoiceStatus = 'paid' | 'pending' | 'overdue' | 'cancelled'
+
+export type SuperAdminInvoiceBillingPeriod = 'monthly' | 'yearly' | 'custom'
+
+export type SuperAdminInvoiceLineItem = {
+  id: string
+  description: string
+  detail?: string | null
+  quantity: number
+  unitPrice: number
+  amount: number
+}
+
+export type SuperAdminInvoiceOrganization = {
+  id: string
+  name: string
+  email: string
+  phone?: string | null
+  address?: string | null
+  gstin?: string | null
+}
+
+/** Row from GET /api/v1/super-admin/invoices/:id */
+export type SuperAdminInvoice = {
+  id: string
+  invoiceNumber: string
+  organization: SuperAdminInvoiceOrganization
+  planName: string
+  billingPeriod: SuperAdminInvoiceBillingPeriod
+  periodStart: string
+  periodEnd: string
+  status: SuperAdminInvoiceStatus
+  issueDate: string
+  dueDate: string
+  currency: string
+  lineItems: SuperAdminInvoiceLineItem[]
+  subtotal: number
+  tax: number
+  taxRate: number
+  discount: number
+  total: number
+  notes?: string | null
+  paymentMethod?: string | null
+  transactionId?: string | null
+  paymentDate?: string | null
+  organizationId: string
+  subscriptionId?: string | null
+  planId?: string | null
+  paymentTransactionId?: string | null
+  sourceInvoiceId?: string | null
+  createdAt: string
+  updatedAt: string | null
+}
+
+export type SuperAdminInvoiceSummary = {
+  totalCount: number
+  paidCount: number
+  paidAmount: number
+  pendingCount: number
+  pendingAmount: number
+  overdueCount: number
+  overdueAmount: number
+  cancelledCount: number
+  cancelledAmount: number
+  thisMonthCount: number
+  thisMonthAmount: number
+}
+
+export type ListSuperAdminInvoicesParams = {
+  page?: number
+  perPage?: number
+  search?: string
+  status?: SuperAdminInvoiceStatus | 'all'
+  issueMonth?: string | 'all'
+  billingPeriod?: SuperAdminInvoiceBillingPeriod | 'all'
+}
+
+export type CreateSuperAdminInvoiceBody = {
+  organizationId: string
+  subscriptionId?: string
+  planId?: string
+  organizationName: string
+  organizationEmail: string
+  organizationPhone?: string
+  organizationAddress?: string
+  organizationGstin?: string
+  planName: string
+  billingPeriod: SuperAdminInvoiceBillingPeriod
+  periodStart: string
+  periodEnd: string
+  issueDate: string
+  dueDate: string
+  currency?: string
+  taxRate?: number
+  discount?: number
+  notes?: string
+  lineItems: Array<{
+    description: string
+    detail?: string
+    quantity: number
+    unitPrice: number
+    amount: number
+  }>
+}
+
+export type MarkSuperAdminInvoicePaidBody = {
+  paymentMethod?: string
+  paymentTransactionId?: string
+}
+
+/** Super-admin SaaS plan catalog (GET/POST/PATCH/DELETE /api/v1/super-admin/plans) */
+export type SuperAdminPlanStatus = 'active' | 'draft' | 'archived'
+export type SuperAdminPlanBillingPeriod = 'monthly' | 'yearly' | 'custom'
+
+export type SuperAdminPlanFeature = {
+  key: string
+  name: string
+  enabled: boolean
+  description?: string
+  category?: 'messaging' | 'automation' | 'ai' | 'team' | 'integrations'
+}
+
+export type SuperAdminPlanLimits = {
+  users: number | null
+  messagesPerMonth: number | null
+}
+
+export type SuperAdminPlan = {
+  id: string
+  code: string
+  name: string
+  description: string
+  price: number | null
+  currency: string
+  billingPeriod: SuperAdminPlanBillingPeriod
+  billingInterval?: string
+  billingIntervalCount?: number
+  status: SuperAdminPlanStatus
+  popular: boolean
+  trialDays: number | null
+  limits: SuperAdminPlanLimits
+  features: SuperAdminPlanFeature[]
+  gateway?: string | null
+  gatewayPlanId?: string | null
+  isActive?: boolean
+  sortOrder?: number
+  createdAt: string
+  updatedAt: string | null
+}
+
+export type SuperAdminPlanSummary = {
+  total: number
+  active: number
+  draft: number
+  archived: number
+  popularName: string | null
+}
+
+export type CreateSuperAdminPlanBody = {
+  name: string
+  description?: string
+  code?: string
+  price: number | null
+  currency: string
+  billingPeriod: SuperAdminPlanBillingPeriod
+  status: Exclude<SuperAdminPlanStatus, 'archived'>
+  popular?: boolean
+  trialDays?: number | null
+  limits: {
+    users?: number | null
+    messagesPerMonth?: number | null
+  }
+  features?: SuperAdminPlanFeature[]
+  sortOrder?: number
+}
+
+export type UpdateSuperAdminPlanBody = Partial<CreateSuperAdminPlanBody>
+
+export type ListSuperAdminPlansParams = {
+  search?: string
+  status?: SuperAdminPlanStatus | 'all'
+}
+
+/** GET /api/v1/billing/subscription — fields returned by BillingController.showSubscription */
+export type BillingSubscription = {
+  id: string
+  organizationId: string
+  planId: string
+  status: string
+  gateway?: string | null
+  gatewaySubscriptionId?: string | null
+  checkoutUrl?: string | null
+  currentPeriodStart?: string | null
+  currentPeriodEnd?: string | null
+  trialEndsAt?: string | null
+  cancelAtPeriodEnd?: boolean | null
+  lastPaymentStatus?: string | null
+  lastPaymentAt?: string | null
+}
+
+/** POST /api/v1/billing/checkout — free activation or Razorpay Checkout.js fields */
+export type BillingCheckoutFreeResult = {
+  mode: 'free'
+  orderId: string
+  subscriptionId: string
+  alreadyApplied: boolean
+  plan: {
+    id: string
+    code: string
+    name: string
+    price: number
+  }
+}
+
+/** POST /api/v1/billing/checkout — Razorpay branch (legacy shape + mode) */
+export type BillingCheckoutRazorpayResult = {
+  mode: 'razorpay'
+  orderId: string
+  amount: number
+  currency: string
+  keyId: string
+  purpose: 'new_subscription' | 'renewal' | 'plan_change'
+  plan: {
+    id: string
+    code: string
+    name: string
+    price: number
+  }
+  prefill: {
+    name: string
+    email: string
+    contact: string | null
+  }
+}
+
+export type BillingCheckoutResponse = BillingCheckoutFreeResult | BillingCheckoutRazorpayResult
+
+/** @deprecated Use BillingCheckoutRazorpayResult */
+export type BillingCheckoutResult = Omit<BillingCheckoutRazorpayResult, 'mode'>
+
+export type BillingCheckoutBody = {
+  planId: string
+}
+
+export type BillingVerifyBody = {
+  razorpayOrderId: string
+  razorpayPaymentId: string
+  razorpaySignature: string
+}
+
+export type BillingVerifyResult = {
+  orderId: string
+  subscriptionId: string
+  invoiceId: string
+  alreadyApplied: boolean
+}
+
+/** GET /api/v1/billing/plans — tenant-safe active catalog (no gateway secrets). */
+export type TenantBillingPlanBillingPeriod = 'monthly' | 'yearly' | 'custom'
+
+export type TenantBillingPlanFeature = {
+  key: string
+  name: string
+  enabled: boolean
+  category?: string
+}
+
+export type TenantBillingPlanLimits = {
+  users: number | null
+  messagesPerMonth: number | null
+}
+
+export type TenantBillingPlan = {
+  id: string
+  code: string
+  name: string
+  description: string
+  price: number | null
+  currency: string
+  billingPeriod: TenantBillingPlanBillingPeriod
+  popular: boolean
+  trialDays: number | null
+  limits: TenantBillingPlanLimits
+  features: TenantBillingPlanFeature[]
+  /** Razorpay checkout (price > 0). */
+  checkoutable: boolean
+  /** Local free activation (price === 0). */
+  freeActivatable: boolean
+  sortOrder: number
 }
 
 export const api = {
@@ -736,7 +1833,9 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({
           provider: 'google',
-          callbackURL: callbackURL ?? `${process.env.NEXT_PUBLIC_APP_URL}/onboarding/organization`,
+          callbackURL:
+            callbackURL ??
+            `${typeof window !== 'undefined' ? window.location.origin : (process.env.NEXT_PUBLIC_APP_URL ?? '').replace(/\/$/, '')}/onboarding/organization`,
         }),
       }),
 
@@ -809,6 +1908,36 @@ export const api = {
         `/api/v1/organizations/${organizationId}`,
         { method: 'DELETE' }
       ),
+
+    getSmtp: (organizationId: string) =>
+      protectedRequest<{ data: OrganizationSmtpConfig | null }>(
+        `/api/v1/organizations/${organizationId}/smtp`,
+        { method: 'GET' }
+      ),
+
+    updateSmtp: (organizationId: string, body: UpsertOrganizationSmtpBody) =>
+      protectedRequest<{ data: OrganizationSmtpConfig }>(
+        `/api/v1/organizations/${organizationId}/smtp`,
+        {
+          method: 'PUT',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    testSmtp: (organizationId: string, body?: TestOrganizationSmtpBody) =>
+      protectedRequest<{ data: { ok: boolean } }>(
+        `/api/v1/organizations/${organizationId}/smtp/test`,
+        {
+          method: 'POST',
+          body: JSON.stringify(body ?? {}),
+        }
+      ),
+
+    deleteSmtp: (organizationId: string) =>
+      protectedRequest<{ data: { deleted: boolean } }>(
+        `/api/v1/organizations/${organizationId}/smtp`,
+        { method: 'DELETE' }
+      ),
   },
 
   access: {
@@ -830,6 +1959,80 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(body),
       }),
+
+    delete: (contactId: string) =>
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/contacts/${contactId}`,
+        { method: 'DELETE' }
+      ),
+
+    importCsv: (body: ImportContactsBody) => {
+      const form = new FormData()
+      form.append('file', body.file)
+      form.append('columnMapping', JSON.stringify(body.columnMapping))
+      if (body.defaultCountryCode) {
+        form.append('defaultCountryCode', body.defaultCountryCode)
+      }
+      return protectedRequest<{ data?: ContactImportResult } & ContactImportResult>(
+        '/api/v1/contacts/import',
+        {
+          method: 'POST',
+          body: form,
+        }
+      )
+    },
+  },
+
+  tags: {
+    list: () =>
+      protectedRequest<{ data?: TagRecord[] } | TagRecord[]>('/api/v1/tags', {
+        method: 'GET',
+      }),
+
+    get: (tagId: string) =>
+      protectedRequest<{ data?: TagRecord } & TagRecord>(`/api/v1/tags/${tagId}`, {
+        method: 'GET',
+      }),
+
+    create: (body: CreateTagBody) =>
+      protectedRequest<{ data?: TagRecord } & TagRecord>('/api/v1/tags', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+
+    update: (tagId: string, body: UpdateTagBody) =>
+      protectedRequest<{ data?: TagRecord } & TagRecord>(`/api/v1/tags/${tagId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+
+    delete: (tagId: string) =>
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(`/api/v1/tags/${tagId}`, {
+        method: 'DELETE',
+      }),
+
+    contacts: {
+      list: (tagId: string) =>
+        protectedRequest<{ data?: ContactSummary[] } | ContactSummary[]>(
+          `/api/v1/tags/${tagId}/contacts`,
+          { method: 'GET' }
+        ),
+
+      add: (tagId: string, body: AssignTagContactBody) =>
+        protectedRequest<{ data?: TagAssignmentRecord } & TagAssignmentRecord>(
+          `/api/v1/tags/${tagId}/contacts`,
+          {
+            method: 'POST',
+            body: JSON.stringify(body),
+          }
+        ),
+
+      remove: (tagId: string, contactId: string) =>
+        protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+          `/api/v1/tags/${tagId}/contacts/${contactId}`,
+          { method: 'DELETE' }
+        ),
+    },
   },
 
   inbox: {
@@ -875,11 +2078,7 @@ export const api = {
       })
     },
 
-    sendMessage: (
-      conversationId: string,
-      body: SendInboxMessageBody,
-      idempotencyKey: string
-    ) =>
+    sendMessage: (conversationId: string, body: SendInboxMessageBody, idempotencyKey: string) =>
       protectedRequest<{ data?: InboxMessage } & InboxMessage>(
         `/api/v1/inbox/conversations/${conversationId}/messages`,
         {
@@ -934,6 +2133,46 @@ export const api = {
           method: 'POST',
           body: JSON.stringify(body),
         }
+      ),
+
+    takeoverAi: (conversationId: string) =>
+      protectedRequest<{ data?: InboxAiModePatch } & InboxAiModePatch>(
+        `/api/v1/inbox/conversations/${conversationId}/ai/takeover`,
+        { method: 'POST' }
+      ),
+
+    resumeAi: (conversationId: string) =>
+      protectedRequest<{ data?: InboxAiModePatch } & InboxAiModePatch>(
+        `/api/v1/inbox/conversations/${conversationId}/ai/resume`,
+        { method: 'POST' }
+      ),
+  },
+
+  notifications: {
+    list: (params: ListNotificationsParams = {}) => {
+      const qs = new URLSearchParams()
+      if (params.page != null) qs.set('page', String(params.page))
+      if (params.limit != null) qs.set('limit', String(params.limit))
+      const query = qs.toString()
+      return protectedRequest<
+        | Paginated<Notification>
+        | { data?: Notification[]; meta?: PaginationMeta }
+        | { data?: { data?: Notification[]; meta?: PaginationMeta } }
+      >(`/api/v1/notifications${query ? `?${query}` : ''}`, {
+        method: 'GET',
+      })
+    },
+
+    markAsRead: (notificationId: string) =>
+      protectedRequest<{ data?: Notification } & Notification>(
+        `/api/v1/notifications/${notificationId}/read`,
+        { method: 'PATCH' }
+      ),
+
+    markAllAsRead: () =>
+      protectedRequest<{ data?: MarkAllNotificationsReadResult } & MarkAllNotificationsReadResult>(
+        '/api/v1/notifications/read-all',
+        { method: 'PATCH' }
       ),
   },
 
@@ -1025,6 +2264,343 @@ export const api = {
       ),
   },
 
+  integrations: {
+    list: () =>
+      protectedRequest<{ data?: IntegrationConnection[] } | IntegrationConnection[]>(
+        '/api/v1/integrations',
+        { method: 'GET' }
+      ),
+
+    upsert: (provider: string, body: UpsertIntegrationConnectionBody) =>
+      protectedRequest<{ data?: IntegrationConnection } & IntegrationConnection>(
+        `/api/v1/integrations/${provider}`,
+        {
+          method: 'PUT',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    destroy: (provider: string) =>
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/integrations/${provider}`,
+        { method: 'DELETE' }
+      ),
+  },
+
+  apiKeys: {
+    list: () =>
+      protectedRequest<{ data?: IntegrationApiKey[] } | IntegrationApiKey[]>('/api/v1/api-keys', {
+        method: 'GET',
+      }),
+
+    create: (body: CreateIntegrationApiKeyBody) =>
+      protectedRequest<{ data?: IntegrationApiKey } & IntegrationApiKey>('/api/v1/api-keys', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+
+    revoke: (id: string) =>
+      protectedRequest<{ data?: IntegrationApiKey } & IntegrationApiKey>(
+        `/api/v1/api-keys/${id}/revoke`,
+        { method: 'POST' }
+      ),
+  },
+
+  knowledgeDocuments: {
+    list: (params: ListKnowledgeDocumentsParams = {}) => {
+      const qs = new URLSearchParams()
+      if (params.page != null) qs.set('page', String(params.page))
+      if (params.perPage != null) qs.set('perPage', String(params.perPage))
+      if (params.status) qs.set('status', params.status)
+      if (params.lifecycle) qs.set('lifecycle', params.lifecycle)
+      const query = qs.toString()
+      return protectedRequest<
+        | Paginated<KnowledgeDocument>
+        | { data?: KnowledgeDocument[]; meta?: PaginationMeta }
+        | { data?: { data?: KnowledgeDocument[]; meta?: PaginationMeta } }
+      >(`/api/v1/ai/knowledge-documents${query ? `?${query}` : ''}`, { method: 'GET' })
+    },
+
+    get: (documentId: string) =>
+      protectedRequest<{ data?: KnowledgeDocument } & KnowledgeDocument>(
+        `/api/v1/ai/knowledge-documents/${documentId}`,
+        { method: 'GET' }
+      ),
+
+    create: (body: CreateKnowledgeDocumentBody) =>
+      protectedRequest<{ data?: CreateKnowledgeDocumentResult } & CreateKnowledgeDocumentResult>(
+        '/api/v1/ai/knowledge-documents',
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    completeUpload: (documentId: string) =>
+      protectedRequest<{ data?: KnowledgeDocument } & KnowledgeDocument>(
+        `/api/v1/ai/knowledge-documents/${documentId}/complete-upload`,
+        { method: 'POST' }
+      ),
+
+    delete: (documentId: string) =>
+      protectedRequest<{ data?: KnowledgeDocument } & KnowledgeDocument>(
+        `/api/v1/ai/knowledge-documents/${documentId}`,
+        { method: 'DELETE' }
+      ),
+
+    restore: (documentId: string) =>
+      protectedRequest<{ data?: KnowledgeDocument } & KnowledgeDocument>(
+        `/api/v1/ai/knowledge-documents/${documentId}/restore`,
+        { method: 'POST' }
+      ),
+
+    purge: (documentId: string) =>
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/ai/knowledge-documents/${documentId}/purge`,
+        { method: 'POST' }
+      ),
+  },
+
+  flows: {
+    list: (params: ListConversationFlowsParams = {}) => {
+      const qs = new URLSearchParams()
+      if (params.page != null) qs.set('page', String(params.page))
+      if (params.perPage != null) qs.set('perPage', String(params.perPage))
+      if (params.status) qs.set('status', params.status)
+      if (params.search?.trim()) qs.set('search', params.search.trim())
+      const query = qs.toString()
+      return protectedRequest<
+        | Paginated<ConversationFlow>
+        | { data?: ConversationFlow[]; meta?: PaginationMeta }
+        | { data?: { data?: ConversationFlow[]; meta?: PaginationMeta } }
+      >(`/api/v1/flows${query ? `?${query}` : ''}`, { method: 'GET' })
+    },
+
+    get: (flowId: string) =>
+      protectedRequest<{ data?: ConversationFlow } & ConversationFlow>(`/api/v1/flows/${flowId}`, {
+        method: 'GET',
+      }),
+
+    create: (body: CreateConversationFlowBody) =>
+      protectedRequest<{ data?: ConversationFlow } & ConversationFlow>('/api/v1/flows', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+
+    update: (flowId: string, body: UpdateConversationFlowBody) =>
+      protectedRequest<{ data?: ConversationFlow } & ConversationFlow>(`/api/v1/flows/${flowId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+
+    validate: (flowId: string, body: UpdateConversationFlowBody = {}) =>
+      protectedRequest<{ data?: ConversationFlowValidateResult } & ConversationFlowValidateResult>(
+        `/api/v1/flows/${flowId}/validate`,
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    publish: (flowId: string) =>
+      protectedRequest<{ data?: ConversationFlow } & ConversationFlow>(
+        `/api/v1/flows/${flowId}/publish`,
+        { method: 'POST' }
+      ),
+
+    delete: (flowId: string) =>
+      protectedRequest<{ data?: ConversationFlow } & ConversationFlow>(`/api/v1/flows/${flowId}`, {
+        method: 'DELETE',
+      }),
+  },
+
+  media: {
+    list: (params: ListMediaParams = {}) => {
+      const qs = new URLSearchParams()
+      if (params.page != null) qs.set('page', String(params.page))
+      if (params.perPage != null) qs.set('perPage', String(params.perPage))
+      if (params.kind) qs.set('kind', params.kind)
+      if (params.state) qs.set('state', params.state)
+      if (params.search?.trim()) qs.set('search', params.search.trim())
+      const query = qs.toString()
+      return protectedRequest<
+        | Paginated<MediaAsset>
+        | { data?: MediaAsset[]; meta?: PaginationMeta }
+        | { data?: { data?: MediaAsset[]; meta?: PaginationMeta } }
+      >(`/api/v1/media${query ? `?${query}` : ''}`, { method: 'GET' })
+    },
+
+    quota: () =>
+      protectedRequest<{ data?: MediaQuota } & MediaQuota>('/api/v1/media/quota', {
+        method: 'GET',
+      }),
+
+    /** Canonical org profile logo (namespace=profile), or null. */
+    organizationLogo: () =>
+      protectedRequest<{ data?: MediaAsset | null } & { data?: MediaAsset | null }>(
+        '/api/v1/media/organization-logo',
+        { method: 'GET' }
+      ),
+
+    get: (mediaAssetId: string) =>
+      protectedRequest<{ data?: MediaAsset } & MediaAsset>(`/api/v1/media/${mediaAssetId}`, {
+        method: 'GET',
+      }),
+
+    initiateUpload: (body: InitiateMediaUploadBody) =>
+      protectedRequest<{ data?: InitiateMediaUploadResult } & InitiateMediaUploadResult>(
+        '/api/v1/media/uploads',
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    completeUpload: (mediaAssetId: string) =>
+      protectedRequest<{ data?: MediaAsset } & MediaAsset>(
+        `/api/v1/media/uploads/${mediaAssetId}/complete`,
+        { method: 'POST' }
+      ),
+
+    softDelete: (mediaAssetId: string) =>
+      protectedRequest<{ data?: MediaAsset } & MediaAsset>(`/api/v1/media/${mediaAssetId}`, {
+        method: 'DELETE',
+      }),
+
+    restore: (mediaAssetId: string) =>
+      protectedRequest<{ data?: MediaAsset } & MediaAsset>(
+        `/api/v1/media/${mediaAssetId}/restore`,
+        { method: 'POST' }
+      ),
+
+    purge: (mediaAssetId: string) =>
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/media/${mediaAssetId}/purge`,
+        { method: 'POST' }
+      ),
+  },
+
+  billing: {
+    getSubscription: () =>
+      protectedRequest<{ data?: BillingSubscription } & BillingSubscription>(
+        '/api/v1/billing/subscription',
+        { method: 'GET' }
+      ),
+
+    listPlans: () =>
+      protectedRequest<{ data?: { items: TenantBillingPlan[] } }>('/api/v1/billing/plans', {
+        method: 'GET',
+      }),
+
+    checkout: (body: BillingCheckoutBody) =>
+      protectedRequest<{ data?: BillingCheckoutResult } & BillingCheckoutResult>(
+        '/api/v1/billing/checkout',
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    verify: (body: BillingVerifyBody) =>
+      protectedRequest<{ data?: BillingVerifyResult } & BillingVerifyResult>(
+        '/api/v1/billing/verify',
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+  },
+
+  campaigns: {
+    list: (params: ListCampaignsParams = {}) => {
+      const qs = new URLSearchParams()
+      if (params.page != null) qs.set('page', String(params.page))
+      if (params.limit != null) qs.set('limit', String(params.limit))
+      if (params.perPage != null) qs.set('perPage', String(params.perPage))
+      if (params.search?.trim()) qs.set('search', params.search.trim())
+      if (params.status) qs.set('status', params.status)
+      if (params.sortBy) qs.set('sortBy', params.sortBy)
+      if (params.sortOrder) qs.set('sortOrder', params.sortOrder)
+      const query = qs.toString()
+      return protectedRequest<
+        | Paginated<Campaign>
+        | { data?: Campaign[]; meta?: PaginationMeta }
+        | { data?: { data?: Campaign[]; meta?: PaginationMeta } }
+      >(`/api/v1/campaigns${query ? `?${query}` : ''}`, {
+        method: 'GET',
+      })
+    },
+
+    get: (campaignId: string) =>
+      protectedRequest<{ data?: Campaign } & Campaign>(`/api/v1/campaigns/${campaignId}`, {
+        method: 'GET',
+      }),
+
+    create: (body: CreateCampaignBody) =>
+      protectedRequest<{ data?: Campaign } & Campaign>('/api/v1/campaigns', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+
+    update: (campaignId: string, body: UpdateCampaignBody) =>
+      protectedRequest<{ data?: Campaign } & Campaign>(`/api/v1/campaigns/${campaignId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+
+    delete: (campaignId: string) =>
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/campaigns/${campaignId}`,
+        { method: 'DELETE' }
+      ),
+
+    replaceRecipients: (campaignId: string, body: ReplaceCampaignRecipientsBody) =>
+      protectedRequest<{ data?: Campaign } & Campaign>(
+        `/api/v1/campaigns/${campaignId}/recipients`,
+        {
+          method: 'PUT',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    schedule: (campaignId: string, body: { scheduledAt: string; timeZone?: string }) =>
+      protectedRequest<{ data?: Campaign } & Campaign>(`/api/v1/campaigns/${campaignId}/schedule`, {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+
+    send: (campaignId: string) =>
+      protectedRequest<{ data?: Campaign } & Campaign>(`/api/v1/campaigns/${campaignId}/send`, {
+        method: 'POST',
+      }),
+
+    cancel: (campaignId: string) =>
+      protectedRequest<{ data?: Campaign } & Campaign>(`/api/v1/campaigns/${campaignId}/cancel`, {
+        method: 'PATCH',
+      }),
+
+    preview: (campaignId: string, body: { variables?: Record<string, string> } = {}) =>
+      protectedRequest<{ data?: CampaignPreview } & CampaignPreview>(
+        `/api/v1/campaigns/${campaignId}/preview`,
+        {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    duplicate: (campaignId: string) =>
+      protectedRequest<{ data?: Campaign } & Campaign>(
+        `/api/v1/campaigns/${campaignId}/duplicate`,
+        { method: 'POST' }
+      ),
+
+    changeStatus: (campaignId: string, body: { status: CampaignStatus }) =>
+      protectedRequest<{ data?: Campaign } & Campaign>(`/api/v1/campaigns/${campaignId}/status`, {
+        method: 'PATCH',
+        body: JSON.stringify(body),
+      }),
+  },
+
   members: {
     list: () =>
       protectedRequest<{ data?: OrganizationMember[] } | OrganizationMember[]>('/api/v1/members', {
@@ -1047,9 +2623,39 @@ export const api = {
       ),
   },
 
+  ownership: {
+    /**
+     * Transfer org ownership — current owner only.
+     * Body: targetMemberId, replacementRoleForCurrentOwner, reason (min 5).
+     */
+    transfer: (body: TransferOwnershipBody) =>
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>('/api/v1/ownership/transfer', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+  },
+
+  audit: {
+    /**
+     * Tenant authorization audit events (newest first).
+     * Active-organization scoped. Requires audit:view.
+     */
+    list: (params: ListAuditParams = {}) => {
+      const qs = new URLSearchParams()
+      if (params.limit != null) qs.set('limit', String(params.limit))
+      const query = qs.toString()
+      return protectedRequest<{ data?: AuthorizationAuditEvent[] } | AuthorizationAuditEvent[]>(
+        `/api/v1/audit${query ? `?${query}` : ''}`,
+        {
+          method: 'GET',
+        }
+      )
+    },
+  },
+
   organizationAdmin: {
     /**
-     * Paginated org users — Owner/Admin only.
+     * Paginated org users — Owner/Admin only (`accessOrgAdmin`).
      * Role changes still go through PATCH /api/v1/members/:memberId/role.
      */
     listUsers: (params: ListOrganizationAdminUsersParams = {}) => {
@@ -1063,6 +2669,33 @@ export const api = {
         method: 'GET',
       })
     },
+
+    /** GET /api/v1/organization-admin/users/:userId — Owner/Admin only. */
+    getUser: (userId: string) =>
+      protectedRequest<{ data?: OrganizationAdminUser } & OrganizationAdminUser>(
+        `/api/v1/organization-admin/users/${userId}`,
+        { method: 'GET' }
+      ),
+
+    /** PATCH /api/v1/organization-admin/users/:userId — profile + isActive. */
+    updateUser: (userId: string, body: UpdateOrganizationAdminUserBody) =>
+      protectedRequest<{ data?: OrganizationAdminUser } & OrganizationAdminUser>(
+        `/api/v1/organization-admin/users/${userId}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify(body),
+        }
+      ),
+
+    /**
+     * DELETE /api/v1/organization-admin/users/:userId —
+     * soft-deletes the org membership (does not delete the user account).
+     */
+    softDeleteUser: (userId: string) =>
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/organization-admin/users/${userId}`,
+        { method: 'DELETE' }
+      ),
   },
 
   invitations: {
@@ -1234,6 +2867,184 @@ export const api = {
           `/api/v1/super-admin/subscriptions/${subscriptionId}`,
           { method: 'DELETE' }
         ),
+    },
+
+    plans: {
+      list: (params: ListSuperAdminPlansParams = {}) => {
+        const qs = new URLSearchParams()
+        if (params.search?.trim()) qs.set('search', params.search.trim())
+        if (params.status && params.status !== 'all') qs.set('status', params.status)
+        const query = qs.toString()
+        return protectedRequest<{
+          data?: { items: SuperAdminPlan[]; summary: SuperAdminPlanSummary }
+        }>(`/api/v1/super-admin/plans${query ? `?${query}` : ''}`, {
+          method: 'GET',
+        })
+      },
+
+      get: (planId: string) =>
+        protectedRequest<{ data?: SuperAdminPlan } & SuperAdminPlan>(
+          `/api/v1/super-admin/plans/${planId}`,
+          { method: 'GET' }
+        ),
+
+      create: (body: CreateSuperAdminPlanBody) =>
+        protectedRequest<{ data?: SuperAdminPlan } & SuperAdminPlan>('/api/v1/super-admin/plans', {
+          method: 'POST',
+          body: JSON.stringify(body),
+        }),
+
+      update: (planId: string, body: UpdateSuperAdminPlanBody) =>
+        protectedRequest<{ data?: SuperAdminPlan } & SuperAdminPlan>(
+          `/api/v1/super-admin/plans/${planId}`,
+          {
+            method: 'PATCH',
+            body: JSON.stringify(body),
+          }
+        ),
+
+      destroy: (planId: string) =>
+        protectedRequest<{ data?: SuperAdminPlan } & SuperAdminPlan>(
+          `/api/v1/super-admin/plans/${planId}`,
+          { method: 'DELETE' }
+        ),
+    },
+
+    invoices: {
+      list: (params: ListSuperAdminInvoicesParams = {}) => {
+        const qs = new URLSearchParams()
+        if (params.page != null) qs.set('page', String(params.page))
+        if (params.perPage != null) qs.set('perPage', String(params.perPage))
+        if (params.search?.trim()) qs.set('search', params.search.trim())
+        if (params.status && params.status !== 'all') qs.set('status', params.status)
+        if (params.issueMonth && params.issueMonth !== 'all')
+          qs.set('issueMonth', params.issueMonth)
+        if (params.billingPeriod && params.billingPeriod !== 'all') {
+          qs.set('billingPeriod', params.billingPeriod)
+        }
+        const query = qs.toString()
+        return protectedRequest<
+          Paginated<SuperAdminInvoice> | { data?: SuperAdminInvoice[]; meta?: PaginationMeta }
+        >(`/api/v1/super-admin/invoices${query ? `?${query}` : ''}`, {
+          method: 'GET',
+        })
+      },
+
+      summary: (params: Omit<ListSuperAdminInvoicesParams, 'page' | 'perPage'> = {}) => {
+        const qs = new URLSearchParams()
+        if (params.search?.trim()) qs.set('search', params.search.trim())
+        if (params.status && params.status !== 'all') qs.set('status', params.status)
+        if (params.issueMonth && params.issueMonth !== 'all')
+          qs.set('issueMonth', params.issueMonth)
+        if (params.billingPeriod && params.billingPeriod !== 'all') {
+          qs.set('billingPeriod', params.billingPeriod)
+        }
+        const query = qs.toString()
+        return protectedRequest<{ data?: SuperAdminInvoiceSummary } & SuperAdminInvoiceSummary>(
+          `/api/v1/super-admin/invoices/summary${query ? `?${query}` : ''}`,
+          {
+            method: 'GET',
+          }
+        )
+      },
+
+      get: (invoiceId: string) =>
+        protectedRequest<{ data?: SuperAdminInvoice } & SuperAdminInvoice>(
+          `/api/v1/super-admin/invoices/${invoiceId}`,
+          { method: 'GET' }
+        ),
+
+      create: (body: CreateSuperAdminInvoiceBody) =>
+        protectedRequest<{ data?: SuperAdminInvoice } & SuperAdminInvoice>(
+          '/api/v1/super-admin/invoices',
+          {
+            method: 'POST',
+            body: JSON.stringify(body),
+          }
+        ),
+
+      markPaid: (invoiceId: string, body: MarkSuperAdminInvoicePaidBody = {}) =>
+        protectedRequest<{ data?: SuperAdminInvoice } & SuperAdminInvoice>(
+          `/api/v1/super-admin/invoices/${invoiceId}/mark-paid`,
+          {
+            method: 'POST',
+            body: JSON.stringify(body),
+          }
+        ),
+
+      regenerate: (invoiceId: string) =>
+        protectedRequest<{ data?: SuperAdminInvoice } & SuperAdminInvoice>(
+          `/api/v1/super-admin/invoices/${invoiceId}/regenerate`,
+          {
+            method: 'POST',
+            body: JSON.stringify({}),
+          }
+        ),
+
+      send: (invoiceId: string) =>
+        protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+          `/api/v1/super-admin/invoices/${invoiceId}/send`,
+          {
+            method: 'POST',
+            body: JSON.stringify({}),
+          }
+        ),
+
+      download: (invoiceId: string) =>
+        protectedBlobRequest(`/api/v1/super-admin/invoices/${invoiceId}/download`, {
+          method: 'GET',
+        }),
+    },
+
+    aiConfig: {
+      get: () =>
+        protectedRequest<{ data?: PlatformAiConfig } & PlatformAiConfig>(
+          '/api/v1/super-admin/ai-config',
+          { method: 'GET' }
+        ),
+
+      update: (body: UpdatePlatformAiConfigBody) =>
+        protectedRequest<{ data?: PlatformAiConfig } & PlatformAiConfig>(
+          '/api/v1/super-admin/ai-config',
+          {
+            method: 'PATCH',
+            body: JSON.stringify(body),
+          }
+        ),
+    },
+
+    auditLogs: {
+      list: (params: ListAuditParams = {}) => {
+        const qs = new URLSearchParams()
+        if (params.limit != null) qs.set('limit', String(params.limit))
+        if (params.organizationId) qs.set('organizationId', params.organizationId)
+        const query = qs.toString()
+        return protectedRequest<{ data?: AuthorizationAuditEvent[] } | AuthorizationAuditEvent[]>(
+          `/api/v1/super-admin/audit-logs${query ? `?${query}` : ''}`,
+          {
+            method: 'GET',
+          }
+        )
+      },
+    },
+
+    platformUsers: {
+      list: (params: ListSuperAdminPlatformUsersParams = {}) => {
+        const qs = new URLSearchParams()
+        if (params.page != null) qs.set('page', String(params.page))
+        if (params.perPage != null) qs.set('perPage', String(params.perPage))
+        if (params.search?.trim()) qs.set('search', params.search.trim())
+        if (params.status && params.status !== 'all') qs.set('status', params.status)
+        if (params.organizationId) qs.set('organizationId', params.organizationId)
+        if (params.role?.trim()) qs.set('role', params.role.trim())
+        const query = qs.toString()
+        return protectedRequest<
+          | Paginated<SuperAdminPlatformUser>
+          | { data?: SuperAdminPlatformUser[]; meta?: PaginationMeta }
+        >(`/api/v1/super-admin/platform-users${query ? `?${query}` : ''}`, {
+          method: 'GET',
+        })
+      },
     },
   },
 }

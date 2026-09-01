@@ -48,10 +48,6 @@ export default await Env.create(new URL('../', import.meta.url), {
   PG_DB_NAME: Env.schema.string(),
   PG_SSL: Env.schema.boolean.optional(),
 
-  // Resend
-  RESEND_API_KEY: Env.schema.secret(),
-  EMAIL_FROM: Env.schema.string(),
-
   WHATSAPP_VERIFY_TOKEN: Env.schema.string(),
 
   META_APP_SECRET: Env.schema.secret(),
@@ -62,9 +58,16 @@ export default await Env.create(new URL('../', import.meta.url), {
 
   META_GRAPH_API_VERSION: Env.schema.string(),
 
-  // Job queue (pgboss | null; redis reserved for a future driver)
-  JOB_QUEUE_DRIVER: Env.schema.enum.optional(['pgboss', 'null'] as const),
-  JOB_QUEUE_PGBOSS_SCHEMA: Env.schema.string.optional(),
+  // Secrets only — model/debounce knobs live on platform_ai_configs.
+  OPENAI_API_KEY: Env.schema.secret.optional(),
+  GOOGLE_AI_API_KEY: Env.schema.secret.optional(),
+  MISTRAL_API_KEY: Env.schema.secret.optional(),
+
+  // Job queue — all jobs run on BullMQ (or null in tests). REDIS_URL required when driver=bullmq.
+  JOB_QUEUE_DRIVER: Env.schema.enum.optional(['bullmq', 'null'] as const),
+  JOB_QUEUE_BULLMQ_PREFIX: Env.schema.string.optional(),
+  // Keep optional so NODE_ENV=test with null driver still boots; config asserts when bullmq.
+  REDIS_URL: Env.schema.string.optional(),
 
   // Comma-separated hostnames allowed for outbound media public URLs (optional)
   OUTBOUND_MEDIA_ALLOWED_HOSTS: Env.schema.string.optional(),
@@ -72,11 +75,37 @@ export default await Env.create(new URL('../', import.meta.url), {
   RAZORPAY_KEY_SECRET: Env.schema.secret(),
   RAZORPAY_WEBHOOK_SECRET: Env.schema.secret(),
 
-  // Media object storage (private S3 + public CDN base for WhatsApp link delivery)
-  AWS_ACCESS_KEY_ID: Env.schema.string(),
-  AWS_SECRET_ACCESS_KEY: Env.schema.secret(),
-  AWS_REGION: Env.schema.string(),
-  S3_BUCKET: Env.schema.string(),
-  DRIVE_DISK: Env.schema.enum(['s3'] as const),
+  // Object storage: fs (Contabo disk) | s3 (S3-compatible / Contabo Object Storage)
+  OBJECT_STORAGE_DRIVER: Env.schema.enum(['fs', 's3'] as const),
+  DRIVE_DISK: Env.schema.enum(['fs', 's3'] as const),
   MEDIA_PUBLIC_BASE_URL: Env.schema.string({ format: 'url', tld: false }),
+  /** Absolute path when OBJECT_STORAGE_DRIVER=fs */
+  MEDIA_LOCAL_ROOT: Env.schema.string.optional(),
+  // Required when OBJECT_STORAGE_DRIVER=s3 (validated in createObjectStorageFromEnv)
+  S3_ACCESS_KEY_ID: Env.schema.string.optional(),
+  S3_SECRET_ACCESS_KEY: Env.schema.secret.optional(),
+  S3_REGION: Env.schema.string.optional(),
+  S3_BUCKET: Env.schema.string.optional(),
+  S3_ENDPOINT: Env.schema.string.optional(),
+  S3_FORCE_PATH_STYLE: Env.schema.boolean.optional(),
+
+  /**
+   * Optional smoke-test only. When the mapped shopenup_* template is missing
+   * or not approved, send this approved name instead (e.g. hello_world).
+   * Unset after real templates are approved.
+   */
+  INTEGRATION_COMMERCE_TEMPLATE_FALLBACK: Env.schema.string.optional(),
+  /*
+  |----------------------------------------------------------
+  | Variables for configuring the mail package
+  |----------------------------------------------------------
+  */
+  MAIL_MAILER: Env.schema.enum(['smtp', 'brevo'] as const),
+  MAIL_FROM_NAME: Env.schema.string(),
+  MAIL_FROM_ADDRESS: Env.schema.string(),
+  SMTP_HOST: Env.schema.string.optional(),
+  SMTP_PORT: Env.schema.number.optional(),
+  SMTP_USERNAME: Env.schema.string.optional(),
+  SMTP_PASSWORD: Env.schema.secret.optional(),
+  BREVO_API: Env.schema.secret.optional(),
 })

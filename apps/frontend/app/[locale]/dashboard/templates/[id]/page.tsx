@@ -10,7 +10,9 @@ export default async function TemplateDetailsRoutePage({ params }: PageProps) {
   const { id } = await params
 
   return (
-    <RequirePermission permission={PERMISSIONS.WHATSAPP_VIEW}>
+    <RequirePermission
+      anyOf={[PERMISSIONS.TEMPLATES_VIEW, PERMISSIONS.WHATSAPP_VIEW]}
+    >
       <TemplateDetailsPage templateId={id} />
     </RequirePermission>
   )

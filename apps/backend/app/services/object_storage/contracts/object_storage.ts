@@ -21,9 +21,25 @@ export abstract class ObjectStorage {
     contentType: string
     contentLength: number
     expiresInSeconds?: number
+    /** Required by LocalObjectStorage for HMAC upload URLs; ignored by S3/Fake. */
+    assetId?: string
+    organizationId?: string
   }): Promise<PresignedUpload>
 
   abstract headObject(key: string): Promise<ObjectHeadResult | null>
 
   abstract deleteObject(key: string): Promise<void>
+
+  /** Server-side write (manual KB text). Browser uploads still use presign. */
+  abstract writeObject(params: {
+    key: string
+    body: Uint8Array
+    contentType: string
+  }): Promise<void>
+
+  /**
+   * Read the first maxBytes of an object for content inspection.
+   * Returns null when the object is missing.
+   */
+  abstract getObjectPrefix(params: { key: string; maxBytes: number }): Promise<Uint8Array | null>
 }

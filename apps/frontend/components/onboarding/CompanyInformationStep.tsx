@@ -18,13 +18,14 @@ import {
   COUNTRY_OPTIONS,
   CURRENCY_OPTIONS,
   INDUSTRY_OPTIONS,
+  ORGANIZATION_TYPE_OPTIONS,
   type OrganizationWizardCompanyErrors,
   type OrganizationWizardState,
 } from './organization-wizard-types'
 
 const selectClassName = cn(
   authInputClassName,
-  'h-11 w-full appearance-none rounded-xl px-3.5 text-sm text-ink outline-none'
+  'h-11 w-full cursor-pointer appearance-none rounded-xl px-3.5 text-sm text-ink outline-none'
 )
 
 type CompanyInformationStepProps = {
@@ -45,11 +46,15 @@ export function CompanyInformationStep({
   const t = useTranslations('onboarding.organization')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const logoId = useId()
+  const organizationTypeId = useId()
+  const addressId = useId()
   const industryId = useId()
   const sizeId = useId()
   const countryId = useId()
   const timezoneId = useId()
   const currencyId = useId()
+  const organizationTypeErrorId = useId()
+  const addressErrorId = useId()
   const industryErrorId = useId()
   const sizeErrorId = useId()
   const countryErrorId = useId()
@@ -139,6 +144,70 @@ export function CompanyInformationStep({
             onChange={(e) => handleLogoChange(e.target.files?.[0] ?? null)}
           />
         </div>
+      </Field>
+
+      <Field data-invalid={errors.organizationType ? true : undefined} className="gap-2">
+        <FieldLabel htmlFor={organizationTypeId} className="text-sm font-medium leading-5 text-ink">
+          {t('step2.organizationType')}
+          <RequiredAsterisk />
+        </FieldLabel>
+        <select
+          id={organizationTypeId}
+          name="organizationType"
+          required
+          disabled={pending}
+          value={state.organizationType}
+          aria-invalid={Boolean(errors.organizationType)}
+          aria-describedby={errors.organizationType ? organizationTypeErrorId : undefined}
+          className={selectClassName}
+          onChange={(e) => {
+            onChange({
+              organizationType: e.target.value as OrganizationWizardState['organizationType'],
+            })
+            onClearError('organizationType')
+          }}
+        >
+          <option value="">{t('step2.organizationTypePlaceholder')}</option>
+          {ORGANIZATION_TYPE_OPTIONS.map((value) => (
+            <option key={value} value={value}>
+              {t(`step2.organizationTypes.${value}`)}
+            </option>
+          ))}
+        </select>
+        {errors.organizationType ? (
+          <FieldError id={organizationTypeErrorId} className="text-xs leading-4 text-negative">
+            {errors.organizationType}
+          </FieldError>
+        ) : null}
+      </Field>
+
+      <Field data-invalid={errors.address ? true : undefined} className="gap-2">
+        <FieldLabel htmlFor={addressId} className="text-sm font-medium leading-5 text-ink">
+          {t('step2.address')}
+          <RequiredAsterisk />
+        </FieldLabel>
+        <textarea
+          id={addressId}
+          name="address"
+          required
+          rows={3}
+          maxLength={500}
+          disabled={pending}
+          placeholder={t('step2.addressPlaceholder')}
+          aria-invalid={Boolean(errors.address)}
+          aria-describedby={errors.address ? addressErrorId : undefined}
+          className={cn(selectClassName, 'h-auto min-h-[5.5rem] resize-y py-3 leading-5')}
+          value={state.address}
+          onChange={(e) => {
+            onChange({ address: e.target.value })
+            onClearError('address')
+          }}
+        />
+        {errors.address ? (
+          <FieldError id={addressErrorId} className="text-xs leading-4 text-negative">
+            {errors.address}
+          </FieldError>
+        ) : null}
       </Field>
 
       <Field data-invalid={errors.industry ? true : undefined} className="gap-2">

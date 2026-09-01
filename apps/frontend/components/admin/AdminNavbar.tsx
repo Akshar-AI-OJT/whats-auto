@@ -4,8 +4,8 @@ import { useState } from 'react'
 import { LogOut, Menu } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
+import { useAuth } from '@/hooks/useAuth'
 import { cn } from '@/lib/utils'
-import { clearDevSuperAdminSession } from '@/lib/dev-super-admin-auth'
 import {
   Sheet,
   SheetContent,
@@ -23,11 +23,11 @@ type AdminNavbarProps = {
 export function AdminNavbar({ className }: AdminNavbarProps) {
   const t = useTranslations('admin')
   const router = useRouter()
+  const { signOut } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
 
-  function handleLogout() {
-    // TEMPORARY: clear dev-only marker before redirecting to tenant login.
-    clearDevSuperAdminSession()
+  async function handleLogout() {
+    await signOut()
     router.replace('/login')
     router.refresh()
   }
@@ -76,7 +76,7 @@ export function AdminNavbar({ className }: AdminNavbarProps) {
 
       <button
         type="button"
-        onClick={handleLogout}
+        onClick={() => void handleLogout()}
         className={cn(
           'inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border border-dash-border px-3 text-sm font-medium text-body',
           'transition-[background-color,border-color,color] duration-200 hover:bg-dash-surface hover:text-ink',

@@ -78,7 +78,7 @@ export async function WhyWhatsAutoSection() {
                       'bg-primary-pale text-positive-deep',
                       'transition-[box-shadow,background-color] duration-[250ms] ease-out',
                       'group-hover:bg-primary/20',
-                      'group-hover:shadow-[0_0_0_4px_rgb(159_232_112/0.25),0_8px_20px_rgb(159_232_112/0.35)]'
+                      'group-hover:shadow-[0_0_0_4px_rgb(37_99_235/0.25),0_8px_20px_rgb(37_99_235/0.35)]'
                     )}
                   >
                     <Icon className="size-5" aria-hidden />

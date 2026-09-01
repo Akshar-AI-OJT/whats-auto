@@ -1,12 +1,18 @@
 import db from '@adonisjs/lucid/services/db'
+import { insertAuthorizationAudit } from '#lib/authorization_audit'
 import {
   OrganizationSubscriptionRepository,
   type OrganizationSubscriptionRow,
 } from '#repositories/organization_subscription_repository'
 import { PaymentTransactionRepository } from '#repositories/payment_transaction_repository'
+import { BillingOrderRepository } from '#repositories/billing_order_repository'
+import { BillingOrderApplyService } from '#services/billing/billing_order_apply_service'
+import { notifyBillingOwnerBestEffort } from '#services/billing/billing_owner_notify'
+import { OrganizationService } from '#services/organization_service'
 import { runWithTenant } from '#services/tenant_context'
 
 export const HANDLED_RAZORPAY_EVENTS = [
+  'order.paid',
   'payment.captured',
   'payment.failed',
   'subscription.charged',
@@ -29,7 +35,9 @@ type RazorpayEntity = Record<string, unknown>
 export class SubscriptionMutationService {
   constructor(
     protected subscriptions: OrganizationSubscriptionRepository = new OrganizationSubscriptionRepository(),
-    protected payments: PaymentTransactionRepository = new PaymentTransactionRepository()
+    protected payments: PaymentTransactionRepository = new PaymentTransactionRepository(),
+    protected orders: BillingOrderRepository = new BillingOrderRepository(),
+    protected applyService: BillingOrderApplyService = new BillingOrderApplyService()
   ) {}
 
   isHandledEvent(eventType: string): eventType is HandledRazorpayEvent {
@@ -46,11 +54,13 @@ export class SubscriptionMutationService {
 
     const organizationId = await this.resolveOrganizationId(params.payload, params.eventType)
     if (!organizationId) {
-      throw new Error('Unable to resolve organizationId from Razorpay payload')
+      return { outcome: 'ignored', reason: 'unresolvable_organization' }
     }
 
     return runWithTenant(organizationId, async () => {
       switch (params.eventType) {
+        case 'order.paid':
+          return this.#onOrderPaid(organizationId, params.payload)
         case 'payment.captured':
           return this.#onPaymentCaptured(organizationId, params.payload)
         case 'payment.failed':
@@ -75,6 +85,19 @@ export class SubscriptionMutationService {
     const notes = this.#asNotes(entity?.notes)
     if (notes.organizationId && this.#isUuid(notes.organizationId)) {
       return notes.organizationId
+    }
+
+    if (eventType === 'payment.failed' || eventType === 'payment.captured') {
+      const orderId = this.#asString(entity?.order_id)
+      if (orderId) {
+        const order = await this.orders.findByGatewayOrderId({
+          gateway: 'razorpay',
+          gatewayOrderId: orderId,
+        })
+        if (order) {
+          return order.organizationId
+        }
+      }
     }
 
     const subscriptionId = this.#subscriptionIdFromPayload(payload, eventType, entity)
@@ -105,6 +128,38 @@ export class SubscriptionMutationService {
     return null
   }
 
+  async #onOrderPaid(
+    organizationId: string,
+    payload: Record<string, unknown>
+  ): Promise<MutationResult> {
+    const orderEntity = this.#entityAt(payload, 'order')
+    const gatewayOrderId = this.#asString(orderEntity?.id)
+    if (!gatewayOrderId) {
+      return { outcome: 'ignored', reason: 'missing_order_id' }
+    }
+
+    const payment = this.#entityAt(payload, 'payment')
+    const gatewayPaymentId = this.#asString(payment?.id)
+    if (!gatewayPaymentId) {
+      return { outcome: 'ignored', reason: 'missing_payment_id' }
+    }
+
+    const result = await this.applyService.applyPaidOrder({
+      gatewayOrderId,
+      gatewayPaymentId,
+      paymentMethod: this.#asString(payment?.method),
+      paidAt: this.#unixToDate(payment?.captured_at) ?? new Date(),
+      source: 'webhook',
+      organizationId,
+    })
+
+    if (!result) {
+      return { outcome: 'ignored', reason: 'billing_order_not_found' }
+    }
+
+    return { outcome: 'applied', organizationId, subscriptionId: result.subscriptionId }
+  }
+
   async #onPaymentCaptured(
     organizationId: string,
     payload: Record<string, unknown>
@@ -120,25 +175,6 @@ export class SubscriptionMutationService {
     }
 
     const subscription = await this.#findSubscriptionForPayment(organizationId, payload, payment)
-    if (
-      subscription &&
-      (subscription.status === 'cancelled' || subscription.status === 'expired')
-    ) {
-      await this.payments.upsertByGatewayPaymentId({
-        organizationId,
-        subscriptionId: subscription.id,
-        gateway: 'razorpay',
-        gatewayPaymentId,
-        gatewayOrderId: this.#asString(payment.order_id),
-        gatewayInvoiceId: this.#asString(payment.invoice_id),
-        amount: this.#paiseToMajor(payment.amount),
-        currency: (this.#asString(payment.currency) ?? 'INR').toUpperCase(),
-        status: 'captured',
-        paymentMethod: this.#asString(payment.method),
-        paidAt: this.#unixToDate(payment.captured_at) ?? new Date(),
-      })
-      return { outcome: 'applied', organizationId, subscriptionId: subscription.id }
-    }
 
     await this.payments.upsertByGatewayPaymentId({
       organizationId,
@@ -154,31 +190,7 @@ export class SubscriptionMutationService {
       paidAt: this.#unixToDate(payment.captured_at) ?? new Date(),
     })
 
-    if (
-      subscription &&
-      (subscription.status === 'trialing' || subscription.status === 'past_due')
-    ) {
-      const patch: Record<string, unknown> = {
-        status: 'active',
-        lastPaymentStatus: 'captured',
-        lastPaymentAt: new Date(),
-        checkoutUrl: null,
-        metadata: {
-          ...(typeof subscription.metadata === 'object' && subscription.metadata
-            ? subscription.metadata
-            : {}),
-          checkoutPending: false,
-        },
-      }
-      if (!subscription.activatedAt) {
-        patch.activatedAt = new Date()
-      }
-      await this.subscriptions.updateById({
-        organizationId,
-        subscriptionId: subscription.id,
-        patch,
-      })
-    } else if (subscription) {
+    if (subscription) {
       await this.subscriptions.updateById({
         organizationId,
         subscriptionId: subscription.id,
@@ -208,6 +220,30 @@ export class SubscriptionMutationService {
 
     const subscription = await this.#findSubscriptionForPayment(organizationId, payload, payment)
 
+    const gatewayOrderId = this.#asString(payment.order_id)
+    if (gatewayOrderId) {
+      const billingOrder = await this.orders.findByGatewayOrderId({
+        gateway: 'razorpay',
+        gatewayOrderId,
+      })
+      if (billingOrder && billingOrder.status === 'created') {
+        await this.orders.updateById({
+          organizationId: billingOrder.organizationId,
+          orderId: billingOrder.id,
+          patch: {
+            status: 'failed',
+            failureReason: this.#asString(payment.error_description),
+          },
+        })
+      }
+    }
+
+    const existingPayment = await this.payments.findByGatewayPaymentId({
+      gateway: 'razorpay',
+      gatewayPaymentId,
+    })
+    const alreadyFailed = existingPayment?.status === 'failed'
+
     await this.payments.upsertByGatewayPaymentId({
       organizationId,
       subscriptionId: subscription?.id ?? null,
@@ -232,6 +268,23 @@ export class SubscriptionMutationService {
           lastPaymentStatus: 'failed',
           lastPaymentAt: new Date(),
         },
+      })
+
+      await notifyBillingOwnerBestEffort({
+        organizationId,
+        type: 'billing_subscription_past_due',
+        title: 'Subscription past due',
+        body: 'Your subscription is past due. Renew payment to restore full access.',
+      })
+    }
+
+    // Webhook retries for the same gateway payment id must not re-notify.
+    if (!alreadyFailed) {
+      await notifyBillingOwnerBestEffort({
+        organizationId,
+        type: 'billing_payment_failed',
+        title: 'Payment failed',
+        body: 'A subscription payment failed. Update your payment method to avoid interruption.',
       })
     }
 
@@ -286,6 +339,8 @@ export class SubscriptionMutationService {
       patch,
     })
 
+    await new OrganizationService().promoteToActive(organizationId)
+
     const payment = this.#entityAt(payload, 'payment')
     const gatewayPaymentId = this.#asString(payment?.id)
     if (payment && gatewayPaymentId) {
@@ -325,6 +380,13 @@ export class SubscriptionMutationService {
       return { outcome: 'ignored', reason: 'subscription_not_found' }
     }
 
+    const wasAlreadyPastDue = subscription.status === 'past_due'
+    const priorMetadata =
+      typeof subscription.metadata === 'object' && subscription.metadata
+        ? (subscription.metadata as Record<string, unknown>)
+        : {}
+    const wasAlreadyHalted = priorMetadata.halted === true
+
     await this.subscriptions.updateById({
       organizationId,
       subscriptionId: subscription.id,
@@ -333,13 +395,29 @@ export class SubscriptionMutationService {
         lastPaymentStatus: 'failed',
         lastPaymentAt: new Date(),
         metadata: {
-          ...(typeof subscription.metadata === 'object' && subscription.metadata
-            ? subscription.metadata
-            : {}),
+          ...priorMetadata,
           halted: true,
         },
       },
     })
+
+    if (!wasAlreadyPastDue) {
+      await notifyBillingOwnerBestEffort({
+        organizationId,
+        type: 'billing_subscription_past_due',
+        title: 'Subscription past due',
+        body: 'Your subscription is past due. Renew payment to restore full access.',
+      })
+    }
+
+    if (!wasAlreadyHalted) {
+      await notifyBillingOwnerBestEffort({
+        organizationId,
+        type: 'billing_subscription_halted',
+        title: 'Subscription halted',
+        body: 'Your subscription was halted by the payment provider after repeated failures.',
+      })
+    }
 
     return { outcome: 'applied', organizationId, subscriptionId: subscription.id }
   }
@@ -388,6 +466,24 @@ export class SubscriptionMutationService {
           cancelAtPeriodEnd: false,
         },
       })
+
+      // Hard cancel only — skip cancel-at-period-end and already-cancelled retries.
+      if (subscription.status !== 'cancelled') {
+        await insertAuthorizationAudit({
+          organizationId,
+          actorUserId: null,
+          targetType: 'subscription',
+          targetId: subscription.id,
+          eventType: 'subscription.cancelled',
+          after: { status: 'cancelled' },
+        })
+        await notifyBillingOwnerBestEffort({
+          organizationId,
+          type: 'billing_subscription_cancelled',
+          title: 'Subscription cancelled',
+          body: 'Your subscription has been cancelled.',
+        })
+      }
     }
 
     return { outcome: 'applied', organizationId, subscriptionId: subscription.id }
@@ -421,6 +517,9 @@ export class SubscriptionMutationService {
     }
     if (eventType.startsWith('subscription.')) {
       return this.#entityAt(payload, 'subscription')
+    }
+    if (eventType.startsWith('order.')) {
+      return this.#entityAt(payload, 'order')
     }
     return null
   }

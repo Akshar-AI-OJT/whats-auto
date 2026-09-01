@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils'
 
 /**
  * Shared premium auth chrome used by Login + Register.
- * Logo above card; 40% branding / 60% form.
+ * Logo above card; 40% branding / 60% form (wider form optional for plan selection).
  */
 export function AuthSplitLayout({
   branding,
@@ -11,6 +11,8 @@ export function AuthSplitLayout({
   className,
   showBrandLink = true,
   compact = false,
+  contentClassName,
+  wideForm = false,
 }: {
   branding: React.ReactNode
   children: React.ReactNode
@@ -19,11 +21,15 @@ export function AuthSplitLayout({
   showBrandLink?: boolean
   /** Tighter padding for tall forms (register) so primary CTAs fit without scroll. */
   compact?: boolean
+  /** Optional override for the form column inner max-width (e.g. wider plan picker). */
+  contentClassName?: string
+  /** Gives the form column more horizontal room (plan selection). */
+  wideForm?: boolean
 }) {
   return (
     <div
       className={cn(
-        'relative flex min-h-svh w-full items-center justify-center overflow-x-clip px-4 sm:px-6 md:px-8',
+        'auth-palette relative flex min-h-svh w-full items-center justify-center overflow-x-clip px-4 sm:px-6 md:px-8',
         compact ? 'py-4 sm:py-5 md:py-6' : 'py-6 sm:py-8 md:py-10',
         className
       )}
@@ -44,7 +50,8 @@ export function AuthSplitLayout({
 
       <div
         className={cn(
-          'relative z-10 flex w-full max-w-[1200px] flex-col',
+          'relative z-10 flex w-full flex-col',
+          wideForm ? 'max-w-[1320px]' : 'max-w-[1200px]',
           compact ? 'gap-3 sm:gap-4' : 'gap-5 sm:gap-6'
         )}
       >
@@ -73,10 +80,14 @@ export function AuthSplitLayout({
                 'flex flex-1 flex-col overflow-x-clip',
                 compact
                   ? 'justify-start px-5 py-5 sm:px-7 sm:py-6 md:justify-center md:px-8 md:py-6 lg:px-10'
-                  : 'justify-center px-5 py-10 sm:px-8 sm:py-12 md:px-10 md:py-14 lg:px-14'
+                  : wideForm
+                    ? 'justify-start px-5 py-8 sm:px-7 sm:py-10 md:px-8 md:py-10 lg:px-10'
+                    : 'justify-center px-5 py-10 sm:px-8 sm:py-12 md:px-10 md:py-14 lg:px-14'
               )}
             >
-              <div className="mx-auto w-full min-w-0 max-w-[432px]">{children}</div>
+              <div className={cn('mx-auto w-full min-w-0 max-w-[432px]', contentClassName)}>
+                {children}
+              </div>
             </div>
           </div>
         </div>

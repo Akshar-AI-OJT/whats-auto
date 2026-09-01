@@ -27,7 +27,7 @@ async function seedBillingOrg() {
     country: 'IN',
     timezone: 'UTC',
     currency: 'INR',
-    status: true,
+    status: 'active',
     gateway: 'razorpay',
     gatewayCustomerId: `cust_${organizationId.slice(0, 8)}`,
   })
@@ -90,9 +90,8 @@ function capturedBody(organizationId: string, paymentId: string, gatewaySubscrip
 test.group('Billing Razorpay webhook HTTP', (group) => {
   group.each.setup(async () => {
     const manager = await app.container.make(JobQueueManager)
-    const driver = manager.use('null') as NullJobQueueDriver
+    const driver = (await manager.ensureStarted()) as NullJobQueueDriver
     driver.clearEnqueued()
-    await manager.start('null')
   })
 
   test('POST accepts valid signature and inserts ledger row', async ({ client, assert }) => {
@@ -121,7 +120,7 @@ test.group('Billing Razorpay webhook HTTP', (group) => {
     assert.equal(row?.provider, 'razorpay')
 
     const manager = await app.container.make(JobQueueManager)
-    const driver = manager.use('null') as NullJobQueueDriver
+    const driver = (await manager.ensureStarted()) as NullJobQueueDriver
     assert.isAtLeast(driver.enqueued.length, 1)
     assert.equal(driver.enqueued[0]?.name, JOB_NAMES.BILLING_PAYMENT_WEBHOOK_PROCESS)
   })
@@ -195,7 +194,9 @@ test.group('Billing webhook worker', () => {
     const sub = await runWithTenant(seeded.organizationId, async () => {
       return db.from('organization_subscriptions').where('id', seeded.subscriptionId).first()
     })
-    assert.equal(sub?.status, 'active')
+    // payment.captured is ledger-only; activation happens on subscription.charged.
+    assert.equal(sub?.status, 'trialing')
+    assert.equal(sub?.lastPaymentStatus, 'captured')
 
     const ledger = await db.from('payment_webhook_events').where('id', row.id).first()
     assert.equal(ledger?.status, 'processed')

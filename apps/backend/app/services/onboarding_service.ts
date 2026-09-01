@@ -1,8 +1,9 @@
 import db from '@adonisjs/lucid/services/db'
+import { OrganizationStatus } from '#enums/organization_status'
 import { OrganizationService } from '#services/organization_service'
 
 export type OnboardingStep =
-  'accept_invitation' | 'create_organization' | 'select_organization' | 'ready'
+  'accept_invitation' | 'create_organization' | 'select_organization' | 'complete_payment' | 'ready'
 
 export type PendingInvitation = {
   id: string
@@ -17,21 +18,31 @@ export type PendingInvitation = {
  * Decide what the client should show after login / signup verification.
  *
  * Invitations only take over onboarding for users with no organization yet —
- * an existing member who gets invited elsewhere keeps landing in their workspace
+ * an existing member who gets invited elsewhere keeps landing in their organization
  * and sees the invite as a notification instead.
  */
 export function resolveNextStep(params: {
   organizationCount: number
   pendingInvitationCount: number
   activeOrganizationId: string | null
+  activeOrgStatus?: string | null
 }): OnboardingStep {
-  const { organizationCount, pendingInvitationCount, activeOrganizationId } = params
+  const { organizationCount, pendingInvitationCount, activeOrganizationId, activeOrgStatus } =
+    params
 
   if (organizationCount === 0) {
     return pendingInvitationCount > 0 ? 'accept_invitation' : 'create_organization'
   }
 
-  return activeOrganizationId ? 'ready' : 'select_organization'
+  if (!activeOrganizationId) {
+    return 'select_organization'
+  }
+
+  if (activeOrgStatus === OrganizationStatus.PENDING_SETUP) {
+    return 'complete_payment'
+  }
+
+  return 'ready'
 }
 
 export class OnboardingService {
@@ -84,6 +95,10 @@ export class OnboardingService {
         ? params.activeOrganizationId
         : null
 
+    const activeOrg = activeOrganizationId
+      ? organizations.find((org) => org.id === activeOrganizationId)
+      : null
+
     return {
       activeOrganizationId,
       organizations,
@@ -92,6 +107,7 @@ export class OnboardingService {
         organizationCount: organizations.length,
         pendingInvitationCount: pendingInvitations.length,
         activeOrganizationId,
+        activeOrgStatus: activeOrg?.status ?? null,
       }),
     }
   }

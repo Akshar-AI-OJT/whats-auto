@@ -3,11 +3,15 @@ import { inferAdditionalFields } from 'better-auth/client/plugins'
 import { clearAccessToken, setAccessToken } from '@/lib/access-token'
 import type { ApiError } from '@/lib/api'
 
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '')
+
 /**
  * Better Auth browser client.
- * No baseURL — same-origin `/api/auth/*` goes through the Next rewrite.
+ * Local: no baseURL — same-origin `/api/auth/*` via the Next rewrite.
+ * Contabo (cross-origin): NEXT_PUBLIC_API_URL=https://api.ottobot.codecolonies.com (credentials + CORS).
  */
 export const authClient = createAuthClient({
+  ...(apiBaseUrl ? { baseURL: apiBaseUrl } : {}),
   plugins: [
     inferAdditionalFields({
       user: {
@@ -22,6 +26,7 @@ export const authClient = createAuthClient({
     }),
   ],
   fetchOptions: {
+    credentials: 'include',
     onSuccess: (ctx) => {
       const jwt = ctx.response.headers.get('set-auth-jwt')
       if (jwt) setAccessToken(jwt)

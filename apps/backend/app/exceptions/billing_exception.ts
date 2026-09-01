@@ -19,6 +19,13 @@ export default class BillingException extends Exception {
     })
   }
 
+  static planNotActivatable() {
+    return new this('Plan is not available for activation', {
+      status: 422,
+      code: 'E_BILLING_PLAN_NOT_ACTIVATABLE',
+    })
+  }
+
   static organizationNotFound() {
     return new this('Organization not found', {
       status: 404,
@@ -33,17 +40,24 @@ export default class BillingException extends Exception {
     })
   }
 
-  static checkoutInProgress() {
-    return new this('A Razorpay checkout is already in progress for this organization', {
-      status: 409,
-      code: 'E_BILLING_CHECKOUT_IN_PROGRESS',
-    })
-  }
-
   static gatewayFailed(message: string) {
     return new this(message, {
       status: 502,
       code: 'E_BILLING_GATEWAY_FAILED',
+    })
+  }
+
+  static invalidSignature() {
+    return new this('Invalid payment signature', {
+      status: 400,
+      code: 'E_BILLING_INVALID_SIGNATURE',
+    })
+  }
+
+  static orderNotFound() {
+    return new this('Billing order not found', {
+      status: 404,
+      code: 'E_BILLING_ORDER_NOT_FOUND',
     })
   }
 

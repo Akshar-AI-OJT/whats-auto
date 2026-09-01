@@ -1,24 +1,25 @@
 import env from '#start/env'
-import { JOB_NAMES } from '#services/job_queue/job_names'
 
 /**
  * Job queue driver selection. HTTP processes only enqueue; workers consume.
- * retryLimit is always 0 at the driver for outbound — domain owns backoff.
+ * attempts is always 1 at the driver — domain owns backoff/retry.
+ * All jobs (outbound, campaigns, media, billing, AI) use a single BullMQ driver.
  */
+const defaultDriver = (env.get('JOB_QUEUE_DRIVER') ?? 'null') as 'bullmq' | 'null'
+const redisUrl = env.get('REDIS_URL') ?? ''
+
+if (defaultDriver === 'bullmq' && !redisUrl) {
+  throw new Error('REDIS_URL is required when JOB_QUEUE_DRIVER=bullmq')
+}
+
 const jobQueueConfig = {
-  default: (env.get('JOB_QUEUE_DRIVER') ?? 'null') as 'pgboss' | 'null',
+  default: defaultDriver,
 
   drivers: {
     null: {},
-    pgboss: {
-      schema: env.get('JOB_QUEUE_PGBOSS_SCHEMA') ?? 'pgboss',
-      queues: [
-        JOB_NAMES.WHATSAPP_OUTBOUND_DISPATCH,
-        JOB_NAMES.WHATSAPP_OUTBOUND_RECOVERY,
-        JOB_NAMES.WHATSAPP_UNMATCHED_RECEIPTS_CLEANUP,
-        JOB_NAMES.BILLING_PAYMENT_WEBHOOK_PROCESS,
-        JOB_NAMES.MEDIA_PENDING_UPLOAD_CLEANUP,
-      ],
+    bullmq: {
+      redisUrl,
+      prefix: env.get('JOB_QUEUE_BULLMQ_PREFIX') ?? 'wa:bullmq',
     },
   },
 }

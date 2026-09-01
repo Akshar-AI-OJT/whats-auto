@@ -57,10 +57,31 @@ export const organizationsModule: DemoSeedModule = {
         phone: key === 'northstar' ? '+919876543210' : '+12125550100',
         website: key === 'northstar' ? 'https://northstar.demo' : 'https://harbor.demo',
         industry: org.industry,
+        organizationType: 'company',
+        address:
+          key === 'northstar'
+            ? {
+                addressLine1: '12 MG Road',
+                addressLine2: null,
+                city: 'Bengaluru',
+                state: 'Karnataka',
+                postalCode: '560001',
+                country: org.country,
+              }
+            : {
+                addressLine1: '200 Harbor Blvd',
+                addressLine2: null,
+                city: 'New York',
+                state: 'NY',
+                postalCode: '10004',
+                country: org.country,
+              },
+        pan: key === 'northstar' ? 'AAAAA0000A' : 'BBBBB0000B',
+        gstin: key === 'northstar' ? '29AAAAA0000A1Z5' : null,
         country: org.country,
         timezone: org.timezone,
         currency: org.currency,
-        status: true,
+        status: 'active',
         deletedAt: null,
       })
     }

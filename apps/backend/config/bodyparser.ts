@@ -48,30 +48,32 @@ const bodyParserConfig = defineConfig({
    * File uploads are handled by the multipart parser.
    */
   multipart: {
-    /**
-     * Automatically process uploaded files into the system tmp directory.
-     */
     autoProcess: true,
-
-    /**
-     * Normalize empty string values to null.
-     */
     convertEmptyStringsToNull: true,
-
-    /**
-     * Routes where multipart processing is handled manually.
-     */
     processManually: [],
-
-    /**
-     * Maximum accepted payload size for multipart requests.
-     */
     limit: '20mb',
+    types: ['multipart/form-data'],
+  },
+
+  /**
+   * Config for the raw body parser (local-disk media PUT uploads).
+   */
+  raw: {
+    /**
+     * Maximum accepted payload size — documents up to 100 MiB outbound.
+     */
+    limit: '110mb',
 
     /**
-     * Content types handled by the multipart parser.
+     * latin1 preserves raw bytes as a string (utf-8 would corrupt PDF/binary).
      */
-    types: ['multipart/form-data'],
+    encoding: 'latin1',
+
+    /**
+     * Content types handled as raw buffers (browser media PUT).
+     * Wildcards cover variants; json/form/multipart parsers run first.
+     */
+    types: ['application/*', 'image/*', 'text/csv', 'text/plain'],
   },
 })
 

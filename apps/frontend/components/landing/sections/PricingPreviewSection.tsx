@@ -61,12 +61,12 @@ export async function PricingPreviewSection() {
                     highlighted
                       ? cn(
                           'border-primary/55',
-                          'shadow-[0_1px_2px_rgb(15_23_42/0.04),0_20px_50px_rgb(159_232_112/0.3),0_0_0_1px_rgb(159_232_112/0.25)]',
-                          'hover:border-primary hover:shadow-[0_16px_44px_rgb(159_232_112/0.38)]'
+                          'shadow-[0_1px_2px_rgb(15_23_42/0.04),0_20px_50px_rgb(37_99_235/0.3),0_0_0_1px_rgb(37_99_235/0.25)]',
+                          'hover:border-primary hover:shadow-[0_16px_44px_rgb(37_99_235/0.38)]'
                         )
                       : cn(
                           'border-[#E2E8F0]',
-                          'hover:border-primary/45 hover:shadow-[0_16px_40px_rgb(15_23_42/0.1),0_0_0_4px_rgb(159_232_112/0.12)]'
+                          'hover:border-primary/45 hover:shadow-[0_16px_40px_rgb(15_23_42/0.1),0_0_0_4px_rgb(37_99_235/0.12)]'
                         )
                   )}
                 >

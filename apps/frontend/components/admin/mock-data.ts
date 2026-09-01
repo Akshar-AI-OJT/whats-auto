@@ -79,9 +79,9 @@ export type SubscriptionSlice = {
 
 export const MOCK_SUBSCRIPTION_DISTRIBUTION: SubscriptionSlice[] = [
   { id: 'starter', count: 94, colorClass: 'bg-mute', fill: '#94a3b8' },
-  { id: 'growth', count: 86, colorClass: 'bg-primary', fill: '#9fe870' },
+  { id: 'growth', count: 86, colorClass: 'bg-primary', fill: '#2563eb' },
   { id: 'pro', count: 48, colorClass: 'bg-accent-cyan', fill: '#38c8ff' },
-  { id: 'enterprise', count: 20, colorClass: 'bg-positive-deep', fill: '#3d8b40' },
+  { id: 'enterprise', count: 20, colorClass: 'bg-positive-deep', fill: '#2563eb' },
 ]
 
 export type RevenuePoint = {
@@ -205,7 +205,7 @@ export type MockOrganization = {
 export const MOCK_ORGANIZATIONS: MockOrganization[] = [
   {
     id: 'org_1',
-    name: 'Acme Workspace',
+    name: 'Acme Organization',
     slug: 'acme',
     ownerName: 'Priya Sharma',
     ownerEmail: 'priya@acme.io',
@@ -457,7 +457,7 @@ function buildOrgDetail(org: MockOrganization): MockOrganizationDetail {
       {
         id: `${org.id}_act2`,
         title: 'Seat added',
-        detail: 'A new admin seat was assigned on the workspace.',
+        detail: 'A new admin seat was assigned on the organization.',
         timestamp: '2026-07-26T14:40:00.000Z',
         tone: 'blue',
         kind: 'user',
@@ -503,7 +503,6 @@ export type MockPlatformPlan = {
   priceMonthly: number | null
   userLimit: number | null
   messageLimit: number | null
-  workspaceLimit: number | null
   featureKeys: string[]
   highlighted?: boolean
   activeOrgs: number
@@ -515,7 +514,6 @@ export const MOCK_PLATFORM_PLANS: MockPlatformPlan[] = [
     priceMonthly: 29,
     userLimit: 3,
     messageLimit: 5_000,
-    workspaceLimit: 1,
     featureKeys: [
       'inbox',
       'basicCampaigns',
@@ -529,7 +527,6 @@ export const MOCK_PLATFORM_PLANS: MockPlatformPlan[] = [
     priceMonthly: 99,
     userLimit: 10,
     messageLimit: 25_000,
-    workspaceLimit: 3,
     featureKeys: [
       'inbox',
       'campaigns',
@@ -546,7 +543,6 @@ export const MOCK_PLATFORM_PLANS: MockPlatformPlan[] = [
     priceMonthly: 249,
     userLimit: 40,
     messageLimit: 100_000,
-    workspaceLimit: 10,
     featureKeys: [
       'inbox',
       'campaigns',
@@ -564,7 +560,6 @@ export const MOCK_PLATFORM_PLANS: MockPlatformPlan[] = [
     priceMonthly: null,
     userLimit: null,
     messageLimit: null,
-    workspaceLimit: null,
     featureKeys: [
       'inbox',
       'campaigns',
@@ -578,90 +573,6 @@ export const MOCK_PLATFORM_PLANS: MockPlatformPlan[] = [
       'sla',
     ],
     activeOrgs: 20,
-  },
-]
-
-export type PlatformUserRole =
-  | 'superAdmin'
-  | 'platformAdmin'
-  | 'support'
-  | 'finance'
-
-export type PlatformUserStatus = 'active' | 'invited' | 'inactive'
-
-export type MockPlatformUser = {
-  id: string
-  name: string
-  email: string
-  role: PlatformUserRole
-  status: PlatformUserStatus
-  createdAt: string
-}
-
-export const MOCK_PLATFORM_USERS: MockPlatformUser[] = [
-  {
-    id: 'pu_1',
-    name: 'Ritika Sharma',
-    email: 'ritika@whatsauto.com',
-    role: 'superAdmin',
-    status: 'active',
-    createdAt: '2025-04-08',
-  },
-  {
-    id: 'pu_2',
-    name: 'Arjun Nair',
-    email: 'arjun@whatsauto.com',
-    role: 'platformAdmin',
-    status: 'active',
-    createdAt: '2025-06-12',
-  },
-  {
-    id: 'pu_3',
-    name: 'Neha Verma',
-    email: 'neha@whatsauto.com',
-    role: 'support',
-    status: 'active',
-    createdAt: '2025-09-03',
-  },
-  {
-    id: 'pu_4',
-    name: 'Kunal Rao',
-    email: 'kunal@whatsauto.com',
-    role: 'finance',
-    status: 'active',
-    createdAt: '2025-10-19',
-  },
-  {
-    id: 'pu_5',
-    name: 'Maya Singh',
-    email: 'maya@whatsauto.com',
-    role: 'support',
-    status: 'invited',
-    createdAt: '2026-01-05',
-  },
-  {
-    id: 'pu_6',
-    name: 'Dev Patel',
-    email: 'dev@whatsauto.com',
-    role: 'platformAdmin',
-    status: 'inactive',
-    createdAt: '2025-07-27',
-  },
-  {
-    id: 'pu_7',
-    name: 'Sara Khan',
-    email: 'sara@whatsauto.com',
-    role: 'finance',
-    status: 'active',
-    createdAt: '2026-02-14',
-  },
-  {
-    id: 'pu_8',
-    name: 'Ishan Mehta',
-    email: 'ishan@whatsauto.com',
-    role: 'support',
-    status: 'inactive',
-    createdAt: '2025-12-01',
   },
 ]
 
@@ -683,7 +594,7 @@ export const MOCK_AUDIT_LOGS: MockAuditLog[] = [
     timestamp: '2026-07-28T07:42:00.000Z',
     user: 'Ritika Sharma',
     action: 'Changed platform billing alert threshold',
-    organization: 'Acme Workspace',
+    organization: 'Acme Organization',
     ipAddress: '122.162.14.8',
     status: 'success',
   },
@@ -691,7 +602,7 @@ export const MOCK_AUDIT_LOGS: MockAuditLog[] = [
     id: 'al_2',
     timestamp: '2026-07-28T07:26:00.000Z',
     user: 'Arjun Nair',
-    action: 'Suspended organization workspace',
+    action: 'Suspended organization',
     organization: 'Contoso Logistics',
     ipAddress: '49.43.21.60',
     status: 'warning',
@@ -887,7 +798,7 @@ export const MOCK_PLATFORM_SETTINGS: MockPlatformSettings = {
     {
       id: 'config_3',
       key: 'apiRateLimit',
-      value: '1,000 req/min/workspace',
+      value: '1,000 req/min/organization',
       state: 'enabled',
     },
   ],

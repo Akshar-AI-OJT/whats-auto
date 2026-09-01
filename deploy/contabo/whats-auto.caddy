@@ -1,0 +1,29 @@
+# ServeOS Caddy: import /etc/caddy/sites/*.caddy
+# Copy or bind-mount this file to /etc/caddy/sites/whats-auto.caddy
+# Media dir must also be mounted into serveos-production-proxy:
+#   /var/www/whats-auto/apps/backend/media
+
+ottobot.codecolonies.com {
+	reverse_proxy whats-auto-frontend:3200
+}
+
+api.ottobot.codecolonies.com {
+	request_body {
+		max_size 110MB
+	}
+
+	handle_path /media/* {
+		root * /var/www/whats-auto/apps/backend/media
+		file_server
+	}
+
+	handle /api/v1/inbox/events {
+		reverse_proxy whats-auto-backend:3201 {
+			flush_interval -1
+		}
+	}
+
+	handle {
+		reverse_proxy whats-auto-backend:3201
+	}
+}
