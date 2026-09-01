@@ -43,7 +43,6 @@ export type PlanLimits = {
   analyticsRetentionDays: number | null
   auditLogRetentionDays: number | null
   maxTemplates: number | null
-  maxCampaignRecipientListSize: number | null
   conversationInboxRetentionDays: number | null
   aiGenerationsPerConversationHour: number
   dispatchRatePerSec: number
@@ -99,6 +98,8 @@ export type PlanActionResult =
 
 export type PlanFeatureDefinition = {
   key: string
+  /** Default English label when i18n is missing. */
+  label: string
   category: PlanFeatureCategoryId
 }
 
@@ -122,7 +123,6 @@ export const DEFAULT_PLAN_LIMITS: PlanLimits = {
   analyticsRetentionDays: null,
   auditLogRetentionDays: null,
   maxTemplates: null,
-  maxCampaignRecipientListSize: null,
   conversationInboxRetentionDays: null,
   aiGenerationsPerConversationHour: 10,
   dispatchRatePerSec: 10,

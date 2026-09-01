@@ -4558,24 +4558,17 @@
         "team": "Team & Organization",
         "integrations": "Integrations"
       },
-      "featureItems": {
-        "whatsappMessaging": "WhatsApp messaging",
-        "bulkMessaging": "Bulk messaging",
-        "scheduledMessages": "Scheduled messages",
-        "messageTemplates": "Message templates",
-        "automationWorkflows": "Automation workflows",
-        "campaigns": "Campaigns",
+      "features": {
+        "wabaConnection": "Connect Meta & WABA",
+        "contactCsvImportExport": "CSV contact import & export",
+        "customTemplates": "Custom WhatsApp templates",
+        "scheduledCampaigns": "Scheduled broadcast campaigns",
         "flowBuilder": "Flow Builder",
-        "formBuilder": "Form Builder",
-        "aiAssistant": "AI assistant",
-        "aiAutomation": "AI-powered automation",
-        "aiVoiceCalling": "AI Voice Calling",
-        "multipleUsers": "Multiple users",
-        "rolesPermissions": "Roles & permissions",
-        "whatsappAccounts": "WhatsApp accounts",
-        "thirdPartyIntegrations": "Third-party integrations",
+        "flowAdvancedNodes": "Advanced flow nodes",
+        "aiAutonomous": "AI autonomous auto-reply",
+        "eCommerceIntegrations": "E-commerce store integrations",
         "apiAccess": "API access",
-        "multipleOrganizations": "Multiple organizations"
+        "customRoles": "Custom roles & permissions"
       },
       "view": {
         "overview": "Overview"
@@ -4741,19 +4734,16 @@
         }
       },
       "features": {
-        "inbox": "Shared team inbox",
-        "basicCampaigns": "Basic broadcast campaigns",
-        "campaigns": "Advanced campaigns & segments",
-        "templates": "Message templates",
-        "emailSupport": "Email support",
-        "automation": "Workflow automation",
-        "analytics": "Analytics dashboard",
-        "prioritySupport": "Priority support",
-        "webhooks": "Webhooks & API access",
-        "roles": "Advanced roles & permissions",
-        "sso": "SSO / SAML",
-        "dedicatedSupport": "Dedicated success manager",
-        "sla": "Custom SLA"
+        "wabaConnection": "Connect Meta & WABA",
+        "contactCsvImportExport": "CSV contact import & export",
+        "customTemplates": "Custom WhatsApp templates",
+        "scheduledCampaigns": "Scheduled broadcast campaigns",
+        "flowBuilder": "Flow Builder",
+        "flowAdvancedNodes": "Advanced flow nodes",
+        "aiAutonomous": "AI autonomous auto-reply",
+        "eCommerceIntegrations": "E-commerce store integrations",
+        "apiAccess": "API access",
+        "customRoles": "Custom roles & permissions"
       }
     },
     "invoices": {

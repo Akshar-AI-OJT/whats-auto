@@ -34,7 +34,6 @@ const planLimitsSchema = vine.object({
   analyticsRetentionDays: nullableLimit(),
   auditLogRetentionDays: nullableLimit(),
   maxTemplates: nullableLimit(),
-  maxCampaignRecipientListSize: nullableLimit(),
   conversationInboxRetentionDays: nullableLimit(),
   aiGenerationsPerConversationHour: requiredAntiAbuse().optional(),
   dispatchRatePerSec: requiredAntiAbuse().optional(),
