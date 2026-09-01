@@ -1,6 +1,7 @@
 import type { ObjectStorage } from '#services/object_storage/contracts/object_storage'
 import LocalObjectStorage from '#services/object_storage/drivers/local_object_storage'
 import S3ObjectStorage from '#services/object_storage/drivers/s3_object_storage'
+import app from '@adonisjs/core/services/app'
 import env from '#start/env'
 
 /**
@@ -10,10 +11,7 @@ import env from '#start/env'
 export function createObjectStorageFromEnv(): ObjectStorage {
   const driver = env.get('OBJECT_STORAGE_DRIVER')
   if (driver === 'fs') {
-    const root = env.get('MEDIA_LOCAL_ROOT')
-    if (!root) {
-      throw new Error('MEDIA_LOCAL_ROOT is required when OBJECT_STORAGE_DRIVER=fs')
-    }
+    const root = env.get('MEDIA_LOCAL_ROOT') ?? app.makePath('media')
     return new LocalObjectStorage({
       root,
       appUrl: env.get('APP_URL'),

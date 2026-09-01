@@ -62,7 +62,7 @@ export default class MediaUploadsController {
 
     const raw = request.raw()
     if (raw === null || raw === undefined) {
-      throw MediaException.uploadIncomplete()
+      throw MediaException.uploadBodyMissing()
     }
     const body =
       typeof raw === 'string'
