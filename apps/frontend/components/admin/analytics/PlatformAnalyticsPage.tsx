@@ -23,10 +23,12 @@ import {
   buildOrganizationGrowth,
   computeCurrentOrganizationSplit,
   computePlanDistribution,
+  countOrganizationsByUiStatus,
   countTrialOrganizations,
   fetchAllOrganizations,
   fetchAllPlans,
   fetchAllSubscriptions,
+  fetchCurrentMonthPaidRevenue,
   fetchInvoiceSummary,
   fetchRecentAudit,
   formatCurrency,
@@ -155,7 +157,13 @@ export function PlatformAnalyticsPage() {
 
   const invoiceSummaryQuery = useQuery({
     queryKey: queryKeys.admin.analytics.invoiceSummary,
-    queryFn: fetchInvoiceSummary,
+    queryFn: () => fetchInvoiceSummary(),
+    staleTime: 60_000,
+  })
+
+  const currentMonthPaidRevenueQuery = useQuery({
+    queryKey: queryKeys.admin.analytics.currentMonthPaidRevenue,
+    queryFn: fetchCurrentMonthPaidRevenue,
     staleTime: 60_000,
   })
 
@@ -172,18 +180,12 @@ export function PlatformAnalyticsPage() {
   const invoiceSummary = invoiceSummaryQuery.data
   const audits = useMemo(() => auditQuery.data ?? [], [auditQuery.data])
 
-  const activeCount = useMemo(
-    () => organizations.filter((org) => org.deletedAt == null && org.status === 'active').length,
+  const orgCounts = useMemo(
+    () => countOrganizationsByUiStatus(organizations),
     [organizations]
   )
-  const inactiveCount = useMemo(
-    () =>
-      organizations.filter(
-        (org) =>
-          org.deletedAt == null && (org.status === 'suspended' || org.status === 'false')
-      ).length,
-    [organizations]
-  )
+  const activeCount = orgCounts.active
+  const inactiveCount = orgCounts.suspended + orgCounts.pending
   const trialCount = useMemo(() => countTrialOrganizations(subscriptions), [subscriptions])
   const invoicePendingOverdue = useMemo(
     () => (invoiceSummary ? invoiceSummary.pendingCount + invoiceSummary.overdueCount : 0),
@@ -276,19 +278,19 @@ export function PlatformAnalyticsPage() {
         />
         <KPIStatCard
           label={t('kpis.thisMonthRevenue')}
-          value={invoiceSummary?.thisMonthAmount ?? 0}
+          value={formatCurrency(currentMonthPaidRevenueQuery.data ?? 0, locale)}
+          format="plain"
           icon={CircleDollarSign}
-          loading={invoiceSummaryQuery.isLoading}
+          loading={currentMonthPaidRevenueQuery.isLoading}
           className="h-full"
-          prefix="$"
         />
         <KPIStatCard
           label={t('kpis.paidRevenue')}
-          value={invoiceSummary?.paidAmount ?? 0}
+          value={formatCurrency(invoiceSummary?.paidAmount ?? 0, locale)}
+          format="plain"
           icon={CreditCard}
           loading={invoiceSummaryQuery.isLoading}
           className="h-full"
-          prefix="$"
         />
         <KPIStatCard
           label={t('kpis.pendingOverdueInvoices')}
