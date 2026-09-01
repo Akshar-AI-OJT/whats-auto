@@ -365,12 +365,7 @@ export type OrganizationDetails = {
 export type OrganizationSmtpTransport = 'smtp' | 'api'
 
 export type OrganizationSmtpProviderPreset =
-  | 'gmail'
-  | 'sendgrid'
-  | 'resend'
-  | 'ses'
-  | 'brevo'
-  | 'custom'
+  'gmail' | 'sendgrid' | 'resend' | 'ses' | 'brevo' | 'custom'
 
 export type OrganizationSmtpConfig = {
   id: string
@@ -1620,7 +1615,28 @@ export type SuperAdminPlanFeature = {
 
 export type SuperAdminPlanLimits = {
   users: number | null
+  seats?: number | null
+  whatsappNumbers?: number | null
+  maxContacts?: number | null
   messagesPerMonth: number | null
+  campaignsPerMonth?: number | null
+  maxBroadcastRecipients?: number | null
+  storageBytes?: number | null
+  maxFileUploadMb?: number
+  maxActiveFlows?: number | null
+  maxKnowledgeDocs?: number | null
+  maxKnowledgeDocSizeMb?: number | null
+  aiRepliesPerMonth?: number | null
+  maxStoreConnections?: number | null
+  maxApiKeys?: number | null
+  maxWebhookEndpoints?: number | null
+  analyticsRetentionDays?: number | null
+  auditLogRetentionDays?: number | null
+  maxTemplates?: number | null
+  maxCampaignRecipientListSize?: number | null
+  conversationInboxRetentionDays?: number | null
+  aiGenerationsPerConversationHour?: number
+  dispatchRatePerSec?: number
 }
 
 export type SuperAdminPlan = {
@@ -1664,10 +1680,7 @@ export type CreateSuperAdminPlanBody = {
   status: Exclude<SuperAdminPlanStatus, 'archived'>
   popular?: boolean
   trialDays?: number | null
-  limits: {
-    users?: number | null
-    messagesPerMonth?: number | null
-  }
+  limits: SuperAdminPlanLimits
   features?: SuperAdminPlanFeature[]
   sortOrder?: number
 }
@@ -1696,6 +1709,25 @@ export type BillingSubscription = {
   lastPaymentAt?: string | null
 }
 
+/** GET /api/v1/billing/entitlements — resolved plan limits, features, and meters */
+export type BillingEntitlementsSnapshot = {
+  limits: Record<string, number | null> | null
+  features: Array<{ key: string; enabled: boolean }>
+  usage: {
+    messages: { used: number; limit: number | null }
+    campaigns: { used: number; limit: number | null }
+    aiCustomerLlmCalls: {
+      used: number
+      limit: number | null
+      percentUsed: number | null
+      nearLimit: boolean
+      exceeded: boolean
+    }
+    storageBytes: { used: number; limit: number | null }
+  }
+}
+
+/** POST /api/v1/billing/checkout — Orders API Checkout.js fields */
 /** POST /api/v1/billing/checkout — free activation or Razorpay Checkout.js fields */
 export type BillingCheckoutFreeResult = {
   mode: 'free'
@@ -2491,6 +2523,12 @@ export const api = {
       protectedRequest<{ data?: { items: TenantBillingPlan[] } }>('/api/v1/billing/plans', {
         method: 'GET',
       }),
+
+    entitlements: () =>
+      protectedRequest<{ data?: BillingEntitlementsSnapshot } & BillingEntitlementsSnapshot>(
+        '/api/v1/billing/entitlements',
+        { method: 'GET' }
+      ),
 
     checkout: (body: BillingCheckoutBody) =>
       protectedRequest<{ data?: BillingCheckoutResult } & BillingCheckoutResult>(

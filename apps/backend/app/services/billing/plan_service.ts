@@ -12,18 +12,16 @@ import type {
   CreateSuperAdminPlanInput,
   PlanBillingPeriod,
   PlanFeature,
+  PlanLimits,
   PlanStatus,
   SuperAdminPlan,
   SuperAdminPlanSummary,
   TenantBillingPlan,
   UpdateSuperAdminPlanInput,
 } from '#types/plans'
+import { DEFAULT_ANTI_ABUSE_LIMITS as ANTI_ABUSE_DEFAULTS } from '#types/plans'
 
-type PersistedLimits = {
-  users: number | null
-  seats: number | null
-  messagesPerMonth: number | null
-}
+type PersistedLimits = PlanLimits
 
 type PlanMetadata = {
   status: PlanStatus
@@ -61,11 +59,34 @@ function readMetadata(row: { metadata: Record<string, unknown> }): Partial<PlanM
 }
 
 function buildLimits(input: CreateSuperAdminPlanInput['limits'] | undefined): PersistedLimits {
-  const users = input?.users ?? null
+  const users = input?.users ?? input?.seats ?? null
+  const seats = input?.seats ?? users
   return {
     users,
-    seats: users,
+    seats,
+    whatsappNumbers: input?.whatsappNumbers ?? null,
+    maxContacts: input?.maxContacts ?? null,
     messagesPerMonth: input?.messagesPerMonth ?? null,
+    campaignsPerMonth: input?.campaignsPerMonth ?? null,
+    maxBroadcastRecipients: input?.maxBroadcastRecipients ?? null,
+    storageBytes: input?.storageBytes ?? null,
+    maxFileUploadMb: input?.maxFileUploadMb ?? ANTI_ABUSE_DEFAULTS.maxFileUploadMb,
+    maxActiveFlows: input?.maxActiveFlows ?? null,
+    maxKnowledgeDocs: input?.maxKnowledgeDocs ?? null,
+    maxKnowledgeDocSizeMb: input?.maxKnowledgeDocSizeMb ?? null,
+    aiRepliesPerMonth: input?.aiRepliesPerMonth ?? null,
+    maxStoreConnections: input?.maxStoreConnections ?? null,
+    maxApiKeys: input?.maxApiKeys ?? null,
+    maxWebhookEndpoints: input?.maxWebhookEndpoints ?? null,
+    analyticsRetentionDays: input?.analyticsRetentionDays ?? null,
+    auditLogRetentionDays: input?.auditLogRetentionDays ?? null,
+    maxTemplates: input?.maxTemplates ?? null,
+    maxCampaignRecipientListSize: input?.maxCampaignRecipientListSize ?? null,
+    conversationInboxRetentionDays: input?.conversationInboxRetentionDays ?? null,
+    aiGenerationsPerConversationHour:
+      input?.aiGenerationsPerConversationHour ??
+      ANTI_ABUSE_DEFAULTS.aiGenerationsPerConversationHour,
+    dispatchRatePerSec: input?.dispatchRatePerSec ?? ANTI_ABUSE_DEFAULTS.dispatchRatePerSec,
   }
 }
 

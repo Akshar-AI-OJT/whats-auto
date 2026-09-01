@@ -69,6 +69,11 @@ export default await Env.create(new URL('../', import.meta.url), {
   // Keep optional so NODE_ENV=test with null driver still boots; config asserts when bullmq.
   REDIS_URL: Env.schema.string.optional(),
 
+  /** Platform hard cap for per-conversation AI generation rate (plan value is min'd with this). */
+  AI_CONV_RATE_LIMIT_HARD_CAP: Env.schema.number.optional(),
+  /** Platform hard cap for campaign dispatchRatePerSec (keeps headroom under Meta ~80 mps). */
+  CAMPAIGN_DISPATCH_RATE_HARD_CAP: Env.schema.number.optional(),
+
   // Comma-separated hostnames allowed for outbound media public URLs (optional)
   OUTBOUND_MEDIA_ALLOWED_HOSTS: Env.schema.string.optional(),
   RAZORPAY_KEY_ID: Env.schema.string(),

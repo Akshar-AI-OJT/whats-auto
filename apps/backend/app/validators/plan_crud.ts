@@ -1,4 +1,5 @@
 import vine from '@vinejs/vine'
+import { PLAN_FEATURE_KEYS } from '#types/plans'
 
 export const PLAN_STATUSES = ['active', 'draft', 'archived'] as const
 export const PLAN_BILLING_PERIODS = ['monthly', 'yearly', 'custom'] as const
@@ -10,13 +11,37 @@ export const PLAN_FEATURE_CATEGORIES = [
   'integrations',
 ] as const
 
+const nullableLimit = () => vine.number().withoutDecimals().min(0).nullable().optional()
+const requiredAntiAbuse = () => vine.number().withoutDecimals().min(1)
+
 const planLimitsSchema = vine.object({
-  users: vine.number().withoutDecimals().min(0).nullable().optional(),
-  messagesPerMonth: vine.number().withoutDecimals().min(0).nullable().optional(),
+  users: nullableLimit(),
+  seats: nullableLimit(),
+  whatsappNumbers: nullableLimit(),
+  maxContacts: nullableLimit(),
+  messagesPerMonth: nullableLimit(),
+  campaignsPerMonth: nullableLimit(),
+  maxBroadcastRecipients: nullableLimit(),
+  storageBytes: nullableLimit(),
+  maxFileUploadMb: requiredAntiAbuse().optional(),
+  maxActiveFlows: nullableLimit(),
+  maxKnowledgeDocs: nullableLimit(),
+  maxKnowledgeDocSizeMb: nullableLimit(),
+  aiRepliesPerMonth: nullableLimit(),
+  maxStoreConnections: nullableLimit(),
+  maxApiKeys: nullableLimit(),
+  maxWebhookEndpoints: nullableLimit(),
+  analyticsRetentionDays: nullableLimit(),
+  auditLogRetentionDays: nullableLimit(),
+  maxTemplates: nullableLimit(),
+  maxCampaignRecipientListSize: nullableLimit(),
+  conversationInboxRetentionDays: nullableLimit(),
+  aiGenerationsPerConversationHour: requiredAntiAbuse().optional(),
+  dispatchRatePerSec: requiredAntiAbuse().optional(),
 })
 
 const planFeatureSchema = vine.object({
-  key: vine.string().trim().minLength(1).maxLength(100),
+  key: vine.enum(PLAN_FEATURE_KEYS),
   name: vine.string().trim().minLength(1).maxLength(200).optional(),
   enabled: vine.boolean(),
   description: vine.string().trim().maxLength(500).optional(),
