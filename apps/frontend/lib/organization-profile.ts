@@ -1,23 +1,26 @@
-import type { OrganizationAddress, OrganizationDetails, OrganizationSummary } from '@/lib/api'
+import type { OrganizationAddress, OrganizationSummary } from '@/lib/api'
 
 export const ORG_PROFILE_PATH = '/onboarding/organization-profile'
 
 export type OrganizationProfileSource = Pick<
-  OrganizationSummary | OrganizationDetails,
-  | 'name'
-  | 'email'
-  | 'phone'
-  | 'website'
-  | 'industry'
-  | 'organizationType'
-  | 'address'
-  | 'country'
-  | 'description'
-  | 'businessSize'
-  | 'alternatePhone'
-  | 'defaultLanguage'
-  | 'businessRegistrationNumber'
->
+  OrganizationSummary,
+  'name' | 'email' | 'country'
+> &
+  Partial<
+    Pick<
+      OrganizationSummary,
+      | 'phone'
+      | 'website'
+      | 'industry'
+      | 'organizationType'
+      | 'address'
+      | 'description'
+      | 'businessSize'
+      | 'alternatePhone'
+      | 'defaultLanguage'
+      | 'businessRegistrationNumber'
+    >
+  >
 
 export type OrganizationProfileFormValues = {
   name: string
