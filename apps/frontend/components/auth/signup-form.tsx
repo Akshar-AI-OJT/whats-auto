@@ -441,7 +441,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
     }
 
     return (
-      <AuthLayout branding={<AuthBranding variant="otp" />} showBrandLink={false} compact>
+      <AuthLayout branding={<AuthBranding variant="otp" />} compact>
         <form
           className={cn('flex w-full min-w-0 flex-col', className)}
           onSubmit={handleVerifyOtp}
@@ -596,7 +596,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
   }
 
   return (
-    <AuthLayout branding={<AuthBranding variant="register" />} showBrandLink={false} compact>
+    <AuthLayout branding={<AuthBranding variant="register" />} compact>
       <form
         className={cn('flex w-full min-w-0 flex-col', className)}
         onSubmit={handleRegister}
