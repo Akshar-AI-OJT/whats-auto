@@ -43,6 +43,16 @@ export default class MediaException extends Exception {
     })
   }
 
+  static uploadBodyMissing() {
+    return new this(
+      'Upload request body was empty. Ensure Content-Type is set and the file bytes are sent as the PUT body.',
+      {
+        status: 422,
+        code: 'E_MEDIA_UPLOAD_BODY_MISSING',
+      }
+    )
+  }
+
   static uploadMismatch(detail: string) {
     return new this(`Uploaded object does not match the declared metadata: ${detail}`, {
       status: 422,
