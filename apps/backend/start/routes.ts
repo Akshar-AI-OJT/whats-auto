@@ -47,6 +47,7 @@ const ConversationAiController = () => import('#controllers/conversation_ai_cont
 const ConversationNotesController = () => import('#controllers/conversation_notes_controller')
 const MediaUploadsController = () => import('#controllers/media_uploads_controller')
 const MediaAssetsController = () => import('#controllers/media_assets_controller')
+const MediaPublicController = () => import('#controllers/media_public_controller')
 const KnowledgeDocumentsController = () => import('#controllers/knowledge_documents_controller')
 const FlowsController = () => import('#controllers/flows_controller')
 const BillingController = () => import('#controllers/billing_controller')
@@ -660,6 +661,9 @@ router.get('/api/auth/jwks', [AuthController, 'jwks'])
 router.any('/api/auth/*', async (ctx) => {
   return handleBetterAuth(ctx)
 })
+
+// Public media delivery (fs driver). Caddy proxies /media/* to this route.
+router.get('/media/*', [MediaPublicController, 'serve'])
 
 /*
 |--------------------------------------------------------------------------
