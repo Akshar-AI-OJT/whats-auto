@@ -134,7 +134,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
     try {
       const redirectPath = callbackPath ?? '/dashboard'
       const callbackURL = buildLocalizedAppUrl(locale, redirectPath)
-      const errorCallbackURL = buildLocalizedAppUrl(locale, '/login')
+      const errorCallbackURL = buildLocalizedAppUrl(locale, '/login?error=account_not_found')
       const { error: authErr } = await authClient.signIn.social({
         provider: 'google',
         callbackURL,

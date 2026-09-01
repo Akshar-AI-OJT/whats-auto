@@ -204,16 +204,35 @@ test.group('Provision teammate', (group) => {
 
   test('provisionTeammate allows owner of another organization', async ({ assert }) => {
     const northstarId = FIXTURE_IDS.orgs.northstar
+    const harborId = FIXTURE_IDS.orgs.harbor
+    const harborOwnerId = FIXTURE_IDS.users.harborOwner
     const northstarOwner = await db
       .from('users')
       .where('email', DEMO_USERS.northstarOwner)
       .select('id')
       .firstOrFail()
 
+    const harborOwnerRoleBefore = await db
+      .from('user_roles as ur')
+      .innerJoin('roles as r', 'r.id', 'ur.roleId')
+      .where('ur.userId', harborOwnerId)
+      .where('ur.organizationId', harborId)
+      .select('ur.id', 'ur.roleId', 'r.name')
+      .firstOrFail()
+
+    const harborMemberBefore = await db
+      .from('organization_members as m')
+      .innerJoin('roles as r', 'r.id', 'm.roleId')
+      .where('m.userId', harborOwnerId)
+      .where('m.organizationId', harborId)
+      .where('m.isDeleted', false)
+      .select('m.roleId', 'r.name')
+      .firstOrFail()
+
     const existingMember = await db
       .from('organization_members')
       .where('organizationId', northstarId)
-      .where('userId', FIXTURE_IDS.users.harborOwner)
+      .where('userId', harborOwnerId)
       .where('isDeleted', false)
       .first()
 
@@ -234,13 +253,125 @@ test.group('Provision teammate', (group) => {
 
     assert.equal(result.email, DEMO_USERS.harborOwner)
 
-    const member = await db
+    const northstarMember = await db
+      .from('organization_members as m')
+      .innerJoin('roles as r', 'r.id', 'm.roleId')
+      .where('m.organizationId', northstarId)
+      .where('m.userId', harborOwnerId)
+      .where('m.isDeleted', false)
+      .select('r.name')
+      .firstOrFail()
+    assert.equal(northstarMember.name, 'admin')
+
+    const northstarUserRole = await db
+      .from('user_roles as ur')
+      .innerJoin('roles as r', 'r.id', 'ur.roleId')
+      .where('ur.userId', harborOwnerId)
+      .where('ur.organizationId', northstarId)
+      .select('r.name')
+      .firstOrFail()
+    assert.equal(northstarUserRole.name, 'admin')
+
+    const harborOwnerRoleAfter = await db
+      .from('user_roles as ur')
+      .innerJoin('roles as r', 'r.id', 'ur.roleId')
+      .where('ur.id', harborOwnerRoleBefore.id)
+      .select('ur.roleId', 'r.name')
+      .firstOrFail()
+    assert.equal(harborOwnerRoleAfter.roleId, harborOwnerRoleBefore.roleId)
+    assert.equal(harborOwnerRoleAfter.name, 'owner')
+
+    const harborMemberAfter = await db
+      .from('organization_members as m')
+      .innerJoin('roles as r', 'r.id', 'm.roleId')
+      .where('m.userId', harborOwnerId)
+      .where('m.organizationId', harborId)
+      .where('m.isDeleted', false)
+      .select('m.roleId', 'r.name')
+      .firstOrFail()
+    assert.equal(harborMemberAfter.roleId, harborMemberBefore.roleId)
+    assert.equal(harborMemberAfter.name, 'owner')
+  })
+
+  test('provisionTeammate preserves role in other org when inviting existing member', async ({
+    assert,
+  }) => {
+    const northstarId = FIXTURE_IDS.orgs.northstar
+    const harborId = FIXTURE_IDS.orgs.harbor
+    const harborAgentId = FIXTURE_IDS.users.harborAgent
+    const northstarOwner = await db
+      .from('users')
+      .where('email', DEMO_USERS.northstarOwner)
+      .select('id')
+      .firstOrFail()
+
+    const harborAgentRoleBefore = await db
+      .from('user_roles as ur')
+      .innerJoin('roles as r', 'r.id', 'ur.roleId')
+      .where('ur.userId', harborAgentId)
+      .where('ur.organizationId', harborId)
+      .select('ur.id', 'ur.roleId', 'r.name')
+      .firstOrFail()
+
+    const existingMember = await db
       .from('organization_members')
       .where('organizationId', northstarId)
-      .where('userId', FIXTURE_IDS.users.harborOwner)
+      .where('userId', harborAgentId)
       .where('isDeleted', false)
       .first()
-    assert.exists(member)
+
+    if (existingMember) {
+      await db
+        .from('organization_members')
+        .where('id', existingMember.id)
+        .update({ isDeleted: true, deletedAt: new Date().toISOString() })
+    }
+
+    const result = await new InvitationService().provisionTeammate({
+      organizationId: northstarId,
+      inviterId: northstarOwner.id as string,
+      email: DEMO_USERS.harborAgent,
+      firstname: 'Sam',
+      role: 'viewer',
+    })
+
+    assert.equal(result.role, 'viewer')
+
+    const northstarRole = await db
+      .from('user_roles as ur')
+      .innerJoin('roles as r', 'r.id', 'ur.roleId')
+      .where('ur.userId', harborAgentId)
+      .where('ur.organizationId', northstarId)
+      .select('r.name')
+      .firstOrFail()
+    assert.equal(northstarRole.name, 'viewer')
+
+    const harborAgentRoleAfter = await db
+      .from('user_roles as ur')
+      .innerJoin('roles as r', 'r.id', 'ur.roleId')
+      .where('ur.id', harborAgentRoleBefore.id)
+      .select('ur.roleId', 'r.name')
+      .firstOrFail()
+    assert.equal(harborAgentRoleAfter.roleId, harborAgentRoleBefore.roleId)
+    assert.equal(harborAgentRoleAfter.name, 'agent')
+  })
+
+  test('provisionTeammate rejects active member of this organization', async ({ assert }) => {
+    const orgId = FIXTURE_IDS.orgs.northstar
+
+    try {
+      await new InvitationService().provisionTeammate({
+        organizationId: orgId,
+        inviterId: FIXTURE_IDS.users.northstarOwner,
+        email: DEMO_USERS.northstarAdmin,
+        firstname: 'Priya',
+        role: 'agent',
+      })
+      assert.fail('expected already-member guard')
+    } catch (error) {
+      assert.instanceOf(error, InvitationException)
+      assert.equal((error as InvitationException).code, 'E_INVITE_ALREADY_MEMBER')
+    }
   })
 
   test('provisionTeammate rejects re-inviting soft-deleted owner via user_roles guard', async ({

@@ -67,6 +67,46 @@ function getTrustedOrigins(): string[] {
   return [...origins]
 }
 
+type UserAccountState = {
+  isActive: boolean
+  isDeleted: boolean
+}
+
+const ACCOUNT_NOT_FOUND_MESSAGE =
+  'No account found with this email. Please contact your administrator for an invitation.'
+
+async function findUserAccountStateByEmail(email: string): Promise<UserAccountState | null> {
+  const normalized = email.toLowerCase().trim()
+  const { rows } = await pool.query<UserAccountState>(
+    `SELECT "isActive", "isDeleted" FROM "users" WHERE LOWER("email") = $1 LIMIT 1`,
+    [normalized]
+  )
+  return rows[0] ?? null
+}
+
+function assertUserCanAuthenticate(state: UserAccountState | null) {
+  if (!state) {
+    throw new APIError('FORBIDDEN', {
+      message: ACCOUNT_NOT_FOUND_MESSAGE,
+      code: 'ACCOUNT_NOT_FOUND',
+    })
+  }
+
+  if (state.isDeleted) {
+    throw new APIError('FORBIDDEN', {
+      message: 'Account no longer exists.',
+      code: 'ACCOUNT_DELETED',
+    })
+  }
+
+  if (!state.isActive) {
+    throw new APIError('FORBIDDEN', {
+      message: 'Account is suspended. Contact support.',
+      code: 'ACCOUNT_SUSPENDED',
+    })
+  }
+}
+
 export const auth = betterAuth({
   database: pool,
   baseURL: env.get('BETTER_AUTH_URL'),
@@ -271,6 +311,33 @@ export const auth = betterAuth({
       }
     : {}),
 
+  // Block Better Auth from inserting users during OAuth when the email is not pre-provisioned.
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (user) => {
+          const email = user.email?.toLowerCase().trim()
+          if (!email) {
+            throw new APIError('BAD_REQUEST', { message: 'Invalid email.', code: 'INVALID_EMAIL' })
+          }
+
+          const state = await findUserAccountStateByEmail(email)
+          if (!state) {
+            throw new APIError('FORBIDDEN', {
+              message: ACCOUNT_NOT_FOUND_MESSAGE,
+              code: 'ACCOUNT_NOT_FOUND',
+            })
+          }
+
+          assertUserCanAuthenticate(state)
+
+          // User already exists (invite/admin/signup path). Abort duplicate insert.
+          return false
+        },
+      },
+    },
+  },
+
   // App-layer guard: block suspended / deleted users at sign-in
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
@@ -308,25 +375,23 @@ export const auth = betterAuth({
         }
       }
 
+      if (ctx.path.startsWith('/callback/google') || ctx.path === '/sign-in/social') {
+        const email =
+          (ctx.query?.email as string | undefined) ||
+          (ctx.body as { email?: string } | undefined)?.email
+        if (email) {
+          assertUserCanAuthenticate(await findUserAccountStateByEmail(email))
+        }
+        return
+      }
+
       const signInPaths = ['/sign-in/email', '/sign-in/social']
       if (!signInPaths.includes(ctx.path)) return
 
       const { email } = ctx.body as { email?: string }
       if (!email) return
 
-      const { rows } = await pool.query<{ isActive: boolean; isDeleted: boolean }>(
-        `SELECT "isActive", "isDeleted" FROM "users" WHERE "email" = $1 LIMIT 1`,
-        [email]
-      )
-
-      if (!rows.length) return // unknown email — let better-auth handle it
-
-      if (rows[0].isDeleted) {
-        throw new APIError('FORBIDDEN', { message: 'Account no longer exists.' })
-      }
-      if (!rows[0].isActive) {
-        throw new APIError('FORBIDDEN', { message: 'Account is suspended. Contact support.' })
-      }
+      assertUserCanAuthenticate(await findUserAccountStateByEmail(email))
     }),
     after: createAuthMiddleware(async (ctx) => {
       if (ctx.path !== '/reset-password') return
