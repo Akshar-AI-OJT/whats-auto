@@ -365,12 +365,7 @@ export type OrganizationDetails = {
 export type OrganizationSmtpTransport = 'smtp' | 'api'
 
 export type OrganizationSmtpProviderPreset =
-  | 'gmail'
-  | 'sendgrid'
-  | 'resend'
-  | 'ses'
-  | 'brevo'
-  | 'custom'
+  'gmail' | 'sendgrid' | 'resend' | 'ses' | 'brevo' | 'custom'
 
 export type OrganizationSmtpConfig = {
   id: string
@@ -1733,7 +1728,23 @@ export type BillingEntitlementsSnapshot = {
 }
 
 /** POST /api/v1/billing/checkout — Orders API Checkout.js fields */
-export type BillingCheckoutResult = {
+/** POST /api/v1/billing/checkout — free activation or Razorpay Checkout.js fields */
+export type BillingCheckoutFreeResult = {
+  mode: 'free'
+  orderId: string
+  subscriptionId: string
+  alreadyApplied: boolean
+  plan: {
+    id: string
+    code: string
+    name: string
+    price: number
+  }
+}
+
+/** POST /api/v1/billing/checkout — Razorpay branch (legacy shape + mode) */
+export type BillingCheckoutRazorpayResult = {
+  mode: 'razorpay'
   orderId: string
   amount: number
   currency: string
@@ -1751,6 +1762,11 @@ export type BillingCheckoutResult = {
     contact: string | null
   }
 }
+
+export type BillingCheckoutResponse = BillingCheckoutFreeResult | BillingCheckoutRazorpayResult
+
+/** @deprecated Use BillingCheckoutRazorpayResult */
+export type BillingCheckoutResult = Omit<BillingCheckoutRazorpayResult, 'mode'>
 
 export type BillingCheckoutBody = {
   planId: string
@@ -1796,7 +1812,10 @@ export type TenantBillingPlan = {
   trialDays: number | null
   limits: TenantBillingPlanLimits
   features: TenantBillingPlanFeature[]
+  /** Razorpay checkout (price > 0). */
   checkoutable: boolean
+  /** Local free activation (price === 0). */
+  freeActivatable: boolean
   sortOrder: number
 }
 

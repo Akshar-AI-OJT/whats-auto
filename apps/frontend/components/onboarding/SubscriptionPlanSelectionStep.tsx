@@ -16,21 +16,28 @@ import { api, type TenantBillingPlan } from '@/lib/api'
 import { queryKeys } from '@/lib/query-keys'
 import {
   formatTenantPlanPrice,
+  isFreeActivatablePlan,
+  isPlanSelfServe,
   resolvePlanFeatureLabel,
   unwrapBillingPlans,
 } from '@/components/dashboard/billing/billing-utils'
 
-export type OnboardingCheckoutablePlanSelection = {
+export type OnboardingPlanSelection = {
   id: string
   name: string
+  price: number | null
   checkoutable: boolean
+  freeActivatable: boolean
 }
 
 type SubscriptionPlanSelectionStepProps = {
   selectedPlanId: string | null
   pending: boolean
-  onSelect: (selection: OnboardingCheckoutablePlanSelection) => void
+  onSelect: (selection: OnboardingPlanSelection) => void
 }
+
+/** @deprecated Use OnboardingPlanSelection */
+export type OnboardingCheckoutablePlanSelection = OnboardingPlanSelection
 
 function formatLimit(value: number | null, unlimitedLabel: string) {
   if (value == null) return unlimitedLabel
@@ -61,7 +68,6 @@ export function SubscriptionPlanSelectionStep({
   })
 
   const plans = useMemo(() => {
-    // Onboarding UI is monthly-centric. If only non-monthly plans exist, show empty state.
     return (data ?? []).filter((p) => p.billingPeriod === 'monthly')
   }, [data])
 
@@ -127,7 +133,8 @@ export function SubscriptionPlanSelectionStep({
           >
             {plans.map((plan) => {
               const isSelected = selectedPlanId === plan.id
-              const checkoutable = plan.checkoutable
+              const selfServe = isPlanSelfServe(plan)
+              const isFree = isFreeActivatablePlan(plan)
               const users = formatLimit(plan.limits.users, unlimited)
               const messages = formatLimit(plan.limits.messagesPerMonth, unlimited)
               const enabledFeatures = plan.features.filter((f) => f.enabled)
@@ -137,18 +144,23 @@ export function SubscriptionPlanSelectionStep({
                 <button
                   key={plan.id}
                   type="button"
-                  disabled={pending}
+                  disabled={pending || !selfServe}
                   onClick={() =>
                     onSelect({
                       id: plan.id,
                       name: plan.name,
-                      checkoutable,
+                      price: plan.price,
+                      checkoutable: plan.checkoutable,
+                      freeActivatable: plan.freeActivatable,
                     })
                   }
                   aria-pressed={isSelected}
                   className={cn(
-                    'group relative flex h-full min-h-0 cursor-pointer flex-col rounded-2xl p-5 text-left sm:p-6',
+                    'group relative flex h-full min-h-0 flex-col rounded-2xl p-5 text-left sm:p-6',
                     'border bg-canvas transition-[border-color,box-shadow,background-color,transform] duration-200 ease-out',
+                    selfServe
+                      ? 'cursor-pointer'
+                      : 'cursor-not-allowed opacity-80',
                     'disabled:cursor-not-allowed disabled:opacity-70',
                     isSelected
                       ? 'border-primary bg-primary/[0.03] shadow-[0_0_0_1px_rgb(37_99_235/0.35),0_12px_28px_rgb(37_99_235/0.08)]'
@@ -161,13 +173,19 @@ export function SubscriptionPlanSelectionStep({
                     </span>
                   ) : null}
 
+                  {isFree ? (
+                    <span className="absolute top-4 left-4 rounded-full bg-primary-pale px-2.5 py-1 text-[10px] font-semibold tracking-wide text-positive-deep uppercase">
+                      {t('step4.freeBadge')}
+                    </span>
+                  ) : null}
+
                   {isSelected ? (
                     <span className="absolute top-4 right-4 flex size-6 items-center justify-center rounded-full bg-primary text-on-primary shadow-sm">
                       <Check className="size-3.5 stroke-[2.5]" aria-hidden />
                     </span>
                   ) : null}
 
-                  <div className="min-w-0 pr-8">
+                  <div className={cn('min-w-0 pr-8', isFree && 'pt-7')}>
                     <h3 className="font-display text-xl font-semibold tracking-tight text-ink">
                       {plan.name}
                     </h3>
@@ -219,9 +237,20 @@ export function SubscriptionPlanSelectionStep({
                   </div>
 
                   <div className="mt-6">
-                    {!checkoutable ? (
+                    {!selfServe ? (
                       <div className="flex h-11 items-center justify-center rounded-xl border border-dash-border bg-[#F8FAFC] px-3 text-sm font-semibold text-positive-deep">
                         {t('step4.enterpriseCta')}
+                      </div>
+                    ) : isFree ? (
+                      <div
+                        className={cn(
+                          'flex h-11 items-center justify-center rounded-xl px-3 text-sm font-semibold transition-colors duration-200',
+                          isSelected
+                            ? 'bg-primary text-on-primary shadow-[0_8px_18px_rgb(37_99_235/0.28)]'
+                            : 'border border-primary/40 bg-canvas text-primary group-hover:border-primary group-hover:bg-primary-pale/50'
+                        )}
+                      >
+                        {isSelected ? t('step4.freeSelectedCta') : t('step4.freeChooseCta')}
                       </div>
                     ) : (
                       <div
@@ -272,7 +301,9 @@ export function SubscriptionPlanSelectionStep({
                   ? t('step4.enterpriseCustomPrice')
                   : `${formatTenantPlanPrice(selected.price, selected.currency, customPrice)} ${perMonth}`}
               </p>
-              <p className="mt-1 text-xs text-mute">{t('step4.summaryNote')}</p>
+              <p className="mt-1 text-xs text-mute">
+                {selected.freeActivatable ? t('step4.summaryNoteFree') : t('step4.summaryNote')}
+              </p>
             </div>
           ) : null}
         </>

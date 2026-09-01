@@ -86,7 +86,7 @@ export type SuperAdminPlan = {
 
 /**
  * Tenant-safe billing catalog DTO (GET /api/v1/billing/plans).
- * Omits gateway internals and admin-only fields; exposes checkoutable instead.
+ * Omits gateway internals and admin-only fields; exposes checkoutable (Razorpay) and freeActivatable.
  */
 export type TenantBillingPlan = {
   id: string
@@ -105,7 +105,10 @@ export type TenantBillingPlan = {
     enabled: boolean
     category?: PlanFeatureCategory
   }>
+  /** Razorpay checkout (price > 0). */
   checkoutable: boolean
+  /** Local free activation (price === 0, not custom/enterprise). */
+  freeActivatable: boolean
   sortOrder: number
 }
 

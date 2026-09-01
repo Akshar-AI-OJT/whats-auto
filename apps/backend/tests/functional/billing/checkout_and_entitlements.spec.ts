@@ -4,8 +4,11 @@ import db from '@adonisjs/lucid/services/db'
 import { PlanRepository } from '#repositories/plan_repository'
 import { OrganizationSubscriptionRepository } from '#repositories/organization_subscription_repository'
 import { EntitlementService } from '#services/billing/entitlement_service'
+import { BillingCheckoutService } from '#services/billing/billing_checkout_service'
+import { BillingOrderApplyService } from '#services/billing/billing_order_apply_service'
 import { RazorpayOrderService } from '#services/billing/razorpay_order_service'
 import { BillingOrderRepository } from '#repositories/billing_order_repository'
+import { OrganizationStatus } from '#enums/organization_status'
 import type { RazorpayClient } from '#lib/razorpay/types'
 import { runWithTenant } from '#services/tenant_context'
 
@@ -258,5 +261,185 @@ test.group('RazorpayOrderService', () => {
         }),
       /not available for Razorpay checkout/
     )
+  })
+})
+
+test.group('BillingCheckoutService free activation', () => {
+  test('activates an active zero-price plan without Razorpay', async ({ assert }) => {
+    const organizationId = randomUUID()
+    const planId = randomUUID()
+    const slug = `bill-free-${organizationId.slice(0, 8)}`
+
+    await db.table('organizations').insert({
+      id: organizationId,
+      name: `Free Org ${slug}`,
+      slug,
+      email: `${slug}@example.com`,
+      phone: '+919876543210',
+      country: 'IN',
+      timezone: 'UTC',
+      currency: 'INR',
+      status: OrganizationStatus.PENDING_SETUP,
+    })
+
+    await db.table('plans').insert({
+      id: planId,
+      code: `free_trial_${organizationId.slice(0, 8)}`,
+      name: 'Free Trial',
+      price: 0,
+      currency: 'INR',
+      billingInterval: 'month',
+      billingIntervalCount: 1,
+      trialDays: 14,
+      gateway: null,
+      gatewayPlanId: null,
+      limits: { seats: 3, messagesPerMonth: 500 },
+      isActive: true,
+      sortOrder: 5,
+      metadata: { status: 'active' },
+    })
+
+    let razorpayCalled = false
+    const checkout = new BillingCheckoutService(
+      new PlanRepository(),
+      new BillingOrderApplyService(),
+      new RazorpayOrderService(
+        new PlanRepository(),
+        new OrganizationSubscriptionRepository(),
+        new BillingOrderRepository(),
+        fakeRazorpay({
+          createOrder: async () => {
+            razorpayCalled = true
+            throw new Error('Razorpay should not be called for free plans')
+          },
+        })
+      )
+    )
+
+    const result = await checkout.checkout({ organizationId, planId })
+
+    assert.equal(result.mode, 'free')
+    assert.isFalse(result.alreadyApplied)
+    assert.isFalse(razorpayCalled)
+    assert.equal(result.plan.id, planId)
+
+    const org = await db.from('organizations').where('id', organizationId).first()
+    assert.equal(org?.status, OrganizationStatus.ACTIVE)
+
+    const subscription = await runWithTenant(organizationId, async () => {
+      return db.from('organization_subscriptions').where('organizationId', organizationId).first()
+    })
+    assert.equal(subscription?.planId, planId)
+    assert.equal(subscription?.status, 'trialing')
+    assert.equal(subscription?.gateway, 'free')
+
+    const order = await runWithTenant(organizationId, async () => {
+      return db.from('billing_orders').where('organizationId', organizationId).first()
+    })
+    assert.equal(order?.gateway, 'free')
+    assert.equal(Number(order?.total), 0)
+    assert.equal(order?.status, 'paid')
+  })
+
+  test('rejects inactive zero-price plan', async ({ assert }) => {
+    const organizationId = randomUUID()
+    const planId = randomUUID()
+    const slug = `bill-free-inactive-${organizationId.slice(0, 8)}`
+
+    await db.table('organizations').insert({
+      id: organizationId,
+      name: `Free Inactive ${slug}`,
+      slug,
+      email: `${slug}@example.com`,
+      country: 'IN',
+      timezone: 'UTC',
+      currency: 'INR',
+      status: OrganizationStatus.PENDING_SETUP,
+    })
+
+    await db.table('plans').insert({
+      id: planId,
+      code: `free_dead_${organizationId.slice(0, 8)}`,
+      name: 'Inactive Free',
+      price: 0,
+      currency: 'INR',
+      billingInterval: 'month',
+      billingIntervalCount: 1,
+      trialDays: 0,
+      gateway: null,
+      gatewayPlanId: null,
+      limits: {},
+      isActive: false,
+      sortOrder: 99,
+      metadata: { status: 'draft' },
+    })
+
+    const checkout = new BillingCheckoutService(
+      new PlanRepository(),
+      new BillingOrderApplyService(),
+      new RazorpayOrderService(
+        new PlanRepository(),
+        new OrganizationSubscriptionRepository(),
+        new BillingOrderRepository(),
+        fakeRazorpay()
+      )
+    )
+
+    await assert.rejects(
+      () => checkout.checkout({ organizationId, planId }),
+      /not available for activation/
+    )
+  })
+
+  test('free activation is idempotent', async ({ assert }) => {
+    const organizationId = randomUUID()
+    const planId = randomUUID()
+    const slug = `bill-free-idem-${organizationId.slice(0, 8)}`
+
+    await db.table('organizations').insert({
+      id: organizationId,
+      name: `Free Idem ${slug}`,
+      slug,
+      email: `${slug}@example.com`,
+      country: 'IN',
+      timezone: 'UTC',
+      currency: 'INR',
+      status: OrganizationStatus.PENDING_SETUP,
+    })
+
+    await db.table('plans').insert({
+      id: planId,
+      code: `free_idem_${organizationId.slice(0, 8)}`,
+      name: 'Free Trial',
+      price: 0,
+      currency: 'INR',
+      billingInterval: 'month',
+      billingIntervalCount: 1,
+      trialDays: 0,
+      gateway: null,
+      gatewayPlanId: null,
+      limits: {},
+      isActive: true,
+      sortOrder: 5,
+      metadata: { status: 'active' },
+    })
+
+    const checkout = new BillingCheckoutService(
+      new PlanRepository(),
+      new BillingOrderApplyService(),
+      new RazorpayOrderService(
+        new PlanRepository(),
+        new OrganizationSubscriptionRepository(),
+        new BillingOrderRepository(),
+        fakeRazorpay()
+      )
+    )
+
+    const first = await checkout.checkout({ organizationId, planId })
+    const second = await checkout.checkout({ organizationId, planId })
+
+    assert.equal(first.mode, 'free')
+    assert.equal(second.mode, 'free')
+    assert.isTrue(second.alreadyApplied)
   })
 })

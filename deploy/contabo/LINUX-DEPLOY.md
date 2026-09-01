@@ -6,7 +6,7 @@ This is the full path from a Contabo VPS that already runs **ServeOS** to a live
 | --- | --- | --- |
 | `https://ottobot.codecolonies.com` | `whats-auto-frontend:3200` | Next.js UI |
 | `https://api.ottobot.codecolonies.com` | `whats-auto-backend:3201` | AdonisJS API |
-| `https://api.ottobot.codecolonies.com/media/*` | disk `file_server` | host folder, not Node |
+| `https://api.ottobot.codecolonies.com/media/*` | `reverse_proxy` → backend | Adonis reads disk (`MEDIA_LOCAL_ROOT`) |
 
 Postgres, Redis, and the worker stay on the private Docker network `whats-auto-internal`. They are never published and never get a domain.
 
@@ -160,13 +160,14 @@ Copy or bind-mount this repo file so it appears as `/etc/caddy/sites/whats-auto.
   → /etc/caddy/sites/whats-auto.caddy
 ```
 
-Also mount media read-only into the **same** Caddy container:
+Also mount the site file into the **same** Caddy container (media bytes are served by the API; no media volume on the proxy required):
 
 ```yaml
 # extra volumes on serveos-production-proxy (keep existing mounts)
 - /var/www/whats-auto/deploy/contabo/whats-auto.caddy:/etc/caddy/sites/whats-auto.caddy:ro
-- /var/www/whats-auto/apps/backend/media:/var/www/whats-auto/apps/backend/media:ro
 ```
+
+Optional: mount media on the proxy only if you switch Caddy back to `file_server` instead of `reverse_proxy`.
 
 If ServeOS already mounts a host `sites/` directory to `/etc/caddy/sites`, copy the file into that directory instead:
 
@@ -188,9 +189,8 @@ api.ottobot.codecolonies.com {
 		max_size 110MB
 	}
 
-	handle_path /media/* {
-		root * /var/www/whats-auto/apps/backend/media
-		file_server
+	handle /media/* {
+		reverse_proxy whats-auto-backend:3201
 	}
 
 	handle /api/v1/inbox/events {

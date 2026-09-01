@@ -21,6 +21,10 @@ const nextConfig: NextConfig = {
         source: '/api/:path*',
         destination: `${apiRewriteOrigin}/api/:path*`,
       },
+      {
+        source: '/media/:path*',
+        destination: `${apiRewriteOrigin}/media/:path*`,
+      },
     ]
   },
 }

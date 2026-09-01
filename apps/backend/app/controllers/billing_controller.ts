@@ -4,6 +4,7 @@ import env from '#start/env'
 import BillingPolicy from '#policies/billing_policy'
 import BillingException from '#exceptions/billing_exception'
 import { PlanService } from '#services/billing/plan_service'
+import { BillingCheckoutService } from '#services/billing/billing_checkout_service'
 import { RazorpayOrderService } from '#services/billing/razorpay_order_service'
 import { BillingOrderApplyService } from '#services/billing/billing_order_apply_service'
 import { EntitlementsQueryService } from '#services/billing/entitlements_query_service'
@@ -30,22 +31,26 @@ export default class BillingController {
   }
 
   /**
-   * @summary Start Razorpay Orders API checkout for the active organization
-   * @description Creates or reuses a Razorpay order; returns Checkout.js fields. Requires billing:manage.
+   * @summary Start plan checkout for the active organization
+   * @description Free plans (price 0) activate locally without Razorpay. Paid plans create a Razorpay order and return Checkout.js fields. Requires billing:manage.
    * @tag Billing
    * @security BearerAuth
    * @requestBody { "planId": "uuid" }
-   * @responseBody 200 - { "data": { "orderId": "order_...", "amount": 249900, "currency": "INR", "keyId": "rzp_..." } }
-   * @responseBody 422 - { "error": "Plan is not available for Razorpay checkout", "code": "E_BILLING_PLAN_NOT_CHECKOUTABLE" }
+   * @responseBody 200 - { "data": { "mode": "free", "subscriptionId": "uuid" } }
+   * @responseBody 200 - { "data": { "mode": "razorpay", "orderId": "order_...", "amount": 249900, "currency": "INR", "keyId": "rzp_..." } }
+   * @responseBody 422 - { "error": "Plan is not available for activation", "code": "E_BILLING_PLAN_NOT_ACTIVATABLE" }
    * @responseBody 403 - { "error": "Permission denied: billing:manage", "code": "PERMISSION_DENIED" }
    */
   @inject()
-  async checkout({ bouncer, request, serialize }: HttpContext, checkout: RazorpayOrderService) {
+  async checkout(
+    { bouncer, request, serialize }: HttpContext,
+    billingCheckout: BillingCheckoutService
+  ) {
     await bouncer.with(BillingPolicy).authorize('checkout')
 
     const payload = await request.validateUsing(billingCheckoutValidator)
 
-    const result = await checkout.createCheckout({
+    const result = await billingCheckout.checkout({
       organizationId: request.activeMember!.organizationId,
       planId: payload.planId,
       actorUserId: request.authUser!.id,

@@ -59,15 +59,34 @@ export class PlanRepository {
   }
 
   /**
-   * Checkout acceptance SQL — keep in lockstep with `isPlanCheckoutable`
+   * Paid Razorpay checkout SQL — keep in lockstep with `isPlanCheckoutable`
    * (isActive + price > 0). Gateway plan id is unused for Orders API checkout.
    */
-  async findActiveCheckoutableById(planId: string, client: Db = db): Promise<PlanRow | null> {
+  async findActivePaidCheckoutableById(planId: string, client: Db = db): Promise<PlanRow | null> {
     const row = await client
       .from('plans')
       .where('id', planId)
       .where('isActive', true)
       .where('price', '>', 0)
+      .first()
+    return (row as PlanRow | undefined) ?? null
+  }
+
+  /** @deprecated Use `findActivePaidCheckoutableById` */
+  async findActiveCheckoutableById(planId: string, client: Db = db): Promise<PlanRow | null> {
+    return this.findActivePaidCheckoutableById(planId, client)
+  }
+
+  /**
+   * Free self-serve activation SQL — keep in lockstep with `isPlanFreeActivatable`
+   * (isActive + price = 0). Custom/enterprise gating is applied in the transformer.
+   */
+  async findActiveFreeActivatableById(planId: string, client: Db = db): Promise<PlanRow | null> {
+    const row = await client
+      .from('plans')
+      .where('id', planId)
+      .where('isActive', true)
+      .where('price', 0)
       .first()
     return (row as PlanRow | undefined) ?? null
   }
