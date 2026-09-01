@@ -57,7 +57,10 @@ test.group('Organization SMTP HTTP', (group) => {
 
   group.teardown(async () => {
     await runWithTenant(FIXTURE_IDS.orgs.northstar, async () => {
-      await db.from('organization_smtp_configs').where('organizationId', FIXTURE_IDS.orgs.northstar).delete()
+      await db
+        .from('organization_smtp_configs')
+        .where('organizationId', FIXTURE_IDS.orgs.northstar)
+        .delete()
     })
   })
 

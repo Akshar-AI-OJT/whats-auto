@@ -65,24 +65,15 @@ const bodyParserConfig = defineConfig({
     limit: '110mb',
 
     /**
-     * Content types handled as raw buffers (browser media PUT).
+     * latin1 preserves raw bytes as a string (utf-8 would corrupt PDF/binary).
      */
-    types: [
-      'image/jpeg',
-      'image/png',
-      'image/webp',
-      'application/pdf',
-      'application/octet-stream',
-      'text/csv',
-      'text/plain',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.ms-excel',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'application/vnd.ms-powerpoint',
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      'application/csv',
-    ],
+    encoding: 'latin1',
+
+    /**
+     * Content types handled as raw buffers (browser media PUT).
+     * Wildcards cover variants; json/form/multipart parsers run first.
+     */
+    types: ['application/*', 'image/*', 'text/csv', 'text/plain'],
   },
 })
 
