@@ -1,6 +1,7 @@
 import db from '@adonisjs/lucid/services/db'
 import logger from '@adonisjs/core/services/logger'
 import { NotificationService } from '#services/notification_service'
+import { revokeTeammateSetupAccess } from '#services/invitation_service'
 import { DateTime } from 'luxon'
 
 const ORGANIZATION_USER_SELECT = [
@@ -9,6 +10,7 @@ const ORGANIZATION_USER_SELECT = [
   'u.firstname',
   'u.lastname',
   'u.email',
+  'u.emailVerified',
   'u.isActive',
   'u.createdAt',
   'u.updatedAt',
@@ -185,6 +187,11 @@ export class OrganizationAdminUsersService {
       await trx.from('organization_members').where('id', memberId).update({
         isDeleted: true,
         deletedAt,
+      })
+
+      await revokeTeammateSetupAccess(trx, {
+        organizationId,
+        userId,
       })
 
       await trx.table('authorization_audits').insert({

@@ -1127,6 +1127,7 @@
       "errors": {
         "generic": "Something went wrong. Please try again.",
         "oauthFailed": "Google sign-in failed. Please try again.",
+        "accountNotFound": "No account found with this email. Please contact your administrator for an invitation.",
         "emailExists": "An account with this email already exists. Please sign in with your password.",
         "emailRequired": "Email is required.",
         "emailInvalid": "Enter a valid email address.",
@@ -1245,41 +1246,6 @@
         "passwordRequired": "Password is required.",
         "confirmRequired": "Confirm your password."
       }
-    }
-  },
-  "inviteAccept": {
-    "eyebrow": "Team invitation",
-    "title": "Join a organization",
-    "subtitle": "Review this invitation, then accept or decline.",
-    "loading": "Loading invitation…",
-    "checkingSession": "Checking your session…",
-    "signInPrompt": "Sign in with the invited email to accept this invitation.",
-    "signIn": "Sign in",
-    "createAccount": "Create account",
-    "accept": "Accept invitation",
-    "accepting": "Accepting…",
-    "reject": "Decline invitation",
-    "rejecting": "Declining…",
-    "declined": "You declined this invitation. You can close this page.",
-    "backHome": "Back to home",
-    "status": "Status: {status}",
-    "fields": {
-      "organization": "Organization",
-      "role": "Role",
-      "invitedBy": "Invited by",
-      "email": "Invited email"
-    },
-    "errors": {
-      "notFound": "This invitation was not found or is no longer valid.",
-      "loadFailed": "Couldn’t load this invitation. Please try again.",
-      "sessionExpired": "Your session expired. Please sign in again.",
-      "expired": "This invitation has expired.",
-      "notPending": "This invitation is no longer pending.",
-      "emailMismatch": "Sign in with the email address that received this invitation.",
-      "wrongAccount": "This invite was sent to {invited}, but you’re signed in as {signedIn}.",
-      "alreadyMember": "You’re already a member of this organization.",
-      "slowNetwork": "That took too long. Please try again.",
-      "generic": "Something went wrong. Please try again."
     }
   },
   "onboarding": {
@@ -1497,116 +1463,6 @@
         "checkoutFailed": "Couldn't start checkout. Please try again."
       },
       "createOrganization": "Create Organization"
-    },
-    "organizationProfile": {
-      "loading": "Loading your organization…",
-      "stepBadge": "Step {step} of {total}",
-      "optional": "Optional",
-      "sidebar": {
-        "title": "Complete Your Organization Profile",
-        "subtitle": "Finish the required details so your organization is ready. Optional fields can be completed later.",
-        "completionLabel": "Profile completion"
-      },
-      "steps": {
-        "organization": {
-          "title": "Organization Details",
-          "description": "Basic information about your organization"
-        },
-        "business": {
-          "title": "Business Information",
-          "description": "Tell us more about your business"
-        },
-        "address": {
-          "title": "Address",
-          "description": "Your organization address details"
-        },
-        "review": {
-          "title": "Review & Confirm",
-          "description": "Review and confirm your details"
-        }
-      },
-      "fields": {
-        "name": "Organization Name",
-        "email": "Business Email",
-        "phone": "Phone Number",
-        "phoneHint": "Include country code when possible.",
-        "alternatePhone": "Alternate Phone",
-        "website": "Website",
-        "industry": "Industry",
-        "industryPlaceholder": "Select industry",
-        "logoUpload": "Upload Logo",
-        "logoHint": "PNG, JPG or WEBP (Max. 2MB)",
-        "logoPreview": "Logo Preview",
-        "businessSize": "Business Size",
-        "businessSizePlaceholder": "Select business size",
-        "businessType": "Business Type",
-        "businessTypePlaceholder": "Select business type",
-        "description": "Description",
-        "defaultLanguage": "Default Language",
-        "defaultLanguagePlaceholder": "Select language",
-        "registrationNumber": "Business Registration Number",
-        "addressLine1": "Address Line 1",
-        "addressLine1Placeholder": "House / building and street",
-        "addressLine2": "Address Line 2",
-        "addressLine2Placeholder": "Apartment, suite, etc.",
-        "city": "City",
-        "state": "State / Province",
-        "statePlaceholder": "Select state / province",
-        "postalCode": "Postal Code",
-        "country": "Country",
-        "countryPlaceholder": "Select country"
-      },
-      "languages": {
-        "en": "English",
-        "hi": "Hindi"
-      },
-      "actions": {
-        "cancel": "Cancel",
-        "back": "Back",
-        "continue": "Continue",
-        "completeSetup": "Complete Setup",
-        "saving": "Saving…",
-        "edit": "Edit",
-        "createOrganization": "Create organization"
-      },
-      "review": {
-        "organization": "Organization Details",
-        "business": "Business Information",
-        "address": "Address",
-        "empty": "—",
-        "confirmLabel": "I confirm that the above information is correct."
-      },
-      "success": {
-        "title": "Your organization is ready",
-        "subtitle": "Required profile details are saved. You can finish optional fields anytime from the dashboard.",
-        "completion": "Profile completion: {percent}%",
-        "cta": "Go to Dashboard"
-      },
-      "help": {
-        "needHelp": "Need help?",
-        "contactSupport": "Contact Support"
-      },
-      "errors": {
-        "noOrganization": "No organization found. Create an organization first.",
-        "nameRequired": "Organization name is required (at least 2 characters).",
-        "emailInvalid": "Enter a valid business email.",
-        "phoneInvalid": "Enter a valid phone number.",
-        "websiteInvalid": "Enter a valid website URL (https://…).",
-        "industryRequired": "Select an industry.",
-        "businessSizeRequired": "Select a business size.",
-        "descriptionTooLong": "Description must be 500 characters or fewer.",
-        "addressLine1Required": "Address line 1 is required.",
-        "cityRequired": "City is required.",
-        "stateRequired": "State / province is required.",
-        "postalCodeRequired": "Postal code is required.",
-        "countryRequired": "Select a country.",
-        "requiredIncomplete": "Complete all required fields before finishing setup.",
-        "confirmRequired": "Please confirm that the information is correct.",
-        "logoType": "Logo must be PNG, JPG, or WEBP.",
-        "logoSize": "Logo must be 2MB or smaller.",
-        "logoUploadFailed": "Couldn't upload the logo. Please try again.",
-        "saveFailed": "Couldn't save your profile. Please try again."
-      }
     },
     "organizationProfile": {
       "loading": "Loading your organization…",
@@ -2104,6 +1960,9 @@
       "roleFilterAll": "All roles",
       "noMatches": "No members match your search or filter.",
       "inactive": "inactive",
+      "passwordNotSet": "password not set",
+      "resendInvite": "Resend invite",
+      "resendInviteError": "This teammate has already set their password.",
       "paginationSummary": "Page {page} of {lastPage} · {total} members",
       "prevPage": "Previous",
       "nextPage": "Next",
@@ -2171,11 +2030,12 @@
         "roleInvalid": "That role isn’t available for this organization.",
         "inviteNotPending": "This invitation is no longer pending.",
         "inviteNotFound": "This invitation was not found.",
-        "actionFailed": "Couldn’t update this member. Please try again."
+        "actionFailed": "Couldn’t update this member. Please try again.",
+        "resendInviteError": "Could not resend the setup email. Please try again."
       },
       "invite": {
         "title": "Invite Member",
-        "subtitle": "Send an invitation with a role. Owner is not available here.",
+        "subtitle": "Add a teammate with a role. They will receive an email to set their password.",
         "email": "Email",
         "phone": "Phone",
         "phoneOptional": "Optional",
@@ -2184,7 +2044,7 @@
         "roleHint": "Choose Admin, Agent, or Viewer. Owner is reserved for the creator.",
         "submit": "Send Invite",
         "submitting": "Sending…",
-        "success": "Invitation sent.",
+        "success": "Teammate added. Setup email sent when delivery is available.",
         "roles": {
           "admin": "Admin",
           "agent": "Agent",
@@ -2202,9 +2062,16 @@
           "alreadyMember": "That email is already a member of this organization.",
           "alreadyPending": "An invitation is already pending for that email. Cancel it first or wait for a response.",
           "roleInvalid": "That role isn’t available for this organization.",
-          "emailFailed": "Couldn’t send the invitation email. Check email delivery settings and try again.",
-          "generic": "Couldn’t send the invitation. Please try again."
-        }
+          "emailFailed": "Could not send the setup email. Check email delivery settings and try again.",
+          "generic": "Could not add this teammate. Please try again.",
+          "firstnameRequired": "First name is required.",
+          "superadminNotInvitable": "Platform superadmin accounts cannot be invited to organizations.",
+          "ownerNotInvitable": "The owner of this organization cannot be re-invited."
+        },
+        "firstname": "First name",
+        "lastname": "Last name",
+        "designation": "Designation",
+        "designationOptional": "Optional (e.g. Support Agent)"
       }
     },
     "roles": {
