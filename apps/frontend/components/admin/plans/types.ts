@@ -25,7 +25,28 @@ export type PlanFeature = {
 
 export type PlanLimits = {
   users: number | null
+  seats: number | null
+  whatsappNumbers: number | null
+  maxContacts: number | null
   messagesPerMonth: number | null
+  campaignsPerMonth: number | null
+  maxBroadcastRecipients: number | null
+  storageBytes: number | null
+  maxFileUploadMb: number
+  maxActiveFlows: number | null
+  maxKnowledgeDocs: number | null
+  maxKnowledgeDocSizeMb: number | null
+  aiRepliesPerMonth: number | null
+  maxStoreConnections: number | null
+  maxApiKeys: number | null
+  maxWebhookEndpoints: number | null
+  analyticsRetentionDays: number | null
+  auditLogRetentionDays: number | null
+  maxTemplates: number | null
+  maxCampaignRecipientListSize: number | null
+  conversationInboxRetentionDays: number | null
+  aiGenerationsPerConversationHour: number
+  dispatchRatePerSec: number
 }
 
 export type SubscriptionPlan = {
@@ -79,4 +100,30 @@ export type PlanActionResult =
 export type PlanFeatureDefinition = {
   key: string
   category: PlanFeatureCategoryId
+}
+
+export const DEFAULT_PLAN_LIMITS: PlanLimits = {
+  users: null,
+  seats: null,
+  whatsappNumbers: null,
+  maxContacts: null,
+  messagesPerMonth: null,
+  campaignsPerMonth: null,
+  maxBroadcastRecipients: null,
+  storageBytes: null,
+  maxFileUploadMb: 10,
+  maxActiveFlows: null,
+  maxKnowledgeDocs: null,
+  maxKnowledgeDocSizeMb: null,
+  aiRepliesPerMonth: null,
+  maxStoreConnections: null,
+  maxApiKeys: null,
+  maxWebhookEndpoints: null,
+  analyticsRetentionDays: null,
+  auditLogRetentionDays: null,
+  maxTemplates: null,
+  maxCampaignRecipientListSize: null,
+  conversationInboxRetentionDays: null,
+  aiGenerationsPerConversationHour: 10,
+  dispatchRatePerSec: 10,
 }

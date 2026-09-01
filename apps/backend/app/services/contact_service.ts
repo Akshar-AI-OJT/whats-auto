@@ -1,6 +1,7 @@
 import db from '@adonisjs/lucid/services/db'
 import ContactException from '#exceptions/contact_exception'
 import { normalizeContactPhone } from '#lib/contact_phone'
+import { PlanEnforcementService } from '#services/billing/plan_enforcement_service'
 
 export { normalizeContactPhone }
 
@@ -98,6 +99,18 @@ export class ContactService {
     const name = params.name?.trim() || null
     const email = params.email?.trim().toLowerCase() || null
     const company = params.company?.trim() || null
+
+    const countRow = await db
+      .from('contacts')
+      .where('organizationId', organizationId)
+      .whereNull('deletedAt')
+      .count('* as total')
+      .first()
+    await new PlanEnforcementService().requireUnderLimit(
+      organizationId,
+      'maxContacts',
+      Number(countRow?.total ?? 0)
+    )
 
     try {
       const [row] = await db

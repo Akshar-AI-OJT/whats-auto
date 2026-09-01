@@ -22,6 +22,7 @@ import {
   assertReadyMediaAsset,
 } from '#services/campaign_preflight'
 import { enqueueCampaignWake, removeCampaignWake } from '#services/campaign_queue'
+import { PlanRetentionService } from '#services/billing/plan_retention_service'
 import { NotificationService } from '#services/notification_service'
 import type { CAMPAIGN_STATUSES } from '#validators/campaign'
 import {
@@ -400,7 +401,8 @@ const BROADCAST_COLUMNS = [
 @inject()
 export class CampaignService {
   constructor(
-    protected mediaReferences: MediaAssetReferenceRepository = new MediaAssetReferenceRepository()
+    protected mediaReferences: MediaAssetReferenceRepository = new MediaAssetReferenceRepository(),
+    protected retention: PlanRetentionService = new PlanRetentionService()
   ) {}
 
   /**
@@ -1013,6 +1015,11 @@ export class CampaignService {
       .from('broadcasts')
       .where('organizationId', input.organizationId)
       .whereNot('status', CAMPAIGN_SOFT_DELETED_STATUS)
+
+    const cutoff = await this.retention.cutoffDate(input.organizationId, 'analyticsRetentionDays')
+    if (cutoff) {
+      query = query.where('createdAt', '>=', cutoff)
+    }
 
     if (input.status) {
       query = query.where('status', input.status)

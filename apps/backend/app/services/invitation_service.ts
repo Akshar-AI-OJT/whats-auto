@@ -5,6 +5,7 @@ import env from '#start/env'
 import InvitationException from '#exceptions/invitation_exception'
 import OrganizationException from '#exceptions/organization_exception'
 import { OrganizationStatus } from '#enums/organization_status'
+import { PlanEnforcementService } from '#services/billing/plan_enforcement_service'
 import { resolveAssignableRoleForOrg } from '#services/role_service'
 import { NotificationService } from '#services/notification_service'
 import { OrganizationSmtpService } from '#services/organization_smtp_service'
@@ -162,6 +163,23 @@ export class InvitationService {
     if (existingPending) {
       throw InvitationException.alreadyPending()
     }
+
+    const [memberCountRow, pendingCountRow] = await Promise.all([
+      db
+        .from('organization_members')
+        .where('organizationId', organizationId)
+        .where('isDeleted', false)
+        .count('* as total')
+        .first(),
+      db
+        .from('organization_invitations')
+        .where('organizationId', organizationId)
+        .where('status', 'pending')
+        .count('* as total')
+        .first(),
+    ])
+    const seatUsage = Number(memberCountRow?.total ?? 0) + Number(pendingCountRow?.total ?? 0)
+    await new PlanEnforcementService().requireUnderLimit(organizationId, 'seats', seatUsage)
 
     const inviter = await db.from('users').where('id', inviterId).select('name').firstOrFail()
 

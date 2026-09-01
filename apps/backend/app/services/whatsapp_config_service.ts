@@ -6,6 +6,7 @@ import {
   encryptWhatsappAccessToken,
 } from '#lib/meta_whatsapp/access_token_crypto'
 import { createMetaGraphClient, type MetaGraphClient } from '#lib/meta_whatsapp/graph_client'
+import { PlanEnforcementService } from '#services/billing/plan_enforcement_service'
 import { NotificationService } from '#services/notification_service'
 
 export type WhatsappConfigStatus = 'connected' | 'disconnected' | 'error'
@@ -130,6 +131,26 @@ export class WhatsappConfigService {
     subscribed: boolean
     registered: boolean
   }): Promise<WhatsappConfigDto> {
+    await new PlanEnforcementService().requireFeature(params.organizationId, 'wabaConnection')
+
+    const existingForPhone = await db
+      .from('whatsapp_configs')
+      .where('phoneNumberId', params.phoneNumberId)
+      .first()
+    const isUpdateForOrg = existingForPhone?.organizationId === params.organizationId
+    if (!isUpdateForOrg) {
+      const countRow = await db
+        .from('whatsapp_configs')
+        .where('organizationId', params.organizationId)
+        .count('* as total')
+        .first()
+      await new PlanEnforcementService().requireUnderLimit(
+        params.organizationId,
+        'whatsappNumbers',
+        Number(countRow?.total ?? 0)
+      )
+    }
+
     const encrypted = encryptWhatsappAccessToken(params.accessTokenPlain)
     const now = new Date()
 

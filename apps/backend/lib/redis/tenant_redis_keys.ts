@@ -4,7 +4,8 @@ const SHA256_HEX = /^[a-f0-9]{64}$/
 
 export const TENANT_REDIS_KEY_PREFIX = 'wa:org'
 
-export type TenantRedisKeyKind = 'flowbuf' | 'memory' | 'debounce'
+export type TenantRedisKeyKind =
+  'flowbuf' | 'memory' | 'debounce' | 'ai_rl' | 'campaign_dispatch_rl'
 
 function assertUuidSegment(value: string, label: string): string {
   if (!ORG_SEGMENT.test(value)) {
@@ -25,6 +26,12 @@ export function tenantRedisKey(
   const orgId = assertUuidSegment(organizationId, 'organizationId')
   const convId = assertUuidSegment(conversationId, 'conversationId')
   return `${TENANT_REDIS_KEY_PREFIX}:${orgId}:${kind}:${convId}`
+}
+
+/** Org-scoped key without a conversation segment (campaign dispatch pacing, etc.). */
+export function tenantOrgRedisKey(kind: TenantRedisKeyKind, organizationId: string): string {
+  const orgId = assertUuidSegment(organizationId, 'organizationId')
+  return `${TENANT_REDIS_KEY_PREFIX}:${orgId}:${kind}`
 }
 
 export function tenantAnswerCacheKey(

@@ -2,11 +2,11 @@
 
 This is the full path from a Contabo VPS that already runs **ServeOS** to a live Ottobot stack. Do not install PostgreSQL, Redis, Node, or a second Caddy on the host.
 
-| Public host | Caddy → | Container |
-| --- | --- | --- |
-| `https://ottobot.codecolonies.com` | `whats-auto-frontend:3200` | Next.js UI |
-| `https://api.ottobot.codecolonies.com` | `whats-auto-backend:3201` | AdonisJS API |
-| `https://api.ottobot.codecolonies.com/media/*` | `reverse_proxy` → backend | Adonis reads disk (`MEDIA_LOCAL_ROOT`) |
+| Public host                                    | Caddy →                    | Container                              |
+| ---------------------------------------------- | -------------------------- | -------------------------------------- |
+| `https://ottobot.codecolonies.com`             | `whats-auto-frontend:3200` | Next.js UI                             |
+| `https://api.ottobot.codecolonies.com`         | `whats-auto-backend:3201`  | AdonisJS API                           |
+| `https://api.ottobot.codecolonies.com/media/*` | `reverse_proxy` → backend  | Adonis reads disk (`MEDIA_LOCAL_ROOT`) |
 
 Postgres, Redis, and the worker stay on the private Docker network `whats-auto-internal`. They are never published and never get a domain.
 
@@ -25,12 +25,12 @@ Internet :80/:443
 
 Files in this folder:
 
-| File | Role |
-| --- | --- |
-| `docker-compose.yml` | Stack |
-| `.env.example` | Copy to `.env` and fill secrets |
-| `whats-auto.caddy` | ServeOS site file |
-| `migrate.sh` | Lucid migrations + RBAC + superadmin inside the backend container |
+| File                 | Role                                                              |
+| -------------------- | ----------------------------------------------------------------- |
+| `docker-compose.yml` | Stack                                                             |
+| `.env.example`       | Copy to `.env` and fill secrets                                   |
+| `whats-auto.caddy`   | ServeOS site file                                                 |
+| `migrate.sh`         | Lucid migrations + RBAC + superadmin inside the backend container |
 
 ---
 
@@ -132,9 +132,8 @@ OUTBOUND_MEDIA_ALLOWED_HOSTS=api.ottobot.codecolonies.com
 SUPERADMIN_EMAIL=you@yourdomain.com
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
-MAIL_MAILER=brevo
+MAIL_MAILER=smtp
 MAIL_FROM_ADDRESS=noreply@ottobot.codecolonies.com
-BREVO_API=
 ```
 
 Also fill Meta, Razorpay, and mail. Empty Google / Meta / Razorpay values prevent the API from booting.
@@ -249,13 +248,13 @@ Healthy: `whats-auto-postgres`, `whats-auto-redis`, `whats-auto-backend`, `whats
 
 Images / containers:
 
-| Container | Image | Port inside Docker | Host port |
-| --- | --- | ---: | --- |
-| `whats-auto-frontend` | `whats-auto-frontend:latest` | 3200 | none (Caddy) |
-| `whats-auto-backend` | `whats-auto-backend:latest` | 3201 | none (Caddy) |
-| `whats-auto-worker` | `whats-auto-backend:latest` | none | none |
-| `whats-auto-postgres` | `pgvector/pgvector:pg18` | 5432 | none |
-| `whats-auto-redis` | `redis:7-alpine` | 6379 | none |
+| Container             | Image                        | Port inside Docker | Host port    |
+| --------------------- | ---------------------------- | -----------------: | ------------ |
+| `whats-auto-frontend` | `whats-auto-frontend:latest` |               3200 | none (Caddy) |
+| `whats-auto-backend`  | `whats-auto-backend:latest`  |               3201 | none (Caddy) |
+| `whats-auto-worker`   | `whats-auto-backend:latest`  |               none | none         |
+| `whats-auto-postgres` | `pgvector/pgvector:pg18`     |               5432 | none         |
+| `whats-auto-redis`    | `redis:7-alpine`             |               6379 | none         |
 
 `whats-auto-frontend` and `whats-auto-backend` must be on **`serveos-production_public`**.
 
@@ -291,12 +290,12 @@ bash deploy/contabo/migrate.sh rollback   # last batch
 
 ## 8. Dashboards (external)
 
-| Service | Value |
-| --- | --- |
-| Google authorized origin | `https://ottobot.codecolonies.com` |
-| Google redirect | `https://api.ottobot.codecolonies.com/api/auth/callback/google` |
-| WhatsApp webhook | `https://api.ottobot.codecolonies.com/api/v1/webhooks/whatsapp` |
-| Razorpay webhook | `https://api.ottobot.codecolonies.com/api/v1/webhooks/billing/razorpay` |
+| Service                  | Value                                                                   |
+| ------------------------ | ----------------------------------------------------------------------- |
+| Google authorized origin | `https://ottobot.codecolonies.com`                                      |
+| Google redirect          | `https://api.ottobot.codecolonies.com/api/auth/callback/google`         |
+| WhatsApp webhook         | `https://api.ottobot.codecolonies.com/api/v1/webhooks/whatsapp`         |
+| Razorpay webhook         | `https://api.ottobot.codecolonies.com/api/v1/webhooks/billing/razorpay` |
 
 ---
 
@@ -347,12 +346,12 @@ Rebuild frontend if you change `NEXT_PUBLIC_APP_URL` or `NEXT_PUBLIC_API_URL`.
 
 Compose reads env at **container create**. `restart` keeps the old env. Use `--force-recreate`.
 
-| Changed keys | Recreate |
-| --- | --- |
+| Changed keys                                                                                        | Recreate                                                                    |
+| --------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, Meta, Razorpay, mail, `APP_KEY`, JWT, `PG_*` (app-side) | `whats-auto-backend` (and `whats-auto-worker` if jobs use the same secrets) |
-| `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_API_URL` | rebuild **frontend** image |
-| `PG_PASSWORD` / `PG_USER` / `PG_DB_NAME` **before first postgres start** | set in `.env` then `up -d` |
-| Same Postgres keys **after** volume exists | keep old values, or `down -v` (destroys DB) |
+| `NEXT_PUBLIC_APP_URL`, `NEXT_PUBLIC_API_URL`                                                        | rebuild **frontend** image                                                  |
+| `PG_PASSWORD` / `PG_USER` / `PG_DB_NAME` **before first postgres start**                            | set in `.env` then `up -d`                                                  |
+| Same Postgres keys **after** volume exists                                                          | keep old values, or `down -v` (destroys DB)                                 |
 
 Example (Google only):
 
@@ -404,7 +403,7 @@ wa logs --tail=80 whats-auto-backend
 ```
 
 **Forgot password / superadmin**  
-Mail (`MAIL_MAILER` + Brevo or SMTP) must work. Then use Forgot password for `SUPERADMIN_EMAIL`.
+Mail (`MAIL_MAILER`) must work. Then use Forgot password for `SUPERADMIN_EMAIL`.
 
 **`down -v`**  
 Deletes only this stack’s Docker volumes, not ServeOS.

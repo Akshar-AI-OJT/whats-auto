@@ -7,6 +7,7 @@ import { PlanService } from '#services/billing/plan_service'
 import { BillingCheckoutService } from '#services/billing/billing_checkout_service'
 import { RazorpayOrderService } from '#services/billing/razorpay_order_service'
 import { BillingOrderApplyService } from '#services/billing/billing_order_apply_service'
+import { EntitlementsQueryService } from '#services/billing/entitlements_query_service'
 import { billingCheckoutValidator } from '#validators/billing_checkout'
 import { billingVerifyValidator } from '#validators/billing_verify'
 import { verifyRazorpayPaymentSignature } from '#lib/razorpay/payment_signature'
@@ -138,5 +139,20 @@ export default class BillingController {
       lastPaymentStatus: subscription.lastPaymentStatus,
       lastPaymentAt: subscription.lastPaymentAt,
     })
+  }
+
+  /**
+   * @summary Resolved plan entitlements and usage meters for the active organization
+   * @description Available to any authenticated org member so PlanGate can paywall modules.
+   * @tag Billing
+   * @security BearerAuth
+   */
+  @inject()
+  async showEntitlements(
+    { request, serialize }: HttpContext,
+    entitlements: EntitlementsQueryService
+  ) {
+    const snapshot = await entitlements.getSnapshot(request.activeMember!.organizationId)
+    return serialize(snapshot)
   }
 }
