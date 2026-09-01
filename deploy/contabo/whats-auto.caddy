@@ -12,9 +12,8 @@ api.ottobot.codecolonies.com {
 		max_size 110MB
 	}
 
-	handle_path /media/* {
-		root * /var/www/whats-auto/apps/backend/media
-		file_server
+	handle /media/* {
+		reverse_proxy whats-auto-backend:3201
 	}
 
 	handle /api/v1/inbox/events {
