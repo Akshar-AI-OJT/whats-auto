@@ -396,9 +396,7 @@ export class InvitationService {
     const tokenHash = createHash('sha256').update(rawToken).digest('hex')
     const expiresAt = DateTime.utc().plus({ hours: RESET_TOKEN_TTL_HOURS }).toSQL()!
 
-    let invitationId: string
-
-    await db.transaction(async (trx) => {
+    const invitationId = await db.transaction(async (trx) => {
       await trx
         .from('verifications')
         .where('identifier', 'like', 'reset-password:%')
@@ -412,8 +410,10 @@ export class InvitationService {
         .orderBy('createdAt', 'desc')
         .first()
 
+      let resolvedInvitationId: string
+
       if (invitation) {
-        invitationId = invitation.id as string
+        resolvedInvitationId = invitation.id as string
         await trx
           .from('organization_invitations')
           .where('id', invitation.id)
@@ -440,7 +440,7 @@ export class InvitationService {
           })
           .returning(['id'])
 
-        invitationId = invite.id as string
+        resolvedInvitationId = invite.id as string
       }
 
       await trx.table('verifications').insert({
@@ -448,6 +448,8 @@ export class InvitationService {
         value: userId,
         expiresAt,
       })
+
+      return resolvedInvitationId
     })
 
     const org = await db.from('organizations').where('id', organizationId).select('name').first()
@@ -461,16 +463,24 @@ export class InvitationService {
 
     const resetLink = `${inviteFrontendBase()}/reset-password?token=${rawToken}`
 
-    await this.#sendWelcomeResetEmail({
-      organizationId,
-      to: member.email as string,
-      orgName: (org?.name as string) || 'your organization',
-      inviterName: (actor?.name as string) || 'Your Team Administrator',
-      role: (roleRow?.role as string) || 'teammate',
-      resetLink,
-    })
+    try {
+      await this.#sendWelcomeResetEmail({
+        organizationId,
+        to: member.email as string,
+        orgName: (org?.name as string) || 'your organization',
+        inviterName: (actor?.name as string) || 'Your Team Administrator',
+        role: (roleRow?.role as string) || 'teammate',
+        resetLink,
+      })
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      logger.error(
+        { email: member.email, userId, invitationId, err: errorMessage },
+        'invite.resend_email_send_failed'
+      )
+    }
 
-    return { ok: true as const, invitationId: invitationId! }
+    return { ok: true as const, invitationId }
   }
 
   async #sendWelcomeResetEmail(params: {
