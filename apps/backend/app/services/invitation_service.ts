@@ -1,4 +1,6 @@
+import { randomBytes, createHash } from 'node:crypto'
 import db from '@adonisjs/lucid/services/db'
+import hash from '@adonisjs/core/services/hash'
 import logger from '@adonisjs/core/services/logger'
 import { DateTime } from 'luxon'
 import env from '#start/env'
@@ -7,10 +9,10 @@ import OrganizationException from '#exceptions/organization_exception'
 import { OrganizationStatus } from '#enums/organization_status'
 import { PlanEnforcementService } from '#services/billing/plan_enforcement_service'
 import { resolveAssignableRoleForOrg } from '#services/role_service'
-import { NotificationService } from '#services/notification_service'
 import { OrganizationSmtpService } from '#services/organization_smtp_service'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 
-const INVITE_TTL_HOURS = 24
+const RESET_TOKEN_TTL_HOURS = 24
 
 function inviteFrontendBase(): string {
   return (
@@ -18,110 +20,45 @@ function inviteFrontendBase(): string {
   )
 }
 
-function buildInvitationEmailHtml(params: {
-  orgName: string
-  inviterName: string
-  role: string
-  inviteLink: string
-}): string {
-  const { orgName, inviterName, role, inviteLink } = params
+/**
+ * Expire pending setup invitations and delete Better Auth reset tokens for a user in an org.
+ */
+export async function revokeTeammateSetupAccess(
+  trx: TransactionClientContract,
+  params: { organizationId: string; userId: string }
+) {
+  const { organizationId, userId } = params
 
-  return `
-          <div style="margin:0; padding:40px 20px; background-color:#f4f6f8; font-family:Arial,Helvetica,sans-serif;">
-            <div style="max-width:560px; margin:0 auto; background:#ffffff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden;">
-      
-              <!-- Header -->
-              <div style="padding:28px 32px; border-bottom:1px solid #e5e7eb;">
-                <div style="font-size:22px; font-weight:700; color:#111827;">
-                  Whats-Auto
-                </div>
-              </div>
-      
-              <!-- Content -->
-              <div style="padding:32px;">
-                <h1 style="margin:0 0 16px; font-size:24px; line-height:32px; color:#111827;">
-                  You're invited!
-                </h1>
-      
-                <p style="margin:0 0 16px; font-size:15px; line-height:24px; color:#4b5563;">
-                  Hi,
-                </p>
-      
-                <p style="margin:0 0 24px; font-size:15px; line-height:24px; color:#4b5563;">
-                  <strong>${inviterName}</strong> has invited you to join
-                  <strong>${orgName}</strong> as a <strong>${role}</strong>.
-                </p>
-      
-                <!-- CTA -->
-                <div style="margin:0 0 24px;">
-                  <a
-                    href="${inviteLink}"
-                    style="
-                      display:inline-block;
-                      padding:12px 22px;
-                      background-color:#111827;
-                      color:#ffffff;
-                      text-decoration:none;
-                      font-size:15px;
-                      font-weight:600;
-                      border-radius:8px;
-                    "
-                  >
-                    Accept Invitation
-                  </a>
-                </div>
-      
-                <p style="margin:0 0 16px; font-size:13px; line-height:20px; color:#6b7280;">
-                  This invitation will expire in
-                  <strong>${INVITE_TTL_HOURS} hours</strong>.
-                </p>
-      
-                <p style="margin:0; font-size:13px; line-height:20px; color:#6b7280;">
-                  If you weren't expecting this invitation, you can safely ignore this email.
-                </p>
-              </div>
-      
-              <!-- Footer -->
-              <div style="padding:20px 32px; background:#f9fafb; border-top:1px solid #e5e7eb;">
-                <p style="margin:0; font-size:12px; line-height:18px; color:#9ca3af; text-align:center;">
-                  This is an automated email from Whats-Auto. Please do not reply to this email.
-                </p>
-              </div>
-      
-            </div>
-          </div>
-        `
-}
+  await trx
+    .from('organization_invitations')
+    .where('organizationId', organizationId)
+    .where('userId', userId)
+    .where('status', 'pending')
+    .update({ status: 'expired', tokenHash: null })
 
-function toIso(value: unknown): string {
-  if (value instanceof Date) return value.toISOString()
-  if (typeof value === 'string') return value
-  return String(value)
-}
-
-/** Postgres unique_violation, including Knex/Lucid-wrapped errors. */
-function isUniqueViolation(error: unknown): boolean {
-  let current: unknown = error
-  for (let depth = 0; depth < 4 && current && typeof current === 'object'; depth++) {
-    const code = (current as { code?: string }).code
-    if (code === '23505') return true
-    current = (current as { cause?: unknown }).cause ?? (current as { original?: unknown }).original
-  }
-  return false
+  await trx
+    .from('verifications')
+    .where('identifier', 'like', 'reset-password:%')
+    .where('value', userId)
+    .delete()
 }
 
 export class InvitationService {
   /**
-   * Create a pending invitation and send the invite email.
+   * Pre-provisions a teammate with a random locked password,
+   * links them to the organization, and sends a password-setup email.
    */
-  async createInvitation(params: {
+  async provisionTeammate(params: {
     organizationId: string
     inviterId: string
     email: string
+    firstname: string
+    lastname?: string
     role: string
+    designation?: string
   }) {
-    const { organizationId, inviterId, email, role } = params
-    const normalizedEmail = email.toLowerCase()
+    const { organizationId, inviterId, email, firstname, lastname, role, designation } = params
+    const normalizedEmail = email.toLowerCase().trim()
 
     const org = await db
       .from('organizations')
@@ -137,499 +74,493 @@ export class InvitationService {
       throw InvitationException.organizationNotProvisioned()
     }
 
-    const roleRow = await resolveAssignableRoleForOrg(organizationId, role)
-
-    const existingMember = await db
-      .from('organization_members as m')
-      .innerJoin('users as u', 'u.id', 'm.userId')
-      .where('m.organizationId', organizationId)
-      .where('m.isDeleted', false)
-      .whereRaw('LOWER(u.email) = ?', [normalizedEmail])
-      .select('m.id')
-      .first()
-
-    if (existingMember) {
-      throw new Error('User is already a member of this organization')
-    }
-
-    const existingPending = await db
-      .from('organization_invitations')
-      .where('organizationId', organizationId)
+    const preCheckUser = await db
+      .from('users')
       .whereRaw('LOWER(email) = ?', [normalizedEmail])
-      .where('status', 'pending')
+      .where('isDeleted', false)
       .select('id')
       .first()
 
-    if (existingPending) {
-      throw InvitationException.alreadyPending()
+    if (preCheckUser) {
+      const isSuperadmin = await db
+        .from('user_roles as ur')
+        .innerJoin('roles as r', 'r.id', 'ur.roleId')
+        .where('ur.userId', preCheckUser.id)
+        .whereNull('ur.organizationId')
+        .where('r.name', 'superadmin')
+        .select('ur.id')
+        .first()
+
+      if (isSuperadmin) {
+        throw InvitationException.superadminNotInvitable()
+      }
+
+      const isOwnerHere = await db
+        .from('organization_members as m')
+        .innerJoin('roles as r', 'r.id', 'm.roleId')
+        .where('m.userId', preCheckUser.id)
+        .where('m.organizationId', organizationId)
+        .where('m.isDeleted', false)
+        .where('r.name', 'owner')
+        .select('m.id')
+        .first()
+
+      if (isOwnerHere) {
+        throw InvitationException.ownerNotInvitable()
+      }
     }
 
-    const [memberCountRow, pendingCountRow] = await Promise.all([
-      db
-        .from('organization_members')
-        .where('organizationId', organizationId)
-        .where('isDeleted', false)
-        .count('* as total')
-        .first(),
-      db
-        .from('organization_invitations')
-        .where('organizationId', organizationId)
-        .where('status', 'pending')
-        .count('* as total')
-        .first(),
-    ])
-    const seatUsage = Number(memberCountRow?.total ?? 0) + Number(pendingCountRow?.total ?? 0)
-    await new PlanEnforcementService().requireUnderLimit(organizationId, 'seats', seatUsage)
+    const roleRow = await resolveAssignableRoleForOrg(organizationId, role)
 
-    const inviter = await db.from('users').where('id', inviterId).select('name').firstOrFail()
+    const memberCountRow = await db
+      .from('organization_members')
+      .where('organizationId', organizationId)
+      .where('isDeleted', false)
+      .count('* as total')
+      .first()
 
-    const expiresAt = DateTime.utc().plus({ hours: INVITE_TTL_HOURS }).toSQL()!
+    await new PlanEnforcementService().requireUnderLimit(
+      organizationId,
+      'seats',
+      Number(memberCountRow?.total ?? 0)
+    )
 
-    let invitation: {
-      id: string
-      email: string
-      status: string
-      expiresAt: string
-      createdAt: string
-    }
+    const { userId, invitationId, isNewUser, hasExistingPassword, rawResetToken, needsSetup } =
+      await db.transaction(async (trx) => {
+        let user = await trx
+          .from('users')
+          .whereRaw('LOWER(email) = ?', [normalizedEmail])
+          .where('isDeleted', false)
+          .first()
 
-    try {
-      invitation = await db.transaction(async (trx) => {
-        const [row] = await trx
+        let newlyCreated = false
+
+        if (!user) {
+          const trimmedFirst = firstname.trim()
+          const trimmedLast = (lastname ?? '').trim()
+          const name = `${trimmedFirst} ${trimmedLast}`.trim()
+
+          const [newUser] = await trx
+            .table('users')
+            .insert({
+              name,
+              firstname: trimmedFirst,
+              lastname: trimmedLast,
+              email: normalizedEmail,
+              emailVerified: false,
+              isActive: true,
+              isDeleted: false,
+            })
+            .returning(['id', 'email', 'name', 'emailVerified'])
+
+          user = newUser
+          newlyCreated = true
+
+          const lockedPassword = await hash.make(randomBytes(32).toString('hex'))
+          await trx.table('accounts').insert({
+            userId: user.id,
+            accountId: user.id,
+            providerId: 'credential',
+            password: lockedPassword,
+          })
+        } else if (!newlyCreated) {
+          const account = await trx
+            .from('accounts')
+            .where('userId', user.id)
+            .where('providerId', 'credential')
+            .first()
+
+          if (!account) {
+            const lockedPassword = await hash.make(randomBytes(32).toString('hex'))
+            await trx.table('accounts').insert({
+              userId: user.id,
+              accountId: user.id,
+              providerId: 'credential',
+              password: lockedPassword,
+            })
+          }
+        }
+
+        const existingMember = await trx
+          .from('organization_members')
+          .where('organizationId', organizationId)
+          .where('userId', user.id)
+          .first()
+
+        if (existingMember && !existingMember.isDeleted) {
+          throw InvitationException.alreadyMember()
+        }
+
+        if (existingMember?.isDeleted) {
+          await trx
+            .from('organization_members')
+            .where('id', existingMember.id)
+            .update({
+              isDeleted: false,
+              deletedAt: null,
+              roleId: roleRow.id,
+              designation: designation ?? existingMember.designation,
+              permissionVersion: Number(existingMember.permissionVersion ?? 0) + 1,
+            })
+        } else {
+          await trx.table('organization_members').insert({
+            organizationId,
+            userId: user.id,
+            roleId: roleRow.id,
+            designation: designation ?? null,
+            permissionVersion: 1,
+          })
+        }
+
+        const existingRole = await trx
+          .from('user_roles')
+          .where('userId', user.id)
+          .where('organizationId', organizationId)
+          .select('id', 'roleId')
+          .first()
+
+        if (existingRole) {
+          const existingRoleName = await trx
+            .from('roles')
+            .where('id', existingRole.roleId)
+            .select('name')
+            .first()
+
+          if (existingRoleName?.name === 'owner') {
+            throw InvitationException.ownerNotInvitable()
+          }
+
+          await trx.from('user_roles').where('id', existingRole.id).update({ roleId: roleRow.id })
+        } else {
+          await trx.table('user_roles').insert({
+            userId: user.id,
+            roleId: roleRow.id,
+            organizationId,
+          })
+        }
+
+        const account = await trx
+          .from('accounts')
+          .where('userId', user.id)
+          .where('providerId', 'credential')
+          .first()
+
+        const userNeedsSetup = !user.emailVerified
+        const hasPassword = Boolean(account?.password) && user.emailVerified === true
+
+        let rawToken: string | null = null
+        let tokenHash: string | null = null
+        let inviteStatus: 'pending' | 'accepted' = hasPassword ? 'accepted' : 'pending'
+        const expiresAt = DateTime.utc().plus({ hours: RESET_TOKEN_TTL_HOURS }).toSQL()!
+
+        await trx
+          .from('organization_invitations')
+          .where('organizationId', organizationId)
+          .where('userId', user.id)
+          .where('status', 'pending')
+          .update({ status: 'expired', tokenHash: null })
+
+        if (!hasPassword) {
+          rawToken = randomBytes(32).toString('hex')
+          tokenHash = createHash('sha256').update(rawToken).digest('hex')
+
+          await trx
+            .from('verifications')
+            .where('identifier', 'like', 'reset-password:%')
+            .where('value', user.id)
+            .delete()
+        }
+
+        const [invite] = await trx
           .table('organization_invitations')
           .insert({
             organizationId,
             roleId: roleRow.id,
             inviterId,
+            userId: user.id,
             email: normalizedEmail,
-            status: 'pending',
+            status: inviteStatus,
+            tokenHash,
             expiresAt,
           })
-          .returning(['id', 'email', 'status', 'expiresAt', 'createdAt'])
+          .returning(['id'])
+
+        if (rawToken) {
+          await trx.table('verifications').insert({
+            identifier: `reset-password:${rawToken}`,
+            value: user.id,
+            expiresAt,
+          })
+        }
 
         await trx.table('authorization_audits').insert({
           organizationId,
           actorUserId: inviterId,
-          targetType: 'invitation',
-          targetId: row.id,
-          eventType: 'invitation.created',
-          after: JSON.stringify({ email: normalizedEmail, role }),
+          targetType: 'member',
+          targetId: user.id,
+          eventType: 'member.provisioned',
+          after: JSON.stringify({
+            email: normalizedEmail,
+            role,
+            isNewUser: newlyCreated,
+            needsSetup: userNeedsSetup,
+          }),
         })
 
-        return row
+        return {
+          userId: user.id as string,
+          invitationId: invite.id as string,
+          isNewUser: newlyCreated,
+          hasExistingPassword: hasPassword,
+          rawResetToken: rawToken,
+          needsSetup: userNeedsSetup,
+        }
       })
-    } catch (error) {
-      // Race: another pending invite for the same email landed first.
-      if (isUniqueViolation(error)) {
-        throw InvitationException.alreadyPending()
+
+    const inviter = await db.from('users').where('id', inviterId).select('name').first()
+    const frontendBase = inviteFrontendBase()
+    let emailSent = false
+
+    try {
+      if (hasExistingPassword) {
+        await this.#sendAddedToOrgEmail({
+          organizationId,
+          to: normalizedEmail,
+          orgName: org.name as string,
+          inviterName: (inviter?.name as string) || 'Your Team Administrator',
+          role,
+          loginLink: `${frontendBase}/login`,
+        })
+      } else if (rawResetToken) {
+        const resetLink = `${frontendBase}/reset-password?token=${rawResetToken}`
+        await this.#sendWelcomeResetEmail({
+          organizationId,
+          to: normalizedEmail,
+          orgName: org.name as string,
+          inviterName: (inviter?.name as string) || 'Your Team Administrator',
+          role,
+          resetLink,
+        })
       }
-      throw error
+      emailSent = true
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      logger.error(
+        { email: normalizedEmail, userId, invitationId, err: errorMessage },
+        'invite.email_send_failed'
+      )
     }
 
-    const inviteLink = `${inviteFrontendBase()}/accept-invitation/${invitation.id}`
-
-    await this.#sendInviteEmailOrRollback({
-      organizationId,
-      invitationId: invitation.id,
-      to: normalizedEmail,
-      orgName: org.name as string,
-      inviterName: inviter.name as string,
-      role,
-      inviteLink,
-    })
-
-    // After invitation is successfully created (and kept) — best-effort notify existing users only.
-    await this.#notifyInviteeInvitationCreatedBestEffort({
-      organizationId,
-      inviterId,
-      inviteeEmail: normalizedEmail,
-      organizationName: org.name as string,
-      role,
-    })
-
     return {
-      id: invitation.id as string,
-      email: invitation.email as string,
+      userId,
+      invitationId,
+      email: normalizedEmail,
       role,
-      status: invitation.status as string,
-      expiresAt: toIso(invitation.expiresAt),
-      createdAt: toIso(invitation.createdAt),
+      isNewUser,
+      hasExistingPassword,
+      emailSent,
+      needsSetup,
     }
   }
 
   /**
-   * Send the invite email. Roll back the invitation when delivery fails so
-   * the frontend never lists an invite the recipient did not receive.
+   * Resend the password setup email for a teammate who has not yet verified email.
    */
-  async #sendInviteEmailOrRollback(params: {
+  async resendSetupEmail(params: {
+    memberId: string
     organizationId: string
-    invitationId: string
+    actorUserId: string
+  }) {
+    const { memberId, organizationId, actorUserId } = params
+
+    const member = await db
+      .from('organization_members as m')
+      .innerJoin('users as u', 'u.id', 'm.userId')
+      .where('m.id', memberId)
+      .where('m.organizationId', organizationId)
+      .where('m.isDeleted', false)
+      .select('m.userId', 'u.email', 'u.emailVerified')
+      .first()
+
+    if (!member) {
+      throw InvitationException.setupNotFound()
+    }
+
+    const userId = member.userId as string
+
+    if (member.emailVerified) {
+      throw InvitationException.passwordAlreadySet()
+    }
+
+    const rawToken = randomBytes(32).toString('hex')
+    const tokenHash = createHash('sha256').update(rawToken).digest('hex')
+    const expiresAt = DateTime.utc().plus({ hours: RESET_TOKEN_TTL_HOURS }).toSQL()!
+
+    const invitationId = await db.transaction(async (trx) => {
+      await trx
+        .from('verifications')
+        .where('identifier', 'like', 'reset-password:%')
+        .where('value', userId)
+        .delete()
+
+      const invitation = await trx
+        .from('organization_invitations')
+        .where('organizationId', organizationId)
+        .where('userId', userId)
+        .orderBy('createdAt', 'desc')
+        .first()
+
+      let resolvedInvitationId: string
+
+      if (invitation) {
+        resolvedInvitationId = invitation.id as string
+        await trx
+          .from('organization_invitations')
+          .where('id', invitation.id)
+          .update({ status: 'pending', tokenHash, expiresAt })
+      } else {
+        const roleRow = await trx
+          .from('organization_members as m')
+          .innerJoin('roles as r', 'r.id', 'm.roleId')
+          .where('m.id', memberId)
+          .select('r.id as roleId')
+          .firstOrFail()
+
+        const [invite] = await trx
+          .table('organization_invitations')
+          .insert({
+            organizationId,
+            roleId: roleRow.roleId,
+            inviterId: actorUserId,
+            userId,
+            email: (member.email as string).toLowerCase(),
+            status: 'pending',
+            tokenHash,
+            expiresAt,
+          })
+          .returning(['id'])
+
+        resolvedInvitationId = invite.id as string
+      }
+
+      await trx.table('verifications').insert({
+        identifier: `reset-password:${rawToken}`,
+        value: userId,
+        expiresAt,
+      })
+
+      return resolvedInvitationId
+    })
+
+    const org = await db.from('organizations').where('id', organizationId).select('name').first()
+    const actor = await db.from('users').where('id', actorUserId).select('name').first()
+    const roleRow = await db
+      .from('organization_members as m')
+      .innerJoin('roles as r', 'r.id', 'm.roleId')
+      .where('m.id', memberId)
+      .select('r.name as role')
+      .first()
+
+    const resetLink = `${inviteFrontendBase()}/reset-password?token=${rawToken}`
+
+    try {
+      await this.#sendWelcomeResetEmail({
+        organizationId,
+        to: member.email as string,
+        orgName: (org?.name as string) || 'your organization',
+        inviterName: (actor?.name as string) || 'Your Team Administrator',
+        role: (roleRow?.role as string) || 'teammate',
+        resetLink,
+      })
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      logger.error(
+        { email: member.email, userId, invitationId, err: errorMessage },
+        'invite.resend_email_send_failed'
+      )
+    }
+
+    return { ok: true as const, invitationId }
+  }
+
+  async #sendWelcomeResetEmail(params: {
+    organizationId: string
     to: string
     orgName: string
     inviterName: string
     role: string
-    inviteLink: string
-  }): Promise<void> {
-    const html = buildInvitationEmailHtml({
-      orgName: params.orgName,
-      inviterName: params.inviterName,
-      role: params.role,
-      inviteLink: params.inviteLink,
+    resetLink: string
+  }) {
+    const html = `
+      <div style="margin:0; padding:40px 20px; background-color:#f4f6f8; font-family:Arial,Helvetica,sans-serif;">
+        <div style="max-width:560px; margin:0 auto; background:#ffffff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden;">
+          <div style="padding:28px 32px; border-bottom:1px solid #e5e7eb;">
+            <div style="font-size:22px; font-weight:700; color:#111827;">Whats-Auto</div>
+          </div>
+          <div style="padding:32px;">
+            <h1 style="margin:0 0 16px; font-size:24px; line-height:32px; color:#111827;">
+              Welcome to ${params.orgName}!
+            </h1>
+            <p style="margin:0 0 16px; font-size:15px; line-height:24px; color:#4b5563;">
+              <strong>${params.inviterName}</strong> has created your account on <strong>${params.orgName}</strong> as a <strong>${params.role}</strong>.
+            </p>
+            <p style="margin:0 0 24px; font-size:15px; line-height:24px; color:#4b5563;">
+              Click the button below to set your password and access your dashboard.
+            </p>
+            <div style="margin:0 0 24px;">
+              <a href="${params.resetLink}" style="display:inline-block; padding:12px 24px; background-color:#111827; color:#ffffff; text-decoration:none; font-size:15px; font-weight:600; border-radius:8px;">
+                Set Password &amp; Get Started
+              </a>
+            </div>
+            <p style="font-size:13px; color:#6b7280;">This link is valid for <strong>24 hours</strong>.</p>
+          </div>
+        </div>
+      </div>
+    `
+    await new OrganizationSmtpService().sendOrgEmail({
+      organizationId: params.organizationId,
+      to: params.to,
+      subject: `Welcome to ${params.orgName} — Set your password`,
+      html,
+      emailKind: 'invitation',
     })
-
-    try {
-      const result = await new OrganizationSmtpService().sendOrgEmail({
-        organizationId: params.organizationId,
-        to: params.to,
-        subject: `You've been invited to ${params.orgName}`,
-        html,
-        emailKind: 'invitation',
-        invitationId: params.invitationId,
-      })
-
-      if (result.deferred) {
-        return
-      }
-    } catch (error) {
-      await db.from('organization_invitations').where('id', params.invitationId).delete()
-
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      logger.error(
-        { email: params.to, invitationId: params.invitationId, err: errorMessage },
-        'invite.email_send_failed'
-      )
-      throw InvitationException.emailSendFailed(errorMessage)
-    }
   }
 
-  /**
-   * Best-effort in-app notification for an existing invitee user after invitation creation.
-   * Skips when no user matches the invite email. Never throws.
-   */
-  async #notifyInviteeInvitationCreatedBestEffort(params: {
+  async #sendAddedToOrgEmail(params: {
     organizationId: string
-    inviterId: string
-    inviteeEmail: string
-    organizationName: string
+    to: string
+    orgName: string
+    inviterName: string
     role: string
-  }): Promise<void> {
-    let recipientUserId: string | undefined
-    try {
-      const invitee = await db
-        .from('users')
-        .whereRaw('LOWER(email) = ?', [params.inviteeEmail])
-        .select('id')
-        .first()
-
-      if (!invitee) return
-
-      recipientUserId = invitee.id as string
-
-      await new NotificationService().createNotification({
-        organizationId: params.organizationId,
-        userId: recipientUserId,
-        type: 'team_invitation_created',
-        title: "You've been invited",
-        body: `You've been invited to join ${params.organizationName} as ${params.role}.`,
-        actorUserId: params.inviterId,
-      })
-    } catch (error) {
-      logger.error(
-        {
-          organizationId: params.organizationId,
-          userId: recipientUserId,
-          type: 'team_invitation_created',
-          err: error instanceof Error ? error.message : 'unknown',
-        },
-        'team.notification_failed'
-      )
-    }
-  }
-
-  /**
-   * List pending invitations for an organization.
-   */
-  async listInvitations(organizationId: string) {
-    const rows = await db
-      .from('organization_invitations as i')
-      .innerJoin('roles as r', 'r.id', 'i.roleId')
-      .innerJoin('users as u', 'u.id', 'i.inviterId')
-      .where('i.organizationId', organizationId)
-      .where('i.status', 'pending')
-      .select(
-        'i.id',
-        'i.email',
-        'r.name as role',
-        'u.name as inviterName',
-        'i.createdAt',
-        'i.expiresAt'
-      )
-      .orderBy('i.createdAt', 'desc')
-
-    return rows.map((r) => ({
-      id: r.id as string,
-      email: r.email as string,
-      role: r.role as string,
-      inviterName: r.inviterName as string,
-      createdAt: r.createdAt as string,
-      expiresAt: r.expiresAt as string,
-    }))
-  }
-
-  /**
-   * Public-safe invitation preview (no auth required — invitation id is the secret).
-   */
-  async getInvitationPreview(invitationId: string) {
-    const row = await db
-      .from('organization_invitations as i')
-      .innerJoin('organizations as o', 'o.id', 'i.organizationId')
-      .innerJoin('roles as r', 'r.id', 'i.roleId')
-      .innerJoin('users as u', 'u.id', 'i.inviterId')
-      .where('i.id', invitationId)
-      .whereNull('o.deletedAt')
-      .select(
-        'i.id',
-        'i.email',
-        'i.status',
-        'i.expiresAt',
-        'o.name as organizationName',
-        'r.name as role',
-        'u.name as inviterName'
-      )
-      .first()
-
-    if (!row) {
-      throw new Error('Invitation not found')
-    }
-
-    return {
-      id: row.id as string,
-      email: row.email as string,
-      status: row.status as string,
-      expiresAt: row.expiresAt as string,
-      organizationName: row.organizationName as string,
-      role: row.role as string,
-      inviterName: row.inviterName as string,
-    }
-  }
-
-  /**
-   * Accept a pending invitation. Creates or revives organization_members +
-   * user_roles and makes the joined organization active on the caller's session.
-   */
-  async acceptInvitation(params: {
-    invitationId: string
-    userId: string
-    userEmail: string
-    sessionId: string
+    loginLink: string
   }) {
-    const { invitationId, userId, userEmail, sessionId } = params
-
-    const invitation = await db
-      .from('organization_invitations')
-      .where('id', invitationId)
-      .firstOrFail()
-
-    if (invitation.status !== 'pending') {
-      throw new Error('Invitation is no longer pending')
-    }
-
-    if (DateTime.fromJSDate(new Date(invitation.expiresAt as string)) < DateTime.utc()) {
-      throw new Error('Invitation has expired')
-    }
-
-    if ((invitation.email as string).toLowerCase() !== userEmail.toLowerCase()) {
-      throw new Error('Invitation email does not match your account')
-    }
-
-    const existingMembership = await db
-      .from('organization_members')
-      .where('organizationId', invitation.organizationId)
-      .where('userId', userId)
-      .select('id', 'isDeleted')
-      .first()
-
-    if (existingMembership && !existingMembership.isDeleted) {
-      throw new Error('You are already a member of this organization')
-    }
-
-    await db.transaction(async (trx) => {
-      if (existingMembership?.isDeleted) {
-        // Re-join: revive the soft-deleted membership rather than inserting a second row.
-        await trx.rawQuery(
-          `UPDATE "organization_members"
-           SET "isDeleted" = false,
-               "deletedAt" = NULL,
-               "roleId" = ?,
-               "permissionVersion" = "permissionVersion" + 1
-           WHERE "id" = ?`,
-          [invitation.roleId, existingMembership.id]
-        )
-      } else {
-        await trx.table('organization_members').insert({
-          organizationId: invitation.organizationId,
-          userId,
-          roleId: invitation.roleId,
-        })
-      }
-
-      // removeMember may leave user_roles behind today; upsert so re-invite always works.
-      const existingRole = await trx
-        .from('user_roles')
-        .where('userId', userId)
-        .where('organizationId', invitation.organizationId)
-        .select('id')
-        .first()
-
-      if (existingRole) {
-        await trx.from('user_roles').where('id', existingRole.id).update({
-          roleId: invitation.roleId,
-        })
-      } else {
-        await trx.table('user_roles').insert({
-          userId,
-          roleId: invitation.roleId,
-          organizationId: invitation.organizationId,
-        })
-      }
-
-      await trx
-        .from('organization_invitations')
-        .where('id', invitationId)
-        .update({ status: 'accepted' })
-
-      await trx.from('sessions').where('id', sessionId).update({
-        activeOrganizationId: invitation.organizationId,
-      })
-
-      await trx.table('authorization_audits').insert({
-        organizationId: invitation.organizationId,
-        actorUserId: userId,
-        targetType: 'invitation',
-        targetId: invitationId,
-        eventType: 'invitation.accepted',
-        after: JSON.stringify({ userId, revived: Boolean(existingMembership?.isDeleted) }),
-      })
-    })
-
-    // After pending → accepted commits — best-effort notify must not roll back acceptance.
-    await this.#notifyInviterInvitationAcceptedBestEffort({
-      organizationId: invitation.organizationId as string,
-      inviterId: invitation.inviterId as string,
-      actorUserId: userId,
-    })
-
-    return { organizationId: invitation.organizationId as string }
-  }
-
-  /**
-   * Best-effort in-app notification for the inviter after invitation acceptance. Never throws.
-   */
-  async #notifyInviterInvitationAcceptedBestEffort(params: {
-    organizationId: string
-    inviterId: string
-    actorUserId: string
-  }): Promise<void> {
-    try {
-      const [accepter, org] = await Promise.all([
-        db.from('users').where('id', params.actorUserId).select('name').first(),
-        db.from('organizations').where('id', params.organizationId).select('name').first(),
-      ])
-
-      const userName = (accepter?.name as string | undefined) ?? 'A user'
-      const organizationName = (org?.name as string | undefined) ?? 'the organization'
-
-      await new NotificationService().createNotification({
-        organizationId: params.organizationId,
-        userId: params.inviterId,
-        type: 'team_invitation_accepted',
-        title: 'Invitation accepted',
-        body: `${userName} accepted your invitation and joined ${organizationName}.`,
-        actorUserId: params.actorUserId,
-      })
-    } catch (error) {
-      logger.error(
-        {
-          organizationId: params.organizationId,
-          userId: params.inviterId,
-          type: 'team_invitation_accepted',
-          err: error instanceof Error ? error.message : 'unknown',
-        },
-        'team.notification_failed'
-      )
-    }
-  }
-
-  /**
-   * Reject a pending invitation.
-   * Auth is optional: the invitation id is the secret (same model as preview).
-   * When authenticated, email must still match the invite.
-   */
-  async rejectInvitation(params: { invitationId: string; userEmail?: string }) {
-    const { invitationId, userEmail } = params
-
-    const invitation = await db
-      .from('organization_invitations')
-      .where('id', invitationId)
-      .firstOrFail()
-
-    if (invitation.status !== 'pending') {
-      throw new Error('Invitation is no longer pending')
-    }
-
-    if (userEmail && (invitation.email as string).toLowerCase() !== userEmail.toLowerCase()) {
-      throw new Error('Invitation email does not match your account')
-    }
-
-    await db.transaction(async (trx) => {
-      await trx
-        .from('organization_invitations')
-        .where('id', invitationId)
-        .update({ status: 'rejected' })
-
-      await trx.table('authorization_audits').insert({
-        organizationId: invitation.organizationId,
-        actorUserId: null,
-        targetType: 'invitation',
-        targetId: invitationId,
-        eventType: 'invitation.rejected',
-      })
-    })
-  }
-
-  /**
-   * Cancel a pending invitation (org member with team:invite).
-   */
-  async cancelInvitation(params: {
-    invitationId: string
-    organizationId: string
-    actorUserId: string
-  }) {
-    const { invitationId, organizationId, actorUserId } = params
-
-    const invitation = await db
-      .from('organization_invitations')
-      .where('id', invitationId)
-      .where('organizationId', organizationId)
-      .firstOrFail()
-
-    if (invitation.status !== 'pending') {
-      throw new Error('Invitation is no longer pending')
-    }
-
-    await db.transaction(async (trx) => {
-      await trx
-        .from('organization_invitations')
-        .where('id', invitationId)
-        .update({ status: 'canceled' })
-
-      await trx.table('authorization_audits').insert({
-        organizationId,
-        actorUserId,
-        targetType: 'invitation',
-        targetId: invitationId,
-        eventType: 'invitation.canceled',
-      })
+    const html = `
+      <div style="margin:0; padding:40px 20px; background-color:#f4f6f8; font-family:Arial,Helvetica,sans-serif;">
+        <div style="max-width:560px; margin:0 auto; background:#ffffff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden;">
+          <div style="padding:28px 32px; border-bottom:1px solid #e5e7eb;">
+            <div style="font-size:22px; font-weight:700; color:#111827;">Whats-Auto</div>
+          </div>
+          <div style="padding:32px;">
+            <h1 style="margin:0 0 16px; font-size:24px; line-height:32px; color:#111827;">
+              You've been added to ${params.orgName}
+            </h1>
+            <p style="margin:0 0 24px; font-size:15px; line-height:24px; color:#4b5563;">
+              <strong>${params.inviterName}</strong> has added your existing account to <strong>${params.orgName}</strong> as a <strong>${params.role}</strong>.
+              Sign in with your existing credentials to access this organization.
+            </p>
+            <a href="${params.loginLink}" style="display:inline-block; padding:12px 24px; background-color:#111827; color:#ffffff; text-decoration:none; font-size:15px; font-weight:600; border-radius:8px;">
+              Sign In
+            </a>
+          </div>
+        </div>
+      </div>
+    `
+    await new OrganizationSmtpService().sendOrgEmail({
+      organizationId: params.organizationId,
+      to: params.to,
+      subject: `You've been added to ${params.orgName}`,
+      html,
+      emailKind: 'invitation',
     })
   }
 }

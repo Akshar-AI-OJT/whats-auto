@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
+import { queryKeys } from '@/lib/query-keys'
 import {
   listSuperAdminPlatformUsers,
   mapPlatformUsersApiError,
@@ -52,19 +53,29 @@ function getInitials(name: string) {
     .join('')
 }
 
+const ROLE_LABELS: Record<string, string> = {
+  superadmin: 'Super Admin',
+  owner: 'Owner',
+  admin: 'Admin',
+  agent: 'Agent',
+  viewer: 'Viewer',
+  member: 'Member',
+}
+
+function formatRoleLabel(role: string): string {
+  const key = role.trim().toLowerCase()
+  return ROLE_LABELS[key] ?? role.charAt(0).toUpperCase() + role.slice(1)
+}
+
 function platformRoleLabel(
   user: SuperAdminPlatformUser,
   t: (key: string) => string
 ) {
   if (user.platformRole === 'superadmin') return t('roles.superadmin')
   const organizations = user.organizations ?? []
-  const orgRoles = [
-    ...new Set(organizations.map((org) => org.role).filter(Boolean)),
-  ]
+  const orgRoles = [...new Set(organizations.map((org) => org.role).filter(Boolean))]
   if (orgRoles.length === 0) return t('roles.user')
-  return orgRoles
-    .map((role) => role.charAt(0).toUpperCase() + role.slice(1))
-    .join(', ')
+  return orgRoles.map((role) => formatRoleLabel(role)).join(', ')
 }
 
 function organizationsLabel(
@@ -109,20 +120,22 @@ export function PlatformUsersPage() {
   }, [searchInput])
 
   const usersQuery = useQuery({
-    queryKey: ['admin-platform-users', page, search, status],
+    queryKey: queryKeys.admin.platformUsers({ page, search, status }),
     queryFn: async () =>
       listSuperAdminPlatformUsers({
         page,
         perPage: PER_PAGE,
         search: search || undefined,
-        status,
+        status: status === 'all' ? undefined : status,
       }),
   })
 
   const items = usersQuery.data?.items ?? []
   const meta = usersQuery.data?.meta
   const total = meta?.total ?? items.length
-  const lastPage = meta?.lastPage ?? 1
+  const perPage = meta?.perPage ?? PER_PAGE
+  const lastPage =
+    meta?.lastPage ?? Math.max(1, Math.ceil(total / Math.max(perPage, 1)))
   const hasFilters = Boolean(search || status !== 'all')
 
   const errorMessage = useMemo(() => {
@@ -379,7 +392,7 @@ export function PlatformUsersPage() {
               ))}
             </ul>
 
-            {lastPage > 1 ? (
+            {lastPage > 1 || total > items.length ? (
               <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
                 <p className="text-sm text-mute">
                   {t('pagination.pageOf', { page, lastPage, total })}

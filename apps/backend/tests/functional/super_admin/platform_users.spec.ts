@@ -12,7 +12,7 @@ type PlatformUserOrganization = {
   organizationId: string
   organizationName: string
   organizationSlug: string
-  organizationStatus: boolean
+  organizationStatus: string
   role: string
   roleId: string
 }

@@ -6,6 +6,30 @@ import {
   type SuperAdminPlatformUser,
 } from '@/lib/api'
 
+function normalizePaginationMeta(meta: unknown): PaginationMeta | null {
+  if (!meta || typeof meta !== 'object') return null
+
+  const root = meta as Record<string, unknown>
+  const total = Number(root.total)
+  const perPage = Number(root.perPage)
+  const currentPage = Number(root.currentPage)
+  const lastPage = Number(root.lastPage)
+
+  if (!Number.isFinite(total) || !Number.isFinite(perPage) || !Number.isFinite(currentPage)) {
+    return null
+  }
+
+  return {
+    total,
+    perPage,
+    currentPage,
+    lastPage: Number.isFinite(lastPage)
+      ? lastPage
+      : Math.max(1, Math.ceil(total / Math.max(perPage, 1))),
+    firstPage: typeof root.firstPage === 'number' ? root.firstPage : 1,
+  }
+}
+
 function unwrapPaginated(
   data: unknown
 ): { items: SuperAdminPlatformUser[]; meta: PaginationMeta | null } {
@@ -15,22 +39,25 @@ function unwrapPaginated(
   }
 
   const root = data as {
-    data?: SuperAdminPlatformUser[] | { data?: SuperAdminPlatformUser[]; meta?: PaginationMeta }
-    meta?: PaginationMeta
+    data?: SuperAdminPlatformUser[] | { data?: SuperAdminPlatformUser[]; meta?: unknown }
+    meta?: unknown
+    metadata?: unknown
   }
 
+  const rootMeta = normalizePaginationMeta(root.meta ?? root.metadata)
+
   if (Array.isArray(root.data)) {
-    return { items: root.data.map(normalizePlatformUser), meta: root.meta ?? null }
+    return { items: root.data.map(normalizePlatformUser), meta: rootMeta }
   }
 
   if (root.data && typeof root.data === 'object' && Array.isArray(root.data.data)) {
     return {
       items: root.data.data.map(normalizePlatformUser),
-      meta: root.data.meta ?? root.meta ?? null,
+      meta: normalizePaginationMeta(root.data.meta) ?? rootMeta,
     }
   }
 
-  return { items: [], meta: null }
+  return { items: [], meta: rootMeta }
 }
 
 function normalizePlatformUser(user: SuperAdminPlatformUser): SuperAdminPlatformUser {

@@ -104,7 +104,6 @@ export function transformPlanLimits(row: Pick<PlanRow, 'limits'>): PlanLimits {
     analyticsRetentionDays: asNullableNumber(limits.analyticsRetentionDays),
     auditLogRetentionDays: asNullableNumber(limits.auditLogRetentionDays),
     maxTemplates: asNullableNumber(limits.maxTemplates),
-    maxCampaignRecipientListSize: asNullableNumber(limits.maxCampaignRecipientListSize),
     conversationInboxRetentionDays: asNullableNumber(limits.conversationInboxRetentionDays),
     aiGenerationsPerConversationHour: asRequiredNumber(limits.aiGenerationsPerConversationHour, 10),
     dispatchRatePerSec: asRequiredNumber(limits.dispatchRatePerSec, 10),

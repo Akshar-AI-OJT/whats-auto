@@ -22,6 +22,7 @@ import {
   isFreeActivatablePlan,
   isPlanSelfServe,
   isSubscriptionNotFound,
+  PLAN_FEATURE_I18N_NS,
   resolvePlanFeatureLabel,
   unwrapBillingPlans,
   unwrapBillingSubscription,
@@ -553,7 +554,12 @@ export function BillingPage() {
                             ✓
                           </span>
                           <span>
-                            {resolvePlanFeatureLabel(tFeatures, feature.key, feature.name)}
+                            {resolvePlanFeatureLabel(
+                              tFeatures,
+                              feature.key,
+                              feature.name,
+                              PLAN_FEATURE_I18N_NS
+                            )}
                           </span>
                         </li>
                       ))}
@@ -661,7 +667,7 @@ export function BillingPage() {
                     className="contents"
                   >
                     <div className="pt-3 text-sm text-body">
-                      {resolvePlanFeatureLabel(tFeatures, featureKey)}
+                      {resolvePlanFeatureLabel(tFeatures, featureKey, undefined, PLAN_FEATURE_I18N_NS)}
                     </div>
                     {plans.map((plan) => {
                       const included = plan.features.some(
