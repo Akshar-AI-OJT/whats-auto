@@ -3,18 +3,6 @@ import { defineConfig, transports } from '@adonisjs/mail'
 
 const mailer = env.get('MAIL_MAILER')
 
-if (mailer === 'smtp') {
-  for (const key of ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USERNAME', 'SMTP_PASSWORD'] as const) {
-    if (!env.get(key)) {
-      throw new Error(`${key} is required when MAIL_MAILER=smtp`)
-    }
-  }
-}
-
-if (mailer === 'brevo' && !env.get('BREVO_API')) {
-  throw new Error('BREVO_API is required when MAIL_MAILER=brevo')
-}
-
 const mailConfig = defineConfig({
   default: mailer,
 
@@ -39,10 +27,6 @@ const mailConfig = defineConfig({
         user: env.get('SMTP_USERNAME', ''),
         pass: env.get('SMTP_PASSWORD')?.release() ?? '',
       },
-    }),
-    brevo: transports.brevo({
-      key: env.get('BREVO_API')?.release() ?? '',
-      baseUrl: 'https://api.brevo.com/v3',
     }),
   },
 })
