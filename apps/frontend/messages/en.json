@@ -4629,6 +4629,9 @@
       },
       "create": "Create subscription",
       "loading": "Loading subscriptions…",
+      "loadingDetail": "Loading subscription…",
+      "backToSubscriptions": "Back to Subscriptions",
+      "detailPageTitle": "Subscription Details",
       "retry": "Retry",
       "empty": "No subscriptions yet.",
       "prevPage": "Previous",
@@ -4665,7 +4668,8 @@
         "changePlan": "Change Plan",
         "pause": "Pause Subscription",
         "pauseSoon": "Pause isn’t available from the API yet.",
-        "viewOrg": "View organization"
+        "cancelSubscription": "Cancel Subscription",
+        "viewOrg": "View Organization"
       },
       "detail": {
         "overview": "Overview",
@@ -4702,6 +4706,7 @@
       },
       "errors": {
         "loadFailed": "Failed to load subscriptions. Please try again.",
+        "notFound": "Subscription not found.",
         "createFailed": "Failed to create subscription.",
         "updateFailed": "Failed to update subscription.",
         "deleteFailed": "Failed to delete subscription.",

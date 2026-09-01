@@ -83,9 +83,20 @@ export class SubscriptionService {
 
   /**
    * Fetch one subscription by id for Super Admin.
+   * Uses Knex (not Lucid) so the JSON shape matches {@link listSubscriptionsPaginated}.
    */
   async getSubscriptionById(subscriptionId: string) {
-    return this.findSubscriptionOrFail(subscriptionId)
+    const subscription = await db
+      .from('organization_subscriptions')
+      .where('id', subscriptionId)
+      .whereNot('status', SUBSCRIPTION_SOFT_DELETED_STATUS)
+      .first()
+
+    if (!subscription) {
+      throw SubscriptionException.notFound()
+    }
+
+    return subscription
   }
 
   /**

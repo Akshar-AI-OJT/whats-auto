@@ -12,19 +12,23 @@ import {
   Sparkles,
   Users,
 } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { KPIStatCard, KPIStatCardSkeleton } from '@/components/dashboard/overview/KPIStatCard'
 import { queryKeys } from '@/lib/query-keys'
 import {
   fetchAllOrganizations,
   fetchAllSubscriptions,
-  fetchInvoiceSummary,
+  fetchCurrentMonthPaidRevenue,
+  fetchPlatformUserTotal,
+  countOrganizationsByUiStatus,
   countTrialOrganizations,
+  formatCurrency,
 } from '../analytics/super-admin-analytics'
 
 const STALE_MS = 60_000
 
 export function AdminKpiGrid() {
+  const locale = useLocale()
   const t = useTranslations('admin.home.kpis')
   const tAnalytics = useTranslations('admin.analytics')
 
@@ -38,20 +42,101 @@ export function AdminKpiGrid() {
     queryFn: fetchAllSubscriptions,
     staleTime: STALE_MS,
   })
-  const invoiceSummaryQuery = useQuery({
-    queryKey: queryKeys.admin.analytics.invoiceSummary,
-    queryFn: fetchInvoiceSummary,
+  const monthlyRevenueQuery = useQuery({
+    queryKey: queryKeys.admin.analytics.currentMonthPaidRevenue,
+    queryFn: fetchCurrentMonthPaidRevenue,
+    staleTime: STALE_MS,
+  })
+  const platformUsersQuery = useQuery({
+    queryKey: queryKeys.admin.analytics.platformUsersTotal,
+    queryFn: fetchPlatformUserTotal,
     staleTime: STALE_MS,
   })
 
   const loading =
-    orgQuery.isLoading || subscriptionsQuery.isLoading || invoiceSummaryQuery.isLoading
-  const error = orgQuery.error ?? subscriptionsQuery.error ?? invoiceSummaryQuery.error ?? null
+    orgQuery.isLoading ||
+    subscriptionsQuery.isLoading ||
+    monthlyRevenueQuery.isLoading ||
+    platformUsersQuery.isLoading
+  const error =
+    orgQuery.error ??
+    subscriptionsQuery.error ??
+    monthlyRevenueQuery.error ??
+    platformUsersQuery.error ??
+    null
 
   const organizations = useMemo(() => orgQuery.data?.items ?? [], [orgQuery.data?.items])
   const totalOrgs = orgQuery.data?.total ?? organizations.length
   const subscriptions = useMemo(() => subscriptionsQuery.data ?? [], [subscriptionsQuery.data])
-  const invoiceSummary = invoiceSummaryQuery.data ?? null
+  const orgCounts = useMemo(
+    () => countOrganizationsByUiStatus(organizations),
+    [organizations]
+  )
+  const trialCount = countTrialOrganizations(subscriptions)
+  const monthlyRevenue = monthlyRevenueQuery.data ?? 0
+  const platformUserTotal = platformUsersQuery.data ?? null
+
+  const items = [
+    {
+      key: 'totalOrganizations' as const,
+      icon: Building2,
+      value: totalOrgs,
+      trend: 'neutral' as const,
+      href: '/admin/organizations',
+    },
+    {
+      key: 'activeOrganizations' as const,
+      icon: Building,
+      value: orgCounts.active,
+      trend: 'neutral' as const,
+      href: '/admin/organizations',
+    },
+    {
+      key: 'trialOrganizations' as const,
+      icon: Sparkles,
+      value: trialCount,
+      trend: 'neutral' as const,
+      href: '/admin/subscriptions',
+    },
+    {
+      key: 'suspendedOrganizations' as const,
+      icon: PauseCircle,
+      value: orgCounts.suspended,
+      trend: 'neutral' as const,
+      href: '/admin/organizations',
+    },
+    {
+      key: 'totalPlatformUsers' as const,
+      icon: Users,
+      value: platformUserTotal ?? '—',
+      format: platformUserTotal == null ? ('plain' as const) : undefined,
+      trend: 'neutral' as const,
+      href: '/admin/platform-users',
+    },
+    {
+      key: 'monthlyRevenue' as const,
+      icon: CreditCard,
+      value: formatCurrency(monthlyRevenue, locale),
+      format: 'plain' as const,
+      trend: 'neutral' as const,
+      href: '/admin/invoices',
+    },
+    {
+      key: 'activeWhatsappNumbers' as const,
+      icon: Phone,
+      value: '—' as string,
+      format: 'plain' as const,
+      trend: 'neutral' as const,
+      href: '/admin/analytics',
+    },
+    {
+      key: 'pendingSupportTickets' as const,
+      icon: Headset,
+      value: '—' as string,
+      format: 'plain' as const,
+      trend: 'neutral' as const,
+    },
+  ]
 
   if (loading) {
     return (
@@ -73,72 +158,6 @@ export function AdminKpiGrid() {
     )
   }
 
-  const activeOrgs = organizations.filter((o) => o.deletedAt == null && o.status === 'active')
-  const suspendedOrgs = organizations.filter((o) => o.deletedAt == null && o.status === 'suspended')
-  const trialCount = countTrialOrganizations(subscriptions)
-
-  const items = [
-    {
-      key: 'totalOrganizations' as const,
-      icon: Building2,
-      value: totalOrgs,
-      trend: 'neutral' as const,
-      href: '/admin/organizations',
-    },
-    {
-      key: 'activeOrganizations' as const,
-      icon: Building,
-      value: activeOrgs.length,
-      trend: 'neutral' as const,
-      href: '/admin/organizations',
-    },
-    {
-      key: 'trialOrganizations' as const,
-      icon: Sparkles,
-      value: trialCount,
-      trend: 'neutral' as const,
-      href: '/admin/subscriptions',
-    },
-    {
-      key: 'suspendedOrganizations' as const,
-      icon: PauseCircle,
-      value: suspendedOrgs.length,
-      trend: 'neutral' as const,
-      href: '/admin/organizations',
-    },
-    {
-      key: 'totalPlatformUsers' as const,
-      icon: Users,
-      value: '—' as string,
-      format: 'plain' as const,
-      trend: 'neutral' as const,
-      href: '/admin/platform-users',
-    },
-    {
-      key: 'monthlyRevenue' as const,
-      icon: CreditCard,
-      value: invoiceSummary?.thisMonthAmount ?? 0,
-      prefix: '$',
-      trend: 'neutral' as const,
-      href: '/admin/invoices',
-    },
-    {
-      key: 'activeWhatsappNumbers' as const,
-      icon: Phone,
-      value: '—' as string,
-      format: 'plain' as const,
-      trend: 'neutral' as const,
-      href: '/admin/analytics',
-    },
-    {
-      key: 'pendingSupportTickets' as const,
-      icon: Headset,
-      value: '—' as string,
-      format: 'plain' as const,
-      trend: 'neutral' as const,
-    },
-  ]
-
   return (
     <div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 xl:gap-5">
       {items.map((item) => (
@@ -147,7 +166,6 @@ export function AdminKpiGrid() {
           label={t(`${item.key}.label`)}
           value={item.value}
           format={'format' in item ? item.format : undefined}
-          prefix={'prefix' in item ? item.prefix : undefined}
           trend={item.trend}
           hint={t(`${item.key}.hint`)}
           icon={item.icon}
