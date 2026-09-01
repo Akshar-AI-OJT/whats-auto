@@ -6,6 +6,7 @@ export const JOB_NAMES = {
   BILLING_PAYMENT_WEBHOOK_PROCESS: 'billing.payment_webhook.process',
   CAMPAIGN_EXECUTE: 'campaign.execute',
   CAMPAIGN_RECOVERY: 'campaign.recovery',
+  CONTACT_IMPORT: 'contact.import',
 } as const
 
 export type JobName = (typeof JOB_NAMES)[keyof typeof JOB_NAMES]

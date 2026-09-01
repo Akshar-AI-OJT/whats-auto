@@ -1,6 +1,8 @@
 import db from '@adonisjs/lucid/services/db'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import ContactException from '#exceptions/contact_exception'
 import { normalizeContactPhone } from '#lib/contact_phone'
+import { EntitlementService } from '#services/billing/entitlement_service'
 
 export { normalizeContactPhone }
 
@@ -64,7 +66,17 @@ const CONTACT_COLUMNS = [
   'updatedAt',
 ] as const
 
+/** Plan.limits key for max non-deleted contacts. Missing key = unlimited. */
+export const CONTACT_PLAN_LIMIT_KEY = 'contacts'
+
+/** Arbitrary int4 key so contact-limit locks do not collide with other advisory locks. */
+const CONTACT_LIMIT_LOCK_NS = 721049
+
+type DbClient = typeof db | TransactionClientContract
+
 export class ContactService {
+  constructor(private entitlements: EntitlementService = new EntitlementService()) {}
+
   /**
    * List non-deleted contacts for one organization.
    * Filters by organizationId in app code (defense in depth) + RLS.
@@ -99,18 +111,75 @@ export class ContactService {
     const email = params.email?.trim().toLowerCase() || null
     const company = params.company?.trim() || null
 
-    try {
-      const [row] = await db
-        .table('contacts')
-        .insert({
+    const limit = await this.entitlements.getNumericLimit(organizationId, CONTACT_PLAN_LIMIT_KEY)
+    if (limit === null) {
+      return this.#insertContact({
+        organizationId,
+        actorUserId,
+        phoneNumber,
+        phoneNormalized,
+        name,
+        email,
+        company,
+      })
+    }
+
+    return db.transaction(async (trx) => {
+      await trx.rawQuery('SELECT pg_advisory_xact_lock(?, hashtext(?))', [
+        CONTACT_LIMIT_LOCK_NS,
+        organizationId,
+      ])
+
+      const countRow = await trx
+        .from('contacts')
+        .where('organizationId', organizationId)
+        .whereNull('deletedAt')
+        .count('* as total')
+        .first()
+      const used = Number(countRow?.total ?? 0)
+      if (used >= limit) {
+        throw ContactException.planLimitReached(limit)
+      }
+
+      return this.#insertContact(
+        {
           organizationId,
-          phone: phoneNumber.trim(),
+          actorUserId,
+          phoneNumber,
           phoneNormalized,
           name,
           email,
           company,
+        },
+        trx
+      )
+    })
+  }
+
+  async #insertContact(
+    params: {
+      organizationId: string
+      actorUserId: string
+      phoneNumber: string
+      phoneNormalized: string
+      name: string | null
+      email: string | null
+      company: string | null
+    },
+    client: DbClient = db
+  ) {
+    try {
+      const [row] = await client
+        .table('contacts')
+        .insert({
+          organizationId: params.organizationId,
+          phone: params.phoneNumber.trim(),
+          phoneNormalized: params.phoneNormalized,
+          name: params.name,
+          email: params.email,
+          company: params.company,
           customFields: {},
-          createdByUserId: actorUserId,
+          createdByUserId: params.actorUserId,
         })
         .returning([...CONTACT_COLUMNS])
 

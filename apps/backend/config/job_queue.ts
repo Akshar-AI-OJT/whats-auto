@@ -26,6 +26,7 @@ const jobQueueConfig = {
         JOB_NAMES.BILLING_PAYMENT_WEBHOOK_PROCESS,
         JOB_NAMES.CAMPAIGN_EXECUTE,
         JOB_NAMES.CAMPAIGN_RECOVERY,
+        JOB_NAMES.CONTACT_IMPORT,
       ],
     },
     bullmq: {

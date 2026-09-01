@@ -669,6 +669,9 @@ router
       .post('/import', [ContactsController, 'importCsv'])
       .use(middleware.requirePermission({ permission: 'contacts:import' }))
     router
+      .get('/import/:id', [ContactsController, 'showImport'])
+      .use(middleware.requirePermission({ permission: 'contacts:import' }))
+    router
       .delete('/:id', [ContactsController, 'softDelete'])
       .use(middleware.requirePermission({ permission: 'contacts:delete' }))
   })

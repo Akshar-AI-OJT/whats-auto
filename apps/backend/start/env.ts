@@ -70,6 +70,16 @@ export default await Env.create(new URL('../', import.meta.url), {
 
   // Comma-separated hostnames allowed for outbound media public URLs (optional)
   OUTBOUND_MEDIA_ALLOWED_HOSTS: Env.schema.string.optional(),
+
+  // Object storage (Adonis Drive). Tests use fs; production may use s3.
+  DRIVE_DISK: Env.schema.enum.optional(['fs', 's3'] as const),
+  OBJECT_STORAGE_DRIVER: Env.schema.enum.optional(['fs', 's3'] as const),
+  S3_ACCESS_KEY_ID: Env.schema.string.optional(),
+  S3_SECRET_ACCESS_KEY: Env.schema.string.optional(),
+  S3_REGION: Env.schema.string.optional(),
+  S3_BUCKET: Env.schema.string.optional(),
+  S3_ENDPOINT: Env.schema.string.optional(),
+  S3_FORCE_PATH_STYLE: Env.schema.boolean.optional(),
   RAZORPAY_KEY_ID: Env.schema.string(),
   RAZORPAY_KEY_SECRET: Env.schema.secret(),
   RAZORPAY_WEBHOOK_SECRET: Env.schema.secret(),

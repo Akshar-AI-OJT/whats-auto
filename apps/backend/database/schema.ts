@@ -184,7 +184,7 @@ export class ContactImportRowSchema extends BaseModel {
 }
 
 export class ContactImportSchema extends BaseModel {
-  static $columns = ['columnMapping', 'completedAt', 'createdAt', 'createdByUserId', 'defaultCountryCode', 'errorCount', 'fileName', 'id', 'organizationId', 'processedRows', 'status', 'successCount', 'totalRows', 'updatedAt'] as const
+  static $columns = ['columnMapping', 'completedAt', 'createdAt', 'createdByUserId', 'csvContent', 'defaultCountryCode', 'errorCount', 'fileName', 'filePath', 'id', 'organizationId', 'processedRows', 'status', 'successCount', 'totalRows', 'updatedAt'] as const
   $columns = ContactImportSchema.$columns
   @column()
   declare columnMapping: any | null
@@ -195,11 +195,15 @@ export class ContactImportSchema extends BaseModel {
   @column()
   declare createdByUserId: string | null
   @column()
+  declare csvContent: string | null
+  @column()
   declare defaultCountryCode: string | null
   @column()
   declare errorCount: number
   @column()
   declare fileName: string
+  @column()
+  declare filePath: string | null
   @column({ isPrimary: true })
   declare id: string
   @column()

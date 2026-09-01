@@ -6,6 +6,7 @@ import { createWhatsappOutboundRecoveryHandler } from '#services/job_queue/handl
 import { createBillingPaymentWebhookHandler } from '#services/job_queue/handlers/billing_payment_webhook_handler'
 import { createCampaignExecuteHandler } from '#services/job_queue/handlers/campaign_execute_handler'
 import { createCampaignRecoveryHandler } from '#services/job_queue/handlers/campaign_recovery_handler'
+import { createContactImportHandler } from '#services/job_queue/handlers/contact_import_handler'
 import { CampaignExecutionService } from '#services/campaign_execution_service'
 
 /**
@@ -19,4 +20,5 @@ export async function registerJobHandlers(driver: JobQueueDriver): Promise<void>
   const campaignExecution = await app.container.make(CampaignExecutionService)
   await driver.work(JOB_NAMES.CAMPAIGN_EXECUTE, createCampaignExecuteHandler(campaignExecution))
   await driver.work(JOB_NAMES.CAMPAIGN_RECOVERY, createCampaignRecoveryHandler(campaignExecution))
+  await driver.work(JOB_NAMES.CONTACT_IMPORT, createContactImportHandler())
 }

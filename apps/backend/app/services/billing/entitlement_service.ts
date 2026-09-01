@@ -41,4 +41,29 @@ export class EntitlementService {
       return false
     })
   }
+
+  /**
+   * Numeric plan.limits[key] for the org's current entitled subscription.
+   * Returns null when there is no subscription, missing key, or non-numeric
+   * value — callers treat null as unlimited.
+   */
+  async getNumericLimit(organizationId: string, key: string): Promise<number | null> {
+    return runWithTenant(organizationId, async () => {
+      const subscription = await this.subscriptions.findCurrentForEntitlements(organizationId)
+      if (!subscription) {
+        return null
+      }
+
+      const plan = await this.plans.findById(subscription.planId)
+      if (!plan) {
+        return null
+      }
+
+      const value = (plan.limits ?? {})[key]
+      if (typeof value === 'number' && Number.isFinite(value) && value >= 0) {
+        return value
+      }
+      return null
+    })
+  }
 }

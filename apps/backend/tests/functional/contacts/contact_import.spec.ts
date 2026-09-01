@@ -1,10 +1,18 @@
 import { test } from '@japa/runner'
 import { randomUUID } from 'node:crypto'
+import app from '@adonisjs/core/services/app'
+import drive from '@adonisjs/drive/services/main'
 import db from '@adonisjs/lucid/services/db'
 import ContactException from '#exceptions/contact_exception'
 import { ContactImportService } from '#services/contact_import_service'
 import { ContactService } from '#services/contact_service'
+import { ObjectStorageService } from '#services/object_storage_service'
+import NullJobQueueDriver from '#services/job_queue/drivers/null_driver'
+import JobQueueManager from '#services/job_queue/job_queue_manager'
+import { JOB_NAMES } from '#services/job_queue/job_names'
+import { createContactImportHandler } from '#services/job_queue/handlers/contact_import_handler'
 import { runWithTenant } from '#services/tenant_context'
+import { buildContactImportStorageKey } from '#lib/organization_storage_path'
 
 async function createOrg() {
   const id = randomUUID()
@@ -40,9 +48,69 @@ async function seedUser() {
   return id
 }
 
+async function enqueueAndProcess(params: {
+  organizationId: string
+  actorUserId: string
+  fileName: string
+  csvContent: string
+  columnMapping?: { phone?: string; name?: string; email?: string; company?: string }
+  defaultCountryCode?: string
+}) {
+  const queued = await new ContactImportService().importCsv(params)
+  return new ContactImportService().processImport({
+    organizationId: params.organizationId,
+    importId: queued.id,
+  })
+}
+
+async function seedPlanWithContactLimit(organizationId: string, contacts: number) {
+  const planId = randomUUID()
+  await db.table('plans').insert({
+    id: planId,
+    code: `contacts_${organizationId.slice(0, 8)}`,
+    name: 'Contact Limit Plan',
+    price: 0,
+    currency: 'INR',
+    billingInterval: 'month',
+    billingIntervalCount: 1,
+    trialDays: 0,
+    gateway: null,
+    gatewayPlanId: null,
+    limits: { contacts },
+    isActive: true,
+    sortOrder: 1,
+    metadata: {},
+  })
+
+  await runWithTenant(organizationId, async () => {
+    await db.table('organization_subscriptions').insert({
+      id: randomUUID(),
+      organizationId,
+      planId,
+      status: 'active',
+      currentPeriodStart: new Date(Date.now() - 86400000),
+      currentPeriodEnd: new Date(Date.now() + 20 * 86400000),
+      cancelAtPeriodEnd: false,
+      metadata: {},
+    })
+  })
+
+  return planId
+}
+
+function nationalCsv(count: number, start = 0) {
+  const lines = ['name,phone']
+  for (let index = 0; index < count; index++) {
+    const n = start + index
+    lines.push(`Person${n},${8700000000 + n}`)
+  }
+  return lines.join('\n')
+}
+
 test.group('ContactImportService', (group) => {
   const orgIds: string[] = []
   const userIds: string[] = []
+  const planIds: string[] = []
 
   group.teardown(async () => {
     for (const organizationId of orgIds) {
@@ -50,8 +118,12 @@ test.group('ContactImportService', (group) => {
         await db.from('contact_import_rows').where('organizationId', organizationId).delete()
         await db.from('contact_imports').where('organizationId', organizationId).delete()
         await db.from('contacts').where('organizationId', organizationId).delete()
+        await db.from('organization_subscriptions').where('organizationId', organizationId).delete()
       })
       await db.from('organizations').where('id', organizationId).delete()
+    }
+    if (planIds.length > 0) {
+      await db.from('plans').whereIn('id', planIds).delete()
     }
     if (userIds.length > 0) {
       await db.from('users').whereIn('id', userIds).delete()
@@ -65,7 +137,7 @@ test.group('ContactImportService', (group) => {
     userIds.push(userId)
 
     const result = await runWithTenant(organizationId, () =>
-      new ContactImportService().importCsv({
+      enqueueAndProcess({
         organizationId,
         actorUserId: userId,
         fileName: 'intl.csv',
@@ -106,7 +178,7 @@ test.group('ContactImportService', (group) => {
     userIds.push(userId)
 
     const india = await runWithTenant(organizationId, () =>
-      new ContactImportService().importCsv({
+      enqueueAndProcess({
         organizationId,
         actorUserId: userId,
         fileName: 'in.csv',
@@ -130,7 +202,7 @@ test.group('ContactImportService', (group) => {
     assert.equal(normalized.Priya, '919123456789')
 
     const us = await runWithTenant(organizationId, () =>
-      new ContactImportService().importCsv({
+      enqueueAndProcess({
         organizationId,
         actorUserId: userId,
         fileName: 'us.csv',
@@ -141,7 +213,7 @@ test.group('ContactImportService', (group) => {
     assert.equal(us.rows[0]?.action, 'inserted')
 
     const gb = await runWithTenant(organizationId, () =>
-      new ContactImportService().importCsv({
+      enqueueAndProcess({
         organizationId,
         actorUserId: userId,
         fileName: 'gb.csv',
@@ -170,7 +242,7 @@ test.group('ContactImportService', (group) => {
     userIds.push(userId)
 
     const result = await runWithTenant(organizationId, () =>
-      new ContactImportService().importCsv({
+      enqueueAndProcess({
         organizationId,
         actorUserId: userId,
         fileName: 'mixed.csv',
@@ -208,7 +280,7 @@ test.group('ContactImportService', (group) => {
     userIds.push(userId)
 
     const result = await runWithTenant(organizationId, () =>
-      new ContactImportService().importCsv({
+      enqueueAndProcess({
         organizationId,
         actorUserId: userId,
         fileName: 'mapped.csv',
@@ -249,7 +321,7 @@ test.group('ContactImportService', (group) => {
     userIds.push(userId)
 
     const result = await runWithTenant(organizationId, () =>
-      new ContactImportService().importCsv({
+      enqueueAndProcess({
         organizationId,
         actorUserId: userId,
         fileName: 'national.csv',
@@ -271,7 +343,7 @@ test.group('ContactImportService', (group) => {
     userIds.push(userId)
 
     const result = await runWithTenant(organizationId, () =>
-      new ContactImportService().importCsv({
+      enqueueAndProcess({
         organizationId,
         actorUserId: userId,
         fileName: 'partial.csv',
@@ -394,7 +466,7 @@ test.group('ContactImportService', (group) => {
     )
 
     const result = await runWithTenant(organizationId, () =>
-      new ContactImportService().importCsv({
+      enqueueAndProcess({
         organizationId,
         actorUserId: userId,
         fileName: 'dup.csv',
@@ -434,7 +506,7 @@ test.group('ContactImportService', (group) => {
     userIds.push(userId)
 
     const resultA = await runWithTenant(orgA, () =>
-      new ContactImportService().importCsv({
+      enqueueAndProcess({
         organizationId: orgA,
         actorUserId: userId,
         fileName: 'org-a.csv',
@@ -443,7 +515,7 @@ test.group('ContactImportService', (group) => {
       })
     )
     const resultB = await runWithTenant(orgB, () =>
-      new ContactImportService().importCsv({
+      enqueueAndProcess({
         organizationId: orgB,
         actorUserId: userId,
         fileName: 'org-b.csv',
@@ -480,7 +552,7 @@ test.group('ContactImportService', (group) => {
     userIds.push(userId)
 
     const result = await runWithTenant(organizationId, () =>
-      new ContactImportService().importCsv({
+      enqueueAndProcess({
         organizationId,
         actorUserId: userId,
         fileName: 'unmap.csv',
@@ -510,7 +582,7 @@ test.group('ContactImportService', (group) => {
     const tooLong = 'A'.repeat(256)
 
     const result = await runWithTenant(organizationId, () =>
-      new ContactImportService().importCsv({
+      enqueueAndProcess({
         organizationId,
         actorUserId: userId,
         fileName: 'profile.csv',
@@ -547,5 +619,459 @@ test.group('ContactImportService', (group) => {
     )
     assert.lengthOf(contacts, 1)
     assert.equal(contacts[0]?.email, 'good@example.com')
+  })
+
+  test('enqueues a background job and does not insert contacts in the request', async ({
+    assert,
+  }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const userId = await seedUser()
+    userIds.push(userId)
+
+    const manager = await app.container.make(JobQueueManager)
+    const driver = (await manager.ensureStarted()) as NullJobQueueDriver
+    driver.clearEnqueued()
+
+    const queued = await runWithTenant(organizationId, () =>
+      new ContactImportService().importCsv({
+        organizationId,
+        actorUserId: userId,
+        fileName: 'queued.csv',
+        defaultCountryCode: 'IN',
+        csvContent: nationalCsv(20),
+      })
+    )
+
+    assert.equal(queued.status, 'pending')
+    assert.equal(queued.successCount, 0)
+    assert.equal(queued.processedRows, 0)
+    assert.equal(queued.totalRows, 20)
+    assert.lengthOf(queued.rows, 0)
+    assert.equal(driver.enqueued[driver.enqueued.length - 1]?.name, JOB_NAMES.CONTACT_IMPORT)
+    assert.equal(driver.enqueued[driver.enqueued.length - 1]?.data.importId, queued.id)
+    assert.equal(driver.enqueued[driver.enqueued.length - 1]?.data.organizationId, organizationId)
+
+    const stored = await runWithTenant(organizationId, () =>
+      db.from('contact_imports').where('id', queued.id).select('filePath', 'csvContent').first()
+    )
+    const expectedPath = `organizations/${organizationId}/imports/contacts/queued.csv`
+    assert.equal(stored.filePath, expectedPath)
+    assert.isNull(stored.csvContent)
+    assert.isTrue(await drive.use().exists(expectedPath))
+    assert.equal(await drive.use().get(expectedPath), nationalCsv(20))
+
+    const contacts = await runWithTenant(organizationId, () =>
+      db.from('contacts').where('organizationId', organizationId).whereNull('deletedAt')
+    )
+    assert.lengthOf(contacts, 0)
+
+    const handler = createContactImportHandler()
+    await handler({
+      id: 'job-contact-import',
+      name: JOB_NAMES.CONTACT_IMPORT,
+      data: { organizationId, importId: queued.id },
+    })
+
+    const processed = await runWithTenant(organizationId, () =>
+      new ContactImportService().getImport({ organizationId, importId: queued.id })
+    )
+    assert.equal(processed.status, 'completed')
+    assert.equal(processed.successCount, 20)
+    const after = await runWithTenant(organizationId, () =>
+      db.from('contacts').where('organizationId', organizationId).whereNull('deletedAt')
+    )
+    assert.lengthOf(after, 20)
+  })
+
+  test('stops importing when the plan contact limit is reached', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const userId = await seedUser()
+    userIds.push(userId)
+    planIds.push(await seedPlanWithContactLimit(organizationId, 5))
+
+    await runWithTenant(organizationId, async () => {
+      for (let index = 0; index < 3; index++) {
+        await new ContactService().createContact({
+          organizationId,
+          actorUserId: userId,
+          phoneNumber: `${8600000000 + index}`,
+          countryCode: 'IN',
+          name: `Existing${index}`,
+        })
+      }
+    })
+
+    const result = await runWithTenant(organizationId, () =>
+      enqueueAndProcess({
+        organizationId,
+        actorUserId: userId,
+        fileName: 'limit.csv',
+        defaultCountryCode: 'IN',
+        csvContent: nationalCsv(8),
+      })
+    )
+
+    assert.equal(result.status, 'stopped_due_to_limit')
+    assert.equal(result.successCount, 2)
+    assert.isBelow(result.processedRows, 8)
+    assert.isBelow(result.rows.length, 8)
+
+    const contacts = await runWithTenant(organizationId, () =>
+      db.from('contacts').where('organizationId', organizationId).whereNull('deletedAt')
+    )
+    assert.lengthOf(contacts, 5)
+  })
+
+  test('stops immediately when the plan contact limit is already full', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const userId = await seedUser()
+    userIds.push(userId)
+    planIds.push(await seedPlanWithContactLimit(organizationId, 5))
+
+    await runWithTenant(organizationId, async () => {
+      for (let index = 0; index < 5; index++) {
+        await new ContactService().createContact({
+          organizationId,
+          actorUserId: userId,
+          phoneNumber: `${8600000000 + index}`,
+          countryCode: 'IN',
+          name: `Existing${index}`,
+        })
+      }
+    })
+
+    const result = await runWithTenant(organizationId, () =>
+      enqueueAndProcess({
+        organizationId,
+        actorUserId: userId,
+        fileName: 'full.csv',
+        defaultCountryCode: 'IN',
+        csvContent: nationalCsv(8),
+      })
+    )
+
+    assert.equal(result.status, 'stopped_due_to_limit')
+    assert.equal(result.successCount, 0)
+    const contacts = await runWithTenant(organizationId, () =>
+      db.from('contacts').where('organizationId', organizationId).whereNull('deletedAt')
+    )
+    assert.lengthOf(contacts, 5)
+  })
+
+  test('completes normally when the CSV is within the plan contact limit', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const userId = await seedUser()
+    userIds.push(userId)
+    planIds.push(await seedPlanWithContactLimit(organizationId, 10))
+
+    await runWithTenant(organizationId, async () => {
+      for (let index = 0; index < 2; index++) {
+        await new ContactService().createContact({
+          organizationId,
+          actorUserId: userId,
+          phoneNumber: `${8600000000 + index}`,
+          countryCode: 'IN',
+          name: `Existing${index}`,
+        })
+      }
+    })
+
+    const result = await runWithTenant(organizationId, () =>
+      enqueueAndProcess({
+        organizationId,
+        actorUserId: userId,
+        fileName: 'under.csv',
+        defaultCountryCode: 'IN',
+        csvContent: nationalCsv(5),
+      })
+    )
+
+    assert.equal(result.status, 'completed')
+    assert.equal(result.successCount, 5)
+    assert.equal(result.processedRows, 5)
+    const contacts = await runWithTenant(organizationId, () =>
+      db.from('contacts').where('organizationId', organizationId).whereNull('deletedAt')
+    )
+    assert.lengthOf(contacts, 7)
+  })
+
+  test('resumes after an unexpected worker failure without duplicating contacts', async ({
+    assert,
+  }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const userId = await seedUser()
+    userIds.push(userId)
+
+    class BoomContacts extends ContactService {
+      calls = 0
+      async createContact(params: Parameters<ContactService['createContact']>[0]) {
+        this.calls += 1
+        if (this.calls === 2) {
+          throw new Error('worker boom')
+        }
+        return super.createContact(params)
+      }
+    }
+
+    const queued = await runWithTenant(organizationId, () =>
+      new ContactImportService().importCsv({
+        organizationId,
+        actorUserId: userId,
+        fileName: 'retry.csv',
+        defaultCountryCode: 'IN',
+        csvContent: nationalCsv(3),
+      })
+    )
+
+    try {
+      await runWithTenant(organizationId, () =>
+        new ContactImportService(new BoomContacts()).processImport({
+          organizationId,
+          importId: queued.id,
+        })
+      )
+      assert.fail('expected worker boom')
+    } catch (error) {
+      assert.equal((error as Error).message, 'worker boom')
+    }
+
+    const failed = await runWithTenant(organizationId, () =>
+      new ContactImportService().getImport({ organizationId, importId: queued.id })
+    )
+    assert.equal(failed.status, 'failed')
+    assert.equal(failed.successCount, 1)
+
+    const resumed = await runWithTenant(organizationId, () =>
+      new ContactImportService().processImport({
+        organizationId,
+        importId: queued.id,
+      })
+    )
+    assert.equal(resumed.status, 'completed')
+    assert.equal(resumed.successCount, 3)
+    const contacts = await runWithTenant(organizationId, () =>
+      db.from('contacts').where('organizationId', organizationId).whereNull('deletedAt')
+    )
+    assert.lengthOf(contacts, 3)
+  })
+
+  test('stores the CSV under the organization imports/contacts path', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const userId = await seedUser()
+    userIds.push(userId)
+
+    const queued = await runWithTenant(organizationId, () =>
+      new ContactImportService().importCsv({
+        organizationId,
+        actorUserId: userId,
+        fileName: 'customer_contacts.csv',
+        csvContent: 'name,phone\nRahul,+919876543210\n',
+      })
+    )
+
+    const stored = await runWithTenant(organizationId, () =>
+      db.from('contact_imports').where('id', queued.id).select('filePath', 'fileName').first()
+    )
+    assert.equal(stored.fileName, 'customer_contacts.csv')
+    assert.equal(
+      stored.filePath,
+      `organizations/${organizationId}/imports/contacts/customer_contacts.csv`
+    )
+    assert.equal(await drive.use().get(stored.filePath), 'name,phone\nRahul,+919876543210\n')
+  })
+
+  test('sanitizes traversal filenames into the contacts folder', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const userId = await seedUser()
+    userIds.push(userId)
+
+    const queued = await runWithTenant(organizationId, () =>
+      new ContactImportService().importCsv({
+        organizationId,
+        actorUserId: userId,
+        fileName: '../../etc/passwd.csv',
+        csvContent: 'name,phone\nRahul,+919876543210\n',
+      })
+    )
+
+    const stored = await runWithTenant(organizationId, () =>
+      db.from('contact_imports').where('id', queued.id).select('filePath', 'fileName').first()
+    )
+    assert.equal(stored.fileName, 'passwd.csv')
+    assert.equal(stored.filePath, `organizations/${organizationId}/imports/contacts/passwd.csv`)
+    assert.isFalse(stored.filePath.includes('..'))
+  })
+
+  test('does not overwrite an existing import file with the same name', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const userId = await seedUser()
+    userIds.push(userId)
+
+    const first = await runWithTenant(organizationId, () =>
+      new ContactImportService().importCsv({
+        organizationId,
+        actorUserId: userId,
+        fileName: 'contacts.csv',
+        csvContent: 'name,phone\nFirst,+919876543210\n',
+      })
+    )
+    const second = await runWithTenant(organizationId, () =>
+      new ContactImportService().importCsv({
+        organizationId,
+        actorUserId: userId,
+        fileName: 'contacts.csv',
+        csvContent: 'name,phone\nSecond,+14155552671\n',
+      })
+    )
+
+    const rows = await runWithTenant(organizationId, () =>
+      db.from('contact_imports').whereIn('id', [first.id, second.id]).select('id', 'filePath')
+    )
+    const byId = Object.fromEntries(rows.map((row) => [row.id, row.filePath]))
+    assert.equal(byId[first.id], `organizations/${organizationId}/imports/contacts/contacts.csv`)
+    assert.equal(
+      byId[second.id],
+      `organizations/${organizationId}/imports/contacts/contacts-${second.id}.csv`
+    )
+    assert.equal(await drive.use().get(byId[first.id]), 'name,phone\nFirst,+919876543210\n')
+    assert.equal(await drive.use().get(byId[second.id]), 'name,phone\nSecond,+14155552671\n')
+  })
+
+  test('does not let another organization read a contact import file', async ({ assert }) => {
+    const orgA = await createOrg()
+    const orgB = await createOrg()
+    orgIds.push(orgA, orgB)
+    const userId = await seedUser()
+    userIds.push(userId)
+    const storage = new ObjectStorageService()
+
+    const queuedA = await runWithTenant(orgA, () =>
+      new ContactImportService().importCsv({
+        organizationId: orgA,
+        actorUserId: userId,
+        fileName: 'contacts.csv',
+        csvContent: 'name,phone\nRahul,+919876543210\n',
+      })
+    )
+
+    const pathA = buildContactImportStorageKey(orgA, 'contacts.csv')
+    const stored = await runWithTenant(orgA, () =>
+      db.from('contact_imports').where('id', queuedA.id).select('filePath').first()
+    )
+    assert.equal(stored.filePath, pathA)
+    assert.equal(await storage.getContactImportCsv(orgA, pathA), 'name,phone\nRahul,+919876543210\n')
+
+    try {
+      await storage.getContactImportCsv(orgB, pathA)
+      assert.fail('expected cross-organization file access to be rejected')
+    } catch (error) {
+      assert.match((error as Error).message, /outside the organization storage path/)
+    }
+
+    try {
+      await runWithTenant(orgB, () =>
+        new ContactImportService().getImport({ organizationId: orgB, importId: queuedA.id })
+      )
+      assert.fail('expected import record to be tenant-scoped')
+    } catch (error) {
+      assert.instanceOf(error, ContactException)
+      assert.equal((error as ContactException).code, 'E_CONTACT_IMPORT_NOT_FOUND')
+    }
+  })
+
+  test('worker refuses a filePath that belongs to another organization', async ({ assert }) => {
+    const orgA = await createOrg()
+    const orgB = await createOrg()
+    orgIds.push(orgA, orgB)
+    const userId = await seedUser()
+    userIds.push(userId)
+
+    const queuedA = await runWithTenant(orgA, () =>
+      new ContactImportService().importCsv({
+        organizationId: orgA,
+        actorUserId: userId,
+        fileName: 'contacts.csv',
+        csvContent: 'name,phone\nRahul,+919876543210\n',
+      })
+    )
+    const queuedB = await runWithTenant(orgB, () =>
+      new ContactImportService().importCsv({
+        organizationId: orgB,
+        actorUserId: userId,
+        fileName: 'other.csv',
+        csvContent: 'name,phone\nSam,+14155552671\n',
+      })
+    )
+
+    const pathA = (
+      await runWithTenant(orgA, () =>
+        db.from('contact_imports').where('id', queuedA.id).select('filePath').first()
+      )
+    ).filePath as string
+
+    await runWithTenant(orgB, () =>
+      db.from('contact_imports').where('id', queuedB.id).update({ filePath: pathA, csvContent: null })
+    )
+
+    try {
+      await runWithTenant(orgB, () =>
+        new ContactImportService().processImport({
+          organizationId: orgB,
+          importId: queuedB.id,
+        })
+      )
+      assert.fail('expected tampered filePath to fail')
+    } catch (error) {
+      assert.match((error as Error).message, /outside the organization storage path/)
+    }
+
+    const contactsB = await runWithTenant(orgB, () =>
+      db.from('contacts').where('organizationId', orgB).whereNull('deletedAt')
+    )
+    assert.lengthOf(contactsB, 0)
+  })
+
+  test('worker still processes a legacy import that only has csvContent', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const userId = await seedUser()
+    userIds.push(userId)
+
+    const [legacy] = await runWithTenant(organizationId, () =>
+      db
+        .table('contact_imports')
+        .insert({
+          organizationId,
+          createdByUserId: userId,
+          fileName: 'legacy.csv',
+          status: 'pending',
+          columnMapping: {},
+          csvContent: 'name,phone\nRahul,+919876543210\n',
+          filePath: null,
+          totalRows: 1,
+          processedRows: 0,
+          successCount: 0,
+          errorCount: 0,
+        })
+        .returning(['id'])
+    )
+
+    const result = await runWithTenant(organizationId, () =>
+      new ContactImportService().processImport({
+        organizationId,
+        importId: legacy.id as string,
+      })
+    )
+
+    assert.equal(result.status, 'completed')
+    assert.equal(result.successCount, 1)
   })
 })
