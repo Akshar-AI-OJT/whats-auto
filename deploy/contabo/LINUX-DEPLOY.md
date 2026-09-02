@@ -406,20 +406,21 @@ wa logs --tail=80 whats-auto-backend
 Mail (`MAIL_MAILER`) must work. Then use Forgot password for `SUPERADMIN_EMAIL`.
 
 **Superadmin lost platform access (user exists, wrong/missing role)**  
-The bootstrap seeder only creates the first superadmin. It cannot repair an existing account. Restore the global grant:
+Restore the global grant:
 
 ```bash
 bash deploy/contabo/migrate.sh grant-superadmin
 ```
 
-This runs `node bin/grant_superadmin.js` inside the backend container (not Ace). Optional flags: `--email=`, `--force`. After repair, sign out and sign back in so JWT claims refresh.
-
-Direct container command:
+To **delete the SUPERADMIN_EMAIL user** (removes org agent membership too) and bootstrap a fresh platform admin:
 
 ```bash
-docker compose -f deploy/contabo/docker-compose.yml --env-file deploy/contabo/.env \
-  exec -T whats-auto-backend node bin/grant_superadmin.js
+bash deploy/contabo/migrate.sh reset-superadmin
 ```
+
+Then use **Forgot password** on the login page (mail must work). Sign out of any old sessions first.
+
+Both commands run `node bin/*.js` inside the backend container (not Ace).
 
 Manual SQL (Postgres shell on the VPS) if you prefer:
 
