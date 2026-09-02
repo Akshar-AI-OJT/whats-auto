@@ -10,6 +10,11 @@ import { AccessTokenClaimsService } from '#services/access_token_claims_service'
 import { BillingOrderApplyService } from '#services/billing/billing_order_apply_service'
 import { OnboardingCleanupService } from '#services/onboarding_cleanup_service'
 import { OrganizationService } from '#services/organization_service'
+import { BillingCheckoutService } from '#services/billing/billing_checkout_service'
+import { RazorpayOrderService } from '#services/billing/razorpay_order_service'
+import { PlanRepository } from '#repositories/plan_repository'
+import { OrganizationSubscriptionRepository } from '#repositories/organization_subscription_repository'
+import { BillingOrderRepository } from '#repositories/billing_order_repository'
 import { runWithTenant } from '#services/tenant_context'
 import { DateTime } from 'luxon'
 
@@ -329,6 +334,137 @@ test.group('Org provisioning gate', (group) => {
       .select('activeOrganizationId')
       .firstOrFail()
     assert.equal(refreshed.activeOrganizationId, FIXTURE_IDS.orgs.northstar)
+  })
+
+  test('set-active after second org create applies checkout to new org only', async ({
+    assert,
+  }) => {
+    const owner = await db
+      .from('users')
+      .where('email', DEMO_USERS.northstarOwner)
+      .select('id')
+      .firstOrFail()
+
+    const orgAId = FIXTURE_IDS.orgs.northstar
+    const subsBeforeA = await runWithTenant(orgAId, async () =>
+      db.from('organization_subscriptions').where('organizationId', orgAId).count('* as total').first()
+    )
+
+    const session = await db
+      .from('sessions')
+      .where('userId', owner.id)
+      .orderBy('createdAt', 'desc')
+      .select('id', 'activeOrganizationId')
+      .firstOrFail()
+
+    await db.from('sessions').where('id', session.id).update({ activeOrganizationId: orgAId })
+
+    const slug = `second-${randomUUID().slice(0, 8)}`
+    const orgService = new OrganizationService()
+    const created = await orgService.createOrganization({
+      userId: owner.id as string,
+      sessionId: session.id as string,
+      data: {
+        name: 'Second Organization',
+        slug,
+        email: `${slug}@example.com`,
+        phone: '+919876543210',
+        organizationType: 'company',
+        address: '221B Baker Street, Mumbai',
+        pan: 'AAAAA0000A',
+        country: 'IN',
+        timezone: 'Asia/Kolkata',
+      },
+    })
+    orgIds.push(created.id)
+    assert.isFalse(created.sessionActivated)
+
+    const sessionStillA = await db
+      .from('sessions')
+      .where('id', session.id)
+      .select('activeOrganizationId')
+      .firstOrFail()
+    assert.equal(sessionStillA.activeOrganizationId, orgAId)
+
+    const planId = randomUUID()
+    await db.table('plans').insert({
+      id: planId,
+      code: `free_onboard_${planId.slice(0, 8)}`,
+      name: 'Free Onboard Test',
+      price: 0,
+      currency: 'INR',
+      billingInterval: 'month',
+      billingIntervalCount: 1,
+      trialDays: 0,
+      gateway: null,
+      gatewayPlanId: null,
+      limits: { seats: 5 },
+      isActive: true,
+      sortOrder: 5,
+      metadata: { status: 'active' },
+    })
+
+    try {
+      // Mirrors frontend: explicit set-active when sessionActivated is false.
+      await orgService.setActiveOrganization({
+        userId: owner.id as string,
+        sessionId: session.id as string,
+        organizationId: created.id,
+      })
+
+      const sessionAfter = await db
+        .from('sessions')
+        .where('id', session.id)
+        .select('activeOrganizationId')
+        .firstOrFail()
+      assert.equal(sessionAfter.activeOrganizationId, created.id)
+
+      const checkout = new BillingCheckoutService(
+        new PlanRepository(),
+        new BillingOrderApplyService(),
+        new RazorpayOrderService(
+          new PlanRepository(),
+          new OrganizationSubscriptionRepository(),
+          new BillingOrderRepository(),
+          {
+            createCustomer: async () => ({ id: 'cust_test', email: 'a@b.com', name: 'Org' }),
+            createOrder: async () => {
+              throw new Error('Razorpay should not run for free checkout')
+            },
+            fetchOrder: async (orderId) => ({
+              id: orderId,
+              amount: 0,
+              currency: 'INR',
+              status: 'created',
+            }),
+          }
+        )
+      )
+
+      const result = await checkout.checkout({
+        organizationId: created.id,
+        planId,
+        actorUserId: owner.id as string,
+      })
+      assert.equal(result.mode, 'free')
+
+      const orgBSub = await runWithTenant(created.id, async () =>
+        db.from('organization_subscriptions').where('organizationId', created.id).first()
+      )
+      assert.exists(orgBSub)
+      assert.equal(orgBSub?.planId, planId)
+
+      const subsAfterA = await runWithTenant(orgAId, async () =>
+        db.from('organization_subscriptions').where('organizationId', orgAId).count('* as total').first()
+      )
+      assert.equal(Number(subsAfterA?.total ?? 0), Number(subsBeforeA?.total ?? 0))
+    } finally {
+      await runWithTenant(created.id, async () => {
+        await db.from('billing_orders').where('organizationId', created.id).delete()
+        await db.from('organization_subscriptions').where('organizationId', created.id).delete()
+      })
+      await db.from('plans').where('id', planId).delete()
+    }
   })
 
   test('cleanup purges aged pending_setup org and cascades child rows under RLS', async ({
