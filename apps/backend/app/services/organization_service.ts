@@ -547,8 +547,14 @@ export class OrganizationService {
     if (patch.address !== undefined) {
       updates.address = normalizeOrganizationAddress(patch.address)
     }
-    if (patch.pan !== undefined) updates.pan = patch.pan.replace(/\s+/g, '').toUpperCase()
-    if (patch.gstin !== undefined) updates.gstin = patch.gstin.replace(/\s+/g, '').toUpperCase()
+    if (patch.pan !== undefined) {
+      const normalizedPan = (patch.pan ?? '').replace(/\s+/g, '').toUpperCase()
+      updates.pan = normalizedPan.length > 0 ? normalizedPan : null
+    }
+    if (patch.gstin !== undefined) {
+      const normalizedGstin = (patch.gstin ?? '').replace(/\s+/g, '').toUpperCase()
+      updates.gstin = normalizedGstin.length > 0 ? normalizedGstin : null
+    }
     if (patch.country !== undefined) updates.country = patch.country
     if (patch.timezone !== undefined) updates.timezone = patch.timezone
     if (patch.currency !== undefined) updates.currency = patch.currency

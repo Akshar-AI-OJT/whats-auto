@@ -28,7 +28,8 @@ const s3AccessKeyId = env.get('S3_ACCESS_KEY_ID') ?? 'unused'
 const s3SecretAccessKey = env.get('S3_SECRET_ACCESS_KEY')?.release() ?? 'unused'
 const s3Region = env.get('S3_REGION') ?? 'unused'
 const s3Bucket = env.get('S3_BUCKET') ?? 'unused'
-const s3Endpoint = env.get('S3_ENDPOINT') ?? 'https://example.invalid'
+const s3Endpoint = env.get('S3_ENDPOINT') ?? undefined
+const s3ForcePathStyle = env.get('S3_FORCE_PATH_STYLE')
 
 const diskServices = {
   fs: services.fs({
@@ -43,8 +44,12 @@ const diskServices = {
     },
     region: s3Region,
     bucket: s3Bucket,
-    endpoint: s3Endpoint,
-    forcePathStyle: env.get('S3_FORCE_PATH_STYLE') ?? true,
+    ...(s3Endpoint
+      ? { endpoint: s3Endpoint }
+      : driver === 'fs'
+        ? { endpoint: 'https://example.invalid' }
+        : {}),
+    ...(s3ForcePathStyle !== undefined ? { forcePathStyle: s3ForcePathStyle } : {}),
     visibility: 'private' as const,
   }),
 }

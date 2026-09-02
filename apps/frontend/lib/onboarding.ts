@@ -4,6 +4,7 @@ const PENDING_PHONE_KEY = 'wa-onboarding-phone'
 const PENDING_EMAIL_KEY = 'wa-onboarding-email'
 const CHECKLIST_KEY = 'wa-onboarding-checklist'
 const PENDING_PLAN_KEY = 'wa-onboarding-plan'
+const PENDING_ORG_KEY = 'wa-onboarding-organization-id'
 
 export const ORG_SETUP_PATH = '/onboarding/organization'
 export const ONBOARDING_PAYMENT_PATH = '/onboarding/payment'
@@ -301,6 +302,34 @@ export function clearPendingOrganizationPlan() {
   if (typeof window === 'undefined') return
   try {
     window.sessionStorage.removeItem(PENDING_PLAN_KEY)
+  } catch {
+    /* ignore */
+  }
+}
+
+/** New org id from onboarding create — used until profile completion finishes. */
+export function savePendingOnboardingOrganizationId(organizationId: string) {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.setItem(PENDING_ORG_KEY, organizationId)
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+export function readPendingOnboardingOrganizationId(): string | null {
+  if (typeof window === 'undefined') return null
+  try {
+    return window.sessionStorage.getItem(PENDING_ORG_KEY)
+  } catch {
+    return null
+  }
+}
+
+export function clearPendingOnboardingOrganizationId() {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.removeItem(PENDING_ORG_KEY)
   } catch {
     /* ignore */
   }

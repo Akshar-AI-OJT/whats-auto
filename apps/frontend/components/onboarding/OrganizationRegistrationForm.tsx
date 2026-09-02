@@ -4,9 +4,12 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { ArrowLeft, ArrowRight, Loader2, Lock } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { api, type ApiError } from '@/lib/api'
+import { api, type ApiError, type CreatedOrganization } from '@/lib/api'
 import { authClient } from '@/lib/auth-client'
-import { getValidAccessToken } from '@/lib/access-token'
+import {
+  ensureAccessTokenForOrganization,
+  getValidAccessToken,
+} from '@/lib/access-token'
 import { queryKeys } from '@/lib/query-keys'
 import { useQueryClient } from '@tanstack/react-query'
 import {
@@ -20,6 +23,7 @@ import {
   readPendingOnboardingContact,
   savePendingOrganizationPlan,
   savePendingOrganizationPreferences,
+  savePendingOnboardingOrganizationId,
   ORG_SETUP_PATH,
 } from '@/lib/onboarding'
 import {
@@ -82,6 +86,25 @@ function createInitialState(): OrganizationWizardState {
     timeFormat: '12h',
     themePreference: 'system',
     notifications: ['emailUpdates', 'campaignAlerts'],
+  }
+}
+
+function unwrapCreatedOrganization(data: unknown): CreatedOrganization | null {
+  if (!data || typeof data !== 'object') return null
+  const root = data as { data?: CreatedOrganization } & CreatedOrganization
+  if (root.data?.id) return root.data
+  if ('id' in root && typeof root.id === 'string') return root
+  return null
+}
+
+async function alignSessionAfterOrganizationCreate(created: CreatedOrganization): Promise<void> {
+  if (created.sessionActivated === false) {
+    await api.organizations.setActive(created.id)
+    await ensureAccessTokenForOrganization(created.id)
+  } else {
+    await authClient.getSession({ query: { disableCookieCache: true } })
+    await getValidAccessToken()
+    await ensureAccessTokenForOrganization(created.id)
   }
 }
 
@@ -257,11 +280,14 @@ export function OrganizationRegistrationForm({
         currency: state.currency || undefined,
       })
 
-      await api.organizations.create(payload)
+      const { data } = await api.organizations.create(payload)
+      const created = unwrapCreatedOrganization(data)
+      if (!created?.id) {
+        throw new Error('Organization create did not return an id')
+      }
 
-      // Backend sets the new org active and remints JWT; align shared session before dashboard.
-      await authClient.getSession({ query: { disableCookieCache: true } })
-      await getValidAccessToken()
+      savePendingOnboardingOrganizationId(created.id)
+      await alignSessionAfterOrganizationCreate(created)
       await queryClient.invalidateQueries({ queryKey: queryKeys.organizations.all })
 
       savePendingOrganizationPreferences({

@@ -36,7 +36,7 @@ export default class S3ObjectStorage extends ObjectStorage {
         secretAccessKey: config.secretAccessKey,
       },
       ...(config.endpoint ? { endpoint: config.endpoint } : {}),
-      forcePathStyle: config.forcePathStyle ?? Boolean(config.endpoint),
+      ...(config.forcePathStyle !== undefined ? { forcePathStyle: config.forcePathStyle } : {}),
       // Browser PUTs via presigned URL cannot satisfy flexible request checksums.
       requestChecksumCalculation: 'WHEN_REQUIRED',
       responseChecksumValidation: 'WHEN_REQUIRED',
