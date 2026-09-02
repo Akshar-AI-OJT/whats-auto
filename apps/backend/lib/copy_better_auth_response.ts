@@ -13,7 +13,5 @@ export async function copyBetterAuthResponse({ response }: HttpContext, webRespo
 
   const body = Buffer.from(await webResponse.arrayBuffer())
 
-  if (body.length > 0) {
-    return response.send(body)
-  }
+  return response.send(body)
 }

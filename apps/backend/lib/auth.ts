@@ -5,6 +5,7 @@ import { jwt } from 'better-auth/plugins'
 import env from '#start/env'
 import hash from '@adonisjs/core/services/hash'
 import { pool } from '#lib/db'
+import { deleteStaleJwks, selectDecryptableJwks } from '#lib/jwks_recovery'
 import accessTokenConfig from '#config/access_token'
 import { AccessTokenClaimsService } from '#services/access_token_claims_service'
 import mail from '@adonisjs/mail/services/main'
@@ -169,11 +170,14 @@ export const auth = betterAuth({
 
   account: {
     modelName: 'accounts',
-    // Option B: same email + Google → link to existing verified user and sign in
+    // Same email + Google → link to the existing user and sign in.
+    // requireLocalEmailVerified defaults to true, which blocks Google login for
+    // invited/unverified credential users even though Google is a trusted provider.
     accountLinking: {
       enabled: true,
       trustedProviders: ['google'],
       allowDifferentEmails: false,
+      requireLocalEmailVerified: false,
     },
   },
 
@@ -292,7 +296,9 @@ export const auth = betterAuth({
           google: {
             clientId: googleClientId!,
             clientSecret: googleClientSecret!.release(),
+            // Both flags: callback reads options.disableSignUp; some paths use disableImplicitSignUp.
             disableSignUp: true,
+            disableImplicitSignUp: true,
             mapProfileToUser: (profile: {
               given_name?: string
               family_name?: string
@@ -414,6 +420,28 @@ export const auth = betterAuth({
 
   plugins: [
     jwt({
+      adapter: {
+        getJwks: async (ctx) => {
+          const { rows } = await pool.query<{
+            id: string
+            publicKey: string
+            privateKey: string
+            createdAt: Date
+            expiresAt: Date | null
+            alg: string | null
+            crv: string | null
+          }>(`SELECT id, "publicKey", "privateKey", "createdAt", "expiresAt", alg, crv FROM "jwks"`)
+          const { usable, staleIds } = await selectDecryptableJwks(ctx.context.secretConfig, rows)
+          await deleteStaleJwks(staleIds)
+          return usable.map((key) => ({
+            ...key,
+            expiresAt: key.expiresAt ?? undefined,
+            alg: (key.alg ?? undefined) as
+              'EdDSA' | 'ES256' | 'ES512' | 'PS256' | 'RS256' | undefined,
+            crv: (key.crv ?? undefined) as 'Ed25519' | 'P-256' | 'P-521' | undefined,
+          }))
+        },
+      },
       jwt: {
         issuer: accessTokenConfig.issuer,
         audience: accessTokenConfig.audience,
