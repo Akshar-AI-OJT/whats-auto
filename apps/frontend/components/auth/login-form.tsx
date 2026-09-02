@@ -64,7 +64,10 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
     !isAccountNotFound &&
     (oauthErrorParam === 'oauth_failed' ||
       oauthErrorParam === 'state_mismatch' ||
-      oauthErrorParam === 'state_security_mismatch')
+      oauthErrorParam === 'state_security_mismatch' ||
+      oauthErrorParam === 'account_not_linked' ||
+      oauthErrorParam === 'unable_to_create_user' ||
+      oauthErrorParam === 'unable_to_create_session')
   const formErrorId = useId()
   const emailId = useId()
   const passwordId = useId()
@@ -134,7 +137,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
     try {
       const redirectPath = callbackPath ?? '/dashboard'
       const callbackURL = buildLocalizedAppUrl(locale, redirectPath)
-      const errorCallbackURL = buildLocalizedAppUrl(locale, '/login?error=account_not_found')
+      const errorCallbackURL = buildLocalizedAppUrl(locale, '/login')
       const { error: authErr } = await authClient.signIn.social({
         provider: 'google',
         callbackURL,

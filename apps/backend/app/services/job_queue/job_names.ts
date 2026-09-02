@@ -16,6 +16,7 @@ export const JOB_NAMES = {
   BILLING_SUBSCRIPTION_LIFECYCLE: 'billing.subscription.lifecycle',
   ONBOARDING_CLEANUP: 'onboarding.cleanup',
   SMTP_EMAIL_RETRY: 'smtp.email.retry',
+  CONTACT_IMPORT: 'contact.import',
 } as const
 
 /** Singleton key so only one platform KB reindex runs at a time. */

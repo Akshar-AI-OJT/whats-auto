@@ -211,11 +211,14 @@ export const auth = betterAuth({
 
   account: {
     modelName: 'accounts',
-    // Option B: same email + Google → link to existing verified user and sign in
+    // Same email + Google → link to the existing user and sign in.
+    // requireLocalEmailVerified defaults to true, which blocks Google login for
+    // invited/unverified credential users even though Google is a trusted provider.
     accountLinking: {
       enabled: true,
       trustedProviders: ['google'],
       allowDifferentEmails: false,
+      requireLocalEmailVerified: false,
     },
   },
 
@@ -334,7 +337,9 @@ export const auth = betterAuth({
           google: {
             clientId: googleClientId!,
             clientSecret: googleClientSecret!.release(),
+            // Both flags: callback reads options.disableSignUp; some paths use disableImplicitSignUp.
             disableSignUp: true,
+            disableImplicitSignUp: true,
             mapProfileToUser: (profile: {
               given_name?: string
               family_name?: string

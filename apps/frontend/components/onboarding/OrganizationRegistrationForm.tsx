@@ -37,8 +37,6 @@ import {
   authOutlineButtonClassName,
   authPrimaryButtonClassName,
 } from '@/components/auth/auth-field-styles'
-import { AuthLayout } from '@/components/auth/auth-layout'
-import { AuthBranding } from '@/components/auth/auth-branding'
 import { useRouter } from '@/i18n/navigation'
 import { BillingCheckoutDialog } from '@/components/dashboard/billing/BillingCheckoutDialog'
 import {
@@ -53,6 +51,7 @@ import {
   type OnboardingPlanSelection,
 } from './SubscriptionPlanSelectionStep'
 import { OrganizationPreferencesStep } from './OrganizationPreferencesStep'
+import { OrganizationOnboardingLayout } from './OrganizationOnboardingLayout'
 import { OrganizationStepper } from './OrganizationStepper'
 import type {
   OrganizationWizardBasicsErrors,
@@ -482,21 +481,17 @@ export function OrganizationRegistrationForm({
 
   if (guardingInvite) {
     return (
-      <AuthLayout branding={<AuthBranding variant="organization" />}>
+      <OrganizationOnboardingLayout currentStep={1}>
         <div className="flex items-center justify-center gap-2 py-16 text-sm text-body">
           <Loader2 className="size-4 animate-spin" aria-hidden />
           Loading…
         </div>
-      </AuthLayout>
+      </OrganizationOnboardingLayout>
     )
   }
 
   return (
-    <AuthLayout
-      branding={<AuthBranding variant="organization" />}
-      wideForm={step === 4}
-      contentClassName={step === 4 ? 'max-w-none' : undefined}
-    >
+    <OrganizationOnboardingLayout currentStep={step} wideForm={step === 4}>
       <form
         className={cn('flex w-full min-w-0 flex-col', className)}
         onSubmit={handleSubmit}
@@ -505,7 +500,7 @@ export function OrganizationRegistrationForm({
         aria-describedby={error ? formErrorId : undefined}
         {...props}
       >
-        <FieldGroup className="gap-7">
+        <FieldGroup className="gap-8">
           <div className="flex flex-col gap-4 text-left">
             <p className="text-xs font-semibold tracking-wide text-positive-deep uppercase">
               {t('eyebrow', { step, total: 4 })}
@@ -572,7 +567,7 @@ export function OrganizationRegistrationForm({
 
           <Field className="gap-0">
             {step === 4 ? (
-              <div className="flex flex-col gap-3 border-t border-[#E2E8F0] pt-5 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+              <div className="flex flex-col gap-3 border-t border-[#CBD5E1] pt-6 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                 <Button
                   type="button"
                   variant="outline"
@@ -611,31 +606,20 @@ export function OrganizationRegistrationForm({
                 </div>
               </div>
             ) : (
-              <div className={cn('flex flex-col gap-2.5', step > 1 && 'sm:flex-row-reverse')}>
-                <Button
-                  type="submit"
-                  disabled={pending || checkoutPending}
-                  aria-busy={pending || checkoutPending}
-                  className={cn(authPrimaryButtonClassName, step > 1 && 'sm:flex-1')}
-                >
-                  {pending ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin" aria-hidden />
-                      <span>{t('creating')}</span>
-                    </>
-                  ) : step === 3 ? (
-                    t('createOrganization')
-                  ) : (
-                    t('continue')
-                  )}
-                </Button>
-
+              <div
+                className={cn(
+                  'flex flex-col-reverse gap-3 border-t border-[#CBD5E1] pt-6',
+                  step > 1
+                    ? 'sm:flex-row sm:items-center sm:justify-between'
+                    : 'sm:flex-col'
+                )}
+              >
                 {step > 1 ? (
                   <Button
                     type="button"
                     variant="outline"
                     disabled={pending || checkoutPending}
-                    className={cn(authOutlineButtonClassName, 'sm:flex-1')}
+                    className={cn(authOutlineButtonClassName, 'sm:w-auto sm:min-w-[7.5rem]')}
                     onClick={() => {
                       setError(null)
                       setStep((prev) => (prev > 1 ? ((prev - 1) as OrgWizardStep) : prev))
@@ -645,6 +629,28 @@ export function OrganizationRegistrationForm({
                     {t('back')}
                   </Button>
                 ) : null}
+
+                <Button
+                  type="submit"
+                  disabled={pending || checkoutPending}
+                  aria-busy={pending || checkoutPending}
+                  className={cn(
+                    authPrimaryButtonClassName,
+                    step > 1 && 'sm:w-auto sm:min-w-[14rem]'
+                  )}
+                >
+                  {pending ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                      <span>{t('creating')}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>{step === 3 ? t('createOrganization') : t('continue')}</span>
+                      <ArrowRight className="size-4" aria-hidden />
+                    </>
+                  )}
+                </Button>
               </div>
             )}
           </Field>
@@ -666,6 +672,6 @@ export function OrganizationRegistrationForm({
           void handleCheckoutConfirm()
         }}
       />
-    </AuthLayout>
+    </OrganizationOnboardingLayout>
   )
 }

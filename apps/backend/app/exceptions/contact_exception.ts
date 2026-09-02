@@ -61,6 +61,20 @@ export default class ContactException extends Exception {
     })
   }
 
+  static planLimitReached(limit: number) {
+    return new this(`Contact limit reached for the current plan (${limit})`, {
+      status: 409,
+      code: 'E_CONTACT_PLAN_LIMIT_REACHED',
+    })
+  }
+
+  static importNotFound() {
+    return new this('Contact import not found', {
+      status: 404,
+      code: 'E_CONTACT_IMPORT_NOT_FOUND',
+    })
+  }
+
   static notFound() {
     return new this('Contact not found', {
       status: 404,

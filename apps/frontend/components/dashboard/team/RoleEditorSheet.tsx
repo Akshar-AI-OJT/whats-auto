@@ -21,6 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { RoleUnsavedChangesDialog } from './RoleUnsavedChangesDialog'
 import {
   Field,
   FieldDescription,
@@ -88,6 +89,7 @@ export function RoleEditorSheet({
   const [permsError, setPermsError] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
+  const [unsavedConfirmOpen, setUnsavedConfirmOpen] = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -97,6 +99,7 @@ export function RoleEditorSheet({
     setPending(false)
     setPermSearch('')
     setCollapsed({})
+    setUnsavedConfirmOpen(false)
     if (mode === 'edit' && role) {
       const next = new Set(
         role.permissions.filter((p) => grantable.includes(p as ProductPermission))
@@ -160,9 +163,14 @@ export function RoleEditorSheet({
     }
     if (pending) return
     if (dirty) {
-      const confirmed = window.confirm(t('unsavedConfirm'))
-      if (!confirmed) return
+      setUnsavedConfirmOpen(true)
+      return
     }
+    onOpenChange(false)
+  }
+
+  function confirmDiscard() {
+    setUnsavedConfirmOpen(false)
     onOpenChange(false)
   }
 
@@ -246,12 +254,13 @@ export function RoleEditorSheet({
   const saveDisabled = pending || !canManageRoles || !dirty
 
   return (
-    <Dialog open={open} onOpenChange={requestClose}>
-      <DialogContent
-        size="fullscreen"
-        className="gap-0 overflow-hidden p-0"
-        showCloseButton
-      >
+    <>
+      <Dialog open={open} onOpenChange={requestClose}>
+        <DialogContent
+          size="fullscreen"
+          className="gap-0 overflow-hidden p-0"
+          showCloseButton
+        >
         <form className="flex min-h-0 flex-1 flex-col" onSubmit={handleSubmit}>
           <DialogHeader className="shrink-0 border-b border-dash-border pr-12">
             <DialogTitle>{title}</DialogTitle>
@@ -456,8 +465,14 @@ export function RoleEditorSheet({
             </div>
           </DialogFooter>
         </form>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+      <RoleUnsavedChangesDialog
+        open={unsavedConfirmOpen}
+        onOpenChange={setUnsavedConfirmOpen}
+        onDiscard={confirmDiscard}
+      />
+    </>
   )
 }
 

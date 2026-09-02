@@ -9,7 +9,7 @@ import '#types/http'
 
 /**
  * Resolves platform (superadmin) permissions for the authenticated user.
- * Populates request.memberPermissions for requirePermission middleware.
+ * Populates request.memberPermissions for requirePermission middleware and Bouncer policies.
  * Does not require an active organization.
  */
 export default class PlatformMiddleware {

@@ -107,6 +107,22 @@ export default class S3ObjectStorage extends ObjectStorage {
     }
   }
 
+  async getObject(key: string): Promise<Uint8Array | null> {
+    try {
+      const result = await this.#client.send(
+        new GetObjectCommand({
+          Bucket: this.#bucket,
+          Key: key,
+        })
+      )
+      if (!result.Body) return new Uint8Array()
+      return await result.Body.transformToByteArray()
+    } catch (error) {
+      if (isNotFoundError(error)) return null
+      throw error
+    }
+  }
+
   async deleteObject(key: string): Promise<void> {
     await this.#client.send(
       new DeleteObjectCommand({
