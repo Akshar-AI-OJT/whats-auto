@@ -412,7 +412,14 @@ The bootstrap seeder only creates the first superadmin. It cannot repair an exis
 bash deploy/contabo/migrate.sh grant-superadmin
 ```
 
-Optional flags are forwarded to Ace (`--email=`, `--force`). After repair, sign out and sign back in so JWT claims refresh.
+This runs `node bin/grant_superadmin.js` inside the backend container (not Ace). Optional flags: `--email=`, `--force`. After repair, sign out and sign back in so JWT claims refresh.
+
+Direct container command:
+
+```bash
+docker compose -f deploy/contabo/docker-compose.yml --env-file deploy/contabo/.env \
+  exec -T whats-auto-backend node bin/grant_superadmin.js
+```
 
 Manual SQL (Postgres shell on the VPS) if you prefer:
 

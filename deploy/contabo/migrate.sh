@@ -40,6 +40,10 @@ ace() {
   compose exec -T whats-auto-backend node ace "$@"
 }
 
+run_grant_superadmin() {
+  compose exec -T whats-auto-backend node bin/grant_superadmin.js "$@"
+}
+
 cmd="${1:-run}"
 
 case "$cmd" in
@@ -88,7 +92,7 @@ case "$cmd" in
     echo "==> Ensuring RBAC catalog is present..."
     ace db:seed --files=database/seeders/rbac_seeder.ts
     echo "==> Restoring global superadmin grant for SUPERADMIN_EMAIL..."
-    ace superadmin:grant "$@"
+    run_grant_superadmin "$@"
     ;;
 
   fresh)
