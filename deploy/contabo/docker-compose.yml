@@ -1,0 +1,154 @@
+# Linux production (ServeOS Caddy already owns 80/443).
+# From repo root:
+#   sudo mkdir -p /var/www/whats-auto/apps/backend/media && sudo chown 1001:1001 /var/www/whats-auto/apps/backend/media
+#   cp deploy/contabo/.env.example deploy/contabo/.env
+#   docker compose -f deploy/contabo/docker-compose.yml --env-file deploy/contabo/.env up -d --build
+#   bash deploy/contabo/migrate.sh
+
+name: whats-auto
+
+services:
+  whats-auto-postgres:
+    image: pgvector/pgvector:pg18
+    container_name: whats-auto-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${PG_USER:-postgres}
+      POSTGRES_PASSWORD: ${PG_PASSWORD:?set PG_PASSWORD}
+      POSTGRES_DB: ${PG_DB_NAME:-whatsapp_production}
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 10s
+      timeout: 5s
+      retries: 15
+    networks:
+      - internal
+
+  whats-auto-redis:
+    image: redis:7-alpine
+    container_name: whats-auto-redis
+    restart: unless-stopped
+    command: ['redis-server', '--appendonly', 'yes']
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    networks:
+      - internal
+
+  # --------------------------------------------------------------------
+  # AdonisJS HTTP (auth, webhooks, REST, inbox SSE, media PUT)
+  # HOST=0.0.0.0 PORT=3201. DNS name on serveos-production_public: whats-auto-backend
+  # --------------------------------------------------------------------
+  whats-auto-backend:
+    image: whats-auto-backend:latest
+    container_name: whats-auto-backend
+    build:
+      context: ../..
+      dockerfile: apps/backend/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      whats-auto-postgres:
+        condition: service_healthy
+      whats-auto-redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3201
+      PG_HOST: whats-auto-postgres
+      PG_PORT: 5432
+      REDIS_URL: redis://whats-auto-redis:6379
+      JOB_QUEUE_DRIVER: bullmq
+      OBJECT_STORAGE_DRIVER: ${OBJECT_STORAGE_DRIVER:-fs}
+      DRIVE_DISK: ${DRIVE_DISK:-fs}
+      MEDIA_LOCAL_ROOT: ${MEDIA_LOCAL_ROOT:-/var/www/whats-auto/apps/backend/media}
+    volumes:
+      - type: bind
+        source: ${MEDIA_HOST_PATH:-/var/www/whats-auto/apps/backend/media}
+        target: ${MEDIA_LOCAL_ROOT:-/var/www/whats-auto/apps/backend/media}
+    expose:
+      - '3201'
+    networks:
+      - internal
+      - serveos-production_public
+
+  # --------------------------------------------------------------------
+  # Same backend image, BullMQ consumer (needs same media disk). No HTTP.
+  # --------------------------------------------------------------------
+  whats-auto-worker:
+    image: whats-auto-backend:latest
+    container_name: whats-auto-worker
+    build:
+      context: ../..
+      dockerfile: apps/backend/Dockerfile
+    restart: unless-stopped
+    command: ['node', 'bin/worker.js']
+    depends_on:
+      whats-auto-postgres:
+        condition: service_healthy
+      whats-auto-redis:
+        condition: service_healthy
+      whats-auto-backend:
+        condition: service_started
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 3201
+      PG_HOST: whats-auto-postgres
+      PG_PORT: 5432
+      REDIS_URL: redis://whats-auto-redis:6379
+      JOB_QUEUE_DRIVER: bullmq
+      OBJECT_STORAGE_DRIVER: ${OBJECT_STORAGE_DRIVER:-fs}
+      DRIVE_DISK: ${DRIVE_DISK:-fs}
+      MEDIA_LOCAL_ROOT: ${MEDIA_LOCAL_ROOT:-/var/www/whats-auto/apps/backend/media}
+    volumes:
+      - type: bind
+        source: ${MEDIA_HOST_PATH:-/var/www/whats-auto/apps/backend/media}
+        target: ${MEDIA_LOCAL_ROOT:-/var/www/whats-auto/apps/backend/media}
+    networks:
+      - internal
+
+  # --------------------------------------------------------------------
+  # Next.js standalone. NEXT_PUBLIC_* baked at image build.
+  # HOSTNAME=0.0.0.0 PORT=3200. DNS name: whats-auto-frontend
+  # --------------------------------------------------------------------
+  whats-auto-frontend:
+    image: whats-auto-frontend:latest
+    container_name: whats-auto-frontend
+    build:
+      context: ../..
+      dockerfile: apps/frontend/Dockerfile
+      args:
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:?set NEXT_PUBLIC_APP_URL}
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:?set NEXT_PUBLIC_API_URL to https://api.ottobot.codecolonies.com}
+    restart: unless-stopped
+    depends_on:
+      - whats-auto-backend
+    environment:
+      NODE_ENV: production
+      PORT: 3200
+      HOSTNAME: 0.0.0.0
+    expose:
+      - '3200'
+    networks:
+      - serveos-production_public
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  internal:
+    name: whats-auto-internal
+  serveos-production_public:
+    external: true
