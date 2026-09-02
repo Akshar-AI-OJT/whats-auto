@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { betterAuth } from 'better-auth'
 import { createAuthMiddleware, APIError } from 'better-auth/api'
 import { jwt } from 'better-auth/plugins'
+import logger from '@adonisjs/core/services/logger'
 import env from '#start/env'
 import hash from '@adonisjs/core/services/hash'
 import { pool } from '#lib/db'
@@ -75,6 +76,22 @@ type UserAccountState = {
 const ACCOUNT_NOT_FOUND_MESSAGE =
   'No account found with this email. Please contact your administrator for an invitation.'
 
+/** OAuth/sign-in rejections we surface to the client — not backend failures. */
+const EXPECTED_BETTER_AUTH_REJECTIONS = new Set([
+  'signup_disabled',
+  'sign_up_disabled',
+  'account_not_found',
+  'user_not_found',
+])
+
+function isExpectedBetterAuthRejection(message: string): boolean {
+  const normalized = message.toLowerCase().replace(/\s+/g, '_')
+  for (const code of EXPECTED_BETTER_AUTH_REJECTIONS) {
+    if (normalized.includes(code)) return true
+  }
+  return false
+}
+
 async function findUserAccountStateByEmail(email: string): Promise<UserAccountState | null> {
   const normalized = email.toLowerCase().trim()
   const { rows } = await pool.query<UserAccountState>(
@@ -112,6 +129,31 @@ export const auth = betterAuth({
   baseURL: env.get('BETTER_AUTH_URL'),
   secret: env.get('BETTER_AUTH_SECRET').release(),
   trustedOrigins: getTrustedOrigins(),
+
+  logger: {
+    level: 'warn',
+    log(level, message, ...args) {
+      const text = String(message)
+      if (level === 'error' && isExpectedBetterAuthRejection(text)) {
+        return
+      }
+
+      switch (level) {
+        case 'error':
+          logger.error({ betterAuth: true }, text, ...args)
+          break
+        case 'warn':
+          logger.warn({ betterAuth: true }, text, ...args)
+          break
+        case 'info':
+          logger.info({ betterAuth: true }, text, ...args)
+          break
+        case 'debug':
+          logger.debug({ betterAuth: true }, text, ...args)
+          break
+      }
+    },
+  },
 
   // DB columns are Postgres `uuid`. better-auth's default nanoid IDs are not valid UUIDs.
   advanced: {
