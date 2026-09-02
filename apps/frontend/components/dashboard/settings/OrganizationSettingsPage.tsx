@@ -130,7 +130,7 @@ function buildUpdateBody(form: FormState): UpdateOrganizationBody {
     organizationType: form.organizationType || undefined,
     address: form.address.trim(),
     pan,
-    gstin,
+    ...(gstin ? { gstin } : {}),
     timezone: form.timezone.trim(),
     currency: form.currency.trim().slice(0, CURRENCY_MAX) || undefined,
   }
@@ -235,7 +235,9 @@ export function OrganizationSettingsPage() {
     } else if (address.length < 8) {
       next.address = t('errors.addressTooShort')
     }
-    if (form.pan.trim() && !isValidPan(form.pan)) {
+    if (!form.pan.trim()) {
+      next.pan = t('errors.panRequired')
+    } else if (!isValidPan(form.pan)) {
       next.pan = t('errors.panInvalid')
     }
     if (form.gstin.trim() && !isValidGstin(form.gstin)) {
@@ -602,7 +604,7 @@ export function OrganizationSettingsPage() {
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               <Field data-invalid={fieldErrors.pan ? true : undefined} className="gap-2">
                 <FieldLabel htmlFor={panId} className="text-sm font-medium text-ink">
-                  {t('fields.pan')}
+                  <RequiredMark label={t('fields.pan')} />
                 </FieldLabel>
                 <Input
                   id={panId}

@@ -6,7 +6,6 @@ import { api, type AccessContext, type OrganizationSummary } from '@/lib/api'
 import { authClient } from '@/lib/auth-client'
 import {
   ensureAccessTokenForOrganization,
-  getValidAccessToken,
   peekAccessTokenOrgId,
 } from '@/lib/access-token'
 import { ONBOARDING_PAYMENT_PATH } from '@/lib/onboarding'

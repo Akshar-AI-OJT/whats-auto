@@ -272,7 +272,7 @@ export type CreateOrganizationBody = {
   organizationType: OrganizationType
   /** Legacy free-text or structured address object. */
   address: string | OrganizationAddress
-  pan?: string
+  pan: string
   gstin?: string
   country: string
   timezone: string

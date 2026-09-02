@@ -25,13 +25,24 @@ test.group('Organization update validator — PAN/GSTIN', () => {
     assert.isUndefined(payload.gstin)
   })
 
-  test('accepts empty pan and gstin to clear values', async ({ assert }) => {
+  test('rejects empty pan and gstin', async ({ assert }) => {
+    await assert.rejects(() =>
+      updateOrganizationValidator.validate({
+        pan: '',
+        gstin: '',
+      })
+    )
+  })
+
+  test('treats null pan and gstin as omitted', async ({ assert }) => {
     const payload = await updateOrganizationValidator.validate({
-      pan: '',
-      gstin: '',
+      name: 'Acme Updated',
+      pan: null,
+      gstin: null,
     })
-    assert.equal(payload.pan, '')
-    assert.equal(payload.gstin, '')
+    assert.equal(payload.name, 'Acme Updated')
+    assert.isUndefined(payload.pan)
+    assert.isUndefined(payload.gstin)
   })
 
   test('accepts valid pan and gstin', async ({ assert }) => {
@@ -60,10 +71,17 @@ test.group('Organization update validator — PAN/GSTIN', () => {
   })
 })
 
-test.group('Organization create validator — PAN/GSTIN unchanged', () => {
-  test('accepts create without pan or gstin', async ({ assert }) => {
-    const payload = await createOrganizationValidator.validate(validCreateBody)
-    assert.isUndefined(payload.pan)
+test.group('Organization create validator — PAN required, GSTIN optional', () => {
+  test('rejects create without pan', async ({ assert }) => {
+    await assert.rejects(() => createOrganizationValidator.validate(validCreateBody))
+  })
+
+  test('accepts create with pan and without gstin', async ({ assert }) => {
+    const payload = await createOrganizationValidator.validate({
+      ...validCreateBody,
+      pan: 'aaaaa0000a',
+    })
+    assert.equal(payload.pan, 'AAAAA0000A')
     assert.isUndefined(payload.gstin)
   })
 
@@ -82,6 +100,7 @@ test.group('Organization create validator — PAN/GSTIN unchanged', () => {
       createOrganizationValidator.validate({
         ...validCreateBody,
         pan: 'BAD',
+        gstin: '27AAAAA0000A1Z5',
       })
     )
   })

@@ -4,7 +4,7 @@ export const ORG_PROFILE_PATH = '/onboarding/organization-profile'
 
 export type OrganizationProfileSource = Pick<
   OrganizationSummary,
-  'name' | 'email' | 'country'
+  'name' | 'email' | 'country' | 'pan' | 'gstin'
 > &
   Partial<
     Pick<
@@ -34,6 +34,8 @@ export type OrganizationProfileFormValues = {
   description: string
   defaultLanguage: string
   businessRegistrationNumber: string
+  pan: string
+  gstin: string
   addressLine1: string
   addressLine2: string
   city: string
@@ -50,6 +52,7 @@ export const REQUIRED_PROFILE_FIELDS = [
   'email',
   'industry',
   'businessSize',
+  'pan',
   'addressLine1',
   'city',
   'state',
@@ -66,6 +69,7 @@ export const OPTIONAL_PROFILE_FIELDS = [
   'description',
   'defaultLanguage',
   'businessRegistrationNumber',
+  'gstin',
   'addressLine2',
   'hasLogo',
 ] as const
@@ -160,6 +164,8 @@ export function organizationToProfileFormValues(
     description: org.description?.trim() ?? '',
     defaultLanguage: org.defaultLanguage?.trim() ?? '',
     businessRegistrationNumber: org.businessRegistrationNumber?.trim() ?? '',
+    pan: org.pan?.trim() ?? '',
+    gstin: org.gstin?.trim() ?? '',
     addressLine1: address?.addressLine1?.trim() ?? '',
     addressLine2: address?.addressLine2?.trim() ?? '',
     city: address?.city?.trim() ?? '',
@@ -216,6 +222,8 @@ export function buildOrganizationProfileUpdateBody(values: OrganizationProfileFo
   alternatePhone: string | null
   defaultLanguage: string | null
   businessRegistrationNumber: string | null
+  pan: string
+  gstin?: string
   country: string
   address: ProfileAddressPayload
 } {
@@ -234,6 +242,7 @@ export function buildOrganizationProfileUpdateBody(values: OrganizationProfileFo
       ? website
       : `https://${website}`
     : ''
+  const gstin = values.gstin.trim().replace(/\s+/g, '').toUpperCase()
 
   return {
     name: values.name.trim(),
@@ -246,6 +255,8 @@ export function buildOrganizationProfileUpdateBody(values: OrganizationProfileFo
     alternatePhone: values.alternatePhone.trim() || null,
     defaultLanguage: values.defaultLanguage.trim() || null,
     businessRegistrationNumber: values.businessRegistrationNumber.trim() || null,
+    pan: values.pan.trim().replace(/\s+/g, '').toUpperCase(),
+    ...(gstin ? { gstin } : {}),
     country: values.country.trim(),
     address: {
       addressLine1: values.addressLine1.trim(),

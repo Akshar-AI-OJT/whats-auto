@@ -17,13 +17,9 @@ const organizationTypeSchema = vine.enum([...ORGANIZATION_TYPES])
 const panSchema = vine.string().trim().toUpperCase().regex(PAN_REGEX)
 const gstinSchema = vine.string().trim().toUpperCase().regex(GSTIN_REGEX)
 
-/** PATCH: omit, null, empty string (clear), or valid tax id. Create keeps strict optional pan/gstin. */
-const optionalPanUpdateSchema = vine
-  .unionOfTypes([vine.literal(null), vine.literal(''), panSchema])
-  .optional()
-const optionalGstinUpdateSchema = vine
-  .unionOfTypes([vine.literal(null), vine.literal(''), gstinSchema])
-  .optional()
+/** PATCH: omit or valid tax id. */
+const optionalPanUpdateSchema = panSchema.optional()
+const optionalGstinUpdateSchema = gstinSchema.optional()
 const phoneSchema = vine
   .string()
   .trim()
@@ -67,7 +63,7 @@ export const createOrganizationValidator = vine.create(
     industry: vine.string().trim().optional(),
     organizationType: organizationTypeSchema,
     address: addressInputSchema,
-    pan: panSchema.optional(),
+    pan: panSchema,
     gstin: gstinSchema.optional(),
     country: vine.string().trim().minLength(2).maxLength(100),
     timezone: vine.string().trim().minLength(1).maxLength(100),

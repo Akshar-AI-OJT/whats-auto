@@ -319,6 +319,7 @@ test.group('Org provisioning gate', (group) => {
         organizationType: 'company',
         address: '221B Baker Street, Mumbai',
         pan: 'AAAAA0000A',
+        gstin: '27AAAAA0000A1Z5',
         country: 'IN',
         timezone: 'Asia/Kolkata',
       },
@@ -347,7 +348,11 @@ test.group('Org provisioning gate', (group) => {
 
     const orgAId = FIXTURE_IDS.orgs.northstar
     const subsBeforeA = await runWithTenant(orgAId, async () =>
-      db.from('organization_subscriptions').where('organizationId', orgAId).count('* as total').first()
+      db
+        .from('organization_subscriptions')
+        .where('organizationId', orgAId)
+        .count('* as total')
+        .first()
     )
 
     const session = await db
@@ -372,6 +377,7 @@ test.group('Org provisioning gate', (group) => {
         organizationType: 'company',
         address: '221B Baker Street, Mumbai',
         pan: 'AAAAA0000A',
+        gstin: '27AAAAA0000A1Z5',
         country: 'IN',
         timezone: 'Asia/Kolkata',
       },
@@ -455,7 +461,11 @@ test.group('Org provisioning gate', (group) => {
       assert.equal(orgBSub?.planId, planId)
 
       const subsAfterA = await runWithTenant(orgAId, async () =>
-        db.from('organization_subscriptions').where('organizationId', orgAId).count('* as total').first()
+        db
+          .from('organization_subscriptions')
+          .where('organizationId', orgAId)
+          .count('* as total')
+          .first()
       )
       assert.equal(Number(subsAfterA?.total ?? 0), Number(subsBeforeA?.total ?? 0))
     } finally {
