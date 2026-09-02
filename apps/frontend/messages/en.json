@@ -1291,6 +1291,23 @@
         "preferences": "Preferences",
         "plan": "Plan"
       },
+      "sidebar": {
+        "brand": "Whats-Auto",
+        "heading": "Set up your organization",
+        "subtitle": "You become the Owner automatically. Invite Admins, Agents, and Viewers after you land in the dashboard.",
+        "setupTitle": "Organization setup",
+        "setupStep": "Step {step} of {total}",
+        "accountVerified": "Account verified",
+        "organizationCreated": "Organization created",
+        "companyDetails": "Company details",
+        "preferences": "Preferences",
+        "planReview": "Plan & review",
+        "done": "Done",
+        "ownerTitle": "You are Owner",
+        "ownerSubtitle": "Automatic role",
+        "readyTitle": "WhatsApp-ready organization",
+        "readySubtitle": "One organization. Clear ownership. Ready for your team."
+      },
       "ownerNote": "You become the Owner automatically when you create this organization. Owner is never selected manually.",
       "name": "Business / Organization Name",
       "namePlaceholder": "Acme Organization",
@@ -1322,8 +1339,9 @@
         "subtitle": "A few details help us tailor your Whats-Auto organization.",
         "logo": "Company Logo",
         "logoUpload": "Upload company logo",
+        "logoUploadTitle": "Upload logo",
         "logoEmpty": "No logo uploaded",
-        "logoHint": "PNG, JPG, or WebP. Optional — you can add this later.",
+        "logoHint": "PNG, JPG or WebP. Max size 2MB.",
         "logoRemove": "Remove logo",
         "organizationType": "Organization Type",
         "organizationTypePlaceholder": "Select organization type",
@@ -1412,6 +1430,11 @@
           "system": "System",
           "light": "Light",
           "dark": "Dark"
+        },
+        "themeDescriptions": {
+          "system": "Use system default",
+          "light": "Light appearance",
+          "dark": "Dark appearance"
         },
         "notificationOptions": {
           "emailUpdates": {
