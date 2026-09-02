@@ -281,25 +281,49 @@ export async function fetchMonthlyRevenueTrend(
 }
 
 /** Platform billing currency — invoice summary amounts are stored and summed in INR. */
-export const PLATFORM_BILLING_CURRENCY = 'INR' as const
+export const PLATFORM_CURRENCY = 'INR'
+export const PLATFORM_BILLING_CURRENCY = PLATFORM_CURRENCY
 
-export function formatCurrency(value: number, locale: string): string {
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: PLATFORM_BILLING_CURRENCY,
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(value)
+export function formatCurrency(
+  value: number,
+  locale: string,
+  currency = PLATFORM_CURRENCY
+): string {
+  const code = (currency ?? PLATFORM_CURRENCY).trim().toUpperCase() || PLATFORM_CURRENCY
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: code,
+      minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
+      maximumFractionDigits: 2,
+    }).format(value)
+  } catch {
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: PLATFORM_CURRENCY,
+      minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
+      maximumFractionDigits: 2,
+    }).format(value)
+  }
 }
 
-export function formatShortCurrency(value: number, locale: string): string {
+export function formatShortCurrency(
+  value: number,
+  locale: string,
+  currency = PLATFORM_CURRENCY
+): string {
   if (value >= 1000) {
-    const thousands = value / 1000
-    const formatted = thousands.toLocaleString(locale, {
-      maximumFractionDigits: thousands % 1 === 0 ? 0 : 1,
-    })
-    return `₹${formatted}k`
+    try {
+      return new Intl.NumberFormat(locale, {
+        style: 'currency',
+        currency,
+        notation: 'compact',
+        maximumFractionDigits: 1,
+      }).format(value)
+    } catch {
+      return formatCurrency(value, locale, currency)
+    }
   }
 
-  return formatCurrency(value, locale)
+  return formatCurrency(value, locale, currency)
 }

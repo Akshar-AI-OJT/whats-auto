@@ -1537,6 +1537,7 @@ export type SuperAdminInvoiceSummary = {
   cancelledAmount: number
   thisMonthCount: number
   thisMonthAmount: number
+  currency?: string
 }
 
 export type ListSuperAdminInvoicesParams = {

@@ -192,6 +192,7 @@ export const queryKeys = {
       invoiceSummary: ['super-admin-analytics', 'invoice-summary'] as const,
       currentMonthPaidRevenue: ['super-admin-analytics', 'current-month-paid-revenue'] as const,
       platformUsersTotal: ['super-admin-analytics', 'platform-users-total'] as const,
+      platformUsers: ['super-admin-analytics', 'platform-users'] as const,
       audit: ['super-admin-analytics', 'audit'] as const,
       monthlyRevenue: (locale: string, months = 6) =>
         ['super-admin-analytics', 'monthly-revenue', locale, months] as const,

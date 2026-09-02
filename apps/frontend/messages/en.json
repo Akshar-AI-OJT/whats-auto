@@ -1257,6 +1257,23 @@
         "preferences": "Preferences",
         "plan": "Plan"
       },
+      "sidebar": {
+        "brand": "Whats-Auto",
+        "heading": "Set up your organization",
+        "subtitle": "You become the Owner automatically. Invite Admins, Agents, and Viewers after you land in the dashboard.",
+        "setupTitle": "Organization setup",
+        "setupStep": "Step {step} of {total}",
+        "accountVerified": "Account verified",
+        "organizationCreated": "Organization created",
+        "companyDetails": "Company details",
+        "preferences": "Preferences",
+        "planReview": "Plan & review",
+        "done": "Done",
+        "ownerTitle": "You are Owner",
+        "ownerSubtitle": "Automatic role",
+        "readyTitle": "WhatsApp-ready organization",
+        "readySubtitle": "One organization. Clear ownership. Ready for your team."
+      },
       "ownerNote": "You become the Owner automatically when you create this organization. Owner is never selected manually.",
       "name": "Business / Organization Name",
       "namePlaceholder": "Acme Organization",
@@ -1288,8 +1305,9 @@
         "subtitle": "A few details help us tailor your Whats-Auto organization.",
         "logo": "Company Logo",
         "logoUpload": "Upload company logo",
+        "logoUploadTitle": "Upload logo",
         "logoEmpty": "No logo uploaded",
-        "logoHint": "PNG, JPG, or WebP. Optional — you can add this later.",
+        "logoHint": "PNG, JPG or WebP. Max size 2MB.",
         "logoRemove": "Remove logo",
         "organizationType": "Organization Type",
         "organizationTypePlaceholder": "Select organization type",
@@ -1378,6 +1396,11 @@
           "system": "System",
           "light": "Light",
           "dark": "Dark"
+        },
+        "themeDescriptions": {
+          "system": "Use system default",
+          "light": "Light appearance",
+          "dark": "Dark appearance"
         },
         "notificationOptions": {
           "emailUpdates": {
@@ -2206,7 +2229,10 @@
         "reasonPlaceholder": "e.g. Narrow agent inbox access for support season",
         "reasonHint": "Saved to the authorization audit log so teammates know why this change was made (minimum 5 characters).",
         "unsavedChanges": "Unsaved changes",
+        "unsavedConfirmTitle": "Discard unsaved changes?",
         "unsavedConfirm": "You have unsaved changes. Close without saving?",
+        "unsavedConfirmStay": "Keep editing",
+        "unsavedConfirmDiscard": "Discard",
         "cancel": "Cancel",
         "createSubmit": "Save Role",
         "editSubmit": "Save Role",
@@ -3998,7 +4024,7 @@
         },
         "monthlyRevenue": {
           "label": "Monthly Revenue",
-          "hint": "Current billing period"
+          "hint": "Paid invoices this month"
         },
         "activeWhatsappNumbers": {
           "label": "Active WhatsApp Numbers",
@@ -4669,6 +4695,7 @@
         "remove": "Remove line item"
       },
       "currency": {
+        "inr": "INR — Indian Rupee",
         "usd": "USD — US Dollar"
       },
       "filters": "Filters",

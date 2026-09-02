@@ -278,7 +278,11 @@ export function PlatformAnalyticsPage() {
         />
         <KPIStatCard
           label={t('kpis.thisMonthRevenue')}
-          value={formatCurrency(currentMonthPaidRevenueQuery.data ?? 0, locale)}
+          value={formatCurrency(
+            currentMonthPaidRevenueQuery.data ?? 0,
+            locale,
+            invoiceSummary?.currency
+          )}
           format="plain"
           icon={CircleDollarSign}
           loading={currentMonthPaidRevenueQuery.isLoading}
@@ -286,7 +290,7 @@ export function PlatformAnalyticsPage() {
         />
         <KPIStatCard
           label={t('kpis.paidRevenue')}
-          value={formatCurrency(invoiceSummary?.paidAmount ?? 0, locale)}
+          value={formatCurrency(invoiceSummary?.paidAmount ?? 0, locale, invoiceSummary?.currency)}
           format="plain"
           icon={CreditCard}
           loading={invoiceSummaryQuery.isLoading}
@@ -383,11 +387,19 @@ export function PlatformAnalyticsPage() {
               <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <SummaryTile
                   label={t('sections.revenueSummary.thisMonthAmount')}
-                  value={formatCurrency(invoiceSummary.thisMonthAmount, locale)}
+                  value={formatCurrency(
+                    invoiceSummary.thisMonthAmount,
+                    locale,
+                    invoiceSummary.currency
+                  )}
                 />
                 <SummaryTile
                   label={t('sections.revenueSummary.paidAmount')}
-                  value={formatCurrency(invoiceSummary.paidAmount, locale)}
+                  value={formatCurrency(
+                    invoiceSummary.paidAmount,
+                    locale,
+                    invoiceSummary.currency
+                  )}
                 />
                 <SummaryTile
                   label={t('sections.revenueSummary.pendingOverdue')}

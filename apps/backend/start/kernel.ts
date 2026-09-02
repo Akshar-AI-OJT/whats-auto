@@ -51,6 +51,5 @@ export const middleware = router.named({
   rateLimit: () => import('#middleware/rate_limit_middleware'),
   tenant: () => import('#middleware/tenant_middleware'),
   platform: () => import('#middleware/platform_middleware'),
-  requirePermission: () => import('#middleware/require_permission_middleware'),
   apiKeyAuth: () => import('#middleware/api_key_auth_middleware'),
 })

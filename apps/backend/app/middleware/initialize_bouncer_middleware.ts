@@ -18,7 +18,6 @@ import '#types/http'
  * Authz split:
  * - Cross-cutting role gates → abilities in `#abilities/main` (`accessOrgAdmin`, `accessPlatform`)
  * - Feature + resource/state → Bouncer policies in controllers
- * - `requirePermission` middleware remains available for flat route gates when no policy exists
  */
 export default class InitializeBouncerMiddleware {
   async handle(ctx: HttpContext, next: NextFn) {
