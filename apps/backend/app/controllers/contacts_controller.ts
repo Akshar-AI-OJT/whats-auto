@@ -60,10 +60,10 @@ export default class ContactsController {
   /**
    * @importCsv
    * @summary Import contacts from a CSV file
-   * @description Multipart upload. National numbers use defaultCountryCode (ISO 3166-1 alpha-2). International numbers beginning with + do not use the default country. Invalid rows are recorded and skipped.
+   * @description Multipart upload. Validates the CSV, stores it under the organization imports/contacts path, creates an import job, and returns immediately. Contacts are created in the background one row at a time. National numbers use defaultCountryCode (ISO 3166-1 alpha-2). International numbers beginning with + do not use the default country. Invalid rows are recorded and skipped.
    * @tag Contacts
    * @security BearerAuth
-   * @responseBody 200 - { "data": { "id": "uuid", "status": "completed", "defaultCountryCode": "IN", "totalRows": 3, "successCount": 2, "errorCount": 1 } }
+   * @responseBody 200 - { "data": { "id": "uuid", "status": "pending", "defaultCountryCode": "IN", "totalRows": 3, "successCount": 0, "errorCount": 0 } }
    * @responseBody 403 - { "error": "Permission denied: contacts:import", "code": "PERMISSION_DENIED" }
    * @responseBody 422 - { "error": "CSV is missing a phone column", "code": "E_CONTACT_IMPORT_MISSING_PHONE_COLUMN" }
    */
@@ -105,6 +105,30 @@ export default class ContactsController {
       csvContent,
       columnMapping: payload.columnMapping,
       defaultCountryCode: payload.defaultCountryCode ?? undefined,
+    })
+    return serialize(result)
+  }
+
+  /**
+   * @showImport
+   * @summary Get a contact import job and its row results
+   * @description RLS-scoped. Poll while status is pending or processing.
+   * @tag Contacts
+   * @security BearerAuth
+   * @paramPath id - Import id - @type(string)
+   * @responseBody 200 - { "data": { "id": "uuid", "status": "completed", "totalRows": 3, "successCount": 2, "errorCount": 1 } }
+   * @responseBody 404 - { "error": "Contact import not found", "code": "E_CONTACT_IMPORT_NOT_FOUND" }
+   */
+  async showImport({ bouncer, request, params, serialize }: HttpContext) {
+    await bouncer.with(ContactPolicy).authorize('import')
+
+    const { id } = await request.validateUsing(contactIdParamValidator, {
+      data: params,
+    })
+
+    const result = await new ContactImportService().getImport({
+      organizationId: request.activeMember!.organizationId,
+      importId: id,
     })
     return serialize(result)
   }

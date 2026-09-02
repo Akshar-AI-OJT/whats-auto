@@ -539,6 +539,7 @@ export class ContactImportSchema extends BaseModel {
     'defaultCountryCode',
     'errorCount',
     'fileName',
+    'filePath',
     'id',
     'organizationId',
     'processedRows',
@@ -564,6 +565,8 @@ export class ContactImportSchema extends BaseModel {
   declare errorCount: number
   @column()
   declare fileName: string
+  @column()
+  declare filePath: string | null
   @column({ isPrimary: true })
   declare id: string
   @column()

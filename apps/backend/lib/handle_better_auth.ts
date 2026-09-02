@@ -51,7 +51,6 @@ export async function handleBetterAuth({ request, response }: HttpContext) {
 
   const body = Buffer.from(await webResponse.arrayBuffer())
 
-  if (body.length > 0) {
-    return response.send(body)
-  }
+  // Always send, including empty 302 OAuth callbacks, so Set-Cookie + Location flush.
+  return response.send(body)
 }

@@ -24,7 +24,7 @@ export type InvoiceDraftForm = {
   periodEnd: string
   issueDate: string
   dueDate: string
-  currency: 'USD'
+  currency: 'INR'
   taxRatePercent: string
   discount: string
   lineItems: InvoiceFormLineItem[]
@@ -107,7 +107,7 @@ export function emptyDraftForm(): InvoiceDraftForm {
     periodEnd: bounds.end,
     issueDate: issue,
     dueDate: issue,
-    currency: 'USD',
+    currency: 'INR',
     taxRatePercent: '18',
     discount: '0',
     notes: '',

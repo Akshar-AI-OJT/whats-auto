@@ -108,7 +108,7 @@ function mapInvoice(apiInvoice: SuperAdminInvoice): Invoice {
     status: apiInvoice.status as InvoiceStatus,
     issueDate: apiInvoice.issueDate,
     dueDate: apiInvoice.dueDate,
-    currency: apiInvoice.currency || 'USD',
+    currency: apiInvoice.currency || 'INR',
     lineItems: apiInvoice.lineItems.map((item) => ({
       id: item.id,
       description: item.description,
@@ -223,7 +223,7 @@ function toCreateBody(input: CreateInvoiceInput) {
     periodEnd: input.periodEnd,
     issueDate: input.issueDate,
     dueDate: input.dueDate,
-    currency: 'USD',
+    currency: 'INR',
     taxRate: input.taxRate,
     discount: input.discount,
     notes: input.notes,

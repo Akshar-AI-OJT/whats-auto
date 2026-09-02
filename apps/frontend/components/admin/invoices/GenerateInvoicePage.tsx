@@ -442,7 +442,7 @@ export function GenerateInvoicePage() {
                   disabled
                   className={selectClassName}
                 >
-                  <option value="USD">{t('currency.usd')}</option>
+                  <option value="INR">{t('currency.inr')}</option>
                 </select>
               </div>
               <div className="flex flex-col gap-1.5">
