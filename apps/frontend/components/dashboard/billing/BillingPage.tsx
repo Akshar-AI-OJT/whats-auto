@@ -11,14 +11,19 @@ import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
 import { cn } from '@/lib/utils'
 import { BillingCheckoutDialog } from './BillingCheckoutDialog'
+import { LimitMeter } from '@/components/dashboard/ui/LimitMeter'
+import { useEntitlements } from '@/hooks/use-entitlements'
 import { queryKeys } from '@/lib/query-keys'
 import {
   billingStatusTone,
+  completePlanCheckout,
   formatBillingDate,
   formatTenantPlanPrice,
+  isFreeActivatablePlan,
+  isPlanSelfServe,
   isSubscriptionNotFound,
+  PLAN_FEATURE_I18N_NS,
   resolvePlanFeatureLabel,
-  startBillingPayment,
   unwrapBillingPlans,
   unwrapBillingSubscription,
 } from './billing-utils'
@@ -109,12 +114,16 @@ export function BillingPage() {
     },
   })
 
+  const { usage: entitlementsUsage, refetch: refetchEntitlements } = useEntitlements()
+
   const checkoutMutation = useMutation({
-    mutationFn: async (planId: string) => startBillingPayment(planId),
-    onSuccess: async () => {
+    mutationFn: async (planId: string) => completePlanCheckout(planId),
+    onSuccess: async (completion) => {
       setCheckoutError(null)
       setConfirmOpen(false)
-      setCheckoutSuccess(t('checkout.success'))
+      setCheckoutSuccess(
+        completion.kind === 'free' ? t('checkout.freeSuccess') : t('checkout.success')
+      )
       await queryClient.invalidateQueries({ queryKey: queryKeys.billing.all })
     },
     onError: (err) => {
@@ -156,9 +165,15 @@ export function BillingPage() {
 
   function openCheckoutConfirm(planId: string | null) {
     if (!planId) return
+    const plan = plans.find((item) => item.id === planId)
+    if (!plan || !isPlanSelfServe(plan)) return
     setCheckoutError(null)
     setCheckoutSuccess(null)
     setConfirmPlanId(planId)
+    if (isFreeActivatablePlan(plan)) {
+      checkoutMutation.mutate(planId)
+      return
+    }
     setConfirmOpen(true)
   }
 
@@ -207,6 +222,7 @@ export function BillingPage() {
               onClick={() => {
                 void subscriptionQuery.refetch()
                 void plansQuery.refetch()
+                void refetchEntitlements()
               }}
             >
               <RefreshCw
@@ -336,6 +352,39 @@ export function BillingPage() {
                 />
                 <DetailRow label={t('fields.subscriptionId')} value={subscription.id} />
               </dl>
+
+              {entitlementsUsage ? (
+                <div className="space-y-4 rounded-2xl border border-dash-border bg-dash-surface/30 p-5">
+                  <p className="text-sm font-semibold text-ink">Usage this period</p>
+                  <LimitMeter
+                    label="Messages"
+                    used={entitlementsUsage.messages.used}
+                    limit={entitlementsUsage.messages.limit}
+                  />
+                  <LimitMeter
+                    label="Campaigns"
+                    used={entitlementsUsage.campaigns.used}
+                    limit={entitlementsUsage.campaigns.limit}
+                  />
+                  <LimitMeter
+                    label="AI replies"
+                    used={entitlementsUsage.aiCustomerLlmCalls.used}
+                    limit={entitlementsUsage.aiCustomerLlmCalls.limit}
+                  />
+                  <LimitMeter
+                    label="Storage (bytes)"
+                    used={entitlementsUsage.storageBytes.used}
+                    limit={entitlementsUsage.storageBytes.limit}
+                    formatValue={(n) =>
+                      n >= 1_000_000_000
+                        ? `${(n / 1_000_000_000).toFixed(1)} GB`
+                        : n >= 1_000_000
+                          ? `${(n / 1_000_000).toFixed(1)} MB`
+                          : `${n}`
+                    }
+                  />
+                </div>
+              ) : null}
 
               <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 {canManageBilling ? (
@@ -505,7 +554,12 @@ export function BillingPage() {
                             ✓
                           </span>
                           <span>
-                            {resolvePlanFeatureLabel(tFeatures, feature.key, feature.name)}
+                            {resolvePlanFeatureLabel(
+                              tFeatures,
+                              feature.key,
+                              feature.name,
+                              PLAN_FEATURE_I18N_NS
+                            )}
                           </span>
                         </li>
                       ))}
@@ -513,7 +567,7 @@ export function BillingPage() {
                   </div>
 
                   <div className="mt-6">
-                    {!plan.checkoutable ? (
+                    {!isPlanSelfServe(plan) ? (
                       <Button
                         type="button"
                         className="w-full gap-2"
@@ -522,6 +576,15 @@ export function BillingPage() {
                         onClick={() => openCheckoutConfirm(plan.id)}
                       >
                         {t('enterpriseCta')}
+                      </Button>
+                    ) : isFreeActivatablePlan(plan) ? (
+                      <Button
+                        type="button"
+                        className="w-full gap-2"
+                        disabled={isCurrent || !canManageBilling || checkoutMutation.isPending}
+                        onClick={() => openCheckoutConfirm(plan.id)}
+                      >
+                        {t('startFreeTrialCta')}
                       </Button>
                     ) : (
                       <Button
@@ -604,7 +667,7 @@ export function BillingPage() {
                     className="contents"
                   >
                     <div className="pt-3 text-sm text-body">
-                      {resolvePlanFeatureLabel(tFeatures, featureKey)}
+                      {resolvePlanFeatureLabel(tFeatures, featureKey, undefined, PLAN_FEATURE_I18N_NS)}
                     </div>
                     {plans.map((plan) => {
                       const included = plan.features.some(
@@ -644,7 +707,7 @@ export function BillingPage() {
           }
         }}
         onConfirm={() => {
-          if (!confirmPlan?.checkoutable) return
+          if (!confirmPlan || !confirmPlan.checkoutable) return
           checkoutMutation.mutate(confirmPlan.id)
         }}
       />

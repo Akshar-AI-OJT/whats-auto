@@ -10,16 +10,23 @@ import { queryKeys } from '@/lib/query-keys'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
-import { PLAN_FEATURE_CATALOG } from './mock-plans'
+import { PLAN_FEATURE_CATALOG } from './plan-feature-catalog'
 import { createPlan, getPlan, updatePlan } from './plan-service'
+import { formGbToStorageBytes, formatPlanLimitLabel, storageBytesToFormGb } from './plan-utils'
+import {
+  ADMIN_PLAN_FEATURE_I18N_NS,
+  resolvePlanFeatureLabel,
+} from '@/lib/plan-feature-labels'
 import type {
   CreatePlanInput,
   PlanBillingPeriod,
   PlanFeature,
   PlanFeatureCategoryId,
+  PlanLimits,
   PlanStatus,
   SubscriptionPlan,
 } from './types'
+import { DEFAULT_PLAN_LIMITS } from './types'
 
 const selectClassName = cn(
   'h-11 w-full min-w-0 cursor-pointer rounded-xl border border-dash-border bg-canvas px-3 text-sm text-ink outline-none',
@@ -30,6 +37,8 @@ const selectClassName = cn(
 
 type Step = 1 | 2
 
+type LimitFieldKey = keyof PlanLimits
+
 type PlanFormState = {
   name: string
   description: string
@@ -37,10 +46,9 @@ type PlanFormState = {
   price: string
   currency: 'INR' | 'USD'
   billingPeriod: Exclude<PlanBillingPeriod, 'custom'> | 'custom'
-  users: string
-  messagesPerMonth: string
   trialDays: string
   status: Exclude<PlanStatus, 'archived'>
+  limits: Record<LimitFieldKey, string>
   features: Record<string, { enabled: boolean; description: string }>
 }
 
@@ -52,10 +60,69 @@ const CATEGORIES: PlanFeatureCategoryId[] = [
   'integrations',
 ]
 
+const LIMIT_FIELD_GROUPS: Array<{ title: string; fields: LimitFieldKey[] }> = [
+  {
+    title: 'Team & messaging',
+    fields: ['users', 'whatsappNumbers', 'maxContacts', 'messagesPerMonth'],
+  },
+  {
+    title: 'Campaigns & storage',
+    fields: [
+      'campaignsPerMonth',
+      'maxBroadcastRecipients',
+      'storageBytes',
+      'maxFileUploadMb',
+    ],
+  },
+  {
+    title: 'Automation & AI',
+    fields: [
+      'maxActiveFlows',
+      'maxKnowledgeDocs',
+      'maxKnowledgeDocSizeMb',
+      'aiRepliesPerMonth',
+      'aiGenerationsPerConversationHour',
+    ],
+  },
+  {
+    title: 'Integrations & retention',
+    fields: [
+      'maxStoreConnections',
+      'maxApiKeys',
+      'maxTemplates',
+      'analyticsRetentionDays',
+      'auditLogRetentionDays',
+      'conversationInboxRetentionDays',
+      'dispatchRatePerSec',
+    ],
+  },
+]
+
+const ANTI_ABUSE_FIELDS = new Set<LimitFieldKey>([
+  'maxFileUploadMb',
+  'aiGenerationsPerConversationHour',
+  'dispatchRatePerSec',
+])
+
+const STORAGE_GB_FIELDS = new Set<LimitFieldKey>(['storageBytes'])
+
 function emptyFeatureMap(): PlanFormState['features'] {
   return Object.fromEntries(
     PLAN_FEATURE_CATALOG.map((item) => [item.key, { enabled: false, description: '' }])
   )
+}
+
+function limitsToForm(limits: PlanLimits): Record<LimitFieldKey, string> {
+  const out = {} as Record<LimitFieldKey, string>
+  for (const key of Object.keys(DEFAULT_PLAN_LIMITS) as LimitFieldKey[]) {
+    const value = limits[key]
+    if (STORAGE_GB_FIELDS.has(key)) {
+      out[key] = storageBytesToFormGb(value as number | null | undefined)
+      continue
+    }
+    out[key] = value === null || value === undefined ? '' : String(value)
+  }
+  return out
 }
 
 function emptyForm(): PlanFormState {
@@ -66,10 +133,9 @@ function emptyForm(): PlanFormState {
     price: '',
     currency: 'INR',
     billingPeriod: 'monthly',
-    users: '',
-    messagesPerMonth: '',
     trialDays: '',
     status: 'draft',
+    limits: limitsToForm(DEFAULT_PLAN_LIMITS),
     features: emptyFeatureMap(),
   }
 }
@@ -88,11 +154,15 @@ function formFromPlan(plan: SubscriptionPlan): PlanFormState {
     customPricing: plan.price == null || plan.billingPeriod === 'custom',
     price: plan.price != null ? String(plan.price) : '',
     currency: plan.currency,
-    billingPeriod: plan.billingPeriod === 'yearly' ? 'yearly' : plan.billingPeriod === 'custom' ? 'custom' : 'monthly',
-    users: plan.limits.users != null ? String(plan.limits.users) : '',
-    messagesPerMonth: plan.limits.messagesPerMonth != null ? String(plan.limits.messagesPerMonth) : '',
+    billingPeriod:
+      plan.billingPeriod === 'yearly'
+        ? 'yearly'
+        : plan.billingPeriod === 'custom'
+          ? 'custom'
+          : 'monthly',
     trialDays: plan.trialDays != null ? String(plan.trialDays) : '',
     status: plan.status === 'archived' ? 'draft' : plan.status,
+    limits: limitsToForm({ ...DEFAULT_PLAN_LIMITS, ...plan.limits }),
     features,
   }
 }
@@ -104,15 +174,57 @@ function parseOptionalNumber(value: string): number | null {
   return Number.isFinite(n) ? n : null
 }
 
-function toCreateInput(form: PlanFormState): CreatePlanInput {
+function parseRequiredNumber(value: string, fallback: number): number {
+  const n = parseOptionalNumber(value)
+  return n !== null && n >= 1 ? n : fallback
+}
+
+type FeatureTranslator = Parameters<typeof resolvePlanFeatureLabel>[0]
+
+function toCreateInput(form: PlanFormState, tFeatures: FeatureTranslator): CreatePlanInput {
   const custom = form.customPricing
   const features: PlanFeature[] = PLAN_FEATURE_CATALOG.map((item) => ({
     key: item.key,
-    name: item.key,
+    name: resolvePlanFeatureLabel(tFeatures, item.key, item.label, ADMIN_PLAN_FEATURE_I18N_NS),
     enabled: Boolean(form.features[item.key]?.enabled),
     description: form.features[item.key]?.description.trim() || undefined,
     category: item.category,
   }))
+
+  const users = parseOptionalNumber(form.limits.users)
+  const limits: PlanLimits = {
+    users,
+    seats: parseOptionalNumber(form.limits.seats) ?? users,
+    whatsappNumbers: parseOptionalNumber(form.limits.whatsappNumbers),
+    maxContacts: parseOptionalNumber(form.limits.maxContacts),
+    messagesPerMonth: parseOptionalNumber(form.limits.messagesPerMonth),
+    campaignsPerMonth: parseOptionalNumber(form.limits.campaignsPerMonth),
+    maxBroadcastRecipients: parseOptionalNumber(form.limits.maxBroadcastRecipients),
+    storageBytes: formGbToStorageBytes(form.limits.storageBytes),
+    maxFileUploadMb: parseRequiredNumber(
+      form.limits.maxFileUploadMb,
+      DEFAULT_PLAN_LIMITS.maxFileUploadMb
+    ),
+    maxActiveFlows: parseOptionalNumber(form.limits.maxActiveFlows),
+    maxKnowledgeDocs: parseOptionalNumber(form.limits.maxKnowledgeDocs),
+    maxKnowledgeDocSizeMb: parseOptionalNumber(form.limits.maxKnowledgeDocSizeMb),
+    aiRepliesPerMonth: parseOptionalNumber(form.limits.aiRepliesPerMonth),
+    maxStoreConnections: parseOptionalNumber(form.limits.maxStoreConnections),
+    maxApiKeys: parseOptionalNumber(form.limits.maxApiKeys),
+    maxWebhookEndpoints: parseOptionalNumber(form.limits.maxWebhookEndpoints),
+    analyticsRetentionDays: parseOptionalNumber(form.limits.analyticsRetentionDays),
+    auditLogRetentionDays: parseOptionalNumber(form.limits.auditLogRetentionDays),
+    maxTemplates: parseOptionalNumber(form.limits.maxTemplates),
+    conversationInboxRetentionDays: parseOptionalNumber(form.limits.conversationInboxRetentionDays),
+    aiGenerationsPerConversationHour: parseRequiredNumber(
+      form.limits.aiGenerationsPerConversationHour,
+      DEFAULT_PLAN_LIMITS.aiGenerationsPerConversationHour
+    ),
+    dispatchRatePerSec: parseRequiredNumber(
+      form.limits.dispatchRatePerSec,
+      DEFAULT_PLAN_LIMITS.dispatchRatePerSec
+    ),
+  }
 
   return {
     name: form.name.trim(),
@@ -122,10 +234,7 @@ function toCreateInput(form: PlanFormState): CreatePlanInput {
     billingPeriod: custom ? 'custom' : form.billingPeriod === 'yearly' ? 'yearly' : 'monthly',
     status: form.status,
     trialDays: parseOptionalNumber(form.trialDays),
-    limits: {
-      users: parseOptionalNumber(form.users),
-      messagesPerMonth: parseOptionalNumber(form.messagesPerMonth),
-    },
+    limits,
     features,
   }
 }
@@ -137,6 +246,7 @@ type PlanFormPageProps = {
 
 export function PlanFormPage({ mode, planId }: PlanFormPageProps) {
   const t = useTranslations('admin.plans')
+  const tFeatures = useTranslations(ADMIN_PLAN_FEATURE_I18N_NS)
   const router = useRouter()
   const queryClient = useQueryClient()
   const nameId = useId()
@@ -193,11 +303,15 @@ export function PlanFormPage({ mode, planId }: PlanFormPageProps) {
       const price = Number(form.price)
       if (!Number.isFinite(price) || price < 0) return t('errors.priceRequired')
     }
-    const users = form.users.trim()
-    if (users && (!Number.isFinite(Number(users)) || Number(users) < 0)) return t('errors.limitInvalid')
-    const messages = form.messagesPerMonth.trim()
-    if (messages && (!Number.isFinite(Number(messages)) || Number(messages) < 0)) {
-      return t('errors.limitInvalid')
+    for (const key of Object.keys(form.limits) as LimitFieldKey[]) {
+      const raw = form.limits[key].trim()
+      if (!raw) {
+        if (ANTI_ABUSE_FIELDS.has(key)) return t('errors.limitInvalid')
+        continue
+      }
+      const n = Number(raw)
+      if (!Number.isFinite(n) || n < 0) return t('errors.limitInvalid')
+      if (ANTI_ABUSE_FIELDS.has(key) && n < 1) return t('errors.limitInvalid')
     }
     const trial = form.trialDays.trim()
     if (trial && (!Number.isFinite(Number(trial)) || Number(trial) < 0)) return t('errors.trialInvalid')
@@ -224,7 +338,7 @@ export function PlanFormPage({ mode, planId }: PlanFormPageProps) {
     setPending(true)
     setError(null)
     try {
-      const payload = toCreateInput(form)
+      const payload = toCreateInput(form, tFeatures)
       if (mode === 'edit' && planId) {
         const result = await updatePlan(planId, payload)
         if (!result.ok) {
@@ -438,37 +552,39 @@ export function PlanFormPage({ mode, planId }: PlanFormPageProps) {
             <div>
               <h3 className="text-sm font-semibold text-ink">{t('sections.limits')}</h3>
               <p className="mt-0.5 text-xs text-mute">{t('sections.limitsHint')}</p>
-              <div className="mt-3 grid gap-3 sm:grid-cols-3">
-                <div className="flex flex-col gap-1.5">
-                  <label htmlFor="plan-users" className="text-sm font-medium text-ink">
-                    {t('fields.users')}
-                  </label>
-                  <Input
-                    id="plan-users"
-                    type="number"
-                    min="0"
-                    value={form.users}
-                    onChange={(e) => setForm({ ...form, users: e.target.value })}
-                    placeholder={t('unlimited')}
-                    className="h-11 rounded-xl border-dash-border"
-                  />
-                  <p className="text-xs text-mute">{t('fields.usersHelp')}</p>
-                </div>
-                <div className="flex flex-col gap-1.5">
-                  <label htmlFor="plan-messages" className="text-sm font-medium text-ink">
-                    {t('fields.messages')}
-                  </label>
-                  <Input
-                    id="plan-messages"
-                    type="number"
-                    min="0"
-                    value={form.messagesPerMonth}
-                    onChange={(e) => setForm({ ...form, messagesPerMonth: e.target.value })}
-                    placeholder={t('unlimited')}
-                    className="h-11 rounded-xl border-dash-border"
-                  />
-                  <p className="text-xs text-mute">{t('fields.messagesHelp')}</p>
-                </div>
+              <div className="mt-3 flex flex-col gap-5">
+                {LIMIT_FIELD_GROUPS.map((group) => (
+                  <div key={group.title}>
+                    <p className="mb-2 text-xs font-semibold tracking-wide text-mute uppercase">
+                      {group.title}
+                    </p>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {group.fields.map((field) => (
+                        <div key={field} className="flex flex-col gap-1.5">
+                          <label htmlFor={`plan-${field}`} className="text-sm font-medium text-ink">
+                            {formatPlanLimitLabel(field)}
+                            {ANTI_ABUSE_FIELDS.has(field) ? ' *' : ''}
+                          </label>
+                          <Input
+                            id={`plan-${field}`}
+                            type="number"
+                            min={ANTI_ABUSE_FIELDS.has(field) ? '1' : '0'}
+                            step={STORAGE_GB_FIELDS.has(field) ? '0.01' : undefined}
+                            value={form.limits[field]}
+                            onChange={(e) =>
+                              setForm({
+                                ...form,
+                                limits: { ...form.limits, [field]: e.target.value },
+                              })
+                            }
+                            placeholder={ANTI_ABUSE_FIELDS.has(field) ? undefined : t('unlimited')}
+                            className="h-11 rounded-xl border-dash-border"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -568,7 +684,12 @@ export function PlanFormPage({ mode, planId }: PlanFormPageProps) {
                             />
                             <span className="min-w-0 flex-1">
                               <span className="block text-sm font-medium text-ink">
-                                {t(`featureItems.${item.key}`)}
+                                {resolvePlanFeatureLabel(
+                                  tFeatures,
+                                  item.key,
+                                  item.label,
+                                  ADMIN_PLAN_FEATURE_I18N_NS
+                                )}
                               </span>
                               {state.enabled ? (
                                 <input

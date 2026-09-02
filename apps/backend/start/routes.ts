@@ -13,7 +13,6 @@ import router from '@adonisjs/core/services/router'
 import { controllers } from '#generated/controllers'
 import AutoSwagger from 'adonis-autoswagger'
 import swagger from '#config/swagger'
-import env from '#start/env'
 const AuthController = () => import('#controllers/auth_controller')
 const PreSignupController = () => import('#controllers/pre_signup_controller')
 const VerifySignupController = () => import('#controllers/verify_signup_controller')
@@ -47,6 +46,7 @@ const ConversationAiController = () => import('#controllers/conversation_ai_cont
 const ConversationNotesController = () => import('#controllers/conversation_notes_controller')
 const MediaUploadsController = () => import('#controllers/media_uploads_controller')
 const MediaAssetsController = () => import('#controllers/media_assets_controller')
+const MediaPublicController = () => import('#controllers/media_public_controller')
 const KnowledgeDocumentsController = () => import('#controllers/knowledge_documents_controller')
 const FlowsController = () => import('#controllers/flows_controller')
 const BillingController = () => import('#controllers/billing_controller')
@@ -130,9 +130,12 @@ const requestBodySchemas: Record<string, JsonSchema> = {
   'post /api/v1/organizations/{id}/invitations': bodySchema(
     {
       email: { type: 'string', format: 'email', example: 'agent@example.com' },
+      firstname: { type: 'string', example: 'Ada' },
+      lastname: { type: 'string', example: 'Agent' },
       role: { type: 'string', example: 'agent' },
+      designation: { type: 'string', example: 'Support Agent' },
     },
-    ['email', 'role']
+    ['email', 'firstname', 'role']
   ),
   'patch /api/v1/organization-admin/users/{id}': bodySchema({
     firstname: { type: 'string', example: 'Ada' },
@@ -641,15 +644,6 @@ router.get('/', () => {
   return { hello: 'world' }
 })
 
-/**
- * Invite emails historically pointed at APP_URL (API). Redirect to the frontend
- * accept page so old links keep working.
- */
-router.get('/accept-invitation/:id', async ({ params, response }) => {
-  const frontend = env.get('CORS_ORIGIN').replace(/\/$/, '')
-  return response.redirect(`${frontend}/accept-invitation/${params.id}`)
-})
-
 // better-auth handles /api/auth/* (login, OAuth, forgot/reset password, session, etc.)
 router.post('/api/auth/sign-in/email', [AuthController, 'signInEmail'])
 router.post('/api/auth/sign-out', [AuthController, 'signOut'])
@@ -660,6 +654,9 @@ router.get('/api/auth/jwks', [AuthController, 'jwks'])
 router.any('/api/auth/*', async (ctx) => {
   return handleBetterAuth(ctx)
 })
+
+// Public media delivery (fs driver). Caddy proxies /media/* to this route.
+router.get('/media/*', [MediaPublicController, 'serve'])
 
 /*
 |--------------------------------------------------------------------------
@@ -804,21 +801,6 @@ router
   .prefix('/api/v1/organizations')
   .use([middleware.jwtAuth(), middleware.tenant({ skipActiveGate: true })])
 
-// invitations — list stays active-org scoped; accept/reject/cancel use invitation :id
-router
-  .get('/api/v1/invitations', [InvitationsController, 'index'])
-  .use([middleware.jwtAuth(), middleware.tenant()])
-
-router.get('/api/v1/invitations/:id', [InvitationsController, 'show'])
-router
-  .post('/api/v1/invitations/:id/accept', [InvitationsController, 'accept'])
-  .use([middleware.jwtAuth()])
-// Public decline — invitation id is the secret (same as preview)
-router.post('/api/v1/invitations/:id/reject', [InvitationsController, 'reject'])
-router
-  .post('/api/v1/invitations/:id/cancel', [InvitationsController, 'cancel'])
-  .use([middleware.jwtAuth(), middleware.tenant()])
-
 //  Access context (frontend polls this after login/org switch)
 router
   .get('/api/v1/access-context', [controllers.AccessContext, 'show'])
@@ -846,6 +828,7 @@ router
     // Team UI lists members here; org-admin/users is the paginated Owner/Admin admin API.
     router.get('/', [controllers.Members, 'index'])
     router.patch('/:memberId/role', [controllers.Members, 'assignRole'])
+    router.post('/:memberId/resend-invite', [controllers.Members, 'resendInvite'])
     router.delete('/:memberId', [controllers.Members, 'remove'])
   })
   .prefix('/api/v1/members')
@@ -1006,6 +989,7 @@ router
   .group(() => {
     router.get('/plans', [BillingController, 'listPlans'])
     router.get('/subscription', [BillingController, 'showSubscription'])
+    router.get('/entitlements', [BillingController, 'showEntitlements'])
     router.post('/checkout', [BillingController, 'checkout'])
     router.post('/verify', [BillingController, 'verify'])
   })

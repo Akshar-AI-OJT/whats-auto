@@ -2,7 +2,7 @@
 # ==============================================================================
 # WhatsAuto - Production Database Migration & Seeding Tool
 # ==============================================================================
-# Runs Lucid migrations inside the api container (targets whatever PG_* the api uses).
+# Runs Lucid migrations inside the whats-auto-backend container.
 #
 # Usage (from repo root or this directory):
 #   bash deploy/contabo/migrate.sh              # Run pending migrations + RBAC + superadmin bootstrap
@@ -27,8 +27,8 @@ compose() {
 }
 
 require_api() {
-  if ! compose exec -T api true 2>/dev/null; then
-    echo "error: api container is not running."
+  if ! compose exec -T whats-auto-backend true 2>/dev/null; then
+    echo "error: whats-auto-backend container is not running."
     echo "Start the stack first:"
     echo "  docker compose -f deploy/contabo/docker-compose.yml --env-file deploy/contabo/.env up -d --build"
     exit 1
@@ -36,7 +36,7 @@ require_api() {
 }
 
 ace() {
-  compose exec -T api node ace "$@"
+  compose exec -T whats-auto-backend node ace "$@"
 }
 
 cmd="${1:-run}"

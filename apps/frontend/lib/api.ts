@@ -365,12 +365,7 @@ export type OrganizationDetails = {
 export type OrganizationSmtpTransport = 'smtp' | 'api'
 
 export type OrganizationSmtpProviderPreset =
-  | 'gmail'
-  | 'sendgrid'
-  | 'resend'
-  | 'ses'
-  | 'brevo'
-  | 'custom'
+  'gmail' | 'sendgrid' | 'resend' | 'ses' | 'brevo' | 'custom'
 
 export type OrganizationSmtpConfig = {
   id: string
@@ -1024,24 +1019,21 @@ export type ReplaceCampaignRecipientsBody = {
 
 export type CreateInvitationBody = {
   email: string
+  firstname: string
+  lastname?: string
   role: string
+  designation?: string
 }
 
 export type CreatedInvitation = {
-  id: string
+  userId: string
+  invitationId: string
   email: string
-  role?: string
-  status: string
-  expiresAt?: string
-}
-
-export type InvitationPreview = {
-  id: string
-  organizationName: string
   role: string
-  inviterName: string
-  email: string
-  status: string
+  isNewUser: boolean
+  hasExistingPassword: boolean
+  emailSent: boolean
+  needsSetup: boolean
 }
 
 export type OrganizationMember = {
@@ -1050,6 +1042,8 @@ export type OrganizationMember = {
   role: string
   email: string
   name: string
+  emailVerified?: boolean
+  designation?: string | null
   createdAt?: string
 }
 
@@ -1067,6 +1061,7 @@ export type OrganizationAdminUser = {
   firstname?: string | null
   lastname?: string | null
   email: string
+  emailVerified?: boolean
   isActive?: boolean
   memberId: string
   role: string
@@ -1126,32 +1121,12 @@ export type ListAuditParams = {
   organizationId?: string
 }
 
-export type PendingInvitation = {
-  id: string
-  email: string
-  role: string
-  inviterName: string
-  createdAt: string
-  expiresAt: string
-}
-
-/** Row from GET /api/v1/onboarding/state pendingInvitations. */
-export type OnboardingPendingInvitation = {
-  id: string
-  organizationId?: string
-  organizationName: string
-  role: string
-  inviterName: string
-  expiresAt: string
-}
-
 export type OnboardingNextStep =
-  'accept_invitation' | 'create_organization' | 'select_organization' | 'complete_payment' | 'ready'
+  'create_organization' | 'select_organization' | 'complete_payment' | 'ready'
 
 export type OnboardingState = {
   activeOrganizationId: string | null
   organizations: Array<{ id: string; name: string; role?: string }>
-  pendingInvitations: OnboardingPendingInvitation[]
   nextStep: OnboardingNextStep
 }
 
@@ -1620,7 +1595,27 @@ export type SuperAdminPlanFeature = {
 
 export type SuperAdminPlanLimits = {
   users: number | null
+  seats?: number | null
+  whatsappNumbers?: number | null
+  maxContacts?: number | null
   messagesPerMonth: number | null
+  campaignsPerMonth?: number | null
+  maxBroadcastRecipients?: number | null
+  storageBytes?: number | null
+  maxFileUploadMb?: number
+  maxActiveFlows?: number | null
+  maxKnowledgeDocs?: number | null
+  maxKnowledgeDocSizeMb?: number | null
+  aiRepliesPerMonth?: number | null
+  maxStoreConnections?: number | null
+  maxApiKeys?: number | null
+  maxWebhookEndpoints?: number | null
+  analyticsRetentionDays?: number | null
+  auditLogRetentionDays?: number | null
+  maxTemplates?: number | null
+  conversationInboxRetentionDays?: number | null
+  aiGenerationsPerConversationHour?: number
+  dispatchRatePerSec?: number
 }
 
 export type SuperAdminPlan = {
@@ -1664,10 +1659,7 @@ export type CreateSuperAdminPlanBody = {
   status: Exclude<SuperAdminPlanStatus, 'archived'>
   popular?: boolean
   trialDays?: number | null
-  limits: {
-    users?: number | null
-    messagesPerMonth?: number | null
-  }
+  limits: SuperAdminPlanLimits
   features?: SuperAdminPlanFeature[]
   sortOrder?: number
 }
@@ -1696,8 +1688,42 @@ export type BillingSubscription = {
   lastPaymentAt?: string | null
 }
 
+/** GET /api/v1/billing/entitlements — resolved plan limits, features, and meters */
+export type BillingEntitlementsSnapshot = {
+  limits: Record<string, number | null> | null
+  features: Array<{ key: string; enabled: boolean }>
+  usage: {
+    messages: { used: number; limit: number | null }
+    campaigns: { used: number; limit: number | null }
+    aiCustomerLlmCalls: {
+      used: number
+      limit: number | null
+      percentUsed: number | null
+      nearLimit: boolean
+      exceeded: boolean
+    }
+    storageBytes: { used: number; limit: number | null }
+  }
+}
+
 /** POST /api/v1/billing/checkout — Orders API Checkout.js fields */
-export type BillingCheckoutResult = {
+/** POST /api/v1/billing/checkout — free activation or Razorpay Checkout.js fields */
+export type BillingCheckoutFreeResult = {
+  mode: 'free'
+  orderId: string
+  subscriptionId: string
+  alreadyApplied: boolean
+  plan: {
+    id: string
+    code: string
+    name: string
+    price: number
+  }
+}
+
+/** POST /api/v1/billing/checkout — Razorpay branch (legacy shape + mode) */
+export type BillingCheckoutRazorpayResult = {
+  mode: 'razorpay'
   orderId: string
   amount: number
   currency: string
@@ -1715,6 +1741,11 @@ export type BillingCheckoutResult = {
     contact: string | null
   }
 }
+
+export type BillingCheckoutResponse = BillingCheckoutFreeResult | BillingCheckoutRazorpayResult
+
+/** @deprecated Use BillingCheckoutRazorpayResult */
+export type BillingCheckoutResult = Omit<BillingCheckoutRazorpayResult, 'mode'>
 
 export type BillingCheckoutBody = {
   planId: string
@@ -1760,7 +1791,10 @@ export type TenantBillingPlan = {
   trialDays: number | null
   limits: TenantBillingPlanLimits
   features: TenantBillingPlanFeature[]
+  /** Razorpay checkout (price > 0). */
   checkoutable: boolean
+  /** Local free activation (price === 0). */
+  freeActivatable: boolean
   sortOrder: number
 }
 
@@ -2469,6 +2503,12 @@ export const api = {
         method: 'GET',
       }),
 
+    entitlements: () =>
+      protectedRequest<{ data?: BillingEntitlementsSnapshot } & BillingEntitlementsSnapshot>(
+        '/api/v1/billing/entitlements',
+        { method: 'GET' }
+      ),
+
     checkout: (body: BillingCheckoutBody) =>
       protectedRequest<{ data?: BillingCheckoutResult } & BillingCheckoutResult>(
         '/api/v1/billing/checkout',
@@ -2598,6 +2638,12 @@ export const api = {
         `/api/v1/members/${memberId}`,
         { method: 'DELETE' }
       ),
+
+    resendInvite: (memberId: string) =>
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/members/${memberId}/resend-invite`,
+        { method: 'POST' }
+      ),
   },
 
   ownership: {
@@ -2683,41 +2729,6 @@ export const api = {
           method: 'POST',
           body: JSON.stringify(body),
         }
-      ),
-
-    list: () =>
-      protectedRequest<{ data?: PendingInvitation[] } | PendingInvitation[]>(
-        '/api/v1/invitations',
-        { method: 'GET' }
-      ),
-
-    /** Public preview — invitation id is the secret. */
-    get: (invitationId: string) =>
-      publicRequest<{ data?: InvitationPreview } & InvitationPreview>(
-        `/api/v1/invitations/${invitationId}`,
-        { method: 'GET' }
-      ),
-
-    accept: (invitationId: string) =>
-      protectedRequest<{ data?: { organizationId: string } } & { organizationId: string }>(
-        `/api/v1/invitations/${invitationId}/accept`,
-        { method: 'POST' }
-      ),
-
-    reject: (invitationId: string) =>
-      publicRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
-        `/api/v1/invitations/${invitationId}/reject`,
-        {
-          method: 'POST',
-          // Local DB can be slow on first hit; keep UI from hanging forever.
-          signal: AbortSignal.timeout(15000),
-        }
-      ),
-
-    cancel: (invitationId: string) =>
-      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
-        `/api/v1/invitations/${invitationId}/cancel`,
-        { method: 'POST' }
       ),
   },
 

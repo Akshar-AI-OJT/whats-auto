@@ -1,7 +1,9 @@
 import {
   api,
   type ApiError,
-  type BillingCheckoutResult,
+  type BillingCheckoutFreeResult,
+  type BillingCheckoutRazorpayResult,
+  type BillingCheckoutResponse,
   type BillingSubscription,
   type BillingVerifyResult,
   type TenantBillingPlan,
@@ -17,13 +19,34 @@ export function unwrapBillingSubscription(data: unknown): BillingSubscription | 
   return wrapped.data ?? null
 }
 
-export function unwrapBillingCheckout(data: unknown): BillingCheckoutResult | null {
+function unwrapRoot<T>(data: unknown): T | null {
   if (!data) return null
-  if (typeof data === 'object' && data !== null && 'orderId' in data && 'keyId' in data) {
-    return data as BillingCheckoutResult
+  if (typeof data === 'object' && data !== null) {
+    const wrapped = data as { data?: T }
+    if (wrapped.data && typeof wrapped.data === 'object') {
+      return wrapped.data
+    }
+    return data as T
   }
-  const wrapped = data as { data?: BillingCheckoutResult }
-  return wrapped.data ?? null
+  return null
+}
+
+export function unwrapBillingCheckoutResponse(data: unknown): BillingCheckoutResponse | null {
+  const root = unwrapRoot<BillingCheckoutResponse>(data)
+  if (!root || typeof root !== 'object' || !('mode' in root)) return null
+  if (root.mode === 'free' && 'subscriptionId' in root) {
+    return root as BillingCheckoutFreeResult
+  }
+  if (root.mode === 'razorpay' && 'keyId' in root) {
+    return root as BillingCheckoutRazorpayResult
+  }
+  return null
+}
+
+/** @deprecated Use unwrapBillingCheckoutResponse */
+export function unwrapBillingCheckout(data: unknown): BillingCheckoutRazorpayResult | null {
+  const response = unwrapBillingCheckoutResponse(data)
+  return response?.mode === 'razorpay' ? response : null
 }
 
 export function unwrapBillingVerify(data: unknown): BillingVerifyResult | null {
@@ -42,6 +65,22 @@ export function unwrapBillingPlans(data: unknown): TenantBillingPlan[] {
   return Array.isArray(items) ? items : []
 }
 
+export function isPlanSelfServe(
+  plan: Pick<TenantBillingPlan, 'checkoutable' | 'freeActivatable'>
+): boolean {
+  return plan.freeActivatable || plan.checkoutable
+}
+
+export function isFreeActivatablePlan(
+  plan: Pick<TenantBillingPlan, 'freeActivatable'>
+): boolean {
+  return plan.freeActivatable
+}
+
+export type PlanCheckoutCompletion =
+  | { kind: 'free'; subscriptionId: string; alreadyApplied: boolean }
+  | { kind: 'paid'; result: BillingVerifyResult }
+
 export function formatTenantPlanPrice(
   price: number | null,
   currency: string,
@@ -59,22 +98,11 @@ export function formatTenantPlanPrice(
   }
 }
 
-/**
- * Resolve a plan feature label without throwing when the API key is absent from i18n.
- * Prefer known `admin.subscriptions.features.*` keys; otherwise use API name/key.
- */
-export function resolvePlanFeatureLabel(
-  tFeatures: { has: (key: string) => boolean; (key: string): string },
-  featureKey: string,
-  fallbackName?: string | null
-): string {
-  if (featureKey && tFeatures.has(featureKey)) {
-    return tFeatures(featureKey)
-  }
-  const name = fallbackName?.trim()
-  if (name) return name
-  return featureKey
-}
+export {
+  ADMIN_PLAN_FEATURE_I18N_NS,
+  PLAN_FEATURE_I18N_NS,
+  resolvePlanFeatureLabel,
+} from '@/lib/plan-feature-labels'
 
 export function isSubscriptionNotFound(error: unknown): boolean {
   const apiError = error as ApiError | undefined
@@ -121,16 +149,7 @@ export function isValidPlanId(value: string) {
   return UUID_RE.test(value.trim())
 }
 
-/**
- * Create a Razorpay order, open Checkout.js, then verify the signature server-side.
- */
-export async function startBillingPayment(planId: string): Promise<BillingVerifyResult> {
-  const { data } = await api.billing.checkout({ planId })
-  const order = unwrapBillingCheckout(data)
-  if (!order) {
-    throw new Error('Checkout did not return an order')
-  }
-
+async function completePaidCheckout(planId: string, order: BillingCheckoutRazorpayResult) {
   const paid = await openRazorpayCheckout({
     key: order.keyId,
     amount: order.amount,
@@ -153,12 +172,50 @@ export async function startBillingPayment(planId: string): Promise<BillingVerify
   return result
 }
 
+/**
+ * Activate a free plan or complete Razorpay checkout for a paid plan.
+ */
+export async function completePlanCheckout(planId: string): Promise<PlanCheckoutCompletion> {
+  const { data } = await api.billing.checkout({ planId })
+  const checkout = unwrapBillingCheckoutResponse(data)
+  if (!checkout) {
+    throw new Error('Checkout did not return a valid response')
+  }
+
+  if (checkout.mode === 'free') {
+    return {
+      kind: 'free',
+      subscriptionId: checkout.subscriptionId,
+      alreadyApplied: checkout.alreadyApplied,
+    }
+  }
+
+  const result = await completePaidCheckout(planId, checkout)
+  return { kind: 'paid', result }
+}
+
+/**
+ * Create a Razorpay order, open Checkout.js, then verify the signature server-side.
+ */
+export async function startBillingPayment(planId: string): Promise<BillingVerifyResult> {
+  const completion = await completePlanCheckout(planId)
+  if (completion.kind === 'free') {
+    return {
+      orderId: completion.subscriptionId,
+      subscriptionId: completion.subscriptionId,
+      invoiceId: '',
+      alreadyApplied: completion.alreadyApplied,
+    }
+  }
+  return completion.result
+}
+
 export function isCapturedPayment(subscription: BillingSubscription | null): boolean {
   if (!subscription) return false
   const last = subscription.lastPaymentStatus?.toLowerCase()
   if (last === 'captured' || last === 'paid' || last === 'success') return true
   const status = subscription.status.toLowerCase()
-  return status === 'active' || status === 'authenticated'
+  return status === 'active' || status === 'authenticated' || status === 'trialing'
 }
 
 export function isFailedPayment(subscription: BillingSubscription | null): boolean {

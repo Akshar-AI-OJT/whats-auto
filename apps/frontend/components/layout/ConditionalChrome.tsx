@@ -10,7 +10,6 @@ const HIDE_PREFIXES = [
   '/onboarding',
   '/forgot-password',
   '/reset-password',
-  '/accept-invitation',
 ]
 
 export function ConditionalChrome({ children }: { children: React.ReactNode }) {

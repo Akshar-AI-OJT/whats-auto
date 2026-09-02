@@ -23,10 +23,7 @@ import {
   ORG_SETUP_PATH,
 } from '@/lib/onboarding'
 import {
-  acceptInvitationPath,
-  isAcceptInvitationPath,
   normalizeAppPath,
-  readPendingInvitationId,
   resolvePostAuthPath,
   SUPER_ADMIN_HOME_PATH,
 } from '@/lib/post-auth-redirect'
@@ -40,12 +37,16 @@ import { AuthLayout } from '@/components/auth/auth-layout'
 import { AuthBranding } from '@/components/auth/auth-branding'
 import { useRouter } from '@/i18n/navigation'
 import { BillingCheckoutDialog } from '@/components/dashboard/billing/BillingCheckoutDialog'
-import { startBillingPayment } from '@/components/dashboard/billing/billing-utils'
+import {
+  completePlanCheckout,
+  isFreeActivatablePlan,
+  isPlanSelfServe,
+} from '@/components/dashboard/billing/billing-utils'
 import { OrganizationBasicsStep } from './OrganizationBasicsStep'
 import { CompanyInformationStep } from './CompanyInformationStep'
 import {
   SubscriptionPlanSelectionStep,
-  type OnboardingCheckoutablePlanSelection,
+  type OnboardingPlanSelection,
 } from './SubscriptionPlanSelectionStep'
 import { OrganizationPreferencesStep } from './OrganizationPreferencesStep'
 import { OrganizationStepper } from './OrganizationStepper'
@@ -101,7 +102,7 @@ export function OrganizationRegistrationForm({
 
   const [step, setStep] = useState<OrgWizardStep>(1)
   const [state, setState] = useState<OrganizationWizardState>(createInitialState)
-  const [selectedPlan, setSelectedPlan] = useState<OnboardingCheckoutablePlanSelection | null>(null)
+  const [selectedPlan, setSelectedPlan] = useState<OnboardingPlanSelection | null>(null)
   const [basicsErrors, setBasicsErrors] = useState<OrganizationWizardBasicsErrors>({})
   const [guardingInvite, setGuardingInvite] = useState(true)
 
@@ -117,20 +118,12 @@ export function OrganizationRegistrationForm({
         })
         if (cancelled) return
         const normalized = normalizeAppPath(nextPath)
-        if (
-          isAcceptInvitationPath(normalized) ||
-          normalized === SUPER_ADMIN_HOME_PATH ||
-          normalized.startsWith('/admin')
-        ) {
+        if (normalized === SUPER_ADMIN_HOME_PATH || normalized.startsWith('/admin')) {
           router.replace(nextPath)
           return
         }
       } catch {
-        const stored = readPendingInvitationId()
-        if (!cancelled && stored) {
-          router.replace(acceptInvitationPath(stored))
-          return
-        }
+        // stay on org setup
       } finally {
         if (!cancelled) setGuardingInvite(false)
       }
@@ -360,8 +353,13 @@ export function OrganizationRegistrationForm({
         return
       }
 
-      if (!selectedPlan.checkoutable) {
-        setError(t('errors.planNotCheckoutable'))
+      if (!isPlanSelfServe(selectedPlan)) {
+        setError(t('errors.planNotActivatable'))
+        return
+      }
+
+      if (isFreeActivatablePlan(selectedPlan)) {
+        void handlePlanActivation()
         return
       }
 
@@ -371,23 +369,55 @@ export function OrganizationRegistrationForm({
     }
   }
 
-  async function handleCheckoutConfirm() {
+  async function handlePlanActivation() {
     if (checkoutPending || checkoutLockRef.current) return
     if (!selectedPlan) return
 
-    if (!selectedPlan.checkoutable) {
-      setCheckoutError(t('errors.planNotCheckoutable'))
+    if (!isPlanSelfServe(selectedPlan)) {
+      setError(t('errors.planNotActivatable'))
       return
     }
+
+    checkoutLockRef.current = true
+    setCheckoutPending(true)
+    setError(null)
+    setCheckoutError(null)
+
+    try {
+      savePendingOrganizationPlan(selectedPlan.id)
+      await completePlanCheckout(selectedPlan.id)
+      setConfirmOpen(false)
+      router.replace('/onboarding/organization-profile')
+    } catch (err) {
+      checkoutLockRef.current = false
+      const apiError = err as ApiError
+
+      if (apiError.status === 401) {
+        setError(t('errors.sessionExpired'))
+        router.replace('/login')
+        return
+      }
+
+      setError(apiError.message || t('errors.activationFailed'))
+    } finally {
+      setCheckoutPending(false)
+    }
+  }
+
+  async function handleCheckoutConfirm() {
+    if (checkoutPending || checkoutLockRef.current) return
+    if (!selectedPlan?.checkoutable) return
 
     checkoutLockRef.current = true
     setCheckoutPending(true)
     setCheckoutError(null)
 
     try {
-      // Persist the real backend plan UUID so other screens can resume/refresh state.
       savePendingOrganizationPlan(selectedPlan.id)
-      await startBillingPayment(selectedPlan.id)
+      const completion = await completePlanCheckout(selectedPlan.id)
+      if (completion.kind !== 'paid') {
+        throw new Error('Expected paid checkout')
+      }
       setConfirmOpen(false)
       router.replace('/onboarding/organization-profile')
     } catch (err) {
@@ -405,6 +435,17 @@ export function OrganizationRegistrationForm({
       setCheckoutPending(false)
     }
   }
+
+  const selectedPlanIsFree = selectedPlan ? isFreeActivatablePlan(selectedPlan) : false
+  const canActivateSelectedPlan = selectedPlan ? isPlanSelfServe(selectedPlan) : false
+  const step4CtaLabel = checkoutPending
+    ? selectedPlanIsFree
+      ? t('startingFreeTrial')
+      : t('proceedToCheckout')
+    : selectedPlanIsFree
+      ? t('startFreeTrial')
+      : t('proceedToCheckout')
+  const step4Hint = selectedPlanIsFree ? t('freeTrialHint') : t('checkoutHint')
 
   const stepperSteps = [
     { id: 1 as const, label: t('steps.basics') },
@@ -523,26 +564,24 @@ export function OrganizationRegistrationForm({
                 <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:items-end">
                   <Button
                     type="submit"
-                    disabled={pending || checkoutPending}
+                    disabled={pending || checkoutPending || !canActivateSelectedPlan}
                     aria-busy={pending || checkoutPending}
                     className={cn(authPrimaryButtonClassName, 'sm:min-w-[14.5rem]')}
                   >
                     {checkoutPending ? (
                       <>
                         <Loader2 className="size-4 animate-spin" aria-hidden />
-                        <span>{t('proceedToCheckout')}</span>
+                        <span>{step4CtaLabel}</span>
                       </>
                     ) : (
                       <>
-                        <Lock className="size-4" aria-hidden />
-                        <span>{t('proceedToCheckout')}</span>
+                        {!selectedPlanIsFree ? <Lock className="size-4" aria-hidden /> : null}
+                        <span>{step4CtaLabel}</span>
                         <ArrowRight className="size-4" aria-hidden />
                       </>
                     )}
                   </Button>
-                  <p className="text-center text-xs text-mute sm:text-right">
-                    {t('checkoutHint')}
-                  </p>
+                  <p className="text-center text-xs text-mute sm:text-right">{step4Hint}</p>
                 </div>
               </div>
             ) : (

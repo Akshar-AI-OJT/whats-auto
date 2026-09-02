@@ -48,7 +48,11 @@ import {
   type OutboundDispatchPayload,
   type OutboundDispatchRow,
 } from '#repositories/whatsapp_outbound_repository'
+import { UsageMeterRepository, USAGE_METRICS } from '#repositories/usage_meter_repository'
 import type { InboxOutboundLifecyclePayload } from '#types/inbox_outbound_lifecycle'
+import { EntitlementService } from '#services/billing/entitlement_service'
+import { CampaignDispatchRateLimitService } from '#services/campaigns/campaign_dispatch_rate_limit_service'
+import { CampaignRecipientDispatchService } from '#services/campaigns/campaign_recipient_dispatch_service'
 import { MemoryWorkingSetService } from '#services/ai/contracts/memory_working_set_service'
 import JobQueueManager from '#services/job_queue/job_queue_manager'
 import { JOB_NAMES } from '#services/job_queue/job_names'
@@ -115,7 +119,11 @@ export default class WhatsappOutboundService {
     protected graphClient: MetaGraphClient = createMetaGraphClient(),
     protected outboundRepo: WhatsappOutboundRepository = new WhatsappOutboundRepository(),
     protected configService: WhatsappConfigService = new WhatsappConfigService(),
-    protected mediaReferences: MediaAssetReferenceRepository = new MediaAssetReferenceRepository()
+    protected mediaReferences: MediaAssetReferenceRepository = new MediaAssetReferenceRepository(),
+    protected campaignRateLimit: CampaignDispatchRateLimitService = new CampaignDispatchRateLimitService(),
+    protected campaignRecipients: CampaignRecipientDispatchService = new CampaignRecipientDispatchService(),
+    protected entitlements: EntitlementService = new EntitlementService(),
+    protected usageMeters: UsageMeterRepository = new UsageMeterRepository()
   ) {}
 
   /**
@@ -530,6 +538,15 @@ export default class WhatsappOutboundService {
       }
 
       const dispatch = claim.dispatch
+      const clientIdempotencyKey = await this.#loadMessageClientIdempotencyKey({
+        organizationId: params.organizationId,
+        messageId: dispatch.messageId,
+      })
+      const isCampaignDispatch = await this.campaignRecipients.isCampaignDispatch({
+        organizationId: params.organizationId,
+        messageId: dispatch.messageId,
+        clientIdempotencyKey,
+      })
 
       try {
         await this.#revalidateBeforeSend({
@@ -542,7 +559,21 @@ export default class WhatsappOutboundService {
           dispatch,
           error,
           forceTerminal: true,
+          isCampaignDispatch,
         })
+      }
+
+      if (isCampaignDispatch) {
+        const rateLimit = await this.campaignRateLimit.checkAndConsume({
+          organizationId: params.organizationId,
+        })
+        if (!rateLimit.allowed) {
+          return this.#deferCampaignDispatchRateLimit({
+            organizationId: params.organizationId,
+            dispatch,
+            retryAfterMs: rateLimit.retryAfterMs,
+          })
+        }
       }
 
       let providerMessageId: string
@@ -563,6 +594,15 @@ export default class WhatsappOutboundService {
           organizationId: params.organizationId,
           dispatch,
           error,
+          isCampaignDispatch,
+        })
+      }
+
+      await this.#incrementMessagesMeter(params.organizationId)
+      if (isCampaignDispatch) {
+        await this.campaignRecipients.markRecipientSent({
+          organizationId: params.organizationId,
+          messageId: dispatch.messageId,
         })
       }
 
@@ -718,6 +758,7 @@ export default class WhatsappOutboundService {
     dispatch: OutboundDispatchRow
     error: unknown
     forceTerminal?: boolean
+    isCampaignDispatch?: boolean
   }): Promise<ExecuteDispatchResult> {
     const { errorMessage, errorCode } = serializeOutboundError(params.error)
     const retryable = params.forceTerminal ? false : isRetryableOutboundError(params.error)
@@ -772,6 +813,14 @@ export default class WhatsappOutboundService {
         messageId: params.dispatch.messageId,
         errorMessage,
       })
+
+      if (params.isCampaignDispatch) {
+        await this.campaignRecipients.markRecipientFailed({
+          organizationId: params.organizationId,
+          messageId: params.dispatch.messageId,
+          errorMessage,
+        })
+      }
 
       return {
         outcome: 'failed',
@@ -852,6 +901,81 @@ export default class WhatsappOutboundService {
     return {
       woken,
       scannedOrganizations: organizationIds.length,
+    }
+  }
+
+  async #loadMessageClientIdempotencyKey(params: {
+    organizationId: string
+    messageId: string
+  }): Promise<string | null> {
+    const row = await db
+      .from('messages')
+      .where('id', params.messageId)
+      .where('organizationId', params.organizationId)
+      .select('clientIdempotencyKey')
+      .first()
+
+    return (row?.clientIdempotencyKey as string | null | undefined) ?? null
+  }
+
+  async #incrementMessagesMeter(organizationId: string): Promise<void> {
+    try {
+      const limit = await this.entitlements.getNumericLimit(organizationId, 'messagesPerMonth')
+      await this.usageMeters.increment({
+        organizationId,
+        metric: USAGE_METRICS.messages,
+        limitCount: limit ?? Number.MAX_SAFE_INTEGER,
+      })
+    } catch (error) {
+      logger.warn(
+        {
+          organizationId,
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'whatsapp.outbound.messages_meter_increment_failed'
+      )
+    }
+  }
+
+  async #deferCampaignDispatchRateLimit(params: {
+    organizationId: string
+    dispatch: OutboundDispatchRow
+    retryAfterMs: number
+  }): Promise<ExecuteDispatchResult> {
+    const due = new Date(Date.now() + params.retryAfterMs)
+    const errorMessage = 'Campaign dispatch rate limited'
+
+    logger.info(
+      {
+        dispatchId: params.dispatch.id,
+        organizationId: params.organizationId,
+        retryAfterMs: params.retryAfterMs,
+      },
+      'whatsapp.outbound.campaign_rate_limited'
+    )
+
+    await db.transaction(async (trx) => {
+      await this.outboundRepo.markRetryScheduled(trx, {
+        organizationId: params.organizationId,
+        dispatchId: params.dispatch.id,
+        nextAttemptAt: due,
+        errorMessage,
+        errorCode: 'campaign_dispatch_rate_limited',
+      })
+    })
+
+    await this.#enqueueDispatchWake({
+      organizationId: params.organizationId,
+      dispatchId: params.dispatch.id,
+      runAt: due,
+    })
+
+    return {
+      outcome: 'retry_scheduled',
+      dispatchId: params.dispatch.id,
+      attempts: params.dispatch.attempts,
+      nextAttemptAt: due.toISOString(),
+      errorMessage,
     }
   }
 

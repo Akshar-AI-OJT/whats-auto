@@ -3,7 +3,7 @@ import db from '@adonisjs/lucid/services/db'
 import { PLATFORM_AUDIT_EVENT_TYPES, TENANT_AUDIT_EVENT_TYPES } from '#abilities/audit_events'
 import { DEMO_PASSWORD, DEMO_USERS } from '#database/demo/credentials'
 import { FIXTURE_IDS } from '#database/demo/fixture_ids'
-import DemoSeeder from '#database/seeders/demo_seeder'
+import { ensureDemoFixtures } from '#tests/helpers/ensure_demo_fixtures'
 import { auth } from '#lib/auth'
 import { AccessTokenClaimsService } from '#services/access_token_claims_service'
 
@@ -59,8 +59,7 @@ function eventsFrom(response: {
 
 test.group('Audit scope isolation', (group) => {
   group.setup(async () => {
-    await db.from('jwks').delete()
-    await new DemoSeeder(db.connection()).run()
+    await ensureDemoFixtures()
   })
 
   test('superadmin without tenant org cannot hit GET /api/v1/audit', async ({ client }) => {

@@ -19,6 +19,7 @@ type TenantPlanItem = {
   code: string
   name: string
   checkoutable: boolean
+  freeActivatable?: boolean
   gateway?: unknown
   gatewayPlanId?: unknown
   isActive?: unknown
@@ -244,8 +245,10 @@ test.group('Tenant billing plans HTTP', (group) => {
 
       assert.exists(freeActive)
       assert.isFalse(freeActive!.checkoutable)
+      assert.isTrue(freeActive!.freeActivatable)
       assert.exists(growth)
       assert.isTrue(growth!.checkoutable)
+      assert.isFalse(growth!.freeActivatable)
     } finally {
       await db.from('plans').whereIn('id', [draftId, archivedId, freeActiveId]).delete()
     }
@@ -319,6 +322,7 @@ test.group('Tenant billing plans HTTP', (group) => {
       assert.exists(match)
       assert.equal(match!.code, code)
       assert.isFalse(match!.checkoutable)
+      assert.isFalse(match!.freeActivatable)
       assert.isUndefined(match!.gatewayPlanId)
     } finally {
       await db.from('plans').where('id', planId).delete()

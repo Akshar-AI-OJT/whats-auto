@@ -2,8 +2,23 @@ export type PlanStatus = 'active' | 'draft' | 'archived'
 export type PlanBillingPeriod = 'monthly' | 'yearly' | 'custom'
 export type PlanFeatureCategory = 'messaging' | 'automation' | 'ai' | 'team' | 'integrations'
 
+export const PLAN_FEATURE_KEYS = [
+  'wabaConnection',
+  'contactCsvImportExport',
+  'customTemplates',
+  'scheduledCampaigns',
+  'flowBuilder',
+  'flowAdvancedNodes',
+  'aiAutonomous',
+  'eCommerceIntegrations',
+  'apiAccess',
+  'customRoles',
+] as const
+
+export type PlanFeatureKey = (typeof PLAN_FEATURE_KEYS)[number]
+
 export type PlanFeature = {
-  key: string
+  key: PlanFeatureKey | string
   /** Defaults to `key` when omitted by clients. */
   name?: string
   enabled: boolean
@@ -11,9 +26,38 @@ export type PlanFeature = {
   category?: PlanFeatureCategory
 }
 
+/**
+ * Plan limits stored in `plans.limits` JSONB.
+ * `null` = unlimited for commercial quotas.
+ * Anti-abuse fields are always concrete numbers.
+ */
 export type PlanLimits = {
+  /** Alias for seats in admin UI; mirrored to seats on persist. */
   users: number | null
+  seats: number | null
+  whatsappNumbers: number | null
+  maxContacts: number | null
   messagesPerMonth: number | null
+  campaignsPerMonth: number | null
+  maxBroadcastRecipients: number | null
+  storageBytes: number | null
+  maxFileUploadMb: number
+  maxActiveFlows: number | null
+  maxKnowledgeDocs: number | null
+  maxKnowledgeDocSizeMb: number | null
+  /** Customer-facing monthly AI reply budget (RAG + summaries). null = unlimited. */
+  aiRepliesPerMonth: number | null
+  maxStoreConnections: number | null
+  maxApiKeys: number | null
+  maxWebhookEndpoints: number | null
+  analyticsRetentionDays: number | null
+  auditLogRetentionDays: number | null
+  maxTemplates: number | null
+  conversationInboxRetentionDays: number | null
+  /** Anti-abuse: never null. */
+  aiGenerationsPerConversationHour: number
+  /** Anti-abuse (campaigns only): never null. */
+  dispatchRatePerSec: number
 }
 
 export type SuperAdminPlan = {
@@ -41,7 +85,7 @@ export type SuperAdminPlan = {
 
 /**
  * Tenant-safe billing catalog DTO (GET /api/v1/billing/plans).
- * Omits gateway internals and admin-only fields; exposes checkoutable instead.
+ * Omits gateway internals and admin-only fields; exposes checkoutable (Razorpay) and freeActivatable.
  */
 export type TenantBillingPlan = {
   id: string
@@ -60,7 +104,10 @@ export type TenantBillingPlan = {
     enabled: boolean
     category?: PlanFeatureCategory
   }>
+  /** Razorpay checkout (price > 0). */
   checkoutable: boolean
+  /** Local free activation (price === 0, not custom/enterprise). */
+  freeActivatable: boolean
   sortOrder: number
 }
 
@@ -82,10 +129,7 @@ export type CreateSuperAdminPlanInput = {
   status: Exclude<PlanStatus, 'archived'>
   popular?: boolean
   trialDays?: number | null
-  limits: {
-    users?: number | null
-    messagesPerMonth?: number | null
-  }
+  limits: Partial<PlanLimits>
   features?: PlanFeature[]
   sortOrder?: number
 }
@@ -94,3 +138,10 @@ export type UpdateSuperAdminPlanInput = Omit<Partial<CreateSuperAdminPlanInput>,
   /** Null clears description in update payloads. */
   description?: string | null
 }
+
+/** Default anti-abuse limits when omitted from create payloads. */
+export const DEFAULT_ANTI_ABUSE_LIMITS = {
+  maxFileUploadMb: 10,
+  aiGenerationsPerConversationHour: 10,
+  dispatchRatePerSec: 10,
+} as const

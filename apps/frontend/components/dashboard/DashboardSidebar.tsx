@@ -1,7 +1,8 @@
 'use client'
 
-import { PanelLeftClose, PanelLeftOpen, Sparkles } from 'lucide-react'
+import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { AppLogo } from '@/components/branding/AppLogo'
 import { cn } from '@/lib/utils'
 import { useDashboardChrome } from './DashboardChromeContext'
 import { DashboardSidebarNav } from './DashboardSidebarNav'
@@ -36,9 +37,7 @@ export function DashboardSidebar({
           collapsed ? 'justify-center px-2' : 'gap-2.5 px-4'
         )}
       >
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-primary text-on-primary shadow-[0_6px_16px_rgb(37_99_235/0.4)]">
-          <Sparkles className="size-4" aria-hidden />
-        </span>
+        <AppLogo variant="mark" size="sm" className="rounded-xl" />
         {!collapsed ? (
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-bold tracking-tight text-ink">{t('brand')}</p>

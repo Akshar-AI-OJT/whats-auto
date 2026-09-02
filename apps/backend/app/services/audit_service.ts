@@ -1,5 +1,6 @@
 import db from '@adonisjs/lucid/services/db'
 import { eventTypesForScope, type AuditListScope } from '#abilities/audit_events'
+import { PlanRetentionService } from '#services/billing/plan_retention_service'
 
 const DEFAULT_LIMIT = 50
 const MAX_LIMIT = 100
@@ -12,10 +13,13 @@ export type ListAuditEventsOptions = {
 }
 
 export class AuditService {
+  constructor(private retention: PlanRetentionService = new PlanRetentionService()) {}
+
   /**
    * List authorization audit events, newest first.
    * Scope is server-derived: platform vs tenant event catalogs never mix.
    * Includes createdAt (event time). Does not set id/createdAt on writes — DB defaults.
+   * Tenant lists honor plan `auditLogRetentionDays` when set.
    */
   async listEvents(options: ListAuditEventsOptions) {
     const requested = options.limit ?? DEFAULT_LIMIT
@@ -49,6 +53,13 @@ export class AuditService {
 
     if (options.organizationId) {
       query.where('a.organizationId', options.organizationId)
+      const cutoff = await this.retention.cutoffDate(
+        options.organizationId,
+        'auditLogRetentionDays'
+      )
+      if (cutoff) {
+        query.where('a.createdAt', '>=', cutoff)
+      }
     }
 
     const rows = await query

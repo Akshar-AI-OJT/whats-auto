@@ -18,6 +18,7 @@ import {
   Upload,
 } from 'lucide-react'
 import { Link, useRouter } from '@/i18n/navigation'
+import { AppLogo } from '@/components/branding/AppLogo'
 import { api, type ApiError } from '@/lib/api'
 import { queryKeys } from '@/lib/query-keys'
 import {
@@ -57,6 +58,11 @@ import {
   organizationToProfileFormValues,
   type OrganizationProfileFormValues,
 } from '@/lib/organization-profile'
+import {
+  getSubdivisionsForCountry,
+  isSubdivisionValidForCountry,
+  resolveSubdivisionForCountry,
+} from '@/lib/country-subdivisions'
 import { cn } from '@/lib/utils'
 
 const LOGO_MAX_BYTES = 2 * 1024 * 1024
@@ -82,8 +88,10 @@ function buildInitialProfileValues(
   const base = organizationToProfileFormValues(org)
   const companySize = prefs?.companySize?.trim()
   const defaultLanguage = prefs?.defaultLanguage?.trim()
+  const country = base.country
   return {
     ...base,
+    state: resolveSubdivisionForCountry(country, base.state),
     businessSize:
       base.businessSize ||
       (COMPANY_SIZE_OPTIONS.includes(companySize as CompanySizeOption)
@@ -603,12 +611,7 @@ function ProfileTopBar() {
   return (
     <header className="border-b border-[#E2E8F0] bg-canvas">
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
-        <Link
-          href="/"
-          className="w-fit cursor-pointer font-display text-xl leading-none text-ink transition-opacity hover:opacity-80 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F8FAFC] sm:text-[1.35rem]"
-        >
-          Whats-Auto
-        </Link>
+        <AppLogo href="/" size="lg" priority />
         <div className="flex items-center gap-2.5 sm:gap-3">
           <span className="hidden text-sm text-mute sm:inline">{t('help.needHelp')}</span>
           <Link
@@ -966,6 +969,17 @@ function StepAddress({
   onChange,
   t,
 }: Omit<StepProps, 'tOrg'>) {
+  const stateOptions = getSubdivisionsForCountry(values.country)
+  const stateSelectDisabled = !values.country.trim() || stateOptions.length === 0
+
+  function handleCountryChange(country: string) {
+    const patch: Partial<OrganizationProfileFormValues> = { country }
+    if (!isSubdivisionValidForCountry(country, values.state)) {
+      patch.state = ''
+    }
+    onChange(patch)
+  }
+
   return (
     <FieldGroup className="gap-5">
       <Field data-invalid={errors.addressLine1 ? true : undefined} className="gap-2">
@@ -1008,16 +1022,47 @@ function StepAddress({
           {errors.city ? <FieldError>{errors.city}</FieldError> : null}
         </Field>
 
-        <Field data-invalid={errors.state ? true : undefined} className="gap-2">
+        <Field data-invalid={errors.country ? true : undefined} className="gap-2">
           <FieldLabel className="text-sm font-medium text-ink">
+            {t('fields.country')}
+            <RequiredAsterisk />
+          </FieldLabel>
+          <select
+            className={selectClassName(Boolean(errors.country))}
+            value={values.country}
+            onChange={(e) => handleCountryChange(e.target.value)}
+          >
+            <option value="">{t('fields.countryPlaceholder')}</option>
+            {COUNTRY_OPTIONS.map((option) => (
+              <option key={option.code} value={option.code}>
+                {option.code}
+              </option>
+            ))}
+          </select>
+          {errors.country ? <FieldError>{errors.country}</FieldError> : null}
+        </Field>
+
+        <Field data-invalid={errors.state ? true : undefined} className="gap-2">
+          <FieldLabel className="text-sm font-medium text-ink" id="org-profile-state-label">
             {t('fields.state')}
             <RequiredAsterisk />
           </FieldLabel>
-          <Input
+          <select
+            id="org-profile-state"
+            aria-labelledby="org-profile-state-label"
+            aria-invalid={errors.state ? true : undefined}
+            className={selectClassName(Boolean(errors.state))}
             value={values.state}
-            className={cn(authInputClassName, errors.state && 'border-negative')}
+            disabled={stateSelectDisabled}
             onChange={(e) => onChange({ state: e.target.value })}
-          />
+          >
+            <option value="">{t('fields.statePlaceholder')}</option>
+            {stateOptions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
           {errors.state ? <FieldError>{errors.state}</FieldError> : null}
         </Field>
 
@@ -1032,26 +1077,6 @@ function StepAddress({
             onChange={(e) => onChange({ postalCode: e.target.value })}
           />
           {errors.postalCode ? <FieldError>{errors.postalCode}</FieldError> : null}
-        </Field>
-
-        <Field data-invalid={errors.country ? true : undefined} className="gap-2">
-          <FieldLabel className="text-sm font-medium text-ink">
-            {t('fields.country')}
-            <RequiredAsterisk />
-          </FieldLabel>
-          <select
-            className={selectClassName(Boolean(errors.country))}
-            value={values.country}
-            onChange={(e) => onChange({ country: e.target.value })}
-          >
-            <option value="">{t('fields.countryPlaceholder')}</option>
-            {COUNTRY_OPTIONS.map((option) => (
-              <option key={option.code} value={option.code}>
-                {option.code}
-              </option>
-            ))}
-          </select>
-          {errors.country ? <FieldError>{errors.country}</FieldError> : null}
         </Field>
       </div>
     </FieldGroup>

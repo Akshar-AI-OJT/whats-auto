@@ -147,8 +147,10 @@ export class AiUsageLogSchema extends BaseModel {
     'latencyMs',
     'messageId',
     'modelName',
+    'operationType',
     'organizationId',
     'promptTokens',
+    'provider',
     'retrievalScore',
     'totalTokens',
   ] as const
@@ -156,7 +158,7 @@ export class AiUsageLogSchema extends BaseModel {
   @column()
   declare completionTokens: number
   @column()
-  declare conversationId: string
+  declare conversationId: string | null
   @column.dateTime()
   declare createdAt: DateTime
   @column()
@@ -172,9 +174,13 @@ export class AiUsageLogSchema extends BaseModel {
   @column()
   declare modelName: string
   @column()
+  declare operationType: string
+  @column()
   declare organizationId: string
   @column()
   declare promptTokens: number
+  @column()
+  declare provider: string
   @column()
   declare retrievalScore: string | null
   @column()
@@ -529,6 +535,7 @@ export class ContactImportSchema extends BaseModel {
     'completedAt',
     'createdAt',
     'createdByUserId',
+    'csvContent',
     'defaultCountryCode',
     'errorCount',
     'fileName',
@@ -549,6 +556,8 @@ export class ContactImportSchema extends BaseModel {
   declare createdAt: DateTime
   @column()
   declare createdByUserId: string | null
+  @column()
+  declare csvContent: string | null
   @column()
   declare defaultCountryCode: string | null
   @column()
@@ -1458,6 +1467,8 @@ export class OrganizationInvitationSchema extends BaseModel {
     'organizationId',
     'roleId',
     'status',
+    'tokenHash',
+    'userId',
   ] as const
   $columns = OrganizationInvitationSchema.$columns
   @column.dateTime()
@@ -1476,6 +1487,10 @@ export class OrganizationInvitationSchema extends BaseModel {
   declare roleId: string
   @column()
   declare status: string
+  @column()
+  declare tokenHash: string | null
+  @column()
+  declare userId: string | null
 }
 
 export class OrganizationMemberSchema extends BaseModel {

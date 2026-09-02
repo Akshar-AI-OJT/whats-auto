@@ -19,7 +19,14 @@ test.group('PlanService', () => {
       status: 'active',
       trialDays: 14,
       limits: { users: 10, messagesPerMonth: 1000 },
-      features: [{ key: 'campaigns', name: 'campaigns', enabled: true, category: 'automation' }],
+      features: [
+        {
+          key: 'scheduledCampaigns',
+          name: 'scheduledCampaigns',
+          enabled: true,
+          category: 'automation',
+        },
+      ],
     })
 
     assert.isNull(plan.gateway)

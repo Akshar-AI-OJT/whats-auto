@@ -17,10 +17,7 @@ import {
 } from '@/lib/onboarding'
 import {
   authHandoffHref,
-  invitationIdFromPath,
-  isAcceptInvitationPath,
   resolvePostAuthPath,
-  savePendingInvitationId,
 } from '@/lib/post-auth-redirect'
 import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
@@ -161,9 +158,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
   const [firstname, setFirstname] = useState('')
   const [lastname, setLastname] = useState('')
   const [email, setEmail] = useState(signupQuery.email)
-  const [emailLocked] = useState(
-    () => Boolean(signupQuery.email) && isAcceptInvitationPath(signupQuery.callbackPath)
-  )
+  const [emailLocked] = useState(() => Boolean(signupQuery.email))
   const [callbackPath] = useState(signupQuery.callbackPath)
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
@@ -178,11 +173,6 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
   const [resendCooldown, setResendCooldown] = useState(0)
   const [cooldownUntil, setCooldownUntil] = useState<number | null>(null)
   const displayError = error ?? (signupQuery.oauthFailed ? t('errors.oauthFailed') : null)
-
-  useEffect(() => {
-    const inviteId = invitationIdFromPath(callbackPath)
-    if (inviteId) savePendingInvitationId(inviteId)
-  }, [callbackPath])
 
   const otpInputRefs = useRef<Array<HTMLInputElement | null>>([])
 
@@ -441,7 +431,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
     }
 
     return (
-      <AuthLayout branding={<AuthBranding variant="otp" />} showBrandLink={false} compact>
+      <AuthLayout branding={<AuthBranding variant="otp" />} compact>
         <form
           className={cn('flex w-full min-w-0 flex-col', className)}
           onSubmit={handleVerifyOtp}
@@ -596,7 +586,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
   }
 
   return (
-    <AuthLayout branding={<AuthBranding variant="register" />} showBrandLink={false} compact>
+    <AuthLayout branding={<AuthBranding variant="register" />} compact>
       <form
         className={cn('flex w-full min-w-0 flex-col', className)}
         onSubmit={handleRegister}

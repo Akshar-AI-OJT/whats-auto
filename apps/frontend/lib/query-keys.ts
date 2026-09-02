@@ -51,6 +51,8 @@ export const queryKeys = {
       [...queryKeys.billing.all, 'subscription', orgId ?? 'none'] as const,
     plans: (orgId?: string | null) =>
       [...queryKeys.billing.all, 'plans', orgId ?? 'none'] as const,
+    entitlements: (orgId?: string | null) =>
+      [...queryKeys.billing.all, 'entitlements', orgId ?? 'none'] as const,
   },
   whatsapp: {
     configs: (orgId?: string | null) => ['whatsapp-configs', orgId ?? 'none'] as const,
@@ -170,11 +172,15 @@ export const queryKeys = {
     planDetail: (planId?: string | null) => ['admin', 'plans', 'detail', planId ?? 'none'] as const,
     subscriptions: (params?: Record<string, unknown>) =>
       ['admin', 'subscriptions', params ?? {}] as const,
+    subscriptionDetail: (subscriptionId?: string | null) =>
+      ['admin', 'subscriptions', 'detail', subscriptionId ?? 'none'] as const,
     /** Prefix for invalidating all invoice list/summary queries. */
     invoicesRoot: ['admin', 'invoices'] as const,
     invoices: (params?: Record<string, unknown>) => ['admin', 'invoices', params ?? {}] as const,
     invoiceSummary: (params?: Record<string, unknown>) =>
       ['admin', 'invoices', 'summary', params ?? {}] as const,
+    platformUsers: (params?: Record<string, unknown>) =>
+      ['admin', 'platform-users', params ?? {}] as const,
     auditLogs: (limit?: number, organizationId?: string | null) =>
       ['admin-audit-logs', limit ?? 50, organizationId ?? null] as const,
     auditLogOrganizations: ['admin-audit-log-organizations'] as const,
@@ -184,6 +190,8 @@ export const queryKeys = {
       subscriptions: ['super-admin-analytics', 'subscriptions'] as const,
       plans: ['super-admin-analytics', 'plans'] as const,
       invoiceSummary: ['super-admin-analytics', 'invoice-summary'] as const,
+      currentMonthPaidRevenue: ['super-admin-analytics', 'current-month-paid-revenue'] as const,
+      platformUsersTotal: ['super-admin-analytics', 'platform-users-total'] as const,
       audit: ['super-admin-analytics', 'audit'] as const,
       monthlyRevenue: (locale: string, months = 6) =>
         ['super-admin-analytics', 'monthly-revenue', locale, months] as const,
