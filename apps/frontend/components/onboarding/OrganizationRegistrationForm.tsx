@@ -16,7 +16,9 @@ import {
   buildCreateOrganizationPayload,
   clearPendingOnboardingContact,
   isValidEmail,
+  isValidGstin,
   isValidOrganizationSlug,
+  isValidPan,
   isValidPhone,
   isValidWebsiteUrl,
   markOnboardingChecklistVisible,
@@ -76,6 +78,8 @@ function createInitialState(): OrganizationWizardState {
     logoPreviewUrl: null,
     organizationType: '',
     address: '',
+    pan: '',
+    gstin: '',
     industry: '',
     companySize: '',
     country: '',
@@ -224,6 +228,14 @@ export function OrganizationRegistrationForm({
     } else if (trimmedAddress.length < 8) {
       next.address = t('errors.addressTooShort')
     }
+    if (!state.pan.trim()) {
+      next.pan = t('errors.panRequired')
+    } else if (!isValidPan(state.pan)) {
+      next.pan = t('errors.panInvalid')
+    }
+    if (state.gstin.trim() && !isValidGstin(state.gstin)) {
+      next.gstin = t('errors.gstinInvalid')
+    }
     if (!state.industry) next.industry = t('errors.industryRequired')
     if (!state.companySize) next.companySize = t('errors.companySizeRequired')
     if (!state.country.trim() || state.country.trim().length < 2) {
@@ -275,6 +287,8 @@ export function OrganizationRegistrationForm({
         industry: state.industry || undefined,
         organizationType: state.organizationType as OrganizationTypeOption,
         address: state.address,
+        pan: state.pan,
+        gstin: state.gstin || undefined,
         country: state.country,
         timezone: state.timezone,
         currency: state.currency || undefined,
@@ -332,6 +346,12 @@ export function OrganizationRegistrationForm({
         setStep(2)
       } else if (/address/i.test(message)) {
         setCompanyErrors((prev) => ({ ...prev, address: message }))
+        setStep(2)
+      } else if (/\bpan\b/i.test(message)) {
+        setCompanyErrors((prev) => ({ ...prev, pan: message }))
+        setStep(2)
+      } else if (/gstin/i.test(message)) {
+        setCompanyErrors((prev) => ({ ...prev, gstin: message }))
         setStep(2)
       } else if (/country/i.test(message)) {
         setCompanyErrors((prev) => ({ ...prev, country: message }))

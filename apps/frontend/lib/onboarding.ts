@@ -153,7 +153,7 @@ export function buildCreateOrganizationPayload(input: {
   industry?: string
   organizationType: 'company' | 'partnership' | 'sole_proprietorship' | 'other'
   address: string
-  pan?: string
+  pan: string
   gstin?: string
   country: string
   timezone: string
@@ -168,10 +168,10 @@ export function buildCreateOrganizationPayload(input: {
     timezone: string
     organizationType: 'company' | 'partnership' | 'sole_proprietorship' | 'other'
     address: string
+    pan: string
+    gstin?: string
     website?: string
     industry?: string
-    pan?: string
-    gstin?: string
     currency?: string
   } = {
     name: input.name.trim(),
@@ -180,6 +180,7 @@ export function buildCreateOrganizationPayload(input: {
     phone: input.phone.trim(),
     organizationType: input.organizationType,
     address: input.address.trim(),
+    pan: normalizeTaxId(input.pan),
     country: input.country.trim(),
     timezone: input.timezone.trim(),
   }
@@ -189,9 +190,6 @@ export function buildCreateOrganizationPayload(input: {
 
   const industry = input.industry?.trim()
   if (industry) payload.industry = industry
-
-  const pan = input.pan ? normalizeTaxId(input.pan) : ''
-  if (pan) payload.pan = pan
 
   const gstin = input.gstin ? normalizeTaxId(input.gstin) : ''
   if (gstin) payload.gstin = gstin

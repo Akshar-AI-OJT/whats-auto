@@ -48,6 +48,8 @@ export function CompanyInformationStep({
   const logoId = useId()
   const organizationTypeId = useId()
   const addressId = useId()
+  const panId = useId()
+  const gstinId = useId()
   const industryId = useId()
   const sizeId = useId()
   const countryId = useId()
@@ -55,6 +57,8 @@ export function CompanyInformationStep({
   const currencyId = useId()
   const organizationTypeErrorId = useId()
   const addressErrorId = useId()
+  const panErrorId = useId()
+  const gstinErrorId = useId()
   const industryErrorId = useId()
   const sizeErrorId = useId()
   const countryErrorId = useId()
@@ -209,6 +213,70 @@ export function CompanyInformationStep({
             </FieldError>
           ) : null}
         </Field>
+
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+        <Field data-invalid={errors.pan ? true : undefined} className={onboardingFieldClassName}>
+          <FieldLabel htmlFor={panId} className={onboardingFieldLabelClassName}>
+            {t('step2.pan')}
+            <RequiredAsterisk />
+          </FieldLabel>
+          <Input
+            id={panId}
+            name="pan"
+            type="text"
+            required
+            maxLength={10}
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
+            disabled={pending}
+            placeholder={t('step2.panPlaceholder')}
+            aria-invalid={Boolean(errors.pan)}
+            aria-describedby={errors.pan ? panErrorId : undefined}
+            className={onboardingInputClassName}
+            value={state.pan}
+            onChange={(e) => {
+              onChange({ pan: e.target.value.replace(/\s+/g, '').toUpperCase().slice(0, 10) })
+              onClearError('pan')
+            }}
+          />
+          {errors.pan ? (
+            <FieldError id={panErrorId} className="text-xs leading-4 text-negative">
+              {errors.pan}
+            </FieldError>
+          ) : null}
+        </Field>
+
+        <Field data-invalid={errors.gstin ? true : undefined} className={onboardingFieldClassName}>
+          <FieldLabel htmlFor={gstinId} className={onboardingFieldLabelClassName}>
+            {t('step2.gstin')}
+          </FieldLabel>
+          <Input
+            id={gstinId}
+            name="gstin"
+            type="text"
+            maxLength={15}
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
+            disabled={pending}
+            placeholder={t('step2.gstinPlaceholder')}
+            aria-invalid={Boolean(errors.gstin)}
+            aria-describedby={errors.gstin ? gstinErrorId : undefined}
+            className={onboardingInputClassName}
+            value={state.gstin}
+            onChange={(e) => {
+              onChange({ gstin: e.target.value.replace(/\s+/g, '').toUpperCase().slice(0, 15) })
+              onClearError('gstin')
+            }}
+          />
+          {errors.gstin ? (
+            <FieldError id={gstinErrorId} className="text-xs leading-4 text-negative">
+              {errors.gstin}
+            </FieldError>
+          ) : null}
+        </Field>
+      </div>
 
         <Field data-invalid={errors.industry ? true : undefined} className={onboardingFieldClassName}>
           <FieldLabel htmlFor={industryId} className={onboardingFieldLabelClassName}>

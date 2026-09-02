@@ -60,6 +60,8 @@ import {
   clearPendingOrganizationPreferences,
   clearPendingOnboardingOrganizationId,
   isValidEmail,
+  isValidGstin,
+  isValidPan,
   isValidPhone,
   isValidWebsiteUrl,
   readPendingOrganizationPreferences,
@@ -233,6 +235,14 @@ export function OrganizationProfileCompletionPage() {
 
     if (current === 2) {
       if (!values.businessSize.trim()) next.businessSize = t('errors.businessSizeRequired')
+      if (!values.pan.trim()) {
+        next.pan = t('errors.panRequired')
+      } else if (!isValidPan(values.pan)) {
+        next.pan = t('errors.panInvalid')
+      }
+      if (values.gstin.trim() && !isValidGstin(values.gstin)) {
+        next.gstin = t('errors.gstinInvalid')
+      }
       if (values.description.length > DESCRIPTION_MAX) {
         next.description = t('errors.descriptionTooLong')
       }
@@ -864,6 +874,52 @@ function StepBusinessInformation({ values, errors, onChange, t, tOrg }: StepProp
       </Field>
 
       <div className="grid gap-5 sm:grid-cols-2">
+        <Field data-invalid={errors.pan ? true : undefined} className="gap-2">
+          <FieldLabel className="text-sm font-medium text-ink">
+            {t('fields.pan')}
+            <RequiredAsterisk />
+          </FieldLabel>
+          <Input
+            value={values.pan}
+            maxLength={10}
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
+            className={onboardingInputClassName}
+            placeholder={t('fields.panPlaceholder')}
+            aria-invalid={Boolean(errors.pan)}
+            onChange={(e) =>
+              onChange({ pan: e.target.value.replace(/\s+/g, '').toUpperCase().slice(0, 10) })
+            }
+          />
+          {errors.pan ? <FieldError className="text-xs text-negative">{errors.pan}</FieldError> : null}
+        </Field>
+
+        <Field data-invalid={errors.gstin ? true : undefined} className="gap-2">
+          <FieldLabel className="text-sm font-medium text-ink">
+            {t('fields.gstin')}{' '}
+            <span className="font-normal text-mute">({t('optional')})</span>
+          </FieldLabel>
+          <Input
+            value={values.gstin}
+            maxLength={15}
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
+            className={onboardingInputClassName}
+            placeholder={t('fields.gstinPlaceholder')}
+            aria-invalid={Boolean(errors.gstin)}
+            onChange={(e) =>
+              onChange({ gstin: e.target.value.replace(/\s+/g, '').toUpperCase().slice(0, 15) })
+            }
+          />
+          {errors.gstin ? (
+            <FieldError className="text-xs text-negative">{errors.gstin}</FieldError>
+          ) : null}
+        </Field>
+      </div>
+
+      <div className="grid gap-5 sm:grid-cols-2">
         <Field className="gap-2">
           <FieldLabel className="text-sm font-medium text-ink">
             {t('fields.defaultLanguage')}{' '}
@@ -1110,6 +1166,11 @@ function StepReview({
                 ? t(`languages.${values.defaultLanguage as 'en'}`)
                 : t('review.empty')
             }
+          />
+          <OrganizationProfileReviewItem label={t('fields.pan')} value={values.pan} />
+          <OrganizationProfileReviewItem
+            label={t('fields.gstin')}
+            value={values.gstin || t('review.empty')}
           />
           <OrganizationProfileReviewItem
             label={t('fields.registrationNumber')}
