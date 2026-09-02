@@ -5,7 +5,6 @@ import logger from '@adonisjs/core/services/logger'
 import { DateTime } from 'luxon'
 import { OrganizationStatus } from '#enums/organization_status'
 import type { OrganizationStatusValue } from '#enums/organization_status'
-import InvitationException from '#exceptions/invitation_exception'
 import OrganizationException from '#exceptions/organization_exception'
 import { getGlobalRoleIdByName, resolveAssignableRoleForOrg } from '#services/role_service'
 import { bumpAllOrgMembersPermissionVersion } from '#lib/permission_version_bumps'
@@ -161,41 +160,6 @@ export class OrganizationService {
   }
 
   /**
-   * A user who belongs to no organization yet must resolve a pending invitation first,
-   * otherwise invitees end up creating a second organization instead of joining the inviter's.
-   * Users who already belong to an organization stay free to create more.
-   */
-  protected async assertNoBlockingInvitation(userId: string) {
-    // Membership rows survive soft-delete, so a deleted org must not count as
-    // "already belongs somewhere" and skip the pending-invitation check.
-    const membership = await db
-      .from('organization_members as m')
-      .innerJoin('organizations as o', 'o.id', 'm.organizationId')
-      .where('m.userId', userId)
-      .whereNull('o.deletedAt')
-      .select('m.id')
-      .first()
-
-    if (membership) return
-
-    const user = await db.from('users').where('id', userId).select('email').firstOrFail()
-
-    const pending = await db
-      .from('organization_invitations as i')
-      .innerJoin('organizations as o', 'o.id', 'i.organizationId')
-      .whereRaw('LOWER(i.email) = ?', [(user.email as string).toLowerCase()])
-      .where('i.status', 'pending')
-      .where('i.expiresAt', '>', new Date())
-      .whereNull('o.deletedAt')
-      .select('i.id')
-      .first()
-
-    if (pending) {
-      throw InvitationException.pendingInvitationBlocksOrgCreation()
-    }
-  }
-
-  /**
    * Create an organization and make the caller the owner.
    * New orgs start as pending_setup. Session switches to the new org only when
    * the caller has no already-active organization (avoids stranding a paid owner).
@@ -207,8 +171,6 @@ export class OrganizationService {
     data: CreateOrganizationInput
   }) {
     const { userId, sessionId, data } = params
-
-    await this.assertNoBlockingInvitation(userId)
 
     const ownerRoleId = await getGlobalRoleIdByName('owner')
     const hasActiveOrganization = await this.#userHasActiveOrganization(userId)

@@ -18,6 +18,7 @@ import {
   Upload,
 } from 'lucide-react'
 import { Link, useRouter } from '@/i18n/navigation'
+import { AppLogo } from '@/components/branding/AppLogo'
 import { api, type ApiError } from '@/lib/api'
 import { queryKeys } from '@/lib/query-keys'
 import {
@@ -610,12 +611,7 @@ function ProfileTopBar() {
   return (
     <header className="border-b border-[#E2E8F0] bg-canvas">
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
-        <Link
-          href="/"
-          className="w-fit cursor-pointer font-display text-xl leading-none text-ink transition-opacity hover:opacity-80 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F8FAFC] sm:text-[1.35rem]"
-        >
-          Whats-Auto
-        </Link>
+        <AppLogo href="/" size="lg" priority />
         <div className="flex items-center gap-2.5 sm:gap-3">
           <span className="hidden text-sm text-mute sm:inline">{t('help.needHelp')}</span>
           <Link

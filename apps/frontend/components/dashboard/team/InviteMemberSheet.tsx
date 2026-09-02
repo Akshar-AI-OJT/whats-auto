@@ -6,20 +6,9 @@ import { Loader2, Mail, Phone, UserPlus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api, type ApiError } from '@/lib/api'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
-import {
-  ASSIGNABLE_ROLES,
-  isValidEmail,
-  isValidPhone,
-  type AssignableRole,
-} from '@/lib/onboarding'
+import { ASSIGNABLE_ROLES, isValidEmail, isValidPhone, type AssignableRole } from '@/lib/onboarding'
 import { Button } from '@/components/ui/button'
-import {
-  Field,
-  FieldDescription,
-  FieldError,
-  FieldGroup,
-  FieldLabel,
-} from '@/components/ui/field'
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import {
   Dialog,
@@ -38,31 +27,33 @@ type InviteMemberFormProps = {
 
 type FieldErrors = {
   email?: string
+  firstname?: string
   phone?: string
   role?: string
 }
 
 /**
- * Invite Member dialog — creates a pending invitation via
+ * Invite Member dialog — provisions a teammate via
  * POST /api/v1/organizations/:id/invitations.
  * Owner is intentionally omitted from the role dropdown.
- * Phone is collected for UX only; the API accepts email + role.
+ * Phone is collected for UX only; the API accepts name, email, role, designation.
  */
-export function InviteMemberSheet({
-  open,
-  onOpenChange,
-  onInvited,
-}: InviteMemberFormProps) {
+export function InviteMemberSheet({ open, onOpenChange, onInvited }: InviteMemberFormProps) {
   const t = useTranslations('dashboard.team.invite')
-  const { tenantOrganizationId, canInviteMembers, isLoading: orgsLoading } =
-    useOrganizations()
+  const { tenantOrganizationId, canInviteMembers, isLoading: orgsLoading } = useOrganizations()
   const emailId = useId()
+  const firstnameId = useId()
+  const lastnameId = useId()
+  const designationId = useId()
   const phoneId = useId()
   const roleId = useId()
   const formErrorId = useId()
   const submitLockRef = useRef(false)
 
   const [email, setEmail] = useState('')
+  const [firstname, setFirstname] = useState('')
+  const [lastname, setLastname] = useState('')
+  const [designation, setDesignation] = useState('')
   const [phone, setPhone] = useState('')
   const [role, setRole] = useState<AssignableRole>('agent')
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
@@ -72,6 +63,9 @@ export function InviteMemberSheet({
 
   function reset() {
     setEmail('')
+    setFirstname('')
+    setLastname('')
+    setDesignation('')
     setPhone('')
     setRole('agent')
     setFieldErrors({})
@@ -85,6 +79,8 @@ export function InviteMemberSheet({
     const next: FieldErrors = {}
     if (!email.trim()) next.email = t('errors.emailRequired')
     else if (!isValidEmail(email.trim())) next.email = t('errors.emailInvalid')
+
+    if (!firstname.trim()) next.firstname = t('errors.firstnameRequired')
 
     if (phone.trim() && !isValidPhone(phone)) {
       next.phone = t('errors.phoneInvalid')
@@ -104,7 +100,8 @@ export function InviteMemberSheet({
       return t('errors.permissionDenied')
     }
     if (apiError.code === 'E_INVITE_ALREADY_MEMBER') return t('errors.alreadyMember')
-    if (apiError.code === 'E_INVITE_ALREADY_PENDING') return t('errors.alreadyPending')
+    if (apiError.code === 'E_SUPERADMIN_NOT_INVITABLE') return t('errors.superadminNotInvitable')
+    if (apiError.code === 'E_INVITE_OWNER_PROTECTED') return t('errors.ownerNotInvitable')
     if (apiError.code === 'E_ROLE_MISSING') return t('errors.roleInvalid')
     if (apiError.code === 'E_INVITE_EMAIL_FAILED') return t('errors.emailFailed')
     if (apiError.status >= 500) return t('errors.generic')
@@ -140,7 +137,10 @@ export function InviteMemberSheet({
     try {
       await api.invitations.create(tenantOrganizationId, {
         email: email.trim(),
+        firstname: firstname.trim(),
+        lastname: lastname.trim() || undefined,
         role,
+        designation: designation.trim() || undefined,
       })
       // 2xx from create means the invite row was accepted — do not re-validate
       // response wrapping here (serialize may nest under `data`).
@@ -158,8 +158,7 @@ export function InviteMemberSheet({
     }
   }
 
-  const submitDisabled =
-    pending || orgsLoading || !tenantOrganizationId || !canInviteMembers
+  const submitDisabled = pending || orgsLoading || !tenantOrganizationId || !canInviteMembers
 
   return (
     <Dialog
@@ -169,7 +168,10 @@ export function InviteMemberSheet({
         onOpenChange(next)
       }}
     >
-      <DialogContent className="max-h-[min(90vh,42rem)] gap-0 overflow-hidden p-0 sm:max-w-lg" showCloseButton>
+      <DialogContent
+        className="max-h-[min(90vh,42rem)] gap-0 overflow-hidden p-0 sm:max-w-lg"
+        showCloseButton
+      >
         <DialogHeader className="border-b border-dash-border px-5 py-4 text-left sm:px-6">
           <DialogTitle className="font-display text-lg text-ink">{t('title')}</DialogTitle>
           <DialogDescription className="text-sm text-body">{t('subtitle')}</DialogDescription>
@@ -204,6 +206,46 @@ export function InviteMemberSheet({
                 />
               </div>
               {fieldErrors.email ? <FieldError>{fieldErrors.email}</FieldError> : null}
+            </Field>
+
+            <Field data-invalid={fieldErrors.firstname ? true : undefined} className="gap-2">
+              <FieldLabel htmlFor={firstnameId}>{t('firstname')}</FieldLabel>
+              <Input
+                id={firstnameId}
+                type="text"
+                autoComplete="given-name"
+                value={firstname}
+                disabled={pending}
+                onChange={(e) => {
+                  setFirstname(e.target.value)
+                  setFieldErrors((prev) => ({ ...prev, firstname: undefined }))
+                }}
+              />
+              {fieldErrors.firstname ? <FieldError>{fieldErrors.firstname}</FieldError> : null}
+            </Field>
+
+            <Field className="gap-2">
+              <FieldLabel htmlFor={lastnameId}>{t('lastname')}</FieldLabel>
+              <Input
+                id={lastnameId}
+                type="text"
+                autoComplete="family-name"
+                value={lastname}
+                disabled={pending}
+                onChange={(e) => setLastname(e.target.value)}
+              />
+            </Field>
+
+            <Field className="gap-2">
+              <FieldLabel htmlFor={designationId}>{t('designation')}</FieldLabel>
+              <Input
+                id={designationId}
+                type="text"
+                value={designation}
+                disabled={pending}
+                placeholder={t('designationOptional')}
+                onChange={(e) => setDesignation(e.target.value)}
+              />
             </Field>
 
             <Field data-invalid={fieldErrors.phone ? true : undefined} className="gap-2">

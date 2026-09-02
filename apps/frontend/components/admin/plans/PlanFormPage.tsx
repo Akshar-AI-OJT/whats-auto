@@ -12,6 +12,11 @@ import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { PLAN_FEATURE_CATALOG } from './plan-feature-catalog'
 import { createPlan, getPlan, updatePlan } from './plan-service'
+import { formGbToStorageBytes, formatPlanLimitLabel, storageBytesToFormGb } from './plan-utils'
+import {
+  ADMIN_PLAN_FEATURE_I18N_NS,
+  resolvePlanFeatureLabel,
+} from '@/lib/plan-feature-labels'
 import type {
   CreatePlanInput,
   PlanBillingPeriod,
@@ -65,7 +70,6 @@ const LIMIT_FIELD_GROUPS: Array<{ title: string; fields: LimitFieldKey[] }> = [
     fields: [
       'campaignsPerMonth',
       'maxBroadcastRecipients',
-      'maxCampaignRecipientListSize',
       'storageBytes',
       'maxFileUploadMb',
     ],
@@ -100,6 +104,8 @@ const ANTI_ABUSE_FIELDS = new Set<LimitFieldKey>([
   'dispatchRatePerSec',
 ])
 
+const STORAGE_GB_FIELDS = new Set<LimitFieldKey>(['storageBytes'])
+
 function emptyFeatureMap(): PlanFormState['features'] {
   return Object.fromEntries(
     PLAN_FEATURE_CATALOG.map((item) => [item.key, { enabled: false, description: '' }])
@@ -110,6 +116,10 @@ function limitsToForm(limits: PlanLimits): Record<LimitFieldKey, string> {
   const out = {} as Record<LimitFieldKey, string>
   for (const key of Object.keys(DEFAULT_PLAN_LIMITS) as LimitFieldKey[]) {
     const value = limits[key]
+    if (STORAGE_GB_FIELDS.has(key)) {
+      out[key] = storageBytesToFormGb(value as number | null | undefined)
+      continue
+    }
     out[key] = value === null || value === undefined ? '' : String(value)
   }
   return out
@@ -169,11 +179,13 @@ function parseRequiredNumber(value: string, fallback: number): number {
   return n !== null && n >= 1 ? n : fallback
 }
 
-function toCreateInput(form: PlanFormState): CreatePlanInput {
+type FeatureTranslator = Parameters<typeof resolvePlanFeatureLabel>[0]
+
+function toCreateInput(form: PlanFormState, tFeatures: FeatureTranslator): CreatePlanInput {
   const custom = form.customPricing
   const features: PlanFeature[] = PLAN_FEATURE_CATALOG.map((item) => ({
     key: item.key,
-    name: item.key,
+    name: resolvePlanFeatureLabel(tFeatures, item.key, item.label, ADMIN_PLAN_FEATURE_I18N_NS),
     enabled: Boolean(form.features[item.key]?.enabled),
     description: form.features[item.key]?.description.trim() || undefined,
     category: item.category,
@@ -188,7 +200,7 @@ function toCreateInput(form: PlanFormState): CreatePlanInput {
     messagesPerMonth: parseOptionalNumber(form.limits.messagesPerMonth),
     campaignsPerMonth: parseOptionalNumber(form.limits.campaignsPerMonth),
     maxBroadcastRecipients: parseOptionalNumber(form.limits.maxBroadcastRecipients),
-    storageBytes: parseOptionalNumber(form.limits.storageBytes),
+    storageBytes: formGbToStorageBytes(form.limits.storageBytes),
     maxFileUploadMb: parseRequiredNumber(
       form.limits.maxFileUploadMb,
       DEFAULT_PLAN_LIMITS.maxFileUploadMb
@@ -203,7 +215,6 @@ function toCreateInput(form: PlanFormState): CreatePlanInput {
     analyticsRetentionDays: parseOptionalNumber(form.limits.analyticsRetentionDays),
     auditLogRetentionDays: parseOptionalNumber(form.limits.auditLogRetentionDays),
     maxTemplates: parseOptionalNumber(form.limits.maxTemplates),
-    maxCampaignRecipientListSize: parseOptionalNumber(form.limits.maxCampaignRecipientListSize),
     conversationInboxRetentionDays: parseOptionalNumber(form.limits.conversationInboxRetentionDays),
     aiGenerationsPerConversationHour: parseRequiredNumber(
       form.limits.aiGenerationsPerConversationHour,
@@ -235,6 +246,7 @@ type PlanFormPageProps = {
 
 export function PlanFormPage({ mode, planId }: PlanFormPageProps) {
   const t = useTranslations('admin.plans')
+  const tFeatures = useTranslations(ADMIN_PLAN_FEATURE_I18N_NS)
   const router = useRouter()
   const queryClient = useQueryClient()
   const nameId = useId()
@@ -326,7 +338,7 @@ export function PlanFormPage({ mode, planId }: PlanFormPageProps) {
     setPending(true)
     setError(null)
     try {
-      const payload = toCreateInput(form)
+      const payload = toCreateInput(form, tFeatures)
       if (mode === 'edit' && planId) {
         const result = await updatePlan(planId, payload)
         if (!result.ok) {
@@ -550,13 +562,14 @@ export function PlanFormPage({ mode, planId }: PlanFormPageProps) {
                       {group.fields.map((field) => (
                         <div key={field} className="flex flex-col gap-1.5">
                           <label htmlFor={`plan-${field}`} className="text-sm font-medium text-ink">
-                            {field}
+                            {formatPlanLimitLabel(field)}
                             {ANTI_ABUSE_FIELDS.has(field) ? ' *' : ''}
                           </label>
                           <Input
                             id={`plan-${field}`}
                             type="number"
                             min={ANTI_ABUSE_FIELDS.has(field) ? '1' : '0'}
+                            step={STORAGE_GB_FIELDS.has(field) ? '0.01' : undefined}
                             value={form.limits[field]}
                             onChange={(e) =>
                               setForm({
@@ -671,7 +684,12 @@ export function PlanFormPage({ mode, planId }: PlanFormPageProps) {
                             />
                             <span className="min-w-0 flex-1">
                               <span className="block text-sm font-medium text-ink">
-                                {t(`featureItems.${item.key}`)}
+                                {resolvePlanFeatureLabel(
+                                  tFeatures,
+                                  item.key,
+                                  item.label,
+                                  ADMIN_PLAN_FEATURE_I18N_NS
+                                )}
                               </span>
                               {state.enabled ? (
                                 <input

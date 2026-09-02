@@ -7,13 +7,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Loader2,
-  Mail,
   Pencil,
   Search,
   Trash2,
   UserPlus,
   Users,
-  X,
 } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import { useRouter, usePathname } from '@/i18n/navigation'
@@ -23,7 +21,6 @@ import {
   type OrganizationAdminUser,
   type OrganizationMember,
   type PaginationMeta,
-  type PendingInvitation,
 } from '@/lib/api'
 import { queryKeys } from '@/lib/query-keys'
 import { ASSIGNABLE_ROLES, type AssignableRole } from '@/lib/onboarding'
@@ -48,6 +45,7 @@ type TeamMemberRow = {
   email: string
   role: string
   isActive?: boolean
+  emailVerified?: boolean
 }
 
 function unwrapList<T>(data: { data?: T[] } | T[] | undefined): T[] {
@@ -98,6 +96,7 @@ function fromAdminUser(user: OrganizationAdminUser): TeamMemberRow {
     email: user.email,
     role: user.role,
     isActive: user.isActive,
+    emailVerified: user.emailVerified,
   }
 }
 
@@ -108,6 +107,7 @@ function fromMember(member: OrganizationMember): TeamMemberRow {
     name: member.name,
     email: member.email,
     role: member.role,
+    emailVerified: member.emailVerified,
   }
 }
 
@@ -159,8 +159,6 @@ export function TeamMembersPage() {
   const pathname = usePathname()
   const removeTitleId = useId()
   const removeDescId = useId()
-  const cancelTitleId = useId()
-  const cancelDescId = useId()
   const {
     tenantOrganizationId,
     accessContext,
@@ -181,9 +179,7 @@ export function TeamMembersPage() {
   const [removeTarget, setRemoveTarget] = useState<TeamMemberRow | null>(null)
   const [removePending, setRemovePending] = useState(false)
   const [removeError, setRemoveError] = useState<string | null>(null)
-  const [cancelTarget, setCancelTarget] = useState<PendingInvitation | null>(null)
-  const [cancelPending, setCancelPending] = useState(false)
-  const [cancelError, setCancelError] = useState<string | null>(null)
+  const [resendPendingId, setResendPendingId] = useState<string | null>(null)
   const [editUserId, setEditUserId] = useState<string | null>(null)
 
   const [page, setPage] = useState(1)
@@ -242,25 +238,10 @@ export function TeamMembersPage() {
     placeholderData: (previous) => previous,
   })
 
-  const invitesQuery = useQuery({
-    queryKey: queryKeys.team.invites(tenantOrganizationId),
-    queryFn: async () => {
-      try {
-        const invitesResult = await api.invitations.list()
-        return unwrapList<PendingInvitation>(invitesResult.data)
-      } catch {
-        return [] as PendingInvitation[]
-      }
-    },
-    enabled: teamEnabled,
-    staleTime: 60_000,
-  })
-
   const members = useMemo(() => membersQuery.data?.members ?? [], [membersQuery.data])
-  const pendingInvites = invitesQuery.data ?? []
   const meta = membersQuery.data?.meta ?? null
   const paginatedSource = membersQuery.data?.paginatedSource ?? false
-  const listLoading = membersQuery.isLoading || invitesQuery.isLoading || orgsLoading
+  const listLoading = membersQuery.isLoading || orgsLoading
   const listError = membersQuery.error
     ? (membersQuery.error as unknown as ApiError).message || t('errors.loadFailed')
     : null
@@ -305,9 +286,22 @@ export function TeamMembersPage() {
     if (apiError.code === 'E_ROLE_MISSING' || apiError.code === 'E_ROLE_ASSIGN_OWNER') {
       return t('errors.roleInvalid')
     }
-    if (apiError.code === 'E_INVITE_NOT_PENDING') return t('errors.inviteNotPending')
-    if (apiError.code === 'E_INVITE_NOT_FOUND') return t('errors.inviteNotFound')
+    if (apiError.code === 'E_INVITE_PASSWORD_ALREADY_SET') return t('errors.resendInviteError')
     return apiError.message || t('errors.actionFailed')
+  }
+
+  async function handleResendInvite(member: TeamMemberRow) {
+    if (!canInviteMembers || member.emailVerified !== false) return
+    setActionError(null)
+    setResendPendingId(member.memberId)
+    try {
+      await api.members.resendInvite(member.memberId)
+      setActionError(null)
+    } catch (err) {
+      setActionError(mapMemberActionError(err))
+    } finally {
+      setResendPendingId(null)
+    }
   }
 
   async function handleRoleChange(member: TeamMemberRow, nextRole: string) {
@@ -367,24 +361,6 @@ export function TeamMembersPage() {
       setRemoveError(mapMemberActionError(err))
     } finally {
       setRemovePending(false)
-    }
-  }
-
-  async function handleCancelInviteConfirm() {
-    if (!cancelTarget || !canInviteMembers) return
-    setCancelError(null)
-    setCancelPending(true)
-    try {
-      await api.invitations.cancel(cancelTarget.id)
-      setCancelTarget(null)
-      setActionError(null)
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.team.invites(tenantOrganizationId),
-      })
-    } catch (err) {
-      setCancelError(mapMemberActionError(err))
-    } finally {
-      setCancelPending(false)
     }
   }
 
@@ -570,6 +546,11 @@ export function TeamMembersPage() {
                               ({t('inactive')})
                             </span>
                           ) : null}
+                          {member.emailVerified === false ? (
+                            <span className="ml-1.5 text-xs font-normal text-warning">
+                              ({t('passwordNotSet')})
+                            </span>
+                          ) : null}
                         </p>
                         <p className="truncate text-sm text-body">{member.email}</p>
                       </div>
@@ -607,6 +588,25 @@ export function TeamMembersPage() {
                           {roleKey === 'other' ? member.role : t(`roles.${roleKey}`)}
                         </span>
                       )}
+
+                      {canInviteMembers && member.emailVerified === false ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-9"
+                          disabled={resendPendingId === member.memberId}
+                          onClick={() => {
+                            void handleResendInvite(member)
+                          }}
+                        >
+                          {resendPendingId === member.memberId ? (
+                            <Loader2 className="size-4 animate-spin" aria-hidden />
+                          ) : (
+                            t('resendInvite')
+                          )}
+                        </Button>
+                      ) : null}
 
                       {canEditProfile ? (
                         <Button
@@ -686,56 +686,6 @@ export function TeamMembersPage() {
         )}
       </DashboardPanel>
 
-      {!listLoading && !listError && pendingInvites.length > 0 ? (
-        <DashboardPanel as="section" className="p-4 sm:p-5 md:p-6">
-          <DashboardSectionHeader title={t('pendingTitle')} description={t('pendingDescription')} />
-          <ul className="mt-6 divide-y divide-dash-border overflow-hidden rounded-2xl border border-dash-border">
-            {pendingInvites.map((invite) => {
-              const roleKey = roleLabelKey(invite.role)
-              return (
-                <li
-                  key={invite.id}
-                  className="flex flex-col gap-3 bg-canvas px-4 py-3.5 sm:flex-row sm:items-center sm:gap-3 sm:px-5"
-                >
-                  <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-dash-surface text-positive-deep">
-                      <Mail className="size-4" aria-hidden />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium text-ink">{invite.email}</p>
-                      <p className="truncate text-sm text-body">
-                        {t('pendingInvitedBy', { name: invite.inviterName })}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
-                    <span className="rounded-md bg-warning/15 px-2.5 py-1 text-xs font-semibold tracking-wide text-ink uppercase">
-                      {roleKey === 'other' ? invite.role : t(`roles.${roleKey}`)}
-                    </span>
-                    {canInviteMembers ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="size-9 border-dash-border text-body hover:bg-dash-surface hover:text-ink"
-                        aria-label={t('cancelInviteAria', { email: invite.email })}
-                        disabled={cancelPending}
-                        onClick={() => {
-                          setCancelError(null)
-                          setCancelTarget(invite)
-                        }}
-                      >
-                        <X className="size-4" aria-hidden />
-                      </Button>
-                    ) : null}
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        </DashboardPanel>
-      ) : null}
-
       {canInviteMembers ? (
         <InviteMemberSheet
           open={inviteOpen}
@@ -813,67 +763,6 @@ export function TeamMembersPage() {
                   </>
                 ) : (
                   t('removeConfirm')
-                )}
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {cancelTarget ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 backdrop-blur-[2px]"
-          role="presentation"
-          onClick={() => {
-            if (!cancelPending) setCancelTarget(null)
-          }}
-        >
-          <div
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby={cancelTitleId}
-            aria-describedby={cancelDescId}
-            className="w-full max-w-md rounded-2xl border border-dash-border bg-canvas p-5 shadow-[0_20px_50px_rgb(15_23_42/0.18)] sm:p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 id={cancelTitleId} className="font-display text-lg tracking-tight text-ink">
-              {t('cancelInviteConfirmTitle')}
-            </h2>
-            <p id={cancelDescId} className="mt-2 text-sm leading-6 text-body">
-              {t('cancelInviteConfirmBody', { email: cancelTarget.email })}
-            </p>
-
-            {cancelError ? (
-              <p role="alert" className="mt-3 text-sm text-negative">
-                {cancelError}
-              </p>
-            ) : null}
-
-            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={cancelPending}
-                onClick={() => setCancelTarget(null)}
-              >
-                {t('cancelInviteDismiss')}
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                disabled={cancelPending}
-                className="gap-2"
-                onClick={() => {
-                  void handleCancelInviteConfirm()
-                }}
-              >
-                {cancelPending ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
-                    {t('cancelingInvite')}
-                  </>
-                ) : (
-                  t('cancelInviteConfirm')
                 )}
               </Button>
             </div>

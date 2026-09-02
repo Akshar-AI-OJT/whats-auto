@@ -53,7 +53,6 @@ export type PlanLimits = {
   analyticsRetentionDays: number | null
   auditLogRetentionDays: number | null
   maxTemplates: number | null
-  maxCampaignRecipientListSize: number | null
   conversationInboxRetentionDays: number | null
   /** Anti-abuse: never null. */
   aiGenerationsPerConversationHour: number

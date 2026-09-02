@@ -78,7 +78,9 @@ test.group('Phase 7 - Comprehensive Policy Edge Cases & Invariant Matrix', () =>
     assert.instanceOf(deleteOrgRes, AuthorizationResponse)
 
     const invitePolicy = new InvitationPolicy()
-    assert.isFalse(invitePolicy.viewAny(anonymousPrincipal))
+    const storeInviteRes = invitePolicy.store(anonymousPrincipal, 'org-1')
+    assert.instanceOf(storeInviteRes, AuthorizationResponse)
+    assert.isFalse(invitePolicy.resend(anonymousPrincipal))
 
     const convoPolicy = new ConversationPolicy()
     assert.isFalse(convoPolicy.viewAny(anonymousPrincipal))
