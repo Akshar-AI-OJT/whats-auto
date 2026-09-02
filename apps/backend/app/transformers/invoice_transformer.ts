@@ -11,6 +11,30 @@ function toNumber(value: string | number): number {
   return typeof value === 'number' ? value : Number(value)
 }
 
+function roundMoney(value: number) {
+  return Math.round(value * 100) / 100
+}
+
+const DEFAULT_SUMMARY_CURRENCY = 'INR'
+
+function resolveSummaryCurrency(rows: InvoiceRow[]): string {
+  const counts = new Map<string, number>()
+  for (const row of rows) {
+    const code = (row.currency || DEFAULT_SUMMARY_CURRENCY).trim().toUpperCase()
+    counts.set(code, (counts.get(code) ?? 0) + 1)
+  }
+
+  let currency = DEFAULT_SUMMARY_CURRENCY
+  let max = 0
+  for (const [code, count] of counts) {
+    if (count > max) {
+      max = count
+      currency = code
+    }
+  }
+  return currency
+}
+
 function toIso(value: Date | string): string {
   return value instanceof Date ? value.toISOString() : new Date(value).toISOString()
 }
@@ -99,7 +123,7 @@ export function buildInvoiceSummary(
   rows: InvoiceRow[],
   now: Date = new Date()
 ): SuperAdminInvoiceSummary {
-  const thisMonthPrefix = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  const thisMonthPrefix = `${now.getUTCFullYear()}-${String(now.getUTCMonth() + 1).padStart(2, '0')}`
 
   const summary: SuperAdminInvoiceSummary = {
     totalCount: rows.length,
@@ -113,6 +137,7 @@ export function buildInvoiceSummary(
     cancelledAmount: 0,
     thisMonthCount: 0,
     thisMonthAmount: 0,
+    currency: resolveSummaryCurrency(rows),
   }
 
   for (const row of rows) {
@@ -133,17 +158,20 @@ export function buildInvoiceSummary(
       summary.cancelledAmount += total
     }
 
-    if (toDateOnly(row.issueDate).startsWith(thisMonthPrefix)) {
+    // Monthly revenue = paid invoices issued this month (excludes pending/overdue/cancelled).
+    if (status === 'paid' && toDateOnly(row.issueDate).startsWith(thisMonthPrefix)) {
       summary.thisMonthCount += 1
       summary.thisMonthAmount += total
     }
   }
 
-  return summary
-}
+  summary.paidAmount = roundMoney(summary.paidAmount)
+  summary.pendingAmount = roundMoney(summary.pendingAmount)
+  summary.overdueAmount = roundMoney(summary.overdueAmount)
+  summary.cancelledAmount = roundMoney(summary.cancelledAmount)
+  summary.thisMonthAmount = roundMoney(summary.thisMonthAmount)
 
-function roundMoney(value: number) {
-  return Math.round(value * 100) / 100
+  return summary
 }
 
 export function computeInvoiceTotals(input: {

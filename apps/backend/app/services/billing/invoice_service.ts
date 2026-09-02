@@ -171,7 +171,7 @@ export class InvoiceService {
             periodEnd: periodEnd.toJSDate(),
             issueDate: issueDate.toJSDate(),
             dueDate: dueDate.toJSDate(),
-            currency: (data.currency ?? organization.currency ?? 'USD').toUpperCase(),
+            currency: (data.currency ?? organization.currency ?? 'INR').toUpperCase(),
             subtotal: totals.subtotal,
             taxRate: totals.taxRate,
             tax: totals.tax,

@@ -2339,7 +2339,10 @@
         "reasonPlaceholder": "e.g. Narrow agent inbox access for support season",
         "reasonHint": "Saved to the authorization audit log so teammates know why this change was made (minimum 5 characters).",
         "unsavedChanges": "Unsaved changes",
+        "unsavedConfirmTitle": "Discard unsaved changes?",
         "unsavedConfirm": "You have unsaved changes. Close without saving?",
+        "unsavedConfirmStay": "Keep editing",
+        "unsavedConfirmDiscard": "Discard",
         "cancel": "Cancel",
         "createSubmit": "Save Role",
         "editSubmit": "Save Role",
@@ -4124,7 +4127,7 @@
         },
         "monthlyRevenue": {
           "label": "Monthly Revenue",
-          "hint": "Current billing period"
+          "hint": "Paid invoices this month"
         },
         "activeWhatsappNumbers": {
           "label": "Active WhatsApp Numbers",
@@ -4800,6 +4803,7 @@
         "remove": "Remove line item"
       },
       "currency": {
+        "inr": "INR — Indian Rupee",
         "usd": "USD — US Dollar"
       },
       "filters": "Filters",

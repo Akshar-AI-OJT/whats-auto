@@ -1,7 +1,7 @@
 import type { InvoiceBillingPeriod, InvoiceStatus } from './types'
 
-export function formatMoney(amount: number, currency = 'USD') {
-  const code = currency.trim().toUpperCase() || 'USD'
+export function formatMoney(amount: number, currency = 'INR') {
+  const code = currency.trim().toUpperCase() || 'INR'
   try {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',

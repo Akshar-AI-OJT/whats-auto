@@ -176,6 +176,9 @@ export function computePlanDistribution(
   const counts = new Map<string, BreakdownItem>()
 
   for (const subscription of subscriptions) {
+    const status = String(subscription.status).toLowerCase()
+    if (status === 'cancelled') continue
+
     const planId = subscription.planId
     const existing = counts.get(planId)
     if (existing) {
@@ -250,10 +253,27 @@ export async function fetchMonthlyRevenueTrend(
   return results
 }
 
-export function formatCurrency(value: number, locale: string): string {
-  return new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0,
-  }).format(value)
+export const PLATFORM_CURRENCY = 'INR'
+
+export function formatCurrency(
+  value: number,
+  locale: string,
+  currency = PLATFORM_CURRENCY
+): string {
+  const code = currency.trim().toUpperCase() || PLATFORM_CURRENCY
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: code,
+      minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
+      maximumFractionDigits: 2,
+    }).format(value)
+  } catch {
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: PLATFORM_CURRENCY,
+      minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
+      maximumFractionDigits: 2,
+    }).format(value)
+  }
 }

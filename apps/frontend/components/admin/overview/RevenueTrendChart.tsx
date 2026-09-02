@@ -7,7 +7,7 @@ import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
 import { queryKeys } from '@/lib/query-keys'
 import { cn } from '@/lib/utils'
-import { fetchMonthlyRevenueTrend } from '../analytics/super-admin-analytics'
+import { fetchMonthlyRevenueTrend, formatCurrency, PLATFORM_CURRENCY } from '../analytics/super-admin-analytics'
 
 const WIDTH = 560
 const HEIGHT = 220
@@ -15,11 +15,20 @@ const PAD = { top: 16, right: 12, bottom: 32, left: 48 }
 const STALE_MS = 60_000
 const MONTHS = 6
 
-function formatShortCurrency(value: number) {
+function formatShortCurrency(value: number, locale: string, currency = PLATFORM_CURRENCY) {
   if (value >= 1000) {
-    return `$${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 1)}k`
+    try {
+      return new Intl.NumberFormat(locale, {
+        style: 'currency',
+        currency,
+        notation: 'compact',
+        maximumFractionDigits: 1,
+      }).format(value)
+    } catch {
+      return formatCurrency(value, locale, currency)
+    }
   }
-  return `$${value}`
+  return formatCurrency(value, locale, currency)
 }
 
 export function RevenueTrendChart({ className }: { className?: string }) {
@@ -86,7 +95,7 @@ export function RevenueTrendChart({ className }: { className?: string }) {
             viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
             className="h-auto w-full"
             role="img"
-            aria-label={t('ariaLabel', { max: formatShortCurrency(Math.round(max)) })}
+            aria-label={t('ariaLabel', { max: formatShortCurrency(Math.round(max), locale) })}
           >
             {yTicks.map((tick) => (
               <g key={tick.value}>
@@ -104,7 +113,7 @@ export function RevenueTrendChart({ className }: { className?: string }) {
                   textAnchor="end"
                   className="fill-mute text-[10px]"
                 >
-                  {formatShortCurrency(tick.value)}
+                  {formatShortCurrency(tick.value, locale)}
                 </text>
               </g>
             ))}

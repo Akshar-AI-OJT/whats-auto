@@ -272,7 +272,7 @@ export function InvoicesPage() {
           value={summary?.paidCount ?? 0}
           format="number"
           icon={CheckCircle2}
-          hint={formatMoney(summary?.paidAmount ?? 0)}
+          hint={formatMoney(summary?.paidAmount ?? 0, summary?.currency)}
           loading={listLoading && !summary}
         />
         <KPIStatCard
@@ -280,7 +280,7 @@ export function InvoicesPage() {
           value={summary?.pendingCount ?? 0}
           format="number"
           icon={Clock3}
-          hint={formatMoney(summary?.pendingAmount ?? 0)}
+          hint={formatMoney(summary?.pendingAmount ?? 0, summary?.currency)}
           loading={listLoading && !summary}
         />
         <KPIStatCard
@@ -288,7 +288,7 @@ export function InvoicesPage() {
           value={summary?.overdueCount ?? 0}
           format="number"
           icon={AlertTriangle}
-          hint={formatMoney(summary?.overdueAmount ?? 0)}
+          hint={formatMoney(summary?.overdueAmount ?? 0, summary?.currency)}
           loading={listLoading && !summary}
         />
         <KPIStatCard
@@ -296,7 +296,7 @@ export function InvoicesPage() {
           value={summary?.cancelledCount ?? 0}
           format="number"
           icon={XCircle}
-          hint={formatMoney(summary?.cancelledAmount ?? 0)}
+          hint={formatMoney(summary?.cancelledAmount ?? 0, summary?.currency)}
           loading={listLoading && !summary}
         />
       </div>

@@ -2339,7 +2339,10 @@
         "reasonPlaceholder": "उदा. सपोर्ट सीज़न के लिए एजेंट इनबॉक्स पहुँच सीमित करें",
         "reasonHint": "यह कारण authorization ऑडिट लॉग में सहेजा जाता है ताकि टीम जाने कि बदलाव क्यों हुआ (न्यूनतम 5 अक्षर)।",
         "unsavedChanges": "बिना सहेजे बदलाव",
+        "unsavedConfirmTitle": "बिना सहेजे बदलाव छोड़ें?",
         "unsavedConfirm": "आपके पास बिना सहेजे बदलाव हैं। बिना सहेजे बंद करें?",
+        "unsavedConfirmStay": "संपादन जारी रखें",
+        "unsavedConfirmDiscard": "छोड़ें",
         "cancel": "रद्द करें",
         "createSubmit": "भूमिका सहेजें",
         "editSubmit": "भूमिका सहेजें",
@@ -4124,7 +4127,7 @@
         },
         "monthlyRevenue": {
           "label": "मासिक राजस्व",
-          "hint": "वर्तमान बिलिंग अवधि"
+          "hint": "इस महीने की भुगतान की गई इनवॉइस"
         },
         "activeWhatsappNumbers": {
           "label": "सक्रिय WhatsApp नंबर",
@@ -4800,6 +4803,7 @@
         "remove": "लाइन आइटम हटाएँ"
       },
       "currency": {
+        "inr": "INR — भारतीय रुपया",
         "usd": "USD — US Dollar"
       },
       "filters": "फ़िल्टर",
