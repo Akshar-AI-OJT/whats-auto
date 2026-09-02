@@ -1,8 +1,9 @@
 import { BaseSchema } from '@adonisjs/lucid/schema'
 
 /**
- * Persistent Drive/S3 object key for the uploaded Contact Import CSV.
- * The worker reads this file instead of the HTTP tmp upload.
+ * Primary storage for contact-import CSVs: Drive/S3 object key under
+ * organizations/{organizationId}/imports/contacts/. The worker reads this
+ * file instead of the HTTP tmp upload (preferred over legacy csvContent).
  */
 export default class extends BaseSchema {
   protected tableName = 'contact_imports'

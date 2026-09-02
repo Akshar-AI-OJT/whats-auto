@@ -1,6 +1,6 @@
 'use client'
 
-import { useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Check, Download, Loader2, Upload } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -90,6 +90,10 @@ function isImportInProgress(status: string) {
   return status === 'pending' || status === 'processing'
 }
 
+/** Stop polling after this many attempts (~10 min at 1s interval). */
+const IMPORT_POLL_MAX_ATTEMPTS = 600
+const IMPORT_POLL_INTERVAL_MS = 1000
+
 function buildReportCsv(result: ContactImportResult) {
   const extraHeaders: string[] = []
   const seen = new Set<string>()
@@ -144,6 +148,18 @@ export function ImportContactsDialog({
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   const [result, setResult] = useState<ContactImportResult | null>(null)
+
+  useEffect(() => {
+    if (!open) {
+      pollCancelledRef.current = true
+    }
+  }, [open])
+
+  useEffect(() => {
+    return () => {
+      pollCancelledRef.current = true
+    }
+  }, [])
 
   const step: WizardStep = screen === 'result' ? 4 : screen
   const mapping = toBackendColumnMapping(csvToField)
@@ -306,9 +322,23 @@ export function ImportContactsDialog({
   }
 
   async function pollImport(importId: string) {
+    let attempts = 0
     while (!pollCancelledRef.current) {
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      await new Promise((resolve) => setTimeout(resolve, IMPORT_POLL_INTERVAL_MS))
       if (pollCancelledRef.current) return
+      attempts += 1
+      if (attempts > IMPORT_POLL_MAX_ATTEMPTS) {
+        setResult((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: 'failed',
+              }
+            : prev
+        )
+        setError(t('errors.pollTimedOut'))
+        return
+      }
       try {
         const { data } = await api.contacts.getImport(importId)
         const next = unwrapImport(data)

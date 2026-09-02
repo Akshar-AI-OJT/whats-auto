@@ -2411,6 +2411,7 @@
           "noHeaders": "CSV file is missing column headers.",
           "sessionExpired": "Your session expired. Please sign in again.",
           "permissionDenied": "You don’t have permission to import contacts.",
+          "pollTimedOut": "Import is still running but progress updates stopped. Refresh contacts later or try again.",
           "missingPhoneColumn": "CSV is missing a phone column.",
           "invalidCountry": "Select a valid country.",
           "tooManyRows": "CSV has too many rows.",

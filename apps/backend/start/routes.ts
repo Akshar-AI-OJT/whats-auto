@@ -844,24 +844,14 @@ router
   .get('/api/v1/audit', [controllers.Audit, 'index'])
   .use([middleware.jwtAuth(), middleware.tenant()])
 
-// contacts — tenant isolation
+// contacts — tenant isolation (feature gates via ContactPolicy in the controller)
 router
   .group(() => {
-    router
-      .get('/', [ContactsController, 'index'])
-      .use(middleware.requirePermission({ permission: 'contacts:view' }))
-    router
-      .post('/', [ContactsController, 'store'])
-      .use(middleware.requirePermission({ permission: 'contacts:create' }))
-    router
-      .post('/import', [ContactsController, 'importCsv'])
-      .use(middleware.requirePermission({ permission: 'contacts:import' }))
-    router
-      .get('/import/:id', [ContactsController, 'showImport'])
-      .use(middleware.requirePermission({ permission: 'contacts:import' }))
-    router
-      .delete('/:id', [ContactsController, 'softDelete'])
-      .use(middleware.requirePermission({ permission: 'contacts:delete' }))
+    router.get('/', [ContactsController, 'index'])
+    router.post('/', [ContactsController, 'store'])
+    router.post('/import', [ContactsController, 'importCsv'])
+    router.get('/import/:id', [ContactsController, 'showImport'])
+    router.delete('/:id', [ContactsController, 'softDelete'])
   })
   .prefix('/api/v1/contacts')
   .use([middleware.jwtAuth(), middleware.tenant()])

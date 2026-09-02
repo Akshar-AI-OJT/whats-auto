@@ -119,7 +119,9 @@ export default class ContactsController {
    * @responseBody 200 - { "data": { "id": "uuid", "status": "completed", "totalRows": 3, "successCount": 2, "errorCount": 1 } }
    * @responseBody 404 - { "error": "Contact import not found", "code": "E_CONTACT_IMPORT_NOT_FOUND" }
    */
-  async showImport({ request, params, serialize }: HttpContext) {
+  async showImport({ bouncer, request, params, serialize }: HttpContext) {
+    await bouncer.with(ContactPolicy).authorize('import')
+
     const { id } = await request.validateUsing(contactIdParamValidator, {
       data: params,
     })

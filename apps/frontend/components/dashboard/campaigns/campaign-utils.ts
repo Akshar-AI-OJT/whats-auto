@@ -6,13 +6,7 @@ export type CampaignViewMode = 'cards' | 'list'
 /** Matches `replaceCampaignRecipientsValidator` maxLength on the backend. */
 export const CAMPAIGN_RECIPIENT_MAX = 5000
 
-export const CAMPAIGN_STATUSES = [
-  'draft',
-  'scheduled',
-  'sending',
-  'sent',
-  'failed',
-] as const
+export const CAMPAIGN_STATUSES = ['draft', 'scheduled', 'sending', 'sent', 'failed'] as const
 
 export type CampaignStatusKey = (typeof CAMPAIGN_STATUSES)[number]
 

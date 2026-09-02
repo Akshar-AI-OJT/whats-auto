@@ -1,13 +1,14 @@
 import { test } from '@japa/runner'
 import { randomUUID } from 'node:crypto'
 import app from '@adonisjs/core/services/app'
-import drive from '@adonisjs/drive/services/main'
 import db from '@adonisjs/lucid/services/db'
 import ContactException from '#exceptions/contact_exception'
 import { ContactImportService } from '#services/contact_import_service'
 import { ContactService } from '#services/contact_service'
-import { ObjectStorageService } from '#services/object_storage_service'
-import NullJobQueueDriver from '#services/job_queue/drivers/null_driver'
+import { ContactImportStorage } from '#services/contact_import_storage'
+import { ObjectStorage } from '#services/object_storage/contracts/object_storage'
+import FakeObjectStorage from '#services/object_storage/drivers/fake_object_storage'
+import type NullJobQueueDriver from '#services/job_queue/drivers/null_driver'
 import JobQueueManager from '#services/job_queue/job_queue_manager'
 import { JOB_NAMES } from '#services/job_queue/job_names'
 import { createContactImportHandler } from '#services/job_queue/handlers/contact_import_handler'
@@ -148,6 +149,12 @@ test.group('ContactImportService', (group) => {
   const orgIds: string[] = []
   const userIds: string[] = []
   const planIds: string[] = []
+  let objectStorage: FakeObjectStorage
+
+  group.setup(() => {
+    objectStorage = new FakeObjectStorage()
+    app.container.bindValue(ObjectStorage, objectStorage)
+  })
 
   group.teardown(async () => {
     for (const organizationId of orgIds) {
@@ -168,6 +175,13 @@ test.group('ContactImportService', (group) => {
     }
   })
 
+  async function readStoredText(key: string) {
+    const body = await objectStorage.getObject(key)
+    if (!body) {
+      throw new Error(`missing object at ${key}`)
+    }
+    return Buffer.from(body).toString('utf8')
+  }
   test('imports international CSV without a default country', async ({ assert }) => {
     const organizationId = await createOrg()
     orgIds.push(organizationId)
@@ -698,8 +712,8 @@ test.group('ContactImportService', (group) => {
     const expectedPath = `organizations/${organizationId}/imports/contacts/queued.csv`
     assert.equal(stored.filePath, expectedPath)
     assert.isNull(stored.csvContent)
-    assert.isTrue(await drive.use().exists(expectedPath))
-    assert.equal(await drive.use().get(expectedPath), nationalCsv(20))
+    assert.isTrue(await objectStorage.objectExists(expectedPath))
+    assert.equal(await readStoredText(expectedPath), nationalCsv(20))
 
     const contacts = await runWithTenant(organizationId, () =>
       db.from('contacts').where('organizationId', organizationId).whereNull('deletedAt')
@@ -923,7 +937,7 @@ test.group('ContactImportService', (group) => {
       stored.filePath,
       `organizations/${organizationId}/imports/contacts/customer_contacts.csv`
     )
-    assert.equal(await drive.use().get(stored.filePath), 'name,phone\nRahul,+919876543210\n')
+    assert.equal(await readStoredText(stored.filePath), 'name,phone\nRahul,+919876543210\n')
   })
 
   test('sanitizes traversal filenames into the contacts folder', async ({ assert }) => {
@@ -981,8 +995,8 @@ test.group('ContactImportService', (group) => {
       byId[second.id],
       `organizations/${organizationId}/imports/contacts/contacts-${second.id}.csv`
     )
-    assert.equal(await drive.use().get(byId[first.id]), 'name,phone\nFirst,+919876543210\n')
-    assert.equal(await drive.use().get(byId[second.id]), 'name,phone\nSecond,+14155552671\n')
+    assert.equal(await readStoredText(byId[first.id]), 'name,phone\nFirst,+919876543210\n')
+    assert.equal(await readStoredText(byId[second.id]), 'name,phone\nSecond,+14155552671\n')
   })
 
   test('does not let another organization read a contact import file', async ({ assert }) => {
@@ -991,7 +1005,7 @@ test.group('ContactImportService', (group) => {
     orgIds.push(orgA, orgB)
     const userId = await seedUser()
     userIds.push(userId)
-    const storage = new ObjectStorageService()
+    const storage = new ContactImportStorage()
 
     const queuedA = await runWithTenant(orgA, () =>
       new ContactImportService().importCsv({
@@ -1007,7 +1021,10 @@ test.group('ContactImportService', (group) => {
       db.from('contact_imports').where('id', queuedA.id).select('filePath').first()
     )
     assert.equal(stored.filePath, pathA)
-    assert.equal(await storage.getContactImportCsv(orgA, pathA), 'name,phone\nRahul,+919876543210\n')
+    assert.equal(
+      await storage.getContactImportCsv(orgA, pathA),
+      'name,phone\nRahul,+919876543210\n'
+    )
 
     try {
       await storage.getContactImportCsv(orgB, pathA)
@@ -1058,7 +1075,10 @@ test.group('ContactImportService', (group) => {
     ).filePath as string
 
     await runWithTenant(orgB, () =>
-      db.from('contact_imports').where('id', queuedB.id).update({ filePath: pathA, csvContent: null })
+      db
+        .from('contact_imports')
+        .where('id', queuedB.id)
+        .update({ filePath: pathA, csvContent: null })
     )
 
     try {

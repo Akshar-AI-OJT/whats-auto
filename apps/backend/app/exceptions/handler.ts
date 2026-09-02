@@ -38,7 +38,7 @@ export default class HttpExceptionHandler extends ExceptionHandler {
     }
 
     // Bouncer authorize() throws E_AUTHORIZATION_FAILURE. Map 403s onto the documented
-    // API contract used by Swagger (`PERMISSION_DENIED`).
+    // API contract used by requirePermission middleware and Swagger (`PERMISSION_DENIED`).
     // Preserve non-403 AuthorizationResponse.deny statuses (404/422) for super.handle.
     if (isBouncerForbidden(error)) {
       return ctx.response.status(403).send({

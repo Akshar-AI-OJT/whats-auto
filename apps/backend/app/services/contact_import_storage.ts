@@ -1,4 +1,5 @@
-import drive from '@adonisjs/drive/services/main'
+import app from '@adonisjs/core/services/app'
+import { ObjectStorage } from '#services/object_storage/contracts/object_storage'
 import {
   assertContactImportStorageKey,
   buildContactImportStorageKey,
@@ -6,20 +7,38 @@ import {
 } from '#lib/organization_storage_path'
 
 /**
- * Thin wrapper over Adonis Drive (local fs or S3). Object keys use the
- * organization folder layout; the disk itself is the configured Drive default.
+ * Org-scoped contact-import CSV helpers on top of ObjectStorage
+ * (the source of truth for all organization uploads).
  */
-export class ObjectStorageService {
+export class ContactImportStorage {
+  constructor(private storage?: ObjectStorage) {}
+
+  async #objectStorage(): Promise<ObjectStorage> {
+    if (this.storage) return this.storage
+    return app.container.make(ObjectStorage)
+  }
+
   async putText(key: string, contents: string, contentType = 'text/csv'): Promise<void> {
-    await drive.use().put(key, contents, { contentType })
+    const storage = await this.#objectStorage()
+    await storage.writeObject({
+      key,
+      body: Buffer.from(contents, 'utf8'),
+      contentType,
+    })
   }
 
   async getText(key: string): Promise<string> {
-    return drive.use().get(key)
+    const storage = await this.#objectStorage()
+    const body = await storage.getObject(key)
+    if (!body) {
+      throw new Error(`Contact import file not found: ${key}`)
+    }
+    return Buffer.from(body).toString('utf8')
   }
 
   async exists(key: string): Promise<boolean> {
-    return drive.use().exists(key)
+    const storage = await this.#objectStorage()
+    return storage.objectExists(key)
   }
 
   async getContactImportCsv(organizationId: string, key: string): Promise<string> {

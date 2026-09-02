@@ -1,8 +1,8 @@
 import { BaseSchema } from '@adonisjs/lucid/schema'
 
 /**
- * Persist the uploaded CSV so the contact-import worker can process rows
- * without putting the file in the queue payload.
+ * Legacy optional column: early designs stored CSV inline. New imports use
+ * `filePath` (Drive/S3 key) only; workers still accept csvContent as fallback.
  */
 export default class extends BaseSchema {
   protected tableName = 'contact_imports'

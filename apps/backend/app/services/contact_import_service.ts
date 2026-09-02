@@ -17,7 +17,7 @@ import { sanitizeContactImportFileName } from '#lib/organization_storage_path'
 import { PlanEnforcementService } from '#services/billing/plan_enforcement_service'
 import { enqueueContactImport } from '#services/contact_import_queue'
 import { ContactService } from '#services/contact_service'
-import { ObjectStorageService } from '#services/object_storage_service'
+import { ContactImportStorage } from '#services/contact_import_storage'
 import { runWithTenant } from '#services/tenant_context'
 import { validateContactProfileFields } from '#validators/contact'
 
@@ -115,7 +115,7 @@ function isUniqueViolation(error: unknown): boolean {
 export class ContactImportService {
   constructor(
     private contacts: ContactService = new ContactService(),
-    private storage: ObjectStorageService = new ObjectStorageService()
+    private storage: ContactImportStorage = new ContactImportStorage()
   ) {}
 
   /**
@@ -256,9 +256,7 @@ export class ContactImportService {
         .where('importId', params.importId)
         .select('rowNumber', 'status', 'action', 'contactId', 'rawData')
 
-      const processedRowNumbers = new Set<number>(
-        existingRows.map((row) => Number(row.rowNumber))
-      )
+      const processedRowNumbers = new Set<number>(existingRows.map((row) => Number(row.rowNumber)))
       const seenNormalized = new Set<string>()
       await this.#hydrateSeenPhones({
         organizationId: params.organizationId,
@@ -304,7 +302,10 @@ export class ContactImportService {
               errorCount,
             })
           } catch (error) {
-            if (error instanceof ContactException && error.code === 'E_CONTACT_PLAN_LIMIT_REACHED') {
+            if (
+              error instanceof ContactException &&
+              error.code === 'E_CONTACT_PLAN_LIMIT_REACHED'
+            ) {
               await this.#recordLimitStopRow({
                 organizationId: params.organizationId,
                 importId: params.importId,
