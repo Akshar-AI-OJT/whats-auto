@@ -46,10 +46,12 @@ import {
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import {
   clearPendingOrganizationPreferences,
+  clearPendingOnboardingOrganizationId,
   isValidEmail,
   isValidPhone,
   isValidWebsiteUrl,
   readPendingOrganizationPreferences,
+  readPendingOnboardingOrganizationId,
 } from '@/lib/onboarding'
 import {
   buildOrganizationProfileUpdateBody,
@@ -116,7 +118,14 @@ export function OrganizationProfileCompletionPage() {
     accessContext,
   } = useOrganizations()
 
-  const org = activeOrganization ?? organizations[0] ?? null
+  const pendingOnboardingOrgId = readPendingOnboardingOrganizationId()
+  const org =
+    (pendingOnboardingOrgId
+      ? organizations.find((item) => item.id === pendingOnboardingOrgId)
+      : null) ??
+    activeOrganization ??
+    organizations[0] ??
+    null
   const orgId = org?.id ?? null
 
   useEffect(() => {
@@ -336,6 +345,7 @@ export function OrganizationProfileCompletionPage() {
     const ok = await persistProfile()
     if (ok) {
       clearPendingOrganizationPreferences()
+      clearPendingOnboardingOrganizationId()
       setSuccess(true)
     }
   }
