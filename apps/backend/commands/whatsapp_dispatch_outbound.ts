@@ -5,7 +5,7 @@ import WhatsappOutboundService from '#services/whatsapp_outbound_service'
 
 /**
  * Debug/manual runner for a single outbound dispatch.
- * Production wakes go through the job worker (pg-boss); this bypasses the queue
+ * Production wakes go through the job worker (BullMQ); this bypasses the queue
  * and calls executeDispatch directly.
  *
  * Example:
@@ -78,8 +78,8 @@ export default class WhatsappDispatchOutbound extends BaseCommand {
         this.exitCode = 1
         break
       default: {
-        const _exhaustive: never = result
-        this.logger.error(`unexpected outcome: ${JSON.stringify(_exhaustive)}`)
+        const exhaustive: never = result
+        this.logger.error(`unexpected outcome: ${JSON.stringify(exhaustive)}`)
         this.exitCode = 1
       }
     }

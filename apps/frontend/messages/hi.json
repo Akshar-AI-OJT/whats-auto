@@ -18,7 +18,7 @@
   "hero": {
     "badge": "AI पावर्ड WhatsApp ऑटोमेशन",
     "headline": "अपना पूरा WhatsApp बिज़नेस ऑटोपायलट पर चलाएँ",
-    "description": "कस्टमर बातचीत मैनेज करें, जवाब ऑटोमेट करें, ब्रॉडकास्ट कैंपेन लॉन्च करें, और अपनी टीम के साथ सहयोग करें—सब एक इंटेलिजेंट WhatsApp वर्कस्पेस से।",
+    "description": "कस्टमर बातचीत मैनेज करें, जवाब ऑटोमेट करें, ब्रॉडकास्ट कैंपेन लॉन्च करें, और अपनी टीम के साथ सहयोग करें—सब एक इंटेलिजेंट WhatsApp संगठन से।",
     "cta": "शुरू करें",
     "ctaSecondary": "डेमो बुक करें",
     "ctaSecondaryBadge": "Soon",
@@ -49,7 +49,7 @@
         "broadcastStatus": "Create & Send",
         "inboxTitle": "Shared Inbox",
         "inboxStatus": "Manage Conversations",
-        "teamTitle": "Team Workspace",
+        "teamTitle": "Team Organization",
         "teamStatus": "Multi-Tenant",
         "authTitle": "Secure Authentication",
         "authStatus": "RBAC Enabled",
@@ -62,7 +62,7 @@
     "featurePreview": {
       "badge": "✨ Platform Features",
       "title": "WhatsApp पर बढ़ने के लिए सब कुछ",
-      "subtitle": "AI-पावर्ड बातचीत से टीम सहयोग तक, Whats-Auto एक इंटेलिजेंट वर्कस्पेस से कस्टमर कम्युनिकेशन मैनेज करने में मदद करता है।",
+      "subtitle": "AI-पावर्ड बातचीत से टीम सहयोग तक, Whats-Auto एक इंटेलिजेंट संगठन से कस्टमर कम्युनिकेशन मैनेज करने में मदद करता है।",
       "cta": "सभी विशेषताएँ देखें",
       "items": {
         "ai": {
@@ -75,14 +75,14 @@
         },
         "inbox": {
           "title": "Shared Team Inbox",
-          "description": "एक शेयर वर्कस्पेस से अपनी टीम के साथ सहयोग करें।"
+          "description": "एक शेयर संगठन से अपनी टीम के साथ सहयोग करें।"
         },
         "analytics": {
           "title": "Analytics",
           "description": "बातचीत, एंगेजमेंट और कैंपेन परफ़ॉर्मेंस ट्रैक करें।"
         },
         "multiTenant": {
-          "title": "Multi-Tenant Workspace",
+          "title": "Multi-Tenant Organization",
           "description": "एक अकाउंट से कई संगठनों को सुरक्षित रूप से मैनेज करें।"
         },
         "auth": {
@@ -93,7 +93,7 @@
     },
     "features": {
       "title": "WhatsApp पर आपको जो चाहिए, सब कुछ",
-      "subtitle": "एक वर्कस्पेस से ब्रॉडकास्ट करें, बेचें और सपोर्ट दें।",
+      "subtitle": "एक संगठन से ब्रॉडकास्ट करें, बेचें और सपोर्ट दें।",
       "viewAll": "सभी विशेषताएँ देखें",
       "items": {
         "broadcasting": {
@@ -145,7 +145,7 @@
         },
         "inbox": {
           "title": "Shared Team Inbox",
-          "description": "पूरी सपोर्ट टीम के साथ एक WhatsApp वर्कस्पेस से सहयोग करें।"
+          "description": "पूरी सपोर्ट टीम के साथ एक WhatsApp संगठन से सहयोग करें।"
         },
         "whatsappApi": {
           "title": "Official WhatsApp API",
@@ -156,7 +156,7 @@
           "description": "कैंपेन परफ़ॉर्मेंस, कस्टमर एंगेजमेंट और रिस्पॉन्स ट्रेंड ट्रैक करें।"
         },
         "multiTenant": {
-          "title": "Multi-Tenant Workspace",
+          "title": "Multi-Tenant Organization",
           "description": "कई संगठनों और टीमों को एक प्लेटफ़ॉर्म से सुरक्षित रूप से मैनेज करें।"
         }
       }
@@ -387,7 +387,7 @@
       "fields": {
         "fullName": "पूरा नाम",
         "email": "वर्क ईमेल",
-        "company": "कंपनी का नाम",
+        "company": "संगठन का नाम",
         "phone": "फ़ोन नंबर",
         "companySize": "कंपनी का आकार",
         "purpose": "डेमो का उद्देश्य"
@@ -486,7 +486,7 @@
   },
   "aboutPage": {
     "metaTitle": "हमारे बारे में — Whats-Auto",
-    "metaDescription": "जानें कि Whats-Auto AI, शेयर इनबॉक्स और सुरक्षित मल्टी-टेनेंट वर्कस्पेस से WhatsApp बातचीत कैसे ऑटोमेट करता है।",
+    "metaDescription": "जानें कि Whats-Auto AI, शेयर इनबॉक्स और सुरक्षित मल्टी-टेनेंट संगठन से WhatsApp बातचीत कैसे ऑटोमेट करता है।",
     "hero": {
       "badge": "🚀 About Whats-Auto",
       "title": "आधुनिक बिज़नेस के लिए स्मार्ट WhatsApp ऑटोमेशन",
@@ -727,18 +727,17 @@
   },
   "featuresPage": {
     "metaTitle": "विशेषताएँ — Whats-Auto",
-    "metaDescription": "WhatsApp बातचीत ऑटोमेट करने के लिए सब कुछ — AI असिस्टेंट, ब्रॉडकास्ट, शेयर इनबॉक्स, एनालिटिक्स और सुरक्षित मल्टी-टेनेंट वर्कस्पेस।",
+    "metaDescription": "WhatsApp बातचीत ऑटोमेट करने के लिए सब कुछ — AI असिस्टेंट, ब्रॉडकास्ट, शेयर इनबॉक्स, एनालिटिक्स और सुरक्षित मल्टी-टेनेंट संगठन।",
     "title": "विशेषताएँ",
     "subtitle": "आपके व्यवसाय के लिए WhatsApp ऑटोमेट करने की Whats-Auto की सभी सुविधाएँ।",
     "hero": {
       "badge": "✨ Product Features",
       "title": "WhatsApp बातचीत ऑटोमेट करने के लिए सब कुछ।",
-      "description": "बातचीत मैनेज करें, जवाब ऑटोमेट करें, कैंपेन लॉन्च करें, टीम के साथ सहयोग करें, और एक इंटेलिजेंट वर्कस्पेस से बिज़नेस बढ़ाएँ।",
+      "description": "बातचीत मैनेज करें, जवाब ऑटोमेट करें, कैंपेन लॉन्च करें, टीम के साथ सहयोग करें, और एक इंटेलिजेंट संगठन से बिज़नेस बढ़ाएँ।",
       "ctaPrimary": "शुरू करें",
       "ctaSecondary": "विशेषताएँ देखें",
-      "visualLabel": "WhatsApp वर्कस्पेस पूर्वावलोकन",
+      "visualLabel": "WhatsApp संगठन पूर्वावलोकन",
       "mock": {
-        "workspaceTitle": "Whats-Auto Workspace",
         "inboxLabel": "Shared inbox · Live",
         "online": "Online",
         "threadName": "Whats-Auto Store",
@@ -752,7 +751,8 @@
           "analytics": "Analytics",
           "auth": "Secure Authentication",
           "tenant": "Multi Tenant"
-        }
+        },
+        "organizationTitle": "Whats-Auto Organization"
       }
     },
     "grid": {
@@ -795,7 +795,7 @@
           "title": "Multi-Tenant",
           "bullets": [
             "Separate organizations",
-            "Workspace isolation",
+            "Organization isolation",
             "Role management"
           ]
         },
@@ -852,7 +852,7 @@
         },
         "inbox": {
           "title": "Team Collaboration",
-          "description": "असाइनमेंट और इंटरनल कॉन्टेक्स्ट के साथ एक शेयर WhatsApp वर्कस्पेस से सपोर्ट चलाएँ।",
+          "description": "असाइनमेंट और इंटरनल कॉन्टेक्स्ट के साथ एक शेयर WhatsApp संगठन से सपोर्ट चलाएँ।",
           "visualLabel": "शेयर इनबॉक्स इलस्ट्रेशन",
           "points": [
             "Assign chats",
@@ -862,7 +862,7 @@
         },
         "analytics": {
           "title": "Analytics & Reports",
-          "description": "वर्कस्पेस छोड़े बिना एंगेजमेंट और कैंपेन परफ़ॉर्मेंस समझें।",
+          "description": "संगठन छोड़े बिना एंगेजमेंट और कैंपेन परफ़ॉर्मेंस समझें।",
           "visualLabel": "एनालिटिक्स इलस्ट्रेशन",
           "points": [
             "Campaign metrics",
@@ -900,7 +900,7 @@
     },
     "security": {
       "title": "एंटरप्राइज़-ग्रेड सुरक्षा",
-      "subtitle": "ऑथेंटिकेशन, एक्सेस कंट्रोल और एन्क्रिप्टेड API से हर वर्कस्पेस सुरक्षित रखें।",
+      "subtitle": "ऑथेंटिकेशन, एक्सेस कंट्रोल और एन्क्रिप्टेड API से हर संगठन सुरक्षित रखें।",
       "comingSoon": "जल्द आ रहा है",
       "items": {
         "oauth": {
@@ -917,7 +917,7 @@
         },
         "rbac": {
           "title": "RBAC",
-          "description": "टीमों और वर्कस्पेस पर रोल-बेस्ड एक्सेस कंट्रोल।"
+          "description": "टीमों और संगठन पर रोल-बेस्ड एक्सेस कंट्रोल।"
         },
         "encrypted": {
           "title": "Encrypted API",
@@ -931,7 +931,7 @@
     },
     "cta": {
       "title": "कस्टमर बातचीत ऑटोमेट करने के लिए तैयार?",
-      "description": "मिनटों में अपना वर्कस्पेस शुरू करें।",
+      "description": "मिनटों में अपना संगठन शुरू करें।",
       "primary": "शुरू करें",
       "secondary": "डेमो बुक करें"
     }
@@ -972,7 +972,7 @@
         "cta": "Start Growing",
         "features": [
           "Everything in Starter",
-          "Multi-Tenant Workspace",
+          "Multi-Tenant Organization",
           "Team Collaboration",
           "Advanced Analytics",
           "Workflow Automation",
@@ -1027,7 +1027,7 @@
       "items": {
         "upgrade": {
           "question": "How can I upgrade?",
-          "answer": "आप कभी भी वर्कस्पेस सेटिंग्स से अपग्रेड कर सकते हैं। बदलाव अगले बिलिंग साइकल से लागू होते हैं, और अपग्रेड के तुरंत बाद नई सुविधाएँ उपलब्ध रहती हैं।"
+          "answer": "आप कभी भी संगठन सेटिंग्स से अपग्रेड कर सकते हैं। बदलाव अगले बिलिंग साइकल से लागू होते हैं, और अपग्रेड के तुरंत बाद नई सुविधाएँ उपलब्ध रहती हैं।"
         },
         "cancel": {
           "question": "Can I cancel anytime?",
@@ -1035,7 +1035,7 @@
         },
         "trial": {
           "question": "Do you offer free trials?",
-          "answer": "हम फ्री ट्रायल देते हैं ताकि आप कमिट करने से पहले वर्कस्पेस आज़मा सकें। अकाउंट बनाने के लिए Get Started चुनें।"
+          "answer": "हम फ्री ट्रायल देते हैं ताकि आप कमिट करने से पहले संगठन आज़मा सकें। अकाउंट बनाने के लिए Get Started चुनें।"
         },
         "enterprise": {
           "question": "Do you support enterprise deployments?",
@@ -1049,7 +1049,7 @@
     },
     "cta": {
       "title": "Ready to automate your WhatsApp conversations?",
-      "description": "आज ही अपना वर्कस्पेस शुरू करें और आत्मविश्वास के साथ स्केल करें।",
+      "description": "आज ही अपना संगठन शुरू करें और आत्मविश्वास के साथ स्केल करें।",
       "primary": "Get Started",
       "secondary": "Contact Sales"
     }
@@ -1111,7 +1111,7 @@
   "auth": {
     "login": {
       "title": "वापसी पर स्वागत है",
-      "subtitle": "अपने वर्कस्पेस में जारी रखने के लिए साइन इन करें।",
+      "subtitle": "अपने संगठन में जारी रखने के लिए साइन इन करें।",
       "email": "ईमेल",
       "password": "पासवर्ड",
       "rememberMe": "मुझे याद रखें",
@@ -1126,6 +1126,7 @@
       "signUp": "खाता बनाएँ",
       "errors": {
         "generic": "कुछ गलत हो गया। कृपया फिर से कोशिश करें।",
+        "oauthFailed": "Google साइन-इन विफल रहा। कृपया फिर से कोशिश करें।",
         "emailExists": "इस ईमेल से पहले से खाता मौजूद है। कृपया अपने पासवर्ड से साइन इन करें।",
         "emailRequired": "ईमेल आवश्यक है।",
         "emailInvalid": "सही ईमेल पता दर्ज करें।",
@@ -1137,7 +1138,7 @@
       "subtitle": "कुछ ही मिनटों में ग्राहक बातचीत ऑटोमेट करना शुरू करें।",
       "firstname": "पहला नाम",
       "lastname": "अंतिम नाम",
-      "email": "बिज़नेस ईमेल",
+      "email": "ईमेल",
       "phone": "फ़ोन नंबर",
       "password": "पासवर्ड",
       "confirmPassword": "पासवर्ड की पुष्टि करें",
@@ -1174,6 +1175,7 @@
       "back": "वापस जाएँ",
       "errors": {
         "generic": "कुछ गलत हो गया। कृपया फिर से कोशिश करें।",
+        "oauthFailed": "Google साइन-इन विफल रहा। कृपया फिर से कोशिश करें।",
         "emailExists": "इस ईमेल से पहले से खाता मौजूद है। कृपया अपने पासवर्ड से साइन इन करें।",
         "passwordMismatch": "पासवर्ड मेल नहीं खाते।",
         "passwordLength": "पासवर्ड कम से कम 8 अक्षर का होना चाहिए।",
@@ -1247,7 +1249,7 @@
   },
   "inviteAccept": {
     "eyebrow": "टीम निमंत्रण",
-    "title": "वर्कस्पेस में शामिल हों",
+    "title": "संगठन में शामिल हों",
     "subtitle": "इस निमंत्रण को देखें, फिर स्वीकार या अस्वीकार करें।",
     "loading": "निमंत्रण लोड हो रहा है…",
     "checkingSession": "आपका सत्र जाँच रहा है…",
@@ -1262,7 +1264,7 @@
     "backHome": "होम पर वापस जाएँ",
     "status": "स्थिति: {status}",
     "fields": {
-      "organization": "वर्कस्पेस",
+      "organization": "संगठन",
       "role": "भूमिका",
       "invitedBy": "आमंत्रित किया",
       "email": "आमंत्रित ईमेल"
@@ -1275,7 +1277,7 @@
       "notPending": "यह निमंत्रण अब लंबित नहीं है।",
       "emailMismatch": "उस ईमेल से साइन इन करें जिस पर निमंत्रण भेजा गया था।",
       "wrongAccount": "यह निमंत्रण {invited} को भेजा गया था, लेकिन आप {signedIn} से साइन इन हैं।",
-      "alreadyMember": "आप पहले से इस वर्कस्पेस के सदस्य हैं।",
+      "alreadyMember": "आप पहले से इस संगठन के सदस्य हैं।",
       "slowNetwork": "यह बहुत समय ले रहा था। कृपया फिर कोशिश करें।",
       "generic": "कुछ गलत हो गया। कृपया फिर कोशिश करें।"
     }
@@ -1286,37 +1288,57 @@
       "steps": {
         "basics": "मूल जानकारी",
         "company": "कंपनी",
-        "preferences": "वरीयताएँ"
+        "preferences": "वरीयताएँ",
+        "plan": "प्लान"
       },
       "ownerNote": "संगठन बनाते ही आप स्वतः Owner बन जाते हैं। Owner कभी मैन्युअली नहीं चुना जाता।",
-      "name": "संगठन का नाम",
-      "namePlaceholder": "Acme Workspace",
+      "name": "व्यवसाय / संगठन का नाम",
+      "namePlaceholder": "Acme Organization",
       "slug": "संगठन स्लग",
-      "slugPlaceholder": "acme-workspace",
+      "slugPlaceholder": "acme-organization",
       "slugHint": "केवल छोटे अक्षर, अंक और हाइफ़न। नाम से ऑटो-जनरेट — आप संपादित कर सकते हैं।",
       "email": "संगठन ईमेल",
       "emailPlaceholder": "ops@acme.com",
-      "phone": "संगठन फ़ोन नंबर",
+      "phone": "मोबाइल नंबर",
       "phonePlaceholder": "+91 98765 43210",
       "website": "वेबसाइट",
       "websitePlaceholder": "https://acme.com",
       "optionalHint": "वैकल्पिक",
       "continue": "जारी रखें",
       "back": "वापस",
-      "createWorkspace": "वर्कस्पेस बनाएँ",
-      "creating": "वर्कस्पेस बनाया जा रहा है…",
+      "continueToDashboard": "डैशबोर्ड पर जाएँ",
+      "proceedToCheckout": "चेकआउट जारी रखें",
+      "startFreeTrial": "फ्री ट्रायल शुरू करें",
+      "startingFreeTrial": "फ्री ट्रायल शुरू हो रहा है…",
+      "checkoutHint": "अभी आपसे शुल्क नहीं लिया जाएगा।",
+      "freeTrialHint": "फ्री ट्रायल के लिए कोई भुगतान आवश्यक नहीं है।",
+      "creating": "संगठन बनाया जा रहा है…",
       "step1": {
         "title": "अपना संगठन बनाएँ",
-        "subtitle": "यह वर्कस्पेस वह जगह है जहाँ आपकी WhatsApp टीम मिलकर काम करेगी।"
+        "subtitle": "यह संगठन वह जगह है जहाँ आपकी WhatsApp टीम मिलकर काम करेगी।"
       },
       "step2": {
         "title": "अपनी कंपनी के बारे में बताएँ",
-        "subtitle": "कुछ विवरण हमें आपके Whats-Auto वर्कस्पेस को अनुकूलित करने में मदद करते हैं।",
+        "subtitle": "कुछ विवरण हमें आपके Whats-Auto संगठन को अनुकूलित करने में मदद करते हैं।",
         "logo": "कंपनी लोगो",
         "logoUpload": "कंपनी लोगो अपलोड करें",
         "logoEmpty": "कोई लोगो अपलोड नहीं हुआ",
         "logoHint": "PNG, JPG, या WebP। वैकल्पिक — बाद में जोड़ सकते हैं।",
         "logoRemove": "लोगो हटाएँ",
+        "organizationType": "संगठन का प्रकार",
+        "organizationTypePlaceholder": "संगठन का प्रकार चुनें",
+        "organizationTypes": {
+          "company": "कंपनी",
+          "partnership": "पार्टनरशिप",
+          "sole_proprietorship": "एकल स्वामित्व",
+          "other": "अन्य"
+        },
+        "address": "व्यवसाय का पता",
+        "addressPlaceholder": "सड़क, शहर, राज्य, पिन",
+        "pan": "PAN",
+        "panPlaceholder": "AAAAA0000A",
+        "gstin": "GSTIN",
+        "gstinPlaceholder": "27AAAAA0000A1Z5",
         "industry": "उद्योग",
         "industryPlaceholder": "उद्योग चुनें",
         "companySize": "कंपनी का आकार",
@@ -1370,7 +1392,7 @@
         }
       },
       "step3": {
-        "title": "वर्कस्पेस वरीयताएँ",
+        "title": "संगठन वरीयताएँ",
         "subtitle": "भाषा, समय, थीम और सूचनाओं के लिए डिफ़ॉल्ट चुनें।",
         "defaultLanguage": "डिफ़ॉल्ट भाषा",
         "dateFormat": "दिनांक प्रारूप",
@@ -1398,13 +1420,49 @@
           },
           "productTips": {
             "label": "उत्पाद सुझाव",
-            "description": "वर्कस्पेस का बेहतर उपयोग करने के लिए सुझाव।"
+            "description": "संगठन का बेहतर उपयोग करने के लिए सुझाव।"
           },
           "campaignAlerts": {
             "label": "कैंपेन अलर्ट",
             "description": "कैंपेन डिलीवरी और प्रदर्शन अलर्ट।"
           }
         }
+      },
+      "step4": {
+        "title": "सब्सक्रिप्शन प्लान चुनें",
+        "subtitle": "अपने संगठन के लिए सही प्लान चुनें। आप कभी भी डैशबोर्ड से अपग्रेड या रद्द कर सकते हैं।",
+        "loadingPlans": "प्लान लोड हो रहे हैं…",
+        "loadingPlansFailed": "प्लान लोड नहीं हो सके। कृपया फिर से कोशिश करें।",
+        "retry": "फिर से कोशिश करें",
+        "emptyTitle": "कोई प्लान उपलब्ध नहीं है",
+        "emptyDescription": "अभी कोई सक्रिय मासिक प्लान उपलब्ध नहीं है।",
+        "chooseCta": "प्लान चुनें",
+        "selectedCta": "चयनित",
+        "freeBadge": "मुफ़्त",
+        "freeChooseCta": "फ्री ट्रायल शुरू करें",
+        "freeSelectedCta": "फ्री ट्रायल चयनित",
+        "enterpriseCta": "सेल्स से संपर्क करें",
+        "enterpriseCustomPrice": "कस्टम",
+        "allPlansInclude": "सभी प्लान में शामिल",
+        "summaryLabel": "चयनित प्लान",
+        "summaryNote": "डैशबोर्ड में जाने से पहले आप इस प्लान की पुष्टि करेंगे और Razorpay से भुगतान पूरा करेंगे।",
+        "summaryNoteFree": "कोई भुगतान आवश्यक नहीं है। आप अपना फ्री ट्रायल सक्रिय करेंगे और प्रोफ़ाइल सेटअप पर जाएँगे।"
+      },
+      "payment": {
+        "redirectingTitle": "Razorpay पर भेजा जा रहा है",
+        "redirectingSubtitle": "आपके चुने हुए प्लान के लिए सुरक्षित चेकआउट पृष्ठ खोला जा रहा है।",
+        "pendingTitle": "आपका भुगतान पुष्टि हो रहा है",
+        "pendingSubtitle": "यदि आपने चेकआउट पूरा कर लिया है, तो यह पृष्ठ अपने आप अपडेट होगा। भुगतान पूरा करने के लिए Razorpay फिर से खोल सकते हैं।",
+        "successTitle": "भुगतान सफल",
+        "successSubtitle": "आपकी सदस्यता पुष्टि हो गई है। तैयार होने पर संगठन डैशबोर्ड पर जाएँ।",
+        "failedTitle": "भुगतान असफल",
+        "failedSubtitle": "हम आपका भुगतान पुष्टि नहीं कर सके। ऑनबोर्डिंग छोड़े बिना फिर से कोशिश कर सकते हैं।",
+        "cancelledTitle": "चेकआउट रद्द हुआ",
+        "cancelledSubtitle": "कोई भुगतान पूरा नहीं हुआ। चुने हुए प्लान के लिए Razorpay चेकआउट फिर से शुरू कर सकते हैं।",
+        "planLabel": "चयनित प्लान",
+        "continueToDashboard": "डैशबोर्ड पर जाएँ",
+        "completePayment": "भुगतान पूरा करें",
+        "refreshStatus": "स्थिति रीफ़्रेश करें"
       },
       "errors": {
         "generic": "कुछ गलत हो गया। कृपया फिर से कोशिश करें।",
@@ -1415,8 +1473,15 @@
         "slugInvalid": "केवल छोटे अक्षर, अंक और हाइफ़न उपयोग करें (2–100 अक्षर)।",
         "emailRequired": "संगठन ईमेल आवश्यक है।",
         "emailInvalid": "सही ईमेल पता दर्ज करें।",
+        "phoneRequired": "मोबाइल नंबर आवश्यक है।",
         "phoneInvalid": "सही फ़ोन नंबर दर्ज करें।",
         "websiteInvalid": "सही वेबसाइट URL दर्ज करें (https://…).",
+        "organizationTypeRequired": "संगठन का प्रकार चुनें।",
+        "addressRequired": "व्यवसाय का पता आवश्यक है।",
+        "addressTooShort": "पूरा व्यवसाय पता दर्ज करें (कम से कम 8 अक्षर)।",
+        "panRequired": "PAN आवश्यक है।",
+        "panInvalid": "सही PAN दर्ज करें (उदाहरण: AAAAA0000A)।",
+        "gstinInvalid": "सही GSTIN दर्ज करें (15 अक्षर), या खाली छोड़ दें।",
         "industryRequired": "उद्योग चुनें।",
         "companySizeRequired": "कंपनी का आकार चुनें।",
         "countryRequired": "देश चुनें।",
@@ -1424,15 +1489,241 @@
         "languageRequired": "डिफ़ॉल्ट भाषा चुनें।",
         "dateFormatRequired": "दिनांक प्रारूप चुनें।",
         "timeFormatRequired": "समय प्रारूप चुनें।",
-        "themeRequired": "थीम वरीयता चुनें।"
+        "themeRequired": "थीम वरीयता चुनें।",
+        "planRequired": "कृपया सब्सक्रिप्शन प्लान चुनें।",
+        "planNotCheckoutable": "यह प्लान चेकआउट के लिए उपलब्ध नहीं है। कृपया कोई दूसरा प्लान चुनें।",
+        "planNotActivatable": "यह प्लान सक्रिय करने के लिए उपलब्ध नहीं है। कृपया कोई दूसरा प्लान चुनें।",
+        "activationFailed": "यह प्लान सक्रिय नहीं हो सका। कृपया फिर से कोशिश करें।",
+        "checkoutFailed": "चेकआउट शुरू नहीं हो सका। कृपया फिर से कोशिश करें।"
+      },
+      "createOrganization": "संगठन बनाएँ"
+    },
+    "organizationProfile": {
+      "loading": "आपका संगठन लोड हो रहा है…",
+      "stepBadge": "चरण {step} / {total}",
+      "optional": "वैकल्पिक",
+      "sidebar": {
+        "title": "अपना संगठन प्रोफ़ाइल पूरा करें",
+        "subtitle": "आवश्यक विवरण भरें ताकि आपका संगठन तैयार हो। वैकल्पिक फ़ील्ड बाद में पूरे किए जा सकते हैं।",
+        "completionLabel": "प्रोफ़ाइल पूर्णता"
+      },
+      "steps": {
+        "organization": {
+          "title": "संगठन विवरण",
+          "description": "आपके संगठन की बुनियादी जानकारी"
+        },
+        "business": {
+          "title": "व्यवसाय जानकारी",
+          "description": "अपने व्यवसाय के बारे में और बताएँ"
+        },
+        "address": {
+          "title": "पता",
+          "description": "आपके संगठन का पता"
+        },
+        "review": {
+          "title": "समीक्षा और पुष्टि",
+          "description": "अपने विवरण की समीक्षा करें और पुष्टि करें"
+        }
+      },
+      "fields": {
+        "name": "संगठन का नाम",
+        "email": "व्यवसाय ईमेल",
+        "phone": "फ़ोन नंबर",
+        "phoneHint": "संभव हो तो देश कोड शामिल करें।",
+        "alternatePhone": "वैकल्पिक फ़ोन",
+        "website": "वेबसाइट",
+        "industry": "उद्योग",
+        "industryPlaceholder": "उद्योग चुनें",
+        "logoUpload": "लोगो अपलोड करें",
+        "logoHint": "PNG, JPG या WEBP (अधिकतम 2MB)",
+        "logoPreview": "लोगो पूर्वावलोकन",
+        "businessSize": "व्यवसाय का आकार",
+        "businessSizePlaceholder": "व्यवसाय का आकार चुनें",
+        "businessType": "व्यवसाय का प्रकार",
+        "businessTypePlaceholder": "व्यवसाय का प्रकार चुनें",
+        "description": "विवरण",
+        "defaultLanguage": "डिफ़ॉल्ट भाषा",
+        "defaultLanguagePlaceholder": "भाषा चुनें",
+        "registrationNumber": "व्यवसाय पंजीकरण संख्या",
+        "addressLine1": "पता पंक्ति 1",
+        "addressLine1Placeholder": "मकान / भवन और सड़क",
+        "addressLine2": "पता पंक्ति 2",
+        "addressLine2Placeholder": "अपार्टमेंट, सुइट, आदि",
+        "city": "शहर",
+        "state": "राज्य / प्रदेश",
+        "statePlaceholder": "राज्य / प्रदेश चुनें",
+        "postalCode": "पिन / पोस्टल कोड",
+        "country": "देश",
+        "countryPlaceholder": "देश चुनें"
+      },
+      "languages": {
+        "en": "अंग्रेज़ी",
+        "hi": "हिन्दी"
+      },
+      "actions": {
+        "cancel": "रद्द करें",
+        "back": "वापस",
+        "continue": "जारी रखें",
+        "completeSetup": "सेटअप पूरा करें",
+        "saving": "सहेजा जा रहा है…",
+        "edit": "संपादित करें",
+        "createOrganization": "संगठन बनाएँ"
+      },
+      "review": {
+        "organization": "संगठन विवरण",
+        "business": "व्यवसाय जानकारी",
+        "address": "पता",
+        "empty": "—",
+        "confirmLabel": "मैं पुष्टि करता/करती हूँ कि ऊपर दी गई जानकारी सही है।"
+      },
+      "success": {
+        "title": "आपका संगठन तैयार है",
+        "subtitle": "आवश्यक प्रोफ़ाइल विवरण सहेजे गए हैं। वैकल्पिक फ़ील्ड बाद में डैशबोर्ड से पूरे कर सकते हैं।",
+        "completion": "प्रोफ़ाइल पूर्णता: {percent}%",
+        "cta": "डैशबोर्ड पर जाएँ"
+      },
+      "help": {
+        "needHelp": "मदद चाहिए?",
+        "contactSupport": "सपोर्ट से संपर्क करें"
+      },
+      "errors": {
+        "noOrganization": "कोई संगठन नहीं मिला। पहले संगठन बनाएँ।",
+        "nameRequired": "संगठन का नाम आवश्यक है (कम से कम 2 अक्षर)।",
+        "emailInvalid": "सही व्यवसाय ईमेल दर्ज करें।",
+        "phoneInvalid": "सही फ़ोन नंबर दर्ज करें।",
+        "websiteInvalid": "सही वेबसाइट URL दर्ज करें (https://…).",
+        "industryRequired": "उद्योग चुनें।",
+        "businessSizeRequired": "व्यवसाय का आकार चुनें।",
+        "descriptionTooLong": "विवरण 500 अक्षर या उससे कम होना चाहिए।",
+        "addressLine1Required": "पता पंक्ति 1 आवश्यक है।",
+        "cityRequired": "शहर आवश्यक है।",
+        "stateRequired": "राज्य / प्रदेश आवश्यक है।",
+        "postalCodeRequired": "पिन / पोस्टल कोड आवश्यक है।",
+        "countryRequired": "देश चुनें।",
+        "requiredIncomplete": "सेटअप पूरा करने से पहले सभी आवश्यक फ़ील्ड भरें।",
+        "confirmRequired": "कृपया पुष्टि करें कि जानकारी सही है।",
+        "logoType": "लोगो PNG, JPG या WEBP होना चाहिए।",
+        "logoSize": "लोगो 2MB या उससे छोटा होना चाहिए।",
+        "logoUploadFailed": "लोगो अपलोड नहीं हो सका। कृपया फिर कोशिश करें।",
+        "saveFailed": "प्रोफ़ाइल सहेजी नहीं जा सकी। कृपया फिर कोशिश करें।"
+      }
+    },
+    "organizationProfile": {
+      "loading": "आपका संगठन लोड हो रहा है…",
+      "stepBadge": "चरण {step} / {total}",
+      "optional": "वैकल्पिक",
+      "sidebar": {
+        "title": "अपना संगठन प्रोफ़ाइल पूरा करें",
+        "subtitle": "आवश्यक विवरण भरें ताकि आपका वर्कस्पेस तैयार हो। वैकल्पिक फ़ील्ड बाद में पूरे किए जा सकते हैं।",
+        "completionLabel": "प्रोफ़ाइल पूर्णता"
+      },
+      "steps": {
+        "organization": {
+          "title": "संगठन विवरण",
+          "description": "आपके संगठन की बुनियादी जानकारी"
+        },
+        "business": {
+          "title": "व्यवसाय जानकारी",
+          "description": "अपने व्यवसाय के बारे में और बताएँ"
+        },
+        "address": {
+          "title": "पता",
+          "description": "आपके संगठन का पता"
+        },
+        "review": {
+          "title": "समीक्षा और पुष्टि",
+          "description": "अपने विवरण की समीक्षा करें और पुष्टि करें"
+        }
+      },
+      "fields": {
+        "name": "संगठन का नाम",
+        "email": "व्यवसाय ईमेल",
+        "phone": "फ़ोन नंबर",
+        "phoneHint": "संभव हो तो देश कोड शामिल करें।",
+        "alternatePhone": "वैकल्पिक फ़ोन",
+        "website": "वेबसाइट",
+        "industry": "उद्योग",
+        "industryPlaceholder": "उद्योग चुनें",
+        "logoUpload": "लोगो अपलोड करें",
+        "logoHint": "PNG, JPG या WEBP (अधिकतम 2MB)",
+        "logoPreview": "लोगो पूर्वावलोकन",
+        "businessSize": "व्यवसाय का आकार",
+        "businessSizePlaceholder": "व्यवसाय का आकार चुनें",
+        "businessType": "व्यवसाय का प्रकार",
+        "businessTypePlaceholder": "व्यवसाय का प्रकार चुनें",
+        "description": "विवरण",
+        "defaultLanguage": "डिफ़ॉल्ट भाषा",
+        "defaultLanguagePlaceholder": "भाषा चुनें",
+        "registrationNumber": "व्यवसाय पंजीकरण संख्या",
+        "addressLine1": "पता पंक्ति 1",
+        "addressLine1Placeholder": "मकान / भवन और सड़क",
+        "addressLine2": "पता पंक्ति 2",
+        "addressLine2Placeholder": "अपार्टमेंट, सुइट, आदि",
+        "city": "शहर",
+        "state": "राज्य / प्रदेश",
+        "statePlaceholder": "राज्य / प्रदेश चुनें",
+        "postalCode": "पिन / पोस्टल कोड",
+        "country": "देश",
+        "countryPlaceholder": "देश चुनें"
+      },
+      "languages": {
+        "en": "अंग्रेज़ी",
+        "hi": "हिन्दी"
+      },
+      "actions": {
+        "cancel": "रद्द करें",
+        "back": "वापस",
+        "continue": "जारी रखें",
+        "completeSetup": "सेटअप पूरा करें",
+        "saving": "सहेजा जा रहा है…",
+        "edit": "संपादित करें",
+        "createOrganization": "संगठन बनाएँ"
+      },
+      "review": {
+        "organization": "संगठन विवरण",
+        "business": "व्यवसाय जानकारी",
+        "address": "पता",
+        "empty": "—",
+        "confirmLabel": "मैं पुष्टि करता/करती हूँ कि ऊपर दी गई जानकारी सही है।"
+      },
+      "success": {
+        "title": "आपका संगठन तैयार है",
+        "subtitle": "आवश्यक प्रोफ़ाइल विवरण सहेजे गए हैं। वैकल्पिक फ़ील्ड बाद में डैशबोर्ड से पूरे कर सकते हैं।",
+        "completion": "प्रोफ़ाइल पूर्णता: {percent}%",
+        "cta": "डैशबोर्ड पर जाएँ"
+      },
+      "help": {
+        "needHelp": "मदद चाहिए?",
+        "contactSupport": "सपोर्ट से संपर्क करें"
+      },
+      "errors": {
+        "noOrganization": "कोई संगठन नहीं मिला। पहले वर्कस्पेस बनाएँ।",
+        "nameRequired": "संगठन का नाम आवश्यक है (कम से कम 2 अक्षर)।",
+        "emailInvalid": "सही व्यवसाय ईमेल दर्ज करें।",
+        "phoneInvalid": "सही फ़ोन नंबर दर्ज करें।",
+        "websiteInvalid": "सही वेबसाइट URL दर्ज करें (https://…).",
+        "industryRequired": "उद्योग चुनें।",
+        "businessSizeRequired": "व्यवसाय का आकार चुनें।",
+        "descriptionTooLong": "विवरण 500 अक्षर या उससे कम होना चाहिए।",
+        "addressLine1Required": "पता पंक्ति 1 आवश्यक है।",
+        "cityRequired": "शहर आवश्यक है।",
+        "stateRequired": "राज्य / प्रदेश आवश्यक है।",
+        "postalCodeRequired": "पिन / पोस्टल कोड आवश्यक है।",
+        "countryRequired": "देश चुनें।",
+        "requiredIncomplete": "सेटअप पूरा करने से पहले सभी आवश्यक फ़ील्ड भरें।",
+        "confirmRequired": "कृपया पुष्टि करें कि जानकारी सही है।",
+        "logoType": "लोगो PNG, JPG या WEBP होना चाहिए।",
+        "logoSize": "लोगो 2MB या उससे छोटा होना चाहिए।",
+        "logoUploadFailed": "लोगो अपलोड नहीं हो सका। कृपया फिर कोशिश करें।",
+        "saveFailed": "प्रोफ़ाइल सहेजी नहीं जा सकी। कृपया फिर कोशिश करें।"
       }
     }
   },
   "dashboard": {
     "brand": "Whats-Auto",
-    "brandTagline": "वर्कस्पेस",
+    "brandTagline": "संगठन",
     "title": "डैशबोर्ड",
-    "subtitle": "वापसी पर स्वागत है! यहाँ आपके WhatsApp वर्कस्पेस का अवलोकन है।",
+    "subtitle": "वापसी पर स्वागत है! यहाँ आपके WhatsApp संगठन का अवलोकन है।",
     "loading": "लोड हो रहा है…",
     "signOut": "साइन आउट",
     "nav": {
@@ -1441,32 +1732,372 @@
       "dashboard": "डैशबोर्ड",
       "team": "टीम प्रबंधन",
       "teamMembers": "टीम सदस्य",
-      "teamRoles": "भूमिकाएँ",
+      "teamRoles": "भूमिकाएँ और अनुमतियाँ",
+      "templatesList": "टेम्पलेट्स",
+      "templatesMedia": "मीडिया लाइब्रेरी",
       "inviteMember": "सदस्य आमंत्रित करें",
-      "contacts": "संपर्क",
+      "contacts": "संपर्क और ऑडियंस",
+      "contactsList": "संपर्क",
+      "customerGroups": "ग्राहक समूह",
+      "media": "मीडिया लाइब्रेरी",
       "inbox": "इनबॉक्स",
       "messages": "संदेश",
       "campaigns": "कैंपेन",
       "templates": "टेम्पलेट्स",
+      "flows": "फ़्लो",
+      "knowledge": "नॉलेज बेस",
+      "integrations": "इंटीग्रेशन",
       "notifications": "सूचनाएँ",
       "analytics": "एनालिटिक्स",
       "billing": "बिलिंग",
       "auditLogs": "ऑडिट लॉग्स",
-      "settings": "सेटिंग्स"
+      "settings": "सेटिंग्स",
+      "sections": {
+        "overview": "ओवरव्यू",
+        "messaging": "मेसेजिंग",
+        "campaignsContent": "कैंपेन और कॉन्टेंट",
+        "automationAi": "ऑटोमेशन और AI",
+        "insights": "इनसाइट्स",
+        "teamAccess": "टीम और एक्सेस",
+        "billing": "बिलिंग",
+        "settings": "सेटिंग्स"
+      }
+    },
+    "flows": {
+      "eyebrow": "ऑटोमेशन",
+      "title": "बातचीत फ़्लो",
+      "subtitle": "कीवर्ड और इनबाउंड WhatsApp मेनू बनाएँ। इनबाउंड रूटिंग शुरू करने के लिए एक वर्शन पब्लिश करें।",
+      "createCta": "नया फ़्लो",
+      "searchPlaceholder": "नाम से खोजें…",
+      "loading": "फ़्लो लोड हो रहे हैं…",
+      "retry": "फिर कोशिश करें",
+      "emptyTitle": "अभी कोई फ़्लो नहीं",
+      "emptyDescription": "एक ड्राफ्ट बनाएँ, फिर कैनवस में मेनू जोड़कर पब्लिश करें।",
+      "pagination": "{total} में से {from}–{to} दिख रहे हैं",
+      "prev": "पिछला",
+      "next": "अगला",
+      "filters": {
+        "label": "स्थिति",
+        "all": "सभी",
+        "DRAFT": "ड्राफ्ट",
+        "PUBLISHED": "पब्लिश्ड",
+        "ARCHIVED": "आर्काइव्ड"
+      },
+      "status": {
+        "DRAFT": "ड्राफ्ट",
+        "PUBLISHED": "पब्लिश्ड",
+        "ARCHIVED": "आर्काइव्ड"
+      },
+      "triggerType": {
+        "KEYWORD": "कीवर्ड",
+        "INBOUND_ANY": "कोई भी इनबाउंड",
+        "CAMPAIGN_REPLY": "कैंपेन रिप्लाई",
+        "SUBFLOW_ENTRY": "सबफ़्लो"
+      },
+      "actions": {
+        "edit": "एडिटर खोलें",
+        "publish": "पब्लिश",
+        "archive": "आर्काइव"
+      },
+      "create": {
+        "title": "नया फ़्लो",
+        "subtitle": "एक ड्राफ्ट बनता है और कैनवस एडिटर खुलता है।",
+        "name": "नाम",
+        "namePlaceholder": "वेलकम मेनू",
+        "description": "विवरण",
+        "descriptionPlaceholder": "वैकल्पिक",
+        "triggerType": "ट्रिगर",
+        "keywords": "कीवर्ड",
+        "keywordsPlaceholder": "hi, hello",
+        "cancel": "रद्द करें",
+        "submit": "ड्राफ्ट बनाएँ",
+        "saving": "बनाया जा रहा है…",
+        "errors": {
+          "nameRequired": "फ़्लो का नाम दर्ज करें।",
+          "keywordsRequired": "कम से कम एक कीवर्ड जोड़ें।"
+        }
+      },
+      "delete": {
+        "title": "इस फ़्लो को आर्काइव करें?",
+        "body": "“{name}” इनबाउंड मेल नहीं खाएगा। वर्शन सुरक्षित रहेंगे।",
+        "cancel": "रद्द करें",
+        "confirm": "आर्काइव",
+        "deleting": "आर्काइव हो रहा है…"
+      },
+      "publish": {
+        "title": "इस फ़्लो को पब्लिश करें?",
+        "body": "“{name}” इनबाउंड रूटिंग के लिए अपना नवीनतम मान्य ग्राफ़ उपयोग करेगा।",
+        "invalid": "यह ग्राफ़ अभी मान्य नहीं है।",
+        "cancel": "रद्द करें",
+        "confirm": "पब्लिश",
+        "publishing": "पब्लिश हो रहा है…"
+      },
+      "errors": {
+        "loadFailed": "फ़्लो लोड नहीं हो सके।",
+        "createFailed": "फ़्लो बन नहीं सका।",
+        "deleteFailed": "फ़्लो आर्काइव नहीं हो सका।",
+        "publishFailed": "फ़्लो पब्लिश नहीं हो सका।",
+        "publishInvalid": "पब्लिश करने से पहले ग्राफ़ त्रुटियाँ ठीक करें।"
+      },
+      "editor": {
+        "back": "फ़्लो",
+        "unsaved": "सहेजा नहीं",
+        "settings": "सेटिंग्स",
+        "settingsTitle": "फ़्लो सेटिंग्स",
+        "settingsHint": "ट्रिगर और सेशन विकल्प फ़्लो पर हैं, कैनवस TRIGGER नोड पर नहीं।",
+        "validate": "मान्य करें",
+        "save": "सहेजें",
+        "loading": "फ़्लो लोड हो रहा है…",
+        "validation": {
+          "unknown": "मान्य नहीं",
+          "valid": "मान्य",
+          "invalid": "{count, plural, one {# त्रुटि} other {# त्रुटियाँ}}",
+          "publishDisabled": "पब्लिश करने से पहले ग्राफ़ को मान्य करें।"
+        },
+        "matchType": "कीवर्ड मैच",
+        "matchTypes": {
+          "exact": "Exact",
+          "contains": "Contains",
+          "regex": "Regex"
+        },
+        "sessionTtl": "सेशन TTL (मिनट)",
+        "onExpiry": "सेशन समाप्त होने पर",
+        "expiryModes": {
+          "RESUME_PROMPT": "प्रॉम्प्ट के साथ फिर शुरू",
+          "RESTART": "रीस्टार्ट",
+          "RESUME_SILENT": "खामोशी से जारी"
+        },
+        "tangentResume": "AI टैन्जेंट के बाद",
+        "tangentModes": {
+          "IMMEDIATE_REPROMPT": "तुरंत रीप्रॉम्प्ट",
+          "WAIT_FOR_NEXT": "अगले संदेश की प्रतीक्षा"
+        },
+        "handoverKeywords": "हैंडओवर कीवर्ड",
+        "handoverKeywordsHint": "खुले सेशन के दौरान ये वाक्यांश चैट को मानव को सौंपते हैं (केस-इन्सेंसिटिव सबस्ट्रिंग)। खाली होने पर कोई कीवर्ड एस्केप नहीं।",
+        "handoverKeywordsPlaceholder": "वाक्यांश लिखकर Enter दबाएँ",
+        "handoverKeywordsEmpty": "अभी कोई हैंडओवर कीवर्ड नहीं।",
+        "removeHandoverKeyword": "{keyword} हटाएँ",
+        "inspectorEmpty": "उन्नत फ़ील्ड के लिए नोड चुनें, या सामग्री कैनवस पर संपादित करें।",
+        "deleteNode": "हटाएँ",
+        "triggerMirrorHint": "इनबाउंड मैचिंग इन कीवर्ड और सेटिंग्स → ट्रिगर से होती है। यह नोड ग्राफ़ एंट्रीपॉइंट है।",
+        "addButton": "बटन जोड़ें",
+        "removeButton": "बटन हटाएँ",
+        "addRow": "पंक्ति जोड़ें",
+        "removeRow": "पंक्ति हटाएँ",
+        "addSection": "सेक्शन जोड़ें",
+        "removeSection": "सेक्शन हटाएँ",
+        "addCondition": "कंडीशन जोड़ें",
+        "removeCondition": "कंडीशन हटाएँ",
+        "canvas": {
+          "anyInbound": "कोई भी इनबाउंड संदेश",
+          "campaignReply": "कैम्पेन रिप्लाई ट्रिगर",
+          "subflowEntry": "सबफ़्लो एंट्री",
+          "addKeyword": "कीवर्ड लिखकर Enter दबाएँ",
+          "removeKeyword": "{keyword} हटाएँ",
+          "noKeywords": "कीवर्ड यहाँ या सेटिंग्स में जोड़ें",
+          "mediaAsset": "मीडिया एसेट",
+          "aiRagHint": "नॉलेज से ग्राउंडेड उत्तर",
+          "aiHandoverFallback": "फ़ॉलबैक: मानव हैंडओवर",
+          "handoverHint": "मानव को सौंपें",
+          "exitHint": "इस पथ को समाप्त करें"
+        },
+        "palette": {
+          "title": "नोड्स",
+          "hint": "क्लिक करें या कैनवस पर खींचें।",
+          "groups": {
+            "contents": "सामग्री",
+            "actions": "एक्शन"
+          },
+          "MESSAGE": "संदेश",
+          "TEMPLATE": "टेम्पलेट",
+          "INTERACTIVE_BUTTON": "बटन",
+          "INTERACTIVE_LIST": "सूची",
+          "CONDITION": "कंडीशन",
+          "SUBFLOW": "सबफ़्लो",
+          "AI_RAG": "AI उत्तर",
+          "HUMAN_HANDOVER": "हैंडओवर",
+          "EXIT": "एग्ज़िट"
+        },
+        "nodeTypes": {
+          "TRIGGER": "ट्रिगर",
+          "MESSAGE": "संदेश",
+          "TEMPLATE": "टेम्पलेट",
+          "INTERACTIVE_BUTTON": "बटन",
+          "INTERACTIVE_LIST": "सूची",
+          "CONDITION": "कंडीशन",
+          "SUBFLOW": "सबफ़्लो",
+          "AI_RAG": "AI उत्तर",
+          "HUMAN_HANDOVER": "हैंडओवर",
+          "EXIT": "एग्ज़िट"
+        },
+        "fields": {
+          "label": "लेबल",
+          "messageType": "संदेश प्रकार",
+          "text": "पाठ",
+          "mediaAssetId": "मीडिया एसेट ID",
+          "caption": "कैप्शन",
+          "waitForResponse": "जवाब की प्रतीक्षा",
+          "template": "टेम्पलेट",
+          "templatePlaceholder": "टेम्पलेट चुनें",
+          "bodyText": "बॉडी",
+          "handleId": "हैंडल ID",
+          "buttonTitle": "बटन शीर्षक",
+          "actionType": "एक्शन",
+          "listButtonTitle": "सूची बटन",
+          "sectionTitle": "सेक्शन शीर्षक",
+          "rowTitle": "पंक्ति शीर्षक",
+          "rowDescription": "पंक्ति विवरण",
+          "fallbackHandle": "फ़ॉलबैक हैंडल",
+          "variableKey": "वेरिएबल कुंजी",
+          "value": "मान",
+          "subflow": "पब्लिश्ड सबफ़्लो",
+          "subflowPlaceholder": "पब्लिश्ड फ़्लो चुनें",
+          "reason": "हैंडओवर कारण",
+          "fallbackAction": "कम-कॉन्फ़िडेंस फ़ॉलबैक",
+          "fallbackTargetHandle": "फ़ॉलबैक हैंडल",
+          "promptAppendix": "अतिरिक्त निर्देश"
+        },
+        "hints": {
+          "promptAppendix": "प्लेटफ़ॉर्म सिस्टम प्रॉम्प्ट पर परत चढ़ाता है — उसे बदलता नहीं। अधिकतम 2000 अक्षर।"
+        },
+        "messageTypes": {
+          "text": "पाठ",
+          "image": "छवि",
+          "video": "वीडियो",
+          "document": "दस्तावेज़"
+        },
+        "navActions": {
+          "DEFAULT": "जारी (एज)",
+          "BACK": "वापस",
+          "MAIN_MENU": "मुख्य मेनू",
+          "STOP": "रोकें / ऑप्ट आउट"
+        },
+        "aiFallbacks": {
+          "HUMAN_HANDOVER": "मानव हैंडओवर",
+          "ROUTE_EDGE": "हैंडल फ़ॉलो करें"
+        },
+        "meta": {
+          "buttons": "{count} / {max} बटन",
+          "rows": "{count} / {max} पंक्तियाँ"
+        },
+        "errors": {
+          "loadFailed": "यह फ़्लो लोड नहीं हो सका।",
+          "saveFailed": "फ़्लो सहेजा नहीं जा सका।",
+          "validateFailed": "फ़्लो मान्य नहीं हो सका।"
+        }
+      }
+    },
+    "knowledge": {
+      "eyebrow": "AI",
+      "title": "नॉलेज बेस",
+      "subtitle": "PDF, DOCX, या TXT फ़ाइलें अपलोड करें जो इस संगठन के ऑटो-रिप्लाई को ग्राउंड करती हैं।",
+      "uploadCta": "फ़ाइल अपलोड करें",
+      "uploadProgress": "अपलोड हो रहा है…",
+      "loading": "दस्तावेज़ लोड हो रहे हैं…",
+      "retry": "फिर कोशिश करें",
+      "emptyTitle": "अभी कोई नॉलेज दस्तावेज़ नहीं",
+      "emptyDescription": "शुरू करने के लिए PDF, DOCX, या TXT फ़ाइल अपलोड करें। इंडेक्स्ड दस्तावेज़ ग्राउंडेड जवाबों के लिए उपयोग होते हैं।",
+      "emptyDeletedTitle": "कोई हटाए गए दस्तावेज़ नहीं",
+      "emptyDeletedDescription": "सॉफ्ट-डिलीट किए गए नॉलेज दस्तावेज़ यहाँ दिखते हैं जब तक पुनर्स्थापित या स्थायी रूप से हटाए नहीं जाते।",
+      "pagination": "{total} में से {from}–{to} दिख रहे हैं",
+      "prev": "पिछला",
+      "next": "अगला",
+      "chunkCount": "{count, plural, one {# चंक} other {# चंक}}",
+      "filters": {
+        "label": "स्थिति",
+        "active": "सक्रिय",
+        "deleted": "हटाए गए",
+        "all": "सभी",
+        "PENDING": "लंबित",
+        "PROCESSING": "प्रोसेसिंग",
+        "INDEXED": "इंडेक्स्ड",
+        "FAILED": "विफल"
+      },
+      "status": {
+        "PENDING": "लंबित",
+        "PROCESSING": "प्रोसेसिंग",
+        "INDEXED": "इंडेक्स्ड",
+        "FAILED": "विफल"
+      },
+      "source": {
+        "FILE_PDF": "PDF",
+        "FILE_DOCX": "DOCX",
+        "FILE_TXT": "TXT",
+        "UNKNOWN": "दस्तावेज़"
+      },
+      "actions": {
+        "delete": "हटाएँ",
+        "restore": "पुनर्स्थापित करें",
+        "purge": "स्थायी रूप से हटाएँ"
+      },
+      "errors": {
+        "unsupportedType": "केवल PDF, DOCX, और TXT फ़ाइलें समर्थित हैं।",
+        "fileTooLarge": "फ़ाइल 100 MB या उससे छोटी होनी चाहिए।",
+        "uploadFailed": "दस्तावेज़ अपलोड नहीं हो सका।",
+        "deleteFailed": "दस्तावेज़ हटा नहीं सका।",
+        "restoreFailed": "दस्तावेज़ पुनर्स्थापित नहीं हो सका।",
+        "purgeFailed": "दस्तावेज़ स्थायी रूप से हटा नहीं सका।",
+        "loadFailed": "नॉलेज दस्तावेज़ लोड नहीं हो सके।"
+      }
+    },
+    "media": {
+      "eyebrow": "मैसेजिंग",
+      "title": "मीडिया लाइब्रेरी",
+      "subtitle": "टेम्पलेट्स, इनबॉक्स और कैंपेन के लिए इमेज और दस्तावेज़ अपलोड और प्रबंधित करें।",
+      "uploadCta": "फ़ाइल अपलोड करें",
+      "quotaLabel": "स्टोरेज उपयोग",
+      "quotaValue": "{used} / {limit}",
+      "filters": {
+        "all": "सभी",
+        "images": "इमेज",
+        "documents": "दस्तावेज़",
+        "ready": "तैयार",
+        "deleted": "हटाए गए",
+        "searchPlaceholder": "फ़ाइल नाम से खोजें…"
+      },
+      "emptyTitle": "अभी कोई मीडिया नहीं",
+      "emptyDescription": "शुरू करने के लिए JPEG, PNG, PDF, CSV, DOCX या XLSX अपलोड करें।",
+      "loading": "मीडिया लोड हो रहा है…",
+      "kind": {
+        "image": "इमेज",
+        "document": "दस्तावेज़"
+      },
+      "actions": {
+        "delete": "हटाएँ",
+        "restore": "पुनर्स्थापित करें",
+        "purge": "स्थायी रूप से हटाएँ",
+        "preview": "खोलें",
+        "select": "चुनें"
+      },
+      "uploadProgress": "अपलोड हो रहा है…",
+      "uploadComplete": "अपलोड पूरा",
+      "errors": {
+        "uploadFailed": "अपलोड विफल",
+        "deleteFailed": "फ़ाइल नहीं हटाई जा सकी",
+        "restoreFailed": "फ़ाइल पुनर्स्थापित नहीं हो सकी",
+        "purgeFailed": "फ़ाइल स्थायी रूप से नहीं हटाई जा सकी",
+        "unsupportedType": "असमर्थित फ़ाइल प्रकार",
+        "referenced": "यह फ़ाइल उपयोग में है और हटाई नहीं जा सकती"
+      },
+      "pickerTitle": "मीडिया चुनें",
+      "pickerEmpty": "इस फ़िल्टर से कोई तैयार मीडिया नहीं मिला।",
+      "pagination": "{from} से {to} / {total}",
+      "prev": "पिछला",
+      "next": "अगला"
     },
     "accessDenied": {
       "eyebrow": "एक्सेस",
       "title": "पहुँच अस्वीकृत",
-      "description": "आपको सक्रिय वर्कस्पेस में यह पृष्ठ देखने की अनुमति नहीं है।",
+      "description": "आपको सक्रिय संगठन में यह पृष्ठ देखने की अनुमति नहीं है।",
       "loading": "अनुमतियाँ जाँची जा रही हैं…"
     },
     "team": {
-      "eyebrow": "वर्कस्पेस एक्सेस",
+      "eyebrow": "संगठन एक्सेस",
       "title": "टीम प्रबंधन",
       "subtitle": "टीम सदस्यों को आमंत्रित करें और भूमिकाएँ प्रबंधित करें। संगठन निर्माता स्वतः Owner होता है।",
       "inviteCta": "सदस्य आमंत्रित करें",
       "membersTitle": "टीम सदस्य",
-      "membersDescription": "इस WhatsApp वर्कस्पेस तक पहुँच वाले लोग।",
+      "membersDescription": "इस WhatsApp संगठन तक पहुँच वाले लोग।",
       "searchPlaceholder": "नाम, ईमेल या भूमिका से खोजें",
       "searchPageHint": "खोज और भूमिका फ़िल्टर वर्तमान पृष्ठ पर लागू होते हैं। सभी सदस्यों के लिए पेज बदलें।",
       "roleFilterAria": "भूमिका से फ़िल्टर करें",
@@ -1477,16 +2108,17 @@
       "prevPage": "पिछला",
       "nextPage": "अगला",
       "emptyTitle": "अभी कोई टीम सदस्य नहीं",
-      "emptyDescription": "सहयोग के लिए Admin, Agent या Viewer आमंत्रित करें। Owner वर्कस्पेस निर्माता के पास रहता है।",
+      "emptyDescription": "सहयोग के लिए Admin, Agent या Viewer आमंत्रित करें। Owner संगठन निर्माता के पास रहता है।",
       "loading": "टीम लोड हो रही है…",
       "pendingTitle": "लंबित निमंत्रण",
       "pendingDescription": "अभी स्वीकार नहीं किए गए निमंत्रण।",
       "pendingInvitedBy": "{name} द्वारा आमंत्रित",
       "you": "आप",
       "changeRoleAria": "{name} की भूमिका बदलें",
+      "editAria": "{name} संपादित करें",
       "removeAria": "{name} हटाएँ",
       "removeConfirmTitle": "इस सदस्य को हटाएँ?",
-      "removeConfirmBody": "“{name}” की इस वर्कस्पेस तक पहुँच तुरंत समाप्त हो जाएगी।",
+      "removeConfirmBody": "“{name}” की इस संगठन तक पहुँच तुरंत समाप्त हो जाएगी।",
       "removeConfirm": "सदस्य हटाएँ",
       "removeCancel": "रद्द करें",
       "removing": "हटाया जा रहा है…",
@@ -1502,9 +2134,33 @@
         "agent": "Agent",
         "viewer": "Viewer"
       },
+      "editUser": {
+        "title": "सदस्य संपादित करें",
+        "subtitle": "इस संगठन सदस्य की प्रोफ़ाइल विवरण अपडेट करें।",
+        "loading": "सदस्य लोड हो रहा है…",
+        "firstname": "पहला नाम",
+        "lastname": "अंतिम नाम",
+        "email": "ईमेल",
+        "isActive": "सक्रिय खाता",
+        "isActiveHint": "निष्क्रिय उपयोगकर्ता सदस्य रहते हैं लेकिन निष्क्रिय चिह्नित होते हैं।",
+        "cancel": "रद्द करें",
+        "retry": "फिर कोशिश करें",
+        "save": "परिवर्तन सहेजें",
+        "saving": "सहेजा जा रहा है…",
+        "errors": {
+          "loadFailed": "यह सदस्य लोड नहीं हो सका।",
+          "saveFailed": "सदस्य परिवर्तन सहेजे नहीं जा सके।",
+          "notFound": "यह सदस्य संगठन में नहीं मिला।",
+          "firstnameRequired": "पहला नाम आवश्यक है।",
+          "lastnameRequired": "अंतिम नाम आवश्यक है।",
+          "emailRequired": "ईमेल आवश्यक है।",
+          "emailInvalid": "मान्य ईमेल पता दर्ज करें।",
+          "emailExists": "इस ईमेल से खाता पहले से मौजूद है।"
+        }
+      },
       "errors": {
         "loadFailed": "टीम सदस्य लोड नहीं हो सके। कृपया फिर कोशिश करें।",
-        "permissionDenied": "आपको इस वर्कस्पेस में टीम सदस्य देखने की अनुमति नहीं है।",
+        "permissionDenied": "आपको इस संगठन में टीम सदस्य देखने की अनुमति नहीं है।",
         "adminOnlyList": "पेजिनेटेड टीम डायरेक्टरी केवल Owner और Admin देख सकते हैं।",
         "sessionExpired": "आपका सत्र समाप्त हो गया। कृपया फिर साइन इन करें।",
         "actionPermissionDenied": "आपको इस सदस्य को प्रबंधित करने की अनुमति नहीं है।",
@@ -1512,7 +2168,7 @@
         "changeOwner": "Owner भूमिका यहाँ नहीं बदली जा सकती। Ownership transfer उपयोग करें।",
         "removeOwner": "Owner को नहीं हटाया जा सकता। पहले ownership transfer करें।",
         "permissionEscalation": "इस भूमिका में ऐसी अनुमतियाँ हैं जो आपके पास नहीं हैं।",
-        "roleInvalid": "यह भूमिका इस वर्कस्पेस के लिए उपलब्ध नहीं है।",
+        "roleInvalid": "यह भूमिका इस संगठन के लिए उपलब्ध नहीं है।",
         "inviteNotPending": "यह निमंत्रण अब लंबित नहीं है।",
         "inviteNotFound": "यह निमंत्रण नहीं मिला।",
         "actionFailed": "सदस्य अपडेट नहीं हो सका। कृपया फिर कोशिश करें।"
@@ -1539,23 +2195,24 @@
           "emailInvalid": "सही ईमेल पता दर्ज करें।",
           "phoneInvalid": "सही फ़ोन नंबर दर्ज करें।",
           "roleRequired": "भूमिका चुनें।",
-          "noActiveOrg": "सदस्यों को आमंत्रित करने से पहले वर्कस्पेस चुनें या बनाएँ।",
+          "noActiveOrg": "सदस्यों को आमंत्रित करने से पहले संगठन चुनें या बनाएँ।",
           "sessionExpired": "आपका सत्र समाप्त हो गया। कृपया फिर साइन इन करें।",
           "permissionDenied": "आपको सदस्य आमंत्रित करने की अनुमति नहीं है।",
-          "orgMismatch": "सक्रिय वर्कस्पेस मेल नहीं खाता। वर्कस्पेस बदलकर फिर कोशिश करें।",
-          "alreadyMember": "यह ईमेल पहले से इस वर्कस्पेस का सदस्य है।",
+          "orgMismatch": "सक्रिय संगठन मेल नहीं खाता। संगठन बदलकर फिर कोशिश करें।",
+          "alreadyMember": "यह ईमेल पहले से इस संगठन का सदस्य है।",
           "alreadyPending": "इस ईमेल के लिए निमंत्रण पहले से लंबित है। पहले उसे रद्द करें या जवाब की प्रतीक्षा करें।",
-          "roleInvalid": "यह भूमिका इस वर्कस्पेस के लिए उपलब्ध नहीं है।",
+          "roleInvalid": "यह भूमिका इस संगठन के लिए उपलब्ध नहीं है।",
+          "emailFailed": "निमंत्रण ईमेल नहीं भेजा जा सका। ईमेल सेटिंग जाँचकर फिर कोशिश करें।",
           "generic": "निमंत्रण नहीं भेजा जा सका। कृपया फिर कोशिश करें।"
         }
       }
     },
     "roles": {
       "eyebrow": "एक्सेस नियंत्रण",
-      "title": "भूमिकाएँ",
-      "subtitle": "सिस्टम भूमिकाओं के डिफ़ॉल्ट होते हैं। कस्टम भूमिकाएँ बनाएँ या इस वर्कस्पेस के लिए admin/agent/viewer अनुमतियाँ ओवरराइड करें।",
+      "title": "भूमिकाएँ और अनुमतियाँ",
+      "subtitle": "सिस्टम भूमिकाओं के डिफ़ॉल्ट होते हैं। कस्टम भूमिकाएँ बनाएँ या इस संगठन के लिए admin/agent/viewer अनुमतियाँ ओवरराइड करें।",
       "createCta": "भूमिका बनाएँ",
-      "listTitle": "वर्कस्पेस भूमिकाएँ",
+      "listTitle": "संगठन भूमिकाएँ",
       "listDescription": "सक्रिय संगठन में प्रत्येक भूमिका की प्रभावी अनुमतियाँ।",
       "loading": "भूमिकाएँ लोड हो रही हैं…",
       "emptyTitle": "कोई भूमिका नहीं मिली",
@@ -1572,7 +2229,7 @@
       "deleteAria": "भूमिका {role} हटाएँ",
       "errors": {
         "loadFailed": "भूमिकाएँ लोड नहीं हो सकीं। कृपया फिर कोशिश करें।",
-        "permissionDenied": "आपको इस वर्कस्पेस में भूमिकाएँ देखने की अनुमति नहीं है।",
+        "permissionDenied": "आपको इस संगठन में भूमिकाएँ देखने की अनुमति नहीं है।",
         "sessionExpired": "आपका सत्र समाप्त हो गया। कृपया फिर साइन इन करें।",
         "actionPermissionDenied": "आपको भूमिकाएँ प्रबंधित करने की अनुमति नहीं है।",
         "escalation": "इस भूमिका में ऐसी अनुमतियाँ होंगी जो आपके पास नहीं हैं।",
@@ -1595,7 +2252,7 @@
       },
       "reset": {
         "title": "डिफ़ॉल्ट पर रीसेट करें?",
-        "body": "“{role}” के वर्कस्पेस ओवरराइड हटाकर सीडेड अनुमतियाँ पुनर्स्थापित करें।",
+        "body": "“{role}” के संगठन ओवरराइड हटाकर सीडेड अनुमतियाँ पुनर्स्थापित करें।",
         "reason": "कारण",
         "reasonPlaceholder": "डिफ़ॉल्ट क्यों पुनर्स्थापित किए जा रहे हैं?",
         "reasonRequired": "कम से कम 5 अक्षरों का कारण दर्ज करें।",
@@ -1605,36 +2262,109 @@
       },
       "editor": {
         "createTitle": "भूमिका बनाएँ",
-        "createSubtitle": "नाम को अपरिवर्तनीय भूमिका कुंजी में स्लगिफाई किया जाता है (अधिकतम 20 अक्षर)।",
+        "createSubtitle": "एक भूमिका परिभाषित करें और टीम सदस्यों के लिए अनुमतियाँ सेट करें।",
         "editTitle": "{role} संपादित करें",
-        "editSubtitle": "इस भूमिका की अनुमतियाँ अपडेट करें। सिस्टम भूमिकाएँ केवल इस वर्कस्पेस के लिए ओवरराइड लिखती हैं।",
+        "editSubtitle": "इस भूमिका की अनुमतियाँ अपडेट करें। सिस्टम भूमिकाएँ केवल इस संगठन के लिए ओवरराइड लिखती हैं।",
+        "breadcrumb": "भूमिकाएँ और अनुमतियाँ",
+        "detailsTitle": "भूमिका विवरण",
         "name": "भूमिका का नाम",
-        "namePlaceholder": "Support Lead",
+        "namePlaceholder": "भूमिका का नाम दर्ज करें",
         "nameHint": "स्लगिफाई के बाद केवल अक्षर और संख्याएँ। admin जैसे सिस्टम नाम आरक्षित हैं।",
+        "description": "विवरण (वैकल्पिक)",
+        "descriptionPlaceholder": "भूमिका का विवरण दर्ज करें",
+        "descriptionHint": "केवल इस फ़ॉर्म के लिए वैकल्पिक नोट। API नाम और अनुमतियाँ सहेजता है।",
+        "quickSetupTitle": "त्वरित सेटअप",
+        "quickSetupHint": "एक टेम्पलेट से शुरू करें।",
+        "templates": {
+          "admin": {
+            "name": "Admin",
+            "description": "सभी सुविधाओं और सेटिंग्स तक पूरी पहुँच।"
+          },
+          "manager": {
+            "name": "Manager",
+            "description": "टीम, कैंपेन और रिपोर्ट प्रबंधित करें।"
+          },
+          "agent": {
+            "name": "Support Agent",
+            "description": "बातचीत और संपर्क संभालें।"
+          },
+          "custom": {
+            "name": "Custom",
+            "description": "कस्टम अनुमतियों के साथ भूमिका बनाएँ।"
+          }
+        },
         "keyPreview": "कुंजी: {key}",
         "roleKey": "भूमिका कुंजी",
         "systemEditHint": "सिस्टम भूमिका संपादन वैश्विक सीड नहीं, ऑर्ग-स्तरीय ओवरराइड लिखता है।",
-        "systemOverrideBanner": "आप एक सिस्टम भूमिका (admin, agent, या viewer) संपादित कर रहे हैं। सहेजने पर केवल इस वर्कस्पेस के लिए संगठन-विशिष्ट अनुमति ओवरराइड बनते हैं — वैश्विक सीड अपरिवर्तित रहता है।",
+        "systemOverrideBanner": "आप एक सिस्टम भूमिका (admin, agent, या viewer) संपादित कर रहे हैं। सहेजने पर केवल इस संगठन के लिए संगठन-विशिष्ट अनुमति ओवरराइड बनते हैं — वैश्विक सीड अपरिवर्तित रहता है।",
         "permissions": "अनुमतियाँ",
-        "permissionsHint": "आप केवल वे अनुमतियाँ दे सकते हैं जो आपके पास पहले से हैं। श्रेणी खोलकर क्रियाएँ चुनें।",
+        "permissionsHint": "इस भूमिका के लिए मॉड्यूल और क्रियाएँ चुनें।",
         "selectAllGlobal": "सभी अनुमतियाँ दें",
         "enabledTotal": "{enabled}/{total} सक्षम",
-        "groupEnabledSummary": "{total} में से {enabled} सक्षम",
+        "groupEnabledSummary": "{total} में से {enabled} अनुमतियाँ",
         "modules": "मॉड्यूल",
         "selectAllInModule": "सभी चुनें",
-        "searchPlaceholder": "अनुमतियाँ खोजें…",
-        "searchNoMatches": "आपकी खोज से कोई अनुमति मेल नहीं खाती।",
+        "searchPlaceholder": "मॉड्यूल खोजें...",
+        "searchNoMatches": "आपकी खोज से कोई मॉड्यूल मेल नहीं खाता।",
         "selectGroup": "सभी {resource} अनुमतियाँ चुनें",
         "noGrantable": "आपके खाते के लिए कोई देय अनुमति उपलब्ध नहीं है।",
+        "columns": {
+          "permission": "अनुमति",
+          "noAccess": "कोई पहुँच नहीं",
+          "view": "देखें",
+          "create": "बनाएँ",
+          "update": "अपडेट",
+          "delete": "हटाएँ"
+        },
+        "helpBanner": "आप केवल वे अनुमतियाँ दे सकते हैं जो आपके पास पहले से हैं। टेम्पलेट मौजूदा प्रोडक्ट अनुमतियों से मैट्रिक्स भरता है।",
+        "moduleDescriptions": {
+          "inbox": "बातचीत प्रबंधित करें और जवाब दें।",
+          "contacts": "संगठन संपर्क देखें और प्रबंधित करें।",
+          "campaigns": "ब्रॉडकास्ट कैंपेन बनाएँ और चलाएँ।",
+          "templates": "WhatsApp संदेश टेम्पलेट प्रबंधित करें।",
+          "reports": "एनालिटिक्स देखें और रिपोर्ट निर्यात करें।",
+          "org": "संगठन प्रोफ़ाइल और सेटिंग्स।",
+          "team": "टीम सदस्यों को आमंत्रित और प्रबंधित करें।",
+          "ai": "AI जवाब और नॉलेज बेस।",
+          "automations": "ऑटोमेशन देखें और प्रबंधित करें।",
+          "notifications": "नोटिफिकेशन पहुँच प्रबंधित करें।",
+          "roles": "भूमिकाएँ और अनुमतियाँ देखें और प्रबंधित करें।",
+          "billing": "बिलिंग और सदस्यता विवरण देखें।",
+          "whatsapp": "WhatsApp कनेक्शन और सेटिंग्स।",
+          "integrations": "इंटीग्रेशन देखें और प्रबंधित करें।",
+          "audit": "ऑडिट लॉग देखें और निर्यात करें।",
+          "media": "मीडिया फ़ाइलें देखें और प्रबंधित करें।"
+        },
         "reason": "ऑडिट कारण",
         "reasonPlaceholder": "उदा. सपोर्ट सीज़न के लिए एजेंट इनबॉक्स पहुँच सीमित करें",
         "reasonHint": "यह कारण authorization ऑडिट लॉग में सहेजा जाता है ताकि टीम जाने कि बदलाव क्यों हुआ (न्यूनतम 5 अक्षर)।",
         "unsavedChanges": "बिना सहेजे बदलाव",
         "unsavedConfirm": "आपके पास बिना सहेजे बदलाव हैं। बिना सहेजे बंद करें?",
         "cancel": "रद्द करें",
-        "createSubmit": "भूमिका बनाएँ",
-        "editSubmit": "अनुमतियाँ सहेजें",
+        "createSubmit": "भूमिका सहेजें",
+        "editSubmit": "भूमिका सहेजें",
         "saving": "सहेजा जा रहा है…",
+        "preview": {
+          "action": "बदलाव देखें",
+          "title": "भूमिका अनुमति पूर्वावलोकन",
+          "description": "सहेजने के बाद इस भूमिका की पहुँच और प्रभावित सदस्यों की समीक्षा करें।",
+          "loading": "पूर्वावलोकन लोड हो रहा है…",
+          "readyToast": "अनुमति पूर्वावलोकन तैयार है।",
+          "close": "बंद करें",
+          "role": "भूमिका",
+          "systemRoleHint": "सिस्टम भूमिका — सहेजने पर केवल संगठन ओवरराइड लिखे जाते हैं।",
+          "resultingTitle": "सहेजने के बाद पहुँच",
+          "resultingCount": "{count} अनुमतियाँ चयनित",
+          "resultingEmpty": "कोई अनुमति चयनित नहीं।",
+          "addedTitle": "जोड़ी गई अनुमतियाँ ({count})",
+          "addedEmpty": "कोई नई अनुमति नहीं।",
+          "removedTitle": "हटाई गई अनुमतियाँ ({count})",
+          "removedEmpty": "कोई अनुमति नहीं हटाई गई।",
+          "affectedTitle": "{count} सदस्य प्रभावित",
+          "affectedNone": "इस बदलाव से किसी सदस्य की अनुमतियाँ नहीं हटेंगी।",
+          "affectedHint": "इन सदस्यों के पास वर्तमान में यह भूमिका है और कम से कम एक अनुमति खो सकते हैं।",
+          "noChanges": "चयनित अनुमतियाँ भूमिका की वर्तमान पहुँच से मेल खाती हैं — सहेजने पर कोई बदलाव नहीं होगा।"
+        },
         "errors": {
           "nameRequired": "कम से कम 2 अक्षरों का भूमिका नाम दर्ज करें।",
           "nameTooLong": "भूमिका नाम 20 अक्षर या उससे कम होना चाहिए।",
@@ -1645,33 +2375,47 @@
           "permissionDenied": "आपको भूमिकाएँ प्रबंधित करने की अनुमति नहीं है।",
           "escalation": "इस भूमिका में ऐसी अनुमतियाँ होंगी जो आपके पास नहीं हैं।",
           "protected": "यह भूमिका सुरक्षित है।",
-          "generic": "भूमिका सहेजी नहीं जा सकी। कृपया फिर कोशिश करें।"
+          "generic": "भूमिका सहेजी नहीं जा सकी। कृपया फिर कोशिश करें।",
+          "previewFailed": "भूमिका का पूर्वावलोकन नहीं हो सका। कृपया फिर कोशिश करें।"
         }
       }
     },
     "contacts": {
       "eyebrow": "CRM",
       "title": "संपर्क",
-      "subtitle": "इस WhatsApp वर्कस्पेस से संदेश भेजने वाले लोग।",
+      "subtitle": "इस WhatsApp संगठन से संदेश भेजने वाले लोग।",
       "addCta": "संपर्क जोड़ें",
+      "importCta": "संपर्क आयात करें",
       "listTitle": "सभी संपर्क",
-      "listDescription": "प्रति वर्कस्पेस सहेजे जाते हैं। फ़ोन नंबर अद्वितीय होना चाहिए।",
+      "listDescription": "प्रति संगठन सहेजे जाते हैं। फ़ोन नंबर अद्वितीय होना चाहिए।",
       "loading": "संपर्क लोड हो रहे हैं…",
       "searchPlaceholder": "नाम, फ़ोन, ईमेल या कंपनी से खोजें",
       "emptyTitle": "अभी कोई संपर्क नहीं",
       "emptyDescription": "बातचीत और कैंपेन शुरू करने के लिए पहला संपर्क जोड़ें।",
       "noMatches": "आपकी खोज से कोई संपर्क मेल नहीं खाता।",
       "addedAt": "जोड़ा गया {date}",
+      "deleteAria": "{name} हटाएँ",
+      "deleteConfirmTitle": "यह संपर्क हटाएँ?",
+      "deleteConfirmBody": "“{name}” इस संगठन से हटा दिया जाएगा। बाद में उसी फ़ोन नंबर से नया संपर्क जोड़ा जा सकता है।",
+      "deleteConfirm": "संपर्क हटाएँ",
+      "deleteCancel": "रद्द करें",
+      "deleting": "हटाया जा रहा है…",
       "errors": {
         "loadFailed": "संपर्क लोड नहीं हो सके। कृपया फिर कोशिश करें।",
-        "permissionDenied": "आपको इस वर्कस्पेस में संपर्क देखने की अनुमति नहीं है।"
+        "permissionDenied": "आपको इस संगठन में संपर्क देखने की अनुमति नहीं है।",
+        "deleteFailed": "संपर्क हटाया नहीं जा सका। कृपया फिर कोशिश करें।",
+        "deletePermissionDenied": "आपको संपर्क हटाने की अनुमति नहीं है।",
+        "deleteNotFound": "यह संपर्क नहीं मिला।",
+        "alreadyDeleted": "यह संपर्क पहले ही हटाया जा चुका है।"
       },
       "add": {
         "title": "संपर्क जोड़ें",
-        "subtitle": "फ़ोन आवश्यक है। नाम, ईमेल और कंपनी वैकल्पिक हैं।",
-        "phone": "फ़ोन",
-        "phonePlaceholder": "+91 98765 43210",
-        "phoneHint": "जैसा दर्ज किया गया सहेजा जाता है; अद्वितीयता अंकों पर आधारित है।",
+        "subtitle": "राष्ट्रीय नंबर के लिए फ़ोन नंबर और देश आवश्यक हैं। नाम, ईमेल और कंपनी वैकल्पिक हैं।",
+        "country": "देश",
+        "countryPlaceholder": "देश चुनें",
+        "phone": "फ़ोन नंबर",
+        "phonePlaceholder": "9876543210 या +14155552671",
+        "phoneHint": "राष्ट्रीय नंबर के लिए देश चुनें। अंतरराष्ट्रीय नंबर + से शुरू हो सकते हैं।",
         "name": "नाम",
         "nameOptional": "वैकल्पिक",
         "email": "ईमेल",
@@ -1682,7 +2426,8 @@
         "submitting": "सहेजा जा रहा है…",
         "success": "संपर्क जोड़ दिया गया।",
         "errors": {
-          "phoneRequired": "फ़ोन आवश्यक है।",
+          "phoneRequired": "फ़ोन नंबर आवश्यक है।",
+          "countryRequired": "राष्ट्रीय नंबर के लिए देश चुनें।",
           "phoneInvalid": "सही फ़ोन नंबर दर्ज करें।",
           "emailInvalid": "सही ईमेल पता दर्ज करें।",
           "phoneExists": "इस फ़ोन नंबर वाला संपर्क पहले से मौजूद है।",
@@ -1690,17 +2435,229 @@
           "permissionDenied": "आपको संपर्क जोड़ने की अनुमति नहीं है।",
           "generic": "संपर्क सहेजा नहीं जा सका। कृपया फिर कोशिश करें।"
         }
+      },
+      "import": {
+        "title": "संपर्क आयात करें",
+        "steps": {
+          "upload": "CSV अपलोड",
+          "map": "कॉलम मैप करें",
+          "settings": "आयात सेटिंग्स",
+          "review": "समीक्षा और आयात"
+        },
+        "cancel": "रद्द करें",
+        "back": "वापस",
+        "next": "आगे",
+        "import": "आयात करें",
+        "importing": "आयात हो रहा है…",
+        "close": "बंद करें",
+        "upload": {
+          "heading": "CSV फ़ाइल अपलोड करें",
+          "hint": "अपनी CSV फ़ाइल यहाँ खींचकर छोड़ें, या ब्राउज़ करने के लिए क्लिक करें।",
+          "supports": ".csv फ़ाइलें समर्थित हैं।",
+          "selected": "चयनित फ़ाइल: {name}",
+          "supportedFields": "समर्थित कॉलम: phone*, name, email, company. *फ़ोन कॉलम आवश्यक है।"
+        },
+        "map": {
+          "heading": "CSV कॉलम को संपर्क फ़ील्ड से मैप करें।",
+          "csvColumn": "CSV कॉलम",
+          "contactField": "संपर्क फ़ील्ड",
+          "unmapped": "आयात न करें",
+          "fields": {
+            "phone": "फ़ोन",
+            "name": "नाम",
+            "email": "ईमेल",
+            "company": "कंपनी"
+          },
+          "previewToggle": "पहली 3 पंक्तियों का पूर्वावलोकन",
+          "previewHide": "पूर्वावलोकन छिपाएँ",
+          "phoneRequired": "आगे बढ़ने से पहले फ़ोन कॉलम मैप करें।",
+          "duplicateField": "प्रत्येक संपर्क फ़ील्ड केवल एक बार मैप की जा सकती है।"
+        },
+        "settings": {
+          "country": "डिफ़ॉल्ट देश कोड",
+          "countryPlaceholder": "देश चुनें",
+          "countryHint": "केवल उन राष्ट्रीय नंबरों के लिए उपयोग होगा जिनमें देश कोड नहीं है। + से शुरू होने वाले अंतरराष्ट्रीय नंबर जैसे के वैसे भेजे जाते हैं।",
+          "countryNationalWarning": "इस CSV में राष्ट्रीय फ़ोन नंबर हैं। उन पंक्तियों के लिए डिफ़ॉल्ट देश चुनें, नहीं तो वे आयात नहीं होंगी। + से शुरू होने वाले नंबर प्रभावित नहीं होंगे।",
+          "duplicates": "डुप्लिकेट संपर्क",
+          "duplicatesValue": "डुप्लिकेट छोड़ें (अनुशंसित)",
+          "duplicatesHint": "डुप्लिकेट संपर्क छोड़ दिए जाएँगे और फिर आयात नहीं होंगे।"
+        },
+        "review": {
+          "heading": "आयात सारांश की समीक्षा करें",
+          "file": "CSV फ़ाइल",
+          "totalRows": "कुल पंक्तियाँ",
+          "mappedFields": "मैप किए गए फ़ील्ड",
+          "defaultCountry": "डिफ़ॉल्ट देश",
+          "defaultCountryNone": "चयनित नहीं",
+          "duplicates": "डुप्लिकेट हैंडलिंग",
+          "duplicatesValue": "डुप्लिकेट छोड़ें",
+          "warning": "डुप्लिकेट छोड़ दिए जाएँगे। मौजूदा संपर्क अपडेट नहीं होंगे।",
+          "countryNationalWarning": "कुछ पंक्तियों में राष्ट्रीय फ़ोन नंबर हैं। बिना डिफ़ॉल्ट देश के वे पंक्तियाँ असफल होंगी। + से शुरू होने वाले अंतरराष्ट्रीय नंबर फिर भी आयात हो सकते हैं।"
+        },
+        "result": {
+          "title": "आयात पूरा हुआ",
+          "subtitle": "आपके संपर्कों को प्रोसेस कर दिया गया है।",
+          "totalRows": "कुल पंक्तियाँ",
+          "imported": "आयात हुए",
+          "skipped": "छोड़े गए (डुप्लिकेट)",
+          "failed": "असफल",
+          "downloadReport": "रिपोर्ट डाउनलोड करें"
+        },
+        "errors": {
+          "invalidType": ".csv फ़ाइल अपलोड करें।",
+          "tooLarge": "CSV फ़ाइल 2 MB या उससे छोटी होनी चाहिए।",
+          "empty": "CSV फ़ाइल में संपर्क पंक्तियाँ नहीं हैं।",
+          "malformed": "CSV फ़ाइल पार्स नहीं हो सकी।",
+          "noHeaders": "CSV फ़ाइल में कॉलम हेडर नहीं हैं।",
+          "sessionExpired": "आपका सत्र समाप्त हो गया। कृपया फिर साइन इन करें।",
+          "permissionDenied": "आपको संपर्क आयात करने की अनुमति नहीं है।",
+          "missingPhoneColumn": "CSV में फ़ोन कॉलम नहीं है।",
+          "invalidCountry": "सही देश चुनें।",
+          "tooManyRows": "CSV में बहुत अधिक पंक्तियाँ हैं।",
+          "invalidFile": "CSV फ़ाइल अपलोड करें।",
+          "generic": "संपर्क आयात नहीं हो सके। कृपया फिर कोशिश करें।"
+        }
+      }
+    },
+    "customerGroups": {
+      "eyebrow": "ऑडियंस",
+      "title": "ग्राहक समूह",
+      "subtitle": "लक्षित कैंपेन और ऑटोमेशन के लिए संपर्कों को समूहों में व्यवस्थित करें।",
+      "create": "समूह बनाएँ",
+      "loading": "समूह लोड हो रहे हैं…",
+      "retry": "फिर कोशिश करें",
+      "searchPlaceholder": "समूह खोजें...",
+      "filterStatus": "स्थिति से फ़िल्टर करें",
+      "filterAllStatuses": "सभी स्थितियाँ",
+      "filters": "फ़िल्टर",
+      "filtersHint": "नाम या स्थिति से समूह सीमित करें।",
+      "clearFilters": "फ़िल्टर साफ़ करें",
+      "emptyTitle": "अभी कोई समूह नहीं",
+      "emptyDescription": "कैंपेन और ऑटोमेशन के लिए संपर्कों को व्यवस्थित करने हेतु एक ग्राहक समूह बनाएँ।",
+      "noMatches": "आपकी खोज से कोई समूह मेल नहीं खाता।",
+      "noDescription": "कोई विवरण नहीं",
+      "backToList": "ग्राहक समूहों पर वापस जाएँ",
+      "pagination": "{total} में से {from} से {to} समूह दिख रहे हैं",
+      "prev": "पिछला",
+      "next": "अगला",
+      "mobileMeta": "{count, plural, one {# संपर्क} other {# संपर्क}} · {date}",
+      "usedInCampaigns": "{count, plural, one {# कैंपेन} other {# कैंपेन}}",
+      "columns": {
+        "name": "समूह का नाम",
+        "contacts": "संपर्क",
+        "type": "प्रकार",
+        "usedIn": "उपयोग",
+        "createdOn": "बनाया गया",
+        "status": "स्थिति",
+        "actions": "क्रियाएँ"
+      },
+      "type": {
+        "static": "स्टैटिक"
+      },
+      "status": {
+        "active": "सक्रिय",
+        "inactive": "निष्क्रिय"
+      },
+      "kpis": {
+        "totalGroups": "कुल समूह",
+        "totalGroupsHint": "सभी समूहों में",
+        "totalContacts": "कुल संपर्क",
+        "totalContactsHint": "सभी समूहों में",
+        "usedInCampaigns": "कैंपेन में उपयोग",
+        "usedInCampaignsHint": "कैंपेन उपयोग ट्रैक होने पर उपलब्ध",
+        "engagementRate": "एंगेजमेंट दर",
+        "engagementRateHint": "समूहों का औसत"
+      },
+      "actions": {
+        "openMenu": "समूह क्रियाएँ खोलें",
+        "view": "समूह देखें",
+        "edit": "समूह संपादित करें",
+        "delete": "समूह हटाएँ",
+        "addContacts": "संपर्क जोड़ें",
+        "removeContact": "समूह से हटाएँ"
+      },
+      "form": {
+        "createTitle": "समूह बनाएँ",
+        "createSubtitle": "समूह का नाम दें, फिर शामिल करने के लिए मौजूदा संपर्क चुनें।",
+        "editTitle": "समूह संपादित करें",
+        "editSubtitle": "समूह विवरण या सदस्यता अपडेट करें। सदस्य हटाने से संपर्क नहीं हटता।",
+        "name": "समूह का नाम",
+        "namePlaceholder": "VIP ग्राहक",
+        "description": "विवरण",
+        "descriptionPlaceholder": "इस समूह में कौन आता है?",
+        "status": "स्थिति",
+        "statusActive": "सक्रिय",
+        "statusInactive": "निष्क्रिय",
+        "selectContacts": "संपर्क चुनें",
+        "selectContactsHint": "संपर्क जोड़ने या हटाने से केवल समूह सदस्यता बदलती है।",
+        "cancel": "रद्द करें",
+        "create": "समूह सहेजें",
+        "save": "परिवर्तन सहेजें",
+        "saving": "सहेजा जा रहा है…",
+        "errors": {
+          "nameRequired": "समूह का नाम आवश्यक है।",
+          "nameTooLong": "समूह का नाम 120 अक्षरों से अधिक नहीं होना चाहिए।"
+        }
+      },
+      "picker": {
+        "searchPlaceholder": "संपर्क खोजें...",
+        "loading": "संपर्क लोड हो रहे हैं…",
+        "loadFailed": "संपर्क लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+        "retry": "फिर कोशिश करें",
+        "empty": "अभी कोई संपर्क नहीं। पहले संपर्क जोड़ें, फिर उन्हें समूह में शामिल करें।",
+        "noMatches": "आपकी खोज से कोई संपर्क मेल नहीं खाता।",
+        "selectedCount": "चयनित: {count, plural, one {# संपर्क} other {# संपर्क}}",
+        "unnamed": "बिना नाम का संपर्क"
+      },
+      "delete": {
+        "title": "समूह हटाएँ",
+        "body": "“{name}” हटाएँ? यह वापस नहीं किया जा सकता।",
+        "contactsSafe": "इस समूह को हटाने से उसके संपर्क नहीं हटेंगे।",
+        "cancel": "रद्द करें",
+        "confirm": "समूह हटाएँ",
+        "deleting": "हटाया जा रहा है…"
+      },
+      "detail": {
+        "membersTitle": "सदस्य",
+        "membersCount": "{count, plural, one {# संपर्क} other {# संपर्क}}",
+        "emptyMembers": "इस समूह में कोई संपर्क नहीं है।",
+        "createdOn": "{date} को बनाया गया"
+      },
+      "about": {
+        "title": "ग्राहक समूह के बारे में",
+        "body": "व्यवहार, स्थान या कैंपेन फिट के अनुसार संपर्कों को व्यवस्थित करें, फिर ब्रॉडकास्ट और ऑटोमेशन में उन लोगों को लक्षित करें।",
+        "link": "और जानें →"
+      },
+      "toast": {
+        "created": "समूह बन गया।",
+        "updated": "समूह अपडेट हो गया।",
+        "deleted": "समूह हटा दिया गया।",
+        "membersUpdated": "समूह सदस्य अपडेट हो गए।",
+        "memberRemoved": "संपर्क समूह से हटा दिया गया।"
+      },
+      "errors": {
+        "permissionDenied": "आपको इस संगठन में ग्राहक समूह देखने की अनुमति नहीं है।",
+        "loadFailed": "ग्राहक समूह लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+        "saveFailed": "यह समूह सहेजा नहीं जा सका। कृपया फिर कोशिश करें।",
+        "deleteFailed": "यह समूह हटाया नहीं जा सका। कृपया फिर कोशिश करें।",
+        "removeFailed": "इस संपर्क को समूह से हटाया नहीं जा सका।",
+        "notFound": "यह ग्राहक समूह नहीं मिला।",
+        "nameExists": "इस नाम का समूह पहले से मौजूद है।",
+        "alreadyMember": "यह संपर्क पहले से समूह में है।",
+        "invalidContact": "यह संपर्क इस संगठन में नहीं मिला।",
+        "membersPartialFailed": "{total} में से {failed} संपर्क समूह में नहीं जुड़े। समूह सहेज लिया गया है — बाकी संपर्कों को फिर से जोड़ें।"
       }
     },
     "inbox": {
       "eyebrow": "संदेश",
       "title": "इनबॉक्स",
-      "subtitle": "अपने वर्कस्पेस में ग्राहक बातचीत प्रबंधित करें।",
+      "subtitle": "अपने संगठन में ग्राहक बातचीत प्रबंधित करें।",
       "listTitle": "बातचीत",
       "listDescription": "{count, plural, =0 {कोई बातचीत नहीं} one {# बातचीत} other {# बातचीत}}",
       "loading": "बातचीत लोड हो रही हैं…",
       "retry": "फिर कोशिश करें",
       "refresh": "बातचीत रिफ़्रेश करें",
+      "newMessagesBanner": "नए संदेश — नवीनतम दिखाएँ",
       "newConversationCta": "नई बातचीत",
       "searchLabel": "बातचीत खोजें",
       "searchPlaceholder": "संपर्क नाम या फ़ोन से खोजें…",
@@ -1746,7 +2703,7 @@
       },
       "errors": {
         "loadFailed": "बातचीत लोड नहीं हो सकीं। कृपया फिर कोशिश करें।",
-        "permissionDenied": "आपको इस वर्कस्पेस में इनबॉक्स देखने की अनुमति नहीं है।"
+        "permissionDenied": "आपको इस संगठन में इनबॉक्स देखने की अनुमति नहीं है।"
       },
       "newConversation": {
         "title": "नई बातचीत",
@@ -1773,15 +2730,17 @@
         "errors": {
           "loadFailed": "संपर्क या WhatsApp नंबर लोड नहीं हो सके। कृपया फिर कोशिश करें।",
           "createFailed": "बातचीत नहीं बन सकी। कृपया फिर कोशिश करें।",
-          "permissionDenied": "इस वर्कस्पेस में बातचीत शुरू करने की अनुमति नहीं है।",
+          "permissionDenied": "इस संगठन में बातचीत शुरू करने की अनुमति नहीं है।",
           "sessionExpired": "आपका सत्र समाप्त हो गया। कृपया फिर साइन इन करें।"
         }
       },
-      "sidebarDescription": "इस वर्कस्पेस की हाल की बातचीत।",
+      "sidebarDescription": "इस संगठन की हाल की बातचीत।",
       "thread": {
         "back": "इनबॉक्स पर वापस जाएँ",
         "agentSender": "एजेंट",
         "noContent": "कोई संदेश सामग्री नहीं",
+        "imageAlt": "छवि अटैचमेंट",
+        "documentLabel": "दस्तावेज़",
         "emptyTitle": "📭 अभी कोई संदेश नहीं",
         "emptyDescription": "बातचीत शुरू होने पर संदेश यहाँ दिखेंगे।",
         "selectTitle": "एक बातचीत चुनें",
@@ -1795,16 +2754,20 @@
         "composer": {
           "label": "ग्राहक को जवाब दें",
           "placeholder": "जवाब लिखें…",
+          "captionPlaceholder": "वैकल्पिक कैप्शन जोड़ें…",
           "hint": "भेजने के लिए Enter · नई पंक्ति के लिए Shift+Enter",
           "send": "जवाब भेजें",
-          "readOnly": "आपको इस वर्कस्पेस में जवाब भेजने की अनुमति नहीं है।",
+          "attach": "मीडिया जोड़ें",
+          "clearAttachment": "अटैचमेंट हटाएँ",
+          "readOnly": "आपको इस संगठन में जवाब भेजने की अनुमति नहीं है।",
           "closedHint": "यह बातचीत बंद है। जवाब भेजने के लिए इसे फिर खोलें।",
           "errors": {
             "sendFailed": "जवाब नहीं भेजा जा सका। कृपया फिर कोशिश करें।",
             "sessionExpired": "आपका सत्र समाप्त हो गया। कृपया फिर साइन इन करें।",
             "permissionDenied": "आपको जवाब भेजने की अनुमति नहीं है।",
             "conversationClosed": "बंद बातचीत में जवाब नहीं भेजा जा सकता।",
-            "notFound": "बातचीत नहीं मिली।"
+            "notFound": "बातचीत नहीं मिली।",
+            "sessionWindow": "24 घंटे की ग्राहक सेवा विंडो समाप्त हो गई है। दोबारा संपर्क के लिए स्वीकृत टेम्पलेट भेजें।"
           }
         },
         "actions": {
@@ -1813,13 +2776,17 @@
           "noAgents": "कोई एजेंट उपलब्ध नहीं",
           "statusLabel": "बातचीत की स्थिति",
           "close": "बंद करें",
+          "closeConfirm": "क्या आप इस बातचीत को बंद करना चाहते हैं? आप इसे बाद में फिर खोल सकते हैं।",
           "reopen": "फिर खोलें",
+          "takeover": "संभालें",
+          "resume": "ऑटोमेशन फिर शुरू करें",
           "errors": {
             "actionFailed": "यह बातचीत अपडेट नहीं हो सकी। कृपया फिर कोशिश करें।",
             "sessionExpired": "आपका सत्र समाप्त हो गया। कृपया फिर साइन इन करें।",
             "permissionDenied": "आपको यह बातचीत बदलने की अनुमति नहीं है।",
             "notFound": "बातचीत नहीं मिली।",
-            "agentNotFound": "वह एजेंट इस वर्कस्पेस का सदस्य नहीं है।"
+            "agentNotFound": "वह एजेंट इस संगठन का सदस्य नहीं है।",
+            "invalidAiTransition": "इस बातचीत का ऑटोमेशन मोड इस तरह नहीं बदला जा सकता।"
           }
         },
         "panelsLabel": "बातचीत पैनल",
@@ -1833,9 +2800,9 @@
           "emptyDescription": "अपनी टीम के लिए निजी नोट जोड़ें। ग्राहक इन्हें कभी नहीं देखेंगे।",
           "label": "आंतरिक नोट",
           "placeholder": "एक आंतरिक नोट लिखें…",
-          "hint": "नोट्स आपके वर्कस्पेस के अंदर रहते हैं और WhatsApp पर कभी नहीं भेजे जाते।",
+          "hint": "नोट्स आपके संगठन के अंदर रहते हैं और WhatsApp पर कभी नहीं भेजे जाते।",
           "save": "नोट जोड़ें",
-          "readOnly": "आपको इस वर्कस्पेस में नोट जोड़ने की अनुमति नहीं है।",
+          "readOnly": "आपको इस संगठन में नोट जोड़ने की अनुमति नहीं है।",
           "unknownAuthor": "टीम सदस्य",
           "errors": {
             "saveFailed": "यह नोट सेव नहीं हो सका। कृपया फिर कोशिश करें।",
@@ -1850,6 +2817,56 @@
         "title": "बातचीत",
         "comingSoon": "थ्रेड और जवाब अगले चरण में उपलब्ध होंगे।",
         "idLabel": "बातचीत ID: {id}"
+      },
+      "details": {
+        "title": "विवरण",
+        "subtitle": "संपर्क और बातचीत की जानकारी",
+        "closePanel": "विवरण बंद करें",
+        "openPanel": "विवरण",
+        "tabsLabel": "विवरण पैनल",
+        "tabs": {
+          "info": "जानकारी",
+          "notes": "नोट्स"
+        },
+        "loading": "विवरण लोड हो रहे हैं…",
+        "empty": "इस बातचीत के लिए कोई विवरण उपलब्ध नहीं है।",
+        "emptyTitle": "कोई बातचीत चयनित नहीं",
+        "emptyDescription": "संपर्क और बातचीत विवरण देखने के लिए एक बातचीत चुनें।",
+        "contactTitle": "संपर्क",
+        "conversationTitle": "बातचीत",
+        "fields": {
+          "name": "नाम",
+          "phone": "फ़ोन",
+          "email": "ईमेल",
+          "company": "कंपनी",
+          "status": "स्थिति",
+          "aiMode": "ऑटोमेशन",
+          "assignedTo": "असाइन किया गया",
+          "whatsappConfig": "WhatsApp नंबर",
+          "unreadCount": "अपठित",
+          "createdAt": "बनाया गया",
+          "updatedAt": "अपडेट किया गया",
+          "firstResponseAt": "पहली प्रतिक्रिया",
+          "closedAt": "बंद किया गया"
+        }
+      },
+      "aiMode": {
+        "pill": {
+          "AI_AUTO": "ऑटोमेशन",
+          "HANDOVER": "मानव चाहिए",
+          "HUMAN_ACTIVE": "मानव"
+        },
+        "banner": {
+          "title": "ऑटोमेशन ने यह बातचीत आपकी टीम को सौंपी",
+          "keyword": "ग्राहक ने मानव एजेंट मांगा ({keyword})।",
+          "keywordGeneric": "ग्राहक ने मानव एजेंट मांगा।",
+          "low_confidence": "ऑटोमेशन स्वचालित जवाब देने के लिए पर्याप्त आश्वस्त नहीं है।",
+          "error": "त्रुटि के कारण ऑटोमेशन रुक गया है।",
+          "humanTitle": "मानव इस चैट का मालिक है — ऑटोमेशन रुका है",
+          "humanBody": "जब तक आप ऑटोमेशन फिर शुरू नहीं करते, इनबाउंड फ्लो जवाब बंद रहेंगे।",
+          "orphanTitle": "रुके हुए फ्लो पर ऑटोमेशन ब्लॉक है",
+          "orphanBody": "ऑटोमेशन फिर शुरू करें ताकि अगला कीवर्ड नया फ्लो शुरू कर सके।"
+        }
       }
     },
     "whatsapp": {
@@ -1860,7 +2877,7 @@
       "refresh": "रीफ़्रेश",
       "loading": "WhatsApp नंबर लोड हो रहे हैं…",
       "listTitle": "कनेक्टेड नंबर",
-      "listDescription": "इस वर्कस्पेस से जुड़े WhatsApp Business नंबर।",
+      "listDescription": "इस संगठन से जुड़े WhatsApp Business नंबर।",
       "emptyTitle": "कोई WhatsApp नंबर कनेक्ट नहीं है",
       "emptyDescription": "Inbox में बातचीत प्राप्त करने के लिए अपना WhatsApp Business अकाउंट कनेक्ट करें।",
       "disconnect": "डिस्कनेक्ट",
@@ -1883,7 +2900,7 @@
       "errors": {
         "generic": "कुछ गलत हो गया। कृपया फिर कोशिश करें।",
         "sessionExpired": "आपका सत्र समाप्त हो गया। कृपया फिर साइन इन करें।",
-        "permissionDenied": "आपको इस वर्कस्पेस में WhatsApp प्रबंधित करने की अनुमति नहीं है।",
+        "permissionDenied": "आपको इस संगठन में WhatsApp प्रबंधित करने की अनुमति नहीं है।",
         "sessionMissing": "WhatsApp साइनअप सत्र कॉन्फ़िगर नहीं है। Meta ऐप सेटिंग्स जांचें।",
         "signupCancelled": "WhatsApp कनेक्शन रद्द कर दिया गया।",
         "sessionInfoMissing": "Meta से WhatsApp अकाउंट विवरण नहीं मिल सका। कृपया फिर कोशिश करें।",
@@ -1893,10 +2910,59 @@
         "testToRequired": "टेस्ट भेजने के लिए प्राप्तकर्ता फ़ोन नंबर दर्ज करें।"
       }
     },
+    "integrations": {
+      "eyebrow": "कनेक्ट",
+      "title": "इंटीग्रेशन",
+      "subtitle": "Shopenup कनेक्ट करें ताकि स्टोर इवेंट संपर्क बना सकें और WhatsApp टेम्पलेट भेज सकें।",
+      "refresh": "रीफ़्रेश",
+      "loading": "इंटीग्रेशन लोड हो रहे हैं…",
+      "shopenupTitle": "Shopenup",
+      "shopenupDescription": "अपने Shopenup स्टोर से ऑर्डर और कैटलॉग इवेंट प्राप्त करें।",
+      "connectCta": "Shopenup कनेक्ट करें",
+      "disconnect": "डिस्कनेक्ट",
+      "webhookLabel": "वेबहुक URL",
+      "webhookHint": "यह URL Shopenup में इवेंट एंडपॉइंट के रूप में पेस्ट करें।",
+      "copyWebhook": "URL कॉपी करें",
+      "copied": "कॉपी हो गया",
+      "keysTitle": "API कुंजियाँ",
+      "keysDescription": "Shopenup एक संगठन API कुंजी से प्रमाणित होता है। सीक्रेट केवल एक बार दिखता है।",
+      "generateCta": "कुंजी बनाएँ",
+      "revoke": "रद्द करें",
+      "prefix": "प्रीफ़िक्स: {prefix}",
+      "lastUsed": "अंतिम उपयोग {date}",
+      "neverUsed": "कभी उपयोग नहीं हुई",
+      "noKeysTitle": "अभी कोई API कुंजी नहीं",
+      "noKeysDescription": "एक कुंजी बनाएँ, सीक्रेट कॉपी करें, फिर उसे Shopenup में पेस्ट करें।",
+      "secretTitle": "यह API कुंजी कॉपी करें",
+      "secretDescription": "यह सीक्रेट केवल एक बार दिखता है। इसे अभी Shopenup में सेव करें — बाद में नहीं देखा जा सकता।",
+      "secretLabel": "API कुंजी",
+      "copySecret": "कुंजी कॉपी करें",
+      "secretDone": "मैंने सेव कर लिया",
+      "status": {
+        "connected": "कनेक्टेड",
+        "disconnected": "कनेक्ट नहीं",
+        "error": "त्रुटि"
+      },
+      "toasts": {
+        "connected": "Shopenup कनेक्ट हो गया।",
+        "disconnected": "Shopenup डिस्कनेक्ट हो गया।",
+        "keyCreated": "API कुंजी बन गई। सीक्रेट अभी कॉपी करें।",
+        "keyRevoked": "API कुंजी रद्द कर दी गई।",
+        "webhookCopied": "वेबहुक URL कॉपी हो गया।",
+        "secretCopied": "API कुंजी कॉपी हो गई।"
+      },
+      "errors": {
+        "generic": "कुछ गलत हो गया। कृपया फिर कोशिश करें।",
+        "sessionExpired": "आपका सत्र समाप्त हो गया। कृपया फिर साइन इन करें।",
+        "permissionDenied": "आपको इस संगठन में इंटीग्रेशन प्रबंधित करने की अनुमति नहीं है।",
+        "secretMissing": "API कुंजी बन गई, लेकिन सीक्रेट नहीं मिला। नई कुंजी बनाएँ।",
+        "clipboard": "कॉपी नहीं हो सका। टेक्स्ट चुनकर मैन्युअल कॉपी करें।"
+      }
+    },
     "templates": {
       "eyebrow": "संदेश",
-      "title": "टेम्पलेट सूची",
-      "subtitle": "इस वर्कस्पेस के लिए WhatsApp संदेश टेम्पलेट बनाएँ, समीक्षा करें और सिंक करें।",
+      "title": "टेम्पलेट्स",
+      "subtitle": "इस संगठन के लिए WhatsApp संदेश टेम्पलेट बनाएँ, समीक्षा करें और सिंक करें।",
       "createCta": "टेम्पलेट बनाएँ",
       "syncCta": "Meta से सिंक करें",
       "browseCta": "टेम्पलेट ब्राउज़ करें",
@@ -1905,21 +2971,33 @@
         "body": "टेम्पलेट ब्राउज़ सुविधा भविष्य के अपडेट में उपलब्ध होगी।",
         "dismiss": "ठीक है"
       },
+      "whatsappRequired": {
+        "title": "WhatsApp कनेक्ट नहीं है",
+        "body": "आप स्थानीय ड्राफ्ट टेम्पलेट बना और प्रबंधित कर सकते हैं। Meta से सिंक और अनुमोदन के लिए कनेक्टेड WhatsApp Business खाता आवश्यक है।",
+        "cta": "WhatsApp कनेक्ट करें",
+        "syncHint": "Meta से सिंक करने के लिए WhatsApp कनेक्ट करें"
+      },
       "loading": "टेम्पलेट लोड हो रहे हैं…",
       "listTitle": "सभी टेम्पलेट",
       "listDescription": "श्रेणी, स्थिति या भाषा के अनुसार टेम्पलेट खोजें और फ़िल्टर करें।",
-      "searchPlaceholder": "नाम, श्रेणी या भाषा से खोजें…",
+      "searchPlaceholder": "नाम से टेम्पलेट खोजें…",
       "emptyTitle": "अभी कोई टेम्पलेट नहीं",
-      "emptyDescription": "पहला टेम्पलेट बनाएँ या Meta से स्वीकृत टेम्पलेट सिंक करें।",
+      "emptyDescription": "स्थानीय ड्राफ्ट बनाएँ, या WhatsApp कनेक्ट कर Meta से सिंक करें।",
       "pagination": "{total} में से {from} से {to} टेम्पलेट दिखाए जा रहे हैं",
       "prev": "पिछला",
       "next": "अगला",
       "createTitle": "टेम्पलेट बनाएँ",
       "createFromTitle": "टेम्पलेट डुप्लिकेट करें",
-      "createSubtitle": "WhatsApp टेम्पलेट बनाएँ और Meta समीक्षा के लिए सबमिट करें।",
+      "createSubtitle": "WhatsApp-शैली टेम्पलेट बनाएँ। बिना WhatsApp कनेक्ट किए यह स्थानीय ड्राफ्ट के रूप में सहेजा जाता है — Meta-अनुमोदित नहीं।",
+      "createFromSubtitle": "स्रोत टेम्पलेट पहले से भरा होता है। ड्राफ्ट बनाने से पहले नया नाम चुनें।",
       "backToList": "टेम्पलेट सूची पर वापस जाएँ",
+      "view": {
+        "cards": "कार्ड दृश्य",
+        "list": "सूची दृश्य"
+      },
       "tabs": {
-        "all": "सभी टेम्पलेट",
+        "all": "सभी",
+        "draft": "ड्राफ्ट",
         "approved": "स्वीकृत",
         "pending": "लंबित",
         "rejected": "अस्वीकृत"
@@ -1930,7 +3008,8 @@
         "language": "भाषा",
         "allCategories": "सभी श्रेणियाँ",
         "allStatuses": "सभी स्थितियाँ",
-        "allLanguages": "सभी भाषाएँ"
+        "allLanguages": "सभी भाषाएँ",
+        "clear": "फ़िल्टर साफ़ करें"
       },
       "categories": {
         "MARKETING": "मार्केटिंग",
@@ -1947,13 +3026,17 @@
         "template": "टेम्पलेट",
         "category": "श्रेणी",
         "language": "भाषा",
+        "header": "हेडर",
         "status": "स्थिति",
+        "quality": "गुणवत्ता",
+        "qualityEmpty": "—",
         "updated": "अंतिम अपडेट",
         "actions": "क्रियाएँ"
       },
       "actions": {
         "menuAria": "टेम्पलेट क्रियाएँ",
-        "view": "विवरण देखें",
+        "view": "देखें",
+        "duplicate": "डुप्लिकेट",
         "edit": "टेम्पलेट संपादित करें",
         "delete": "हटाएँ"
       },
@@ -1961,7 +3044,10 @@
         "title": "WhatsApp पूर्वावलोकन",
         "businessFallback": "व्यवसाय",
         "emptyBody": "आपके संदेश का पूर्वावलोकन यहाँ दिखेगा।",
-        "buttonFallback": "बटन"
+        "buttonFallback": "बटन",
+        "imageHeaderPlaceholder": "इमेज हेडर",
+        "documentHeaderPlaceholder": "दस्तावेज़ हेडर",
+        "documentHeaderSelected": "दस्तावेज़ संलग्न"
       },
       "form": {
         "name": "टेम्पलेट नाम",
@@ -1972,25 +3058,44 @@
         "headerType": "हेडर",
         "headerContent": "हेडर टेक्स्ट",
         "headerPlaceholder": "ऑर्डर अपडेट",
+        "headerMediaHint": "इमेज और दस्तावेज़ हेडर के लिए Meta समीक्षा हेतु मीडिया लाइब्रेरी से नमूना चुनें।",
+        "headerImage": "हेडर इमेज",
+        "headerImageHint": "मीडिया लाइब्रेरी से JPEG या PNG नमूना चुनें।",
+        "headerDocument": "हेडर दस्तावेज़",
+        "headerDocumentHint": "मीडिया लाइब्रेरी से PDF नमूना चुनें।",
+        "selectMedia": "मीडिया चुनें",
+        "changeMedia": "बदलें",
+        "removeMedia": "हटाएँ",
+        "previewImageHeader": "[इमेज हेडर]",
+        "previewDocumentHeader": "[दस्तावेज़ हेडर]",
         "body": "टेम्पलेट बॉडी",
         "bodyPlaceholder": "नमस्ते '{{1}}', आपका ऑर्डर '{{2}}' कन्फर्म हो गया है।",
         "footer": "फुटर",
         "footerPlaceholder": "हमारे साथ खरीदारी के लिए धन्यवाद",
         "variables": "वेरिएबल",
-        "variablesHint": "सबमिट करने से पहले हर नंबर वाले प्लेसहोल्डर के लिए वास्तविक नमूना मान दें।",
+        "variablesHint": "हर नंबर वाले प्लेसहोल्डर ('{{1}}', '{{2}}') के लिए नमूना मान दें।",
+        "variablesHintNamed": "हर नाम वाले प्लेसहोल्डर ('{{customer_name}}') के लिए नमूना मान दें।",
         "samplePlaceholder": "{n} के लिए उदाहरण",
         "buttons": "बटन",
-        "buttonsHint": "वैकल्पिक। अधिकतम 3 बटन।",
+        "buttonsHint": "वैकल्पिक। अधिकतम 3 बटन (त्वरित उत्तर, URL, या फ़ोन)।",
         "addButton": "बटन जोड़ें",
         "removeButton": "हटाएँ",
         "buttonTextPlaceholder": "बटन लेबल",
         "buttonUrlPlaceholder": "https://example.com",
         "buttonPhonePlaceholder": "+15551234567",
-        "insertVariable": "वेरिएबल",
+        "insertVariable": "नंबर जोड़ें",
+        "insertVariableHint": "अगला नंबर वाला वेरिएबल डालें जैसे '{{1}}'",
+        "insertVariableLockedNamed": "इस टेम्पलेट में पहले से नाम वाले वेरिएबल हैं",
+        "insertVariableLockedNumbered": "इस टेम्पलेट में पहले से नंबर वाले वेरिएबल हैं",
+        "insertNamedVariable": "नाम जोड़ें",
+        "insertNamedVariableHint": "नाम वाला वेरिएबल डालें जैसे '{{customer_name}}'",
+        "namedVariablePlaceholder": "customer_name",
+        "insertNamedConfirm": "डालें",
         "formatBold": "बोल्ड",
         "formatItalic": "इटैलिक",
         "formatStrike": "स्ट्राइकथ्रू",
         "cancel": "रद्द करें",
+        "create": "टेम्पलेट बनाएँ",
         "saveDraft": "ड्राफ्ट सहेजें",
         "submitReview": "समीक्षा के लिए सबमिट करें",
         "previewNameFallback": "template_name",
@@ -2003,7 +3108,6 @@
           "NONE": "कोई नहीं",
           "TEXT": "टेक्स्ट",
           "IMAGE": "इमेज",
-          "VIDEO": "वीडियो",
           "DOCUMENT": "दस्तावेज़"
         },
         "buttonTypes": {
@@ -2015,9 +3119,14 @@
           "nameInvalid": "केवल छोटे अक्षर, संख्याएँ और अंडरस्कोर उपयोग करें।",
           "bodyRequired": "बॉडी टेक्स्ट आवश्यक है।",
           "bodyTooLong": "बॉडी टेक्स्ट 1024 अक्षर या उससे कम होना चाहिए।",
+          "footerTooLong": "फुटर 60 अक्षर या उससे कम होना चाहिए।",
           "headerRequired": "टेक्स्ट हेडर के लिए हेडर टेक्स्ट दर्ज करें।",
+          "headerMediaRequired": "इस हेडर के लिए नमूना इमेज या दस्तावेज़ चुनें।",
+          "buttonUrlRequired": "URL बटन के लिए वैध लिंक आवश्यक है।",
           "sampleRequired": "वेरिएबल {n} के लिए नमूना मान दर्ज करें।",
-          "samplesRequired": "सबमिट करने से पहले सभी वेरिएबल के नमूना मान भरें।"
+          "samplesRequired": "बनाने से पहले सभी वेरिएबल के नमूना मान भरें।",
+          "mixedVariables": "एक टेम्पलेट में नंबर वाले ('{{1}}') और नाम वाले ('{{name}}') प्लेसहोल्डर एक साथ न मिलाएँ।",
+          "namedVariableInvalid": "नाम वाले वेरिएबल अक्षर या अंडरस्कोर से शुरू होने चाहिए (a-z, A-Z, 0-9, _)।"
         }
       },
       "details": {
@@ -2030,8 +3139,13 @@
         "buttons": "बटन",
         "noButtons": "कोई बटन कॉन्फ़िगर नहीं है।",
         "history": "सबमिशन इतिहास",
+        "noHistory": "अभी कोई सबमिशन इवेंट नहीं।",
         "statusCard": "टेम्पलेट स्थिति",
         "templateId": "टेम्पलेट ID",
+        "metaTemplateId": "Meta टेम्पलेट ID",
+        "metaNotSynced": "Meta से सिंक नहीं",
+        "lastSubmitted": "अंतिम सबमिशन",
+        "localDraftNotice": "यह स्थानीय ड्राफ्ट है। WhatsApp कनेक्ट और सबमिट/सिंक होने तक यह Meta-अनुमोदित नहीं है।",
         "historyEvents": {
           "created": "बनाया गया",
           "submitted": "सबमिट किया गया",
@@ -2042,7 +3156,7 @@
       },
       "delete": {
         "title": "यह टेम्पलेट हटाएँ?",
-        "body": "“{name}” इस वर्कस्पेस और कनेक्टेड होने पर Meta से हटा दिया जाएगा।",
+        "body": "“{name}” इस संगठन और कनेक्टेड होने पर Meta से हटा दिया जाएगा।",
         "cancel": "रद्द करें",
         "confirm": "टेम्पलेट हटाएँ",
         "deleting": "हटाया जा रहा है…"
@@ -2064,7 +3178,7 @@
       },
       "errors": {
         "loadFailed": "टेम्पलेट लोड नहीं हो सके। कृपया फिर कोशिश करें।",
-        "permissionDenied": "आपको इस वर्कस्पेस में टेम्पलेट देखने की अनुमति नहीं है।",
+        "permissionDenied": "आपको इस संगठन में टेम्पलेट देखने की अनुमति नहीं है।",
         "manageDenied": "आपको टेम्पलेट प्रबंधित करने की अनुमति नहीं है।",
         "createFailed": "टेम्पलेट नहीं बन सका। कृपया फिर कोशिश करें।",
         "deleteFailed": "टेम्पलेट नहीं हटाया जा सका। कृपया फिर कोशिश करें।",
@@ -2073,46 +3187,160 @@
       }
     },
     "settings": {
-      "eyebrow": "वर्कस्पेस",
-      "title": "वर्कस्पेस सेटिंग्स",
-      "subtitle": "सक्रिय वर्कस्पेस के संगठन विवरण अपडेट करें।",
-      "loading": "वर्कस्पेस लोड हो रहा है…",
-      "emptyDescription": "सेटिंग्स प्रबंधित करने से पहले एक वर्कस्पेस बनाएँ।",
-      "emptyAction": "वर्कस्पेस बनाएँ",
-      "detailsTitle": "संगठन विवरण",
-      "detailsDescription": "ये फ़ील्ड आपके सक्रिय संगठन से जुड़ी हैं। स्लग और ईमेल यहाँ नहीं बदले जा सकते।",
-      "readOnlyNotice": "आप यह वर्कस्पेस देख सकते हैं, लेकिन संगठन सेटिंग्स संपादित करने की अनुमति आवश्यक है।",
+      "eyebrow": "संगठन",
+      "title": "संगठन सेटिंग्स",
+      "subtitle": "सक्रिय संगठन के संगठन विवरण देखें और अपडेट करें।",
+      "loading": "संगठन लोड हो रहा है…",
+      "emptyDescription": "सेटिंग्स प्रबंधित करने से पहले एक संगठन बनाएँ।",
+      "emptyAction": "संगठन बनाएँ",
+      "identityTitle": "संगठन पहचान",
+      "identityDescription": "संगठन बनाते समय सेट होता है। स्लग, ईमेल और देश यहाँ नहीं बदले जा सकते।",
+      "detailsTitle": "संपादन योग्य विवरण",
+      "detailsDescription": "संगठन विवरण अपडेट करें: संपर्क, प्रकार, पता, PAN, GSTIN, समय क्षेत्र और मुद्रा।",
+      "readOnlyNotice": "आप यह संगठन देख सकते हैं, लेकिन संगठन सेटिंग्स संपादित करने की अनुमति आवश्यक है।",
       "fields": {
+        "slug": "स्लग",
+        "slugHint": "URL-सुरक्षित संगठन आईडी। बनाने के बाद संपादित नहीं किया जा सकता।",
+        "email": "संगठन ईमेल",
+        "emailHint": "बनाते समय सेट होता है। सेटिंग्स से संपादित नहीं किया जा सकता।",
+        "country": "देश",
+        "countryHint": "बनाते समय सेट होता है। अपडेट एंडपॉइंट में शामिल नहीं है।",
         "name": "संगठन का नाम",
-        "phone": "फ़ोन",
-        "phoneHint": "वैकल्पिक व्यावसायिक फ़ोन नंबर।",
+        "nameHint": "आवश्यक। 2–200 अक्षर।",
+        "phone": "मोबाइल नंबर",
+        "phoneHint": "आवश्यक व्यावसायिक मोबाइल नंबर।",
         "website": "वेबसाइट",
         "websitePlaceholder": "https://example.com",
+        "websiteHint": "वैकल्पिक। मान्य URL होना चाहिए (यदि नहीं है तो https:// जोड़ा जाता है)।",
+        "organizationType": "संगठन का प्रकार",
+        "organizationTypePlaceholder": "संगठन का प्रकार चुनें",
+        "address": "व्यवसाय का पता",
+        "addressPlaceholder": "सड़क, शहर, राज्य, पिन",
+        "pan": "PAN",
+        "panPlaceholder": "AAAAA0000A",
+        "gstin": "GSTIN",
+        "gstinPlaceholder": "27AAAAA0000A1Z5",
+        "gstinHint": "वैकल्पिक। 15-अक्षर का भारतीय GSTIN।",
         "industry": "उद्योग",
         "industryPlaceholder": "उद्योग चुनें",
+        "industryHint": "वैकल्पिक।",
         "timezone": "समय क्षेत्र",
-        "currency": "मुद्रा"
+        "currency": "मुद्रा",
+        "currencyHint": "वैकल्पिक। अधिकतम 10 अक्षर (ISO कोड अनुशंसित)।"
       },
       "save": "परिवर्तन सहेजें",
       "saving": "सहेजा जा रहा है…",
-      "saved": "वर्कस्पेस सेटिंग्स सहेज दी गईं।",
+      "saved": "संगठन सेटिंग्स सहेज दी गईं।",
       "dangerTitle": "खतरनाक क्षेत्र",
-      "dangerDescription": "वर्कस्पेस हटाने पर वह soft-delete हो जाता है और सदस्यों की पहुँच हट जाती है। इसे डैशबोर्ड से पूर्ववत नहीं किया जा सकता।",
-      "deleteCta": "वर्कस्पेस हटाएँ",
-      "deleteConfirmTitle": "यह वर्कस्पेस हटाएँ?",
+      "dangerDescription": "संगठन हटाने पर वह soft-delete हो जाता है और सदस्यों की पहुँच हट जाती है। इसे डैशबोर्ड से पूर्ववत नहीं किया जा सकता।",
+      "deleteCta": "संगठन हटाएँ",
+      "deleteConfirmTitle": "यह संगठन हटाएँ?",
       "deleteConfirmBody": "“{name}” हटा दिया जाएगा। सदस्यों की पहुँच तुरंत समाप्त हो जाएगी।",
-      "deleteConfirm": "वर्कस्पेस हटाएँ",
+      "deleteConfirm": "संगठन हटाएँ",
       "deleteCancel": "रद्द करें",
       "deleting": "हटाया जा रहा है…",
       "errors": {
         "nameRequired": "संगठन का नाम दर्ज करें (कम से कम 2 अक्षर)।",
+        "nameTooLong": "संगठन का नाम अधिकतम 200 अक्षर का होना चाहिए।",
+        "phoneRequired": "मोबाइल नंबर आवश्यक है।",
         "phoneInvalid": "सही फ़ोन नंबर दर्ज करें।",
         "websiteInvalid": "सही वेबसाइट URL दर्ज करें।",
+        "organizationTypeRequired": "संगठन का प्रकार चुनें।",
+        "addressRequired": "व्यवसाय का पता आवश्यक है।",
+        "addressTooShort": "पूरा व्यवसाय पता दर्ज करें (कम से कम 8 अक्षर)।",
+        "panRequired": "PAN आवश्यक है।",
+        "panInvalid": "सही PAN दर्ज करें (उदाहरण: AAAAA0000A)।",
+        "gstinInvalid": "सही GSTIN दर्ज करें (15 अक्षर), या खाली छोड़ दें।",
         "timezoneRequired": "समय क्षेत्र चुनें।",
-        "noWorkspace": "कोई सक्रिय वर्कस्पेस चयनित नहीं है।",
+        "currencyInvalid": "मुद्रा अधिकतम 10 अक्षर की होनी चाहिए।",
         "permissionDenied": "आपके पास यह क्रिया करने की अनुमति नहीं है।",
         "sessionExpired": "आपका सत्र समाप्त हो गया। कृपया फिर से साइन इन करें।",
-        "generic": "कुछ गलत हुआ। कृपया फिर से प्रयास करें।"
+        "generic": "कुछ गलत हुआ। कृपया फिर से प्रयास करें।",
+        "noOrganization": "कोई सक्रिय संगठन चयनित नहीं है।"
+      },
+      "smtp": {
+        "title": "कस्टम SMTP ईमेल",
+        "description": "अपने डोमेन से संगठन ईमेल भेजें।",
+        "status": {
+          "verified": "सत्यापित और सक्रिय",
+          "failed": "कनेक्शन विफल",
+          "default": "प्लेटफ़ॉर्म डिफ़ॉल्ट उपयोग में"
+        },
+        "provider": {
+          "label": "प्रदाता प्रीसेट",
+          "gmail": "Gmail",
+          "sendgrid": "SendGrid",
+          "resend": "Resend",
+          "ses": "Amazon SES",
+          "brevo": "Brevo",
+          "custom": "कस्टम SMTP"
+        },
+        "fields": {
+          "senderName": "प्रेषक नाम",
+          "senderEmail": "प्रेषक ईमेल",
+          "host": "SMTP होस्ट",
+          "port": "पोर्ट",
+          "username": "उपयोगकर्ता नाम",
+          "password": "पासवर्ड / ऐप की",
+          "passwordPlaceholder": "मौजूदा पासवर्ड रखने के लिए खाली छोड़ें",
+          "secure": "SSL/TLS उपयोग करें"
+        },
+        "actions": {
+          "save": "कॉन्फ़िगरेशन सहेजें",
+          "test": "कनेक्शन परीक्षण",
+          "reset": "डिफ़ॉल्ट पर रीसेट",
+          "resetConfirm": "क्या आप सुनिश्चित हैं? यह प्लेटफ़ॉर्म डिफ़ॉल्ट मेल पर वापस कर देगा।",
+          "resetCancel": "रद्द करें"
+        },
+        "toast": {
+          "saveSuccess": "SMTP कॉन्फ़िगरेशन सहेजा और सत्यापित किया गया।",
+          "saveFailed": "कॉन्फ़िगरेशन सहेजने में विफल: {reason}",
+          "testSuccess": "परीक्षण ईमेल सफलतापूर्वक भेजा गया। अपना इनबॉक्स देखें।",
+          "testFailed": "कनेक्शन परीक्षण विफल: {reason}",
+          "deleteSuccess": "कस्टम SMTP हटाया गया। प्लेटफ़ॉर्म डिफ़ॉल्ट पर वापस।",
+          "deleteFailed": "कॉन्फ़िगरेशन हटाने में विफल।"
+        },
+        "lastTested": "अंतिम परीक्षण {date}",
+        "lastError": "अंतिम त्रुटि: {message}"
+      },
+      "ownership": {
+        "title": "संगठन स्वामित्व स्थानांतरित करें",
+        "description": "स्वामित्व स्थानांतरित करने पर कोई अन्य संगठन सदस्य स्वामी बन जाएगा। आप स्वामित्व विशेषाधिकार खो देंगे और नीचे चुनी गई प्रतिस्थापन भूमिका रखेंगे।",
+        "currentOwner": "वर्तमान स्वामी",
+        "currentOwnerFallback": "आप",
+        "currentOwnerRole": "भूमिका: Owner",
+        "newOwner": "नया स्वामी",
+        "newOwnerPlaceholder": "सदस्य चुनें",
+        "newOwnerHint": "वर्तमान संगठन सदस्य चुनें। वर्तमान स्वामी का चयन नहीं किया जा सकता।",
+        "replacementRole": "स्थानांतरण के बाद आपकी भूमिका",
+        "replacementRoleHint": "स्वामी छोड़ने के बाद आपको दी जाने वाली भूमिका।",
+        "reason": "कारण",
+        "reasonPlaceholder": "आप स्वामित्व क्यों स्थानांतरित कर रहे हैं?",
+        "reasonHint": "आवश्यक। 5–500 अक्षर।",
+        "transferCta": "स्वामित्व स्थानांतरित करें",
+        "loadingMembers": "सदस्य लोड हो रहे हैं…",
+        "noEligibleMembers": "स्वामित्व प्राप्त करने के लिए कोई अन्य सदस्य उपलब्ध नहीं है। पहले किसी को आमंत्रित करें।",
+        "confirmTitle": "संगठन स्वामित्व स्थानांतरित करें?",
+        "confirmBody": "आप स्वामित्व {name} को स्थानांतरित करने वाले हैं। स्थानांतरण के बाद आप संगठन स्वामी नहीं रहेंगे।",
+        "confirmWarning": "इसे Settings से पूर्ववत नहीं किया जा सकता। नया स्वामी इस संगठन के स्वामित्व विशेषाधिकार नियंत्रित करेगा।",
+        "cancel": "रद्द करें",
+        "confirmTransfer": "स्वामित्व स्थानांतरित करें",
+        "transferring": "स्थानांतरित हो रहा है…",
+        "success": "स्वामित्व {name} को स्थानांतरित हो गया। आपका एक्सेस रिफ़्रेश किया गया।",
+        "roles": {
+          "admin": "एडमिन",
+          "agent": "एजेंट",
+          "viewer": "व्यूअर"
+        },
+        "errors": {
+          "loadMembers": "स्वामित्व स्थानांतरण के लिए सदस्य लोड नहीं हो सके।",
+          "membersPermission": "नया स्वामी चुनने के लिए टीम देखने की अनुमति आवश्यक है।",
+          "reasonTooShort": "कम से कम 5 अक्षर का कारण दर्ज करें।",
+          "reasonTooLong": "कारण 500 अक्षर या उससे कम होना चाहिए।",
+          "notOwner": "केवल संगठन स्वामी स्वामित्व स्थानांतरित कर सकता है।",
+          "sameMember": "उसी सदस्य को स्वामित्व स्थानांतरित नहीं किया जा सकता।",
+          "transferFailed": "स्वामित्व स्थानांतरित नहीं हो सका। कृपया फिर से प्रयास करें।"
+        }
       }
     },
     "sidebar": {
@@ -2121,36 +3349,44 @@
       "collapse": "साइडबार संक्षिप्त करें",
       "expand": "साइडबार विस्तृत करें"
     },
-    "workspace": {
-      "listLabel": "वर्कस्पेस",
-      "active": "सक्रिय",
-      "members": "सदस्य",
-      "create": "वर्कस्पेस बनाएँ",
-      "emptyTitle": "अभी कोई वर्कस्पेस नहीं",
-      "emptyAction": "अपना संगठन बनाएँ"
-    },
     "topbar": {
       "openMenu": "नेविगेशन खोलें",
-      "searchLabel": "वर्कस्पेस खोजें",
+      "searchLabel": "संगठन खोजें",
       "searchPlaceholder": "संपर्क, बातचीत, कैंपेन या टेम्पलेट खोजें…",
-      "searchPlaceholderShort": "वर्कस्पेस खोजें…",
+      "searchPlaceholderShort": "संगठन खोजें…",
+      "searchUnavailablePlaceholder": "ग्लोबल खोज के लिए बैकएंड API आवश्यक…",
+      "searchUnavailableHint": "ग्लोबल खोज अभी उपलब्ध नहीं है। संगठन खोजने से पहले बैकएंड खोज एंडपॉइंट की आवश्यकता है।",
       "searchShortcutLabel": "खोज पर जाएँ ({shortcut})",
       "notifications": "सूचनाएँ",
       "profile": "प्रोफ़ाइल",
       "profileMenu": "अकाउंट मेनू खोलें",
       "myProfile": "मेरी प्रोफ़ाइल",
-      "workspace": "वर्कस्पेस",
       "billing": "बिलिंग",
       "settings": "सेटिंग्स",
-      "guestName": "अकाउंट"
+      "guestName": "अकाउंट",
+      "organization": "संगठन"
     },
     "notifications": {
       "title": "सूचनाएँ",
+      "eyebrow": "गतिविधि",
+      "subtitle": "आपके संगठन, इनबॉक्स, कैंपेन, बिलिंग और टीम के अपडेट।",
+      "listTitle": "सभी सूचनाएँ",
+      "viewAll": "सभी सूचनाएँ देखें",
       "markAllRead": "सभी पढ़ी हुई चिह्नित करें",
       "markRead": "पढ़ी हुई चिह्नित करें",
       "empty": "आप पूरी तरह अपडेट हैं",
       "unread": "अपठित",
-      "unreadCount": "{count} अपठित"
+      "unreadCount": "{count} अपठित",
+      "loading": "सूचनाएँ लोड हो रही हैं…",
+      "loadingMore": "और लोड हो रहा है…",
+      "loadMore": "और लोड करें",
+      "prevPage": "पिछला",
+      "nextPage": "अगला",
+      "pagination": "पृष्ठ {page} / {lastPage} · कुल {total}",
+      "retry": "फिर कोशिश करें",
+      "loadFailed": "सूचनाएँ लोड नहीं हो सकीं। कृपया फिर कोशिश करें।",
+      "markReadFailed": "यह सूचना पढ़ी हुई चिह्नित नहीं हो सकी।",
+      "markAllFailed": "सभी सूचनाएँ पढ़ी हुई चिह्नित नहीं हो सकीं।"
     },
     "theme": {
       "switchToLight": "लाइट मोड पर जाएँ",
@@ -2160,14 +3396,14 @@
       "eyebrow": "अवलोकन",
       "welcome": "वापसी पर स्वागत है",
       "welcomeNamed": "स्वागत है, {name}",
-      "subtitle": "आज आपके WhatsApp ऑटोमेशन वर्कस्पेस में क्या हो रहा है, यह देखें।",
+      "subtitle": "आज आपके WhatsApp ऑटोमेशन संगठन में क्या हो रहा है, यह देखें।",
       "checklist": {
         "eyebrow": "शुरुआत",
         "title": "ऑनबोर्डिंग चेकलिस्ट",
         "dismiss": "चेकलिस्ट बंद करें",
         "completed": {
-          "workspace": "वर्कस्पेस बनाया गया",
-          "whatsapp": "WhatsApp कनेक्ट हो गया"
+          "whatsapp": "WhatsApp कनेक्ट हो गया",
+          "organization": "संगठन बनाया गया"
         },
         "nextStepsTitle": "अगले कदम",
         "nextSteps": {
@@ -2185,21 +3421,32 @@
       "kpis": {
         "contacts": {
           "label": "कुल संपर्क",
-          "hint": "इस वर्कस्पेस में"
+          "hint": "इस संगठन में"
         },
         "conversations": {
           "label": "सक्रिय बातचीत",
-          "hint": "जल्द आ रहा है"
+          "hint": "आपके इनबॉक्स में"
         },
         "campaigns": {
           "label": "भेजे गए कैंपेन",
-          "hint": "जल्द आ रहा है"
+          "hint": "इस संगठन में"
         },
         "delivery": {
           "label": "डिलीवरी दर",
-          "hint": "जल्द आ रहा है"
+          "hint": "डिलीवर / भेजे गए संदेश"
         }
       },
+      "loading": {
+        "conversations": "हाल की बातचीत लोड हो रही है…",
+        "campaigns": "हाल के कैंपेन लोड हो रहे हैं…",
+        "activity": "हाल की गतिविधि लोड हो रही है…"
+      },
+      "errors": {
+        "conversations": "हाल की बातचीत लोड नहीं हो सकी। कृपया पुनः प्रयास करें।",
+        "campaigns": "हाल के कैंपेन लोड नहीं हो सके। कृपया पुनः प्रयास करें।",
+        "activity": "हाल की गतिविधि लोड नहीं हो सकी। कृपया पुनः प्रयास करें।"
+      },
+      "retry": "पुनः प्रयास करें",
       "conversations": {
         "title": "हाल की बातचीत",
         "description": "आपके जुड़े नंबरों पर नवीनतम चैट।",
@@ -2246,15 +3493,572 @@
         "addContactDesc": "सूची में संपर्क बनाएँ या आयात करें।",
         "createTemplate": "टेम्पलेट बनाएँ",
         "createTemplateDesc": "पुन: उपयोग योग्य WhatsApp संदेश टेम्पलेट डिज़ाइन करें।",
+        "inbox": "इनबॉक्स",
+        "inboxDesc": "अपने ग्राहकों की नवीनतम बातचीत देखें।",
         "broadcastMessage": "ब्रॉडकास्ट संदेश",
         "broadcastMessageDesc": "अपने दर्शकों को एक बार का संदेश भेजें।"
       },
       "activity": {
         "title": "हाल की गतिविधि",
-        "description": "वर्कस्पेस इवेंट्स का लाइव ट्रेल्स।",
+        "description": "संगठन इवेंट्स का लाइव ट्रेल्स।",
         "emptyTitle": "अभी कोई गतिविधि नहीं",
-        "emptyDescription": "टीम Whats-Auto का उपयोग शुरू करने पर वर्कस्पेस इवेंट यहाँ दिखेंगे।"
+        "emptyDescription": "टीम Whats-Auto का उपयोग शुरू करने पर संगठन इवेंट यहाँ दिखेंगे।",
+        "noDetails": "कोई अतिरिक्त विवरण नहीं"
+      },
+      "profileReminder": {
+        "title": "प्रोफ़ाइल {percent}% पूर्ण",
+        "subtitle": "अपना संगठन प्रोफ़ाइल पूरा करने के लिए शेष वैकल्पिक विवरण जोड़ें।",
+        "cta": "प्रोफ़ाइल पूरा करें"
       }
+    },
+    "analytics": {
+      "eyebrow": "इनसाइट्स",
+      "title": "ऑर्गनाइज़ेशन एनालिटिक्स",
+      "subtitle": "अपने लाइव संगठन डेटा से contacts, campaigns, conversations, WhatsApp connections, templates, customer groups और audit activity ट्रैक करें।",
+      "retry": "फिर कोशिश करें",
+      "unavailable": "डेटा उपलब्ध नहीं है",
+      "kpis": {
+        "totalContacts": "कुल संपर्क",
+        "totalCampaigns": "कुल कैंपेन",
+        "sentMessages": "भेजे गए संदेश",
+        "deliveredMessages": "डिलीवर संदेश",
+        "failedMessages": "विफल संदेश",
+        "deliveryRate": "डिलीवरी दर",
+        "totalConversations": "कुल बातचीत",
+        "connectedWhatsappNumbers": "कनेक्टेड WhatsApp नंबर"
+      },
+      "loading": {
+        "contacts": "संपर्क एनालिटिक्स लोड हो रहे हैं…",
+        "campaigns": "कैंपेन एनालिटिक्स लोड हो रहे हैं…",
+        "conversations": "बातचीत एनालिटिक्स लोड हो रहे हैं…",
+        "whatsapp": "WhatsApp एनालिटिक्स लोड हो रहे हैं…",
+        "templates": "टेम्पलेट एनालिटिक्स लोड हो रहे हैं…",
+        "groups": "कस्टमर ग्रुप एनालिटिक्स लोड हो रहे हैं…",
+        "audit": "ऑडिट गतिविधि लोड हो रही है…"
+      },
+      "errors": {
+        "contacts": "संपर्क एनालिटिक्स लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+        "campaigns": "कैंपेन एनालिटिक्स लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+        "conversations": "बातचीत एनालिटिक्स लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+        "whatsapp": "WhatsApp एनालिटिक्स लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+        "templates": "टेम्पलेट एनालिटिक्स लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+        "groups": "कस्टमर ग्रुप एनालिटिक्स लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+        "audit": "ऑडिट गतिविधि लोड नहीं हो सकी। कृपया फिर कोशिश करें।"
+      },
+      "contacts": {
+        "title": "संपर्क एनालिटिक्स",
+        "description": "पिछले 6 महीनों का संपर्क कुल और मासिक वृद्धि।",
+        "totalContacts": "संगठन में संपर्क",
+        "monthsTracked": "दिखाए गए महीने",
+        "emptyTitle": "अभी कोई संपर्क नहीं",
+        "emptyDescription": "जब आपकी टीम संपर्क जोड़ना या इम्पोर्ट करना शुरू करेगी, यहाँ डेटा दिखेगा।",
+        "emptyChart": "अभी संपर्क वृद्धि डेटा नहीं है।"
+      },
+      "campaignStatus": {
+        "title": "कैंपेन स्थिति",
+        "description": "कैंपेन lifecycle स्थिति और recipient volume का वितरण।",
+        "totalRecipients": "कुल प्राप्तकर्ता",
+        "completedCount": "पूर्ण कैंपेन",
+        "emptyTitle": "अभी कोई कैंपेन नहीं",
+        "emptyDescription": "पहला कैंपेन बनने के बाद कैंपेन एनालिटिक्स यहाँ दिखेगा।",
+        "emptyChart": "अभी कैंपेन स्थिति डेटा नहीं है।"
+      },
+      "messagePerformance": {
+        "title": "मैसेज परफॉर्मेंस",
+        "description": "मौजूदा campaign counters से aggregated message outcomes।",
+        "emptyTitle": "अभी कोई मैसेज परफॉर्मेंस नहीं",
+        "emptyDescription": "कैंपेन भेजना शुरू होने पर मैसेज परफॉर्मेंस यहाँ दिखेगी।"
+      },
+      "conversations": {
+        "title": "बातचीत एनालिटिक्स",
+        "description": "बातचीत का कुल, unread count और status distribution।",
+        "totalConversations": "कुल बातचीत",
+        "unreadMessages": "अनरीड काउंट",
+        "emptyTitle": "अभी कोई बातचीत नहीं",
+        "emptyDescription": "जब ग्राहक आपके संगठन को संदेश भेजना शुरू करेंगे, यहाँ analytics दिखेगी।",
+        "emptyChart": "अभी बातचीत स्थिति डेटा नहीं है।"
+      },
+      "campaignPerformance": {
+        "title": "कैंपेन परफॉर्मेंस",
+        "description": "मौजूदा campaign API से हाल की campaign metrics।",
+        "emptyTitle": "अभी कोई कैंपेन परफॉर्मेंस नहीं",
+        "emptyDescription": "डिलीवरी परफॉर्मेंस देखने के लिए एक कैंपेन लॉन्च करें।",
+        "columns": {
+          "name": "कैंपेन",
+          "status": "स्थिति",
+          "recipients": "प्राप्तकर्ता",
+          "sent": "भेजे गए",
+          "delivered": "डिलीवर",
+          "read": "पढ़े गए",
+          "replies": "जवाब",
+          "failed": "विफल",
+          "created": "बनाया गया"
+        }
+      },
+      "whatsapp": {
+        "title": "WhatsApp एनालिटिक्स",
+        "description": "इस संगठन से जुड़े WhatsApp नंबरों की connection status।",
+        "connectedNumbers": "कनेक्टेड नंबर",
+        "emptyTitle": "अभी कोई WhatsApp नंबर नहीं",
+        "emptyDescription": "स्थिति ट्रैक करने के लिए एक WhatsApp Business नंबर कनेक्ट करें।",
+        "emptyChart": "अभी WhatsApp status डेटा नहीं है।"
+      },
+      "templates": {
+        "title": "टेम्पलेट एनालिटिक्स",
+        "description": "टेम्पलेट count, status/category distribution और campaign-driven usage।",
+        "totalTemplates": "कुल टेम्पलेट",
+        "statusDistribution": "स्थिति वितरण",
+        "categoryDistribution": "श्रेणी वितरण",
+        "usageTitle": "टॉप टेम्पलेट उपयोग",
+        "emptyTitle": "अभी कोई टेम्पलेट नहीं",
+        "emptyDescription": "यहाँ analytics देखने के लिए templates बनाएँ या sync करें।",
+        "emptyChart": "अभी टेम्पलेट एनालिटिक्स नहीं है।"
+      },
+      "groups": {
+        "title": "कस्टमर ग्रुप्स",
+        "description": "मौजूदा Tags डेटा से Customer Group totals और सबसे बड़े groups।",
+        "totalGroups": "कुल कस्टमर ग्रुप्स",
+        "contactsCount": "{count, plural, one {# संपर्क} other {# संपर्क}}",
+        "emptyTitle": "अभी कोई कस्टमर ग्रुप नहीं",
+        "emptyDescription": "संपर्क व्यवस्थित करने और group size analytics देखने के लिए Customer Groups बनाएँ।"
+      },
+      "audit": {
+        "title": "हाल की ऑडिट गतिविधि",
+        "description": "इस संगठन के लिए नवीनतम authorization और audit events।",
+        "emptyTitle": "अभी कोई ऑडिट गतिविधि नहीं",
+        "emptyDescription": "जब permissioned actions किए जाएँगे, audit events यहाँ दिखेंगे।",
+        "noDetails": "कोई अतिरिक्त विवरण नहीं"
+      },
+      "labels": {
+        "campaignStatus": {
+          "draft": "ड्राफ्ट",
+          "scheduled": "अनुसूचित",
+          "sending": "भेजा जा रहा है",
+          "completed": "पूर्ण",
+          "failed": "विफल",
+          "cancelled": "रद्द"
+        },
+        "conversationStatus": {
+          "open": "खुला",
+          "pending": "पेंडिंग",
+          "closed": "बंद"
+        },
+        "whatsappStatus": {
+          "connected": "कनेक्टेड",
+          "disconnected": "डिस्कनेक्टेड",
+          "error": "त्रुटि"
+        },
+        "templateStatus": {
+          "approved": "स्वीकृत",
+          "pending": "पेंडिंग",
+          "rejected": "अस्वीकृत",
+          "draft": "ड्राफ्ट",
+          "deleted": "हटाया गया",
+          "paused": "रुका हुआ",
+          "disabled": "डिसेबल"
+        },
+        "templateCategory": {
+          "marketing": "मार्केटिंग",
+          "utility": "यूटिलिटी",
+          "authentication": "ऑथेंटिकेशन"
+        },
+        "messagePerformance": {
+          "sent": "भेजे गए",
+          "delivered": "डिलीवर",
+          "read": "पढ़े गए",
+          "failed": "विफल"
+        }
+      }
+    },
+    "campaigns": {
+      "eyebrow": "आउटरीच",
+      "title": "कैंपेन",
+      "subtitle": "इस संगठन के लिए WhatsApp ब्रॉडकास्ट कैंपेन बनाएँ और ट्रैक करें।",
+      "createCta": "कैंपेन बनाएँ",
+      "loading": "कैंपेन लोड हो रहे हैं…",
+      "searchPlaceholder": "नाम से कैंपेन खोजें...",
+      "emptyTitle": "अभी कोई कैंपेन नहीं",
+      "emptyDescription": "WhatsApp टेम्पलेट के साथ ग्राहकों तक पहुँचने के लिए अपना पहला कैंपेन बनाएँ।",
+      "pagination": "{total} में से {from} से {to} कैंपेन दिखाए जा रहे हैं",
+      "prev": "पिछला",
+      "next": "अगला",
+      "createTitle": "कैंपेन बनाएँ",
+      "editTitle": "कैंपेन संपादित करें",
+      "formSubtitle": "कैंपेन विवरण कॉन्फ़िगर करें और पुष्टि से पहले समीक्षा करें।",
+      "backToList": "कैंपेन सूची पर वापस जाएँ",
+      "backToDetails": "कैंपेन विवरण पर वापस जाएँ",
+      "noTemplate": "कोई टेम्पलेट नहीं",
+      "views": {
+        "cards": "कार्ड",
+        "list": "सूची"
+      },
+      "filters": {
+        "search": "खोज",
+        "startDate": "प्रारंभ तिथि",
+        "endDate": "समाप्ति तिथि",
+        "searchCta": "खोजें",
+        "clear": "साफ़ करें"
+      },
+      "type": {
+        "broadcast": "ब्रॉडकास्ट"
+      },
+      "card": {
+        "template": "टेम्पलेट",
+        "deliveryRate": "डिलीवरी दर",
+        "readRate": "रीड दर"
+      },
+      "table": {
+        "campaign": "कैंपेन",
+        "type": "प्रकार",
+        "template": "टेम्पलेट",
+        "status": "स्थिति",
+        "recipients": "प्राप्तकर्ता",
+        "sent": "भेजे गए",
+        "delivered": "डिलीवर",
+        "read": "पढ़े गए",
+        "created": "बनाया गया",
+        "actions": "क्रियाएँ"
+      },
+      "status": {
+        "draft": "ड्राफ्ट",
+        "scheduled": "अनुसूचित",
+        "processing": "प्रोसेसिंग",
+        "completed": "पूर्ण",
+        "failed": "विफल",
+        "sending": "भेजा जा रहा है",
+        "sent": "पूर्ण"
+      },
+      "actions": {
+        "menuAria": "कैंपेन क्रियाएँ",
+        "view": "विवरण देखें",
+        "edit": "कैंपेन संपादित करें",
+        "changeStatus": "स्थिति बदलें",
+        "duplicate": "कैंपेन डुप्लिकेट करें",
+        "pause": "कैंपेन रोकें",
+        "cancel": "कैंपेन रद्द करें",
+        "launch": "कैंपेन लॉन्च करें",
+        "preview": "संदेश पूर्वावलोकन",
+        "delete": "कैंपेन हटाएँ"
+      },
+      "delete": {
+        "title": "यह कैंपेन हटाएँ?",
+        "body": "“{name}” सॉफ्ट-डिलीट हो जाएगा और सूची से हट जाएगा।",
+        "cancel": "रद्द करें",
+        "confirm": "कैंपेन हटाएँ",
+        "deleting": "हटाया जा रहा है…"
+      },
+      "cancel": {
+        "title": "यह कैंपेन रद्द करें?",
+        "body": "“{name}” रुक जाएगा। शेड्यूल्ड कैंपेन ड्राफ्ट में लौटेंगे; भेज रहे कैंपेन रद्द होंगे।",
+        "dismiss": "चलने दें",
+        "confirm": "कैंपेन रद्द करें",
+        "cancelling": "रद्द किया जा रहा है…"
+      },
+      "changeStatus": {
+        "title": "कैंपेन स्थिति बदलें?",
+        "body": "“{name}” की स्थिति अपडेट करें। यहाँ केवल ड्राफ्ट और अनुसूचित की अनुमति है।",
+        "hint": "यह केवल स्थिति फ़ील्ड अपडेट करता है। भेजने के लिए Launch, समय सेट करने के लिए Save & schedule, और रोकने के लिए Cancel का उपयोग करें।",
+        "label": "नई स्थिति",
+        "dismiss": "वर्तमान रखें",
+        "confirm": "स्थिति अपडेट करें",
+        "saving": "अपडेट हो रहा है…",
+        "success": "कैंपेन स्थिति अपडेट हो गई।"
+      },
+      "preview": {
+        "title": "संदेश पूर्वावलोकन",
+        "subtitle": "टेम्पलेट: {template}",
+        "subtitleFallback": "लिंक किए गए WhatsApp टेम्पलेट का पूर्वावलोकन।",
+        "loading": "पूर्वावलोकन लोड हो रहा है…",
+        "dismiss": "बंद करें"
+      },
+      "form": {
+        "name": "कैंपेन नाम",
+        "namePlaceholder": "कैंपेन नाम दर्ज करें",
+        "type": "कैंपेन प्रकार",
+        "typeHint": "अभी केवल ब्रॉडकास्ट कैंपेन समर्थित हैं।",
+        "template": "टेम्पलेट",
+        "templatePlaceholder": "स्वीकृत टेम्पलेट चुनें",
+        "audience": "लक्षित दर्शक",
+        "audiencePlaceholder": "दर्शक चुनें",
+        "audienceAll": "सभी संपर्क ({count})",
+        "audienceGroup": "ग्राहक समूह",
+        "audienceGroupPlaceholder": "ग्राहक समूह चुनें",
+        "audienceHint": "चयनित संपर्क भेजने या शेड्यूल करने से पहले कैंपेन से जुड़ जाते हैं।",
+        "recipients": {
+          "selectedCount": "चयनित संपर्क: {count}",
+          "allCount": "सभी संपर्क ({count})",
+          "empty": "कोई संपर्क चयनित नहीं है",
+          "emptyGroup": "इस समूह में कोई संपर्क नहीं है।",
+          "loading": "संपर्क लोड हो रहे हैं…",
+          "groupsLoading": "समूह लोड हो रहे हैं…",
+          "noGroups": "अभी कोई सक्रिय ग्राहक समूह नहीं है। पहले एक समूह बनाएँ।",
+          "groupCount": "{count, plural, one {# संपर्क} other {# संपर्क}}",
+          "groupSummary": "{name} ({count})",
+          "loadFailed": "संपर्क लोड नहीं हो सके। कृपया फिर से प्रयास करें।",
+          "retry": "फिर कोशिश करें",
+          "remove": "हटाएँ",
+          "removeAria": "{name} को इस कैंपेन से हटाएँ",
+          "unnamed": "बिना नाम का संपर्क",
+          "showAll": "संपर्क देखें ({count})",
+          "showLess": "कम दिखाएँ"
+        },
+        "schedule": "अनुसूची",
+        "sendNow": "अभी भेजें",
+        "scheduleLater": "बाद में शेड्यूल करें",
+        "scheduledAt": "तारीख और समय",
+        "timezone": "समय क्षेत्र",
+        "orgTimezone": "संगठन डिफ़ॉल्ट",
+        "scheduleHint": "अभी भेजें प्राप्तकर्ताओं को सहेजने के बाद तुरंत लॉन्च करता है। बाद में शेड्यूल भविष्य में भेजने के लिए कतार में लगाता है।",
+        "scheduleLaterHint": "कैंपेन {timezone} में इस समय अपने आप शुरू होगा। तब तक संदेश नहीं भेजे जाते।",
+        "cancel": "रद्द करें",
+        "reviewConfirm": "ड्राफ्ट सहेजें",
+        "confirmSend": "सहेजें और भेजें",
+        "confirmSchedule": "सहेजें और शेड्यूल करें",
+        "saving": "सहेजा जा रहा है…",
+        "variableMappings": {
+          "title": "वेरिएबल मैपिंग",
+          "hint": "भेजने या शेड्यूल करने से पहले प्रत्येक टेम्पलेट वेरिएबल को संपर्क नाम, कस्टम फ़ील्ड या स्थिर मान से मैप करें।",
+          "source": "स्रोत",
+          "sourcePlaceholder": "स्रोत चुनें",
+          "sources": {
+            "contact_field": "संपर्क नाम",
+            "custom_field": "कस्टम फ़ील्ड",
+            "static": "स्थिर मान"
+          },
+          "contactField": "संपर्क नाम",
+          "contactFieldNameHint": "संपर्क का नाम उपयोग होगा। नाम न होने पर \"Customer\" भेजा जाएगा।",
+          "customField": "कस्टम फ़ील्ड कुंजी",
+          "customFieldPlaceholder": "उदा. order_id",
+          "staticValue": "मान",
+          "staticValuePlaceholder": "खाली न छोड़ें",
+          "contactFields": {
+            "name": "नाम"
+          },
+          "statusMapped": "मैप किया गया",
+          "statusUnmapped": "मैप नहीं",
+          "progressComplete": "सभी {total} वेरिएबल मैप हो गए",
+          "progressIncomplete": "{total} में से {mapped} वेरिएबल मैप",
+          "notSendable": "यह टेम्पलेट भेजा नहीं जा सकता",
+          "sampleHint": "नमूना: {sample}",
+          "previewHint": "जैसे ही आप वेरिएबल मैप करते हैं, पूर्वावलोकन अपडेट होता है।"
+        },
+        "errors": {
+          "nameRequired": "कैंपेन नाम आवश्यक है।",
+          "nameTooLong": "कैंपेन नाम 200 अक्षरों से अधिक नहीं होना चाहिए।",
+          "templateRequired": "एक स्वीकृत टेम्पलेट चुनें।",
+          "audienceRequired": "लक्षित दर्शक चुनें।",
+          "audienceEmpty": "दर्शक जोड़ने से पहले संपर्क जोड़ें।",
+          "groupRequired": "एक ग्राहक समूह चुनें।",
+          "groupEmpty": "इस समूह में कोई संपर्क नहीं है।",
+          "groupLoadFailed": "ग्राहक समूह लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+          "groupMembersLoadFailed": "इस समूह के संपर्क लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+          "audienceTooLarge": "इस दर्शक में {max} से अधिक संपर्क हैं। भेजने से पहले समूह का आकार घटाएँ।",
+          "scheduledAtRequired": "शेड्यूल तिथि और समय चुनें।",
+          "scheduledAtFuture": "शेड्यूल समय भविष्य में होना चाहिए।",
+          "variablesUnmapped": "भेजने या शेड्यूल से पहले सभी टेम्पलेट वेरिएबल मैप करें: {variables}",
+          "templateNotSendable": "वर्तमान पैरामीटर स्कीमा के साथ यह टेम्पलेट भेजा नहीं जा सकता।"
+        }
+      },
+      "summary": {
+        "title": "कैंपेन सारांश",
+        "name": "नाम",
+        "type": "प्रकार",
+        "template": "टेम्पलेट",
+        "mappings": "वेरिएबल",
+        "audience": "दर्शक",
+        "schedule": "अनुसूची"
+      },
+      "details": {
+        "createdMeta": "टेम्पलेट {template} · {date} को बनाया गया",
+        "timeline": "कैंपेन टाइमलाइन",
+        "performance": "प्रदर्शन अवलोकन"
+      },
+      "timeline": {
+        "created": "बनाया गया",
+        "scheduled": "अनुसूचित",
+        "processing": "प्रोसेसिंग",
+        "completed": "पूर्ण"
+      },
+      "metrics": {
+        "recipients": "प्राप्तकर्ता",
+        "sent": "भेजे गए",
+        "delivered": "डिलीवर",
+        "read": "पढ़े गए",
+        "failed": "विफल",
+        "pending": "लंबित"
+      },
+      "errors": {
+        "permissionDenied": "आपके पास इस संगठन में कैंपेन प्रबंधित करने की अनुमति नहीं है।",
+        "loadFailed": "कैंपेन लोड नहीं हो सके। कृपया फिर से प्रयास करें।",
+        "deleteFailed": "यह कैंपेन हटाया नहीं जा सका।",
+        "saveFailed": "यह कैंपेन सहेजा नहीं जा सका।",
+        "cancelFailed": "यह कैंपेन रद्द नहीं हो सका।",
+        "changeStatusFailed": "यह कैंपेन स्थिति अपडेट नहीं हो सकी।",
+        "statusTransitionFailed": "इस कैंपेन के लिए वह स्थिति परिवर्तन अनुमत नहीं है।",
+        "launchFailed": "यह कैंपेन लॉन्च नहीं हो सका।",
+        "templateNotApproved": "लिंक किया गया मैसेज टेम्पलेट स्वीकृत नहीं है। लॉन्च से पहले Meta में इसे Approve करें।",
+        "whatsappNotConnected": "WhatsApp कनेक्ट नहीं है। लॉन्च से पहले अपना WhatsApp अकाउंट फिर से कनेक्ट करें।",
+        "duplicateFailed": "यह कैंपेन डुप्लिकेट नहीं हो सका।",
+        "previewFailed": "इस कैंपेन का पूर्वावलोकन नहीं हो सका।",
+        "notEditable": "केवल ड्राफ्ट या अनुसूचित कैंपेन संपादित किए जा सकते हैं।"
+      }
+    },
+    "billing": {
+      "eyebrow": "संगठन",
+      "title": "बिलिंग",
+      "subtitle": "इस संगठन की वर्तमान सदस्यता देखें और Razorpay चेकआउट शुरू करें।",
+      "refresh": "रिफ़्रेश",
+      "loading": "सदस्यता लोड हो रही है…",
+      "subscriptionTitle": "वर्तमान सदस्यता",
+      "subscriptionDescription": "इस संगठन के लिए बिलिंग API से मिली सदस्यता जानकारी।",
+      "choosePlanCta": "प्लान चुनें",
+      "upgradeCta": "अपग्रेड / प्लान चुनें",
+      "renewCta": "चेकआउट शुरू करें",
+      "completeCheckoutCta": "भुगतान पूरा करें",
+      "cancelAtPeriodEnd": "अवधि के अंत में रद्द होगा",
+      "emptyTitle": "अभी कोई सदस्यता नहीं",
+      "emptyDescription": "इस संगठन की कोई सदस्यता दर्ज नहीं है। सदस्यता लेने के लिए प्लान ID के साथ चेकआउट शुरू करें।",
+      "fields": {
+        "planId": "प्लान ID",
+        "status": "स्थिति",
+        "currentPeriodStart": "वर्तमान अवधि प्रारंभ",
+        "currentPeriodEnd": "वर्तमान अवधि समाप्ति",
+        "trialEndsAt": "ट्रायल समाप्ति",
+        "gateway": "गेटवे",
+        "gatewaySubscriptionId": "गेटवे सदस्यता ID",
+        "lastPaymentStatus": "अंतिम भुगतान स्थिति",
+        "lastPaymentAt": "अंतिम भुगतान समय",
+        "subscriptionId": "सदस्यता ID"
+      },
+      "status": {
+        "active": "सक्रिय",
+        "trialing": "ट्रायल",
+        "pastDue": "बकाया",
+        "cancelled": "रद्द",
+        "expired": "समाप्त"
+      },
+      "checkout": {
+        "title": "प्लान की पुष्टि करें",
+        "description": "Razorpay से भुगतान करने से पहले चुना हुआ प्लान देखें।",
+        "cancel": "रद्द करें",
+        "confirm": "अभी भुगतान करें",
+        "starting": "भुगतान खुल रहा है…",
+        "success": "भुगतान पुष्टि हो गया। आपकी सदस्यता सक्रिय है।",
+        "freeSuccess": "फ्री ट्रायल सक्रिय हो गया। आपकी सदस्यता सक्रिय है।"
+      },
+      "errors": {
+        "permissionDenied": "आपके पास इस संगठन में बिलिंग देखने की अनुमति नहीं है।",
+        "loadFailed": "सदस्यता लोड नहीं हो सकी। कृपया फिर से प्रयास करें।",
+        "checkoutFailed": "चेकआउट शुरू नहीं हो सका। कृपया फिर से प्रयास करें।"
+      },
+      "plansTitle": "उपलब्ध प्लान",
+      "plansDescription": "कभी भी अपना सब्सक्रिप्शन प्लान बदलें।",
+      "featuresLabel": "सुविधाएँ",
+      "currentPlanBadge": "वर्तमान प्लान",
+      "changePlanCta": "प्लान बदलें",
+      "startFreeTrialCta": "फ्री ट्रायल शुरू करें",
+      "enterpriseCta": "सेल्स से संपर्क करें",
+      "changeDialogTitle": "प्लान परिवर्तन की पुष्टि",
+      "changeDialogDescription": "प्लान बदलने से आपकी एंटाइटलमेंट्स अपडेट होंगी। यह अभी UI-only है।",
+      "changeDialogNoteUiOnly": "अभी कोई बिलिंग परिवर्तन नहीं किया जाता।",
+      "confirmChange": "पुष्टि करें",
+      "cancel": "रद्द करें",
+      "limits": {
+        "users": "उपयोगकर्ता सीमा",
+        "messages": "संदेश सीमा"
+      }
+    },
+    "auditLogs": {
+      "eyebrow": "संगठन एक्सेस",
+      "title": "ऑडिट लॉग",
+      "subtitle": "{organization} में भूमिका, सदस्य और आमंत्रण बदलाव। इवेंट इसी संगठन तक सीमित रहते हैं।",
+      "tableTitle": "हाल के एक्सेस इवेंट",
+      "tableDescription": "{count, plural, one {# इवेंट} other {# इवेंट}}",
+      "tableDescriptionLoading": "इवेंट लोड हो रहे हैं…",
+      "limitLabel": "सीमा",
+      "refresh": "रिफ़्रेश",
+      "loading": "ऑडिट इवेंट लोड हो रहे हैं…",
+      "searchPlaceholder": "इवेंट, टीम सदस्य, भूमिका या टारगेट खोजें…",
+      "emptyTitle": "कोई ऑडिट इवेंट नहीं",
+      "emptyDescription": "इस संगठन के भूमिका, सदस्य और आमंत्रण बदलाव यहाँ दिखेंगे।",
+      "emptyFilteredTitle": "कोई मेल खाता इवेंट नहीं",
+      "emptyFilteredDescription": "कोई दूसरी खोज, टीम सदस्य या दिनांक सीमा आज़माएँ।",
+      "emptyValue": "—",
+      "viewDetails": "विवरण",
+      "filters": {
+        "search": "खोज",
+        "event": "एक्शन / इवेंट",
+        "actor": "एक्टर / टीम सदस्य",
+        "entityType": "एंटिटी प्रकार",
+        "dateFrom": "प्रारंभ तिथि",
+        "dateTo": "समाप्ति तिथि",
+        "allEvents": "सभी इवेंट",
+        "allActors": "सभी टीम सदस्य",
+        "allEntityTypes": "सभी एंटिटी प्रकार"
+      },
+      "status": {
+        "granted": "अनुमत",
+        "revoked": "रद्द",
+        "recorded": "दर्ज"
+      },
+      "columns": {
+        "event": "इवेंट",
+        "actor": "एक्टर",
+        "target": "टारगेट",
+        "timestamp": "दिनांक और समय",
+        "status": "स्थिति",
+        "reason": "कारण",
+        "actions": "क्रियाएँ",
+        "organization": "संगठन"
+      },
+      "details": {
+        "title": "ऑडिट इवेंट विवरण",
+        "fallbackEvent": "ऑडिट इवेंट",
+        "targetType": "टारगेट प्रकार",
+        "targetId": "टारगेट ID",
+        "before": "पहले",
+        "after": "बाद में",
+        "close": "बंद करें"
+      },
+      "errors": {
+        "loadFailed": "ऑडिट इवेंट लोड नहीं हो सके।",
+        "loadFailedHint": "यह पृष्ठ सक्रिय संगठन के भूमिका, सदस्य और आमंत्रण इवेंट दिखाता है। ऑडिट देखने की अनुमति आवश्यक है।"
+      },
+      "thisOrganization": "इस संगठन"
+    },
+    "profile": {
+      "eyebrow": "खाता",
+      "title": "मेरा प्रोफ़ाइल",
+      "subtitle": "साइन-इन उपयोगकर्ता के लिए लौटाए गए खाता विवरण देखें।",
+      "refresh": "रिफ़्रेश",
+      "loading": "प्रोफ़ाइल लोड हो रही है…",
+      "sectionTitle": "प्रोफ़ाइल जानकारी",
+      "sectionDescription": "GET /api/v1/account/profile से केवल पढ़ने योग्य विवरण।",
+      "unnamed": "बिना नाम उपयोगकर्ता",
+      "emptyTitle": "कोई प्रोफ़ाइल नहीं मिली",
+      "emptyDescription": "इस खाते के लिए प्रोफ़ाइल विवरण नहीं मिल सका।",
+      "readOnlyNotice": "प्रोफ़ाइल संपादन अभी उपलब्ध नहीं है — कोई अपडेट एंडपॉइंट नहीं है।",
+      "fields": {
+        "name": "पूरा नाम",
+        "email": "ईमेल",
+        "firstname": "पहला नाम",
+        "lastname": "अंतिम नाम",
+        "initials": "आद्याक्षर",
+        "userId": "उपयोगकर्ता ID",
+        "createdAt": "बनाया गया",
+        "updatedAt": "अपडेट"
+      },
+      "errors": {
+        "loadFailed": "प्रोफ़ाइल लोड नहीं हो सकी। कृपया फिर से प्रयास करें।"
+      }
+    },
+    "organizationSwitcher": {
+      "listLabel": "संगठन",
+      "active": "सक्रिय",
+      "members": "सदस्य",
+      "create": "संगठन बनाएँ",
+      "emptyTitle": "अभी कोई संगठन नहीं",
+      "emptyAction": "अपना संगठन बनाएँ"
     }
   },
   "admin": {
@@ -2263,12 +4067,21 @@
     "nav": {
       "ariaLabel": "एडमिन नेविगेशन",
       "comingSoon": "जल्द आ रहा है",
+      "sections": {
+        "overview": "ओवरव्यू",
+        "management": "प्रबंधन",
+        "subscriptionBilling": "सब्सक्रिप्शन और बिलिंग",
+        "platform": "प्लेटफ़ॉर्म"
+      },
       "dashboard": "डैशबोर्ड",
       "organizations": "संगठन",
+      "plans": "प्लान",
       "subscriptions": "सब्सक्रिप्शन",
+      "invoices": "इनवॉइस",
       "platformUsers": "प्लेटफ़ॉर्म उपयोगकर्ता",
       "analytics": "एनालिटिक्स",
       "auditLogs": "ऑडिट लॉग्स",
+      "aiSettings": "AI सेटिंग्स",
       "settings": "सेटिंग्स"
     },
     "sidebar": {
@@ -2283,6 +4096,7 @@
       "subtitle": "संगठन, सब्सक्रिप्शन और प्लेटफ़ॉर्म उपयोगकर्ता प्रबंधित करें",
       "logout": "लॉगआउट"
     },
+    "checkingAccess": "एक्सेस जाँच हो रही है…",
     "home": {
       "eyebrow": "प्लेटफ़ॉर्म ओवरव्यू",
       "title": "एडमिन डैशबोर्ड",
@@ -2324,8 +4138,8 @@
       "charts": {
         "orgGrowth": {
           "title": "संगठन वृद्धि",
-          "description": "पिछले 6 महीनों में नए और कुल संगठन।",
-          "ariaLabel": "महीने के अनुसार संगठन वृद्धि का लाइन चार्ट"
+          "description": "पिछले 6 महीनों में कुल संगठनों की संचयी संख्या।",
+          "ariaLabel": "महीने के अनुसार कुल संगठन संख्या का लाइन चार्ट"
         },
         "subscriptions": {
           "title": "सब्सक्रिप्शन वितरण",
@@ -2341,18 +4155,20 @@
         },
         "revenue": {
           "title": "राजस्व ट्रेंड",
-          "description": "पिछले 6 महीनों का मासिक आवर्ती राजस्व।",
-          "ariaLabel": "मासिक राजस्व का बार चार्ट। शिखर लगभग {max}।"
+          "description": "पिछले 6 महीनों में इनवॉइस से प्राप्त मासिक भुगतान।",
+          "ariaLabel": "मासिक भुगतान राजस्व का बार चार्ट। शिखर लगभग {max}।"
         }
       },
       "activity": {
         "title": "हाल की गतिविधि",
         "description": "टेनेंट्स में नवीनतम प्लेटफ़ॉर्म इवेंट्स।",
+        "emptyTitle": "कोई हालिया गतिविधि नहीं",
+        "error": "हाल की गतिविधि लोड नहीं हो सकी। कृपया पुनः प्रयास करें।",
         "items": {
           "orgCreated": "नया संगठन बनाया गया",
           "orgCreatedDetail": "Nova Retail ग्रोथ प्लान पर Whats-Auto से जुड़ा।",
           "planUpgraded": "सब्सक्रिप्शन अपग्रेड",
-          "planUpgradedDetail": "Acme Workspace स्टार्टर से प्रो में गया।",
+          "planUpgradedDetail": "Acme Organization स्टार्टर से प्रो में गया।",
           "ticketOpened": "सपोर्ट टिकट खोला गया",
           "ticketOpenedDetail": "Contoso Logistics से प्राथमिकता बिलिंग समस्या।",
           "userInvited": "प्लेटफ़ॉर्म उपयोगकर्ता आमंत्रित",
@@ -2365,14 +4181,19 @@
     "organizations": {
       "eyebrow": "टेनेंट प्रबंधन",
       "title": "संगठन",
-      "subtitle": "प्लेटफ़ॉर्म पर हर संगठन को खोजें, फ़िल्टर करें और प्रबंधित करें।",
+      "subtitle": "प्लेटफ़ॉर्म पर हर संगठन को खोजें, देखें और प्रबंधित करें।",
       "tableTitle": "सभी संगठन",
       "tableDescription": "{count, plural, =0 {कोई संगठन मेल नहीं खाता} one {# संगठन} other {# संगठन}}",
       "searchLabel": "संगठन खोजें",
-      "searchPlaceholder": "नाम, स्लग या मालिक से खोजें…",
+      "searchPlaceholder": "नाम, स्लग या मालिक ईमेल से खोजें…",
       "statusFilterLabel": "स्थिति से फ़िल्टर करें",
       "planFilterLabel": "प्लान से फ़िल्टर करें",
+      "filtersButton": "फ़िल्टर",
+      "resetFilters": "रीसेट",
+      "dateFrom": "प्रारंभ तिथि",
+      "dateTo": "समाप्ति तिथि",
       "empty": "आपके फ़िल्टर से कोई संगठन मेल नहीं खाता।",
+      "emptyValue": "—",
       "loading": "संगठन लोड हो रहे हैं…",
       "retry": "फिर कोशिश करें",
       "prevPage": "पिछला",
@@ -2383,11 +4204,11 @@
       "editCancel": "रद्द करें",
       "editSave": "बदलाव सहेजें",
       "saving": "सहेजा जा रहा है…",
-      "deleteConfirmTitle": "यह संगठन हटाएँ?",
+      "deleteConfirmTitle": "यह संगठन आर्काइव करें?",
       "deleteConfirmBody": "“{name}” सॉफ्ट-डिलीट हो जाएगा। सदस्यों की पहुँच समाप्त हो जाएगी।",
       "deleteCancel": "रद्द करें",
-      "deleteConfirm": "संगठन हटाएँ",
-      "deleting": "हटाया जा रहा है…",
+      "deleteConfirm": "संगठन आर्काइव करें",
+      "deleting": "आर्काइव हो रहा है…",
       "editFields": {
         "name": "नाम",
         "phone": "फ़ोन",
@@ -2398,7 +4219,29 @@
       },
       "toast": {
         "updated": "“{name}” अपडेट हो गया।",
-        "deleted": "“{name}” हटा दिया गया।"
+        "deleted": "“{name}” आर्काइव हो गया।"
+      },
+      "kpis": {
+        "total": {
+          "label": "कुल संगठन",
+          "hint": "प्लेटफ़ॉर्म के सभी टेनेंट"
+        },
+        "active": {
+          "label": "सक्रिय",
+          "hint": "सक्षम संगठन"
+        },
+        "suspended": {
+          "label": "निलंबित",
+          "hint": "निष्क्रिय संगठन"
+        },
+        "pending": {
+          "label": "लंबित",
+          "hint": "API में ट्रैक नहीं होता"
+        },
+        "archived": {
+          "label": "आर्काइव",
+          "hint": "सॉफ्ट-डिलीट संगठन"
+        }
       },
       "columns": {
         "organization": "संगठन",
@@ -2411,15 +4254,18 @@
       },
       "filters": {
         "status": {
-          "all": "सभी स्थितियाँ",
+          "all": "सभी",
           "active": "सक्रिय",
           "trial": "ट्रायल",
-          "suspended": "निलंबित"
+          "suspended": "निलंबित",
+          "pending": "लंबित",
+          "archived": "आर्काइव"
         },
         "plan": {
-          "all": "सभी प्लान",
+          "all": "सभी",
           "starter": "स्टार्टर",
           "growth": "ग्रोथ",
+          "scale": "स्केल",
           "pro": "प्रो",
           "enterprise": "एंटरप्राइज़",
           "unavailable": "—"
@@ -2429,14 +4275,69 @@
         "menuLabel": "{name} के लिए क्रियाएँ",
         "view": "देखें",
         "edit": "संपादित करें",
-        "suspend": "निलंबित करें",
-        "activate": "सक्रिय करें",
-        "delete": "हटाएँ"
+        "suspend": "स्थिति बदलें",
+        "activate": "स्थिति बदलें",
+        "delete": "आर्काइव"
+      },
+      "statusDialog": {
+        "title": "स्थिति बदलें",
+        "body": "संगठन API पर सक्रिय/निलंबित उपलब्ध नहीं है। आप “{name}” को सॉफ्ट-डिलीट से आर्काइव कर सकते हैं।",
+        "archivedBody": "“{name}” पहले से आर्काइव है। पुनर्स्थापना API से उपलब्ध नहीं है।",
+        "cancel": "रद्द करें",
+        "archive": "संगठन आर्काइव करें"
+      },
+      "drawer": {
+        "tabs": {
+          "overview": "ओवरव्यू",
+          "users": "उपयोगकर्ता",
+          "subscription": "सब्सक्रिप्शन",
+          "activity": "गतिविधि"
+        },
+        "overviewTitle": "संगठन विवरण",
+        "planTitle": "वर्तमान प्लान",
+        "quickActions": "त्वरित क्रियाएँ",
+        "viewSubscription": "सब्सक्रिप्शन देखें",
+        "manageSubscriptions": "सब्सक्रिप्शन प्रबंधित करें",
+        "perMonth": "माह",
+        "monthly": "मासिक",
+        "customBilling": "कस्टम",
+        "noPlan": "कोई वर्तमान प्लान नहीं",
+        "noPlanHint": "प्लेटफ़ॉर्म बिलिंग सूची में इस संगठन की सब्सक्रिप्शन नहीं है।",
+        "usersUnavailableTitle": "यहाँ उपयोगकर्ता सूची नहीं है",
+        "usersUnavailable": "सुपर एडमिन के लिए संगठन-वार उपयोगकर्ता API नहीं है। सदस्यों को टेनेंट संगठन से प्रबंधित करें।",
+        "activityLoading": "गतिविधि लोड हो रही है…",
+        "activityFailed": "इस संगठन की गतिविधि लोड नहीं हो सकी।",
+        "activityEmpty": "इस संगठन के लिए कोई ऑडिट इवेंट नहीं।",
+        "fields": {
+          "name": "संगठन का नाम",
+          "slug": "स्लग",
+          "ownerEmail": "मालिक ईमेल",
+          "phone": "फ़ोन",
+          "website": "वेबसाइट",
+          "industry": "उद्योग",
+          "country": "देश",
+          "timezone": "समय क्षेत्र",
+          "currency": "मुद्रा",
+          "created": "निर्माण तिथि",
+          "updated": "अपडेट तिथि",
+          "status": "स्थिति",
+          "price": "कीमत",
+          "billing": "बिलिंग अवधि",
+          "subStatus": "सब्सक्रिप्शन स्थिति",
+          "periodStart": "अवधि प्रारंभ",
+          "periodEnd": "अवधि समाप्ति"
+        },
+        "actions": {
+          "viewOrganization": "संगठन देखें",
+          "viewUsers": "उपयोगकर्ता देखें",
+          "viewSubscription": "सब्सक्रिप्शन देखें",
+          "changeStatus": "स्थिति बदलें"
+        }
       },
       "errors": {
         "loadFailed": "संगठन लोड नहीं हो सके। कृपया फिर कोशिश करें।",
         "updateFailed": "संगठन अपडेट नहीं हो सका।",
-        "deleteFailed": "संगठन हटाया नहीं जा सका।",
+        "deleteFailed": "संगठन आर्काइव नहीं हो सका।",
         "nameRequired": "नाम कम से कम 2 अक्षरों का होना चाहिए।",
         "actionUnavailable": "यह क्रिया अभी API से उपलब्ध नहीं है।"
       },
@@ -2484,12 +4385,12 @@
           }
         },
         "stats": {
-          "title": "वर्कस्पेस आँकड़े",
+          "title": "संगठन आँकड़े",
           "description": "इस संगठन का उपयोग स्नैपशॉट।",
           "cards": {
             "contacts": {
               "label": "संपर्क",
-              "hint": "वर्कस्पेस सूचियों में"
+              "hint": "संगठन सूचियों में"
             },
             "conversations": {
               "label": "बातचीत",
@@ -2514,7 +4415,7 @@
           }
         },
         "members": {
-          "title": "वर्कस्पेस सदस्य",
+          "title": "संगठन सदस्य",
           "description": "{count, plural, one {# सदस्य दिखाया जा रहा है} other {# सदस्य दिखाए जा रहे हैं}}",
           "unavailable": "सदस्य सूची अभी API से उपलब्ध नहीं है।",
           "columns": {
@@ -2530,17 +4431,202 @@
         },
         "activity": {
           "title": "हाल की गतिविधि",
-          "description": "इस वर्कस्पेस में नवीनतम इवेंट्स।",
+          "description": "इस संगठन में नवीनतम इवेंट्स।",
           "unavailable": "गतिविधि अभी API से उपलब्ध नहीं है।"
         }
       }
     },
+    "plans": {
+      "eyebrow": "सब्सक्रिप्शन और बिलिंग",
+      "title": "प्लान",
+      "subtitle": "संगठनों के लिए उपलब्ध सब्सक्रिप्शन प्लान बनाएँ और प्रबंधित करें।",
+      "tableTitle": "प्लान कैटलॉग",
+      "tableDescription": "{count, plural, =0 {कोई प्लान नहीं} one {# प्लान} other {# प्लान}}",
+      "searchPlaceholder": "प्लान खोजें...",
+      "noMatches": "आपके फ़िल्टर से कोई प्लान मेल नहीं खाता।",
+      "empty": "अभी कोई प्लान नहीं है। संगठनों के लिए पहला प्लान बनाएँ।",
+      "create": "प्लान बनाएँ",
+      "createTitle": "सब्सक्रिप्शन प्लान बनाएँ",
+      "createSubtitle": "एक नया सब्सक्रिप्शन प्लान बनाएँ जिसे संगठन साइनअप या अपग्रेड के समय चुन सकें।",
+      "editTitle": "सब्सक्रिप्शन प्लान संपादित करें",
+      "editSubtitle": "इस प्लान का विवरण, सीमाएँ और शामिल फ़ीचर अपडेट करें।",
+      "createPlan": "प्लान बनाएँ",
+      "savePlan": "प्लान सहेजें",
+      "saving": "सहेजा जा रहा है…",
+      "loading": "प्लान लोड हो रहे हैं…",
+      "retry": "फिर कोशिश करें",
+      "cancel": "रद्द करें",
+      "back": "वापस",
+      "backToPlans": "प्लान पर वापस",
+      "nextFeatures": "अगला: फ़ीचर",
+      "popular": "लोकप्रिय",
+      "customPrice": "कस्टम",
+      "perMonth": "/ महीना",
+      "perYear": "/ वर्ष",
+      "unlimited": "असीमित",
+      "filterStatus": "स्थिति",
+      "filterAllStatuses": "सभी स्थितियाँ",
+      "featureCount": "{count, plural, one {# फ़ीचर} other {# फ़ीचर}}",
+      "selectedCount": "{total} में से {count} चयनित",
+      "archiveTitle": "यह प्लान आर्काइव करें?",
+      "archiveBody": "“{name}” आर्काइव हो जाएगा और नए संगठन साइनअप में नहीं दिखेगा।",
+      "archiveConfirm": "प्लान आर्काइव करें",
+      "kpis": {
+        "total": "कुल प्लान",
+        "active": "सक्रिय प्लान",
+        "draft": "ड्राफ्ट प्लान",
+        "popular": "सबसे लोकप्रिय",
+        "catalog": "कैटलॉग में",
+        "published": "संगठनों के लिए उपलब्ध",
+        "unpublished": "प्रकाशित नहीं",
+        "mostChosen": "लोकप्रिय चिह्नित"
+      },
+      "columns": {
+        "plan": "प्लान",
+        "price": "कीमत",
+        "limits": "सीमाएँ",
+        "features": "फ़ीचर",
+        "status": "स्थिति",
+        "updated": "अपडेट",
+        "created": "बनाया गया",
+        "actions": "क्रियाएँ"
+      },
+      "actions": {
+        "view": "देखें",
+        "edit": "प्लान संपादित करें",
+        "archive": "प्लान आर्काइव करें",
+        "openMenu": "क्रियाएँ खोलें"
+      },
+      "statuses": {
+        "active": "सक्रिय",
+        "draft": "ड्राफ्ट",
+        "archived": "आर्काइव"
+      },
+      "billing": {
+        "monthly": "मासिक",
+        "yearly": "वार्षिक",
+        "custom": "कस्टम",
+        "monthlyHint": "हर महीने भुगतान",
+        "yearlyHint": "वार्षिक भुगतान और बचत"
+      },
+      "currency": {
+        "inr": "INR (₹)",
+        "usd": "USD ($)"
+      },
+      "limits": {
+        "users": "उपयोगकर्ता",
+        "messages": "संदेश / महीना"
+      },
+      "steps": {
+        "details": "प्लान विवरण",
+        "detailsHint": "नाम, कीमत और सीमाएँ सेट करें",
+        "features": "फ़ीचर और लाभ",
+        "featuresHint": "क्या शामिल है चुनें"
+      },
+      "sections": {
+        "details": "प्लान विवरण",
+        "detailsHint": "इस प्लान का नाम, कीमत और उपयोग सीमाएँ।",
+        "limits": "प्लान सीमाएँ",
+        "limitsHint": "असीमित के लिए फ़ील्ड खाली छोड़ें।",
+        "features": "फ़ीचर और लाभ",
+        "featuresHint": "इस सब्सक्रिप्शन प्लान में शामिल फ़ीचर चुनें।"
+      },
+      "fields": {
+        "name": "प्लान नाम",
+        "namePlaceholder": "जैसे Growth",
+        "nameHelp": "यह संगठनों को दिखेगा।",
+        "description": "विवरण",
+        "descriptionPlaceholder": "इस प्लान का संक्षिप्त विवरण और यह किसके लिए है।",
+        "descriptionHelp": "संगठनों को प्लान समझने में मदद करता है।",
+        "price": "कीमत",
+        "currency": "मुद्रा",
+        "billingPeriod": "बिलिंग अवधि",
+        "customPricing": "कस्टम कीमत",
+        "customPricingHelp": "सार्वजनिक कीमत के बिना एंटरप्राइज़-शैली प्लान के लिए।",
+        "users": "अधिकतम उपयोगकर्ता",
+        "usersHelp": "उपयोगकर्ताओं की अधिकतम संख्या",
+        "messages": "संदेश / महीना",
+        "messagesHelp": "प्रति माह आउटगोइंग संदेश",
+        "trialDays": "ट्रायल अवधि (दिन)",
+        "status": "स्थिति",
+        "benefitPlaceholder": "वैकल्पिक लाभ विवरण"
+      },
+      "categories": {
+        "messaging": "मैसेजिंग",
+        "automation": "ऑटोमेशन",
+        "ai": "AI",
+        "team": "टीम और संगठन",
+        "integrations": "इंटीग्रेशन"
+      },
+      "featureItems": {
+        "whatsappMessaging": "WhatsApp मैसेजिंग",
+        "bulkMessaging": "बल्क मैसेजिंग",
+        "scheduledMessages": "शेड्यूल्ड संदेश",
+        "messageTemplates": "संदेश टेम्पलेट्स",
+        "automationWorkflows": "ऑटोमेशन वर्कफ़्लो",
+        "campaigns": "कैंपेन",
+        "flowBuilder": "फ़्लो बिल्डर",
+        "formBuilder": "फ़ॉर्म बिल्डर",
+        "aiAssistant": "AI असिस्टेंट",
+        "aiAutomation": "AI-संचालित ऑटोमेशन",
+        "aiVoiceCalling": "AI वॉइस कॉलिंग",
+        "multipleUsers": "एकाधिक उपयोगकर्ता",
+        "rolesPermissions": "भूमिकाएँ और अनुमतियाँ",
+        "whatsappAccounts": "WhatsApp अकाउंट",
+        "thirdPartyIntegrations": "थर्ड-पार्टी इंटीग्रेशन",
+        "apiAccess": "API एक्सेस",
+        "multipleOrganizations": "एकाधिक संगठन"
+      },
+      "view": {
+        "overview": "ओवरव्यू"
+      },
+      "toast": {
+        "created": "प्लान सफलतापूर्वक बन गया।",
+        "updated": "प्लान सफलतापूर्वक अपडेट हुआ।",
+        "archived": "प्लान आर्काइव हो गया।"
+      },
+      "errors": {
+        "loadFailed": "प्लान लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+        "notFound": "प्लान नहीं मिला।",
+        "createFailed": "प्लान बन नहीं सका।",
+        "updateFailed": "प्लान अपडेट नहीं हो सका।",
+        "nameRequired": "प्लान नाम आवश्यक है।",
+        "priceRequired": "वैध कीमत दर्ज करें, या कस्टम कीमत सक्षम करें।",
+        "limitInvalid": "सीमाएँ खाली या शून्य या अधिक संख्या होनी चाहिए।",
+        "trialInvalid": "ट्रायल दिन खाली या शून्य या अधिक संख्या होनी चाहिए।"
+      }
+    },
     "subscriptions": {
-      "eyebrow": "बिलिंग कैटलॉग",
+      "eyebrow": "सब्सक्रिप्शन और बिलिंग",
       "title": "सब्सक्रिप्शन",
-      "subtitle": "संगठन सब्सक्रिप्शन प्रबंधित करें और प्लेटफ़ॉर्म प्लान देखें।",
+      "subtitle": "सभी संगठन सब्सक्रिप्शन देखें और प्रबंधित करें।",
       "tableTitle": "सभी सब्सक्रिप्शन",
       "tableDescription": "{count, plural, =0 {कोई सब्सक्रिप्शन नहीं} one {# सब्सक्रिप्शन} other {# सब्सक्रिप्शन}}",
+      "searchPlaceholder": "संगठन खोजें...",
+      "noMatches": "इस पृष्ठ पर फ़िल्टर से कोई सब्सक्रिप्शन मेल नहीं खाता।",
+      "showingRange": "{total} में से {start} से {end} सब्सक्रिप्शन दिखाए जा रहे हैं",
+      "export": "एक्सपोर्ट",
+      "exportSoon": "एक्सपोर्ट अभी API से उपलब्ध नहीं है।",
+      "filters": "फ़िल्टर",
+      "filterStatus": "स्थिति",
+      "filterPlan": "प्लान",
+      "filterBilling": "बिलिंग",
+      "filterAll": "सभी",
+      "billingMonthly": "मासिक",
+      "billingCustom": "कस्टम",
+      "kpis": {
+        "total": "कुल सब्सक्रिप्शन",
+        "active": "सक्रिय",
+        "trial": "ट्रायल",
+        "pastDue": "बकाया",
+        "cancelled": "रद्द",
+        "thisPage": "इस पृष्ठ पर"
+      },
+      "relative": {
+        "inDays": "{count, plural, one {# दिन में} other {# दिनों में}}",
+        "overdue": "{count, plural, one {# दिन अतिदेय} other {# दिन अतिदेय}}",
+        "today": "आज"
+      },
       "create": "सब्सक्रिप्शन बनाएँ",
       "loading": "सब्सक्रिप्शन लोड हो रहे हैं…",
       "retry": "फिर कोशिश करें",
@@ -2559,17 +4645,41 @@
       "deleting": "हटाया जा रहा है…",
       "deleteConfirmTitle": "यह सब्सक्रिप्शन रद्द करें?",
       "deleteConfirmBody": "“{name}” सॉफ्ट-डिलीट हो जाएगा (स्थिति cancelled)।",
-      "deleteConfirm": "सब्सक्रिप्शन हटाएँ",
+      "deleteConfirm": "सब्सक्रिप्शन रद्द करें",
       "columns": {
         "organization": "संगठन",
         "plan": "प्लान",
         "status": "स्थिति",
+        "billing": "बिलिंग",
+        "amount": "राशि",
         "period": "अवधि",
+        "startedOn": "प्रारंभ तिथि",
+        "nextBilling": "अगली बिलिंग",
+        "created": "बनाया गया",
         "actions": "क्रियाएँ"
       },
       "actions": {
         "edit": "संपादित करें",
-        "delete": "हटाएँ"
+        "delete": "रद्द करें",
+        "openMenu": "क्रियाएँ खोलें",
+        "changePlan": "प्लान बदलें",
+        "pause": "सब्सक्रिप्शन रोकें",
+        "pauseSoon": "पॉज़ अभी API से उपलब्ध नहीं है।",
+        "viewOrg": "संगठन देखें"
+      },
+      "detail": {
+        "overview": "ओवरव्यू",
+        "usage": "उपयोग",
+        "billingHistory": "बिलिंग इतिहास",
+        "subscriptionDetails": "सब्सक्रिप्शन विवरण",
+        "usageTitle": "उपयोग (इस माह)",
+        "usageSoon": "उपयोग मेट्रिक्स अभी API से उपलब्ध नहीं हैं। सीमाएँ चयनित प्लान से दिखाई गई हैं।",
+        "viewAnalytics": "एनालिटिक्स देखें",
+        "quickActions": "त्वरित क्रियाएँ",
+        "goToOrg": "संगठन पर जाएँ",
+        "paymentMethod": "भुगतान विधि",
+        "paymentSoon": "अभी API से उपलब्ध नहीं।",
+        "amountPerMonth": "{amount}/माह"
       },
       "fields": {
         "organizationId": "संगठन",
@@ -2588,7 +4698,7 @@
       "toast": {
         "created": "सब्सक्रिप्शन बन गया।",
         "updated": "सब्सक्रिप्शन अपडेट हो गया।",
-        "deleted": "सब्सक्रिप्शन हटा दिया गया।"
+        "deleted": "सब्सक्रिप्शन रद्द कर दिया गया।"
       },
       "errors": {
         "loadFailed": "सब्सक्रिप्शन लोड नहीं हो सके। कृपया फिर कोशिश करें।",
@@ -2610,8 +4720,7 @@
       "featuresLabel": "सुविधाएँ",
       "limits": {
         "users": "उपयोगकर्ता सीमा",
-        "messages": "संदेश सीमा",
-        "workspaces": "वर्कस्पेस सीमा"
+        "messages": "संदेश सीमा"
       },
       "plans": {
         "starter": {
@@ -2620,11 +4729,11 @@
         },
         "growth": {
           "name": "ग्रोथ",
-          "description": "कैंपेन और ऑटोमेशन चाहिए ऐसे बढ़ते वर्कस्पेस के लिए।"
+          "description": "कैंपेन और ऑटोमेशन चाहिए ऐसे बढ़ते संगठन के लिए।"
         },
         "scale": {
           "name": "स्केल",
-          "description": "अधिक वॉल्यूम और नियंत्रण वाली मल्टी-वर्कस्पेस टीमों के लिए।"
+          "description": "अधिक वॉल्यूम और नियंत्रण वाली मल्टी-संगठन टीमों के लिए।"
         },
         "enterprise": {
           "name": "एंटरप्राइज़",
@@ -2647,50 +4756,293 @@
         "sla": "कस्टम SLA"
       }
     },
+    "invoices": {
+      "title": "इनवॉइस",
+      "subtitle": "सभी संगठनों में जनरेट हुए इनवॉइस देखें और प्रबंधित करें।",
+      "tableTitle": "इनवॉइस सूची",
+      "tableDescription": "{count, plural, =0 {कोई इनवॉइस नहीं} one {# इनवॉइस} other {# इनवॉइस}}",
+      "searchPlaceholder": "इनवॉइस खोजें...",
+      "noMatches": "आपके फ़िल्टर से कोई इनवॉइस मेल नहीं खाता।",
+      "empty": "अभी कोई इनवॉइस नहीं है।",
+      "showingRange": "{total} में से {start} से {end} इनवॉइस दिखा रहे हैं",
+      "export": "एक्सपोर्ट",
+      "exportSoon": "एक्सपोर्ट अभी उपलब्ध नहीं है। यह क्रिया API एकीकरण के लिए तैयार है।",
+      "generate": "इनवॉइस जनरेट करें",
+      "generateTitle": "इनवॉइस जनरेट करें",
+      "generateSubtitle": "किसी संगठन के लिए मॉक इनवॉइस बनाएँ। बाद में यह वास्तविक API उपयोग करेगा।",
+      "generatePageSubtitle": "किसी संगठन के लिए नया इनवॉइस बनाएँ। बाद में यह वास्तविक API उपयोग करेगा।",
+      "generateSave": "इनवॉइस जनरेट करें",
+      "generating": "जनरेट हो रहा है…",
+      "backToInvoices": "इनवॉइस पर वापस",
+      "reviewNext": "समीक्षा और पूर्वावलोकन",
+      "editDetails": "विवरण संपादित करें",
+      "showPreview": "इनवॉइस पूर्वावलोकन",
+      "hidePreview": "पूर्वावलोकन छुपाएँ",
+      "previewLiveHint": "फ़ॉर्म संपादित करते समय यह पूर्वावलोकन तुरंत अपडेट होता है।",
+      "steps": {
+        "details": "इनवॉइस विवरण",
+        "review": "समीक्षा और पूर्वावलोकन"
+      },
+      "sections": {
+        "invoiceDetails": "इनवॉइस विवरण",
+        "invoiceDetailsHint": "इस इनवॉइस के लिए बिलिंग जानकारी और लाइन आइटम दर्ज करें।",
+        "reviewDetails": "इनवॉइस की समीक्षा",
+        "reviewDetailsHint": "नीचे विवरण की पुष्टि करें, फिर इनवॉइस जनरेट करें।"
+      },
+      "lineItems": {
+        "title": "लाइन आइटम",
+        "add": "लाइन आइटम जोड़ें",
+        "description": "विवरण",
+        "qty": "मात्रा",
+        "unitPrice": "यूनिट मूल्य (USD)",
+        "amount": "राशि (USD)",
+        "actions": "क्रियाएँ",
+        "remove": "लाइन आइटम हटाएँ"
+      },
+      "currency": {
+        "usd": "USD — US Dollar"
+      },
+      "filters": "फ़िल्टर",
+      "filterStatus": "स्थिति",
+      "filterDate": "जारी महीना",
+      "filterBilling": "बिलिंग अवधि",
+      "filterAllStatuses": "सभी स्थितियाँ",
+      "filterAllDates": "सभी तिथियाँ",
+      "filterAllBilling": "सभी बिलिंग अवधियाँ",
+      "clearFilters": "फ़िल्टर साफ़ करें",
+      "loading": "इनवॉइस लोड हो रहे हैं…",
+      "retry": "फिर से कोशिश करें",
+      "prevPage": "पिछला",
+      "nextPage": "अगला",
+      "cancel": "रद्द करें",
+      "close": "बंद करें",
+      "previewTitle": "इनवॉइस पूर्वावलोकन",
+      "kpis": {
+        "total": "कुल इनवॉइस",
+        "paid": "भुगतान किया",
+        "pending": "लंबित",
+        "overdue": "अतिदेय",
+        "cancelled": "रद्द",
+        "allTime": "अब तक"
+      },
+      "columns": {
+        "invoiceNumber": "इनवॉइस #",
+        "organization": "संगठन",
+        "plan": "सब्सक्रिप्शन / प्लान",
+        "amount": "राशि",
+        "period": "बिलिंग अवधि",
+        "issueDate": "जारी तिथि",
+        "dueDate": "देय तिथि",
+        "status": "स्थिति",
+        "actions": "क्रियाएँ"
+      },
+      "statuses": {
+        "paid": "भुगतान किया",
+        "pending": "लंबित",
+        "overdue": "अतिदेय",
+        "cancelled": "रद्द"
+      },
+      "billing": {
+        "monthly": "मासिक",
+        "yearly": "वार्षिक",
+        "custom": "कस्टम"
+      },
+      "fields": {
+        "organization": "संगठन",
+        "organizationPlaceholder": "संगठन चुनें",
+        "plan": "प्लान",
+        "subscriptionPlan": "सब्सक्रिप्शन / प्लान",
+        "billingPeriod": "बिलिंग अवधि",
+        "periodStart": "अवधि प्रारंभ",
+        "periodEnd": "अवधि समाप्ति",
+        "issueDate": "जारी तिथि",
+        "dueDate": "देय तिथि",
+        "currency": "मुद्रा",
+        "amount": "राशि (USD)",
+        "taxRate": "टैक्स %",
+        "discount": "छूट (USD)",
+        "notes": "नोट्स",
+        "notesPlaceholder": "इनवॉइस पर दिखाने के लिए वैकल्पिक नोट"
+      },
+      "actions": {
+        "view": "इनवॉइस देखें",
+        "download": "इनवॉइस डाउनलोड करें",
+        "downloadPdf": "PDF डाउनलोड करें",
+        "print": "प्रिंट",
+        "regenerate": "इनवॉइस पुनः जनरेट करें",
+        "send": "इनवॉइस भेजें",
+        "markPaid": "भुगतान किया चिह्नित करें",
+        "openMenu": "क्रियाएँ खोलें",
+        "downloadSoon": "PDF डाउनलोड अभी उपलब्ध नहीं है। प्रिंट तैयार है; PDF बाद में जोड़ा जा सकता है।",
+        "sendSoon": "इनवॉइस भेजना अभी उपलब्ध नहीं है। यह क्रिया API एकीकरण के लिए तैयार है।"
+      },
+      "document": {
+        "title": "इनवॉइस",
+        "invoiceNumber": "इनवॉइस #:",
+        "issueDate": "जारी तिथि:",
+        "dueDate": "देय तिथि:",
+        "from": "से",
+        "billedTo": "बिल प्राप्तकर्ता",
+        "gstin": "GSTIN",
+        "subscriptionPlan": "सब्सक्रिप्शन / प्लान",
+        "organization": "संगठन",
+        "orgId": "संगठन ID",
+        "description": "विवरण",
+        "qty": "मात्रा",
+        "unitPrice": "यूनिट मूल्य",
+        "amount": "राशि (USD)",
+        "subtotal": "उप-योग",
+        "discount": "छूट",
+        "tax": "टैक्स ({rate}% GST)",
+        "total": "कुल",
+        "amountInWords": "शब्दों में राशि",
+        "amountWordsFallback": "{amount} केवल",
+        "paymentInfo": "भुगतान जानकारी",
+        "paymentMethod": "भुगतान विधि",
+        "transactionId": "लेनदेन ID",
+        "paymentDate": "भुगतान तिथि",
+        "notPaid": "भुगतान नहीं हुआ",
+        "notes": "नोट्स",
+        "defaultNotes": "यह इनवॉइस Whats-Auto द्वारा जनरेट किया गया है। बिलिंग प्रश्नों के लिए billing@whatsauto.com से संपर्क करें।",
+        "thankYou": "धन्यवाद!",
+        "thankYouBody": "हम आपके व्यवसाय की सराहना करते हैं और WhatsApp बातचीत को स्वचालित करने में मदद के लिए उत्सुक हैं।",
+        "pageOf": "पृष्ठ {page} / {total}"
+      },
+      "toast": {
+        "created": "इनवॉइस जनरेट हो गया।",
+        "markedPaid": "इनवॉइस को भुगतान किया चिह्नित किया गया।",
+        "regenerated": "इनवॉइस पुनः जनरेट हुआ।",
+        "sent": "इनवॉइस भेजा गया।",
+        "downloaded": "इनवॉइस डाउनलोड शुरू हो गया।"
+      },
+      "errors": {
+        "loadFailed": "इनवॉइस लोड नहीं हो सके। कृपया फिर से कोशिश करें।",
+        "createFailed": "इनवॉइस जनरेट नहीं हो सका।",
+        "notFound": "इनवॉइस नहीं मिला।",
+        "cannotMarkCancelledPaid": "रद्द इनवॉइस को भुगतान किया चिह्नित नहीं किया जा सकता।",
+        "sendFailed": "इनवॉइस भेजा नहीं जा सका। कृपया पुनः प्रयास करें।",
+        "downloadFailed": "इनवॉइस डाउनलोड नहीं हो सका। कृपया पुनः प्रयास करें।",
+        "organizationRequired": "संगठन चुनें।",
+        "planRequired": "प्लान चुनें।",
+        "datesRequired": "सभी तिथि फ़ील्ड आवश्यक हैं।",
+        "periodInvalid": "अवधि समाप्ति, अवधि प्रारंभ के बाद या उसी दिन होनी चाहिए।",
+        "dueBeforeIssue": "देय तिथि, जारी तिथि के बाद या उसी दिन होनी चाहिए।",
+        "amountInvalid": "शून्य से अधिक वैध राशि दर्ज करें।",
+        "discountInvalid": "शून्य या अधिक वैध छूट दर्ज करें।",
+        "taxInvalid": "0 से 100 के बीच टैक्स दर दर्ज करें।",
+        "lineItemsRequired": "कम से कम एक लाइन आइटम जोड़ें।",
+        "lineItemInvalid": "प्रत्येक लाइन आइटम में विवरण, मात्रा और यूनिट मूल्य होना चाहिए।"
+      }
+    },
     "platformUsers": {
       "eyebrow": "एक्सेस प्रबंधन",
       "title": "प्लेटफ़ॉर्म उपयोगकर्ता",
-      "subtitle": "सुपर एडमिन कंसोल चलाने वाले आंतरिक उपयोगकर्ताओं को प्रबंधित करें।",
+      "subtitle": "प्लेटफ़ॉर्म पर हर संगठन के सभी उपयोगकर्ताओं को देखें।",
       "tableTitle": "सभी प्लेटफ़ॉर्म उपयोगकर्ता",
       "tableDescription": "{count, plural, one {# उपयोगकर्ता} other {# उपयोगकर्ता}}",
+      "tableDescriptionLoading": "उपयोगकर्ता लोड हो रहे हैं…",
+      "loading": "प्लेटफ़ॉर्म उपयोगकर्ता लोड हो रहे हैं…",
+      "refresh": "रिफ़्रेश",
+      "retry": "फिर से कोशिश करें",
+      "searchPlaceholder": "नाम या ईमेल से खोजें…",
+      "emptyTitle": "कोई प्लेटफ़ॉर्म उपयोगकर्ता नहीं",
+      "emptyDescription": "इस प्लेटफ़ॉर्म के लिए कोई उपयोगकर्ता नहीं मिला।",
+      "emptyFilteredTitle": "कोई मेल खाता उपयोगकर्ता नहीं",
+      "emptyFilteredDescription": "कोई दूसरा खोज या स्थिति फ़िल्टर आज़माएँ।",
+      "emptyValue": "—",
+      "moreOrganizations": "+{count} और",
+      "filters": {
+        "search": "खोज",
+        "status": "स्थिति",
+        "allStatuses": "सभी स्थितियाँ"
+      },
+      "pagination": {
+        "previous": "पिछला",
+        "next": "अगला",
+        "pageOf": "पृष्ठ {page} / {lastPage} · कुल {total}"
+      },
       "columns": {
         "name": "नाम",
         "email": "ईमेल",
         "role": "भूमिका",
+        "organizations": "संगठन",
         "status": "स्थिति",
         "created": "निर्माण तिथि"
       },
       "roles": {
-        "superAdmin": "सुपर एडमिन",
-        "platformAdmin": "प्लेटफ़ॉर्म एडमिन",
-        "support": "सपोर्ट",
-        "finance": "फाइनेंस"
+        "superadmin": "सुपर एडमिन",
+        "user": "उपयोगकर्ता"
       },
       "statuses": {
         "active": "सक्रिय",
-        "invited": "आमंत्रित",
         "inactive": "निष्क्रिय"
+      },
+      "errors": {
+        "loadFailed": "प्लेटफ़ॉर्म उपयोगकर्ता लोड नहीं हो सके। कृपया फिर से कोशिश करें।"
       }
     },
     "auditLogs": {
-      "eyebrow": "कंप्लायंस",
-      "title": "प्लेटफ़ॉर्म ऑडिट लॉग्स",
-      "subtitle": "संगठनों और आंतरिक ऑपरेटर्स में संवेदनशील एडमिन क्रियाओं को ट्रैक करें।",
-      "tableTitle": "हाल की ऑडिट घटनाएँ",
-      "tableDescription": "{count, plural, one {# घटना} other {# घटनाएँ}}",
-      "columns": {
-        "timestamp": "टाइमस्टैम्प",
-        "user": "उपयोगकर्ता",
-        "action": "क्रिया",
+      "eyebrow": "अनुपालन",
+      "title": "ऑडिट लॉग",
+      "subtitle": "प्लेटफ़ॉर्म संगठन, बिलिंग, प्लान और AI कॉन्फ़िगरेशन इवेंट। सुपर एडमिन को सक्रिय संगठन की आवश्यकता नहीं है।",
+      "tableTitle": "हाल के ऑडिट इवेंट",
+      "tableDescription": "{count, plural, one {# इवेंट} other {# इवेंट}}",
+      "tableDescriptionLoading": "इवेंट लोड हो रहे हैं…",
+      "limitLabel": "सीमा",
+      "refresh": "रिफ़्रेश",
+      "loading": "ऑडिट इवेंट लोड हो रहे हैं…",
+      "searchPlaceholder": "इवेंट, एक्टर, संगठन या टारगेट खोजें…",
+      "emptyTitle": "कोई ऑडिट इवेंट नहीं",
+      "emptyDescription": "प्लेटफ़ॉर्म के लिए कोई ऑडिट इवेंट नहीं मिला।",
+      "emptyFilteredTitle": "कोई मेल खाता इवेंट नहीं",
+      "emptyFilteredDescription": "कोई दूसरा खोज, संगठन या दिनांक सीमा आज़माएँ।",
+      "emptyValue": "—",
+      "viewDetails": "विवरण",
+      "filters": {
+        "search": "खोज",
+        "event": "क्रिया / इवेंट",
+        "actor": "एक्टर / एडमिन",
         "organization": "संगठन",
-        "ipAddress": "IP पता",
-        "status": "स्थिति"
+        "entityType": "एंटिटी प्रकार",
+        "dateFrom": "प्रारंभ तिथि",
+        "dateTo": "समाप्ति तिथि",
+        "allEvents": "सभी इवेंट",
+        "allActors": "सभी एक्टर",
+        "allOrganizations": "सभी संगठन",
+        "allEntityTypes": "सभी एंटिटी प्रकार"
       },
-      "statuses": {
-        "success": "सफल",
-        "warning": "चेतावनी",
-        "failed": "विफल"
+      "status": {
+        "granted": "अनुमत",
+        "revoked": "रद्द",
+        "recorded": "रिकॉर्डेड"
+      },
+      "columns": {
+        "event": "इवेंट",
+        "actor": "एक्टर",
+        "target": "टारगेट",
+        "organization": "संगठन",
+        "timestamp": "दिनांक और समय",
+        "status": "स्थिति",
+        "reason": "कारण",
+        "actions": "क्रियाएँ"
+      },
+      "details": {
+        "title": "ऑडिट इवेंट विवरण",
+        "fallbackEvent": "ऑडिट इवेंट",
+        "targetType": "टारगेट प्रकार",
+        "targetId": "टारगेट ID",
+        "before": "पहले",
+        "after": "बाद में",
+        "close": "बंद करें"
+      },
+      "errors": {
+        "loadFailed": "ऑडिट इवेंट लोड नहीं हो सके।",
+        "loadFailedHint": "GET /api/v1/super-admin/audit-logs संगठन, बिलिंग, प्लान और AI इवेंट लौटाता है। सक्रिय संगठन आवश्यक नहीं है।"
       }
+    },
+    "aiSettings": {
+      "title": "AI सेटिंग्स",
+      "subtitle": "कॉन्फ़िगर करें कि बातचीत इंजन कैसे जवाब देता है, ज्ञान खोजता है, और बातचीत मानव एजेंटों को सौंपता है।"
     },
     "settings": {
       "eyebrow": "प्रशासन",
@@ -2746,23 +5098,165 @@
         "enabled": "सक्रिय",
         "disabled": "निष्क्रिय",
         "scheduled": "निर्धारित"
+      },
+      "ai": {
+        "title": "बातचीत AI",
+        "loading": "AI सेटिंग्स लोड हो रही हैं…",
+        "retry": "फिर कोशिश करें",
+        "save": "AI सेटिंग्स सेव करें",
+        "saving": "सेव हो रहा है…",
+        "saved": "AI सेटिंग्स सेव हो गईं।",
+        "saveFooterHint": "बदलाव सभी संगठन पर लागू होते हैं।",
+        "killConfirm": {
+          "titleDisable": "प्लेटफ़ॉर्म AI बंद करें?",
+          "titleEnable": "प्लेटफ़ॉर्म AI चालू करें?",
+          "bodyDisable": "यह हर संगठन के लिए फ्लो RAG और आंसर कैश बंद कर देता है। पुष्टि के लिए ठीक {phrase} टाइप करें।",
+          "bodyEnable": "यह हर संगठन के लिए प्लेटफ़ॉर्म फ्लो RAG वापस चालू करता है। पुष्टि के लिए ठीक {phrase} टाइप करें।",
+          "phraseLabel": "पुष्टि के लिए {phrase} टाइप करें",
+          "confirm": "पुष्टि करें",
+          "cancel": "रद्द करें"
+        },
+        "reindexConfirm": "यह {count} नॉलेज चंक्स को नए स्पेस में फिर से एम्बेड करेगा। जॉब पूरा होने तक रिट्रीवल मौजूदा एम्बेडिंग मॉडल पर रहेगा। जारी रखें?",
+        "reindexRunning": "नॉलेज को नए स्पेस में फिर से एम्बेड किया जा रहा है। चैट सेटिंग्स अभी भी सेव हो सकती हैं। पूरा होने तक प्रदाता और एम्बेडिंग मॉडल लॉक हैं।",
+        "reindexFailed": "नॉलेज रीइंडेक्स असफल रहा। फिर से सेव करके पुनः प्रयास करें, या पिछले एम्बेडिंग मॉडल पर वापस जाएँ।",
+        "promptPlaceholder": "बिल्ट-इन ग्राउंडेड WhatsApp असिस्टेंट प्रॉम्प्ट के लिए खाली छोड़ें।",
+        "sameAsMain": "मुख्य चैट मॉडल जैसा",
+        "providers": {
+          "openai": "OpenAI",
+          "google": "Gemini",
+          "mistral": "Mistral"
+        },
+        "sections": {
+          "response": {
+            "title": "प्रतिक्रिया",
+            "description": "ऑटो-रिप्लाई चालू है या नहीं, और मॉडल कैसे जवाब बनाता है, यह नियंत्रित करें।"
+          },
+          "knowledge": {
+            "title": "ज्ञान और मेमोरी",
+            "description": "रिट्रीवल, कॉन्फिडेंस, और इंजन कितना बातचीत संदर्भ रखता है।"
+          },
+          "instructions": {
+            "title": "निर्देश",
+            "description": "हर ग्राउंडेड ऑटो-रिप्लाई के साथ भेजा जाने वाला सिस्टम प्रॉम्प्ट।"
+          }
+        },
+        "fields": {
+          "isEnabled": "ऑटो-रिप्लाई चालू करें",
+          "chatProvider": "प्रदाता",
+          "chatModel": "मुख्य चैट मॉडल",
+          "summaryModel": "सारांश मॉडल",
+          "modelName": "चैट मॉडल",
+          "embeddingModel": "एम्बेडिंग मॉडल",
+          "temperature": "टेम्परेचर",
+          "maxOutputTokens": "अधिकतम आउटपुट टोकन",
+          "debounceDelaySeconds": "इनबाउंड कोएलेस (सेकंड)",
+          "campaignAttributionWindowHours": "एट्रिब्यूशन विंडो (घंटे)",
+          "minConfidenceScore": "न्यूनतम कॉन्फिडेंस",
+          "workingSetSize": "वर्किंग-सेट आकार",
+          "summaryTurnThreshold": "सारांश थ्रेशोल्ड",
+          "systemPrompt": "सिस्टम प्रॉम्प्ट"
+        },
+        "hints": {
+          "isEnabled": "बंद होने पर फ्लो AI_RAG और मिड-फ्लो RAG टैन्जेंट LLM (और आंसर कैश) को छोड़ देते हैं। प्रतीक्षा नोड फिर से पूछते हैं; AI_RAG अपना कॉन्फ़िगर्ड फ़ॉलबैक इस्तेमाल करता है। प्रति-फ्लो हैंडओवर कीवर्ड अभी भी लागू रहते हैं।",
+          "chatProvider": "API कुंजियाँ सर्वर env में रहती हैं। केवल चुने हुए प्रदाता की कुंजी ज़रूरी है।",
+          "chatModel": "ऑटो-रिप्लाई के लिए। बदलने से नॉलेज फिर से एम्बेड नहीं होता।",
+          "summaryModel": "वैकल्पिक सस्ता मॉडल बातचीत सारांश के लिए। वही प्रदाता होना चाहिए।",
+          "embeddingModel": "केवल 1024-डाइमेंशन मॉडल। प्रदाता या एम्बेडिंग मॉडल बदलने पर पुष्टि के बाद नॉलेज बेस फिर से एम्बेड होता है।",
+          "temperature": "0 से 2।",
+          "maxOutputTokens": "1 से 8192। ऑटो-रिप्लाई और बातचीत सारांश के लिए टोकन सीमा।",
+          "debounceDelaySeconds": "1 से 15। फ्री-टेक्स्ट फ्लो एडवांस से पहले विलंब ताकि तेज़ संदेश एक टर्न में मिल जाएँ। इंटरैक्टिव जवाब तुरंत जाते हैं।",
+          "campaignAttributionWindowHours": "1 से 168।",
+          "minConfidenceScore": "0 से 1। इससे कम रिट्रीवल स्कोर पर हैंडओवर होता है।",
+          "workingSetSize": "मेमोरी में रखे गए 2 से 20 हाल के टर्न।",
+          "summaryTurnThreshold": "2 से 200, और वर्किंग-सेट आकार से कम नहीं हो सकता।",
+          "systemPrompt": "सादा टेक्स्ट। नई पंक्तियाँ सुरक्षित रहती हैं। खाली होने पर बिल्ट-इन डिफ़ॉल्ट लगता है। फ़्लो AI_RAG नोड पर अतिरिक्त निर्देश जोड़ सकते हैं, लेकिन इस बेस या हार्ड-कोडेड गार्डरेल्स को बदल नहीं सकते।"
+        },
+        "errors": {
+          "loadFailed": "AI सेटिंग्स लोड नहीं हो सकीं। कृपया फिर कोशिश करें।",
+          "saveFailed": "AI सेटिंग्स सेव नहीं हो सकीं। कृपया फिर कोशिश करें।",
+          "sessionExpired": "आपका सत्र समाप्त हो गया। कृपया फिर साइन इन करें।",
+          "permissionDenied": "आपको प्लेटफ़ॉर्म AI सेटिंग्स प्रबंधित करने की अनुमति नहीं है।",
+          "notFound": "प्लेटफ़ॉर्म AI कॉन्फ़िग नहीं मिला।",
+          "summaryThreshold": "सारांश टर्न थ्रेशोल्ड वर्किंग-सेट आकार से बड़ा या बराबर होना चाहिए।",
+          "invalidRange": "एक या अधिक मान अनुमत सीमा से बाहर हैं।",
+          "reindexRequired": "प्रदाता या एम्बेडिंग मॉडल बदलने के लिए नॉलेज बेस को फिर से एम्बेड करना होगा। संकेत मिलने पर पुष्टि करें।",
+          "reindexInProgress": "नॉलेज रीइंडेक्स पहले से चल रहा है। प्रदाता या एम्बेडिंग मॉडल बदलने से पहले इसके पूरा होने की प्रतीक्षा करें।",
+          "invalidModel": "यह मॉडल चुने हुए प्रदाता के लिए अनुमत नहीं है।",
+          "providerMismatch": "एम्बेडिंग प्रदाता चैट प्रदाता से मेल खाना चाहिए।"
+        }
       }
     },
     "analytics": {
       "eyebrow": "एनालिटिक्स",
       "title": "प्लेटफ़ॉर्म एनालिटिक्स",
       "subtitle": "प्लेटफ़ॉर्म में ग्रोथ, राजस्व, एंगेजमेंट और सब्सक्रिप्शन मिश्रण ट्रैक करें।",
-      "charts": {
-        "activeOrganizations": {
-          "title": "सक्रिय संगठन",
-          "description": "वर्तमान सक्रिय टेनेंट संगठनों का मासिक ट्रेंड।",
-          "ariaLabel": "महीने के अनुसार सक्रिय संगठनों का लाइन चार्ट"
+      "retry": "फिर कोशिश करें",
+      "unavailable": "डेटा उपलब्ध नहीं है",
+      "kpis": {
+        "totalOrganizations": "कुल संगठन",
+        "activeOrganizations": "सक्रिय संगठन",
+        "inactiveOrganizations": "निष्क्रिय / निलंबित संगठन",
+        "trialOrganizations": "ट्रायल संगठन",
+        "thisMonthRevenue": "इस महीने का राजस्व",
+        "paidRevenue": "प्राप्त भुगतान राजस्व",
+        "pendingOverdueInvoices": "लंबित + ओवरड्यू इनवॉइस"
+      },
+      "loading": {
+        "organizations": "संगठन एनालिटिक्स लोड हो रहा है…",
+        "subscriptions": "सब्सक्रिप्शन एनालिटिक्स लोड हो रहा है…",
+        "revenue": "राजस्व सारांश लोड हो रहा है…",
+        "audit": "ऑडिट गतिविधि लोड हो रही है…"
+      },
+      "errors": {
+        "organizations": "संगठन लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+        "subscriptions": "सब्सक्रिप्शन या प्लान लोड नहीं हो सके। कृपया फिर कोशिश करें।",
+        "revenue": "इनवॉइस सारांश लोड नहीं हो सका। कृपया फिर कोशिश करें।",
+        "audit": "ऑडिट गतिविधि लोड नहीं हो सकी। कृपया फिर कोशिश करें।"
+      },
+      "sections": {
+        "organizationGrowth": {
+          "title": "संगठन ग्रोथ",
+          "description": "createdAt के आधार पर पिछले 6 महीनों की cumulative संगठन वृद्धि।",
+          "emptyTitle": "अभी कोई संगठन नहीं",
+          "emptyDescription": "संगठन बनने पर ग्रोथ यहाँ दिखाई देगी।",
+          "emptyChart": "ग्रोथ डेटा उपलब्ध नहीं है।"
         },
-        "messageVolume": {
-          "title": "संदेश वॉल्यूम",
-          "description": "सभी संगठनों में मासिक आउटबाउंड संदेश वॉल्यूम।",
-          "ariaLabel": "मासिक संदेश वॉल्यूम का बार चार्ट। शिखर लगभग {max}।"
+        "activeInactive": {
+          "title": "सक्रिय बनाम निष्क्रिय संगठन",
+          "description": "संगठनों की वर्तमान स्थिति का वितरण।",
+          "active": "सक्रिय संगठन",
+          "inactive": "निष्क्रिय संगठन",
+          "emptyChart": "स्थिति वितरण उपलब्ध नहीं है।"
+        },
+        "revenueSummary": {
+          "title": "राजस्व सारांश",
+          "description": "मौजूदा invoice summary API से वर्तमान मान।",
+          "thisMonthAmount": "इस महीने की राशि",
+          "paidAmount": "प्राप्त भुगतान राशि",
+          "pendingOverdue": "लंबित + ओवरड्यू",
+          "emptyTitle": "राजस्व डेटा उपलब्ध नहीं है",
+          "emptyDescription": "इनवॉइस सारांश API से डेटा प्राप्त नहीं हुआ।"
+        },
+        "subscriptionMix": {
+          "title": "प्लान के अनुसार सब्सक्रिप्शन",
+          "description": "प्लान के आधार पर वर्तमान सब्सक्रिप्शन वितरण।",
+          "emptyTitle": "अभी कोई सब्सक्रिप्शन नहीं",
+          "emptyDescription": "सब्सक्रिप्शन बनने के बाद प्लान वितरण दिखेगा।",
+          "emptyChart": "सब्सक्रिप्शन वितरण उपलब्ध नहीं है।"
         }
+      },
+      "labels": {
+        "activeInactive": {
+          "active": "सक्रिय",
+          "inactive": "निष्क्रिय"
+        }
+      },
+      "audit": {
+        "title": "हाल की ऑडिट गतिविधि",
+        "description": "प्लेटफ़ॉर्म भर के नवीनतम authorization और audit events।",
+        "emptyTitle": "अभी कोई ऑडिट इवेंट नहीं",
+        "emptyDescription": "permissioned actions होने पर ऑडिट इवेंट यहाँ दिखेंगे।",
+        "noDetails": "कोई अतिरिक्त विवरण नहीं"
       }
     }
   }

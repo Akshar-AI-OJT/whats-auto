@@ -54,17 +54,27 @@ function subscribeSystemTheme(onStoreChange: () => void) {
   return () => media.removeEventListener('change', onStoreChange)
 }
 
+function subscribeStorageTheme(onStoreChange: () => void) {
+  window.addEventListener('storage', onStoreChange)
+  return () => window.removeEventListener('storage', onStoreChange)
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? '/'
-  const [theme, setThemeState] = useState<ThemeMode>(() => {
-    if (typeof window === 'undefined') return 'system'
-    return readStoredTheme()
-  })
-  const systemDark = useSyncExternalStore(
-    subscribeSystemTheme,
-    getSystemDark,
-    () => false
+  const systemDark = useSyncExternalStore(subscribeSystemTheme, getSystemDark, () => false)
+
+  // Always start as 'system' on the server; on the client, immediately read
+  // localStorage via useSyncExternalStore — no useEffect, no extra render.
+  const storedTheme = useSyncExternalStore(
+    subscribeStorageTheme,
+    readStoredTheme,
+    () => 'system' as ThemeMode
   )
+
+  // Allow the user to temporarily override without persisting until setTheme is
+  // called (e.g. live preview). Falls back to the persisted stored value.
+  const [themeOverride, setThemeOverride] = useState<ThemeMode | null>(null)
+  const theme: ThemeMode = themeOverride ?? storedTheme
 
   const resolvedTheme: 'light' | 'dark' =
     theme === 'system' ? (systemDark ? 'dark' : 'light') : theme
@@ -77,7 +87,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [appearance, allowDark])
 
   const setTheme = useCallback((next: ThemeMode) => {
-    setThemeState(next)
+    setThemeOverride(next)
     try {
       window.localStorage.setItem(STORAGE_KEY, next)
     } catch {

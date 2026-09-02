@@ -62,8 +62,18 @@ export const previewRoleUpdateValidator = vine.create(
   })
 )
 
-export const listAuditValidator = vine.create(
+export const listTenantAuditValidator = vine.create(
   vine.object({
     limit: vine.number().withoutDecimals().min(1).max(100).optional(),
+  })
+)
+
+/** Tuyau registry still binds GET /api/v1/audit to this name. */
+export const listAuditValidator = listTenantAuditValidator
+
+export const listPlatformAuditValidator = vine.create(
+  vine.object({
+    limit: vine.number().withoutDecimals().min(1).max(100).optional(),
+    organizationId: vine.string().trim().uuid().optional(),
   })
 )

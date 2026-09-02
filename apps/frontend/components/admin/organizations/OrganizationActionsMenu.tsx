@@ -11,8 +11,7 @@ import {
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
-import type { OrganizationStatus } from '../mock-data'
-import type { AdminOrganizationListItem } from './organization-api'
+import type { AdminOrganizationListItem, AdminOrganizationUiStatus } from './organization-api'
 
 export type OrganizationActionId = 'view' | 'edit' | 'suspend' | 'activate' | 'delete'
 
@@ -145,17 +144,18 @@ export function OrganizationActionsMenu({
   )
 }
 
-const STATUS_STYLES: Record<OrganizationStatus, string> = {
+const STATUS_STYLES: Record<AdminOrganizationUiStatus, string> = {
   active: 'bg-primary-pale text-positive-deep ring-1 ring-primary/30',
-  trial: 'bg-dash-info-soft text-dash-info ring-1 ring-accent-cyan/35',
+  pending: 'bg-dash-info-soft text-dash-info ring-1 ring-accent-cyan/35',
   suspended: 'bg-dash-warn-soft text-warning-content ring-1 ring-warning/35',
+  archived: 'bg-mute/15 text-mute ring-1 ring-dash-border',
 }
 
 export function OrganizationStatusBadge({
   status,
   label,
 }: {
-  status: OrganizationStatus
+  status: AdminOrganizationUiStatus
   label: string
 }) {
   return (

@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { useId, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { Loader2, Plus, RefreshCw, Shield, Trash2 } from 'lucide-react'
 import {
@@ -8,6 +9,7 @@ import {
   type ApiError,
   type OrganizationRole,
 } from '@/lib/api'
+import { queryKeys } from '@/lib/query-keys'
 import { PRODUCT_PERMISSIONS } from '@/lib/product-permissions'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { Button } from '@/components/ui/button'
@@ -29,6 +31,7 @@ function unwrapList<T>(data: { data?: T[] } | T[] | undefined): T[] {
 export function RolesPage() {
   const t = useTranslations('dashboard.roles')
   const router = useRouter()
+  const queryClient = useQueryClient()
   const deleteTitleId = useId()
   const deleteDescId = useId()
   const resetTitleId = useId()
@@ -40,9 +43,6 @@ export function RolesPage() {
     isLoading: orgsLoading,
   } = useOrganizations()
 
-  const [roles, setRoles] = useState<OrganizationRole[]>([])
-  const [listLoading, setListLoading] = useState(true)
-  const [listError, setListError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
   const [deleteTarget, setDeleteTarget] = useState<OrganizationRole | null>(null)
@@ -56,46 +56,27 @@ export function RolesPage() {
   const [resetError, setResetError] = useState<string | null>(null)
   const [resetPending, setResetPending] = useState(false)
 
-  const organizationIdRef = useRef(tenantOrganizationId)
-  organizationIdRef.current = tenantOrganizationId
-
-  const loadRoles = useCallback(
-    async (organizationId: string) => {
-      if (!canViewRoles) {
-        setRoles([])
-        setListLoading(false)
-        return
-      }
-
-      setListLoading(true)
-      setListError(null)
-      try {
-        const { data } = await api.roles.list()
-        if (organizationId !== organizationIdRef.current) return
-        setRoles(unwrapList(data))
-      } catch (err) {
-        if (organizationId !== organizationIdRef.current) return
-        setRoles([])
-        const apiError = err as ApiError
-        setListError(apiError.message || t('errors.loadFailed'))
-      } finally {
-        if (organizationId === organizationIdRef.current) {
-          setListLoading(false)
-        }
-      }
+  const rolesQuery = useQuery({
+    queryKey: queryKeys.roles.list(tenantOrganizationId),
+    queryFn: async () => {
+      const { data } = await api.roles.list()
+      return unwrapList<OrganizationRole>(data)
     },
-    [canViewRoles, t]
-  )
+    enabled: !orgsLoading && Boolean(tenantOrganizationId) && canViewRoles,
+    staleTime: 2 * 60_000,
+  })
 
-  useEffect(() => {
-    if (orgsLoading) return
-    if (!tenantOrganizationId) {
-      setRoles([])
-      setListLoading(true)
-      return
-    }
-    void loadRoles(tenantOrganizationId)
-  }, [orgsLoading, tenantOrganizationId, loadRoles])
+  const roles = rolesQuery.data ?? []
+  const listLoading = rolesQuery.isLoading || orgsLoading
+  const listError = rolesQuery.error
+    ? (rolesQuery.error as unknown as ApiError).message || t('errors.loadFailed')
+    : null
+
+  async function refreshRoles() {
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.roles.all(tenantOrganizationId),
+    })
+  }
 
   function mapActionError(err: unknown): string {
     const apiError = err as ApiError
@@ -131,7 +112,7 @@ export function RolesPage() {
       setDeleteTarget(null)
       setDeleteReason('')
       setActionError(null)
-      if (tenantOrganizationId) void loadRoles(tenantOrganizationId)
+      await refreshRoles()
     } catch (err) {
       setDeleteError(mapActionError(err))
     } finally {
@@ -153,7 +134,7 @@ export function RolesPage() {
       setResetTarget(null)
       setResetReason('')
       setActionError(null)
-      if (tenantOrganizationId) void loadRoles(tenantOrganizationId)
+      await refreshRoles()
     } catch (err) {
       setResetError(mapActionError(err))
     } finally {
@@ -167,7 +148,7 @@ export function RolesPage() {
 
   if (!orgsLoading && !canViewRoles) {
     return (
-      <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 sm:gap-6">
+      <div className="flex w-full min-w-0 flex-col gap-5 sm:gap-6">
         <DashboardPanel as="section" className="px-4 py-5 sm:px-6 sm:py-6">
           <p className="text-sm font-semibold tracking-wide text-positive-deep uppercase">
             {t('eyebrow')}
@@ -187,7 +168,7 @@ export function RolesPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 sm:gap-6">
+    <div className="flex w-full min-w-0 flex-col gap-5 sm:gap-6">
       <DashboardPanel
         as="section"
         className="relative overflow-hidden px-4 py-5 sm:px-6 sm:py-6 md:px-7 md:py-7"

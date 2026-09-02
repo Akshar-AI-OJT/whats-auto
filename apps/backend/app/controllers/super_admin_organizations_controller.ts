@@ -1,4 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import { accessPlatform } from '#abilities/main'
+import SuperAdminPolicy from '#policies/super_admin_policy'
 import { OrganizationService } from '#services/organization_service'
 import { Exception } from '@adonisjs/core/exceptions'
 import {
@@ -23,7 +25,10 @@ export default class SuperAdminOrganizationsController {
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 403 - { "error": "Permission denied: platform:tenants_view", "code": "PERMISSION_DENIED" }
    */
-  async index({ request, serialize }: HttpContext) {
+  async index({ bouncer, request, serialize }: HttpContext) {
+    await bouncer.authorize(accessPlatform)
+    await bouncer.with(SuperAdminPolicy).authorize('viewTenants')
+
     const { page, perPage } = await request.validateUsing(listSuperAdminOrganizationsValidator, {
       data: request.qs(),
     })
@@ -49,7 +54,10 @@ export default class SuperAdminOrganizationsController {
    * @responseBody 404 - { "error": "Organization Not Found", "code": "E_ORGANIZATION_NOT_FOUND" }
    * @responseBody 422 - { "errors": [{ "message": "The name field must be at least 2 characters", "field": "name" }] }
    */
-  async update({ request, params, response, serialize }: HttpContext) {
+  async update({ bouncer, request, params, response, serialize }: HttpContext) {
+    await bouncer.authorize(accessPlatform)
+    await bouncer.with(SuperAdminPolicy).authorize('updateTenants')
+
     const payload = await request.validateUsing(updateOrganizationValidator)
 
     try {
@@ -83,7 +91,10 @@ export default class SuperAdminOrganizationsController {
    * @responseBody 403 - { "error": "Permission denied: platform:tenants_delete", "code": "PERMISSION_DENIED" }
    * @responseBody 404 - { "error": "Organization Not Found", "code": "E_ORGANIZATION_NOT_FOUND" }
    */
-  async softDelete({ request, params, response, serialize }: HttpContext) {
+  async softDelete({ bouncer, request, params, response, serialize }: HttpContext) {
+    await bouncer.authorize(accessPlatform)
+    await bouncer.with(SuperAdminPolicy).authorize('deleteTenants')
+
     await request.validateUsing(organizationIdParamValidator, {
       data: params,
     })

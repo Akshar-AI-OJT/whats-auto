@@ -16,14 +16,16 @@
     "lint": "turbo lint",
     "format": "turbo format",
     "typecheck": "turbo typecheck",
-    "db:seed:demo": "pnpm --filter backend db:seed:demo"
+    "db:seed:demo": "pnpm --filter backend db:seed:demo",
+    "db:migrate:status": "pnpm --filter backend migration:status",
+    "db:migrate": "pnpm --filter backend migration:run"
   },
   "devDependencies": {
     "@adonisjs/prettier-config": "^1.5.0",
     "prettier": "^3.8.3",
     "turbo": "^2.9.16"
   },
-  "packageManager": "pnpm@11.8.0",
+  "packageManager": "pnpm@11.21.0",
   "prettier": "@adonisjs/prettier-config",
   "dependencies": {
     "@types/better-sqlite3": "^7.6.13",

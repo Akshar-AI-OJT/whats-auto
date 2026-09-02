@@ -1,4 +1,8 @@
 import env from '#start/env'
+import {
+  serializeInteractivePayload,
+  type MetaInteractivePayload,
+} from '#lib/meta_whatsapp/interactive_message'
 import type {
   MetaCreateMessageTemplateResult,
   MetaGraphErrorBody,
@@ -63,6 +67,12 @@ export interface MetaGraphClient {
     caption?: string
     filename?: string
   }): Promise<MetaSendMessageResult>
+  sendInteractiveMessage(params: {
+    phoneNumberId: string
+    accessToken: string
+    to: string
+    interactive: MetaInteractivePayload
+  }): Promise<MetaSendMessageResult>
   listMessageTemplates?(params: {
     wabaId: string
     accessToken: string
@@ -76,12 +86,33 @@ export interface MetaGraphClient {
     category: string
     language: string
     components: MetaTemplateComponent[]
+    /** Meta expects NAMED or POSITIONAL when the template has variables. */
+    parameterFormat?: 'NAMED' | 'POSITIONAL'
   }): Promise<MetaCreateMessageTemplateResult>
   deleteMessageTemplate?(params: {
     wabaId: string
     accessToken: string
     name: string
   }): Promise<{ success: boolean }>
+  /**
+   * Resumable Upload API — create an upload session for template sample media.
+   * Uses the app id from env; pass the WABA / business access token.
+   */
+  createResumableUploadSession?(params: {
+    accessToken: string
+    fileLength: number
+    fileType: string
+    fileName: string
+  }): Promise<{ uploadSessionId: string }>
+  /**
+   * Resumable Upload API — upload file bytes and return the `h` media handle
+   * for `example.header_handle` on template create.
+   */
+  uploadResumableFile?(params: {
+    accessToken: string
+    uploadSessionId: string
+    fileBytes: Uint8Array
+  }): Promise<{ handle: string }>
 }
 
 export class MetaGraphApiError extends Error {
@@ -319,6 +350,36 @@ export class HttpMetaGraphClient implements MetaGraphClient {
     }
   }
 
+  /**
+   * POST /{phone-number-id}/messages (type=interactive button|list).
+   * Meta character/count limits are asserted before the request; they are never truncated.
+   */
+  async sendInteractiveMessage(params: {
+    phoneNumberId: string
+    accessToken: string
+    to: string
+    interactive: MetaInteractivePayload
+  }): Promise<MetaSendMessageResult> {
+    const interactive = serializeInteractivePayload(params.interactive)
+    const url = `${this.baseUrl}/${encodeURIComponent(params.phoneNumberId)}/messages`
+    const json = await this.requestJson<Record<string, unknown>>('sendInteractive', url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${params.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        recipient_type: 'individual',
+        to: params.to,
+        type: 'interactive',
+        interactive,
+      }),
+    })
+
+    return this.#parseSendResult(json)
+  }
+
   async listMessageTemplates(params: {
     wabaId: string
     accessToken: string
@@ -345,8 +406,19 @@ export class HttpMetaGraphClient implements MetaGraphClient {
     category: string
     language: string
     components: MetaTemplateComponent[]
+    parameterFormat?: 'NAMED' | 'POSITIONAL'
   }): Promise<MetaCreateMessageTemplateResult> {
     const url = `${this.baseUrl}/${encodeURIComponent(params.wabaId)}/message_templates`
+
+    const body: Record<string, unknown> = {
+      name: params.name,
+      category: params.category,
+      language: params.language,
+      components: params.components,
+    }
+    if (params.parameterFormat) {
+      body.parameter_format = params.parameterFormat
+    }
 
     return this.requestJson<MetaCreateMessageTemplateResult>('createTemplate', url, {
       method: 'POST',
@@ -354,13 +426,89 @@ export class HttpMetaGraphClient implements MetaGraphClient {
         'Authorization': `Bearer ${params.accessToken}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        name: params.name,
-        category: params.category,
-        language: params.language,
-        components: params.components,
-      }),
+      body: JSON.stringify(body),
     })
+  }
+
+  async createResumableUploadSession(params: {
+    accessToken: string
+    fileLength: number
+    fileType: string
+    fileName: string
+  }): Promise<{ uploadSessionId: string }> {
+    const search = new URLSearchParams({
+      file_length: String(params.fileLength),
+      file_type: params.fileType,
+      file_name: params.fileName,
+    })
+    const url = `${this.baseUrl}/${encodeURIComponent(this.options.appId)}/uploads?${search}`
+
+    const json = await this.requestJson<{ id?: string }>('createUploadSession', url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${params.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+    })
+
+    if (!json.id || typeof json.id !== 'string') {
+      throw new MetaGraphApiError(
+        'Meta Graph createUploadSession returned no upload session id',
+        502,
+        json as MetaGraphErrorBody & Record<string, unknown>,
+        'createUploadSession'
+      )
+    }
+
+    return { uploadSessionId: json.id }
+  }
+
+  async uploadResumableFile(params: {
+    accessToken: string
+    uploadSessionId: string
+    fileBytes: Uint8Array
+  }): Promise<{ handle: string }> {
+    const url = `${this.baseUrl}/${params.uploadSessionId}`
+
+    const response = await this.fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `OAuth ${params.accessToken}`,
+        'file_offset': '0',
+        'Content-Type': 'application/octet-stream',
+      },
+      body: params.fileBytes,
+    })
+
+    let body: MetaGraphErrorBody & Record<string, unknown>
+    try {
+      body = (await response.json()) as MetaGraphErrorBody & Record<string, unknown>
+    } catch {
+      throw new MetaGraphApiError(
+        `Meta Graph uploadFile returned non-JSON (HTTP ${response.status})`,
+        response.status,
+        null,
+        'uploadFile'
+      )
+    }
+
+    if (!response.ok) {
+      const message =
+        body.error?.message ?? `Meta Graph uploadFile failed (HTTP ${response.status})`
+      throw new MetaGraphApiError(message, response.status, body, 'uploadFile')
+    }
+
+    const handle = typeof body.h === 'string' ? body.h : null
+    if (!handle) {
+      throw new MetaGraphApiError(
+        'Meta Graph uploadFile returned no media handle',
+        502,
+        body,
+        'uploadFile'
+      )
+    }
+
+    return { handle }
   }
 
   async deleteMessageTemplate(params: {

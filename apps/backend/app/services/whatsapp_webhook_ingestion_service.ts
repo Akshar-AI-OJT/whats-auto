@@ -3,8 +3,13 @@ import logger from '@adonisjs/core/services/logger'
 import db from '@adonisjs/lucid/services/db'
 import InboxMessageReceived from '#events/inbox_message_received'
 import InboxStatusUpdated from '#events/inbox_status_updated'
+import ContactException from '#exceptions/contact_exception'
 import { parseWebhookChange } from '#lib/meta_whatsapp/webhook_parser'
+import type { MessageMetadata } from '#lib/meta_whatsapp/types'
 import { WhatsappWebhookRepository } from '#repositories/whatsapp_webhook_repository'
+import { MemoryWorkingSetService } from '#services/ai/contracts/memory_working_set_service'
+import RedisMemoryWorkingSetService from '#services/ai/redis_memory_working_set_service'
+import CampaignAttributionService from '#services/campaign_attribution_service'
 import { runWithTenant } from '#services/tenant_context'
 
 type PendingEvent = InboxMessageReceived | InboxStatusUpdated
@@ -14,7 +19,11 @@ type PendingEvent = InboxMessageReceived | InboxStatusUpdated
  */
 @inject()
 export default class WhatsappWebhookIngestionService {
-  constructor(private repository: WhatsappWebhookRepository) {}
+  constructor(
+    private repository: WhatsappWebhookRepository,
+    private attribution: CampaignAttributionService,
+    private memory: MemoryWorkingSetService = new RedisMemoryWorkingSetService()
+  ) {}
 
   async processChangeValue(params: { field: string | undefined; value: unknown }): Promise<void> {
     const parsed = parseWebhookChange(params)
@@ -59,11 +68,27 @@ export default class WhatsappWebhookIngestionService {
     await runWithTenant(config.organizationId, async () => {
       await db.transaction(async (trx) => {
         for (const inbound of parsed.messages) {
-          const contact = await this.repository.upsertContactByWaId(trx, {
-            organizationId: config.organizationId,
-            waId: inbound.fromWaId,
-            profileName: inbound.profileName,
-          })
+          let contact
+          try {
+            contact = await this.repository.upsertContactByWaId(trx, {
+              organizationId: config.organizationId,
+              waId: inbound.fromWaId,
+              profileName: inbound.profileName,
+            })
+          } catch (error) {
+            if (error instanceof ContactException && error.code === 'E_CONTACT_PHONE_INVALID') {
+              logger.warn(
+                {
+                  outcome: 'invalid_contact_phone',
+                  waId: inbound.fromWaId,
+                  organizationId: config.organizationId,
+                },
+                'whatsapp.webhook.skipped'
+              )
+              continue
+            }
+            throw error
+          }
 
           const conversation = await this.repository.findOrCreateConversation(trx, {
             organizationId: config.organizationId,
@@ -93,6 +118,37 @@ export default class WhatsappWebhookIngestionService {
             continue
           }
 
+          const attribution = await this.attribution.attributeInbound(trx, {
+            organizationId: config.organizationId,
+            conversationId: result.conversationId,
+            contactId: contact.id,
+            occurredAt: inbound.occurredAt,
+            contextProviderMessageId: inbound.contextProviderMessageId,
+          })
+          if (attribution.campaignId) {
+            logger.info(
+              {
+                outcome: 'campaign_attributed',
+                source: attribution.source,
+                campaignId: attribution.campaignId,
+                countedReply: attribution.countedReply,
+                organizationId: config.organizationId,
+              },
+              'whatsapp.webhook.attribution'
+            )
+          }
+
+          logger.info(
+            {
+              outcome: 'message_ingested',
+              organizationId: config.organizationId,
+              conversationId: result.conversationId,
+              contactId: contact.id,
+              providerMessageId: inbound.providerMessageId,
+            },
+            'whatsapp.webhook.ingested'
+          )
+
           pendingEvents.push(
             new InboxMessageReceived({
               organizationId: config.organizationId,
@@ -101,8 +157,13 @@ export default class WhatsappWebhookIngestionService {
               whatsappConfigId: config.id,
               contactId: contact.id,
               contentType: result.message.contentType,
+              contentText: result.message.contentText,
+              interactiveReplyId: interactiveReplyIdFromMetadata(inbound.metadata),
+              direction: 'inbound',
               providerMessageId: inbound.providerMessageId,
+              status: result.message.status,
               occurredAt: inbound.occurredAt.toISOString(),
+              createdAt: inbound.occurredAt.toISOString(),
             })
           )
         }
@@ -182,10 +243,39 @@ export default class WhatsappWebhookIngestionService {
 
     for (const event of pendingEvents) {
       if (event instanceof InboxMessageReceived) {
+        await this.#appendUserTurn(event)
         await InboxMessageReceived.dispatch(event.payload)
       } else {
         await InboxStatusUpdated.dispatch(event.payload)
       }
     }
   }
+
+  async #appendUserTurn(event: InboxMessageReceived): Promise<void> {
+    const content = event.payload.contentText?.trim()
+    if (!content) return
+    try {
+      await this.memory.appendTurn(event.payload.organizationId, event.payload.conversationId, {
+        role: 'user',
+        content,
+        timestamp: event.payload.occurredAt,
+        messageId: event.payload.messageId,
+      })
+    } catch (error) {
+      logger.warn(
+        {
+          organizationId: event.payload.organizationId,
+          conversationId: event.payload.conversationId,
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'whatsapp.webhook.memory_append_failed'
+      )
+    }
+  }
+}
+
+function interactiveReplyIdFromMetadata(metadata: MessageMetadata): string | null {
+  const id = metadata.interactive?.buttonReply?.id ?? metadata.interactive?.listReply?.id
+  const trimmed = typeof id === 'string' ? id.trim() : ''
+  return trimmed.length > 0 ? trimmed : null
 }

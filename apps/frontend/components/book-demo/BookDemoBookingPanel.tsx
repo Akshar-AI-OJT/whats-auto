@@ -321,10 +321,10 @@ export function BookDemoBookingPanel() {
                           'cursor-not-allowed text-mute/50 line-through decoration-mute/30',
                         !past &&
                           !selected &&
-                          'text-ink hover:-translate-y-0.5 hover:bg-primary/15 hover:shadow-[0_0_0_3px_rgb(159_232_112/0.18)]',
+                          'text-ink hover:-translate-y-0.5 hover:bg-primary/15 hover:shadow-[0_0_0_3px_rgb(37_99_235/0.18)]',
                         !past && isToday && !selected && 'ring-1 ring-primary/40',
                         selected &&
-                          'bg-primary text-on-primary shadow-[0_0_0_3px_rgb(159_232_112/0.28),0_8px_18px_rgb(159_232_112/0.35)] hover:bg-primary-active'
+                          'bg-primary text-on-primary shadow-[0_0_0_3px_rgb(37_99_235/0.28),0_8px_18px_rgb(37_99_235/0.35)] hover:bg-primary-active'
                       )}
                     >
                       {date.getDate()}
@@ -358,8 +358,8 @@ export function BookDemoBookingPanel() {
                       'min-w-[6.5rem] flex-1 rounded-xl border px-3.5 py-2.5 text-sm font-medium sm:flex-none',
                       'transition-[transform,background-color,border-color,box-shadow,color] duration-200',
                       selected
-                        ? 'border-primary bg-primary text-on-primary shadow-[0_0_0_3px_rgb(159_232_112/0.22),0_8px_18px_rgb(159_232_112/0.3)]'
-                        : 'border-[#E2E8F0] bg-canvas text-ink hover:-translate-y-0.5 hover:border-primary/50 hover:bg-primary-pale hover:shadow-[0_0_0_3px_rgb(159_232_112/0.14)]'
+                        ? 'border-primary bg-primary text-on-primary shadow-[0_0_0_3px_rgb(37_99_235/0.22),0_8px_18px_rgb(37_99_235/0.3)]'
+                        : 'border-[#E2E8F0] bg-canvas text-ink hover:-translate-y-0.5 hover:border-primary/50 hover:bg-primary-pale hover:shadow-[0_0_0_3px_rgb(37_99_235/0.14)]'
                     )}
                   >
                     {slot}
@@ -525,7 +525,7 @@ export function BookDemoBookingPanel() {
                 type="checkbox"
                 checked={form.privacy}
                 onChange={(e) => updateField('privacy', e.target.checked)}
-                className="mt-0.5 size-4 shrink-0 rounded border-[#CBD5E1] text-positive-deep accent-[var(--primary,#9fe870)] focus-visible:ring-2 focus-visible:ring-primary/40"
+                className="mt-0.5 size-4 shrink-0 rounded border-[#CBD5E1] text-positive-deep accent-[var(--primary,#2563eb)] focus-visible:ring-2 focus-visible:ring-primary/40"
               />
               <span className="text-sm leading-6 text-body">
                 {t.rich('privacyAgree', {

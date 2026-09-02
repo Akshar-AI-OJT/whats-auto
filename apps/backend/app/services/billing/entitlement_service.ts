@@ -19,26 +19,38 @@ export class EntitlementService {
    * - missing key / no entitled subscription: false
    */
   async hasEntitlement(organizationId: string, key: string): Promise<boolean> {
+    const value = await this.getLimitValue(organizationId, key)
+    if (typeof value === 'boolean') {
+      return value
+    }
+    if (typeof value === 'number') {
+      return value > 0
+    }
+    return false
+  }
+
+  /**
+   * Numeric plan limit for the org, or null when missing / not entitled.
+   */
+  async getNumericLimit(organizationId: string, key: string): Promise<number | null> {
+    const value = await this.getLimitValue(organizationId, key)
+    return typeof value === 'number' ? value : null
+  }
+
+  private async getLimitValue(organizationId: string, key: string): Promise<unknown> {
     return runWithTenant(organizationId, async () => {
       const subscription = await this.subscriptions.findCurrentForEntitlements(organizationId)
       if (!subscription) {
-        return false
+        return null
       }
 
       const plan = await this.plans.findById(subscription.planId)
       if (!plan) {
-        return false
+        return null
       }
 
       const limits = (plan.limits ?? {}) as Record<string, unknown>
-      const value = limits[key]
-      if (typeof value === 'boolean') {
-        return value
-      }
-      if (typeof value === 'number') {
-        return value > 0
-      }
-      return false
+      return limits[key] ?? null
     })
   }
 }

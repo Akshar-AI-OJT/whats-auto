@@ -3,17 +3,12 @@ import {
   type ApiError,
   type CreateSuperAdminSubscriptionBody,
   type PaginationMeta,
+  type SuperAdminPlan,
+  type SuperAdminPlanStatus,
   type SuperAdminSubscription,
   type SuperAdminSubscriptionStatus,
   type UpdateSuperAdminSubscriptionBody,
 } from '@/lib/api'
-
-/** Demo-seeded plan UUIDs (stableUuid) — used only when no plans catalog API exists. */
-export const DEMO_PLAN_OPTIONS: Array<{ id: string; label: string }> = [
-  { id: '55c5e165-97f1-45b0-b3d1-801b79f4ff98', label: 'Starter' },
-  { id: '4854c623-f7d6-45a1-a4cd-a262e652f57a', label: 'Growth' },
-  { id: 'b1aaef4d-7933-4965-9cff-69217166513d', label: 'Scale' },
-]
 
 export const SUBSCRIPTION_STATUSES: SuperAdminSubscriptionStatus[] = [
   'trialing',
@@ -21,6 +16,129 @@ export const SUBSCRIPTION_STATUSES: SuperAdminSubscriptionStatus[] = [
   'past_due',
   'cancelled',
 ]
+
+export type PlanSelectOption = {
+  id: string
+  label: string
+  price: number | null
+  currency: string
+  billingPeriod: SuperAdminPlan['billingPeriod']
+  status: SuperAdminPlanStatus
+}
+
+function unwrapPlansPayload(data: unknown): SuperAdminPlan[] {
+  if (!data) return []
+  const root = data as {
+    data?: { items?: SuperAdminPlan[] } | SuperAdminPlan[]
+    items?: SuperAdminPlan[]
+  }
+  if (Array.isArray(root.data)) return root.data
+  if (root.data && typeof root.data === 'object' && Array.isArray(root.data.items)) {
+    return root.data.items
+  }
+  if (Array.isArray(root.items)) return root.items
+  return []
+}
+
+/** Live Super Admin plans catalog (`GET /api/v1/super-admin/plans`). */
+export async function listSuperAdminPlansCatalog(
+  status: SuperAdminPlanStatus | 'all' = 'all'
+): Promise<SuperAdminPlan[]> {
+  const { data } = await api.superAdmin.plans.list({ status })
+  return unwrapPlansPayload(data)
+}
+
+export function findPlanById(
+  plans: SuperAdminPlan[],
+  planId: string | null | undefined
+): SuperAdminPlan | undefined {
+  if (!planId) return undefined
+  return plans.find((plan) => plan.id === planId)
+}
+
+export function planLabel(planId: string, plans: SuperAdminPlan[]): string {
+  const plan = findPlanById(plans, planId)
+  if (plan?.name?.trim()) return plan.name.trim()
+  if (plan?.code?.trim()) return plan.code.trim()
+  return planId.slice(0, 8)
+}
+
+export function formatPlanPrice(
+  plan: SuperAdminPlan | undefined,
+  customLabel: string
+): string {
+  if (!plan || plan.price == null) return customLabel
+  const currency = (plan.currency || 'USD').toUpperCase()
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: 'currency',
+      currency,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(plan.price)
+  } catch {
+    return `${currency} ${plan.price.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })}`
+  }
+}
+
+export function planAmountLabel(
+  planId: string,
+  plans: SuperAdminPlan[],
+  customLabel: string
+): string {
+  return formatPlanPrice(findPlanById(plans, planId), customLabel)
+}
+
+/** Maps API billingPeriod into the subscriptions UI filter buckets. */
+export function planBillingKind(
+  planId: string,
+  plans: SuperAdminPlan[]
+): 'monthly' | 'custom' {
+  const plan = findPlanById(plans, planId)
+  if (!plan) return 'custom'
+  if (plan.billingPeriod === 'custom' || plan.price == null) return 'custom'
+  return 'monthly'
+}
+
+/**
+ * Options for plan selects. Prefer active plans; always include any `includeIds`
+ * so existing subscriptions remain editable even if the plan was archived.
+ */
+export function toPlanSelectOptions(
+  plans: SuperAdminPlan[],
+  options: { activeOnly?: boolean; includeIds?: string[] } = {}
+): PlanSelectOption[] {
+  const include = new Set(options.includeIds?.filter(Boolean) ?? [])
+  const filtered = plans.filter((plan) => {
+    if (include.has(plan.id)) return true
+    if (options.activeOnly) {
+      return plan.status === 'active' || plan.isActive === true
+    }
+    return plan.status !== 'archived'
+  })
+
+  const byId = new Map<string, SuperAdminPlan>()
+  for (const plan of filtered) byId.set(plan.id, plan)
+
+  return [...byId.values()]
+    .sort((a, b) => {
+      const orderA = a.sortOrder ?? 0
+      const orderB = b.sortOrder ?? 0
+      if (orderA !== orderB) return orderA - orderB
+      return a.name.localeCompare(b.name)
+    })
+    .map((plan) => ({
+      id: plan.id,
+      label: plan.name?.trim() || plan.code || plan.id.slice(0, 8),
+      price: plan.price,
+      currency: plan.currency,
+      billingPeriod: plan.billingPeriod,
+      status: plan.status,
+    }))
+}
 
 function unwrapPaginated(
   data: unknown
@@ -55,16 +173,28 @@ function unwrapSubscription(data: unknown): SuperAdminSubscription {
   return root as SuperAdminSubscription
 }
 
-export function planLabel(planId: string): string {
-  return DEMO_PLAN_OPTIONS.find((plan) => plan.id === planId)?.label ?? planId.slice(0, 8)
-}
-
 export async function listSuperAdminSubscriptions(params: {
   page?: number
   perPage?: number
 }): Promise<{ items: SuperAdminSubscription[]; meta: PaginationMeta | null }> {
   const { data } = await api.superAdmin.subscriptions.list(params)
   return unwrapPaginated(data)
+}
+
+export async function listAllSuperAdminSubscriptions(): Promise<SuperAdminSubscription[]> {
+  const perPage = 100
+  let page = 1
+  let lastPage = 1
+  const all: SuperAdminSubscription[] = []
+
+  do {
+    const { items, meta } = await listSuperAdminSubscriptions({ page, perPage })
+    all.push(...items)
+    lastPage = meta?.lastPage ?? page
+    page += 1
+  } while (page <= lastPage && page <= 20)
+
+  return all
 }
 
 export async function getSuperAdminSubscription(
@@ -93,26 +223,10 @@ export async function deleteSuperAdminSubscription(subscriptionId: string): Prom
   await api.superAdmin.subscriptions.destroy(subscriptionId)
 }
 
-/**
- * Convert `<input type="date">` (YYYY-MM-DD) for Vine `vine.date()`.
- * Default Vine accepts `YYYY-MM-DD` or `YYYY-MM-DD HH:mm:ss` — not ISO-8601 with `T`/`Z`.
- */
-export function dateInputToIso(value: string, endOfDay = false): string {
-  const trimmed = value.trim()
-  if (!trimmed) return trimmed
-  const day = trimmed.includes('T') ? trimmed.slice(0, 10) : trimmed.slice(0, 10)
-  return endOfDay ? `${day} 23:59:59` : `${day} 00:00:00`
-}
-
-/** Prefer YYYY-MM-DD for date inputs. */
-export function isoToDateInput(value: string | null | undefined): string {
-  if (!value) return ''
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) {
-    return value.slice(0, 10)
-  }
-  return date.toISOString().slice(0, 10)
-}
+export {
+  dateInputToVineDate as dateInputToIso,
+  vineDateToDateInput as isoToDateInput,
+} from '@/lib/vine-date'
 
 export function mapSubscriptionApiError(error: unknown, fallback: string): string {
   const apiError = error as ApiError

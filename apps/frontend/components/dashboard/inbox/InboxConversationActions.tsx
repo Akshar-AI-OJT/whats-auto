@@ -2,7 +2,7 @@
 
 import { useCallback, useId, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Loader2, RotateCcw, UserRound } from 'lucide-react'
+import { Bot, Loader2, RotateCcw, UserRound } from 'lucide-react'
 import {
   api,
   type ApiError,
@@ -19,6 +19,7 @@ import {
   useDashboardToast,
 } from '@/components/dashboard/ui/use-dashboard-toast'
 import { unwrapSingle } from './inbox-utils'
+import { conversationAiMode } from './inbox-ai-mode'
 
 type InboxConversationActionsProps = {
   conversation: InboxConversation
@@ -33,11 +34,12 @@ function mapActionError(apiError: ApiError, t: (key: string) => string): string 
   }
   if (apiError.code === 'E_CONVERSATION_NOT_FOUND') return t('errors.notFound')
   if (apiError.code === 'E_AGENT_NOT_FOUND') return t('errors.agentNotFound')
+  if (apiError.code === 'E_CONVERSATION_AI_TRANSITION') return t('errors.invalidAiTransition')
   return apiError.message || t('errors.actionFailed')
 }
 
 const selectClassName = cn(
-  'h-9 w-full appearance-none rounded-lg border border-dash-border bg-canvas pl-8 pr-8 text-xs font-medium text-ink outline-none',
+  'h-9 w-full cursor-pointer appearance-none rounded-lg border border-dash-border bg-canvas pl-8 pr-8 text-xs font-medium text-ink outline-none',
   'transition-[border-color,box-shadow]',
   'hover:border-dash-border-strong',
   'focus-visible:border-primary/55 focus-visible:ring-2 focus-visible:ring-primary/30',
@@ -57,14 +59,23 @@ export function InboxConversationActions({
   const { toast, showToast, clearToast } = useDashboardToast()
 
   const [pendingAction, setPendingAction] = useState<
-    'assign' | 'status' | 'close' | 'reopen' | null
+    'assign' | 'status' | 'close' | 'reopen' | 'takeover' | 'resume' | null
   >(null)
 
   const canAssign = hasPermission(permissions, PERMISSIONS.INBOX_ASSIGN)
   const canClose = hasPermission(permissions, PERMISSIONS.INBOX_CLOSE)
   const canUpdateStatus = hasPermission(permissions, PERMISSIONS.INBOX_VIEW)
+  const canReply = hasPermission(permissions, PERMISSIONS.INBOX_REPLY)
   const isClosed = conversation.status === 'closed'
   const busy = pendingAction !== null || orgsLoading
+  const aiMode = conversationAiMode(conversation)
+  const orphanPause =
+    aiMode === 'AI_AUTO' &&
+    (conversation.automationBlocked === true ||
+      conversation.openFlowSessionStatus === 'PAUSED_FOR_HUMAN')
+  const showTakeover = canReply && (aiMode === 'AI_AUTO' || aiMode === 'HANDOVER') && !orphanPause
+  const showResume =
+    canReply && (aiMode === 'HANDOVER' || aiMode === 'HUMAN_ACTIVE' || orphanPause)
   const activeStatus: 'open' | 'pending' =
     conversation.status === 'pending' ? 'pending' : 'open'
 
@@ -138,6 +149,7 @@ export function InboxConversationActions({
 
   const handleClose = useCallback(async () => {
     if (!canClose || isClosed || busy) return
+    if (!window.confirm(t('closeConfirm'))) return
 
     setPendingAction('close')
     clearToast()
@@ -184,7 +196,37 @@ export function InboxConversationActions({
     t,
   ])
 
-  if (!canAssign && !canClose && !canUpdateStatus) return null
+  const handleTakeover = useCallback(async () => {
+    if (!showTakeover || busy) return
+
+    setPendingAction('takeover')
+    clearToast()
+    try {
+      const res = await api.inbox.takeoverAi(conversation.id)
+      applyPatch(res.data)
+    } catch (err) {
+      showToast(mapActionError(err as ApiError, t), 'error')
+    } finally {
+      setPendingAction(null)
+    }
+  }, [applyPatch, busy, clearToast, conversation.id, showTakeover, showToast, t])
+
+  const handleResume = useCallback(async () => {
+    if (!showResume || busy) return
+
+    setPendingAction('resume')
+    clearToast()
+    try {
+      const res = await api.inbox.resumeAi(conversation.id)
+      applyPatch(res.data)
+    } catch (err) {
+      showToast(mapActionError(err as ApiError, t), 'error')
+    } finally {
+      setPendingAction(null)
+    }
+  }, [applyPatch, busy, clearToast, conversation.id, showResume, showToast, t])
+
+  if (!canAssign && !canClose && !canUpdateStatus && !canReply) return null
 
   return (
     <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
@@ -297,6 +339,46 @@ export function InboxConversationActions({
               <RotateCcw className="size-3.5" aria-hidden />
             )}
             {t('reopen')}
+          </Button>
+        ) : null}
+
+        {showTakeover ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="xs"
+            className="gap-1.5"
+            disabled={busy}
+            onClick={() => {
+              void handleTakeover()
+            }}
+          >
+            {pendingAction === 'takeover' ? (
+              <Loader2 className="size-3.5 animate-spin" aria-hidden />
+            ) : (
+              <UserRound className="size-3.5" aria-hidden />
+            )}
+            {t('takeover')}
+          </Button>
+        ) : null}
+
+        {showResume ? (
+          <Button
+            type="button"
+            variant="secondary"
+            size="xs"
+            className="gap-1.5"
+            disabled={busy}
+            onClick={() => {
+              void handleResume()
+            }}
+          >
+            {pendingAction === 'resume' ? (
+              <Loader2 className="size-3.5 animate-spin" aria-hidden />
+            ) : (
+              <Bot className="size-3.5" aria-hidden />
+            )}
+            {t('resume')}
           </Button>
         ) : null}
       </div>

@@ -5,17 +5,20 @@
  */
 import emitter from '@adonisjs/core/services/emitter'
 import logger from '@adonisjs/core/services/logger'
+import PlatformAiConfigService from '#services/ai/platform_ai_config_service'
+import FlowRouterService from '#services/flow/flow_router_service'
+import { enqueueFlowAdvanceSession } from '#services/flow/enqueue_flow_advance'
+import FlowInboundBufferService from '#services/flow/flow_inbound_buffer_service'
 import InboxMessageFailed from '#events/inbox_message_failed'
 import InboxMessageQueued from '#events/inbox_message_queued'
 import InboxMessageReceived from '#events/inbox_message_received'
 import InboxMessageSent from '#events/inbox_message_sent'
 import InboxStatusUpdated from '#events/inbox_status_updated'
+import IntegrationEventReceived from '#events/integration_event_received'
+import { inboxSseBus } from '#services/inbox_sse_bus'
+import { DeterministicCommerceNotifier } from '#services/integrations/deterministic_commerce_notifier'
 
-function logListenerFailure(
-  eventName: string,
-  payload: Record<string, unknown>,
-  error: unknown
-) {
+function logListenerFailure(eventName: string, payload: Record<string, unknown>, error: unknown) {
   logger.error(
     {
       ...payload,
@@ -25,9 +28,23 @@ function logListenerFailure(
   )
 }
 
+function publishSafely(
+  type:
+    'message.received' | 'message.queued' | 'message.sent' | 'message.failed' | 'status.updated',
+  organizationId: string,
+  payload: Record<string, unknown>
+) {
+  try {
+    inboxSseBus.publish({ type, organizationId, payload })
+  } catch (error) {
+    logListenerFailure(`inbox.${type}_sse_failed`, payload, error)
+  }
+}
+
 emitter.on(InboxMessageQueued, (event) => {
   try {
     logger.info(event.payload, 'inbox.message.queued')
+    publishSafely('message.queued', event.payload.organizationId, event.payload)
   } catch (error) {
     logListenerFailure('inbox.message.queued_listener_failed', event.payload, error)
   }
@@ -36,6 +53,7 @@ emitter.on(InboxMessageQueued, (event) => {
 emitter.on(InboxMessageSent, (event) => {
   try {
     logger.info(event.payload, 'inbox.message.sent')
+    publishSafely('message.sent', event.payload.organizationId, event.payload)
   } catch (error) {
     logListenerFailure('inbox.message.sent_listener_failed', event.payload, error)
   }
@@ -44,14 +62,60 @@ emitter.on(InboxMessageSent, (event) => {
 emitter.on(InboxMessageFailed, (event) => {
   try {
     logger.info(event.payload, 'inbox.message.failed')
+    publishSafely('message.failed', event.payload.organizationId, event.payload)
   } catch (error) {
     logListenerFailure('inbox.message.failed_listener_failed', event.payload, error)
   }
 })
 
-emitter.on(InboxMessageReceived, (event) => {
+emitter.on(InboxMessageReceived, async (event) => {
   try {
     logger.info(event.payload, 'inbox.message.received')
+    publishSafely('message.received', event.payload.organizationId, event.payload)
+
+    const router = new FlowRouterService()
+    const decision = await router.decide({
+      organizationId: event.payload.organizationId,
+      conversationId: event.payload.conversationId,
+      contactId: event.payload.contactId,
+      messageId: event.payload.messageId,
+      contentText: event.payload.contentText,
+      interactiveReplyId: event.payload.interactiveReplyId,
+    })
+
+    if (decision.kind !== 'flow') {
+      // none → no automatic reply (flows are the only reply engine)
+      return
+    }
+
+    const interactiveReplyId = event.payload.interactiveReplyId
+    if (interactiveReplyId) {
+      // Button/list taps must feel instant — drop any pending free-text burst.
+      const buffer = new FlowInboundBufferService()
+      await buffer.cancel({
+        organizationId: event.payload.organizationId,
+        conversationId: event.payload.conversationId,
+      })
+      await enqueueFlowAdvanceSession(decision.payload)
+      return
+    }
+
+    const trimmed = event.payload.contentText?.trim() ?? ''
+    if (trimmed) {
+      const buffer = new FlowInboundBufferService()
+      await buffer.push({
+        organizationId: event.payload.organizationId,
+        conversationId: event.payload.conversationId,
+        messageId: event.payload.messageId,
+        content: trimmed,
+      })
+    }
+
+    const platform = new PlatformAiConfigService()
+    const config = await platform.get()
+    await enqueueFlowAdvanceSession(decision.payload, {
+      delaySeconds: config.debounceDelaySeconds,
+    })
   } catch (error) {
     logListenerFailure('inbox.message.received_listener_failed', event.payload, error)
   }
@@ -60,7 +124,24 @@ emitter.on(InboxMessageReceived, (event) => {
 emitter.on(InboxStatusUpdated, (event) => {
   try {
     logger.info(event.payload, 'inbox.status.updated')
+    publishSafely('status.updated', event.payload.organizationId, event.payload)
   } catch (error) {
     logListenerFailure('inbox.status.updated_listener_failed', event.payload, error)
+  }
+})
+
+emitter.on(IntegrationEventReceived, async (event) => {
+  try {
+    const notifier = new DeterministicCommerceNotifier()
+    await notifier.handle(event.payload)
+  } catch (error) {
+    logListenerFailure(
+      'integration.event.received_listener_failed',
+      {
+        integrationEventId: event.payload.integrationEventId,
+        organizationId: event.payload.organizationId,
+      },
+      error
+    )
   }
 })

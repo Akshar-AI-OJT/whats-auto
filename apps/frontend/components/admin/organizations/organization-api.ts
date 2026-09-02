@@ -5,11 +5,12 @@ import {
   type SuperAdminOrganization,
   type UpdateSuperAdminOrganizationBody,
 } from '@/lib/api'
-import type { OrganizationStatus } from '../mock-data'
+
+/** Platform UI statuses derived from API `status` + `deletedAt`. */
+export type AdminOrganizationUiStatus = 'active' | 'suspended' | 'pending' | 'archived'
 
 export type AdminOrganizationListItem = SuperAdminOrganization & {
-  /** UI status badge (API has boolean status + optional deletedAt). */
-  uiStatus: OrganizationStatus
+  uiStatus: AdminOrganizationUiStatus
 }
 
 function unwrapPaginated(
@@ -34,9 +35,11 @@ function unwrapPaginated(
   return { items: [], meta: null }
 }
 
-export function mapOrganizationUiStatus(org: SuperAdminOrganization): OrganizationStatus {
-  if (org.deletedAt) return 'suspended'
-  return org.status ? 'active' : 'suspended'
+export function mapOrganizationUiStatus(org: SuperAdminOrganization): AdminOrganizationUiStatus {
+  if (org.deletedAt || org.status === 'false') return 'archived'
+  if (org.status === 'pending_setup') return 'pending'
+  if (org.status === 'suspended') return 'suspended'
+  return 'active'
 }
 
 export function toAdminOrganizationListItem(
@@ -58,6 +61,23 @@ export async function listSuperAdminOrganizations(params: {
     items: items.map(toAdminOrganizationListItem),
     meta,
   }
+}
+
+/** Walks existing paginated list API so Super Admin KPIs/filters see the platform set. */
+export async function listAllSuperAdminOrganizations(): Promise<AdminOrganizationListItem[]> {
+  const perPage = 100
+  let page = 1
+  let lastPage = 1
+  const all: AdminOrganizationListItem[] = []
+
+  do {
+    const { items, meta } = await listSuperAdminOrganizations({ page, perPage })
+    all.push(...items)
+    lastPage = meta?.lastPage ?? page
+    page += 1
+  } while (page <= lastPage && page <= 20)
+
+  return all
 }
 
 export async function updateSuperAdminOrganization(

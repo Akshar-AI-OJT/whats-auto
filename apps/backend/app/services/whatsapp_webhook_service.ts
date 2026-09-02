@@ -31,9 +31,18 @@ export class WhatsappWebhookService {
       !params.challenge ||
       params.verifyToken !== expected
     ) {
+      logger.warn(
+        {
+          mode: params.mode ?? null,
+          hasVerifyToken: Boolean(params.verifyToken),
+          hasChallenge: Boolean(params.challenge),
+        },
+        'whatsapp.webhook.verify_failed'
+      )
       throw WhatsappWebhookException.invalidVerifyToken()
     }
 
+    logger.info({ mode: params.mode }, 'whatsapp.webhook.verify_ok')
     return params.challenge
   }
 
@@ -45,7 +54,19 @@ export class WhatsappWebhookService {
     signatureHeader: string | undefined
     payload: MetaWebhookPayload
   }): Promise<void> {
+    logger.info(
+      {
+        hasRawBody: params.rawBody !== null,
+        rawBodyLength: params.rawBody?.length ?? 0,
+        hasSignature: Boolean(params.signatureHeader),
+        object: params.payload?.object ?? null,
+        entryCount: params.payload?.entry?.length ?? 0,
+      },
+      'whatsapp.webhook.hit'
+    )
+
     if (params.rawBody === null || params.rawBody === undefined) {
+      logger.warn({ outcome: 'missing_raw_body' }, 'whatsapp.webhook.rejected')
       throw WhatsappWebhookException.missingRawBody()
     }
 
@@ -53,6 +74,14 @@ export class WhatsappWebhookService {
     const valid = verifyMetaWebhookSignature(params.rawBody, params.signatureHeader, appSecret)
 
     if (!valid) {
+      logger.warn(
+        {
+          outcome: 'invalid_signature',
+          hasSignature: Boolean(params.signatureHeader),
+          rawBodyLength: params.rawBody.length,
+        },
+        'whatsapp.webhook.rejected'
+      )
       throw WhatsappWebhookException.invalidSignature()
     }
 

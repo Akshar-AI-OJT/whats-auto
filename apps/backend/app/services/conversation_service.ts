@@ -1,5 +1,9 @@
 import db from '@adonisjs/lucid/services/db'
+import logger from '@adonisjs/core/services/logger'
 import ConversationException from '#exceptions/conversation_exception'
+import { FlowSessionRepository } from '#repositories/flow_session_repository'
+import { deriveAutomationVisibility } from '#services/ai/automation_visibility'
+import { NotificationService } from '#services/notification_service'
 
 export type ConversationStatus = 'open' | 'pending' | 'closed'
 
@@ -24,6 +28,10 @@ export type ConversationRecord = {
   firstResponseAt: string | null
   closedAt: string | null
   unreadCount: number
+  aiMode: string
+  aiHandoverReason: string | null
+  automationBlocked: boolean
+  openFlowSessionStatus: string | null
   createdAt: string
   updatedAt: string | null
 }
@@ -49,17 +57,24 @@ const CONVERSATION_COLUMNS = [
   'firstResponseAt',
   'closedAt',
   'unreadCount',
+  'aiMode',
+  'aiHandoverReason',
   'createdAt',
   'updatedAt',
 ] as const
 
 function toIso(value: unknown): string | null {
-  if (value == null) return null
+  if (value === null) return null
   if (value instanceof Date) return value.toISOString()
   return String(value)
 }
 
-function mapConversationRow(r: Record<string, unknown>): ConversationRecord {
+function mapConversationRow(
+  r: Record<string, unknown>,
+  openFlowSessionStatus: string | null = null
+): ConversationRecord {
+  const aiMode = (r.aiMode as string) || 'AI_AUTO'
+  const visibility = deriveAutomationVisibility(aiMode, openFlowSessionStatus)
   return {
     id: r.id as string,
     organizationId: r.organizationId as string,
@@ -72,6 +87,10 @@ function mapConversationRow(r: Record<string, unknown>): ConversationRecord {
     firstResponseAt: toIso(r.firstResponseAt),
     closedAt: toIso(r.closedAt),
     unreadCount: Number(r.unreadCount ?? 0),
+    aiMode,
+    aiHandoverReason: (r.aiHandoverReason as string | null) ?? null,
+    automationBlocked: visibility.automationBlocked,
+    openFlowSessionStatus: visibility.openFlowSessionStatus,
     createdAt: toIso(r.createdAt) as string,
     updatedAt: toIso(r.updatedAt),
   }
@@ -99,6 +118,8 @@ function isUniqueViolation(error: unknown): boolean {
 }
 
 export class ConversationService {
+  constructor(private sessions: FlowSessionRepository = new FlowSessionRepository()) {}
+
   /**
    * Paginated inbox conversation list with optional filters and contact search.
    */
@@ -155,6 +176,8 @@ export class ConversationService {
         'c.firstResponseAt',
         'c.closedAt',
         'c.unreadCount',
+        'c.aiMode',
+        'c.aiHandoverReason',
         'c.createdAt',
         'c.updatedAt',
         'ct.id as contactId',
@@ -170,10 +193,14 @@ export class ConversationService {
       .limit(limit)
 
     const lastPage = Math.ceil(total / limit) || 1
+    const statusByConv = await this.sessions.mapBlockingStatusByConversationIds({
+      organizationId: params.organizationId,
+      conversationIds: (rows as Array<{ id: string }>).map((r) => r.id as string),
+    })
 
     return {
       data: rows.map((r) => ({
-        ...mapConversationRow(r),
+        ...mapConversationRow(r, statusByConv.get(r.id as string) ?? null),
         contact: mapContactSummary(r),
       })) as ConversationListItem[],
       meta: {
@@ -193,7 +220,11 @@ export class ConversationService {
     conversationId: string
   }): Promise<ConversationDetail> {
     const row = await this.findConversationWithContactOrFail(params)
-    const conversation = mapConversationRow(row)
+    const statusByConv = await this.sessions.mapBlockingStatusByConversationIds({
+      organizationId: params.organizationId,
+      conversationIds: [params.conversationId],
+    })
+    const conversation = mapConversationRow(row, statusByConv.get(params.conversationId) ?? null)
 
     return {
       ...conversation,
@@ -329,7 +360,8 @@ export class ConversationService {
   }): Promise<ConversationRecord> {
     const { organizationId, conversationId, assignedAgentId, assignedByUserId } = params
 
-    await this.findConversationOrFail({ organizationId, conversationId })
+    const existing = await this.findConversationOrFail({ organizationId, conversationId })
+    const previousAssignedAgentId = (existing.assignedAgentId as string | null) ?? null
 
     const agentMember = await db
       .from('organization_members')
@@ -343,7 +375,7 @@ export class ConversationService {
       throw ConversationException.agentNotFound()
     }
 
-    return db.transaction(async (trx) => {
+    const updated = await db.transaction(async (trx) => {
       const [row] = await trx
         .from('conversations')
         .where('id', conversationId)
@@ -363,6 +395,66 @@ export class ConversationService {
 
       return mapConversationRow(row)
     })
+
+    // After assignment commits — notify only when the assigned agent actually changed.
+    if (previousAssignedAgentId !== assignedAgentId) {
+      await this.#notifyConversationAssignedBestEffort({
+        organizationId,
+        conversationId,
+        contactId: existing.contactId as string,
+        assignedAgentId,
+        assignedByUserId,
+      })
+    }
+
+    return updated
+  }
+
+  /**
+   * Best-effort notification for the newly assigned agent. Never throws.
+   */
+  async #notifyConversationAssignedBestEffort(params: {
+    organizationId: string
+    conversationId: string
+    contactId: string
+    assignedAgentId: string
+    assignedByUserId: string
+  }): Promise<void> {
+    try {
+      const contact = await db
+        .from('contacts')
+        .where('id', params.contactId)
+        .where('organizationId', params.organizationId)
+        .select('name', 'phone')
+        .first()
+
+      const contactLabel =
+        (contact?.name as string | undefined)?.trim() ||
+        (contact?.phone as string | undefined) ||
+        'a contact'
+
+      await new NotificationService().createNotification({
+        organizationId: params.organizationId,
+        userId: params.assignedAgentId,
+        type: 'inbox_conversation_assigned',
+        title: 'Conversation assigned to you',
+        body: `You were assigned a conversation with ${contactLabel}.`,
+        conversationId: params.conversationId,
+        contactId: params.contactId,
+        actorUserId: params.assignedByUserId,
+      })
+    } catch (error) {
+      logger.error(
+        {
+          organizationId: params.organizationId,
+          conversationId: params.conversationId,
+          userId: params.assignedAgentId,
+          type: 'inbox_conversation_assigned',
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'inbox.notification_failed'
+      )
+    }
   }
 
   async closeConversation(params: {
@@ -405,10 +497,7 @@ export class ConversationService {
     return mapConversationRow(row)
   }
 
-  private async findConversationOrFail(params: {
-    organizationId: string
-    conversationId: string
-  }) {
+  private async findConversationOrFail(params: { organizationId: string; conversationId: string }) {
     const row = await db
       .from('conversations')
       .where('id', params.conversationId)
@@ -444,6 +533,8 @@ export class ConversationService {
         'c.firstResponseAt',
         'c.closedAt',
         'c.unreadCount',
+        'c.aiMode',
+        'c.aiHandoverReason',
         'c.createdAt',
         'c.updatedAt',
         'ct.id as contactId',

@@ -7,9 +7,11 @@ import { FileText, LayoutGrid, Loader2, Plus, RefreshCw } from 'lucide-react'
 import {
   api,
   type ApiError,
+  type WhatsappConfigSummary,
   type WhatsappMessageTemplate,
 } from '@/lib/api'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
+import { unwrapList } from '@/components/dashboard/inbox/inbox-utils'
 import { useRouter } from '@/i18n/navigation'
 import { Button } from '@/components/ui/button'
 import {
@@ -22,6 +24,7 @@ import {
 } from '@/components/ui/dialog'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
+import { TemplateCards } from './TemplateCards'
 import { TemplateFilters } from './TemplateFilters'
 import { TemplateTable } from './TemplateTable'
 import {
@@ -31,15 +34,10 @@ import {
 } from './TemplateDialogs'
 import {
   type TemplateStatusTab,
+  type TemplateViewMode,
   unwrapTemplateList,
 } from './template-utils'
-
-export const templateQueryKeys = {
-  all: ['whatsapp-templates'] as const,
-  list: (orgId: string | null | undefined, params: Record<string, string | number>) =>
-    [...templateQueryKeys.all, 'list', orgId ?? 'none', params] as const,
-  detail: (id: string) => [...templateQueryKeys.all, 'detail', id] as const,
-}
+import { queryKeys } from '@/lib/query-keys'
 
 export function TemplatesListPage() {
   const t = useTranslations('dashboard.templates')
@@ -47,15 +45,20 @@ export function TemplatesListPage() {
   const queryClient = useQueryClient()
   const {
     tenantOrganizationId,
-    canViewWhatsapp,
-    canManageWhatsapp,
+    canViewTemplates,
+    canCreateTemplates,
+    canSyncTemplates,
+    canDeleteTemplates,
     isLoading: orgsLoading,
   } = useOrganizations()
+
+  const canManageTemplates = canCreateTemplates || canDeleteTemplates
 
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('')
   const [language, setLanguage] = useState('')
   const [statusTab, setStatusTab] = useState<TemplateStatusTab>('all')
+  const [viewMode, setViewMode] = useState<TemplateViewMode>('cards')
   const [page, setPage] = useState(1)
   const [deleteTarget, setDeleteTarget] = useState<WhatsappMessageTemplate | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -77,14 +80,32 @@ export function TemplatesListPage() {
     [page, statusTab, category, search]
   )
 
+  const hasActiveFilters = Boolean(
+    search.trim() || category || language || statusTab !== 'all'
+  )
+
   const templatesQuery = useQuery({
-    queryKey: templateQueryKeys.list(tenantOrganizationId, listParams),
-    enabled: Boolean(tenantOrganizationId) && canViewWhatsapp && !orgsLoading,
+    queryKey: queryKeys.templates.list(tenantOrganizationId, listParams),
+    enabled: Boolean(tenantOrganizationId) && canViewTemplates && !orgsLoading,
     queryFn: async () => {
       const { data } = await api.whatsapp.listTemplates(listParams)
       return unwrapTemplateList(data)
     },
   })
+
+  const whatsappQuery = useQuery({
+    queryKey: queryKeys.templates.whatsappConnected(tenantOrganizationId),
+    enabled: Boolean(tenantOrganizationId) && canViewTemplates && !orgsLoading,
+    queryFn: async () => {
+      const { data } = await api.whatsapp.listConfigs()
+      return unwrapList<WhatsappConfigSummary>(data)
+    },
+  })
+
+  const whatsappConnected = useMemo(
+    () => (whatsappQuery.data ?? []).some((cfg) => cfg.status === 'connected'),
+    [whatsappQuery.data]
+  )
 
   const deleteMutation = useMutation({
     mutationFn: async (templateId: string) => {
@@ -93,7 +114,7 @@ export function TemplatesListPage() {
     onSuccess: async () => {
       setDeleteTarget(null)
       setDeleteError(null)
-      await queryClient.invalidateQueries({ queryKey: templateQueryKeys.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.templates.all })
     },
     onError: (err) => {
       setDeleteError((err as unknown as ApiError).message || t('errors.deleteFailed'))
@@ -119,7 +140,7 @@ export function TemplatesListPage() {
       setSyncedCount(count)
       completeProgress()
       setSyncPending(false)
-      await queryClient.invalidateQueries({ queryKey: templateQueryKeys.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.templates.all })
     },
     onError: (err) => {
       setSyncError((err as unknown as ApiError).message || t('errors.syncFailed'))
@@ -138,9 +159,21 @@ export function TemplatesListPage() {
   const total = meta?.total ?? items.length
   const lastPage = meta?.lastPage ?? 1
 
-  if (!orgsLoading && !canViewWhatsapp) {
+  function clearFilters() {
+    setSearch('')
+    setCategory('')
+    setLanguage('')
+    setStatusTab('all')
+    setPage(1)
+  }
+
+  function openDuplicate(template: WhatsappMessageTemplate) {
+    router.push(`/dashboard/templates/create?from=${template.id}`)
+  }
+
+  if (!orgsLoading && !canViewTemplates) {
     return (
-      <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5">
+      <div className="flex w-full min-w-0 flex-col gap-5">
         <DashboardPanel as="section" className="px-4 py-5 sm:px-6 sm:py-6">
           <p className="text-sm font-semibold tracking-wide text-positive-deep uppercase">
             {t('eyebrow')}
@@ -160,7 +193,7 @@ export function TemplatesListPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 sm:gap-6">
+    <div className="flex w-full min-w-0 flex-col gap-5 sm:gap-6">
       <DashboardPanel as="section" className="px-4 py-5 sm:px-6 sm:py-6 md:px-7 md:py-7">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -175,13 +208,17 @@ export function TemplatesListPage() {
             </p>
           </div>
           <div className="flex shrink-0 flex-nowrap items-center gap-2 overflow-x-auto">
-            {canManageWhatsapp ? (
+            {canSyncTemplates ? (
               <Button
                 type="button"
                 variant="outline"
                 className="shrink-0 gap-2"
-                disabled={syncMutation.isPending}
-                onClick={() => syncMutation.mutate()}
+                disabled={syncMutation.isPending || !whatsappConnected}
+                title={!whatsappConnected ? t('whatsappRequired.syncHint') : undefined}
+                onClick={() => {
+                  if (!whatsappConnected) return
+                  syncMutation.mutate()
+                }}
               >
                 <RefreshCw className="size-4" aria-hidden />
                 {t('syncCta')}
@@ -196,7 +233,7 @@ export function TemplatesListPage() {
               <LayoutGrid className="size-4" aria-hidden />
               {t('browseCta')}
             </Button>
-            {canManageWhatsapp ? (
+            {canCreateTemplates ? (
               <Button
                 type="button"
                 className="shrink-0 gap-2"
@@ -208,6 +245,25 @@ export function TemplatesListPage() {
             ) : null}
           </div>
         </div>
+
+        {!whatsappQuery.isLoading && !whatsappConnected ? (
+          <div
+            role="status"
+            className="mt-5 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-ink"
+          >
+            <p className="font-medium">{t('whatsappRequired.title')}</p>
+            <p className="mt-1 text-body">{t('whatsappRequired.body')}</p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-3"
+              onClick={() => router.push('/dashboard/whatsapp')}
+            >
+              {t('whatsappRequired.cta')}
+            </Button>
+          </div>
+        ) : null}
       </DashboardPanel>
 
       <DashboardPanel as="section" className="p-4 sm:p-5 md:p-6">
@@ -219,6 +275,8 @@ export function TemplatesListPage() {
             category={category}
             statusTab={statusTab}
             language={language}
+            viewMode={viewMode}
+            hasActiveFilters={hasActiveFilters}
             onSearchChange={(value) => {
               setSearch(value)
               setPage(1)
@@ -235,6 +293,8 @@ export function TemplatesListPage() {
               setLanguage(value)
               setPage(1)
             }}
+            onViewModeChange={setViewMode}
+            onClearFilters={clearFilters}
           />
         </div>
 
@@ -257,21 +317,42 @@ export function TemplatesListPage() {
             </span>
             <p className="font-medium text-ink">{t('emptyTitle')}</p>
             <p className="max-w-sm text-sm text-body">{t('emptyDescription')}</p>
+            {canCreateTemplates ? (
+              <Button
+                type="button"
+                className="mt-2 gap-2"
+                onClick={() => router.push('/dashboard/templates/create')}
+              >
+                <Plus className="size-4" aria-hidden />
+                {t('createCta')}
+              </Button>
+            ) : null}
           </div>
         ) : (
           <div className="mt-5 space-y-4">
-            <TemplateTable
-              templates={items}
-              canManage={canManageWhatsapp}
-              onView={(template) => router.push(`/dashboard/templates/${template.id}`)}
-              onEdit={(template) =>
-                router.push(`/dashboard/templates/create?from=${template.id}`)
-              }
-              onDelete={(template) => {
-                setDeleteError(null)
-                setDeleteTarget(template)
-              }}
-            />
+            {viewMode === 'cards' ? (
+              <TemplateCards
+                templates={items}
+                canManage={canManageTemplates}
+                onView={(template) => router.push(`/dashboard/templates/${template.id}`)}
+                onDuplicate={openDuplicate}
+                onDelete={(template) => {
+                  setDeleteError(null)
+                  setDeleteTarget(template)
+                }}
+              />
+            ) : (
+              <TemplateTable
+                templates={items}
+                canManage={canManageTemplates}
+                onView={(template) => router.push(`/dashboard/templates/${template.id}`)}
+                onDuplicate={openDuplicate}
+                onDelete={(template) => {
+                  setDeleteError(null)
+                  setDeleteTarget(template)
+                }}
+              />
+            )}
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs text-mute">
                 {t('pagination', {
@@ -322,7 +403,9 @@ export function TemplatesListPage() {
       <TemplateSyncDialog
         open={syncOpen}
         pending={syncMutation.isPending}
-        progress={syncMutation.isPending ? progress : syncedCount != null || syncError ? 100 : progress}
+        progress={
+          syncMutation.isPending ? progress : syncedCount != null || syncError ? 100 : progress
+        }
         syncedCount={syncedCount}
         error={syncError}
         onOpenChange={setSyncOpen}

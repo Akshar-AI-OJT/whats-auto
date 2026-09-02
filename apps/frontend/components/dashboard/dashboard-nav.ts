@@ -9,70 +9,128 @@ import {
   CreditCard,
   Settings,
   UsersRound,
+  BookOpen,
+  Workflow,
+  Plug,
+  Image as ImageIcon,
+  ScrollText,
   type LucideIcon,
 } from 'lucide-react'
 import { PERMISSIONS } from '@/lib/rbac'
 
+export const DASHBOARD_NAV_SECTION_IDS = [
+  'overview',
+  'messaging',
+  'campaignsContent',
+  'automationAi',
+  'insights',
+  'teamAccess',
+  'billing',
+  'settings',
+] as const
+
+export type DashboardNavSectionId = (typeof DASHBOARD_NAV_SECTION_IDS)[number]
+
 export const DASHBOARD_NAV_KEYS = [
   'dashboard',
-  'team',
-  'contacts',
   'inbox',
-  // 'messages', // hidden for now (no clear product flow/page)
+  'contacts',
   'campaigns',
   'templates',
-  'notifications',
+  'media',
+  'flows',
+  'knowledge',
+  'integrations',
   'analytics',
+  'team',
+  'auditLogs',
   'billing',
-  // 'auditLogs', // hidden for now (tenant audit page not wired)
+  'notifications',
   'settings',
 ] as const
 
 export type DashboardNavKey = (typeof DASHBOARD_NAV_KEYS)[number]
 
+export type DashboardNavSection = {
+  id: DashboardNavSectionId
+  items: readonly DashboardNavKey[]
+}
+
+/**
+ * Sidebar structure: uppercase section heading → existing modules.
+ * Super Admin catalog items (plans, invoices, AI settings, etc.) stay in admin nav.
+ */
+export const DASHBOARD_NAV_SECTIONS: readonly DashboardNavSection[] = [
+  { id: 'overview', items: ['dashboard'] },
+  { id: 'messaging', items: ['inbox', 'contacts'] },
+  { id: 'campaignsContent', items: ['campaigns', 'templates', 'media'] },
+  { id: 'automationAi', items: ['flows', 'knowledge', 'integrations'] },
+  { id: 'insights', items: ['analytics'] },
+  { id: 'teamAccess', items: ['team', 'auditLogs'] },
+  { id: 'billing', items: ['billing'] },
+  { id: 'settings', items: ['notifications', 'settings'] },
+]
+
 export const DASHBOARD_NAV_ICONS: Record<DashboardNavKey, LucideIcon> = {
   dashboard: LayoutDashboard,
-  team: UsersRound,
-  contacts: Users,
   inbox: Inbox,
-  // messages: MessageSquare,
+  contacts: Users,
   campaigns: Megaphone,
   templates: FileText,
+  media: ImageIcon,
+  flows: Workflow,
+  knowledge: BookOpen,
+  integrations: Plug,
   notifications: Bell,
   analytics: BarChart3,
+  team: UsersRound,
+  auditLogs: ScrollText,
   billing: CreditCard,
-  // auditLogs: ScrollText,
   settings: Settings,
 }
 
 /** Real routes only; placeholders stay without href. */
 export const DASHBOARD_NAV_HREFS: Partial<Record<DashboardNavKey, string>> = {
   dashboard: '/dashboard',
-  team: '/dashboard/team',
-  contacts: '/dashboard/contacts',
   inbox: '/dashboard/inbox',
+  contacts: '/dashboard/contacts',
+  campaigns: '/dashboard/campaigns',
   templates: '/dashboard/templates',
+  media: '/dashboard/templates/media',
+  flows: '/dashboard/flows',
+  knowledge: '/dashboard/knowledge',
+  integrations: '/dashboard/integrations',
+  notifications: '/dashboard/notifications',
+  analytics: '/dashboard/analytics',
+  team: '/dashboard/team',
+  auditLogs: '/dashboard/audit-logs',
+  billing: '/dashboard/billing',
   settings: '/dashboard/settings',
 }
 
 export type DashboardNavChild = {
-  key: 'teamMembers' | 'teamRoles'
+  key: 'teamMembers' | 'teamRoles' | 'contactsList' | 'customerGroups'
   href?: string
   /** Permission required to show this child. */
   permission: string
 }
 
-/** Nested items under Team Management. */
-export const DASHBOARD_NAV_CHILDREN: Partial<
-  Record<DashboardNavKey, DashboardNavChild[]>
-> = {
+/** Nested items under Team Management and Contacts & Audience. */
+export const DASHBOARD_NAV_CHILDREN: Partial<Record<DashboardNavKey, DashboardNavChild[]>> = {
   team: [
     { key: 'teamMembers', href: '/dashboard/team', permission: PERMISSIONS.TEAM_VIEW },
     {
       key: 'teamRoles',
       href: '/dashboard/team/roles',
-      // List middleware uses team:view; catalog also has roles:view — child shown if either.
       permission: PERMISSIONS.ROLES_VIEW,
+    },
+  ],
+  contacts: [
+    { key: 'contactsList', href: '/dashboard/contacts', permission: PERMISSIONS.CONTACTS_VIEW },
+    {
+      key: 'customerGroups',
+      href: '/dashboard/customer-groups',
+      permission: PERMISSIONS.CONTACTS_VIEW,
     },
   ],
 }
@@ -80,10 +138,37 @@ export const DASHBOARD_NAV_CHILDREN: Partial<
 /**
  * Permission required to show a top-level nav item with a real route.
  * Placeholders (no href) are left ungated — see RBAC report.
+ * Templates also allows WHATSAPP_VIEW in the sidebar renderer.
  */
 export const DASHBOARD_NAV_PERMISSION: Partial<Record<DashboardNavKey, string>> = {
-  contacts: PERMISSIONS.CONTACTS_VIEW,
   inbox: PERMISSIONS.INBOX_VIEW,
-  templates: PERMISSIONS.WHATSAPP_VIEW,
+  contacts: PERMISSIONS.CONTACTS_VIEW,
+  campaigns: PERMISSIONS.CAMPAIGNS_VIEW,
+  templates: PERMISSIONS.TEMPLATES_VIEW,
+  media: PERMISSIONS.MEDIA_VIEW,
+  flows: PERMISSIONS.AUTOMATIONS_VIEW,
+  knowledge: PERMISSIONS.AI_KB_VIEW,
+  integrations: PERMISSIONS.INTEGRATIONS_VIEW,
+  auditLogs: PERMISSIONS.AUDIT_VIEW,
+  analytics: PERMISSIONS.ANALYTICS_VIEW,
+  billing: PERMISSIONS.BILLING_VIEW,
   settings: PERMISSIONS.ORG_VIEW,
+}
+
+export function isCustomerGroupsPath(pathname: string) {
+  return (
+    pathname === '/dashboard/customer-groups' || pathname.startsWith('/dashboard/customer-groups/')
+  )
+}
+
+export function isTemplatesListPath(pathname: string) {
+  if (pathname === '/dashboard/templates') return true
+  if (!pathname.startsWith('/dashboard/templates/')) return false
+  return !pathname.startsWith('/dashboard/templates/media')
+}
+
+export function isMediaLibraryPath(pathname: string) {
+  return (
+    pathname === '/dashboard/templates/media' || pathname.startsWith('/dashboard/templates/media/')
+  )
 }

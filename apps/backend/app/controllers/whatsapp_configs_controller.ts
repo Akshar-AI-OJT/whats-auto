@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import WhatsappConfigPolicy from '#policies/whatsapp_config_policy'
 import { WhatsappConfigService } from '#services/whatsapp_config_service'
 import { testWhatsappConfigValidator } from '#validators/whatsapp_embedded_signup'
 import '#types/http'
@@ -12,7 +13,9 @@ export default class WhatsappConfigsController {
    * @security BearerAuth
    * @responseBody 200 - { "data": [{ "id": "uuid", "phoneNumberId": "456", "status": "connected" }] }
    */
-  async index({ request, serialize }: HttpContext) {
+  async index({ bouncer, request, serialize }: HttpContext) {
+    await bouncer.with(WhatsappConfigPolicy).authorize('viewList')
+
     const configs = await new WhatsappConfigService().listConfigs(
       request.activeMember!.organizationId
     )
@@ -28,7 +31,12 @@ export default class WhatsappConfigsController {
    * @responseBody 200 - { "data": { "id": "uuid", "phoneNumberId": "456", "status": "connected" } }
    * @responseBody 404 - { "error": "WhatsApp config not found", "code": "E_WA_CONFIG_NOT_FOUND" }
    */
-  async show({ params, request, serialize }: HttpContext) {
+  async show({ bouncer, params, request, serialize }: HttpContext) {
+    await bouncer.with(WhatsappConfigPolicy).authorize('view', {
+      organizationId: request.activeMember!.organizationId,
+      id: params.id,
+    })
+
     const config = await new WhatsappConfigService().getConfig(
       params.id,
       request.activeMember!.organizationId
@@ -45,7 +53,12 @@ export default class WhatsappConfigsController {
    * @paramPath id - Config id - @type(string)
    * @responseBody 200 - { "data": { "id": "uuid", "status": "disconnected" } }
    */
-  async destroy({ params, request, serialize }: HttpContext) {
+  async destroy({ bouncer, params, request, serialize }: HttpContext) {
+    await bouncer.with(WhatsappConfigPolicy).authorize('disconnect', {
+      organizationId: request.activeMember!.organizationId,
+      id: params.id,
+    })
+
     const config = await new WhatsappConfigService().disconnect(
       params.id,
       request.activeMember!.organizationId
@@ -64,7 +77,12 @@ export default class WhatsappConfigsController {
    * @responseBody 200 - { "data": { "messageId": "wamid.xxx" } }
    * @responseBody 422 - { "error": "WhatsApp config is not connected", "code": "E_WA_NOT_CONNECTED" }
    */
-  async test({ params, request, serialize }: HttpContext) {
+  async test({ bouncer, params, request, serialize }: HttpContext) {
+    await bouncer.with(WhatsappConfigPolicy).authorize('test', {
+      organizationId: request.activeMember!.organizationId,
+      id: params.id,
+    })
+
     const payload = await request.validateUsing(testWhatsappConfigValidator)
     const result = await new WhatsappConfigService().sendTestTemplate({
       configId: params.id,

@@ -1,12 +1,9 @@
-import type {
-  PaginationMeta,
-  WhatsappMessageTemplate,
-  WhatsappTemplateButton,
-} from '@/lib/api'
+import type { PaginationMeta, WhatsappMessageTemplate, WhatsappTemplateButton } from '@/lib/api'
 
 export const TEMPLATE_CATEGORIES = ['MARKETING', 'UTILITY', 'AUTHENTICATION'] as const
-export const TEMPLATE_HEADER_TYPES = ['NONE', 'TEXT', 'IMAGE', 'VIDEO', 'DOCUMENT'] as const
-export const TEMPLATE_STATUS_TABS = ['all', 'approved', 'pending', 'rejected'] as const
+/** Matches backend create validator — VIDEO is not accepted. */
+export const TEMPLATE_HEADER_TYPES = ['NONE', 'TEXT', 'IMAGE', 'DOCUMENT'] as const
+export const TEMPLATE_STATUS_TABS = ['all', 'draft', 'pending', 'approved', 'rejected'] as const
 export const TEMPLATE_LANGUAGES = [
   { value: 'en_US', label: 'English (US)' },
   { value: 'en', label: 'English' },
@@ -16,6 +13,7 @@ export const TEMPLATE_LANGUAGES = [
 ] as const
 
 export type TemplateStatusTab = (typeof TEMPLATE_STATUS_TABS)[number]
+export type TemplateViewMode = 'cards' | 'list'
 
 export function unwrapTemplateList(data: unknown): {
   items: WhatsappMessageTemplate[]
@@ -52,15 +50,50 @@ export function unwrapTemplate(data: unknown): WhatsappMessageTemplate | null {
   return wrapped.data ?? null
 }
 
+export function isNumericTemplateVariable(key: string): boolean {
+  return /^\d+$/.test(key)
+}
+
+/**
+ * Extract unique template placeholders ({{1}} or {{name}}) across texts.
+ * All-numeric lists are sorted numerically; otherwise appearance order is kept.
+ */
 export function extractTemplateVariables(...texts: Array<string | null | undefined>): string[] {
-  const unique = new Set<string>()
+  const unique: string[] = []
+  const seen = new Set<string>()
   for (const text of texts) {
     if (!text) continue
-    for (const match of text.matchAll(/\{\{(\d+)\}\}/g)) {
-      unique.add(match[1]!)
+    for (const match of text.matchAll(/\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*|\d+)\s*\}\}/g)) {
+      const key = match[1]
+      if (!key || seen.has(key)) continue
+      seen.add(key)
+      unique.push(key)
     }
   }
-  return [...unique].sort((a, b) => Number(a) - Number(b))
+  const allNumeric = unique.length > 0 && unique.every(isNumericTemplateVariable)
+  if (allNumeric) {
+    return [...unique].sort((a, b) => Number(a) - Number(b))
+  }
+  return unique
+}
+
+/** Detect placeholder format across extracted names. */
+export function detectTemplateVariableFormat(
+  names: string[]
+): 'named' | 'positional' | 'mixed' | null {
+  if (names.length === 0) return null
+  const allNumeric = names.every(isNumericTemplateVariable)
+  const allNamed = names.every((n) => !isNumericTemplateVariable(n))
+  if (allNumeric) return 'positional'
+  if (allNamed) return 'named'
+  return 'mixed'
+}
+
+/** Next {{n}} index for positional insert (max existing numeric + 1). */
+export function nextPositionalVariableIndex(variables: string[]): number {
+  const numeric = variables.filter(isNumericTemplateVariable).map(Number)
+  if (numeric.length === 0) return 1
+  return Math.max(...numeric) + 1
 }
 
 /** @deprecated Prefer extractTemplateVariables — kept for existing callers. */
@@ -68,7 +101,8 @@ export function extractBodyVariables(bodyText: string): string[] {
   return extractTemplateVariables(bodyText)
 }
 
-export function buildNumericSampleValues(
+/** Build sampleValues payload from the form; skips blank entries. */
+export function buildSampleValues(
   variables: string[],
   samples: Record<string, string>
 ): Record<string, string> {
@@ -78,6 +112,14 @@ export function buildNumericSampleValues(
     if (value) sampleValues[key] = value
   }
   return sampleValues
+}
+
+/** @deprecated Prefer buildSampleValues. */
+export function buildNumericSampleValues(
+  variables: string[],
+  samples: Record<string, string>
+): Record<string, string> {
+  return buildSampleValues(variables, samples)
 }
 
 export function missingSampleVariables(
@@ -92,8 +134,8 @@ export function renderTemplatePreviewText(
   sampleValues?: Record<string, string>
 ): string {
   if (!text) return ''
-  return text.replace(/\{\{(\d+)\}\}/g, (_, key: string) => {
-    return sampleValues?.[key] || sampleValues?.[`{{${key}}}`] || `Sample ${key}`
+  return text.replace(/\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*|\d+)\s*\}\}/g, (match, key: string) => {
+    return sampleValues?.[key] || sampleValues?.[`{{${key}}}`] || match
   })
 }
 
@@ -118,6 +160,16 @@ export function formatTemplateLanguage(language: string | null | undefined) {
   return language
 }
 
+export function formatHeaderType(headerType: string | null | undefined) {
+  if (!headerType) return 'None'
+  const value = headerType.toUpperCase()
+  if (value === 'NONE' || value === '') return 'None'
+  if (value === 'TEXT') return 'Text'
+  if (value === 'IMAGE') return 'Image'
+  if (value === 'DOCUMENT') return 'Document'
+  return headerType
+}
+
 export function formatRelativeDate(value: string | null | undefined) {
   if (!value) return '—'
   try {
@@ -131,18 +183,38 @@ export function formatRelativeDate(value: string | null | undefined) {
   }
 }
 
+export function truncatePreview(text: string | null | undefined, max = 90) {
+  if (!text) return '—'
+  const normalized = text.replace(/\s+/g, ' ').trim()
+  if (normalized.length <= max) return normalized
+  return `${normalized.slice(0, max - 1)}…`
+}
+
 export function statusTone(status: string) {
   const normalized = status.toLowerCase()
   if (normalized === 'approved') {
     return 'bg-primary-pale text-positive-deep border-primary/25'
   }
-  if (normalized === 'pending' || normalized === 'draft') {
+  if (normalized === 'pending') {
     return 'bg-warning/15 text-ink border-warning/30'
+  }
+  if (normalized === 'draft') {
+    return 'bg-dash-surface text-body border-dash-border'
   }
   if (normalized === 'rejected' || normalized === 'deleted') {
     return 'bg-negative/10 text-negative border-negative/25'
   }
   return 'bg-dash-surface text-body border-dash-border'
+}
+
+export function normalizeSampleValues(sampleValues: unknown): Record<string, string> {
+  if (!sampleValues || typeof sampleValues !== 'object') return {}
+  const result: Record<string, string> = {}
+  for (const [key, value] of Object.entries(sampleValues as Record<string, unknown>)) {
+    if (value == null) continue
+    result[key] = String(value)
+  }
+  return result
 }
 
 export function buildSubmissionHistory(template: WhatsappMessageTemplate) {

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Bold, Italic, Loader2, Plus, Strikethrough, Variable } from 'lucide-react'
+import { Bold, Italic, ImageIcon, Loader2, Plus, Strikethrough, Variable } from 'lucide-react'
 import type {
   CreateWhatsappTemplateBody,
   WhatsappTemplateButton,
@@ -19,14 +19,17 @@ import {
 } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
+import { MediaPicker } from './MediaPicker'
 import { TemplatePreview } from './TemplatePreview'
 import {
   TEMPLATE_CATEGORIES,
   TEMPLATE_HEADER_TYPES,
   TEMPLATE_LANGUAGES,
-  buildNumericSampleValues,
+  buildSampleValues,
+  detectTemplateVariableFormat,
   extractTemplateVariables,
   missingSampleVariables,
+  nextPositionalVariableIndex,
 } from './template-utils'
 
 export type TemplateFormValues = {
@@ -35,6 +38,8 @@ export type TemplateFormValues = {
   language: string
   headerType: WhatsappTemplateHeaderType
   headerContent: string
+  headerMediaAssetId: string
+  headerMediaUrl: string
   bodyText: string
   footerText: string
   buttons: WhatsappTemplateButton[]
@@ -52,6 +57,8 @@ export const EMPTY_TEMPLATE_FORM: TemplateFormValues = {
   language: 'en_US',
   headerType: 'NONE',
   headerContent: '',
+  headerMediaAssetId: '',
+  headerMediaUrl: '',
   bodyText: '',
   footerText: '',
   buttons: [],
@@ -63,8 +70,7 @@ type TemplateFormProps = {
   pending?: boolean
   error?: string | null
   submitLabel: string
-  secondaryLabel?: string
-  onSubmit: (body: CreateWhatsappTemplateBody, mode: 'draft' | 'submit') => void
+  onSubmit: (body: CreateWhatsappTemplateBody) => void
   onCancel: () => void
 }
 
@@ -73,7 +79,6 @@ export function TemplateForm({
   pending = false,
   error,
   submitLabel,
-  secondaryLabel,
   onSubmit,
   onCancel,
 }: TemplateFormProps) {
@@ -85,21 +90,35 @@ export function TemplateForm({
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<keyof TemplateFormValues, string>>>(
     {}
   )
-
   const [sampleErrors, setSampleErrors] = useState<Record<string, string>>({})
+  const [namedDraft, setNamedDraft] = useState('')
+  const [namedOpen, setNamedOpen] = useState(false)
+  const [mediaPickerOpen, setMediaPickerOpen] = useState(false)
 
   const variables = useMemo(() => {
     const headerText = values.headerType === 'TEXT' ? values.headerContent : ''
-    return extractTemplateVariables(values.bodyText, headerText)
-  }, [values.bodyText, values.headerContent, values.headerType])
+    const buttonUrls = values.buttons
+      .filter((button) => String(button.type || '').toUpperCase() === 'URL')
+      .map((button) => String(button.url || ''))
+    return extractTemplateVariables(values.bodyText, headerText, ...buttonUrls)
+  }, [values.bodyText, values.headerContent, values.headerType, values.buttons])
+
+  const variableFormat = useMemo(() => detectTemplateVariableFormat(variables), [variables])
+  const canInsertNumbered = variableFormat === null || variableFormat === 'positional'
+  const canInsertNamed = variableFormat === null || variableFormat === 'named'
 
   const missingSamples = useMemo(
     () => missingSampleVariables(variables, values.sampleValues),
     [variables, values.sampleValues]
   )
 
-  const samplesComplete = missingSamples.length === 0
-  const canSubmit = !pending && samplesComplete
+  const canSubmit =
+    !pending &&
+    missingSamples.length === 0 &&
+    variableFormat !== 'mixed' &&
+    (values.headerType === 'IMAGE' || values.headerType === 'DOCUMENT'
+      ? Boolean(values.headerMediaAssetId || values.headerMediaUrl)
+      : true)
 
   function update<K extends keyof TemplateFormValues>(key: K, value: TemplateFormValues[K]) {
     setValues((prev) => ({ ...prev, [key]: value }))
@@ -122,9 +141,22 @@ export function TemplateForm({
     })
   }
 
-  function insertVariable() {
-    const nextIndex = variables.length > 0 ? Number(variables[variables.length - 1]) + 1 : 1
+  function insertNumberedVariable() {
+    if (!canInsertNumbered) return
+    const nextIndex = nextPositionalVariableIndex(variables)
     update('bodyText', `${values.bodyText}{{${nextIndex}}}`)
+  }
+
+  function insertNamedVariable() {
+    if (!canInsertNamed) return
+    const name = namedDraft.trim()
+    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) {
+      setFieldErrors((prev) => ({ ...prev, bodyText: t('errors.namedVariableInvalid') }))
+      return
+    }
+    update('bodyText', `${values.bodyText}{{${name}}}`)
+    setNamedDraft('')
+    setNamedOpen(false)
   }
 
   function addButton() {
@@ -154,6 +186,27 @@ export function TemplateForm({
     if (values.headerType === 'TEXT' && !values.headerContent.trim()) {
       next.headerContent = t('errors.headerRequired')
     }
+    if (
+      (values.headerType === 'IMAGE' || values.headerType === 'DOCUMENT') &&
+      !values.headerMediaAssetId &&
+      !values.headerMediaUrl
+    ) {
+      next.headerMediaAssetId = t('errors.headerMediaRequired')
+    }
+    if (values.footerText.trim().length > 60) next.footerText = t('errors.footerTooLong')
+
+    if (variableFormat === 'mixed') {
+      next.bodyText = t('errors.mixedVariables')
+    }
+
+    for (const button of values.buttons) {
+      const text = String(button.text || '').trim()
+      if (!text) continue
+      if (button.type === 'URL' && !String(button.url || '').trim()) {
+        next.buttons = t('errors.buttonUrlRequired')
+        break
+      }
+    }
 
     const nextSampleErrors: Record<string, string> = {}
     for (const key of missingSampleVariables(variables, values.sampleValues)) {
@@ -169,7 +222,7 @@ export function TemplateForm({
   }
 
   function buildBody(): CreateWhatsappTemplateBody {
-    const sampleValues = buildNumericSampleValues(variables, values.sampleValues)
+    const sampleValues = buildSampleValues(variables, values.sampleValues)
 
     const body: CreateWhatsappTemplateBody = {
       name: values.name.trim().toLowerCase(),
@@ -186,6 +239,18 @@ export function TemplateForm({
       body.headerType = values.headerType
       if (values.headerType === 'TEXT' && values.headerContent.trim()) {
         body.headerContent = values.headerContent.trim()
+      }
+      if (
+        (values.headerType === 'IMAGE' || values.headerType === 'DOCUMENT') &&
+        values.headerMediaAssetId
+      ) {
+        body.headerMediaAssetId = values.headerMediaAssetId
+      }
+      if (
+        (values.headerType === 'IMAGE' || values.headerType === 'DOCUMENT') &&
+        values.headerMediaUrl
+      ) {
+        body.headerMediaUrl = values.headerMediaUrl
       }
     } else {
       body.headerType = 'NONE'
@@ -208,12 +273,13 @@ export function TemplateForm({
     return body
   }
 
-  function handleSubmit(mode: 'draft' | 'submit') {
+  function handleSubmit() {
     if (!validate()) return
-    const body = buildBody()
-    console.log('[templates] create payload', body)
-    onSubmit(body, mode)
+    onSubmit(buildBody())
   }
+
+  const isMediaHeader =
+    values.headerType === 'IMAGE' || values.headerType === 'DOCUMENT'
 
   return (
     <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_340px]">
@@ -270,9 +336,23 @@ export function TemplateForm({
                 className={selectClassName}
                 value={values.headerType}
                 disabled={pending}
-                onChange={(e) =>
-                  update('headerType', e.target.value as WhatsappTemplateHeaderType)
-                }
+                onChange={(e) => {
+                  const next = e.target.value as WhatsappTemplateHeaderType
+                  setValues((prev) => ({
+                    ...prev,
+                    headerType: next,
+                    headerContent: next === 'TEXT' ? prev.headerContent : '',
+                    headerMediaAssetId:
+                      next === 'IMAGE' || next === 'DOCUMENT' ? prev.headerMediaAssetId : '',
+                    headerMediaUrl:
+                      next === 'IMAGE' || next === 'DOCUMENT' ? prev.headerMediaUrl : '',
+                  }))
+                  setFieldErrors((prev) => ({
+                    ...prev,
+                    headerContent: undefined,
+                    headerMediaAssetId: undefined,
+                  }))
+                }}
               >
                 {TEMPLATE_HEADER_TYPES.map((type) => (
                   <option key={type} value={type}>
@@ -285,7 +365,10 @@ export function TemplateForm({
 
           {values.headerType === 'TEXT' ? (
             <Field data-invalid={Boolean(fieldErrors.headerContent)} className="gap-2">
-              <FieldLabel>{t('headerContent')}</FieldLabel>
+              <div className="flex items-center justify-between gap-3">
+                <FieldLabel>{t('headerContent')}</FieldLabel>
+                <p className="text-xs tabular-nums text-mute">{values.headerContent.length}/60</p>
+              </div>
               <Input
                 value={values.headerContent}
                 maxLength={60}
@@ -297,6 +380,84 @@ export function TemplateForm({
                 <FieldError>{fieldErrors.headerContent}</FieldError>
               ) : null}
             </Field>
+          ) : null}
+
+          {isMediaHeader ? (
+            <div
+              className={cn(
+                'space-y-3 rounded-xl border p-4',
+                fieldErrors.headerMediaAssetId
+                  ? 'border-negative/35 bg-negative/5'
+                  : 'border-dash-border bg-dash-surface/40'
+              )}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-ink">
+                    {values.headerType === 'IMAGE' ? t('headerImage') : t('headerDocument')}
+                  </p>
+                  <p className="text-xs text-mute">
+                    {values.headerType === 'IMAGE'
+                      ? t('headerImageHint')
+                      : t('headerDocumentHint')}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={pending}
+                  onClick={() => setMediaPickerOpen(true)}
+                >
+                  <ImageIcon className="mr-1.5 size-4" />
+                  {values.headerMediaUrl ? t('changeMedia') : t('selectMedia')}
+                </Button>
+              </div>
+
+              {values.headerMediaUrl ? (
+                values.headerType === 'IMAGE' ? (
+                  <div className="relative aspect-video w-full max-w-xs overflow-hidden rounded-lg border border-dash-border">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={values.headerMediaUrl}
+                      alt=""
+                      className="size-full object-cover"
+                    />
+                  </div>
+                ) : (
+                  <p className="truncate text-sm text-body">{values.headerMediaUrl}</p>
+                )
+              ) : null}
+
+              {values.headerMediaAssetId ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={pending}
+                  onClick={() => {
+                    update('headerMediaAssetId', '')
+                    update('headerMediaUrl', '')
+                  }}
+                >
+                  {t('removeMedia')}
+                </Button>
+              ) : null}
+
+              {fieldErrors.headerMediaAssetId ? (
+                <FieldError>{fieldErrors.headerMediaAssetId}</FieldError>
+              ) : null}
+
+              <MediaPicker
+                open={mediaPickerOpen}
+                onOpenChange={setMediaPickerOpen}
+                kind={values.headerType === 'IMAGE' ? 'image' : 'document'}
+                onSelect={(asset) => {
+                  update('headerMediaAssetId', asset.id)
+                  update('headerMediaUrl', asset.deliveryUrl)
+                }}
+              />
+            </div>
           ) : null}
 
           <Field data-invalid={Boolean(fieldErrors.bodyText)} className="gap-2">
@@ -332,13 +493,66 @@ export function TemplateForm({
                 </button>
                 <button
                   type="button"
-                  className="inline-flex items-center gap-1.5 rounded-lg px-2 text-xs font-medium text-mute hover:bg-canvas hover:text-ink"
-                  onClick={insertVariable}
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-lg px-2 text-xs font-medium',
+                    canInsertNumbered
+                      ? 'text-mute hover:bg-canvas hover:text-ink'
+                      : 'cursor-not-allowed text-mute/40'
+                  )}
+                  disabled={!canInsertNumbered || pending}
+                  onClick={insertNumberedVariable}
+                  title={
+                    canInsertNumbered ? t('insertVariableHint') : t('insertVariableLockedNamed')
+                  }
                 >
                   <Variable className="size-3.5" />
                   {t('insertVariable')}
                 </button>
+                <button
+                  type="button"
+                  className={cn(
+                    'inline-flex items-center gap-1.5 rounded-lg px-2 text-xs font-medium',
+                    canInsertNamed
+                      ? 'text-mute hover:bg-canvas hover:text-ink'
+                      : 'cursor-not-allowed text-mute/40'
+                  )}
+                  disabled={!canInsertNamed || pending}
+                  onClick={() => setNamedOpen((open) => !open)}
+                  title={
+                    canInsertNamed ? t('insertNamedVariableHint') : t('insertVariableLockedNumbered')
+                  }
+                >
+                  <Variable className="size-3.5" />
+                  {t('insertNamedVariable')}
+                </button>
               </div>
+              {namedOpen && canInsertNamed ? (
+                <div className="flex flex-wrap items-center gap-2 border-b border-dash-border bg-dash-surface/30 px-2 py-2">
+                  <Input
+                    value={namedDraft}
+                    disabled={pending}
+                    placeholder={t('namedVariablePlaceholder')}
+                    className="h-9 max-w-xs"
+                    onChange={(e) =>
+                      setNamedDraft(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        insertNamedVariable()
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={pending || !namedDraft.trim()}
+                    onClick={insertNamedVariable}
+                  >
+                    {t('insertNamedConfirm')}
+                  </Button>
+                </div>
+              ) : null}
               <textarea
                 value={values.bodyText}
                 maxLength={1024}
@@ -362,7 +576,9 @@ export function TemplateForm({
             >
               <div>
                 <p className="text-sm font-semibold text-ink">{t('variables')}</p>
-                <p className="text-xs text-mute">{t('variablesHint')}</p>
+                <p className="text-xs text-mute">
+                  {variableFormat === 'named' ? t('variablesHintNamed') : t('variablesHint')}
+                </p>
               </div>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {variables.map((variable) => (
@@ -390,8 +606,11 @@ export function TemplateForm({
             </div>
           ) : null}
 
-          <Field className="gap-2">
-            <FieldLabel>{t('footer')}</FieldLabel>
+          <Field data-invalid={Boolean(fieldErrors.footerText)} className="gap-2">
+            <div className="flex items-center justify-between gap-3">
+              <FieldLabel>{t('footer')}</FieldLabel>
+              <p className="text-xs tabular-nums text-mute">{values.footerText.length}/60</p>
+            </div>
             <Input
               value={values.footerText}
               maxLength={60}
@@ -399,6 +618,7 @@ export function TemplateForm({
               onChange={(e) => update('footerText', e.target.value)}
               placeholder={t('footerPlaceholder')}
             />
+            {fieldErrors.footerText ? <FieldError>{fieldErrors.footerText}</FieldError> : null}
           </Field>
 
           <div className="space-y-3 rounded-xl border border-dash-border p-3">
@@ -419,6 +639,7 @@ export function TemplateForm({
                 {t('addButton')}
               </Button>
             </div>
+            {fieldErrors.buttons ? <FieldError>{fieldErrors.buttons}</FieldError> : null}
             {values.buttons.map((button, index) => (
               <div
                 key={`button-${index}`}
@@ -485,23 +706,11 @@ export function TemplateForm({
           <Button type="button" variant="outline" disabled={pending} onClick={onCancel}>
             {t('cancel')}
           </Button>
-          {secondaryLabel ? (
-            <Button
-              type="button"
-              variant="outline"
-              disabled={!canSubmit}
-              className="gap-2"
-              onClick={() => handleSubmit('draft')}
-            >
-              {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
-              {secondaryLabel}
-            </Button>
-          ) : null}
           <Button
             type="button"
             disabled={!canSubmit}
             className="gap-2"
-            onClick={() => handleSubmit('submit')}
+            onClick={handleSubmit}
           >
             {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
             {submitLabel}
@@ -513,6 +722,7 @@ export function TemplateForm({
         name={values.name || t('previewNameFallback')}
         headerType={values.headerType}
         headerContent={values.headerContent}
+        headerMediaUrl={values.headerMediaUrl || null}
         bodyText={values.bodyText}
         footerText={values.footerText}
         buttons={values.buttons}

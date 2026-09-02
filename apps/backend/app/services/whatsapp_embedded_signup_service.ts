@@ -1,4 +1,5 @@
 import db from '@adonisjs/lucid/services/db'
+import logger from '@adonisjs/core/services/logger'
 import env from '#start/env'
 import WhatsappConfigException from '#exceptions/whatsapp_config_exception'
 import { generateWhatsappRegistrationPin } from '#lib/meta_whatsapp/access_token_crypto'
@@ -7,6 +8,7 @@ import {
   MetaGraphApiError,
   type MetaGraphClient,
 } from '#lib/meta_whatsapp/graph_client'
+import { NotificationService } from '#services/notification_service'
 import {
   WhatsappConfigService,
   type WhatsappConfigDto,
@@ -88,6 +90,13 @@ export class WhatsappEmbeddedSignupService {
       registered = true
       status = 'connected'
     } catch (error) {
+      const previous = await db
+        .from('whatsapp_configs')
+        .where('organizationId', params.organizationId)
+        .where('phoneNumberId', params.input.phoneNumberId)
+        .select('status')
+        .first()
+
       // Persist partial state below, then surface Meta error to the client.
       await this.configService.upsertFromEmbeddedSignup({
         organizationId: params.organizationId,
@@ -99,6 +108,18 @@ export class WhatsappEmbeddedSignupService {
         subscribed,
         registered,
       })
+
+      // Notify only on transition into error (skip retries that stay status=error).
+      if ((previous?.status as string | undefined) !== 'error') {
+        const detail = error instanceof Error ? error.message : 'WhatsApp connection failed'
+        await this.#notifyOwnerConnectionErrorBestEffort({
+          organizationId: params.organizationId,
+          actorUserId: params.userId,
+          phoneNumberId: params.input.phoneNumberId,
+          detail,
+        })
+      }
+
       throw this.mapGraphError(error)
     }
 
@@ -119,7 +140,7 @@ export class WhatsappEmbeddedSignupService {
       .from('organizations')
       .where('id', organizationId)
       .whereNull('deletedAt')
-      .where('status', true)
+      .where('status', 'active')
       .select('id')
       .first()
 
@@ -140,5 +161,61 @@ export class WhatsappEmbeddedSignupService {
       return WhatsappConfigException.metaGraphFailed(error.message)
     }
     return WhatsappConfigException.metaGraphFailed('Meta Graph request failed')
+  }
+
+  async #resolveOwnerUserId(organizationId: string): Promise<string | null> {
+    const row = await db
+      .from('organization_members')
+      .join('roles', 'roles.id', 'organization_members.roleId')
+      .where('organization_members.organizationId', organizationId)
+      .where('roles.name', 'owner')
+      .where('organization_members.isDeleted', false)
+      .select('organization_members.userId')
+      .first()
+
+    return (row?.userId as string | undefined) ?? null
+  }
+
+  /**
+   * Best-effort owner notification after WhatsApp config is persisted with status=error.
+   * Never throws — connection-error persistence/throw path must not fail on notify.
+   */
+  async #notifyOwnerConnectionErrorBestEffort(params: {
+    organizationId: string
+    actorUserId: string
+    phoneNumberId: string
+    detail: string
+  }): Promise<void> {
+    try {
+      const ownerUserId = await this.#resolveOwnerUserId(params.organizationId)
+      if (!ownerUserId) {
+        logger.warn(
+          {
+            organizationId: params.organizationId,
+            type: 'whatsapp_connection_error',
+          },
+          'whatsapp.notification_skipped_no_owner'
+        )
+        return
+      }
+
+      await new NotificationService().createNotification({
+        organizationId: params.organizationId,
+        userId: ownerUserId,
+        type: 'whatsapp_connection_error',
+        title: 'WhatsApp connection failed',
+        body: `WhatsApp connection failed for phone number ID ${params.phoneNumberId}: ${params.detail}`,
+        actorUserId: params.actorUserId,
+      })
+    } catch (error) {
+      logger.error(
+        {
+          organizationId: params.organizationId,
+          type: 'whatsapp_connection_error',
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'whatsapp.notification_failed'
+      )
+    }
   }
 }

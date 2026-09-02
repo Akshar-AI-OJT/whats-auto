@@ -1,5 +1,6 @@
 import { Exception } from '@adonisjs/core/exceptions'
 import type { HttpContext } from '@adonisjs/core/http'
+import MessagePolicy from '#policies/message_policy'
 import { MessageService } from '#services/message_service'
 import { conversationIdParamValidator } from '#validators/conversation'
 import { createMessageValidator, listMessagesValidator } from '#validators/message'
@@ -15,14 +16,21 @@ export default class MessagesController {
    * @paramPath id - Conversation id - @type(string)
    * @paramQuery page - Page number (default 1) - @type(number)
    * @paramQuery limit - Items per page (1-100, default 20) - @type(number)
+   * @paramQuery after - ISO timestamp; only messages created after this time - @type(string)
    * @responseBody 200 - { "data": [{ "id": "uuid", "direction": "outbound", "contentType": "text", "contentText": "Hello!", "status": "sent", "sender": { "type": "agent", "id": "uuid", "name": "Ada" }, "createdAt": "2026-08-04T12:00:00.000Z" }], "meta": { "total": 1, "perPage": 20, "currentPage": 1, "lastPage": 1 } }
    * @responseBody 404 - { "error": "Conversation not found", "code": "E_CONVERSATION_NOT_FOUND" }
    * @responseBody 403 - { "error": "Permission denied: inbox:view", "code": "PERMISSION_DENIED" }
    */
-  async index({ request, params, serialize }: HttpContext) {
+  async index({ bouncer, request, params, serialize }: HttpContext) {
     const { id } = await request.validateUsing(conversationIdParamValidator, {
       data: params,
     })
+
+    await bouncer.with(MessagePolicy).authorize('viewList', {
+      organizationId: request.activeMember!.organizationId,
+      id,
+    })
+
     const qs = await request.validateUsing(listMessagesValidator, {
       data: request.qs(),
     })
@@ -32,6 +40,7 @@ export default class MessagesController {
       conversationId: id,
       page: qs.page,
       limit: qs.limit,
+      after: qs.after,
     })
 
     return serialize(result)
@@ -56,32 +65,23 @@ export default class MessagesController {
    * @responseBody 422 - { "error": "Idempotency-Key header is required", "code": "E_IDEMPOTENCY_KEY_REQUIRED" }
    * @responseBody 403 - { "error": "Permission denied: inbox:reply", "code": "PERMISSION_DENIED" }
    */
-  async store({ request, response, params, serialize }: HttpContext) {
-    const agent = request.authUser
-    const activeMember = request.activeMember
-    if (!agent || !activeMember) {
-      return response.unauthorized({ error: 'Unauthorized', code: 'UNAUTHORIZED' })
-    }
-
-    if (!request.memberPermissions?.has('inbox:reply')) {
-      return response.forbidden({
-        error: 'Permission denied: inbox:reply',
-        code: 'PERMISSION_DENIED',
-        required: 'inbox:reply',
-        role: activeMember.role,
-      })
-    }
-
+  async store({ bouncer, request, params, serialize }: HttpContext) {
     const { id } = await request.validateUsing(conversationIdParamValidator, {
       data: params,
     })
+
+    await bouncer.with(MessagePolicy).authorize('send', {
+      organizationId: request.activeMember!.organizationId,
+      id,
+    })
+
     const payload = await request.validateUsing(createMessageValidator)
     const idempotencyKey = this.requireIdempotencyKey(request)
 
     const message = await new MessageService().sendAgentReply({
-      organizationId: activeMember.organizationId,
+      organizationId: request.activeMember!.organizationId,
       conversationId: id,
-      senderId: agent.id,
+      senderId: request.authUser!.id,
       contentType: payload.contentType,
       contentText: payload.contentText,
       mediaAssetId: payload.mediaAssetId,
@@ -89,7 +89,7 @@ export default class MessagesController {
       templateParameters: payload.templateParameters,
       headerMediaAssetId: payload.headerMediaAssetId,
       idempotencyKey,
-    } as Parameters<MessageService['sendAgentReply']>[0])
+    })
 
     return serialize(message)
   }

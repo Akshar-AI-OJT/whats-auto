@@ -1,6 +1,7 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { ArrowLeft } from 'lucide-react'
 import {
@@ -10,6 +11,7 @@ import {
   type InboxMessage,
   type OrganizationMember,
 } from '@/lib/api'
+import { queryKeys } from '@/lib/query-keys'
 import { cn } from '@/lib/utils'
 import { Link } from '@/i18n/navigation'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
@@ -18,16 +20,12 @@ import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { InboxConversationHeader } from './InboxConversationHeader'
 import { InboxMessageList } from './InboxMessageList'
 import { InboxReplyComposer } from './InboxReplyComposer'
-import { InboxThreadNotes } from './InboxThreadNotes'
-import {
-  InboxThreadHeaderSkeleton,
-  InboxThreadMessagesSkeleton,
-} from './InboxThreadSkeleton'
+import { InboxThreadHeaderSkeleton, InboxThreadMessagesSkeleton } from './InboxThreadSkeleton'
+import { useInboxOrganization } from './InboxOrganizationContext'
+import { applyInboxSseToConversation, applyInboxSseToMessages } from './apply-inbox-sse'
 import { contactLabel, unwrapPaginated, unwrapSingle, mergeConversationUpdate } from './inbox-utils'
 
 const MESSAGE_PAGE_LIMIT = 100
-
-type ThreadPanel = 'messages' | 'notes'
 
 function unwrapMembers(data: unknown): OrganizationMember[] {
   if (!data) return []
@@ -72,20 +70,74 @@ export function InboxConversationThread({
 }: InboxConversationThreadProps) {
   const t = useTranslations('dashboard.inbox.thread')
   const tInbox = useTranslations('dashboard.inbox')
+  const queryClient = useQueryClient()
   const { tenantOrganizationId, canViewInbox, isLoading: orgsLoading } = useOrganizations()
+  const inbox = useInboxOrganization()
+  const subscribeInboxEvents = inbox.subscribeInboxEvents
 
-  const [conversation, setConversation] = useState<InboxConversation | null>(null)
-  const [messages, setMessages] = useState<InboxMessage[]>([])
-  const [members, setMembers] = useState<OrganizationMember[]>([])
-  const [conversationLoading, setConversationLoading] = useState(true)
-  const [messagesLoading, setMessagesLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [panel, setPanel] = useState<ThreadPanel>('messages')
+  const setInboxConversation = inbox.setConversation
+  const setInboxConversationId = inbox.setConversationId
+  const setInboxMembers = inbox.setMembers
+  const mergeInboxConversation = inbox.mergeConversation
 
-  const organizationIdRef = useRef(tenantOrganizationId)
-  const conversationIdRef = useRef(conversationId)
-  organizationIdRef.current = tenantOrganizationId
-  conversationIdRef.current = conversationId
+  const threadEnabled =
+    !orgsLoading && Boolean(tenantOrganizationId) && canViewInbox && Boolean(conversationId)
+
+  const detailKey = queryKeys.inbox.detail(tenantOrganizationId, conversationId)
+  const messagesKey = queryKeys.inbox.messages(tenantOrganizationId, conversationId)
+  const membersKey = queryKeys.team.members(tenantOrganizationId)
+
+  const conversationQuery = useQuery({
+    queryKey: detailKey,
+    queryFn: async () => {
+      const conversationRes = await api.inbox.getConversation(conversationId)
+      const detail = unwrapSingle<InboxConversation>(conversationRes.data)
+      if (!detail) {
+        throw new Error(t('errors.notFound'))
+      }
+      return detail
+    },
+    enabled: threadEnabled,
+    staleTime: 15_000,
+  })
+
+  const messagesQuery = useQuery({
+    queryKey: messagesKey,
+    queryFn: () => fetchAllMessages(conversationId),
+    enabled: threadEnabled,
+    staleTime: 10_000,
+  })
+
+  const membersQuery = useQuery({
+    queryKey: membersKey,
+    queryFn: async () => {
+      const membersRes = await api.members.list()
+      return unwrapMembers(membersRes.data)
+    },
+    enabled: threadEnabled,
+    staleTime: 60_000,
+  })
+
+  const conversation = conversationQuery.data ?? null
+  const messages = messagesQuery.data ?? []
+  const members = useMemo(() => membersQuery.data ?? [], [membersQuery.data])
+  const conversationLoading = conversationQuery.isLoading || orgsLoading
+  const messagesLoading = messagesQuery.isLoading
+  const error = conversationQuery.error
+    ? (conversationQuery.error as unknown as ApiError).message || t('errors.loadFailed')
+    : null
+
+  // Keep inbox context in sync with the active thread (render-phase adjust).
+  const inboxConversationId = inbox.conversationId
+  if (inboxConversationId !== conversationId) {
+    setInboxConversationId(conversationId)
+    setInboxConversation(null)
+  } else if (conversation && inbox.conversation !== conversation) {
+    setInboxConversation(conversation)
+  }
+  if (membersQuery.isSuccess && inbox.members !== members) {
+    setInboxMembers(members)
+  }
 
   const agentNameByUserId = useMemo(() => {
     const map = new Map<string, string>()
@@ -94,73 +146,6 @@ export function InboxConversationThread({
     }
     return map
   }, [members])
-
-  const loadThread = useCallback(
-    async (organizationId: string, activeConversationId: string) => {
-      if (!canViewInbox) {
-        setConversation(null)
-        setMessages([])
-        setConversationLoading(false)
-        setMessagesLoading(false)
-        return
-      }
-
-      setConversationLoading(true)
-      setMessagesLoading(true)
-      setError(null)
-      setConversation(null)
-      setMessages([])
-      setPanel('messages')
-
-      try {
-        const [conversationRes, membersRes, messageItems] = await Promise.all([
-          api.inbox.getConversation(activeConversationId),
-          api.members.list(),
-          fetchAllMessages(activeConversationId),
-        ])
-
-        if (
-          organizationId !== organizationIdRef.current ||
-          activeConversationId !== conversationIdRef.current
-        ) {
-          return
-        }
-
-        const detail = unwrapSingle<InboxConversation>(conversationRes.data)
-        if (!detail) {
-          setError(t('errors.notFound'))
-          return
-        }
-
-        setConversation(detail)
-        setMembers(unwrapMembers(membersRes.data))
-        setMessages(messageItems)
-      } catch (err) {
-        if (
-          organizationId !== organizationIdRef.current ||
-          activeConversationId !== conversationIdRef.current
-        ) {
-          return
-        }
-        setError((err as ApiError).message || t('errors.loadFailed'))
-      } finally {
-        if (
-          organizationId === organizationIdRef.current &&
-          activeConversationId === conversationIdRef.current
-        ) {
-          setConversationLoading(false)
-          setMessagesLoading(false)
-        }
-      }
-    },
-    [canViewInbox, t]
-  )
-
-  useEffect(() => {
-    if (orgsLoading) return
-    if (!tenantOrganizationId) return
-    void loadThread(tenantOrganizationId, conversationId)
-  }, [orgsLoading, tenantOrganizationId, conversationId, loadThread])
 
   const agentLabel = useMemo(() => {
     if (!conversation?.assignedAgentId) {
@@ -177,23 +162,112 @@ export function InboxConversationThread({
   const refreshMessages = useCallback(async () => {
     if (!tenantOrganizationId || !canViewInbox) return
     try {
-      const messageItems = await fetchAllMessages(conversationId)
-      if (conversationIdRef.current !== conversationId) return
-      setMessages(messageItems)
+      const [, detailResult] = await Promise.all([
+        queryClient.refetchQueries({ queryKey: messagesKey }),
+        queryClient.fetchQuery({
+          queryKey: detailKey,
+          queryFn: async () => {
+            const res = await api.inbox.getConversation(conversationId)
+            const detail = unwrapSingle<InboxConversation>(res.data)
+            if (!detail) throw new Error('not found')
+            return detail
+          },
+        }),
+      ])
+      setInboxConversation(detailResult)
     } catch {
       // Keep existing messages; composer surfaces send errors via toast.
     }
-  }, [canViewInbox, conversationId, tenantOrganizationId])
+  }, [
+    canViewInbox,
+    conversationId,
+    detailKey,
+    messagesKey,
+    queryClient,
+    setInboxConversation,
+    tenantOrganizationId,
+  ])
+
+  const handleSent = useCallback(
+    async (sent?: InboxMessage | null) => {
+      if (sent) {
+        queryClient.setQueryData<InboxMessage[]>(messagesKey, (prev) => {
+          if (!prev) return [sent]
+          if (prev.some((message) => message.id === sent.id)) return prev
+          return [...prev, sent]
+        })
+        const patch: Partial<InboxConversation> = {
+          lastMessageText: sent.contentText,
+          lastMessageAt: sent.createdAt,
+          unreadCount: 0,
+          updatedAt: sent.createdAt,
+        }
+        queryClient.setQueryData<InboxConversation>(detailKey, (prev) =>
+          prev ? mergeConversationUpdate(prev, patch) : prev
+        )
+        mergeInboxConversation(patch)
+        return
+      }
+      await refreshMessages()
+    },
+    [detailKey, mergeInboxConversation, messagesKey, queryClient, refreshMessages]
+  )
+
+  useEffect(() => {
+    if (!canViewInbox) return
+    return subscribeInboxEvents((event) => {
+      if (event.payload.conversationId !== conversationId) return
+
+      let missingMessage = false
+      let conversationPatch: InboxConversation | null = null
+
+      queryClient.setQueryData<InboxMessage[]>(messagesKey, (prev) => {
+        const result = applyInboxSseToMessages(prev ?? [], event, conversationId)
+        missingMessage = result.missingMessage
+        return result.messages
+      })
+
+      queryClient.setQueryData<InboxConversation>(detailKey, (prev) => {
+        if (!prev) return prev
+        const next = applyInboxSseToConversation(prev, event)
+        if (next !== prev) conversationPatch = next
+        return next
+      })
+
+      if (conversationPatch) {
+        mergeInboxConversation(conversationPatch)
+      }
+
+      if (missingMessage) {
+        void refreshMessages()
+      }
+    })
+  }, [
+    canViewInbox,
+    conversationId,
+    detailKey,
+    mergeInboxConversation,
+    messagesKey,
+    queryClient,
+    refreshMessages,
+    subscribeInboxEvents,
+  ])
 
   const handleRetry = () => {
-    if (tenantOrganizationId) {
-      void loadThread(tenantOrganizationId, conversationId)
-    }
+    void conversationQuery.refetch()
+    void messagesQuery.refetch()
+    void membersQuery.refetch()
   }
 
-  const handleConversationUpdated = useCallback((patch: Partial<InboxConversation>) => {
-    setConversation((prev) => (prev ? mergeConversationUpdate(prev, patch) : prev))
-  }, [])
+  const handleConversationUpdated = useCallback(
+    (patch: Partial<InboxConversation>) => {
+      queryClient.setQueryData<InboxConversation>(detailKey, (prev) =>
+        prev ? mergeConversationUpdate(prev, patch) : prev
+      )
+      mergeInboxConversation(patch)
+    },
+    [detailKey, mergeInboxConversation, queryClient]
+  )
 
   if (!orgsLoading && !canViewInbox) {
     return (
@@ -210,7 +284,8 @@ export function InboxConversationThread({
       as="section"
       className={cn(
         'flex h-full min-h-[24rem] flex-col overflow-hidden rounded-[18px]',
-        'border border-dash-border shadow-[0_1px_3px_rgb(15_23_42/0.06)]'
+        'border border-dash-border shadow-[0_1px_3px_rgb(15_23_42/0.06)]',
+        'lg:rounded-l-none'
       )}
     >
       {showMobileBack ? (
@@ -253,53 +328,17 @@ export function InboxConversationThread({
             members={members}
             onConversationUpdated={handleConversationUpdated}
           />
-          <div
-            role="tablist"
-            aria-label={t('panelsLabel')}
-            className="flex shrink-0 gap-1 border-b border-dash-border px-4 pt-2 sm:px-5"
-          >
-            {([
-              { id: 'messages' as const, label: t('panels.messages') },
-              { id: 'notes' as const, label: t('panels.notes') },
-            ]).map((tab) => {
-              const selected = panel === tab.id
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={selected}
-                  className={cn(
-                    'rounded-t-lg px-3 py-2 text-sm font-medium transition-colors',
-                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
-                    selected
-                      ? 'border-b-2 border-primary text-ink'
-                      : 'text-mute hover:text-ink'
-                  )}
-                  onClick={() => setPanel(tab.id)}
-                >
-                  {tab.label}
-                </button>
-              )
-            })}
-          </div>
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            {panel === 'messages' ? (
-              <>
-                <InboxMessageList
-                  messages={messages}
-                  contactName={contactName}
-                  loading={messagesLoading}
-                />
-                <InboxReplyComposer
-                  conversationId={conversationId}
-                  conversationStatus={conversation.status}
-                  onSent={refreshMessages}
-                />
-              </>
-            ) : (
-              <InboxThreadNotes conversationId={conversationId} active={panel === 'notes'} />
-            )}
+            <InboxMessageList
+              messages={messages}
+              contactName={contactName}
+              loading={messagesLoading}
+            />
+            <InboxReplyComposer
+              conversationId={conversationId}
+              conversationStatus={conversation.status}
+              onSent={handleSent}
+            />
           </div>
         </>
       ) : null}

@@ -1,0 +1,1692 @@
+import { inject } from '@adonisjs/core'
+import db from '@adonisjs/lucid/services/db'
+import logger from '@adonisjs/core/services/logger'
+import CampaignException from '#exceptions/campaign_exception'
+import { MediaAssetReferenceRepository } from '#repositories/media_asset_reference_repository'
+import {
+  InvalidScheduledAtError,
+  isValidIanaTimeZone,
+  parseScheduledAt,
+  resolveIanaTimeZone,
+  toUtcIso,
+} from '#lib/scheduled_at'
+import {
+  pickRequiredParameterValues,
+  resolveParameterSchema,
+  TemplateParameterError,
+} from '#lib/meta_whatsapp/template_parameters'
+import type { TemplateParameterSchema } from '#lib/meta_whatsapp/types'
+import {
+  assertApprovedTemplate,
+  assertConnectedWhatsappConfig,
+  assertReadyMediaAsset,
+} from '#services/campaign_preflight'
+import { enqueueCampaignWake, removeCampaignWake } from '#services/campaign_queue'
+import { NotificationService } from '#services/notification_service'
+import type { CAMPAIGN_STATUSES } from '#validators/campaign'
+import {
+  CAMPAIGN_CANCELLABLE_STATUSES,
+  CAMPAIGN_SORT_FIELDS,
+  CAMPAIGN_SOFT_DELETED_STATUS,
+  CAMPAIGN_SCHEDULABLE_STATUSES,
+  CAMPAIGN_SENDABLE_STATUSES,
+  CAMPAIGN_DRAFT_STATUS,
+  CAMPAIGN_SCHEDULED_STATUS,
+  CAMPAIGN_SENDING_STATUS,
+  type CampaignVariableMapping,
+  type CampaignVariableMappings,
+} from '#validators/campaign'
+import type { DateTime } from 'luxon'
+
+const SENDABLE_STATUS_SET = new Set<string>(CAMPAIGN_SENDABLE_STATUSES)
+const SCHEDULABLE_STATUS_SET = new Set<string>(CAMPAIGN_SCHEDULABLE_STATUSES)
+const CANCELLABLE_STATUS_SET = new Set<string>(CAMPAIGN_CANCELLABLE_STATUSES)
+
+export type CampaignLifecycleStatus = (typeof CAMPAIGN_STATUSES)[number]
+
+/** Matches named (`{{customer_name}}`) and numbered (`{{1}}`) WhatsApp placeholders. */
+const TEMPLATE_PLACEHOLDER = /\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*|\d+)\s*\}\}/g
+
+const TEMPLATE_PREVIEW_COLUMNS = [
+  'id',
+  'name',
+  'category',
+  'language',
+  'headerType',
+  'headerContent',
+  'headerMediaUrl',
+  'bodyText',
+  'footerText',
+  'buttons',
+  'sampleValues',
+  'parameterSchema',
+  'status',
+] as const
+
+export type CampaignDto = {
+  id: string
+  organizationId: string
+  createdByUserId: string | null
+  name: string
+  whatsappConfigId: string | null
+  messageTemplateId: string | null
+  headerMediaAssetId: string | null
+  audienceTagId: string | null
+  scheduledAt: string | null
+  finalizedAt: string | null
+  cancelledAt: string | null
+  status: string
+  totalRecipients: number
+  sentCount: number
+  deliveredCount: number
+  readCount: number
+  repliedCount: number
+  failedCount: number
+  createdAt: string
+  updatedAt: string | null
+  variableMappings: CampaignVariableMappings | null
+}
+
+export type CreateCampaignInput = {
+  organizationId: string
+  actorUserId: string
+  name: string
+  whatsappConfigId?: string
+  messageTemplateId?: string
+  headerMediaAssetId?: string
+  scheduledAt?: DateTime | Date | string
+  status?: 'draft' | 'scheduled'
+  variableMappings?: CampaignVariableMappings
+}
+
+export type ListCampaignsInput = {
+  organizationId: string
+  page?: number
+  limit?: number
+  perPage?: number
+  search?: string
+  status?: string
+  sortBy?: string
+  sortOrder?: 'asc' | 'desc'
+}
+
+export type UpdateCampaignInput = {
+  campaignId: string
+  organizationId: string
+  name?: string
+  whatsappConfigId?: string | null
+  messageTemplateId?: string | null
+  headerMediaAssetId?: string | null
+  scheduledAt?: DateTime | Date | string | null
+  status?: 'draft' | 'scheduled'
+  variableMappings?: CampaignVariableMappings | null
+}
+
+export type PreviewCampaignInput = {
+  campaignId: string
+  organizationId: string
+  /** Optional overrides; merged over the template's sampleValues. */
+  variables?: Record<string, string>
+}
+
+export type CampaignPreviewDto = {
+  campaignId: string
+  campaignName: string
+  campaignStatus: string
+  messageTemplateId: string
+  templateName: string
+  templateStatus: string
+  category: string
+  language: string | null
+  headerType: string | null
+  headerMediaUrl: string | null
+  variables: Record<string, string>
+  parameterSchema: TemplateParameterSchema
+  headerPreview: string | null
+  bodyPreview: string
+  footerPreview: string | null
+  buttons: unknown
+}
+
+const SORT_FIELD_SET = new Set<string>(CAMPAIGN_SORT_FIELDS)
+const RECIPIENT_INSERT_BATCH_SIZE = 5_000
+
+/** Postgres foreign_key_violation, including Knex/Lucid-wrapped errors. */
+function isForeignKeyViolation(error: unknown): boolean {
+  let current: unknown = error
+  for (let depth = 0; depth < 4 && current && typeof current === 'object'; depth++) {
+    const code = (current as { code?: string }).code
+    if (code === '23503') return true
+    current = (current as { cause?: unknown }).cause ?? (current as { original?: unknown }).original
+  }
+  return false
+}
+
+function toIso(value: DateTime | Date | string | null | undefined): string | null {
+  if (!value) return null
+  try {
+    return toUtcIso(value)
+  } catch {
+    return null
+  }
+}
+
+function parseVariableMappings(raw: unknown): CampaignVariableMappings | null {
+  const parsed = parseJsonField(raw)
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return null
+  }
+  return parsed as CampaignVariableMappings
+}
+
+function mapCampaignRow(row: Record<string, unknown>): CampaignDto {
+  return {
+    id: row.id as string,
+    organizationId: row.organizationId as string,
+    createdByUserId: (row.createdByUserId as string | null) ?? null,
+    name: row.name as string,
+    whatsappConfigId: (row.whatsappConfigId as string | null) ?? null,
+    messageTemplateId: (row.messageTemplateId as string | null) ?? null,
+    headerMediaAssetId: (row.headerMediaAssetId as string | null) ?? null,
+    audienceTagId: (row.audienceTagId as string | null) ?? null,
+    scheduledAt: toIso(row.scheduledAt as DateTime | Date | string | null),
+    finalizedAt: toIso(row.finalizedAt as DateTime | Date | string | null),
+    cancelledAt: toIso(row.cancelledAt as DateTime | Date | string | null),
+    status: row.status as string,
+    totalRecipients: Number(row.totalRecipients ?? 0),
+    sentCount: Number(row.sentCount ?? 0),
+    deliveredCount: Number(row.deliveredCount ?? 0),
+    readCount: Number(row.readCount ?? 0),
+    repliedCount: Number(row.repliedCount ?? 0),
+    failedCount: Number(row.failedCount ?? 0),
+    createdAt: toIso(row.createdAt as DateTime | Date | string)!,
+    updatedAt: toIso(row.updatedAt as DateTime | Date | string | null),
+    variableMappings: parseVariableMappings(row.variableMappings),
+  }
+}
+
+function parseJsonField(value: unknown): unknown {
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value)
+    } catch {
+      return value
+    }
+  }
+  return value
+}
+
+/** Normalize template sampleValues / request overrides into a string map. */
+function toVariableMap(raw: unknown): Record<string, string> {
+  const parsed = parseJsonField(raw)
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    return {}
+  }
+
+  const out: Record<string, string> = {}
+  for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+    if (value === null || value === undefined) continue
+    out[key] = String(value)
+  }
+  return out
+}
+
+function usableTemplateString(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined
+  const trimmed = value.trim()
+  return trimmed ? trimmed : undefined
+}
+
+type CampaignContactValues = {
+  name: string | null
+  email: string | null
+  company: string | null
+  phone: string
+  customFields: unknown
+}
+
+function contactTemplateValueCandidates(contact: CampaignContactValues): Record<string, string> {
+  const out: Record<string, string> = {}
+  const set = (key: string, value: unknown) => {
+    const usable = usableTemplateString(value)
+    if (!usable) return
+    out[key] = usable
+  }
+
+  set('name', contact.name)
+
+  for (const [key, value] of Object.entries(toVariableMap(contact.customFields))) {
+    set(key, value)
+  }
+
+  return out
+}
+
+const CONTACT_NAME_FALLBACK = 'Customer'
+
+function readMappedContactField(contact: CampaignContactValues, field: string): string | undefined {
+  if (field !== 'name') return undefined
+  return usableTemplateString(contact.name)
+}
+
+function valuesFromVariableMappings(params: {
+  contact: CampaignContactValues | null
+  mappings?: CampaignVariableMappings | null
+}): Record<string, string> {
+  const out: Record<string, string> = {}
+  if (!params.mappings) return out
+
+  const customFields = params.contact ? toVariableMap(params.contact.customFields) : {}
+
+  for (const [param, mapping] of Object.entries(params.mappings)) {
+    const resolved = resolveMappedValue(mapping, params.contact, customFields)
+    if (resolved !== undefined) {
+      out[param] = resolved
+    }
+  }
+
+  return out
+}
+
+function resolveMappedValue(
+  mapping: CampaignVariableMapping | Record<string, unknown> | null | undefined,
+  contact: CampaignContactValues | null,
+  customFields: Record<string, string>
+): string | undefined {
+  if (!mapping || typeof mapping !== 'object' || Array.isArray(mapping)) {
+    return undefined
+  }
+
+  const source = (mapping as { source?: unknown }).source
+  if (source === 'contact_field') {
+    const field = usableTemplateString((mapping as { field?: unknown }).field)
+    if (!field) return undefined
+    const resolved = contact ? readMappedContactField(contact, field) : undefined
+    if (resolved) return resolved
+    return field === 'name' ? CONTACT_NAME_FALLBACK : undefined
+  }
+
+  if (source === 'custom_field') {
+    const field = usableTemplateString((mapping as { field?: unknown }).field)
+    if (!field) return undefined
+    return usableTemplateString(customFields[field])
+  }
+
+  if (source === 'static') {
+    return usableTemplateString((mapping as { value?: unknown }).value)
+  }
+
+  return undefined
+}
+
+function resolveRecipientParameterValues(params: {
+  schema: TemplateParameterSchema
+  contact: CampaignContactValues | null
+  mappings?: CampaignVariableMappings | null
+  overrides?: Record<string, string> | null
+}): Record<string, string> {
+  const values: Record<string, string> = {
+    ...(params.contact ? contactTemplateValueCandidates(params.contact) : {}),
+  }
+
+  if (params.mappings) {
+    for (const param of Object.keys(params.mappings)) {
+      delete values[param]
+    }
+    Object.assign(values, valuesFromVariableMappings(params))
+  }
+
+  Object.assign(values, params.overrides ?? {})
+
+  try {
+    return pickRequiredParameterValues({
+      schema: params.schema,
+      values,
+    })
+  } catch (error) {
+    if (error instanceof TemplateParameterError) {
+      throw CampaignException.missingTemplateParameters(error.message)
+    }
+    throw error
+  }
+}
+
+/**
+ * Replace `{{name}}` / `{{1}}` placeholders with configured variable values.
+ * Unmatched placeholders are left intact so the client can spot gaps.
+ */
+function applyTemplateVariables(
+  text: string | null | undefined,
+  variables: Record<string, string>
+): string | null {
+  if (text === null) return null
+  // The issue is that 'text' is possibly 'undefined' (see linter; if text is undefined, calling .replace will throw).
+  // To fix, ensure 'text' is a string before calling .replace.
+  return (typeof text === 'string' ? text : '').replace(
+    TEMPLATE_PLACEHOLDER,
+    (match, key: string) => {
+      if (Object.prototype.hasOwnProperty.call(variables, key)) {
+        return variables[key]
+      }
+      return match
+    }
+  )
+}
+
+const BROADCAST_COLUMNS = [
+  'id',
+  'organizationId',
+  'createdByUserId',
+  'name',
+  'whatsappConfigId',
+  'messageTemplateId',
+  'headerMediaAssetId',
+  'audienceTagId',
+  'scheduledAt',
+  'finalizedAt',
+  'cancelledAt',
+  'status',
+  'totalRecipients',
+  'sentCount',
+  'deliveredCount',
+  'readCount',
+  'repliedCount',
+  'failedCount',
+  'createdAt',
+  'updatedAt',
+  'variableMappings',
+] as const
+
+@inject()
+export class CampaignService {
+  constructor(
+    protected mediaReferences: MediaAssetReferenceRepository = new MediaAssetReferenceRepository()
+  ) {}
+
+  /**
+   * Load an active campaign row for the active org or throw not found.
+   * Soft-deleted campaigns (status = deleted) are excluded.
+   * Knex is used because DB columns are camelCase (Lucid emits snake_case).
+   */
+  protected async findCampaignRowOrFail(params: {
+    campaignId: string
+    organizationId: string
+  }): Promise<Record<string, unknown>> {
+    const row = await db
+      .from('broadcasts')
+      .where('id', params.campaignId)
+      .where('organizationId', params.organizationId)
+      .whereNot('status', CAMPAIGN_SOFT_DELETED_STATUS)
+      .select([...BROADCAST_COLUMNS])
+      .first()
+
+    if (!row) {
+      throw CampaignException.notFound()
+    }
+
+    return row
+  }
+
+  /**
+   * Load a campaign row regardless of soft-delete state.
+   */
+  protected async findCampaignRowIncludingDeleted(params: {
+    campaignId: string
+    organizationId: string
+  }): Promise<Record<string, unknown>> {
+    const row = await db
+      .from('broadcasts')
+      .where('id', params.campaignId)
+      .where('organizationId', params.organizationId)
+      .select([...BROADCAST_COLUMNS])
+      .first()
+
+    if (!row) {
+      throw CampaignException.notFound()
+    }
+
+    return row
+  }
+
+  protected async getOrganizationTimezone(organizationId: string): Promise<string> {
+    const row = await db
+      .from('organizations')
+      .where('id', organizationId)
+      .select('timezone')
+      .first()
+    return resolveIanaTimeZone(typeof row?.timezone === 'string' ? row.timezone : null)
+  }
+
+  /**
+   * Date/DateTime values are already absolute instants.
+   * Strings are parsed once: offset/Z as instants, naive as `timeZone` (or org TZ).
+   */
+  protected async resolveScheduledAt(
+    organizationId: string,
+    value: DateTime | Date | string,
+    timeZone?: string | null
+  ): Promise<Date> {
+    try {
+      if (typeof value !== 'string') {
+        return parseScheduledAt(value, 'UTC')
+      }
+      const zone = this.resolveScheduleTimeZone(
+        timeZone,
+        await this.getOrganizationTimezone(organizationId)
+      )
+      return parseScheduledAt(value, zone)
+    } catch (error) {
+      if (error instanceof InvalidScheduledAtError) {
+        throw CampaignException.invalidScheduledAt()
+      }
+      throw error
+    }
+  }
+
+  protected resolveScheduleTimeZone(
+    timeZone: string | null | undefined,
+    organizationTimeZone: string
+  ): string {
+    const candidate = timeZone?.trim()
+    if (!candidate) return organizationTimeZone
+    if (!isValidIanaTimeZone(candidate)) {
+      throw CampaignException.invalidTimeZone()
+    }
+    return candidate
+  }
+
+  protected async assertWhatsappConfigInOrg(organizationId: string, whatsappConfigId: string) {
+    const config = await db
+      .from('whatsapp_configs')
+      .where('id', whatsappConfigId)
+      .where('organizationId', organizationId)
+      .select('id')
+      .first()
+
+    if (!config) {
+      throw CampaignException.whatsappConfigNotFound()
+    }
+  }
+
+  protected async assertMessageTemplateInOrg(organizationId: string, messageTemplateId: string) {
+    const template = await db
+      .from('message_templates')
+      .where('id', messageTemplateId)
+      .where('organizationId', organizationId)
+      .select('id', 'whatsappConfigId')
+      .first()
+
+    if (!template) {
+      throw CampaignException.messageTemplateNotFound()
+    }
+
+    return template as { id: string; whatsappConfigId: string | null }
+  }
+
+  protected async assertMediaAssetInOrg(organizationId: string, mediaAssetId: string) {
+    const asset = await db
+      .from('media_assets')
+      .where('id', mediaAssetId)
+      .where('organizationId', organizationId)
+      .where('state', 'ready')
+      .select('id')
+      .first()
+
+    if (!asset) {
+      throw CampaignException.invalidReference()
+    }
+  }
+
+  protected campaignTemplateSchema(template: Record<string, unknown>): TemplateParameterSchema {
+    return resolveParameterSchema({
+      stored: parseJsonField(template.parameterSchema),
+      headerType: (template.headerType as string | null) ?? null,
+      headerContent: (template.headerContent as string | null) ?? null,
+      bodyText: (template.bodyText as string) ?? '',
+      buttons: parseJsonField(template.buttons),
+    })
+  }
+
+  protected async loadCampaignTemplateSchema(params: {
+    organizationId: string
+    messageTemplateId: string
+  }): Promise<TemplateParameterSchema> {
+    const template = await db
+      .from('message_templates')
+      .where('id', params.messageTemplateId)
+      .where('organizationId', params.organizationId)
+      .whereNot('status', 'deleted')
+      .select('id', 'headerType', 'headerContent', 'bodyText', 'buttons', 'parameterSchema')
+      .first()
+
+    if (!template) {
+      throw CampaignException.messageTemplateNotFound()
+    }
+
+    const schema = this.campaignTemplateSchema(template)
+    if (!schema.sendable) {
+      throw CampaignException.templateNotSendable(schema.unsupportedReason)
+    }
+    return schema
+  }
+
+  protected async loadContactsByIds(params: {
+    organizationId: string
+    contactIds: string[]
+  }): Promise<
+    Map<
+      string,
+      {
+        id: string
+        name: string | null
+        email: string | null
+        company: string | null
+        phone: string
+        customFields: unknown
+      }
+    >
+  > {
+    const contacts = new Map<
+      string,
+      {
+        id: string
+        name: string | null
+        email: string | null
+        company: string | null
+        phone: string
+        customFields: unknown
+      }
+    >()
+
+    for (let i = 0; i < params.contactIds.length; i += RECIPIENT_INSERT_BATCH_SIZE) {
+      const batch = params.contactIds.slice(i, i + RECIPIENT_INSERT_BATCH_SIZE)
+      const rows = await db
+        .from('contacts')
+        .where('organizationId', params.organizationId)
+        .whereIn('id', batch)
+        .select('id', 'name', 'email', 'company', 'phone', 'customFields')
+
+      for (const row of rows) {
+        contacts.set(row.id as string, {
+          id: row.id as string,
+          name: (row.name as string | null) ?? null,
+          email: (row.email as string | null) ?? null,
+          company: (row.company as string | null) ?? null,
+          phone: row.phone as string,
+          customFields: row.customFields,
+        })
+      }
+    }
+
+    return contacts
+  }
+
+  protected async assertRecipientVariablesReady(params: {
+    organizationId: string
+    campaignId: string
+    messageTemplateId: string
+    mappings?: CampaignVariableMappings | null
+  }): Promise<void> {
+    const schema = await this.loadCampaignTemplateSchema(params)
+    const required = [...schema.headerNames, ...schema.bodyNames]
+    if (required.length === 0) {
+      return
+    }
+
+    const recipients = await db
+      .from('broadcast_recipients as r')
+      .leftJoin('contacts as c', 'c.id', 'r.contactId')
+      .where('r.organizationId', params.organizationId)
+      .where('r.broadcastId', params.campaignId)
+      .select('r.id', 'r.variables', 'c.name', 'c.email', 'c.company', 'c.phone', 'c.customFields')
+
+    for (const row of recipients) {
+      resolveRecipientParameterValues({
+        schema,
+        contact: row.phone
+          ? {
+              name: (row.name as string | null) ?? null,
+              email: (row.email as string | null) ?? null,
+              company: (row.company as string | null) ?? null,
+              phone: row.phone as string,
+              customFields: row.customFields,
+            }
+          : null,
+        mappings: params.mappings,
+        overrides: toVariableMap(row.variables),
+      })
+    }
+  }
+
+  protected async resolveTagAudienceContactIds(
+    organizationId: string,
+    tagId: string
+  ): Promise<string[]> {
+    const tag = await db
+      .from('tags')
+      .where('id', tagId)
+      .where('organizationId', organizationId)
+      .select('id')
+      .first()
+    if (!tag) {
+      throw CampaignException.tagNotFound()
+    }
+
+    const rows = await db
+      .from('contact_tags as ct')
+      .innerJoin('contacts as c', 'c.id', 'ct.contactId')
+      .where('ct.tagId', tagId)
+      .where('ct.organizationId', organizationId)
+      .where('c.organizationId', organizationId)
+      .whereNull('c.deletedAt')
+      .whereNull('c.optedOutAt')
+      .select('c.id')
+
+    return [...new Set(rows.map((row) => row.id as string))]
+  }
+
+  /**
+   * Fetch one campaign by id for the active organization.
+   * Soft-deleted campaigns are not returned (404).
+   */
+  async getCampaignById(params: {
+    campaignId: string
+    organizationId: string
+  }): Promise<CampaignDto> {
+    const row = await this.findCampaignRowOrFail(params)
+    return mapCampaignRow(row)
+  }
+
+  /**
+   * Replace the recipient snapshot for a draft or scheduled campaign.
+   * `tagId` resolves live tagged contacts; `contactIds` follows All Contacts rules.
+   */
+  async replaceRecipients(params: {
+    organizationId: string
+    campaignId: string
+    contactIds?: string[]
+    tagId?: string
+    variables?: Record<string, string>
+  }): Promise<CampaignDto> {
+    const campaign = await this.findCampaignRowOrFail({
+      campaignId: params.campaignId,
+      organizationId: params.organizationId,
+    })
+    const status = campaign.status as string
+    if (status !== CAMPAIGN_DRAFT_STATUS && status !== CAMPAIGN_SCHEDULED_STATUS) {
+      throw CampaignException.notEditable(status)
+    }
+
+    let uniqueIds: string[]
+    if (params.tagId) {
+      uniqueIds = await this.resolveTagAudienceContactIds(params.organizationId, params.tagId)
+    } else {
+      uniqueIds = [...new Set(params.contactIds ?? [])]
+
+      const eligible: string[] = []
+      for (let i = 0; i < uniqueIds.length; i += RECIPIENT_INSERT_BATCH_SIZE) {
+        const batch = uniqueIds.slice(i, i + RECIPIENT_INSERT_BATCH_SIZE)
+        const found = await db
+          .from('contacts')
+          .where('organizationId', params.organizationId)
+          .whereIn('id', batch)
+          .whereNull('deletedAt')
+          .select('id', 'optedOutAt')
+        if (found.length !== batch.length) {
+          const foundIds = new Set(found.map((row) => row.id as string))
+          if (batch.some((id) => !foundIds.has(id))) {
+            throw CampaignException.invalidReference()
+          }
+        }
+        for (const row of found) {
+          if (!row.optedOutAt) {
+            eligible.push(row.id as string)
+          }
+        }
+      }
+      uniqueIds = eligible
+    }
+
+    const audienceTagId = params.tagId ?? null
+
+    const messageTemplateId = campaign.messageTemplateId as string | null
+    const schema = messageTemplateId
+      ? await this.loadCampaignTemplateSchema({
+          organizationId: params.organizationId,
+          messageTemplateId,
+        })
+      : null
+    const contacts = schema
+      ? await this.loadContactsByIds({
+          organizationId: params.organizationId,
+          contactIds: uniqueIds,
+        })
+      : null
+    const mappings = schema ? parseVariableMappings(campaign.variableMappings) : null
+
+    const now = new Date()
+    await db.transaction(async (trx) => {
+      await trx
+        .from('broadcast_recipients')
+        .where('organizationId', params.organizationId)
+        .where('broadcastId', params.campaignId)
+        .delete()
+
+      if (uniqueIds.length === 0) {
+        await trx
+          .from('broadcasts')
+          .where('id', params.campaignId)
+          .where('organizationId', params.organizationId)
+          .update({ totalRecipients: 0, audienceTagId })
+        return
+      }
+
+      for (let i = 0; i < uniqueIds.length; i += RECIPIENT_INSERT_BATCH_SIZE) {
+        const batch = uniqueIds.slice(i, i + RECIPIENT_INSERT_BATCH_SIZE)
+        await trx.table('broadcast_recipients').insert(
+          batch.map((contactId) => ({
+            organizationId: params.organizationId,
+            broadcastId: params.campaignId,
+            contactId,
+            status: 'pending',
+            variables: schema
+              ? resolveRecipientParameterValues({
+                  schema,
+                  contact: contacts?.get(contactId) ?? null,
+                  mappings,
+                  overrides: params.variables,
+                })
+              : (params.variables ?? null),
+            createdAt: now,
+          }))
+        )
+      }
+
+      await trx
+        .from('broadcasts')
+        .where('id', params.campaignId)
+        .where('organizationId', params.organizationId)
+        .update({ totalRecipients: uniqueIds.length, audienceTagId })
+    })
+
+    return this.getCampaignById({
+      campaignId: params.campaignId,
+      organizationId: params.organizationId,
+    })
+  }
+
+  /**
+   * Update only the campaign status field to an active lifecycle value.
+   * Soft-deleted campaigns are treated as not found (404).
+   * Lifecycle kickoff (sending / cancel / finalize) uses dedicated endpoints.
+   * This PATCH only allows draft↔scheduled transitions.
+   * updatedAt is maintained by the DB trigger `trg_set_updated_at`.
+   */
+  async changeCampaignStatus(params: {
+    campaignId: string
+    organizationId: string
+    status: CampaignLifecycleStatus
+  }): Promise<CampaignDto> {
+    const existing = await this.findCampaignRowOrFail({
+      campaignId: params.campaignId,
+      organizationId: params.organizationId,
+    })
+    const from = existing.status as string
+    const to = params.status
+
+    const allowed =
+      (from === 'draft' && (to === 'draft' || to === 'scheduled')) ||
+      (from === 'scheduled' && (to === 'draft' || to === 'scheduled'))
+
+    if (!allowed) {
+      throw CampaignException.invalidStatusTransition(from, to)
+    }
+
+    // Knex (not Lucid .save) — DB columns are camelCase; Lucid emits snake_case.
+    // Do not write updatedAt; trg_set_updated_at handles it.
+    const [row] = await db
+      .from('broadcasts')
+      .where('id', params.campaignId)
+      .where('organizationId', params.organizationId)
+      .whereNot('status', CAMPAIGN_SOFT_DELETED_STATUS)
+      .update({ status: params.status })
+      .returning([...BROADCAST_COLUMNS])
+
+    if (!row) {
+      throw CampaignException.notFound()
+    }
+
+    return mapCampaignRow(row)
+  }
+
+  /**
+   * Soft-delete a campaign without removing the row.
+   * Uses status = deleted (`broadcasts` has no deletedAt column — same approach as subscriptions).
+   */
+  async softDeleteCampaign(params: {
+    campaignId: string
+    organizationId: string
+  }): Promise<{ ok: true }> {
+    const row = await this.findCampaignRowIncludingDeleted(params)
+
+    if (row.status === CAMPAIGN_SOFT_DELETED_STATUS) {
+      throw CampaignException.alreadyDeleted()
+    }
+
+    const updated = await db
+      .from('broadcasts')
+      .where('id', params.campaignId)
+      .where('organizationId', params.organizationId)
+      .whereNot('status', CAMPAIGN_SOFT_DELETED_STATUS)
+      .update({ status: CAMPAIGN_SOFT_DELETED_STATUS })
+
+    if (!updated) {
+      throw CampaignException.notFound()
+    }
+
+    return { ok: true }
+  }
+
+  /**
+   * Partial update of editable campaign fields.
+   * Immutable: id, organizationId, createdByUserId, delivery counters, createdAt.
+   * updatedAt is maintained by the DB trigger `trg_set_updated_at`.
+   */
+  async updateCampaign(input: UpdateCampaignInput): Promise<CampaignDto> {
+    const existing = await this.findCampaignRowOrFail({
+      campaignId: input.campaignId,
+      organizationId: input.organizationId,
+    })
+
+    const existingStatus = existing.status as string
+    if (existingStatus !== 'draft' && existingStatus !== 'scheduled') {
+      throw CampaignException.notEditable(existingStatus)
+    }
+
+    const updates: Record<string, unknown> = {}
+
+    if (input.name !== undefined) {
+      updates.name = input.name.trim()
+    }
+
+    if (input.whatsappConfigId !== undefined) {
+      if (input.whatsappConfigId) {
+        await this.assertWhatsappConfigInOrg(input.organizationId, input.whatsappConfigId)
+      }
+      updates.whatsappConfigId = input.whatsappConfigId
+    }
+
+    if (input.messageTemplateId !== undefined) {
+      if (input.messageTemplateId) {
+        const template = await this.assertMessageTemplateInOrg(
+          input.organizationId,
+          input.messageTemplateId
+        )
+        updates.messageTemplateId = input.messageTemplateId
+        // Auto-fill from template when client omits whatsappConfigId (campaign send requires it).
+        if (input.whatsappConfigId === undefined && template.whatsappConfigId) {
+          await this.assertWhatsappConfigInOrg(input.organizationId, template.whatsappConfigId)
+          updates.whatsappConfigId = template.whatsappConfigId
+        }
+      } else {
+        updates.messageTemplateId = null
+      }
+    }
+
+    if (input.headerMediaAssetId !== undefined) {
+      if (input.headerMediaAssetId) {
+        await this.assertMediaAssetInOrg(input.organizationId, input.headerMediaAssetId)
+      }
+      updates.headerMediaAssetId = input.headerMediaAssetId
+    }
+
+    if (input.scheduledAt !== undefined) {
+      updates.scheduledAt = input.scheduledAt
+        ? await this.resolveScheduledAt(input.organizationId, input.scheduledAt)
+        : null
+    }
+
+    if (input.status !== undefined) {
+      updates.status = input.status
+    }
+
+    if (input.variableMappings !== undefined) {
+      updates.variableMappings = input.variableMappings
+    }
+
+    const nextStatus = (updates.status as string | undefined) ?? (existing.status as string)
+    const nextScheduledAt =
+      input.scheduledAt !== undefined
+        ? ((updates.scheduledAt as Date | null | undefined) ?? null)
+        : existing.scheduledAt
+          ? new Date(existing.scheduledAt as string | Date)
+          : null
+
+    if (nextStatus === 'scheduled' && !nextScheduledAt) {
+      throw CampaignException.scheduledAtRequired()
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return mapCampaignRow(existing)
+    }
+
+    try {
+      // Knex (not Lucid .save) — DB columns are camelCase; Lucid emits snake_case.
+      // Do not write createdAt; updatedAt is set by trg_set_updated_at.
+      const [row] = await db
+        .from('broadcasts')
+        .where('id', input.campaignId)
+        .where('organizationId', input.organizationId)
+        .whereNot('status', CAMPAIGN_SOFT_DELETED_STATUS)
+        .update(updates)
+        .returning([...BROADCAST_COLUMNS])
+
+      if (!row) {
+        throw CampaignException.notFound()
+      }
+
+      return mapCampaignRow(row)
+    } catch (error) {
+      if (error instanceof CampaignException) {
+        throw error
+      }
+      if (isForeignKeyViolation(error)) {
+        throw CampaignException.invalidReference()
+      }
+      throw error
+    }
+  }
+
+  /**
+   * Paginated campaigns for the active organization.
+   * Soft-deleted campaigns (status = deleted) are excluded.
+   * Organization scope comes from the tenant (RLS + explicit organizationId filter).
+   * Campaign type is not a column on `broadcasts`, so type filtering is unsupported.
+   */
+  async listCampaignsPaginated(input: ListCampaignsInput) {
+    const page = input.page ?? 1
+    const perPage = input.perPage ?? input.limit ?? 20
+    const sortBy = input.sortBy && SORT_FIELD_SET.has(input.sortBy) ? input.sortBy : 'createdAt'
+    const sortOrder = input.sortOrder === 'asc' ? 'asc' : 'desc'
+
+    let query = db
+      .from('broadcasts')
+      .where('organizationId', input.organizationId)
+      .whereNot('status', CAMPAIGN_SOFT_DELETED_STATUS)
+
+    if (input.status) {
+      query = query.where('status', input.status)
+    }
+
+    if (input.search) {
+      const term = `%${input.search}%`
+      query = query.whereILike('name', term)
+    }
+
+    const countResult = await query.clone().count('* as total').first()
+    const total = Number(countResult?.total ?? 0)
+
+    const rows = await query
+      .clone()
+      .select([...BROADCAST_COLUMNS])
+      .orderBy(sortBy, sortOrder)
+      .offset((page - 1) * perPage)
+      .limit(perPage)
+
+    const lastPage = Math.ceil(total / perPage) || 1
+
+    return {
+      data: rows.map((row) => mapCampaignRow(row)),
+      meta: {
+        total,
+        perPage,
+        currentPage: page,
+        lastPage,
+      },
+    }
+  }
+
+  /**
+   * Create a draft or scheduled campaign (broadcasts row) for the active organization.
+   */
+  async createCampaign(input: CreateCampaignInput): Promise<CampaignDto> {
+    const name = input.name.trim()
+    const scheduledAt = input.scheduledAt
+      ? await this.resolveScheduledAt(input.organizationId, input.scheduledAt)
+      : null
+    const status = input.status ?? (scheduledAt ? 'scheduled' : 'draft')
+
+    if (status === 'scheduled' && !scheduledAt) {
+      throw CampaignException.scheduledAtRequired()
+    }
+
+    let whatsappConfigId = input.whatsappConfigId ?? null
+
+    if (input.messageTemplateId) {
+      const template = await this.assertMessageTemplateInOrg(
+        input.organizationId,
+        input.messageTemplateId
+      )
+      if (!whatsappConfigId && template.whatsappConfigId) {
+        whatsappConfigId = template.whatsappConfigId
+      }
+    }
+
+    if (whatsappConfigId) {
+      await this.assertWhatsappConfigInOrg(input.organizationId, whatsappConfigId)
+    }
+
+    if (input.headerMediaAssetId) {
+      await this.assertMediaAssetInOrg(input.organizationId, input.headerMediaAssetId)
+    }
+
+    try {
+      // Knex (not Lucid .create) — DB columns are camelCase; Lucid emits snake_case.
+      const [row] = await db
+        .table('broadcasts')
+        .insert({
+          organizationId: input.organizationId,
+          createdByUserId: input.actorUserId,
+          name,
+          whatsappConfigId,
+          messageTemplateId: input.messageTemplateId ?? null,
+          headerMediaAssetId: input.headerMediaAssetId ?? null,
+          variableMappings: input.variableMappings ?? null,
+          scheduledAt,
+          status,
+          totalRecipients: 0,
+          sentCount: 0,
+          deliveredCount: 0,
+          readCount: 0,
+          repliedCount: 0,
+          failedCount: 0,
+        })
+        .returning([...BROADCAST_COLUMNS])
+
+      return mapCampaignRow(row)
+    } catch (error) {
+      if (isForeignKeyViolation(error)) {
+        throw CampaignException.invalidReference()
+      }
+      throw error
+    }
+  }
+
+  /**
+   * Duplicate an existing campaign into a new draft row.
+   * Does not copy id, createdAt, updatedAt, soft-delete status, schedule, or delivery counters.
+   * Soft-deleted source campaigns are treated as not found (404).
+   */
+  async duplicateCampaign(params: {
+    campaignId: string
+    organizationId: string
+    actorUserId: string
+  }): Promise<CampaignDto> {
+    const source = await this.findCampaignRowOrFail({
+      campaignId: params.campaignId,
+      organizationId: params.organizationId,
+    })
+
+    const whatsappConfigId = (source.whatsappConfigId as string | null) ?? null
+    const messageTemplateId = (source.messageTemplateId as string | null) ?? null
+    const headerMediaAssetId = (source.headerMediaAssetId as string | null) ?? null
+    const variableMappings = parseVariableMappings(source.variableMappings)
+
+    if (whatsappConfigId) {
+      await this.assertWhatsappConfigInOrg(params.organizationId, whatsappConfigId)
+    }
+    if (messageTemplateId) {
+      await this.assertMessageTemplateInOrg(params.organizationId, messageTemplateId)
+    }
+    if (headerMediaAssetId) {
+      await this.assertMediaAssetInOrg(params.organizationId, headerMediaAssetId)
+    }
+
+    try {
+      // Knex (not Lucid .create) — DB columns are camelCase; Lucid emits snake_case.
+      // createdAt defaults via DB; updatedAt stays null until first update trigger.
+      const [row] = await db
+        .table('broadcasts')
+        .insert({
+          organizationId: params.organizationId,
+          createdByUserId: params.actorUserId,
+          name: source.name as string,
+          whatsappConfigId,
+          messageTemplateId,
+          headerMediaAssetId,
+          variableMappings,
+          audienceTagId: (source.audienceTagId as string | null) ?? null,
+          scheduledAt: null,
+          status: CAMPAIGN_DRAFT_STATUS,
+          totalRecipients: 0,
+          sentCount: 0,
+          deliveredCount: 0,
+          readCount: 0,
+          repliedCount: 0,
+          failedCount: 0,
+        })
+        .returning([...BROADCAST_COLUMNS])
+
+      const duplicated = mapCampaignRow(row)
+      const sourceTagId = (source.audienceTagId as string | null) ?? null
+      if (sourceTagId) {
+        return this.replaceRecipients({
+          organizationId: params.organizationId,
+          campaignId: duplicated.id,
+          tagId: sourceTagId,
+        })
+      }
+
+      return duplicated
+    } catch (error) {
+      if (isForeignKeyViolation(error)) {
+        throw CampaignException.invalidReference()
+      }
+      throw error
+    }
+  }
+
+  /**
+   * Schedule (or reschedule) a campaign for a future `scheduledAt`.
+   * Persists existing `scheduledAt` + `status = scheduled` fields only — no schema change.
+   * Soft-deleted campaigns are treated as not found (404).
+   * Requires an approved template and a connected WhatsApp configuration.
+   */
+  async scheduleCampaign(params: {
+    campaignId: string
+    organizationId: string
+    scheduledAt: DateTime | Date | string
+    timeZone?: string | null
+  }): Promise<CampaignDto> {
+    const existing = await this.findCampaignRowOrFail({
+      campaignId: params.campaignId,
+      organizationId: params.organizationId,
+    })
+    const currentStatus = existing.status as string
+    const previousScheduledAt = existing.scheduledAt
+      ? new Date(existing.scheduledAt as string | Date)
+      : null
+
+    if (!SCHEDULABLE_STATUS_SET.has(currentStatus)) {
+      throw CampaignException.notEligibleToSchedule(currentStatus)
+    }
+
+    if (Number(existing.totalRecipients ?? 0) < 1) {
+      throw CampaignException.recipientsRequired()
+    }
+
+    if (!existing.messageTemplateId) {
+      throw CampaignException.templateNotConfigured()
+    }
+
+    if (!existing.whatsappConfigId) {
+      throw CampaignException.whatsappConfigNotConfigured()
+    }
+
+    await assertApprovedTemplate(params.organizationId, existing.messageTemplateId as string)
+    await assertConnectedWhatsappConfig(params.organizationId, existing.whatsappConfigId as string)
+
+    if (existing.headerMediaAssetId) {
+      await assertReadyMediaAsset(params.organizationId, existing.headerMediaAssetId as string)
+    }
+
+    const scheduledAt = await this.resolveScheduledAt(
+      params.organizationId,
+      params.scheduledAt,
+      params.timeZone
+    )
+    if (scheduledAt.getTime() <= Date.now()) {
+      throw CampaignException.scheduledAtMustBeFuture()
+    }
+
+    await this.refreshDispatchAudience({
+      campaignId: params.campaignId,
+      organizationId: params.organizationId,
+    })
+    const ready = await this.findCampaignRowOrFail({
+      campaignId: params.campaignId,
+      organizationId: params.organizationId,
+    })
+    if (Number(ready.totalRecipients) < 1) {
+      throw CampaignException.noEligibleRecipients()
+    }
+
+    if (ready.messageTemplateId) {
+      await this.assertRecipientVariablesReady({
+        organizationId: params.organizationId,
+        campaignId: params.campaignId,
+        messageTemplateId: ready.messageTemplateId as string,
+        mappings: parseVariableMappings(ready.variableMappings),
+      })
+    }
+
+    // Conditional update avoids scheduling a campaign that left draft/scheduled mid-request.
+    const [row] = await db
+      .from('broadcasts')
+      .where('id', params.campaignId)
+      .where('organizationId', params.organizationId)
+      .whereIn('status', [...CAMPAIGN_SCHEDULABLE_STATUSES])
+      .update({
+        scheduledAt,
+        status: CAMPAIGN_SCHEDULED_STATUS,
+      })
+      .returning([...BROADCAST_COLUMNS])
+
+    if (!row) {
+      const latest = await this.findCampaignRowOrFail({
+        campaignId: params.campaignId,
+        organizationId: params.organizationId,
+      })
+      throw CampaignException.notEligibleToSchedule(latest.status as string)
+    }
+
+    try {
+      await this.registerCampaignSchedule({
+        organizationId: params.organizationId,
+        campaignId: params.campaignId,
+        scheduledAt,
+      })
+    } catch (error) {
+      await db
+        .from('broadcasts')
+        .where('id', params.campaignId)
+        .where('organizationId', params.organizationId)
+        .where('status', CAMPAIGN_SCHEDULED_STATUS)
+        .update({
+          status: currentStatus,
+          scheduledAt: previousScheduledAt,
+        })
+      logger.error(
+        {
+          campaignId: params.campaignId,
+          organizationId: params.organizationId,
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'campaigns.enqueue_failed'
+      )
+      throw error
+    }
+
+    await this.#protectHeaderMedia({
+      organizationId: params.organizationId,
+      campaignId: params.campaignId,
+      headerMediaAssetId: (row.headerMediaAssetId as string | null) ?? null,
+    })
+
+    await this.notifyCreatorBestEffort({
+      organizationId: params.organizationId,
+      createdByUserId: (row.createdByUserId as string | null) ?? null,
+      type: 'campaign_scheduled',
+      title: 'Campaign scheduled',
+      body: `“${row.name as string}” is scheduled for ${scheduledAt.toISOString()}.`,
+      campaignId: params.campaignId,
+    })
+
+    return mapCampaignRow(row)
+  }
+
+  /**
+   * Enqueue a delayed CAMPAIGN_EXECUTE wake for the canonical scheduledAt instant.
+   * Drops any previous delayed wake first so reschedule updates `runAt`.
+   */
+  protected async registerCampaignSchedule(params: {
+    organizationId: string
+    campaignId: string
+    scheduledAt: Date
+  }): Promise<void> {
+    await removeCampaignWake({
+      organizationId: params.organizationId,
+      campaignId: params.campaignId,
+    })
+    await enqueueCampaignWake({
+      organizationId: params.organizationId,
+      campaignId: params.campaignId,
+      runAt: params.scheduledAt,
+    })
+  }
+
+  /**
+   * Cancel a scheduled or in-flight campaign: revert to draft and clear `scheduledAt`.
+   * There is no "cancelled" status on `broadcasts` — draft is the lifecycle equivalent.
+   * Soft-deleted campaigns are treated as not found (404).
+   * In-progress (`sending`) campaigns use cancelInProgressCampaign instead.
+   */
+  async cancelScheduledCampaign(params: {
+    campaignId: string
+    organizationId: string
+  }): Promise<CampaignDto> {
+    const existing = await this.findCampaignRowOrFail(params)
+    const currentStatus = existing.status as string
+
+    if (!CANCELLABLE_STATUS_SET.has(currentStatus)) {
+      throw CampaignException.notEligibleToCancel(currentStatus)
+    }
+
+    // Conditional update prevents canceling a campaign that left a cancellable status mid-request.
+    const [row] = await db
+      .from('broadcasts')
+      .where('id', params.campaignId)
+      .where('organizationId', params.organizationId)
+      .whereIn('status', [...CAMPAIGN_CANCELLABLE_STATUSES])
+      .update({
+        status: CAMPAIGN_DRAFT_STATUS,
+        scheduledAt: null,
+        cancelledAt: null,
+      })
+      .returning([...BROADCAST_COLUMNS])
+
+    if (!row) {
+      const latest = await this.findCampaignRowOrFail(params)
+      throw CampaignException.notEligibleToCancel(latest.status as string)
+    }
+
+    await this.unregisterCampaignSchedule({
+      organizationId: params.organizationId,
+      campaignId: params.campaignId,
+    })
+
+    await this.notifyCreatorBestEffort({
+      organizationId: params.organizationId,
+      createdByUserId: (row.createdByUserId as string | null) ?? null,
+      type: 'campaign_cancelled',
+      title: 'Campaign cancelled',
+      body: `Scheduled campaign “${row.name as string}” was cancelled and returned to draft.`,
+      campaignId: params.campaignId,
+    })
+
+    return mapCampaignRow(row)
+  }
+
+  /**
+   * Drop the delayed campaign execute job when a schedule is cancelled.
+   * BullMQ jobId = campaignId; executeCampaign still no-ops if status is draft.
+   */
+  protected async unregisterCampaignSchedule(params: {
+    organizationId: string
+    campaignId: string
+  }): Promise<void> {
+    await removeCampaignWake(params)
+  }
+
+  /**
+   * Re-resolve recipients immediately before send/schedule.
+   * Group campaigns use live tag membership (minus deleted + opted-out).
+   * All-contacts snapshots only drop opted-out rows.
+   */
+  protected async refreshDispatchAudience(params: {
+    campaignId: string
+    organizationId: string
+  }): Promise<void> {
+    const campaign = await this.findCampaignRowOrFail(params)
+    const audienceTagId = (campaign.audienceTagId as string | null) ?? null
+    if (audienceTagId) {
+      await this.replaceRecipients({
+        organizationId: params.organizationId,
+        campaignId: params.campaignId,
+        tagId: audienceTagId,
+      })
+      return
+    }
+
+    await this.pruneOptedOutRecipients(params)
+  }
+
+  protected async pruneOptedOutRecipients(params: {
+    campaignId: string
+    organizationId: string
+  }): Promise<void> {
+    await db.transaction(async (trx) => {
+      await trx
+        .from('broadcast_recipients')
+        .where('organizationId', params.organizationId)
+        .where('broadcastId', params.campaignId)
+        .whereIn('contactId', (sub) => {
+          sub
+            .from('contacts')
+            .where('organizationId', params.organizationId)
+            .where((q) => {
+              q.whereNotNull('optedOutAt').orWhereNotNull('deletedAt')
+            })
+            .select('id')
+        })
+        .delete()
+
+      const countRow = await trx
+        .from('broadcast_recipients')
+        .where('organizationId', params.organizationId)
+        .where('broadcastId', params.campaignId)
+        .count('* as total')
+        .first()
+
+      await trx
+        .from('broadcasts')
+        .where('id', params.campaignId)
+        .where('organizationId', params.organizationId)
+        .update({ totalRecipients: Number(countRow?.total ?? 0) })
+    })
+  }
+
+  /**
+   * Kick off campaign send: mark as `sending` ("running") when eligible,
+   * then enqueue an immediate CAMPAIGN_EXECUTE wake. Delivery happens in the worker.
+   * Soft-deleted campaigns are treated as not found (404).
+   * Requires an approved template and a connected WhatsApp configuration.
+   */
+  async sendCampaign(params: { campaignId: string; organizationId: string }): Promise<CampaignDto> {
+    const existing = await this.findCampaignRowOrFail(params)
+    const currentStatus = existing.status as string
+
+    if (!SENDABLE_STATUS_SET.has(currentStatus)) {
+      throw CampaignException.notEligibleToSend(currentStatus)
+    }
+
+    await this.refreshDispatchAudience(params)
+    const ready = await this.findCampaignRowOrFail(params)
+    if (Number(ready.totalRecipients) < 1) {
+      throw CampaignException.noEligibleRecipients()
+    }
+
+    if (!ready.messageTemplateId) {
+      throw CampaignException.templateNotConfigured()
+    }
+
+    if (!ready.whatsappConfigId) {
+      throw CampaignException.whatsappConfigNotConfigured()
+    }
+
+    await assertApprovedTemplate(params.organizationId, ready.messageTemplateId as string)
+    await assertConnectedWhatsappConfig(params.organizationId, ready.whatsappConfigId as string)
+
+    if (ready.headerMediaAssetId) {
+      await assertReadyMediaAsset(params.organizationId, ready.headerMediaAssetId as string)
+    }
+
+    await this.assertRecipientVariablesReady({
+      organizationId: params.organizationId,
+      campaignId: params.campaignId,
+      messageTemplateId: ready.messageTemplateId as string,
+      mappings: parseVariableMappings(ready.variableMappings),
+    })
+
+    // Conditional update prevents racing a second send into `sending`.
+    const [row] = await db
+      .from('broadcasts')
+      .where('id', params.campaignId)
+      .where('organizationId', params.organizationId)
+      .whereIn('status', [...CAMPAIGN_SENDABLE_STATUSES])
+      .update({ status: CAMPAIGN_SENDING_STATUS })
+      .returning([...BROADCAST_COLUMNS])
+
+    if (!row) {
+      const latest = await this.findCampaignRowOrFail(params)
+      throw CampaignException.notEligibleToSend(latest.status as string)
+    }
+
+    try {
+      await this.enqueueCampaignSend({
+        organizationId: params.organizationId,
+        campaignId: params.campaignId,
+      })
+    } catch (error) {
+      await db
+        .from('broadcasts')
+        .where('id', params.campaignId)
+        .where('organizationId', params.organizationId)
+        .where('status', CAMPAIGN_SENDING_STATUS)
+        .update({
+          status: currentStatus,
+          scheduledAt: existing.scheduledAt ?? null,
+        })
+      logger.error(
+        {
+          campaignId: params.campaignId,
+          organizationId: params.organizationId,
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'campaigns.enqueue_failed'
+      )
+      throw error
+    }
+    await this.#protectHeaderMedia({
+      organizationId: params.organizationId,
+      campaignId: params.campaignId,
+      headerMediaAssetId: (row.headerMediaAssetId as string | null) ?? null,
+    })
+
+    await this.notifyCreatorBestEffort({
+      organizationId: params.organizationId,
+      createdByUserId: (row.createdByUserId as string | null) ?? null,
+      type: 'campaign_started',
+      title: 'Campaign started',
+      body: `“${row.name as string}” has started sending.`,
+      campaignId: params.campaignId,
+    })
+
+    return mapCampaignRow(row)
+  }
+
+  /**
+   * Enqueue an immediate CAMPAIGN_EXECUTE wake for manual launch.
+   */
+  protected async enqueueCampaignSend(params: {
+    organizationId: string
+    campaignId: string
+  }): Promise<void> {
+    await enqueueCampaignWake({
+      organizationId: params.organizationId,
+      campaignId: params.campaignId,
+    })
+  }
+
+  async #protectHeaderMedia(params: {
+    organizationId: string
+    campaignId: string
+    headerMediaAssetId: string | null
+  }): Promise<void> {
+    if (!params.headerMediaAssetId) return
+    await this.mediaReferences.upsert({
+      organizationId: params.organizationId,
+      mediaAssetId: params.headerMediaAssetId,
+      ownerType: 'campaign',
+      ownerId: params.campaignId,
+      protectedUntil: null,
+    })
+  }
+
+  /**
+   * Best-effort lifecycle notification for the campaign creator.
+   * Skips when createdByUserId is null. Never throws — campaign flow must not fail on notify.
+   */
+  async notifyCreatorBestEffort(params: {
+    organizationId: string
+    createdByUserId: string | null
+    type: string
+    title: string
+    body: string
+    campaignId: string
+  }): Promise<void> {
+    if (!params.createdByUserId) return
+
+    try {
+      await new NotificationService().createNotification({
+        organizationId: params.organizationId,
+        userId: params.createdByUserId,
+        type: params.type,
+        title: params.title,
+        body: params.body,
+      })
+    } catch (error) {
+      logger.error(
+        {
+          campaignId: params.campaignId,
+          organizationId: params.organizationId,
+          type: params.type,
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'campaigns.notification_failed'
+      )
+    }
+  }
+
+  /**
+   * Build a read-only campaign message preview.
+   * Does not send WhatsApp messages and does not mutate campaign status/counters.
+   * Uses the linked template's sampleValues, optionally overridden by request variables.
+   */
+  async previewCampaign(input: PreviewCampaignInput): Promise<CampaignPreviewDto> {
+    const campaign = await this.findCampaignRowOrFail({
+      campaignId: input.campaignId,
+      organizationId: input.organizationId,
+    })
+
+    const messageTemplateId = campaign.messageTemplateId as string | null
+    if (!messageTemplateId) {
+      throw CampaignException.templateNotConfigured()
+    }
+
+    const template = await db
+      .from('message_templates')
+      .where('id', messageTemplateId)
+      .where('organizationId', input.organizationId)
+      .whereNot('status', 'deleted')
+      .select([...TEMPLATE_PREVIEW_COLUMNS])
+      .first()
+
+    if (!template) {
+      throw CampaignException.messageTemplateNotFound()
+    }
+
+    const sampleVariables = toVariableMap(template.sampleValues)
+    const variables = {
+      ...sampleVariables,
+      ...(input.variables ?? {}),
+    }
+
+    const headerType = (template.headerType as string | null) ?? null
+    const headerContent = (template.headerContent as string | null) ?? null
+    const bodyText = template.bodyText as string
+    const footerText = (template.footerText as string | null) ?? null
+
+    return {
+      campaignId: campaign.id as string,
+      campaignName: campaign.name as string,
+      campaignStatus: campaign.status as string,
+      messageTemplateId: template.id as string,
+      templateName: template.name as string,
+      templateStatus: template.status as string,
+      category: template.category as string,
+      language: (template.language as string | null) ?? null,
+      headerType,
+      headerMediaUrl: (template.headerMediaUrl as string | null) ?? null,
+      variables,
+      parameterSchema: this.campaignTemplateSchema(template),
+      headerPreview:
+        headerType?.toLowerCase() === 'text'
+          ? applyTemplateVariables(headerContent, variables)
+          : headerContent,
+      bodyPreview: applyTemplateVariables(bodyText, variables)!,
+      footerPreview: applyTemplateVariables(footerText, variables),
+      buttons: parseJsonField(template.buttons) ?? null,
+    }
+  }
+}

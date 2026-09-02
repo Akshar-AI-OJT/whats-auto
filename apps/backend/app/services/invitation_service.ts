@@ -1,11 +1,102 @@
 import db from '@adonisjs/lucid/services/db'
+import logger from '@adonisjs/core/services/logger'
 import { DateTime } from 'luxon'
 import env from '#start/env'
-import { resend } from '#lib/mail'
 import InvitationException from '#exceptions/invitation_exception'
+import OrganizationException from '#exceptions/organization_exception'
+import { OrganizationStatus } from '#enums/organization_status'
 import { resolveAssignableRoleForOrg } from '#services/role_service'
+import { NotificationService } from '#services/notification_service'
+import { OrganizationSmtpService } from '#services/organization_smtp_service'
 
 const INVITE_TTL_HOURS = 24
+
+function inviteFrontendBase(): string {
+  return (
+    env.get('CORS_ORIGIN', '').split(',')[0]?.trim().replace(/\/$/, '') || 'http://localhost:3000'
+  )
+}
+
+function buildInvitationEmailHtml(params: {
+  orgName: string
+  inviterName: string
+  role: string
+  inviteLink: string
+}): string {
+  const { orgName, inviterName, role, inviteLink } = params
+
+  return `
+          <div style="margin:0; padding:40px 20px; background-color:#f4f6f8; font-family:Arial,Helvetica,sans-serif;">
+            <div style="max-width:560px; margin:0 auto; background:#ffffff; border:1px solid #e5e7eb; border-radius:12px; overflow:hidden;">
+      
+              <!-- Header -->
+              <div style="padding:28px 32px; border-bottom:1px solid #e5e7eb;">
+                <div style="font-size:22px; font-weight:700; color:#111827;">
+                  Whats-Auto
+                </div>
+              </div>
+      
+              <!-- Content -->
+              <div style="padding:32px;">
+                <h1 style="margin:0 0 16px; font-size:24px; line-height:32px; color:#111827;">
+                  You're invited!
+                </h1>
+      
+                <p style="margin:0 0 16px; font-size:15px; line-height:24px; color:#4b5563;">
+                  Hi,
+                </p>
+      
+                <p style="margin:0 0 24px; font-size:15px; line-height:24px; color:#4b5563;">
+                  <strong>${inviterName}</strong> has invited you to join
+                  <strong>${orgName}</strong> as a <strong>${role}</strong>.
+                </p>
+      
+                <!-- CTA -->
+                <div style="margin:0 0 24px;">
+                  <a
+                    href="${inviteLink}"
+                    style="
+                      display:inline-block;
+                      padding:12px 22px;
+                      background-color:#111827;
+                      color:#ffffff;
+                      text-decoration:none;
+                      font-size:15px;
+                      font-weight:600;
+                      border-radius:8px;
+                    "
+                  >
+                    Accept Invitation
+                  </a>
+                </div>
+      
+                <p style="margin:0 0 16px; font-size:13px; line-height:20px; color:#6b7280;">
+                  This invitation will expire in
+                  <strong>${INVITE_TTL_HOURS} hours</strong>.
+                </p>
+      
+                <p style="margin:0; font-size:13px; line-height:20px; color:#6b7280;">
+                  If you weren't expecting this invitation, you can safely ignore this email.
+                </p>
+              </div>
+      
+              <!-- Footer -->
+              <div style="padding:20px 32px; background:#f9fafb; border-top:1px solid #e5e7eb;">
+                <p style="margin:0; font-size:12px; line-height:18px; color:#9ca3af; text-align:center;">
+                  This is an automated email from Whats-Auto. Please do not reply to this email.
+                </p>
+              </div>
+      
+            </div>
+          </div>
+        `
+}
+
+function toIso(value: unknown): string {
+  if (value instanceof Date) return value.toISOString()
+  if (typeof value === 'string') return value
+  return String(value)
+}
 
 /** Postgres unique_violation, including Knex/Lucid-wrapped errors. */
 function isUniqueViolation(error: unknown): boolean {
@@ -30,6 +121,20 @@ export class InvitationService {
   }) {
     const { organizationId, inviterId, email, role } = params
     const normalizedEmail = email.toLowerCase()
+
+    const org = await db
+      .from('organizations')
+      .where('id', organizationId)
+      .whereNull('deletedAt')
+      .select('name', 'status')
+      .first()
+
+    if (!org) {
+      throw OrganizationException.notFound()
+    }
+    if (org.status !== OrganizationStatus.ACTIVE) {
+      throw InvitationException.organizationNotProvisioned()
+    }
 
     const roleRow = await resolveAssignableRoleForOrg(organizationId, role)
 
@@ -57,13 +162,6 @@ export class InvitationService {
     if (existingPending) {
       throw InvitationException.alreadyPending()
     }
-
-    const org = await db
-      .from('organizations')
-      .where('id', organizationId)
-      .whereNull('deletedAt')
-      .select('name')
-      .firstOrFail()
 
     const inviter = await db.from('users').where('id', inviterId).select('name').firstOrFail()
 
@@ -110,32 +208,123 @@ export class InvitationService {
       throw error
     }
 
-    const inviteLink = `${env.get('CORS_ORIGIN')}/accept-invitation/${invitation.id}`
-    try {
-      const { error } = await resend.emails.send({
-        from: env.get('EMAIL_FROM'),
-        to: normalizedEmail,
-        subject: `You've been invited to ${org.name}`,
-        html: `
-        <p>${inviter.name} invited you to join <strong>${org.name}</strong> as <strong>${role}</strong>.</p>
-        <p><a href="${inviteLink}">Accept Invitation</a> — link expires in ${INVITE_TTL_HOURS} hours.</p>
-      `,
-      })
-      if (error) throw InvitationException.emailSendFailed(error.message)
-    } catch (error) {
-      // Do not leave a pending invite that the recipient never received.
-      await db.from('organization_invitations').where('id', invitation.id).delete()
-      if (error instanceof InvitationException) throw error
-      throw InvitationException.emailSendFailed(error instanceof Error ? error.message : undefined)
-    }
+    const inviteLink = `${inviteFrontendBase()}/accept-invitation/${invitation.id}`
+
+    await this.#sendInviteEmailOrRollback({
+      organizationId,
+      invitationId: invitation.id,
+      to: normalizedEmail,
+      orgName: org.name as string,
+      inviterName: inviter.name as string,
+      role,
+      inviteLink,
+    })
+
+    // After invitation is successfully created (and kept) — best-effort notify existing users only.
+    await this.#notifyInviteeInvitationCreatedBestEffort({
+      organizationId,
+      inviterId,
+      inviteeEmail: normalizedEmail,
+      organizationName: org.name as string,
+      role,
+    })
 
     return {
       id: invitation.id as string,
       email: invitation.email as string,
       role,
       status: invitation.status as string,
-      expiresAt: invitation.expiresAt as string,
-      createdAt: invitation.createdAt as string,
+      expiresAt: toIso(invitation.expiresAt),
+      createdAt: toIso(invitation.createdAt),
+    }
+  }
+
+  /**
+   * Send the invite email. Roll back the invitation when delivery fails so
+   * the frontend never lists an invite the recipient did not receive.
+   */
+  async #sendInviteEmailOrRollback(params: {
+    organizationId: string
+    invitationId: string
+    to: string
+    orgName: string
+    inviterName: string
+    role: string
+    inviteLink: string
+  }): Promise<void> {
+    const html = buildInvitationEmailHtml({
+      orgName: params.orgName,
+      inviterName: params.inviterName,
+      role: params.role,
+      inviteLink: params.inviteLink,
+    })
+
+    try {
+      const result = await new OrganizationSmtpService().sendOrgEmail({
+        organizationId: params.organizationId,
+        to: params.to,
+        subject: `You've been invited to ${params.orgName}`,
+        html,
+        emailKind: 'invitation',
+        invitationId: params.invitationId,
+      })
+
+      if (result.deferred) {
+        return
+      }
+    } catch (error) {
+      await db.from('organization_invitations').where('id', params.invitationId).delete()
+
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      logger.error(
+        { email: params.to, invitationId: params.invitationId, err: errorMessage },
+        'invite.email_send_failed'
+      )
+      throw InvitationException.emailSendFailed(errorMessage)
+    }
+  }
+
+  /**
+   * Best-effort in-app notification for an existing invitee user after invitation creation.
+   * Skips when no user matches the invite email. Never throws.
+   */
+  async #notifyInviteeInvitationCreatedBestEffort(params: {
+    organizationId: string
+    inviterId: string
+    inviteeEmail: string
+    organizationName: string
+    role: string
+  }): Promise<void> {
+    let recipientUserId: string | undefined
+    try {
+      const invitee = await db
+        .from('users')
+        .whereRaw('LOWER(email) = ?', [params.inviteeEmail])
+        .select('id')
+        .first()
+
+      if (!invitee) return
+
+      recipientUserId = invitee.id as string
+
+      await new NotificationService().createNotification({
+        organizationId: params.organizationId,
+        userId: recipientUserId,
+        type: 'team_invitation_created',
+        title: "You've been invited",
+        body: `You've been invited to join ${params.organizationName} as ${params.role}.`,
+        actorUserId: params.inviterId,
+      })
+    } catch (error) {
+      logger.error(
+        {
+          organizationId: params.organizationId,
+          userId: recipientUserId,
+          type: 'team_invitation_created',
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'team.notification_failed'
+      )
     }
   }
 
@@ -305,7 +494,52 @@ export class InvitationService {
       })
     })
 
+    // After pending → accepted commits — best-effort notify must not roll back acceptance.
+    await this.#notifyInviterInvitationAcceptedBestEffort({
+      organizationId: invitation.organizationId as string,
+      inviterId: invitation.inviterId as string,
+      actorUserId: userId,
+    })
+
     return { organizationId: invitation.organizationId as string }
+  }
+
+  /**
+   * Best-effort in-app notification for the inviter after invitation acceptance. Never throws.
+   */
+  async #notifyInviterInvitationAcceptedBestEffort(params: {
+    organizationId: string
+    inviterId: string
+    actorUserId: string
+  }): Promise<void> {
+    try {
+      const [accepter, org] = await Promise.all([
+        db.from('users').where('id', params.actorUserId).select('name').first(),
+        db.from('organizations').where('id', params.organizationId).select('name').first(),
+      ])
+
+      const userName = (accepter?.name as string | undefined) ?? 'A user'
+      const organizationName = (org?.name as string | undefined) ?? 'the organization'
+
+      await new NotificationService().createNotification({
+        organizationId: params.organizationId,
+        userId: params.inviterId,
+        type: 'team_invitation_accepted',
+        title: 'Invitation accepted',
+        body: `${userName} accepted your invitation and joined ${organizationName}.`,
+        actorUserId: params.actorUserId,
+      })
+    } catch (error) {
+      logger.error(
+        {
+          organizationId: params.organizationId,
+          userId: params.inviterId,
+          type: 'team_invitation_accepted',
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'team.notification_failed'
+      )
+    }
   }
 
   /**

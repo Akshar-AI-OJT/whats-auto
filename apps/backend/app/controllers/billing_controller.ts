@@ -1,57 +1,127 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
+import env from '#start/env'
+import BillingPolicy from '#policies/billing_policy'
 import BillingException from '#exceptions/billing_exception'
-import { RazorpayCheckoutService } from '#services/billing/razorpay_checkout_service'
+import { PlanService } from '#services/billing/plan_service'
+import { BillingCheckoutService } from '#services/billing/billing_checkout_service'
+import { RazorpayOrderService } from '#services/billing/razorpay_order_service'
+import { BillingOrderApplyService } from '#services/billing/billing_order_apply_service'
 import { billingCheckoutValidator } from '#validators/billing_checkout'
+import { billingVerifyValidator } from '#validators/billing_verify'
+import { verifyRazorpayPaymentSignature } from '#lib/razorpay/payment_signature'
 import '#types/http'
 
 export default class BillingController {
   /**
-   * @summary Start Razorpay checkout for the active organization
-   * @description Creates/reuses a Razorpay customer and subscription; returns hosted checkoutUrl. Requires billing:manage.
+   * @summary List active billing plans for the tenant
+   * @description Tenant-safe catalog of active SaaS plans (no gateway secrets). Requires billing:view or billing:manage.
+   * @tag Billing
+   * @security BearerAuth
+   * @responseBody 200 - { "data": { "items": [{ "id": "uuid", "code": "growth", "checkoutable": true }] } }
+   * @responseBody 403 - { "error": "Permission denied: billing:view", "code": "PERMISSION_DENIED" }
+   */
+  @inject()
+  async listPlans({ bouncer, serialize }: HttpContext, plans: PlanService) {
+    await bouncer.with(BillingPolicy).authorize('viewPlans')
+
+    const result = await plans.listTenantPlans()
+    return serialize(result)
+  }
+
+  /**
+   * @summary Start plan checkout for the active organization
+   * @description Free plans (price 0) activate locally without Razorpay. Paid plans create a Razorpay order and return Checkout.js fields. Requires billing:manage.
    * @tag Billing
    * @security BearerAuth
    * @requestBody { "planId": "uuid" }
-   * @responseBody 200 - { "data": { "subscriptionId": "uuid", "checkoutUrl": "https://rzp.io/...", "gatewaySubscriptionId": "sub_...", "status": "trialing" } }
-   * @responseBody 422 - { "error": "Plan is not available for Razorpay checkout", "code": "E_BILLING_PLAN_NOT_CHECKOUTABLE" }
+   * @responseBody 200 - { "data": { "mode": "free", "subscriptionId": "uuid" } }
+   * @responseBody 200 - { "data": { "mode": "razorpay", "orderId": "order_...", "amount": 249900, "currency": "INR", "keyId": "rzp_..." } }
+   * @responseBody 422 - { "error": "Plan is not available for activation", "code": "E_BILLING_PLAN_NOT_ACTIVATABLE" }
    * @responseBody 403 - { "error": "Permission denied: billing:manage", "code": "PERMISSION_DENIED" }
    */
   @inject()
-  async checkout({ request, serialize }: HttpContext, checkout: RazorpayCheckoutService) {
+  async checkout(
+    { bouncer, request, serialize }: HttpContext,
+    billingCheckout: BillingCheckoutService
+  ) {
+    await bouncer.with(BillingPolicy).authorize('checkout')
+
     const payload = await request.validateUsing(billingCheckoutValidator)
 
-    const result = await checkout.startCheckout({
+    const result = await billingCheckout.checkout({
       organizationId: request.activeMember!.organizationId,
       planId: payload.planId,
+      actorUserId: request.authUser!.id,
     })
 
+    return serialize(result)
+  }
+
+  /**
+   * @summary Verify a Razorpay Checkout.js payment and activate the stored order
+   * @description HMAC-verifies order_id|payment_id. Plan and amount come from billing_orders, not the request. Requires billing:manage.
+   * @tag Billing
+   * @security BearerAuth
+   * @requestBody { "razorpayOrderId": "order_...", "razorpayPaymentId": "pay_...", "razorpaySignature": "hex" }
+   * @responseBody 200 - { "data": { "subscriptionId": "uuid", "status": "active" } }
+   * @responseBody 400 - { "error": "Invalid payment signature", "code": "E_BILLING_INVALID_SIGNATURE" }
+   */
+  @inject()
+  async verify({ bouncer, request, serialize }: HttpContext, apply: BillingOrderApplyService) {
+    await bouncer.with(BillingPolicy).authorize('checkout')
+
+    const payload = await request.validateUsing(billingVerifyValidator)
+    const secret = env.get('RAZORPAY_KEY_SECRET').release()
+    const valid = verifyRazorpayPaymentSignature(
+      payload.razorpayOrderId,
+      payload.razorpayPaymentId,
+      payload.razorpaySignature,
+      secret
+    )
+    if (!valid) {
+      throw BillingException.invalidSignature()
+    }
+
+    const result = await apply.applyPaidOrder({
+      gatewayOrderId: payload.razorpayOrderId,
+      gatewayPaymentId: payload.razorpayPaymentId,
+      source: 'verify',
+      organizationId: request.activeMember!.organizationId,
+    })
+
+    if (!result) {
+      throw BillingException.orderNotFound()
+    }
+
     return serialize({
-      subscriptionId: result.subscription.id,
-      planId: result.subscription.planId,
-      status: result.subscription.status,
-      checkoutUrl: result.checkoutUrl,
-      gatewaySubscriptionId: result.gatewaySubscriptionId,
-      gatewayCustomerId: result.gatewayCustomerId,
-      currentPeriodStart: result.subscription.currentPeriodStart,
-      currentPeriodEnd: result.subscription.currentPeriodEnd,
+      orderId: result.orderId,
+      subscriptionId: result.subscriptionId,
+      invoiceId: result.invoiceId,
+      alreadyApplied: result.alreadyApplied,
     })
   }
 
   /**
    * @summary Get current organization subscription
-   * @description Returns the entitlement-relevant subscription for the active org, if any. Requires billing:view.
+   * @description Returns the entitlement-relevant subscription for the active org, or null when none exists. Requires billing:view.
    * @tag Billing
    * @security BearerAuth
-   * @responseBody 200 - { "data": { "id": "uuid", "planId": "uuid", "status": "active", "checkoutUrl": null } }
-   * @responseBody 404 - { "error": "Subscription not found", "code": "E_BILLING_SUBSCRIPTION_NOT_FOUND" }
+   * @responseBody 200 - { "data": { "id": "uuid", "planId": "uuid", "status": "active" } }
    * @responseBody 403 - { "error": "Permission denied: billing:view", "code": "PERMISSION_DENIED" }
    */
   @inject()
-  async showSubscription({ request, serialize }: HttpContext, checkout: RazorpayCheckoutService) {
+  async showSubscription(
+    { bouncer, request, response, serialize }: HttpContext,
+    checkout: RazorpayOrderService
+  ) {
+    await bouncer.with(BillingPolicy).authorize('viewSubscription')
+
     const subscription = await checkout.getCurrentSubscription(request.activeMember!.organizationId)
 
     if (!subscription) {
-      throw BillingException.subscriptionNotFound()
+      // ApiSerializer rejects null; keep the contracted { data: null } shape.
+      return response.ok({ data: null })
     }
 
     return serialize({
@@ -61,7 +131,6 @@ export default class BillingController {
       status: subscription.status,
       gateway: subscription.gateway,
       gatewaySubscriptionId: subscription.gatewaySubscriptionId,
-      checkoutUrl: subscription.checkoutUrl,
       currentPeriodStart: subscription.currentPeriodStart,
       currentPeriodEnd: subscription.currentPeriodEnd,
       trialEndsAt: subscription.trialEndsAt,

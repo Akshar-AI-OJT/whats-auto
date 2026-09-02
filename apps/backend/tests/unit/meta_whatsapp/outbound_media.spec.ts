@@ -32,6 +32,13 @@ test.group('Outbound media validation helpers', () => {
     assert.isTrue(isMimeTypeAllowedForMediaType('image', 'image/jpeg'))
     assert.isFalse(isMimeTypeAllowedForMediaType('image', 'image/gif'))
     assert.isTrue(isMimeTypeAllowedForMediaType('document', 'application/pdf'))
+    assert.isTrue(isMimeTypeAllowedForMediaType('document', 'text/csv'))
+    assert.isTrue(
+      isMimeTypeAllowedForMediaType(
+        'document',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      )
+    )
     assert.isFalse(isMimeTypeAllowedForMediaType('document', 'application/zip'))
     assert.equal(outboundMediaTypeForMime('image/png'), 'image')
     assert.equal(outboundMediaTypeForMime('application/pdf'), 'document')
@@ -43,13 +50,26 @@ test.group('Outbound media validation helpers', () => {
     assert.isTrue(isOutboundMediaSizeAllowed('document', 50 * 1024 * 1024))
   })
 
-  test('tenant channel is image-only; system allows image and document', ({ assert }) => {
-    assert.deepEqual([...TENANT_OUTBOUND_MEDIA_TYPES], ['image'])
+  test('tenant and system channels allow image and document', ({ assert }) => {
+    assert.deepEqual([...TENANT_OUTBOUND_MEDIA_TYPES], ['image', 'document'])
     assert.deepEqual([...SYSTEM_OUTBOUND_MEDIA_TYPES], ['image', 'document'])
     assert.isTrue(isTenantOutboundMediaType('image'))
-    assert.isFalse(isTenantOutboundMediaType('document'))
+    assert.isTrue(isTenantOutboundMediaType('document'))
     assert.equal(tenantOutboundMediaTypeForMime('image/jpeg'), 'image')
-    assert.isNull(tenantOutboundMediaTypeForMime('application/pdf'))
+    assert.equal(tenantOutboundMediaTypeForMime('application/pdf'), 'document')
+    assert.equal(tenantOutboundMediaTypeForMime('text/csv'), 'document')
+    assert.equal(
+      tenantOutboundMediaTypeForMime(
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+      ),
+      'document'
+    )
+    assert.equal(
+      tenantOutboundMediaTypeForMime(
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      ),
+      'document'
+    )
     assert.isNull(tenantOutboundMediaTypeForMime('video/mp4'))
   })
 })

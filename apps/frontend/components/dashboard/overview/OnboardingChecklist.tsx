@@ -1,16 +1,16 @@
 'use client'
 
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { useSyncExternalStore } from 'react'
 import { useTranslations } from 'next-intl'
 import { Check, Megaphone, MessageCircle, UserPlus, X } from 'lucide-react'
 import { Link } from '@/i18n/navigation'
-import { api } from '@/lib/api'
 import {
   dismissOnboardingChecklist,
   isOnboardingChecklistVisible,
   TEAM_MEMBERS_PATH,
 } from '@/lib/onboarding'
 import { cn } from '@/lib/utils'
+import { useWhatsappConfigs } from '@/hooks/useWhatsappConfigs'
 import { useOrganizations } from '../OrganizationsProvider'
 import { DashboardPanel } from '../ui/DashboardPanel'
 
@@ -34,13 +34,6 @@ const NEXT_STEPS = [
 
 const CHECKLIST_EVENT = 'wa-onboarding-checklist-change'
 
-function unwrapList<T>(data: { data?: T[] } | T[] | undefined): T[] {
-  if (!data) return []
-  if (Array.isArray(data)) return data
-  if (Array.isArray(data.data)) return data.data
-  return []
-}
-
 function subscribeChecklist(onStoreChange: () => void) {
   if (typeof window === 'undefined') return () => {}
   window.addEventListener(CHECKLIST_EVENT, onStoreChange)
@@ -63,42 +56,18 @@ export function OnboardingChecklist({ className }: { className?: string }) {
   const t = useTranslations('dashboard.home.checklist')
   const {
     activeOrganization,
-    tenantOrganizationId,
     hasOrganizations,
     canInviteMembers,
-    isLoading: orgsLoading,
   } = useOrganizations()
   const dismissed = !useSyncExternalStore(
     subscribeChecklist,
     getChecklistSnapshot,
     getChecklistServerSnapshot
   )
-  const [whatsappConnected, setWhatsappConnected] = useState(false)
+  const configsQuery = useWhatsappConfigs()
+  const whatsappConnected = Boolean(configsQuery.data?.isConnected)
 
-  useEffect(() => {
-    if (orgsLoading || !tenantOrganizationId) {
-      setWhatsappConnected(false)
-      return
-    }
-
-    let cancelled = false
-    ;(async () => {
-      try {
-        const { data } = await api.whatsapp.listConfigs()
-        if (cancelled) return
-        const configs = unwrapList(data)
-        setWhatsappConnected(configs.some((c) => c.status === 'connected'))
-      } catch {
-        if (!cancelled) setWhatsappConnected(false)
-      }
-    })()
-
-    return () => {
-      cancelled = true
-    }
-  }, [tenantOrganizationId, orgsLoading])
-
-  // Same source of truth as the workspace switcher: never claim a workspace
+  // Same source of truth as the organization switcher: never claim an organization
   // exists unless the organizations API reports one.
   if (dismissed || !hasOrganizations) return null
 
@@ -151,7 +120,7 @@ export function OnboardingChecklist({ className }: { className?: string }) {
           </span>
           <span className="min-w-0">
             <span className="block text-sm font-semibold text-positive-deep">
-              {t('completed.workspace')}
+              {t('completed.organization')}
             </span>
             {activeOrganization ? (
               <span className="mt-0.5 block truncate text-xs text-mute">
@@ -183,7 +152,7 @@ export function OnboardingChecklist({ className }: { className?: string }) {
                   <Link
                     href={step.href}
                     className={cn(
-                      'flex items-center gap-3 rounded-xl border border-dash-border bg-canvas px-3.5 py-3',
+                      'flex cursor-pointer items-center gap-3 rounded-xl border border-dash-border bg-canvas px-3.5 py-3',
                       'transition-[border-color,background-color] duration-150 hover:border-dash-border-strong hover:bg-dash-surface'
                     )}
                   >

@@ -1,6 +1,6 @@
 /** Shared options + types for the organization onboarding wizard. */
 
-export const ORG_WIZARD_STEPS = [1, 2, 3] as const
+export const ORG_WIZARD_STEPS = [1, 2, 3, 4] as const
 export type OrgWizardStep = (typeof ORG_WIZARD_STEPS)[number]
 
 export const INDUSTRY_OPTIONS = [
@@ -25,6 +25,14 @@ export const COMPANY_SIZE_OPTIONS = [
   '500plus',
 ] as const
 export type CompanySizeOption = (typeof COMPANY_SIZE_OPTIONS)[number]
+
+export const ORGANIZATION_TYPE_OPTIONS = [
+  'company',
+  'partnership',
+  'sole_proprietorship',
+  'other',
+] as const
+export type OrganizationTypeOption = (typeof ORGANIZATION_TYPE_OPTIONS)[number]
 
 export const COUNTRY_OPTIONS = [
   { code: 'IN', labelKey: 'IN' },
@@ -76,17 +84,19 @@ export const NOTIFICATION_OPTIONS = [
 export type NotificationOption = (typeof NOTIFICATION_OPTIONS)[number]
 
 export type OrganizationWizardState = {
-  // Step 1 — basics (API: name, slug, email required; phone, website optional)
+  // Step 1 — basics (API: name, slug, email, phone required; website optional)
   name: string
   slug: string
   email: string
   phone: string
   website: string
   slugTouched: boolean
-  // Step 2 — company (API: country, timezone required; industry, currency optional)
+  // Step 2 — company (API: organizationType, address, country, timezone required)
   // logo + companySize are UX-only (session), not sent to create-org
   logoFileName: string
   logoPreviewUrl: string | null
+  organizationType: OrganizationTypeOption | ''
+  address: string
   industry: IndustryOption | ''
   companySize: CompanySizeOption | ''
   country: string
@@ -109,6 +119,8 @@ export type OrganizationWizardBasicsErrors = {
 }
 
 export type OrganizationWizardCompanyErrors = {
+  organizationType?: string
+  address?: string
   industry?: string
   companySize?: string
   country?: string

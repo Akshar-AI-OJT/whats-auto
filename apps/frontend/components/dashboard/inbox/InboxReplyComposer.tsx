@@ -2,8 +2,8 @@
 
 import { useCallback, useId, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Loader2, Send } from 'lucide-react'
-import { api, type ApiError } from '@/lib/api'
+import { FileImage, FileText, Loader2, Paperclip, Send, X } from 'lucide-react'
+import { api, type ApiError, type InboxMessage, type MediaAsset } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { hasPermission, PERMISSIONS } from '@/lib/rbac'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
@@ -12,11 +12,13 @@ import {
   DashboardToast,
   useDashboardToast,
 } from '@/components/dashboard/ui/use-dashboard-toast'
+import { MediaPicker } from '@/components/dashboard/templates/MediaPicker'
+import { unwrapSingle } from './inbox-utils'
 
 type InboxReplyComposerProps = {
   conversationId: string
   conversationStatus: string
-  onSent: () => Promise<void> | void
+  onSent: (message?: InboxMessage | null) => Promise<void> | void
 }
 
 function mapSendError(apiError: ApiError, t: (key: string) => string): string {
@@ -24,8 +26,11 @@ function mapSendError(apiError: ApiError, t: (key: string) => string): string {
   if (apiError.status === 403 || apiError.code === 'PERMISSION_DENIED') {
     return t('errors.permissionDenied')
   }
-  if (apiError.code === 'E_CONVERSATION_CLOSED') return t('errors.conversationClosed')
+  if (apiError.code === 'E_CONVERSATION_CLOSED' || apiError.code === 'E_OUTBOUND_CONVERSATION_CLOSED') {
+    return t('errors.conversationClosed')
+  }
   if (apiError.code === 'E_CONVERSATION_NOT_FOUND') return t('errors.notFound')
+  if (apiError.code === 'E_OUTBOUND_SESSION_WINDOW_EXPIRED') return t('errors.sessionWindow')
   return apiError.message || t('errors.sendFailed')
 }
 
@@ -40,38 +45,61 @@ export function InboxReplyComposer({
   const { toast, showToast, clearToast } = useDashboardToast()
 
   const [draft, setDraft] = useState('')
+  const [attachment, setAttachment] = useState<MediaAsset | null>(null)
+  const [pickerOpen, setPickerOpen] = useState(false)
   const [sending, setSending] = useState(false)
 
   const canReply = hasPermission(permissions, PERMISSIONS.INBOX_REPLY)
+  const canAttach = hasPermission(permissions, PERMISSIONS.MEDIA_VIEW)
   const isClosed = conversationStatus === 'closed'
   const trimmed = draft.trim()
-  const canSend = canReply && !isClosed && trimmed.length > 0 && !sending && !orgsLoading
+  const canSend =
+    canReply &&
+    !isClosed &&
+    !sending &&
+    !orgsLoading &&
+    (trimmed.length > 0 || Boolean(attachment))
 
   const handleSend = useCallback(async () => {
     if (!canSend) return
 
-    // One key per user submit attempt. Reuse this same key if/when this attempt is retried.
     const idempotencyKey = crypto.randomUUID()
 
     setSending(true)
     clearToast()
     try {
-      await api.inbox.sendMessage(
-        conversationId,
-        {
-          contentType: 'text',
-          contentText: trimmed,
-        },
-        idempotencyKey
-      )
+      let sent: InboxMessage | null = null
+      if (attachment) {
+        const res = await api.inbox.sendMessage(
+          conversationId,
+          {
+            contentType: attachment.kind === 'image' ? 'image' : 'document',
+            mediaAssetId: attachment.id,
+            contentText: trimmed || undefined,
+          },
+          idempotencyKey
+        )
+        sent = unwrapSingle<InboxMessage>(res.data)
+      } else {
+        const res = await api.inbox.sendMessage(
+          conversationId,
+          {
+            contentType: 'text',
+            contentText: trimmed,
+          },
+          idempotencyKey
+        )
+        sent = unwrapSingle<InboxMessage>(res.data)
+      }
       setDraft('')
-      await onSent()
+      setAttachment(null)
+      await onSent(sent)
     } catch (err) {
       showToast(mapSendError(err as ApiError, t), 'error')
     } finally {
       setSending(false)
     }
-  }, [canSend, clearToast, conversationId, onSent, showToast, t, trimmed])
+  }, [attachment, canSend, clearToast, conversationId, onSent, showToast, t, trimmed])
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key !== 'Enter' || event.shiftKey) return
@@ -106,7 +134,45 @@ export function InboxReplyComposer({
         />
       ) : null}
 
+      {attachment ? (
+        <div className="mb-2 flex items-center gap-2 rounded-lg border border-dash-border bg-dash-surface/60 px-3 py-2 text-sm">
+          <span className="flex size-7 items-center justify-center rounded-md bg-dash-surface text-mute">
+            {attachment.kind === 'image' ? (
+              <FileImage className="size-3.5" />
+            ) : (
+              <FileText className="size-3.5" />
+            )}
+          </span>
+          <span className="min-w-0 flex-1 truncate text-ink">{attachment.fileName}</span>
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="size-7"
+            aria-label={t('clearAttachment')}
+            disabled={sending}
+            onClick={() => setAttachment(null)}
+          >
+            <X className="size-3.5" />
+          </Button>
+        </div>
+      ) : null}
+
       <div className="flex items-end gap-2">
+        {canAttach ? (
+          <Button
+            type="button"
+            size="icon"
+            variant="outline"
+            className="size-10 shrink-0 rounded-xl"
+            aria-label={t('attach')}
+            disabled={sending}
+            onClick={() => setPickerOpen(true)}
+          >
+            <Paperclip className="size-4" />
+          </Button>
+        ) : null}
+
         <div className="min-w-0 flex-1">
           <label htmlFor={textareaId} className="sr-only">
             {t('label')}
@@ -117,7 +183,7 @@ export function InboxReplyComposer({
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={t('placeholder')}
+            placeholder={attachment ? t('captionPlaceholder') : t('placeholder')}
             disabled={sending}
             className={cn(
               'max-h-32 min-h-[4.5rem] w-full resize-none rounded-xl border border-dash-border bg-dash-surface/80 px-3 py-2.5',
@@ -148,6 +214,12 @@ export function InboxReplyComposer({
           )}
         </Button>
       </div>
+
+      <MediaPicker
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        onSelect={(asset) => setAttachment(asset)}
+      />
     </div>
   )
 }

@@ -27,7 +27,7 @@ export async function TermsSections() {
               'shadow-[0_1px_2px_rgb(15_23_42/0.04),0_12px_32px_rgb(15_23_42/0.05)]',
               'transition-[transform,box-shadow,border-color] duration-200 ease-out',
               'hover:-translate-y-0.5 hover:border-primary/40',
-              'hover:shadow-[0_16px_40px_rgb(15_23_42/0.08),0_0_0_4px_rgb(159_232_112/0.12)]'
+              'hover:shadow-[0_16px_40px_rgb(15_23_42/0.08),0_0_0_4px_rgb(37_99_235/0.12)]'
             )}
           >
             <div className="mb-4 flex items-start gap-3.5">
@@ -35,7 +35,7 @@ export async function TermsSections() {
                 className={cn(
                   'flex size-10 shrink-0 items-center justify-center rounded-2xl',
                   'bg-primary-pale text-sm font-bold text-positive-deep',
-                  'shadow-[0_0_0_4px_rgb(159_232_112/0.14)]'
+                  'shadow-[0_0_0_4px_rgb(37_99_235/0.14)]'
                 )}
               >
                 {index + 1}

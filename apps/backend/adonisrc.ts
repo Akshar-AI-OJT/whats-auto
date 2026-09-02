@@ -31,6 +31,7 @@ export default defineConfig({
     () => import('@adonisjs/session/commands'),
     () => import('@adonisjs/bouncer/commands'),
     () => import('@tuyau/core/commands'),
+    () => import('@adonisjs/mail/commands'),
   ],
 
   /*
@@ -59,8 +60,13 @@ export default defineConfig({
     () => import('@adonisjs/bouncer/bouncer_provider'),
     () => import('#providers/tenant_rls_provider'),
     () => import('#providers/job_queue_provider'),
+    () => import('#providers/redis_provider'),
+    () => import('#providers/inbox_sse_bus_provider'),
+    () => import('#providers/ai_provider'),
     () => import('#providers/object_storage_provider'),
+    () => import('#providers/content_inspection_provider'),
     () => import('@adonisjs/drive/drive_provider'),
+    () => import('@adonisjs/mail/mail_provider'),
   ],
 
   /*

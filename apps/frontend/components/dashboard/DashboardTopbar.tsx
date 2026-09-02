@@ -19,17 +19,17 @@ import { DashboardSidebar } from './DashboardSidebar'
 import { NotificationBell } from './NotificationBell'
 import { UserProfileMenu } from './UserProfileMenu'
 import {
-  WorkspaceSwitcher,
+  OrganizationSwitcher,
   organizationInitials,
-  type WorkspaceSwitcherItem,
-} from './WorkspaceSwitcher'
+  type OrganizationSwitcherItem,
+} from './OrganizationSwitcher'
 import { ThemeToggle } from '@/components/theme/ThemeToggle'
 
 type DashboardTopbarProps = {
   className?: string
 }
 
-const ACCENTS: WorkspaceSwitcherItem['accent'][] = ['green', 'cyan', 'amber']
+const ACCENTS: OrganizationSwitcherItem['accent'][] = ['green', 'cyan', 'amber']
 
 function detectMac() {
   if (typeof navigator === 'undefined') return false
@@ -70,17 +70,16 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
     selectOrganization,
   } = useOrganizations()
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [workspaceOpen, setWorkspaceOpen] = useState(false)
+  const [organizationOpen, setOrganizationOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
   const searchInputRef = useRef<HTMLInputElement>(null)
   const searchId = useId()
-  const [searchQuery, setSearchQuery] = useState('')
   const [searchFocused, setSearchFocused] = useState(false)
   const isMac = useSyncExternalStore(subscribeNoop, detectMac, () => false)
   const isLg = useSyncExternalStore(subscribeLg, getIsLg, () => false)
 
-  const workspaces = useMemo<WorkspaceSwitcherItem[]>(
+  const switcherOrganizations = useMemo<OrganizationSwitcherItem[]>(
     () =>
       organizations.map((org, index) => ({
         id: org.id,
@@ -136,16 +135,15 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
   async function handleSignOut() {
     setProfileOpen(false)
     await signOut()
-    router.push('/login')
-    router.refresh()
+    router.replace('/login')
   }
 
   function goToOrgOnboarding() {
-    setWorkspaceOpen(false)
+    setOrganizationOpen(false)
     router.push(ORG_SETUP_PATH)
   }
 
-  async function handleWorkspaceChange(nextId: string) {
+  async function handleOrganizationChange(nextId: string) {
     if (nextId === activeOrganizationId) return
     await selectOrganization(nextId)
   }
@@ -174,7 +172,7 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
         <SheetContent
           side="left"
           showCloseButton
-          className="w-[min(280px,85vw)] border-dash-border bg-canvas p-0 sm:max-w-[280px]"
+          className="w-[min(320px,85vw)] border-dash-border bg-canvas p-0 sm:max-w-[320px]"
         >
           <SheetHeader className="sr-only">
             <SheetTitle>{t('brand')}</SheetTitle>
@@ -202,10 +200,10 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
           </span>
           <span className="min-w-0">
             <span className="block truncate text-sm font-semibold text-positive-deep">
-              {t('workspace.emptyTitle')}
+              {t('organizationSwitcher.emptyTitle')}
             </span>
             <span className="hidden truncate text-[11px] text-mute sm:block">
-              {t('workspace.emptyAction')}
+              {t('organizationSwitcher.emptyAction')}
             </span>
           </span>
           <Plus className="size-4 shrink-0 text-positive-deep" aria-hidden />
@@ -213,27 +211,27 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
       ) : null}
 
       {hasOrganizations && activeOrganizationId ? (
-        <WorkspaceSwitcher
+        <OrganizationSwitcher
           className="order-1 min-w-0 max-w-[11rem] sm:max-w-[13rem] lg:max-w-[15rem]"
-          workspaces={workspaces}
+          organizations={switcherOrganizations}
           value={activeOrganizationId}
-          open={workspaceOpen}
+          open={organizationOpen}
           onOpenChange={(next) => {
-            setWorkspaceOpen(next)
+            setOrganizationOpen(next)
             if (next) {
               setProfileOpen(false)
               setNotificationsOpen(false)
             }
           }}
-          onChange={handleWorkspaceChange}
+          onChange={handleOrganizationChange}
           error={organizationsError}
           labels={{
-            listLabel: t('workspace.listLabel'),
-            active: t('workspace.active'),
-            members: t('workspace.members'),
-            create: t('workspace.create'),
+            listLabel: t('organizationSwitcher.listLabel'),
+            active: t('organizationSwitcher.active'),
+            members: t('organizationSwitcher.members'),
+            create: t('organizationSwitcher.create'),
           }}
-          onCreateWorkspace={goToOrgOnboarding}
+          onCreateOrganization={goToOrgOnboarding}
         />
       ) : null}
 
@@ -262,13 +260,14 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
           ref={searchInputRef}
           id={searchId}
           type="search"
-          value={searchQuery}
+          value=""
+          readOnly
           placeholder={
-            isLg ? t('topbar.searchPlaceholder') : t('topbar.searchPlaceholderShort')
+            isLg ? t('topbar.searchUnavailablePlaceholder') : t('topbar.searchPlaceholderShort')
           }
           autoComplete="off"
-          aria-describedby={`${searchId}-hint`}
-          onChange={(event) => setSearchQuery(event.target.value)}
+          aria-describedby={`${searchId}-hint ${searchId}-status`}
+          title={t('topbar.searchUnavailableHint')}
           onFocus={() => setSearchFocused(true)}
           onBlur={() => setSearchFocused(false)}
           className={cn(
@@ -278,9 +277,12 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
             'transition-[border-color,box-shadow,background-color] duration-200',
             'hover:border-dash-border-strong',
             'focus-visible:border-primary/55 focus-visible:bg-canvas focus-visible:ring-2 focus-visible:ring-primary/30',
-            'cursor-text'
+            'cursor-not-allowed opacity-90'
           )}
         />
+        <p id={`${searchId}-status`} className="sr-only">
+          {t('topbar.searchUnavailableHint')}
+        </p>
         <kbd
           id={`${searchId}-hint`}
           className={cn(
@@ -309,7 +311,7 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
           onOpenChange={(next) => {
             setNotificationsOpen(next)
             if (next) {
-              setWorkspaceOpen(false)
+              setOrganizationOpen(false)
               setProfileOpen(false)
             }
           }}
@@ -321,7 +323,7 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
             onOpenChange={(next) => {
               setProfileOpen(next)
               if (next) {
-                setWorkspaceOpen(false)
+                setOrganizationOpen(false)
                 setNotificationsOpen(false)
               }
             }}
@@ -330,7 +332,7 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
             initials={initials}
             labels={{
               myProfile: t('topbar.myProfile'),
-              workspace: t('topbar.workspace'),
+              organization: t('topbar.organization'),
               billing: t('topbar.billing'),
               settings: t('topbar.settings'),
               signOut: t('signOut'),
@@ -338,8 +340,14 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
             }}
             onSignOut={handleSignOut}
             onSelectItem={(id) => {
-              if (id === 'workspace' || id === 'settings') {
+              if (id === 'profile') {
+                router.push('/dashboard/profile')
+              }
+              if (id === 'organization' || id === 'settings') {
                 router.push('/dashboard/settings')
+              }
+              if (id === 'billing') {
+                router.push('/dashboard/billing')
               }
             }}
           />

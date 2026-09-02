@@ -1,22 +1,54 @@
 import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { Exception } from '@adonisjs/core/exceptions'
+import logger from '@adonisjs/core/services/logger'
 import { DateTime } from 'luxon'
-import Organization from '#models/organization'
+import { OrganizationStatus } from '#enums/organization_status'
+import type { OrganizationStatusValue } from '#enums/organization_status'
 import InvitationException from '#exceptions/invitation_exception'
+import OrganizationException from '#exceptions/organization_exception'
 import { getGlobalRoleIdByName, resolveAssignableRoleForOrg } from '#services/role_service'
 import { bumpAllOrgMembersPermissionVersion } from '#lib/permission_version_bumps'
+import { isPostgresUniqueViolation } from '#lib/pg_unique_violation'
+import { NotificationService } from '#services/notification_service'
+import {
+  normalizeOrganizationAddress,
+  parseOrganizationAddress,
+  type OrganizationAddress,
+} from '#lib/organization_address'
+
+export const ORGANIZATION_TYPES = [
+  'company',
+  'partnership',
+  'sole_proprietorship',
+  'other',
+] as const
+
+export type OrganizationType = (typeof ORGANIZATION_TYPES)[number]
+
+export type { OrganizationAddress }
 
 export type CreateOrganizationInput = {
   name: string
   slug: string
   email: string
-  phone?: string
+  phone: string
   website?: string
   industry?: string
+  organizationType: OrganizationType
+  address: string | OrganizationAddress
+  pan?: string
+  gstin?: string
   country: string
   timezone: string
   currency?: string
+  description?: string
+  businessSize?: string
+  alternatePhone?: string
+  defaultLanguage?: string
+  businessRegistrationNumber?: string
+  /** Optional title stored on the creating owner's membership. */
+  designation?: string
 }
 
 export type UpdateOrganizationInput = {
@@ -24,8 +56,100 @@ export type UpdateOrganizationInput = {
   phone?: string
   website?: string
   industry?: string
+  organizationType?: OrganizationType
+  address?: string | OrganizationAddress
+  pan?: string
+  gstin?: string
+  country?: string
   timezone?: string
   currency?: string
+  description?: string | null
+  businessSize?: string | null
+  alternatePhone?: string | null
+  defaultLanguage?: string | null
+  businessRegistrationNumber?: string | null
+  /** Optional title for the caller's membership row. */
+  designation?: string | null
+}
+
+export type OrganizationPublicFields = {
+  id: string
+  name: string
+  slug: string
+  email: string
+  phone: string | null
+  website: string | null
+  industry: string | null
+  organizationType: OrganizationType | null
+  address: OrganizationAddress | null
+  pan: string | null
+  gstin: string | null
+  country: string
+  timezone: string
+  currency: string | null
+  description: string | null
+  businessSize: string | null
+  alternatePhone: string | null
+  defaultLanguage: string | null
+  businessRegistrationNumber: string | null
+}
+
+const ORGANIZATION_PUBLIC_COLUMNS = [
+  'id',
+  'name',
+  'slug',
+  'email',
+  'phone',
+  'website',
+  'industry',
+  'organizationType',
+  'address',
+  'pan',
+  'gstin',
+  'country',
+  'timezone',
+  'currency',
+  'description',
+  'businessSize',
+  'alternatePhone',
+  'defaultLanguage',
+  'businessRegistrationNumber',
+] as const
+
+function asOrganizationType(value: unknown): OrganizationType | null {
+  if (
+    value === 'company' ||
+    value === 'partnership' ||
+    value === 'sole_proprietorship' ||
+    value === 'other'
+  ) {
+    return value
+  }
+  return null
+}
+
+function mapOrganizationPublicFields(row: Record<string, unknown>): OrganizationPublicFields {
+  return {
+    id: row.id as string,
+    name: row.name as string,
+    slug: row.slug as string,
+    email: row.email as string,
+    phone: (row.phone as string | null) ?? null,
+    website: (row.website as string | null) ?? null,
+    industry: (row.industry as string | null) ?? null,
+    organizationType: asOrganizationType(row.organizationType),
+    address: parseOrganizationAddress(row.address),
+    pan: (row.pan as string | null) ?? null,
+    gstin: (row.gstin as string | null) ?? null,
+    country: row.country as string,
+    timezone: row.timezone as string,
+    currency: (row.currency as string | null) ?? null,
+    description: (row.description as string | null) ?? null,
+    businessSize: (row.businessSize as string | null) ?? null,
+    alternatePhone: (row.alternatePhone as string | null) ?? null,
+    defaultLanguage: (row.defaultLanguage as string | null) ?? null,
+    businessRegistrationNumber: (row.businessRegistrationNumber as string | null) ?? null,
+  }
 }
 
 export class OrganizationService {
@@ -38,7 +162,7 @@ export class OrganizationService {
 
   /**
    * A user who belongs to no organization yet must resolve a pending invitation first,
-   * otherwise invitees end up creating a second workspace instead of joining the inviter's.
+   * otherwise invitees end up creating a second organization instead of joining the inviter's.
    * Users who already belong to an organization stay free to create more.
    */
   protected async assertNoBlockingInvitation(userId: string) {
@@ -73,7 +197,9 @@ export class OrganizationService {
 
   /**
    * Create an organization and make the caller the owner.
-   * Dual-writes organization_members + user_roles, sets active org on the session.
+   * New orgs start as pending_setup. Session switches to the new org only when
+   * the caller has no already-active organization (avoids stranding a paid owner).
+   * Reuses the caller's existing pending_setup org on retry to avoid email/slug collisions.
    */
   async createOrganization(params: {
     userId: string
@@ -85,75 +211,257 @@ export class OrganizationService {
     await this.assertNoBlockingInvitation(userId)
 
     const ownerRoleId = await getGlobalRoleIdByName('owner')
+    const hasActiveOrganization = await this.#userHasActiveOrganization(userId)
+
+    const notifyCreated = async <T extends { id: string; name: string }>(
+      created: T
+    ): Promise<T> => {
+      await this.#notifySuperAdminsOrganizationOnboardedBestEffort({
+        organizationId: created.id,
+        actorUserId: userId,
+        organizationName: created.name,
+      })
+      return created
+    }
+
+    const existingPending = await this.#findOwnedPendingSetupOrg(userId)
+    if (existingPending) {
+      return notifyCreated(
+        await this.#reusePendingSetupOrg({
+          org: existingPending,
+          userId,
+          sessionId,
+          data,
+          activateSession: !hasActiveOrganization,
+        })
+      )
+    }
+
+    try {
+      const created = await db.transaction(async (trx) => {
+        const address = normalizeOrganizationAddress(data.address, data.country)
+        const [org] = await trx
+          .table('organizations')
+          .insert({
+            name: data.name,
+            slug: data.slug,
+            email: data.email,
+            phone: data.phone,
+            website: data.website ?? null,
+            industry: data.industry ?? null,
+            organizationType: data.organizationType,
+            address,
+            pan: data.pan ? data.pan.replace(/\s+/g, '').toUpperCase() : null,
+            gstin: data.gstin ? data.gstin.replace(/\s+/g, '').toUpperCase() : null,
+            country: data.country,
+            timezone: data.timezone,
+            currency: data.currency ?? null,
+            description: data.description ?? null,
+            businessSize: data.businessSize ?? null,
+            alternatePhone: data.alternatePhone ?? null,
+            defaultLanguage: data.defaultLanguage ?? null,
+            businessRegistrationNumber: data.businessRegistrationNumber ?? null,
+            status: OrganizationStatus.PENDING_SETUP,
+          })
+          .returning([...ORGANIZATION_PUBLIC_COLUMNS, 'status', 'createdAt'])
+
+        await trx.table('organization_members').insert({
+          organizationId: org.id,
+          userId,
+          roleId: ownerRoleId,
+          designation: data.designation ?? null,
+        })
+
+        await trx.table('user_roles').insert({
+          userId,
+          roleId: ownerRoleId,
+          organizationId: org.id,
+        })
+
+        const sessionActivated = !hasActiveOrganization
+        if (sessionActivated) {
+          await trx.from('sessions').where('id', sessionId).update({
+            activeOrganizationId: org.id,
+          })
+        }
+
+        await trx.table('authorization_audits').insert({
+          organizationId: org.id,
+          actorUserId: userId,
+          targetType: 'organization',
+          targetId: org.id,
+          eventType: 'organization.created',
+          after: JSON.stringify({
+            name: org.name,
+            slug: org.slug,
+            status: OrganizationStatus.PENDING_SETUP,
+          }),
+        })
+
+        return {
+          ...mapOrganizationPublicFields(org as Record<string, unknown>),
+          status: org.status as OrganizationStatusValue,
+          createdAt: org.createdAt as string,
+          role: 'owner',
+          sessionActivated,
+        }
+      })
+
+      return await notifyCreated(created)
+    } catch (error) {
+      if (isPostgresUniqueViolation(error, 'organizations_slug_unique')) {
+        throw OrganizationException.slugAlreadyExists(data.slug)
+      }
+      // Email collision with the caller's own pending org (race) — reuse it.
+      if (isPostgresUniqueViolation(error, 'organizations_email_unique')) {
+        const pending = await this.#findOwnedPendingSetupOrg(userId)
+        if (pending) {
+          return notifyCreated(
+            await this.#reusePendingSetupOrg({
+              org: pending,
+              userId,
+              sessionId,
+              data,
+              activateSession: !hasActiveOrganization,
+            })
+          )
+        }
+      }
+      throw error
+    }
+  }
+
+  /**
+   * Promote an organization to active after a successful entitlement path
+   * (paid order, super-admin grant, legacy webhook). Idempotent.
+   */
+  async promoteToActive(organizationId: string, trx?: TransactionClientContract): Promise<void> {
+    const query = (trx ?? db)
+      .from('organizations')
+      .where('id', organizationId)
+      .whereNull('deletedAt')
+      .whereNot('status', OrganizationStatus.ACTIVE)
+      .update({ status: OrganizationStatus.ACTIVE })
+
+    await query
+  }
+
+  async #userHasActiveOrganization(userId: string): Promise<boolean> {
+    const row = await db
+      .from('organization_members as m')
+      .innerJoin('organizations as o', 'o.id', 'm.organizationId')
+      .where('m.userId', userId)
+      .where('m.isDeleted', false)
+      .whereNull('o.deletedAt')
+      .where('o.status', OrganizationStatus.ACTIVE)
+      .select('o.id')
+      .first()
+    return Boolean(row)
+  }
+
+  async #findOwnedPendingSetupOrg(userId: string) {
+    return db
+      .from('organization_members as m')
+      .innerJoin('organizations as o', 'o.id', 'm.organizationId')
+      .innerJoin('roles as r', 'r.id', 'm.roleId')
+      .where('m.userId', userId)
+      .where('m.isDeleted', false)
+      .whereNull('o.deletedAt')
+      .where('o.status', OrganizationStatus.PENDING_SETUP)
+      .where('r.name', 'owner')
+      .select(
+        'o.id',
+        'o.name',
+        'o.slug',
+        'o.email',
+        'o.phone',
+        'o.website',
+        'o.industry',
+        'o.organizationType',
+        'o.address',
+        'o.pan',
+        'o.gstin',
+        'o.country',
+        'o.timezone',
+        'o.currency',
+        'o.description',
+        'o.businessSize',
+        'o.alternatePhone',
+        'o.defaultLanguage',
+        'o.businessRegistrationNumber',
+        'o.status',
+        'o.createdAt'
+      )
+      .orderBy('o.createdAt', 'asc')
+      .first()
+  }
+
+  async #reusePendingSetupOrg(params: {
+    org: Record<string, unknown>
+    userId: string
+    sessionId: string
+    data: CreateOrganizationInput
+    activateSession: boolean
+  }) {
+    const { org, userId, sessionId, data, activateSession } = params
+    const organizationId = org.id as string
+    const address = normalizeOrganizationAddress(data.address, data.country)
 
     return db.transaction(async (trx) => {
-      const [org] = await trx
-        .table('organizations')
-        .insert({
+      const [updated] = await trx
+        .from('organizations')
+        .where('id', organizationId)
+        .update({
           name: data.name,
-          slug: data.slug,
-          email: data.email,
-          phone: data.phone ?? null,
+          // Keep existing slug/email to avoid unique collisions on retry with new values.
+          phone: data.phone,
           website: data.website ?? null,
           industry: data.industry ?? null,
+          organizationType: data.organizationType,
+          address,
+          pan: data.pan ? data.pan.replace(/\s+/g, '').toUpperCase() : null,
+          gstin: data.gstin ? data.gstin.replace(/\s+/g, '').toUpperCase() : null,
           country: data.country,
           timezone: data.timezone,
           currency: data.currency ?? null,
+          description: data.description ?? null,
+          businessSize: data.businessSize ?? null,
+          alternatePhone: data.alternatePhone ?? null,
+          defaultLanguage: data.defaultLanguage ?? null,
+          businessRegistrationNumber: data.businessRegistrationNumber ?? null,
         })
-        .returning([
-          'id',
-          'name',
-          'slug',
-          'email',
-          'phone',
-          'website',
-          'industry',
-          'country',
-          'timezone',
-          'currency',
-          'status',
-          'createdAt',
-        ])
+        .returning([...ORGANIZATION_PUBLIC_COLUMNS, 'status', 'createdAt'])
 
-      await trx.table('organization_members').insert({
-        organizationId: org.id,
-        userId,
-        roleId: ownerRoleId,
-      })
-
-      await trx.table('user_roles').insert({
-        userId,
-        roleId: ownerRoleId,
-        organizationId: org.id,
-      })
-
-      await trx.from('sessions').where('id', sessionId).update({
-        activeOrganizationId: org.id,
-      })
+      if (data.designation !== undefined) {
+        await trx
+          .from('organization_members')
+          .where('organizationId', organizationId)
+          .where('userId', userId)
+          .where('isDeleted', false)
+          .update({ designation: data.designation ?? null })
+      }
+      if (activateSession) {
+        await trx.from('sessions').where('id', sessionId).update({
+          activeOrganizationId: organizationId,
+        })
+      }
 
       await trx.table('authorization_audits').insert({
-        organizationId: org.id,
+        organizationId,
         actorUserId: userId,
         targetType: 'organization',
-        targetId: org.id,
-        eventType: 'organization.created',
-        after: JSON.stringify({ name: org.name, slug: org.slug }),
+        targetId: organizationId,
+        eventType: 'organization.pending_setup_reused',
+        after: JSON.stringify({ name: data.name }),
       })
 
       return {
-        id: org.id as string,
-        name: org.name as string,
-        slug: org.slug as string,
-        email: org.email as string,
-        phone: org.phone as string | null,
-        website: org.website as string | null,
-        industry: org.industry as string | null,
-        country: org.country as string,
-        timezone: org.timezone as string,
-        currency: org.currency as string | null,
-        status: org.status as boolean,
-        createdAt: org.createdAt as string,
+        ...mapOrganizationPublicFields(updated as Record<string, unknown>),
+        status: updated.status as OrganizationStatusValue,
+        createdAt: updated.createdAt as string,
         role: 'owner',
+        sessionActivated: activateSession,
+        reused: true as const,
       }
     })
   }
@@ -176,25 +484,27 @@ export class OrganizationService {
         'o.phone',
         'o.website',
         'o.industry',
+        'o.organizationType',
+        'o.address',
+        'o.pan',
+        'o.gstin',
         'o.country',
         'o.timezone',
         'o.currency',
+        'o.description',
+        'o.businessSize',
+        'o.alternatePhone',
+        'o.defaultLanguage',
+        'o.businessRegistrationNumber',
+        'o.status',
         'r.name as role',
         'o.createdAt'
       )
       .orderBy('o.name', 'asc')
 
     return rows.map((r) => ({
-      id: r.id as string,
-      name: r.name as string,
-      slug: r.slug as string,
-      email: r.email as string,
-      phone: (r.phone as string | null) ?? null,
-      website: (r.website as string | null) ?? null,
-      industry: (r.industry as string | null) ?? null,
-      country: r.country as string,
-      timezone: r.timezone as string,
-      currency: (r.currency as string | null) ?? null,
+      ...mapOrganizationPublicFields(r as Record<string, unknown>),
+      status: r.status as OrganizationStatusValue,
       role: r.role as string,
       createdAt: r.createdAt as string,
     }))
@@ -266,46 +576,55 @@ export class OrganizationService {
       })
     }
 
-    const updates: Record<string, string | null> = {}
+    const updates: Record<string, string | null | OrganizationAddress> = {}
     if (patch.name !== undefined) updates.name = patch.name
     if (patch.phone !== undefined) updates.phone = patch.phone
     if (patch.website !== undefined) updates.website = patch.website
     if (patch.industry !== undefined) updates.industry = patch.industry
+    if (patch.organizationType !== undefined) updates.organizationType = patch.organizationType
+    if (patch.address !== undefined) {
+      updates.address = normalizeOrganizationAddress(patch.address)
+    }
+    if (patch.pan !== undefined) updates.pan = patch.pan.replace(/\s+/g, '').toUpperCase()
+    if (patch.gstin !== undefined) updates.gstin = patch.gstin.replace(/\s+/g, '').toUpperCase()
+    if (patch.country !== undefined) updates.country = patch.country
     if (patch.timezone !== undefined) updates.timezone = patch.timezone
     if (patch.currency !== undefined) updates.currency = patch.currency
+    if (patch.description !== undefined) updates.description = patch.description
+    if (patch.businessSize !== undefined) updates.businessSize = patch.businessSize
+    if (patch.alternatePhone !== undefined) updates.alternatePhone = patch.alternatePhone
+    if (patch.defaultLanguage !== undefined) updates.defaultLanguage = patch.defaultLanguage
+    if (patch.businessRegistrationNumber !== undefined) {
+      updates.businessRegistrationNumber = patch.businessRegistrationNumber
+    }
 
-    if (Object.keys(updates).length === 0) {
-      return {
-        id: existing.id as string,
-        name: existing.name as string,
-        slug: existing.slug as string,
-        email: existing.email as string,
-        phone: existing.phone as string | null,
-        website: existing.website as string | null,
-        industry: existing.industry as string | null,
-        country: existing.country as string,
-        timezone: existing.timezone as string,
-        currency: existing.currency as string | null,
-      }
+    const hasOrgUpdates = Object.keys(updates).length > 0
+    const hasDesignationUpdate = patch.designation !== undefined
+
+    if (!hasOrgUpdates && !hasDesignationUpdate) {
+      return mapOrganizationPublicFields(existing as Record<string, unknown>)
     }
 
     return db.transaction(async (trx) => {
-      const [updated] = await trx
-        .from('organizations')
-        .where('id', organizationId)
-        .update(updates)
-        .returning([
-          'id',
-          'name',
-          'slug',
-          'email',
-          'phone',
-          'website',
-          'industry',
-          'country',
-          'timezone',
-          'currency',
-        ])
+      let updated = existing as Record<string, unknown>
+
+      if (hasOrgUpdates) {
+        const [row] = await trx
+          .from('organizations')
+          .where('id', organizationId)
+          .update(updates)
+          .returning([...ORGANIZATION_PUBLIC_COLUMNS])
+        updated = row as Record<string, unknown>
+      }
+
+      if (hasDesignationUpdate) {
+        await trx
+          .from('organization_members')
+          .where('organizationId', organizationId)
+          .where('userId', actorUserId)
+          .where('isDeleted', false)
+          .update({ designation: patch.designation ?? null })
+      }
 
       await trx.table('authorization_audits').insert({
         organizationId,
@@ -318,24 +637,26 @@ export class OrganizationService {
           phone: existing.phone,
           website: existing.website,
           industry: existing.industry,
+          organizationType: existing.organizationType,
+          address: existing.address,
+          pan: existing.pan,
+          gstin: existing.gstin,
+          country: existing.country,
           timezone: existing.timezone,
           currency: existing.currency,
+          description: existing.description,
+          businessSize: existing.businessSize,
+          alternatePhone: existing.alternatePhone,
+          defaultLanguage: existing.defaultLanguage,
+          businessRegistrationNumber: existing.businessRegistrationNumber,
         }),
-        after: JSON.stringify(updates),
+        after: JSON.stringify({
+          ...updates,
+          ...(hasDesignationUpdate ? { designation: patch.designation ?? null } : {}),
+        }),
       })
 
-      return {
-        id: updated.id as string,
-        name: updated.name as string,
-        slug: updated.slug as string,
-        email: updated.email as string,
-        phone: updated.phone as string | null,
-        website: updated.website as string | null,
-        industry: updated.industry as string | null,
-        country: updated.country as string,
-        timezone: updated.timezone as string,
-        currency: updated.currency as string | null,
-      }
+      return mapOrganizationPublicFields(updated)
     })
   }
 
@@ -374,11 +695,11 @@ export class OrganizationService {
         targetId: organizationId,
         eventType: 'organization.soft_deleted',
         before: JSON.stringify({ name: org.name, slug: org.slug, status: org.status }),
-        after: JSON.stringify({ status: false, deletedAt: deletedAt.toISO() }),
+        after: JSON.stringify({ status: OrganizationStatus.FALSE, deletedAt: deletedAt.toISO() }),
       })
 
       await trx.from('organizations').where('id', organizationId).update({
-        status: false,
+        status: OrganizationStatus.FALSE,
         deletedAt: deletedAt.toSQL(),
       })
 
@@ -391,6 +712,62 @@ export class OrganizationService {
         .where('activeOrganizationId', organizationId)
         .update({ activeOrganizationId: null })
     })
+
+    // After soft-delete commits — best-effort fan-out must not roll back deletion.
+    await this.#notifyMembersOrganizationSoftDeleted({
+      organizationId,
+      actorUserId,
+    })
+  }
+
+  /**
+   * Best-effort in-app notifications for all active org members after soft-delete.
+   */
+  async #notifyMembersOrganizationSoftDeleted(params: {
+    organizationId: string
+    actorUserId: string
+  }): Promise<void> {
+    try {
+      const members = await db
+        .from('organization_members')
+        .where('organizationId', params.organizationId)
+        .where('isDeleted', false)
+        .select('userId')
+
+      const notifications = new NotificationService()
+      for (const member of members) {
+        const userId = member.userId as string
+        try {
+          await notifications.createNotification({
+            organizationId: params.organizationId,
+            userId,
+            type: 'organization_soft_deleted',
+            title: 'Organization unavailable',
+            body: 'This organization has been deleted and is no longer available.',
+            actorUserId: params.actorUserId,
+          })
+        } catch (error) {
+          logger.error(
+            {
+              organizationId: params.organizationId,
+              userId,
+              type: 'organization_soft_deleted',
+              err: error instanceof Error ? error.message : 'unknown',
+            },
+            'organization.notification_failed'
+          )
+        }
+      }
+    } catch (error) {
+      logger.error(
+        {
+          organizationId: params.organizationId,
+          type: 'organization_soft_deleted',
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'organization.notification_failed'
+      )
+    }
   }
 
   /**
@@ -425,7 +802,7 @@ export class OrganizationService {
     )
     const ownerRoleId = await getGlobalRoleIdByName('owner')
 
-    await db.transaction(async (trx) => {
+    const newOwnerUserId = await db.transaction(async (trx) => {
       const [current, target] = await Promise.all([
         trx.rawQuery(
           `SELECT m.*, r."name" as "roleName"
@@ -496,6 +873,117 @@ export class OrganizationService {
         }),
         reason,
       })
+
+      return targetUserId
     })
+
+    // After ownership transfer commits — best-effort notify must not roll back transfer.
+    const org = await db.from('organizations').where('id', organizationId).select('name').first()
+    const organizationName = (org?.name as string | undefined) ?? null
+    await this.#notifyOwnershipTransferredBestEffort({
+      organizationId,
+      userId: newOwnerUserId,
+      actorUserId,
+      organizationName,
+    })
+  }
+
+  /**
+   * Best-effort in-app notification for the new owner after ownership transfer. Never throws.
+   */
+  async #notifyOwnershipTransferredBestEffort(params: {
+    organizationId: string
+    userId: string
+    actorUserId: string
+    organizationName: string | null
+  }): Promise<void> {
+    try {
+      await new NotificationService().createNotification({
+        organizationId: params.organizationId,
+        userId: params.userId,
+        type: 'team_ownership_transferred',
+        title: 'You are now the organization owner',
+        body: params.organizationName
+          ? `Ownership of ${params.organizationName} has been transferred to you.`
+          : 'Ownership of this organization has been transferred to you.',
+        actorUserId: params.actorUserId,
+      })
+    } catch (error) {
+      logger.error(
+        {
+          organizationId: params.organizationId,
+          userId: params.userId,
+          type: 'team_ownership_transferred',
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'team.notification_failed'
+      )
+    }
+  }
+
+  /**
+   * Best-effort in-app notifications for platform Super Admins after an organization
+   * is created (the current onboarding event). Never throws.
+   */
+  async #notifySuperAdminsOrganizationOnboardedBestEffort(params: {
+    organizationId: string
+    actorUserId: string
+    organizationName: string
+  }): Promise<void> {
+    const type = 'organization_onboarding'
+    try {
+      const superadmins = await db
+        .from('user_roles as ur')
+        .innerJoin('roles as r', 'r.id', 'ur.roleId')
+        .innerJoin('users as u', 'u.id', 'ur.userId')
+        .whereNull('ur.organizationId')
+        .where('r.name', 'superadmin')
+        .where('u.isDeleted', false)
+        .select('ur.userId')
+
+      const notifications = new NotificationService()
+      for (const row of superadmins) {
+        const userId = row.userId as string
+        try {
+          const existing = await db
+            .from('notifications')
+            .where('organizationId', params.organizationId)
+            .where('userId', userId)
+            .where('type', type)
+            .select('id')
+            .first()
+
+          if (existing) continue
+
+          await notifications.createNotification({
+            organizationId: params.organizationId,
+            userId,
+            type,
+            title: 'New Organization Onboarding',
+            body: `A new organization "${params.organizationName}" has been created.`,
+            actorUserId: params.actorUserId,
+          })
+        } catch (error) {
+          logger.error(
+            {
+              organizationId: params.organizationId,
+              userId,
+              type,
+              err: error instanceof Error ? error.message : 'unknown',
+            },
+            'organization.notification_failed'
+          )
+        }
+      }
+    } catch (error) {
+      logger.error(
+        {
+          organizationId: params.organizationId,
+          type,
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'organization.notification_failed'
+      )
+    }
   }
 }

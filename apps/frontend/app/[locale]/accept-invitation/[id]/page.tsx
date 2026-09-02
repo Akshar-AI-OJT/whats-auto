@@ -16,10 +16,12 @@ async function loadInvitationPreview(id: string): Promise<{
   preview: InvitationPreview | null
   errorKey: 'notFound' | 'loadFailed' | null
 }> {
-  const base = process.env.NEXT_PUBLIC_API_URL
-  if (!base) {
-    return { preview: null, errorKey: 'loadFailed' }
-  }
+  // Prefer the API origin. Local fallback is the Next app (dev rewrite).
+  const base = (
+    process.env.NEXT_PUBLIC_API_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    'http://localhost:3000'
+  ).replace(/\/$/, '')
 
   try {
     const response = await fetch(`${base}/api/v1/invitations/${id}`, {
