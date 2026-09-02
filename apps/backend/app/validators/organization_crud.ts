@@ -16,6 +16,14 @@ export const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/
 const organizationTypeSchema = vine.enum([...ORGANIZATION_TYPES])
 const panSchema = vine.string().trim().toUpperCase().regex(PAN_REGEX)
 const gstinSchema = vine.string().trim().toUpperCase().regex(GSTIN_REGEX)
+
+/** PATCH: omit, null, empty string (clear), or valid tax id. Create keeps strict optional pan/gstin. */
+const optionalPanUpdateSchema = vine
+  .unionOfTypes([vine.literal(null), vine.literal(''), panSchema])
+  .optional()
+const optionalGstinUpdateSchema = vine
+  .unionOfTypes([vine.literal(null), vine.literal(''), gstinSchema])
+  .optional()
 const phoneSchema = vine
   .string()
   .trim()
@@ -81,8 +89,8 @@ export const updateOrganizationValidator = vine.create(
     industry: vine.string().trim().optional(),
     organizationType: organizationTypeSchema.optional(),
     address: addressInputSchema.optional(),
-    pan: panSchema.optional(),
-    gstin: gstinSchema.optional(),
+    pan: optionalPanUpdateSchema,
+    gstin: optionalGstinUpdateSchema,
     country: vine.string().trim().minLength(2).maxLength(100).optional(),
     timezone: vine.string().trim().minLength(1).maxLength(100).optional(),
     currency: vine.string().trim().maxLength(10).optional(),

@@ -120,6 +120,7 @@ function normalizeWebsite(value: string): string | undefined {
 }
 
 function buildUpdateBody(form: FormState): UpdateOrganizationBody {
+  const pan = normalizeTaxId(form.pan)
   const gstin = normalizeTaxId(form.gstin)
   return {
     name: form.name.trim(),
@@ -128,8 +129,8 @@ function buildUpdateBody(form: FormState): UpdateOrganizationBody {
     industry: form.industry.trim() || undefined,
     organizationType: form.organizationType || undefined,
     address: form.address.trim(),
-    pan: normalizeTaxId(form.pan),
-    gstin: gstin || undefined,
+    pan,
+    gstin,
     timezone: form.timezone.trim(),
     currency: form.currency.trim().slice(0, CURRENCY_MAX) || undefined,
   }
@@ -234,9 +235,7 @@ export function OrganizationSettingsPage() {
     } else if (address.length < 8) {
       next.address = t('errors.addressTooShort')
     }
-    if (!form.pan.trim()) {
-      next.pan = t('errors.panRequired')
-    } else if (!isValidPan(form.pan)) {
+    if (form.pan.trim() && !isValidPan(form.pan)) {
       next.pan = t('errors.panInvalid')
     }
     if (form.gstin.trim() && !isValidGstin(form.gstin)) {
@@ -603,7 +602,7 @@ export function OrganizationSettingsPage() {
             <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
               <Field data-invalid={fieldErrors.pan ? true : undefined} className="gap-2">
                 <FieldLabel htmlFor={panId} className="text-sm font-medium text-ink">
-                  <RequiredMark label={t('fields.pan')} />
+                  {t('fields.pan')}
                 </FieldLabel>
                 <Input
                   id={panId}
