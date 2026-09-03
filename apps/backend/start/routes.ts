@@ -35,6 +35,8 @@ const SuperAdminAiConfigController = () => import('#controllers/super_admin_ai_c
 const SuperAdminAuditController = () => import('#controllers/super_admin_audit_controller')
 const SuperAdminPlatformUsersController = () =>
   import('#controllers/super_admin_platform_users_controller')
+const SuperAdminSearchController = () => import('#controllers/super_admin_search_controller')
+const GlobalSearchController = () => import('#controllers/global_search_controller')
 const OrganizationAdminUsersController = () =>
   import('#controllers/organization_admin_users_controller')
 const WhatsappWebhookController = () => import('#controllers/whatsapp_webhook_controller')
@@ -773,6 +775,7 @@ router
     router.patch('/ai-config', [SuperAdminAiConfigController, 'update'])
     router.get('/audit-logs', [SuperAdminAuditController, 'index'])
     router.get('/platform-users', [SuperAdminPlatformUsersController, 'index'])
+    router.get('/search', [SuperAdminSearchController, 'index'])
   })
   .prefix('/api/v1/super-admin')
   .use([middleware.jwtAuth(), middleware.platform()])
@@ -795,10 +798,21 @@ router
   .post('/api/v1/organizations/:id/set-active', [OrganizationsController, 'setActive'])
   .use([middleware.jwtAuth()])
 
+// Profile update + org delete must stay reachable before the profile is complete
 router
   .group(() => {
     router.patch('/:id', [OrganizationsController, 'update'])
     router.delete('/:id', [OrganizationsController, 'destroy'])
+  })
+  .prefix('/api/v1/organizations')
+  .use([
+    middleware.jwtAuth(),
+    middleware.tenant({ skipActiveGate: true, skipProfileCompletionGate: true }),
+  ])
+
+// Org-scoped settings that are not required to finish the profile
+router
+  .group(() => {
     router.post('/:id/invitations', [InvitationsController, 'store'])
     router.get('/:id/smtp', [OrganizationSmtpController, 'show'])
     router.put('/:id/smtp', [OrganizationSmtpController, 'update'])
@@ -826,7 +840,15 @@ router
 //  Access context (frontend polls this after login/org switch)
 router
   .get('/api/v1/access-context', [controllers.AccessContext, 'show'])
-  .use([middleware.jwtAuth(), middleware.tenant({ skipActiveGate: true })])
+  .use([
+    middleware.jwtAuth(),
+    middleware.tenant({ skipActiveGate: true, skipProfileCompletionGate: true }),
+  ])
+
+// Global search — tenant-scoped; organization id always comes from auth, never the query string
+router
+  .get('/api/v1/search', [GlobalSearchController, 'index'])
+  .use([middleware.jwtAuth(), middleware.tenant()])
 
 // Onboarding state — no active org required; tells the client which screen comes next
 router.get('/api/v1/onboarding/state', [OnboardingController, 'show']).use([middleware.jwtAuth()])
@@ -917,15 +939,22 @@ router
   .put('/api/v1/media/uploads/:id/content', [MediaUploadsController, 'putContent'])
   .use([middleware.rateLimit({ max: 60, windowMs: 60 * 1000, name: 'media-upload-content' })])
 
-// media uploads — direct-to-storage pending → ready lifecycle + Media Library
+// media — organization logo + upload complete are required to finish the profile
+router
+  .group(() => {
+    router.get('/organization-logo', [MediaAssetsController, 'organizationLogo'])
+    router.post('/uploads', [MediaUploadsController, 'store'])
+    router.post('/uploads/:id/complete', [MediaUploadsController, 'complete'])
+  })
+  .prefix('/api/v1/media')
+  .use([middleware.jwtAuth(), middleware.tenant({ skipProfileCompletionGate: true })])
+
+// media library — blocked until the organization profile is complete
 router
   .group(() => {
     router.get('/', [MediaAssetsController, 'index'])
     router.get('/quota', [MediaAssetsController, 'quota'])
-    router.get('/organization-logo', [MediaAssetsController, 'organizationLogo'])
     router.get('/:id', [MediaAssetsController, 'show'])
-    router.post('/uploads', [MediaUploadsController, 'store'])
-    router.post('/uploads/:id/complete', [MediaUploadsController, 'complete'])
     router.delete('/:id', [MediaAssetsController, 'destroy'])
     router.post('/:id/restore', [MediaAssetsController, 'restore'])
     router.post('/:id/purge', [MediaAssetsController, 'purge'])
@@ -1014,7 +1043,10 @@ router
     router.post('/verify', [BillingController, 'verify'])
   })
   .prefix('/api/v1/billing')
-  .use([middleware.jwtAuth(), middleware.tenant({ skipActiveGate: true })])
+  .use([
+    middleware.jwtAuth(),
+    middleware.tenant({ skipActiveGate: true, skipProfileCompletionGate: true }),
+  ])
 
 // notifications — personal in-app feed (org + user scoped; not notifications:manage config)
 router

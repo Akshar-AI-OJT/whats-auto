@@ -10,6 +10,7 @@ import { queryKeys } from '@/lib/query-keys'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
+import type { ApiError } from '@/lib/api'
 import { PLAN_FEATURE_CATALOG } from './mock-plans'
 import { createPlan, getPlan, updatePlan } from './plan-service'
 import type {
@@ -238,8 +239,12 @@ export function PlanFormPage({ mode, planId }: PlanFormPageProps) {
       await createPlan(payload)
       await queryClient.invalidateQueries({ queryKey: queryKeys.admin.plansRoot })
       router.push('/admin/plans?created=1')
-    } catch {
-      setError(mode === 'edit' ? t('errors.updateFailed') : t('errors.createFailed'))
+    } catch (err) {
+      const apiError = err as ApiError
+      setError(
+        apiError?.message?.trim() ||
+          (mode === 'edit' ? t('errors.updateFailed') : t('errors.createFailed'))
+      )
     } finally {
       setPending(false)
     }

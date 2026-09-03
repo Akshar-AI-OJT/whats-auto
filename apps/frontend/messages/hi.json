@@ -3380,8 +3380,6 @@
       "searchLabel": "संगठन खोजें",
       "searchPlaceholder": "संपर्क, बातचीत, कैंपेन या टेम्पलेट खोजें…",
       "searchPlaceholderShort": "संगठन खोजें…",
-      "searchUnavailablePlaceholder": "ग्लोबल खोज के लिए बैकएंड API आवश्यक…",
-      "searchUnavailableHint": "ग्लोबल खोज अभी उपलब्ध नहीं है। संगठन खोजने से पहले बैकएंड खोज एंडपॉइंट की आवश्यकता है।",
       "searchShortcutLabel": "खोज पर जाएँ ({shortcut})",
       "notifications": "सूचनाएँ",
       "profile": "प्रोफ़ाइल",
@@ -4120,7 +4118,11 @@
       "openMenu": "एडमिन नेविगेशन खोलें",
       "title": "प्लेटफ़ॉर्म कंसोल",
       "subtitle": "संगठन, सब्सक्रिप्शन और प्लेटफ़ॉर्म उपयोगकर्ता प्रबंधित करें",
-      "logout": "लॉगआउट"
+      "logout": "लॉगआउट",
+      "searchLabel": "प्लेटफ़ॉर्म खोजें",
+      "searchPlaceholder": "संगठन, उपयोगकर्ता, प्लान या सब्सक्रिप्शन खोजें…",
+      "searchPlaceholderShort": "प्लेटफ़ॉर्म खोजें…",
+      "searchShortcutLabel": "खोज पर जाएँ ({shortcut})"
     },
     "checkingAccess": "एक्सेस जाँच हो रही है…",
     "home": {
@@ -5285,6 +5287,25 @@
         "emptyDescription": "permissioned actions होने पर ऑडिट इवेंट यहाँ दिखेंगे।",
         "noDetails": "कोई अतिरिक्त विवरण नहीं"
       }
+    }
+  },
+  "globalSearch": {
+    "loading": "खोज हो रही है…",
+    "noResults": "कोई परिणाम नहीं",
+    "error": "खोज नहीं हो सकी। फिर कोशिश करें।",
+    "resultsLabel": "खोज परिणाम",
+    "types": {
+      "contact": "संपर्क",
+      "conversation": "बातचीत",
+      "campaign": "कैंपेन",
+      "template": "टेम्पलेट",
+      "flow": "फ्लो",
+      "customer_group": "ग्राहक समूह",
+      "organization": "संगठन",
+      "user": "उपयोगकर्ता",
+      "plan": "प्लान",
+      "subscription": "सब्सक्रिप्शन",
+      "invoice": "इनवॉइस"
     }
   }
 }

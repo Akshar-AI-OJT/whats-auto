@@ -1788,6 +1788,34 @@ export type TenantBillingPlan = {
   sortOrder: number
 }
 
+export const GLOBAL_SEARCH_RESULT_TYPES = [
+  'contact',
+  'conversation',
+  'campaign',
+  'template',
+  'flow',
+  'customer_group',
+  'organization',
+  'user',
+  'plan',
+  'subscription',
+  'invoice',
+] as const
+
+export type GlobalSearchResultType = (typeof GLOBAL_SEARCH_RESULT_TYPES)[number]
+
+export type GlobalSearchResult = {
+  type: GlobalSearchResultType
+  id: string
+  title: string
+  description: string | null
+}
+
+export type GlobalSearchResponse = {
+  query: string
+  results: GlobalSearchResult[]
+}
+
 export const api = {
   auth: {
     signup: (body: SignupBody) =>
@@ -1869,6 +1897,16 @@ export const api = {
       protectedRequest<{ data?: OnboardingState } & OnboardingState>('/api/v1/onboarding/state', {
         method: 'GET',
       }),
+  },
+
+  search: {
+    query: (q: string) => {
+      const qs = new URLSearchParams({ q })
+      return protectedRequest<{ data?: GlobalSearchResponse } & GlobalSearchResponse>(
+        `/api/v1/search?${qs.toString()}`,
+        { method: 'GET' }
+      )
+    },
   },
 
   organizations: {
@@ -2795,6 +2833,16 @@ export const api = {
   },
 
   superAdmin: {
+    search: {
+      query: (q: string) => {
+        const qs = new URLSearchParams({ q })
+        return protectedRequest<{ data?: GlobalSearchResponse } & GlobalSearchResponse>(
+          `/api/v1/super-admin/search?${qs.toString()}`,
+          { method: 'GET' }
+        )
+      },
+    },
+
     organizations: {
       list: (params: { page?: number; perPage?: number } = {}) => {
         const qs = new URLSearchParams()

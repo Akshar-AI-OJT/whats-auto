@@ -6,6 +6,7 @@ import { FIXTURE_IDS } from '#database/demo/fixture_ids'
 import DemoSeeder from '#database/seeders/demo_seeder'
 import { auth } from '#lib/auth'
 import { AccessTokenClaimsService } from '#services/access_token_claims_service'
+import { withActivePlanIdentityIndexDropped } from '#tests/helpers/plan_identity_index'
 
 const ACTIVE_ORG_BY_EMAIL: Record<string, string> = {
   [DEMO_USERS.northstarOwner]: FIXTURE_IDS.orgs.northstar,
@@ -18,6 +19,9 @@ type TenantPlanItem = {
   id: string
   code: string
   name: string
+  price?: number | null
+  currency?: string
+  billingPeriod?: string
   checkoutable: boolean
   freeActivatable?: boolean
   gateway?: unknown
@@ -326,6 +330,269 @@ test.group('Tenant billing plans HTTP', (group) => {
       assert.isUndefined(match!.gatewayPlanId)
     } finally {
       await db.from('plans').where('id', planId).delete()
+    }
+  })
+
+  test('returns unique logical plans so billing UI cannot render duplicate cards', async ({
+    client,
+    assert,
+  }) => {
+    const token = await mintToken(DEMO_USERS.northstarAdmin)
+    const response = await client
+      .get('/api/v1/billing/plans')
+      .header('Authorization', `Bearer ${token}`)
+
+    response.assertStatus(200)
+    const items = catalogItems(response)
+    assert.isAbove(items.length, 0)
+
+    const ids = items.map((item) => item.id)
+    assert.equal(new Set(ids).size, ids.length)
+
+    const logicalKeys = items.map(
+      (item) =>
+        `${(item.name ?? '').trim().toLowerCase()}|${item.billingPeriod}|${item.price}|${(item.currency ?? '').toUpperCase()}`
+    )
+    assert.equal(new Set(logicalKeys).size, logicalKeys.length)
+  })
+
+  test('collapses duplicate active rows of the same logical plan', async ({ client, assert }) => {
+    const suffix = randomUUID().slice(0, 8)
+    const olderId = randomUUID()
+    const newerId = randomUUID()
+
+    await withActivePlanIdentityIndexDropped(async () => {
+      try {
+        await db.table('plans').insert([
+          {
+            id: olderId,
+            code: `http_old_${suffix}`,
+            name: `HTTP Dup ${suffix}`,
+            description: 'Canonical',
+            price: 1111,
+            currency: 'INR',
+            billingInterval: 'month',
+            billingIntervalCount: 1,
+            trialDays: 0,
+            gateway: null,
+            gatewayPlanId: null,
+            limits: { users: 2, messagesPerMonth: 100 },
+            isActive: true,
+            sortOrder: 50,
+            metadata: { status: 'active', billingPeriod: 'monthly' },
+            createdAt: new Date('2026-01-01T00:00:00.000Z'),
+          },
+          {
+            id: newerId,
+            code: `http_new_${suffix}`,
+            name: `HTTP Dup ${suffix}`,
+            description: 'Duplicate',
+            price: 1111,
+            currency: 'INR',
+            billingInterval: 'month',
+            billingIntervalCount: 1,
+            trialDays: 0,
+            gateway: null,
+            gatewayPlanId: null,
+            limits: { users: 2, messagesPerMonth: 100 },
+            isActive: true,
+            sortOrder: 51,
+            metadata: { status: 'active', billingPeriod: 'monthly' },
+            createdAt: new Date('2026-07-01T00:00:00.000Z'),
+          },
+        ])
+
+        const token = await mintToken(DEMO_USERS.northstarAdmin)
+        const response = await client
+          .get('/api/v1/billing/plans')
+          .header('Authorization', `Bearer ${token}`)
+
+        response.assertStatus(200)
+        const matches = catalogItems(response).filter((item) => item.name === `HTTP Dup ${suffix}`)
+        assert.lengthOf(matches, 1)
+        assert.equal(matches[0].id, olderId)
+        assert.equal(matches[0].price, 1111)
+        assert.equal(matches[0].currency, 'INR')
+        assert.equal(matches[0].billingPeriod, 'monthly')
+      } finally {
+        await db.from('plans').whereIn('id', [olderId, newerId]).delete()
+      }
+    })
+  })
+
+  test('keeps monthly and yearly variants as separate catalog plans', async ({ client, assert }) => {
+    const suffix = randomUUID().slice(0, 8)
+    const monthlyId = randomUUID()
+    const yearlyId = randomUUID()
+
+    await db.table('plans').insert([
+      {
+        id: monthlyId,
+        code: `http_m_${suffix}`,
+        name: `HTTP Interval ${suffix}`,
+        price: 2000,
+        currency: 'INR',
+        billingInterval: 'month',
+        billingIntervalCount: 1,
+        trialDays: 0,
+        gateway: null,
+        gatewayPlanId: null,
+        limits: {},
+        isActive: true,
+        sortOrder: 60,
+        metadata: { status: 'active', billingPeriod: 'monthly' },
+      },
+      {
+        id: yearlyId,
+        code: `http_y_${suffix}`,
+        name: `HTTP Interval ${suffix}`,
+        price: 2000,
+        currency: 'INR',
+        billingInterval: 'year',
+        billingIntervalCount: 1,
+        trialDays: 0,
+        gateway: null,
+        gatewayPlanId: null,
+        limits: {},
+        isActive: true,
+        sortOrder: 61,
+        metadata: { status: 'active', billingPeriod: 'yearly' },
+      },
+    ])
+
+    try {
+      const token = await mintToken(DEMO_USERS.northstarAdmin)
+      const response = await client
+        .get('/api/v1/billing/plans')
+        .header('Authorization', `Bearer ${token}`)
+
+      response.assertStatus(200)
+      const matches = catalogItems(response).filter(
+        (item) => item.name === `HTTP Interval ${suffix}`
+      )
+      assert.lengthOf(matches, 2)
+      assert.sameMembers(
+        matches.map((item) => item.billingPeriod),
+        ['monthly', 'yearly']
+      )
+    } finally {
+      await db.from('plans').whereIn('id', [monthlyId, yearlyId]).delete()
+    }
+  })
+
+  test('keeps different currencies as separate catalog plans', async ({ client, assert }) => {
+    const suffix = randomUUID().slice(0, 8)
+    const inrId = randomUUID()
+    const usdId = randomUUID()
+
+    await db.table('plans').insert([
+      {
+        id: inrId,
+        code: `http_inr_${suffix}`,
+        name: `HTTP Fx ${suffix}`,
+        price: 3000,
+        currency: 'INR',
+        billingInterval: 'month',
+        billingIntervalCount: 1,
+        trialDays: 0,
+        gateway: null,
+        gatewayPlanId: null,
+        limits: {},
+        isActive: true,
+        sortOrder: 70,
+        metadata: { status: 'active' },
+      },
+      {
+        id: usdId,
+        code: `http_usd_${suffix}`,
+        name: `HTTP Fx ${suffix}`,
+        price: 3000,
+        currency: 'USD',
+        billingInterval: 'month',
+        billingIntervalCount: 1,
+        trialDays: 0,
+        gateway: null,
+        gatewayPlanId: null,
+        limits: {},
+        isActive: true,
+        sortOrder: 71,
+        metadata: { status: 'active' },
+      },
+    ])
+
+    try {
+      const token = await mintToken(DEMO_USERS.northstarAdmin)
+      const response = await client
+        .get('/api/v1/billing/plans')
+        .header('Authorization', `Bearer ${token}`)
+
+      response.assertStatus(200)
+      const matches = catalogItems(response).filter((item) => item.name === `HTTP Fx ${suffix}`)
+      assert.lengthOf(matches, 2)
+      assert.sameMembers(
+        matches.map((item) => item.currency),
+        ['INR', 'USD']
+      )
+    } finally {
+      await db.from('plans').whereIn('id', [inrId, usdId]).delete()
+    }
+  })
+
+  test('keeps different prices as separate catalog plans', async ({ client, assert }) => {
+    const suffix = randomUUID().slice(0, 8)
+    const cheapId = randomUUID()
+    const dearId = randomUUID()
+
+    await db.table('plans').insert([
+      {
+        id: cheapId,
+        code: `http_lo_${suffix}`,
+        name: `HTTP Tier ${suffix}`,
+        price: 999,
+        currency: 'INR',
+        billingInterval: 'month',
+        billingIntervalCount: 1,
+        trialDays: 0,
+        gateway: null,
+        gatewayPlanId: null,
+        limits: {},
+        isActive: true,
+        sortOrder: 80,
+        metadata: { status: 'active' },
+      },
+      {
+        id: dearId,
+        code: `http_hi_${suffix}`,
+        name: `HTTP Tier ${suffix}`,
+        price: 1999,
+        currency: 'INR',
+        billingInterval: 'month',
+        billingIntervalCount: 1,
+        trialDays: 0,
+        gateway: null,
+        gatewayPlanId: null,
+        limits: {},
+        isActive: true,
+        sortOrder: 81,
+        metadata: { status: 'active' },
+      },
+    ])
+
+    try {
+      const token = await mintToken(DEMO_USERS.northstarAdmin)
+      const response = await client
+        .get('/api/v1/billing/plans')
+        .header('Authorization', `Bearer ${token}`)
+
+      response.assertStatus(200)
+      const matches = catalogItems(response).filter((item) => item.name === `HTTP Tier ${suffix}`)
+      assert.lengthOf(matches, 2)
+      assert.sameMembers(
+        matches.map((item) => item.price),
+        [999, 1999]
+      )
+    } finally {
+      await db.from('plans').whereIn('id', [cheapId, dearId]).delete()
     }
   })
 })

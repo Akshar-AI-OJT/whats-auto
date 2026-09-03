@@ -26,6 +26,13 @@ export default class OrganizationException extends Exception {
     })
   }
 
+  static profileIncomplete() {
+    return new this('Complete the organization profile before accessing this functionality.', {
+      status: 403,
+      code: 'E_ORGANIZATION_PROFILE_INCOMPLETE',
+    })
+  }
+
   handle(error: this, { response }: HttpContext) {
     return response.status(error.status).send({
       error: error.message,

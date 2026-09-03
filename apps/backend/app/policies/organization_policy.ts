@@ -2,13 +2,16 @@ import { BasePolicy, AuthorizationResponse } from '@adonisjs/bouncer'
 import type { AuthzPrincipal } from '#types/http'
 
 export default class OrganizationPolicy extends BasePolicy {
-  /** Owner can perform any action on their active organization */
-  before(user: AuthzPrincipal): boolean | undefined {
-    if (user.activeMember?.role === 'owner') return true
+  /**
+   * Do not owner-bypass here. `before()` cannot see the target organization id, so
+   * returning true would allow PATCH /organizations/:otherId while the session is
+   * still on a different tenant.
+   */
+  before(_user: AuthzPrincipal): boolean | undefined {
     return undefined
   }
 
-  /** Update org profile/settings — requires org:settings_manage and active org match */
+  /** Update org profile/settings — requires active org match, then owner or org:settings_manage */
   update(user: AuthzPrincipal, organizationId: string): boolean | AuthorizationResponse {
     if (organizationId !== user.activeMember?.organizationId) {
       return AuthorizationResponse.deny(
@@ -16,6 +19,7 @@ export default class OrganizationPolicy extends BasePolicy {
         403
       )
     }
+    if (user.activeMember?.role === 'owner') return true
     return user.memberPermissions?.has('org:settings_manage') ?? false
   }
 
@@ -33,7 +37,7 @@ export default class OrganizationPolicy extends BasePolicy {
         403
       )
     }
-    return user.memberPermissions?.has('org:delete') ?? false
+    return true
   }
 
   /** Switch active org on session */

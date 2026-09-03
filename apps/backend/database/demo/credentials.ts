@@ -28,6 +28,7 @@ export const DEMO_ORGS = {
     timezone: 'Asia/Kolkata',
     currency: 'INR',
     industry: 'Retail',
+    businessSize: '11-50',
   },
   harbor: {
     name: 'Harbor Fitness Studio',
@@ -37,5 +38,6 @@ export const DEMO_ORGS = {
     timezone: 'America/New_York',
     currency: 'USD',
     industry: 'Fitness',
+    businessSize: '1-10',
   },
 } as const

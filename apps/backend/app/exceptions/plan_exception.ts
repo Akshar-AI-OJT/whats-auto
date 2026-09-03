@@ -26,6 +26,16 @@ export default class PlanException extends Exception {
     })
   }
 
+  static duplicateActive() {
+    return new this(
+      'An active plan with the same name, billing interval, price, and currency already exists',
+      {
+        status: 409,
+        code: 'E_PLAN_DUPLICATE_ACTIVE',
+      }
+    )
+  }
+
   static gatewayFailed(message: string) {
     return new this(message, {
       status: 502,

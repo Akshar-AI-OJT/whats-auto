@@ -57,11 +57,13 @@ import {
 } from '@/components/onboarding/onboarding-field-styles'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import {
+  clearCreatedOrganizationId,
   clearPendingOrganizationPreferences,
   isValidEmail,
   isValidPhone,
   isValidWebsiteUrl,
   readPendingOrganizationPreferences,
+  readProfileCompletionOrganizationId,
 } from '@/lib/onboarding'
 import {
   buildOrganizationProfileUpdateBody,
@@ -121,17 +123,63 @@ export function OrganizationProfileCompletionPage() {
     refresh,
     isOwner,
     accessContext,
+    selectOrganization,
+    tenantOrganizationId,
   } = useOrganizations()
 
-  const org = activeOrganization ?? organizations[0] ?? null
+  const [targetOrganizationId] = useState(() => readProfileCompletionOrganizationId())
+  const switchStartedRef = useRef(false)
+
+  const org = targetOrganizationId
+    ? (organizations.find((item) => item.id === targetOrganizationId) ?? null)
+    : (activeOrganization ?? null)
   const orgId = org?.id ?? null
+  const tenantMatchesOrg = Boolean(orgId && tenantOrganizationId === orgId)
+  const targetMissingAfterLoad =
+    Boolean(targetOrganizationId) &&
+    !orgsLoading &&
+    !organizations.some((item) => item.id === targetOrganizationId)
 
   useEffect(() => {
-    if (orgsLoading || isResolvingAccess || !accessContext) return
+    if (!targetOrganizationId || orgsLoading) return
+    if (!organizations.some((item) => item.id === targetOrganizationId)) return
+    if (activeOrganization?.id === targetOrganizationId) return
+    if (switchStartedRef.current) return
+    switchStartedRef.current = true
+    void selectOrganization(targetOrganizationId).finally(() => {
+      switchStartedRef.current = false
+    })
+  }, [
+    activeOrganization?.id,
+    organizations,
+    orgsLoading,
+    selectOrganization,
+    targetOrganizationId,
+  ])
+
+  useEffect(() => {
+    if (orgsLoading || isResolvingAccess) return
+    if (targetOrganizationId) {
+      if (targetMissingAfterLoad) return
+      if (org && org.role !== 'owner') {
+        router.replace('/dashboard')
+      }
+      return
+    }
+    if (!accessContext) return
     if (!isOwner) {
       router.replace('/dashboard')
     }
-  }, [accessContext, isOwner, isResolvingAccess, orgsLoading, router])
+  }, [
+    accessContext,
+    isOwner,
+    isResolvingAccess,
+    org,
+    orgsLoading,
+    router,
+    targetMissingAfterLoad,
+    targetOrganizationId,
+  ])
 
   const [hydratedOrgId, setHydratedOrgId] = useState<string | null>(null)
   const [step, setStep] = useState<ProfileStep>(1)
@@ -149,7 +197,7 @@ export function OrganizationProfileCompletionPage() {
   const formErrorId = useId()
   const confirmId = useId()
 
-  if (org && orgId !== hydratedOrgId) {
+  if (org && tenantMatchesOrg && orgId !== hydratedOrgId) {
     setHydratedOrgId(orgId)
     setValues(buildInitialProfileValues(org))
     setStep(1)
@@ -166,7 +214,7 @@ export function OrganizationProfileCompletionPage() {
   }, [logoPreviewUrl])
 
   useEffect(() => {
-    if (!orgId) return
+    if (!orgId || tenantOrganizationId !== orgId) return
     let cancelled = false
     void (async () => {
       try {
@@ -183,7 +231,7 @@ export function OrganizationProfileCompletionPage() {
     return () => {
       cancelled = true
     }
-  }, [orgId])
+  }, [orgId, tenantOrganizationId])
 
   const completion = useMemo(
     () => (values ? calculateOrganizationProfileCompletion(values) : null),
@@ -313,13 +361,23 @@ export function OrganizationProfileCompletionPage() {
   }
 
   async function persistProfile(): Promise<boolean> {
-    if (!org?.id || !values || submitLockRef.current) return false
+    const patchOrganizationId = targetOrganizationId ?? org?.id ?? null
+    if (
+      !patchOrganizationId ||
+      !tenantMatchesOrg ||
+      tenantOrganizationId !== patchOrganizationId ||
+      (targetOrganizationId && patchOrganizationId !== targetOrganizationId) ||
+      !values ||
+      submitLockRef.current
+    ) {
+      return false
+    }
     submitLockRef.current = true
     setSaving(true)
     setFormError(null)
     try {
       const body = buildOrganizationProfileUpdateBody(values)
-      await api.organizations.update(org.id, body)
+      await api.organizations.update(patchOrganizationId, body)
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.organizations.all }),
         refresh(),
@@ -343,6 +401,7 @@ export function OrganizationProfileCompletionPage() {
     const ok = await persistProfile()
     if (ok) {
       clearPendingOrganizationPreferences()
+      clearCreatedOrganizationId()
       setSuccess(true)
     }
   }
@@ -366,7 +425,12 @@ export function OrganizationProfileCompletionPage() {
     { id: 4 as const, title: t('steps.review.title'), description: t('steps.review.description') },
   ]
 
-  if (orgsLoading || !values) {
+  if (
+    orgsLoading ||
+    isResolvingAccess ||
+    (Boolean(org) && !tenantMatchesOrg) ||
+    (Boolean(org) && tenantMatchesOrg && !values)
+  ) {
     return (
       <div className="flex min-h-svh items-center justify-center bg-[#F8FAFC] text-sm text-body">
         <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
@@ -375,7 +439,7 @@ export function OrganizationProfileCompletionPage() {
     )
   }
 
-  if (!org) {
+  if (!org || !values) {
     return (
       <div className="flex min-h-svh flex-col items-center justify-center gap-3 bg-[#F8FAFC] px-4 text-center">
         <p className="text-sm text-body">{t('errors.noOrganization')}</p>

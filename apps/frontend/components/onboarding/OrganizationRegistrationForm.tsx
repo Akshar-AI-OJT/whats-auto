@@ -4,9 +4,9 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { ArrowLeft, ArrowRight, Loader2, Lock } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { api, type ApiError } from '@/lib/api'
+import { api, type ApiError, type CreatedOrganization } from '@/lib/api'
 import { authClient } from '@/lib/auth-client'
-import { getValidAccessToken } from '@/lib/access-token'
+import { forceRemintAccessToken, getValidAccessToken, peekAccessTokenOrgId } from '@/lib/access-token'
 import { queryKeys } from '@/lib/query-keys'
 import { useQueryClient } from '@tanstack/react-query'
 import {
@@ -18,6 +18,9 @@ import {
   isValidWebsiteUrl,
   markOnboardingChecklistVisible,
   readPendingOnboardingContact,
+  organizationProfilePath,
+  readCreatedOrganizationId,
+  saveCreatedOrganizationId,
   savePendingOrganizationPlan,
   savePendingOrganizationPreferences,
   ORG_SETUP_PATH,
@@ -88,6 +91,15 @@ function createInitialState(): OrganizationWizardState {
   }
 }
 
+function unwrapCreatedOrganization(
+  data: ({ data?: CreatedOrganization } & CreatedOrganization) | undefined
+): CreatedOrganization | null {
+  if (!data) return null
+  if (data.data?.id) return data.data
+  if (data.id) return data
+  return null
+}
+
 /**
  * Organization onboarding wizard (4 steps).
  * Step 3 creates the organization via POST /api/v1/organizations.
@@ -152,6 +164,7 @@ export function OrganizationRegistrationForm({
   const [checkoutPending, setCheckoutPending] = useState(false)
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
   const checkoutLockRef = useRef(false)
+  const createdOrganizationIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     return () => {
@@ -268,11 +281,26 @@ export function OrganizationRegistrationForm({
         currency: state.currency || undefined,
       })
 
-      await api.organizations.create(payload)
+      const { data } = await api.organizations.create(payload)
+      const created = unwrapCreatedOrganization(data)
+      if (!created?.id) {
+        throw new Error(t('errors.generic'))
+      }
 
-      // Backend sets the new org active and remints JWT; align shared session before dashboard.
+      createdOrganizationIdRef.current = created.id
+      saveCreatedOrganizationId(created.id)
+
+      // Creating a second org does not switch the paid/active session. Profile
+      // completion and plan checkout must target the created org, so activate it.
+      if (!created.sessionActivated) {
+        await api.organizations.setActive(created.id)
+      }
+
       await authClient.getSession({ query: { disableCookieCache: true } })
       await getValidAccessToken()
+      if (peekAccessTokenOrgId() !== created.id) {
+        await forceRemintAccessToken()
+      }
       await queryClient.invalidateQueries({ queryKey: queryKeys.organizations.all })
 
       savePendingOrganizationPreferences({
@@ -397,7 +425,9 @@ export function OrganizationRegistrationForm({
       savePendingOrganizationPlan(selectedPlan.id)
       await completePlanCheckout(selectedPlan.id)
       setConfirmOpen(false)
-      router.replace('/onboarding/organization-profile')
+      router.replace(
+        organizationProfilePath(createdOrganizationIdRef.current ?? readCreatedOrganizationId())
+      )
     } catch (err) {
       checkoutLockRef.current = false
       const apiError = err as ApiError
@@ -429,7 +459,9 @@ export function OrganizationRegistrationForm({
         throw new Error('Expected paid checkout')
       }
       setConfirmOpen(false)
-      router.replace('/onboarding/organization-profile')
+      router.replace(
+        organizationProfilePath(createdOrganizationIdRef.current ?? readCreatedOrganizationId())
+      )
     } catch (err) {
       checkoutLockRef.current = false
       const apiError = err as ApiError

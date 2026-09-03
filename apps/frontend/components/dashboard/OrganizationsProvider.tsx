@@ -13,6 +13,7 @@ import { ONBOARDING_PAYMENT_PATH } from '@/lib/onboarding'
 import {
   isOrganizationRequiredProfileComplete,
   ORG_PROFILE_PATH,
+  organizationProfilePath,
 } from '@/lib/organization-profile'
 import { hasPermission, PERMISSIONS } from '@/lib/rbac'
 import { queryKeys } from '@/lib/query-keys'
@@ -348,7 +349,7 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
     if (!accessContext.isOwner) return
     if (isOrganizationRequiredProfileComplete(activeOrganization)) return
 
-    router.replace(ORG_PROFILE_PATH)
+    router.replace(organizationProfilePath(activeOrganization.id))
   }, [accessContext, activeOrganization, pathname, router])
 
   const sessionOrgFromContext = accessContext?.organizationId ?? null

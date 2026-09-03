@@ -1,5 +1,10 @@
 /** Client-side onboarding helpers — no backend coupling beyond API contracts. */
 
+import {
+  isOrganizationId,
+  readOrganizationIdQueryParam,
+} from '@/lib/organization-profile'
+
 const PENDING_PHONE_KEY = 'wa-onboarding-phone'
 const PENDING_EMAIL_KEY = 'wa-onboarding-email'
 const CHECKLIST_KEY = 'wa-onboarding-checklist'
@@ -7,7 +12,11 @@ const PENDING_PLAN_KEY = 'wa-onboarding-plan'
 
 export const ORG_SETUP_PATH = '/onboarding/organization'
 export const ONBOARDING_PAYMENT_PATH = '/onboarding/payment'
-export { ORG_PROFILE_PATH } from '@/lib/organization-profile'
+export {
+  ORG_PROFILE_PATH,
+  organizationProfilePath,
+  readOrganizationIdQueryParam,
+} from '@/lib/organization-profile'
 export const TEAM_MEMBERS_PATH = '/dashboard/team'
 export const ASSIGNABLE_ROLES = ['admin', 'agent', 'viewer'] as const
 export type AssignableRole = (typeof ASSIGNABLE_ROLES)[number]
@@ -244,6 +253,46 @@ export function clearPendingOrganizationPreferences() {
   } catch {
     /* ignore */
   }
+}
+
+const CREATED_ORGANIZATION_ID_KEY = 'wa-created-organization-id'
+
+export function saveCreatedOrganizationId(organizationId: string) {
+  if (typeof window === 'undefined') return
+  if (!isOrganizationId(organizationId)) return
+  try {
+    window.sessionStorage.setItem(CREATED_ORGANIZATION_ID_KEY, organizationId)
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+export function readCreatedOrganizationId(): string | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const value = window.sessionStorage.getItem(CREATED_ORGANIZATION_ID_KEY)
+    return isOrganizationId(value) ? value : null
+  } catch {
+    return null
+  }
+}
+
+export function clearCreatedOrganizationId() {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.removeItem(CREATED_ORGANIZATION_ID_KEY)
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Organization the create-org wizard must complete next.
+ * Query param wins (refresh / shared URL); sessionStorage is the same-tab backup.
+ * Never fall back to the current/active organization here.
+ */
+export function readProfileCompletionOrganizationId(): string | null {
+  return readOrganizationIdQueryParam() ?? readCreatedOrganizationId()
 }
 
 export function markOnboardingChecklistVisible() {

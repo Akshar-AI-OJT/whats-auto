@@ -151,7 +151,8 @@ test.group('Phase 7 - Comprehensive Policy Edge Cases & Invariant Matrix', () =>
   }) => {
     const owner = makePrincipal({ role: 'owner', orgId: 'org-1' })
 
-    assert.isTrue(new OrganizationPolicy().before(owner))
+    assert.isTrue(new OrganizationPolicy().update(owner, 'org-1'))
+    assert.instanceOf(new OrganizationPolicy().update(owner, 'org-2'), AuthorizationResponse)
     assert.isTrue(new ConversationPolicy().before(owner))
     assert.isTrue(new MessagePolicy().before(owner))
     assert.isTrue(new ConversationNotePolicy().before(owner))

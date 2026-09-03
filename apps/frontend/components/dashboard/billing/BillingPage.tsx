@@ -478,7 +478,9 @@ export function BillingPage() {
                       {priceLabel}
                     </span>
                     {plan.price != null ? (
-                      <span className="text-sm text-mute">{tSubs('perMonth')}</span>
+                      <span className="text-sm text-mute">
+                        {plan.billingPeriod === 'yearly' ? tSubs('perYear') : tSubs('perMonth')}
+                      </span>
                     ) : null}
                   </div>
 
