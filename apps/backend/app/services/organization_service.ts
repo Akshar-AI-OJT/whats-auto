@@ -275,6 +275,7 @@ export class OrganizationService {
         throw OrganizationException.slugAlreadyExists(data.slug)
       }
       // Email collision with the caller's own pending org (race) — reuse it.
+      // Otherwise the email belongs to another org — surface a 409, not a 500.
       if (isPostgresUniqueViolation(error, 'organizations_email_unique')) {
         const pending = await this.#findOwnedPendingSetupOrg(userId)
         if (pending) {
@@ -288,6 +289,7 @@ export class OrganizationService {
             })
           )
         }
+        throw OrganizationException.emailAlreadyExists(data.email)
       }
       throw error
     }

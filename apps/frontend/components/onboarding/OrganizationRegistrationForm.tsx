@@ -240,7 +240,7 @@ export function OrganizationRegistrationForm({
         } catch {
           setBasicsErrors((prev) => ({ ...prev, slug: message }))
         }
-      } else if (/email/i.test(message)) {
+      } else if (apiError.code === 'E_ORG_EMAIL_ALREADY_EXISTS' || /email/i.test(message)) {
         setBasicsErrors((prev) => ({ ...prev, email: message }))
       } else if (/phone/i.test(message)) {
         setBasicsErrors((prev) => ({ ...prev, phone: message }))

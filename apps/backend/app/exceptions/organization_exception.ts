@@ -19,6 +19,16 @@ export default class OrganizationException extends Exception {
     })
   }
 
+  static emailAlreadyExists(email: string) {
+    return new this(
+      `Organization email "${email}" is already in use. Please use a different email.`,
+      {
+        status: 409,
+        code: 'E_ORG_EMAIL_ALREADY_EXISTS',
+      }
+    )
+  }
+
   static paymentRequired() {
     return new this('Complete payment to activate this organization before using the product.', {
       status: 402,
@@ -27,10 +37,17 @@ export default class OrganizationException extends Exception {
   }
 
   handle(error: this, { response }: HttpContext) {
+    const field =
+      error.code === 'E_ORG_SLUG_ALREADY_EXISTS'
+        ? 'slug'
+        : error.code === 'E_ORG_EMAIL_ALREADY_EXISTS'
+          ? 'email'
+          : undefined
+
     return response.status(error.status).send({
       error: error.message,
       code: error.code,
-      ...(error.code === 'E_ORG_SLUG_ALREADY_EXISTS' ? { field: 'slug' } : {}),
+      ...(field ? { field } : {}),
     })
   }
 

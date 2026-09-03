@@ -7,7 +7,7 @@ import { Loader2, Lock, Mail } from 'lucide-react'
 import { FcGoogle } from 'react-icons/fc'
 import { cn } from '@/lib/utils'
 import type { ApiError } from '@/lib/api'
-import { authClient, formatBetterAuthError } from '@/lib/auth-client'
+import { authClient, flushAuthCookies, formatBetterAuthError } from '@/lib/auth-client'
 import { buildLocalizedAppUrl } from '@/lib/app-origin'
 import { getValidAccessToken } from '@/lib/access-token'
 import { Button } from '@/components/ui/button'
@@ -101,6 +101,12 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
     }
   }, [])
 
+  // Failed OAuth / half-dead sessions leave sticky cookies that block the next attempt.
+  useEffect(() => {
+    if (!oauthErrorParam) return
+    void flushAuthCookies()
+  }, [oauthErrorParam])
+
   function validate(): FieldErrors {
     const next: FieldErrors = {}
 
@@ -135,6 +141,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
     setPending('google')
 
     try {
+      await flushAuthCookies()
       const redirectPath = callbackPath ?? '/dashboard'
       const callbackURL = buildLocalizedAppUrl(locale, redirectPath)
       const errorCallbackURL = buildLocalizedAppUrl(locale, '/login')
@@ -175,6 +182,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
     setPending('email')
 
     try {
+      await flushAuthCookies()
       const { error: authErr } = await authClient.signIn.email({
         email: trimmedEmail,
         password,
