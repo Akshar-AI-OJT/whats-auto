@@ -23,6 +23,9 @@ import {
   isValidWebsiteUrl,
   markOnboardingChecklistVisible,
   readPendingOnboardingContact,
+  organizationProfilePath,
+  readCreatedOrganizationId,
+  saveCreatedOrganizationId,
   savePendingOrganizationPlan,
   savePendingOrganizationPreferences,
   savePendingOnboardingOrganizationId,
@@ -112,6 +115,7 @@ async function alignSessionAfterOrganizationCreate(created: CreatedOrganization)
   }
 }
 
+
 /**
  * Organization onboarding wizard (4 steps).
  * Step 3 creates the organization via POST /api/v1/organizations.
@@ -168,6 +172,7 @@ export function OrganizationRegistrationForm({
   const [checkoutPending, setCheckoutPending] = useState(false)
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
   const checkoutLockRef = useRef(false)
+  const createdOrganizationIdRef = useRef<string | null>(null)
 
   useEffect(() => {
     return () => {
@@ -297,9 +302,11 @@ export function OrganizationRegistrationForm({
       const { data } = await api.organizations.create(payload)
       const created = unwrapCreatedOrganization(data)
       if (!created?.id) {
-        throw new Error('Organization create did not return an id')
+        throw new Error(t('errors.generic'))
       }
 
+      createdOrganizationIdRef.current = created.id
+      saveCreatedOrganizationId(created.id)
       savePendingOnboardingOrganizationId(created.id)
       await alignSessionAfterOrganizationCreate(created)
       await queryClient.invalidateQueries({ queryKey: queryKeys.organizations.all })
@@ -432,7 +439,9 @@ export function OrganizationRegistrationForm({
       savePendingOrganizationPlan(selectedPlan.id)
       await completePlanCheckout(selectedPlan.id)
       setConfirmOpen(false)
-      router.replace('/onboarding/organization-profile')
+      router.replace(
+        organizationProfilePath(createdOrganizationIdRef.current ?? readCreatedOrganizationId())
+      )
     } catch (err) {
       checkoutLockRef.current = false
       const apiError = err as ApiError
@@ -464,7 +473,9 @@ export function OrganizationRegistrationForm({
         throw new Error('Expected paid checkout')
       }
       setConfirmOpen(false)
-      router.replace('/onboarding/organization-profile')
+      router.replace(
+        organizationProfilePath(createdOrganizationIdRef.current ?? readCreatedOrganizationId())
+      )
     } catch (err) {
       checkoutLockRef.current = false
       const apiError = err as ApiError

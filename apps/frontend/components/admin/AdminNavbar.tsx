@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/sheet'
 import { ThemeToggle } from '@/components/theme/ThemeToggle'
 import { AdminSidebar } from './AdminSidebar'
+import { GlobalSearch } from '@/components/search/GlobalSearch'
 
 type AdminNavbarProps = {
   className?: string
@@ -67,12 +68,14 @@ export function AdminNavbar({ className }: AdminNavbarProps) {
         </SheetContent>
       </Sheet>
 
-      <div className="min-w-0 flex-1">
+      <div className="hidden min-w-0 shrink-0 sm:block lg:max-w-[14rem]">
         <p className="truncate text-sm font-semibold text-ink sm:text-base">
           {t('navbar.title')}
         </p>
-        <p className="hidden truncate text-xs text-mute sm:block">{t('navbar.subtitle')}</p>
+        <p className="hidden truncate text-xs text-mute lg:block">{t('navbar.subtitle')}</p>
       </div>
+
+      <GlobalSearch scope="platform" className="min-w-0 flex-1" />
 
       <button
         type="button"

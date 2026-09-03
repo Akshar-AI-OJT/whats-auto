@@ -108,4 +108,39 @@ test.group('HttpExceptionHandler unique violation sanitizer', () => {
     assert.equal(body?.code, 'E_DUPLICATE_RESOURCE')
     assert.equal(body?.field, 'email')
   })
+
+  test('maps active plan identity unique violations to E_PLAN_DUPLICATE_ACTIVE', async ({
+    assert,
+  }) => {
+    const handler = new HttpExceptionHandler()
+    let status: number | undefined
+    let body: Record<string, unknown> | undefined
+
+    const ctx = {
+      response: {
+        status(code: number) {
+          status = code
+          return {
+            send(payload: Record<string, unknown>) {
+              body = payload
+              return payload
+            },
+          }
+        },
+      },
+    }
+
+    await handler.handle(
+      {
+        code: '23505',
+        constraint: '"plans_active_logical_identity_unique"',
+        detail: 'Key (...) already exists.',
+      },
+      ctx as never
+    )
+
+    assert.equal(status, 409)
+    assert.equal(body?.code, 'E_PLAN_DUPLICATE_ACTIVE')
+    assert.notInclude(JSON.stringify(body), 'insert into')
+  })
 })

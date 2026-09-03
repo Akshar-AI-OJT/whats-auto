@@ -2,6 +2,10 @@ import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import type { PlanStatus } from '#types/plans'
 import { derivePlanStatus } from '#transformers/plan_transformer'
+import {
+  normalizeBillingInterval,
+  type PlanLogicalIdentity,
+} from '#lib/billing/plan_logical_identity'
 
 export type PlanRow = {
   id: string
@@ -56,6 +60,37 @@ export class PlanRepository {
   async findByCode(code: string, client: Db = db): Promise<PlanRow | null> {
     const row = await client.from('plans').where('code', code).first()
     return (row as PlanRow | undefined) ?? null
+  }
+
+  /**
+   * Rows that represent the same logical SKU (name + interval + price + currency),
+   * including archived/draft history. Ordered oldest-first for stable reuse.
+   */
+  async findByLogicalIdentity(
+    identity: PlanLogicalIdentity,
+    excludeId?: string,
+    client: Db = db
+  ): Promise<PlanRow[]> {
+    const interval = normalizeBillingInterval(identity.billingInterval)
+    const query = client
+      .from('plans')
+      .whereRaw('lower(btrim("name")) = ?', [identity.name.trim().toLowerCase()])
+      .whereRaw(
+        `CASE
+          WHEN lower("billingInterval") IN ('year', 'yearly') THEN 'year'
+          WHEN lower("billingInterval") = 'custom' THEN 'custom'
+          ELSE 'month'
+        END = ?`,
+        [interval]
+      )
+      .where('billingIntervalCount', identity.billingIntervalCount >= 1 ? identity.billingIntervalCount : 1)
+      .where('price', identity.price)
+      .whereRaw('upper("currency") = ?', [identity.currency.trim().toUpperCase()])
+      .orderBy('createdAt', 'asc')
+      .orderBy('id', 'asc')
+
+    if (excludeId) query.whereNot('id', excludeId)
+    return (await query) as PlanRow[]
   }
 
   /**
