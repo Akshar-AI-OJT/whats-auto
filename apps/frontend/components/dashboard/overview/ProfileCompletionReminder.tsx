@@ -7,6 +7,7 @@ import { ArrowRight } from 'lucide-react'
 import { Link } from '@/i18n/navigation'
 import { api, type MediaAsset } from '@/lib/api'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
+import { ONBOARDING_PLAN_PATH } from '@/lib/onboarding'
 import {
   calculateOrganizationProfileCompletion,
   ORG_PROFILE_PATH,
@@ -23,14 +24,22 @@ function unwrapLogo(data: unknown): MediaAsset | null {
   return asset?.id && asset.state === 'ready' ? asset : null
 }
 
-/** Non-blocking reminder for the OWNER when optional profile fields remain. */
+/** Existing dashboard reminder card — also used as the incomplete-setup CTA. */
 export function ProfileCompletionReminder() {
   const t = useTranslations('dashboard.home.profileReminder')
-  const { activeOrganization, isOwner, isLoading, tenantOrganizationId } = useOrganizations()
+  const {
+    activeOrganization,
+    isOwner,
+    isLoading,
+    tenantOrganizationId,
+    isSetupComplete,
+    isSubscriptionPending,
+    hasFullProductAccess,
+  } = useOrganizations()
 
   const logoQuery = useQuery({
     queryKey: ['organization-logo', tenantOrganizationId],
-    enabled: Boolean(isOwner && tenantOrganizationId && activeOrganization),
+    enabled: Boolean(isOwner && tenantOrganizationId && activeOrganization && hasFullProductAccess),
     queryFn: async () => {
       const { data } = await api.media.organizationLogo()
       return unwrapLogo(data)
@@ -47,9 +56,23 @@ export function ProfileCompletionReminder() {
     )
   }, [activeOrganization, logoQuery.data?.id])
 
-  if (isLoading || !completion || !isOwner) return null
-  if (!completion.requiredComplete) return null
-  if (completion.percent >= 100) return null
+  if (isLoading || !isOwner || !activeOrganization) return null
+  if (hasFullProductAccess && (!completion || completion.percent >= 100)) return null
+
+  const needsSetup = !isSetupComplete
+  const needsPlan = isSetupComplete && isSubscriptionPending
+  const href = needsSetup ? ORG_PROFILE_PATH : needsPlan ? ONBOARDING_PLAN_PATH : ORG_PROFILE_PATH
+  const title = needsSetup
+    ? t('incompleteTitle')
+    : needsPlan
+      ? t('subscribeTitle')
+      : t('title', { percent: completion?.percent ?? 0 })
+  const subtitle = needsSetup
+    ? t('incompleteSubtitle')
+    : needsPlan
+      ? t('subscribeSubtitle')
+      : t('subtitle')
+  const cta = needsSetup ? t('incompleteCta') : needsPlan ? t('subscribeCta') : t('cta')
 
   return (
     <DashboardPanel
@@ -63,24 +86,26 @@ export function ProfileCompletionReminder() {
             id="profile-completion-reminder-title"
             className="text-sm font-semibold text-ink"
           >
-            {t('title', { percent: completion.percent })}
+            {title}
           </p>
-          <p className="mt-1 text-sm text-body">{t('subtitle')}</p>
-          <div className="mt-3 h-1.5 max-w-xs overflow-hidden rounded-full bg-dash-border">
-            <div
-              className="h-full rounded-full bg-primary transition-[width] duration-300"
-              style={{ width: `${completion.percent}%` }}
-            />
-          </div>
+          <p className="mt-1 text-sm text-body">{subtitle}</p>
+          {completion && !needsSetup && !needsPlan ? (
+            <div className="mt-3 h-1.5 max-w-xs overflow-hidden rounded-full bg-dash-border">
+              <div
+                className="h-full rounded-full bg-primary transition-[width] duration-300"
+                style={{ width: `${completion.percent}%` }}
+              />
+            </div>
+          ) : null}
         </div>
         <Link
-          href={ORG_PROFILE_PATH}
+          href={href}
           className={cn(
             'inline-flex h-10 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold',
             'bg-primary text-on-primary hover:bg-primary-active'
           )}
         >
-          {t('cta')}
+          {cta}
           <ArrowRight className="size-4" aria-hidden />
         </Link>
       </div>

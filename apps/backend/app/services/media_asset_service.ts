@@ -430,6 +430,21 @@ export class MediaAssetService {
     })
   }
 
+  /** Used by pending_setup logo complete gate — returns storage key for namespace checks. */
+  async findPendingUploadAsset(params: {
+    organizationId: string
+    mediaAssetId: string
+  }): Promise<{ id: string; storageKey: string; state: string } | null> {
+    const row = await runWithTenant(params.organizationId, () =>
+      this.repo.findByIdForOrg({
+        organizationId: params.organizationId,
+        mediaAssetId: params.mediaAssetId,
+      })
+    )
+    if (!row) return null
+    return { id: row.id, storageKey: row.storageKey, state: row.state }
+  }
+
   async completeUpload(params: {
     organizationId: string
     mediaAssetId: string

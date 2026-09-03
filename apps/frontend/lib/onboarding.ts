@@ -7,6 +7,7 @@ const PENDING_PLAN_KEY = 'wa-onboarding-plan'
 const PENDING_ORG_KEY = 'wa-onboarding-organization-id'
 
 export const ORG_SETUP_PATH = '/onboarding/organization'
+export const ONBOARDING_PLAN_PATH = '/onboarding/plan'
 export const ONBOARDING_PAYMENT_PATH = '/onboarding/payment'
 export { ORG_PROFILE_PATH } from '@/lib/organization-profile'
 export const TEAM_MEMBERS_PATH = '/dashboard/team'
@@ -138,6 +139,22 @@ export function getTimezoneOptions(): string[] {
       ? Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
       : 'UTC'
   return Array.from(new Set([browserZone, ...COMMON_TIMEZONES]))
+}
+
+/**
+ * Backend create still requires address/PAN/country. These sentinels satisfy the
+ * API without collecting those fields on the Create Organization page.
+ */
+export const CREATE_PLACEHOLDER_PAN = 'SETUP0000A'
+export const CREATE_PLACEHOLDER_ADDRESS = 'Address pending'
+export const CREATE_PLACEHOLDER_COUNTRY = 'IN'
+
+export function isCreatePlaceholderPan(value: string | null | undefined): boolean {
+  return normalizeTaxId(value ?? '') === CREATE_PLACEHOLDER_PAN
+}
+
+export function isCreatePlaceholderAddress(value: string | null | undefined): boolean {
+  return (value ?? '').trim().toLowerCase() === CREATE_PLACEHOLDER_ADDRESS.toLowerCase()
 }
 
 /**

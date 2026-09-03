@@ -4,16 +4,19 @@ import type { OrgWizardStep } from './organization-wizard-types'
 
 /**
  * Two-column organization onboarding shell.
- * Presentation only — step state is passed in from the wizard.
+ * `create` = single create-org page (no multi-step chrome).
+ * `plan` = post-setup plan selection (step indicator in sidebar).
  */
 export function OrganizationOnboardingLayout({
-  currentStep,
+  currentStep = 4,
+  variant = 'plan',
   children,
   className,
   contentClassName,
   wideForm = false,
 }: {
-  currentStep: OrgWizardStep
+  currentStep?: OrgWizardStep
+  variant?: 'create' | 'plan'
   children: React.ReactNode
   className?: string
   contentClassName?: string
@@ -35,7 +38,7 @@ export function OrganizationOnboardingLayout({
           'md:flex-row md:items-start'
         )}
       >
-        <OrganizationOnboardingSidebar currentStep={currentStep} />
+        <OrganizationOnboardingSidebar variant={variant} currentStep={currentStep} />
 
         <div className="min-w-0 w-full flex-1 bg-canvas">
           <div

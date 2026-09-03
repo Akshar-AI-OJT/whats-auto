@@ -27,7 +27,8 @@ import { cn } from '@/lib/utils'
 import { queryKeys } from '@/lib/query-keys'
 import { useWhatsappConfigs } from '@/hooks/useWhatsappConfigs'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
-import { Button } from '@/components/ui/button'
+import { useProductAccess } from '@/hooks/useProductAccess'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import {
@@ -35,6 +36,7 @@ import {
   useDashboardToast,
 } from '@/components/dashboard/ui/use-dashboard-toast'
 import { unwrapSingle } from '@/components/dashboard/inbox/inbox-utils'
+import { Link } from '@/i18n/navigation'
 
 function formatConnectedAt(value: string | null | undefined) {
   if (!value) return null
@@ -87,7 +89,10 @@ export function WhatsappConnectionPage() {
     tenantOrganizationId,
     permissions,
     isLoading: orgsLoading,
+    hasFullProductAccess,
+    isSetupComplete,
   } = useOrganizations()
+  const { unlockPath } = useProductAccess()
 
   const canView = hasPermission(permissions, PERMISSIONS.WHATSAPP_VIEW)
   const canConnect = hasPermission(permissions, PERMISSIONS.WHATSAPP_CONNECT)
@@ -257,6 +262,21 @@ export function WhatsappConnectionPage() {
         <p role="alert" className="text-sm text-negative">
           {t('errors.permissionDenied')}
         </p>
+      </DashboardPanel>
+    )
+  }
+
+  if (!orgsLoading && !hasFullProductAccess) {
+    return (
+      <DashboardPanel className="px-4 py-5 sm:px-6 sm:py-6">
+        <h1 className="font-display text-2xl tracking-tight text-ink">{t('locked.title')}</h1>
+        <p className="mt-2 max-w-xl text-sm leading-6 text-body">{t('locked.description')}</p>
+        <Link
+          href={unlockPath}
+          className={cn(buttonVariants(), 'mt-5')}
+        >
+          {isSetupComplete ? t('locked.ctaSubscribe') : t('locked.ctaSetup')}
+        </Link>
       </DashboardPanel>
     )
   }

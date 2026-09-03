@@ -3,6 +3,7 @@ import { buildMediaDeliveryUrl } from '#lib/media/delivery_url'
 import {
   buildOrganizationStorageKey,
   isLegacyStorageKey,
+  isOrganizationProfileLogoKey,
   retentionForNamespace,
 } from '#lib/media/organization_storage_key'
 import { buildMediaStorageKey, extensionForMedia } from '#lib/media/storage_key'
@@ -107,6 +108,23 @@ test.group('Media storage key + delivery URL', () => {
     assert.equal(
       buildMediaDeliveryUrl('https://d25ndj2ptpjzkb.cloudfront.net/', 'org/upload/images/a.jpg'),
       'https://d25ndj2ptpjzkb.cloudfront.net/org/upload/images/a.jpg'
+    )
+  })
+
+  test('detects canonical organization profile logo keys', ({ assert }) => {
+    const logoKey = buildOrganizationStorageKey({
+      organizationId: '7bd23286-0000-4000-8000-000000000001',
+      namespace: StorageNamespace.Profile,
+      mediaType: 'image',
+      assetId: '550e8400-e29b-41d4-a716-446655440000',
+      mimeType: 'image/png',
+      fileName: 'logo.png',
+    })
+    assert.isTrue(isOrganizationProfileLogoKey(logoKey))
+    assert.isFalse(
+      isOrganizationProfileLogoKey(
+        'organizations/7bd23286-0000-4000-8000-000000000001/media-library/images/a.png'
+      )
     )
   })
 })

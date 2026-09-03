@@ -1,30 +1,25 @@
 'use client'
 
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { ArrowLeft, ArrowRight, Loader2, Lock } from 'lucide-react'
+import { ArrowRight, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api, type ApiError, type CreatedOrganization } from '@/lib/api'
-import { authClient } from '@/lib/auth-client'
-import {
-  ensureAccessTokenForOrganization,
-  getValidAccessToken,
-} from '@/lib/access-token'
+import { ensureAccessTokenForOrganization } from '@/lib/access-token'
 import { queryKeys } from '@/lib/query-keys'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   buildCreateOrganizationPayload,
   clearPendingOnboardingContact,
+  CREATE_PLACEHOLDER_ADDRESS,
+  CREATE_PLACEHOLDER_COUNTRY,
+  CREATE_PLACEHOLDER_PAN,
   isValidEmail,
-  isValidGstin,
   isValidOrganizationSlug,
-  isValidPan,
   isValidPhone,
   isValidWebsiteUrl,
   markOnboardingChecklistVisible,
   readPendingOnboardingContact,
-  savePendingOrganizationPlan,
-  savePendingOrganizationPreferences,
   savePendingOnboardingOrganizationId,
   ORG_SETUP_PATH,
 } from '@/lib/onboarding'
@@ -35,34 +30,19 @@ import {
 } from '@/lib/post-auth-redirect'
 import { Button } from '@/components/ui/button'
 import { Field, FieldGroup } from '@/components/ui/field'
-import {
-  authOutlineButtonClassName,
-  authPrimaryButtonClassName,
-} from '@/components/auth/auth-field-styles'
+import { authPrimaryButtonClassName } from '@/components/auth/auth-field-styles'
 import { useRouter } from '@/i18n/navigation'
-import { BillingCheckoutDialog } from '@/components/dashboard/billing/BillingCheckoutDialog'
-import {
-  completePlanCheckout,
-  isFreeActivatablePlan,
-  isPlanSelfServe,
-} from '@/components/dashboard/billing/billing-utils'
 import { OrganizationBasicsStep } from './OrganizationBasicsStep'
-import { CompanyInformationStep } from './CompanyInformationStep'
-import {
-  SubscriptionPlanSelectionStep,
-  type OnboardingPlanSelection,
-} from './SubscriptionPlanSelectionStep'
-import { OrganizationPreferencesStep } from './OrganizationPreferencesStep'
 import { OrganizationOnboardingLayout } from './OrganizationOnboardingLayout'
-import { OrganizationStepper } from './OrganizationStepper'
 import type {
   OrganizationWizardBasicsErrors,
-  OrganizationWizardCompanyErrors,
-  OrganizationWizardPreferencesErrors,
   OrganizationWizardState,
-  OrganizationTypeOption,
-  OrgWizardStep,
 } from './organization-wizard-types'
+
+function resolveCreateTimezone(): string {
+  if (typeof Intl === 'undefined') return 'UTC'
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+}
 
 function createInitialState(): OrganizationWizardState {
   const contact = readPendingOnboardingContact()
@@ -102,20 +82,19 @@ function unwrapCreatedOrganization(data: unknown): CreatedOrganization | null {
 }
 
 async function alignSessionAfterOrganizationCreate(created: CreatedOrganization): Promise<void> {
+  // First org: create already activated the session and may have reminted via set-auth-jwt.
+  // Additional org: activate explicitly (also remints via set-auth-jwt).
+  // Do NOT call authClient.getSession({ disableCookieCache: true }) here — a failed
+  // refresh can clear the Better Auth client session and send the user to /login.
   if (created.sessionActivated === false) {
     await api.organizations.setActive(created.id)
-    await ensureAccessTokenForOrganization(created.id)
-  } else {
-    await authClient.getSession({ query: { disableCookieCache: true } })
-    await getValidAccessToken()
-    await ensureAccessTokenForOrganization(created.id)
   }
+  await ensureAccessTokenForOrganization(created.id)
 }
 
 /**
- * Organization onboarding wizard (4 steps).
- * Step 3 creates the organization via POST /api/v1/organizations.
- * Non-API fields (logo, company size, preferences) are kept in session for later settings.
+ * Create Organization page — existing Basics UI.
+ * After create, go to the dashboard. Company / preferences / plan are completed later.
  */
 export function OrganizationRegistrationForm({
   className,
@@ -126,14 +105,12 @@ export function OrganizationRegistrationForm({
   const queryClient = useQueryClient()
   const formErrorId = useId()
 
-  const [step, setStep] = useState<OrgWizardStep>(1)
   const [state, setState] = useState<OrganizationWizardState>(createInitialState)
-  const [selectedPlan, setSelectedPlan] = useState<OnboardingPlanSelection | null>(null)
   const [basicsErrors, setBasicsErrors] = useState<OrganizationWizardBasicsErrors>({})
   const [guardingInvite, setGuardingInvite] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [pending, setPending] = useState(false)
 
-  // Only bounce invitees / platform superadmins. Users who already have a
-  // organization (Create organization from the switcher) must stay on this page.
   useEffect(() => {
     let cancelled = false
     ;(async () => {
@@ -158,24 +135,6 @@ export function OrganizationRegistrationForm({
       cancelled = true
     }
   }, [router])
-
-  const [companyErrors, setCompanyErrors] = useState<OrganizationWizardCompanyErrors>({})
-  const [preferencesErrors, setPreferencesErrors] =
-    useState<OrganizationWizardPreferencesErrors>({})
-  const [error, setError] = useState<string | null>(null)
-  const [pending, setPending] = useState(false)
-  const [confirmOpen, setConfirmOpen] = useState(false)
-  const [checkoutPending, setCheckoutPending] = useState(false)
-  const [checkoutError, setCheckoutError] = useState<string | null>(null)
-  const checkoutLockRef = useRef(false)
-
-  useEffect(() => {
-    return () => {
-      if (state.logoPreviewUrl) URL.revokeObjectURL(state.logoPreviewUrl)
-    }
-    // Only revoke on unmount for the latest preview URL.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   function patchState(patch: Partial<OrganizationWizardState>) {
     setState((prev) => ({ ...prev, ...patch }))
@@ -217,111 +176,55 @@ export function OrganizationRegistrationForm({
     return next
   }
 
-  function validateCompany(): OrganizationWizardCompanyErrors {
-    const next: OrganizationWizardCompanyErrors = {}
-    if (!state.organizationType) {
-      next.organizationType = t('errors.organizationTypeRequired')
-    }
-    const trimmedAddress = state.address.trim()
-    if (!trimmedAddress) {
-      next.address = t('errors.addressRequired')
-    } else if (trimmedAddress.length < 8) {
-      next.address = t('errors.addressTooShort')
-    }
-    if (!state.pan.trim()) {
-      next.pan = t('errors.panRequired')
-    } else if (!isValidPan(state.pan)) {
-      next.pan = t('errors.panInvalid')
-    }
-    if (state.gstin.trim() && !isValidGstin(state.gstin)) {
-      next.gstin = t('errors.gstinInvalid')
-    }
-    if (!state.industry) next.industry = t('errors.industryRequired')
-    if (!state.companySize) next.companySize = t('errors.companySizeRequired')
-    if (!state.country.trim() || state.country.trim().length < 2) {
-      next.country = t('errors.countryRequired')
-    }
-    if (!state.timezone.trim()) next.timezone = t('errors.timezoneRequired')
-    return next
-  }
+  async function createOrganization(slugOverride?: string) {
+    const payload = buildCreateOrganizationPayload({
+      name: state.name,
+      slug: slugOverride ?? state.slug,
+      email: state.email,
+      phone: state.phone,
+      website: state.website,
+      organizationType: 'company',
+      address: CREATE_PLACEHOLDER_ADDRESS,
+      pan: CREATE_PLACEHOLDER_PAN,
+      country: CREATE_PLACEHOLDER_COUNTRY,
+      timezone: resolveCreateTimezone(),
+      currency: 'INR',
+    })
 
-  function validatePreferences(): OrganizationWizardPreferencesErrors {
-    const next: OrganizationWizardPreferencesErrors = {}
-    if (!state.defaultLanguage) next.defaultLanguage = t('errors.languageRequired')
-    if (!state.dateFormat) next.dateFormat = t('errors.dateFormatRequired')
-    if (!state.timeFormat) next.timeFormat = t('errors.timeFormatRequired')
-    if (!state.themePreference) next.themePreference = t('errors.themeRequired')
-    return next
+    const { data } = await api.organizations.create(payload)
+    const created = unwrapCreatedOrganization(data)
+    if (!created?.id) {
+      throw new Error('Organization create did not return an id')
+    }
+
+    savePendingOnboardingOrganizationId(created.id)
+    try {
+      await alignSessionAfterOrganizationCreate(created)
+    } catch {
+      // Org already exists. Prefer landing on the dashboard over bouncing to login
+      // when JWT remint fails (e.g. JWKS/secret mismatch); cookie session still works.
+    }
+    await queryClient.invalidateQueries({ queryKey: queryKeys.organizations.all })
+    clearPendingOnboardingContact()
+    markOnboardingChecklistVisible()
+    router.replace('/dashboard')
+    router.refresh()
   }
 
   async function handleCreateOrganization() {
     setError(null)
-    const nextErrors = validatePreferences()
-    setPreferencesErrors(nextErrors)
+    const nextErrors = validateBasics()
+    setBasicsErrors(nextErrors)
     if (Object.keys(nextErrors).length > 0) return
-
-    const basics = validateBasics()
-    if (Object.keys(basics).length > 0) {
-      setBasicsErrors(basics)
-      setStep(1)
-      return
-    }
-
-    const company = validateCompany()
-    if (Object.keys(company).length > 0) {
-      setCompanyErrors(company)
-      setStep(2)
-      return
-    }
 
     setPending(true)
 
     try {
-      // Only API-contract fields — logo / companySize / preferences stay in session.
-      const payload = buildCreateOrganizationPayload({
-        name: state.name,
-        slug: state.slug,
-        email: state.email,
-        phone: state.phone,
-        website: state.website,
-        industry: state.industry || undefined,
-        organizationType: state.organizationType as OrganizationTypeOption,
-        address: state.address,
-        pan: state.pan,
-        gstin: state.gstin || undefined,
-        country: state.country,
-        timezone: state.timezone,
-        currency: state.currency || undefined,
-      })
-
-      const { data } = await api.organizations.create(payload)
-      const created = unwrapCreatedOrganization(data)
-      if (!created?.id) {
-        throw new Error('Organization create did not return an id')
-      }
-
-      savePendingOnboardingOrganizationId(created.id)
-      await alignSessionAfterOrganizationCreate(created)
-      await queryClient.invalidateQueries({ queryKey: queryKeys.organizations.all })
-
-      savePendingOrganizationPreferences({
-        companySize: state.companySize,
-        logoFileName: state.logoFileName,
-        defaultLanguage: state.defaultLanguage,
-        dateFormat: state.dateFormat,
-        timeFormat: state.timeFormat,
-        themePreference: state.themePreference,
-        notifications: state.notifications,
-      })
-
-      clearPendingOnboardingContact()
-      markOnboardingChecklistVisible()
-      // Go to final plan selection before entering the dashboard.
-      setStep(4)
-      router.refresh()
+      await createOrganization()
     } catch (err) {
       const apiError = err as ApiError
 
+      // Only treat auth failure on the create call itself — never after a successful create.
       if (apiError.status === 401) {
         setError(t('errors.sessionExpired'))
         router.replace('/login')
@@ -330,35 +233,19 @@ export function OrganizationRegistrationForm({
 
       const message = apiError.message || t('errors.generic')
       if (apiError.code === 'E_ORG_SLUG_ALREADY_EXISTS' || /slug/i.test(message)) {
-        setBasicsErrors((prev) => ({ ...prev, slug: message }))
-        setStep(1)
+        try {
+          const suffix = Date.now().toString(36).slice(-4)
+          await createOrganization(`${state.slug.trim()}-${suffix}`.slice(0, 100))
+          return
+        } catch {
+          setBasicsErrors((prev) => ({ ...prev, slug: message }))
+        }
       } else if (/email/i.test(message)) {
         setBasicsErrors((prev) => ({ ...prev, email: message }))
-        setStep(1)
       } else if (/phone/i.test(message)) {
         setBasicsErrors((prev) => ({ ...prev, phone: message }))
-        setStep(1)
       } else if (/website/i.test(message)) {
         setBasicsErrors((prev) => ({ ...prev, website: message }))
-        setStep(1)
-      } else if (/organizationType|organization type/i.test(message)) {
-        setCompanyErrors((prev) => ({ ...prev, organizationType: message }))
-        setStep(2)
-      } else if (/address/i.test(message)) {
-        setCompanyErrors((prev) => ({ ...prev, address: message }))
-        setStep(2)
-      } else if (/\bpan\b/i.test(message)) {
-        setCompanyErrors((prev) => ({ ...prev, pan: message }))
-        setStep(2)
-      } else if (/gstin/i.test(message)) {
-        setCompanyErrors((prev) => ({ ...prev, gstin: message }))
-        setStep(2)
-      } else if (/country/i.test(message)) {
-        setCompanyErrors((prev) => ({ ...prev, country: message }))
-        setStep(2)
-      } else if (/timezone/i.test(message)) {
-        setCompanyErrors((prev) => ({ ...prev, timezone: message }))
-        setStep(2)
       }
       setError(message)
     } finally {
@@ -368,140 +255,12 @@ export function OrganizationRegistrationForm({
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setError(null)
-
-    if (step === 1) {
-      const nextErrors = validateBasics()
-      setBasicsErrors(nextErrors)
-      if (Object.keys(nextErrors).length > 0) return
-      setStep(2)
-      return
-    }
-
-    if (step === 2) {
-      const nextErrors = validateCompany()
-      setCompanyErrors(nextErrors)
-      if (Object.keys(nextErrors).length > 0) return
-      setStep(3)
-      return
-    }
-
-    if (step === 3) {
-      await handleCreateOrganization()
-      return
-    }
-
-    if (step === 4) {
-      if (checkoutPending) return
-      if (!selectedPlan) {
-        setError(t('errors.planRequired'))
-        return
-      }
-
-      if (!isPlanSelfServe(selectedPlan)) {
-        setError(t('errors.planNotActivatable'))
-        return
-      }
-
-      if (isFreeActivatablePlan(selectedPlan)) {
-        void handlePlanActivation()
-        return
-      }
-
-      setCheckoutError(null)
-      setConfirmOpen(true)
-      return
-    }
+    await handleCreateOrganization()
   }
-
-  async function handlePlanActivation() {
-    if (checkoutPending || checkoutLockRef.current) return
-    if (!selectedPlan) return
-
-    if (!isPlanSelfServe(selectedPlan)) {
-      setError(t('errors.planNotActivatable'))
-      return
-    }
-
-    checkoutLockRef.current = true
-    setCheckoutPending(true)
-    setError(null)
-    setCheckoutError(null)
-
-    try {
-      savePendingOrganizationPlan(selectedPlan.id)
-      await completePlanCheckout(selectedPlan.id)
-      setConfirmOpen(false)
-      router.replace('/onboarding/organization-profile')
-    } catch (err) {
-      checkoutLockRef.current = false
-      const apiError = err as ApiError
-
-      if (apiError.status === 401) {
-        setError(t('errors.sessionExpired'))
-        router.replace('/login')
-        return
-      }
-
-      setError(apiError.message || t('errors.activationFailed'))
-    } finally {
-      setCheckoutPending(false)
-    }
-  }
-
-  async function handleCheckoutConfirm() {
-    if (checkoutPending || checkoutLockRef.current) return
-    if (!selectedPlan?.checkoutable) return
-
-    checkoutLockRef.current = true
-    setCheckoutPending(true)
-    setCheckoutError(null)
-
-    try {
-      savePendingOrganizationPlan(selectedPlan.id)
-      const completion = await completePlanCheckout(selectedPlan.id)
-      if (completion.kind !== 'paid') {
-        throw new Error('Expected paid checkout')
-      }
-      setConfirmOpen(false)
-      router.replace('/onboarding/organization-profile')
-    } catch (err) {
-      checkoutLockRef.current = false
-      const apiError = err as ApiError
-
-      if (apiError.status === 401) {
-        setCheckoutError(t('errors.sessionExpired'))
-        router.replace('/login')
-        return
-      }
-
-      setCheckoutError(apiError.message || t('errors.checkoutFailed'))
-    } finally {
-      setCheckoutPending(false)
-    }
-  }
-
-  const selectedPlanIsFree = selectedPlan ? isFreeActivatablePlan(selectedPlan) : false
-  const canActivateSelectedPlan = selectedPlan ? isPlanSelfServe(selectedPlan) : false
-  const step4CtaLabel = checkoutPending
-    ? selectedPlanIsFree
-      ? t('startingFreeTrial')
-      : t('proceedToCheckout')
-    : selectedPlanIsFree
-      ? t('startFreeTrial')
-      : t('proceedToCheckout')
-  const step4Hint = selectedPlanIsFree ? t('freeTrialHint') : t('checkoutHint')
-
-  const stepperSteps = [
-    { id: 1 as const, label: t('steps.basics') },
-    { id: 2 as const, label: t('steps.company') },
-    { id: 3 as const, label: t('steps.preferences') },
-    { id: 4 as const, label: t('steps.plan') },
-  ]
 
   if (guardingInvite) {
     return (
-      <OrganizationOnboardingLayout currentStep={1}>
+      <OrganizationOnboardingLayout variant="create">
         <div className="flex items-center justify-center gap-2 py-16 text-sm text-body">
           <Loader2 className="size-4 animate-spin" aria-hidden />
           Loading…
@@ -511,69 +270,25 @@ export function OrganizationRegistrationForm({
   }
 
   return (
-    <OrganizationOnboardingLayout currentStep={step} wideForm={step === 4}>
+    <OrganizationOnboardingLayout variant="create">
       <form
         className={cn('flex w-full min-w-0 flex-col', className)}
         onSubmit={handleSubmit}
         noValidate
-        aria-busy={pending || checkoutPending}
+        aria-busy={pending}
         aria-describedby={error ? formErrorId : undefined}
         {...props}
       >
         <FieldGroup className="gap-8">
-          <div className="flex flex-col gap-4 text-left">
-            <p className="text-xs font-semibold tracking-wide text-positive-deep uppercase">
-              {t('eyebrow', { step, total: 4 })}
-            </p>
-            <OrganizationStepper currentStep={step} steps={stepperSteps} />
-          </div>
-
-          {step === 1 ? (
-            <OrganizationBasicsStep
-              state={state}
-              errors={basicsErrors}
-              pending={pending}
-              onChange={patchState}
-              onClearError={(key) =>
-                setBasicsErrors((prev) => ({ ...prev, [key]: undefined }))
-              }
-            />
-          ) : null}
-
-          {step === 2 ? (
-            <CompanyInformationStep
-              state={state}
-              errors={companyErrors}
-              pending={pending}
-              onChange={patchState}
-              onClearError={(key) =>
-                setCompanyErrors((prev) => ({ ...prev, [key]: undefined }))
-              }
-            />
-          ) : null}
-
-          {step === 3 ? (
-            <OrganizationPreferencesStep
-              state={state}
-              errors={preferencesErrors}
-              pending={pending}
-              onChange={patchState}
-              onClearError={(key) =>
-                setPreferencesErrors((prev) => ({ ...prev, [key]: undefined }))
-              }
-            />
-          ) : null}
-
-          {step === 4 ? (
-            <SubscriptionPlanSelectionStep
-              selectedPlanId={selectedPlan?.id ?? null}
-              pending={pending || checkoutPending}
-              onSelect={(plan) => {
-                setSelectedPlan(plan)
-                setError(null)
-              }}
-            />
-          ) : null}
+          <OrganizationBasicsStep
+            state={state}
+            errors={basicsErrors}
+            pending={pending}
+            onChange={patchState}
+            onClearError={(key) =>
+              setBasicsErrors((prev) => ({ ...prev, [key]: undefined }))
+            }
+          />
 
           {error ? (
             <div
@@ -586,112 +301,29 @@ export function OrganizationRegistrationForm({
           ) : null}
 
           <Field className="gap-0">
-            {step === 4 ? (
-              <div className="flex flex-col gap-3 border-t border-[#CBD5E1] pt-6 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={pending || checkoutPending}
-                  className={cn(authOutlineButtonClassName, 'sm:w-auto sm:min-w-[7.5rem]')}
-                  onClick={() => {
-                    setError(null)
-                    setStep((prev) => (prev > 1 ? ((prev - 1) as OrgWizardStep) : prev))
-                  }}
-                >
-                  <ArrowLeft className="size-4" aria-hidden />
-                  {t('back')}
-                </Button>
-
-                <div className="flex w-full flex-col gap-1.5 sm:w-auto sm:items-end">
-                  <Button
-                    type="submit"
-                    disabled={pending || checkoutPending || !canActivateSelectedPlan}
-                    aria-busy={pending || checkoutPending}
-                    className={cn(authPrimaryButtonClassName, 'sm:min-w-[14.5rem]')}
-                  >
-                    {checkoutPending ? (
-                      <>
-                        <Loader2 className="size-4 animate-spin" aria-hidden />
-                        <span>{step4CtaLabel}</span>
-                      </>
-                    ) : (
-                      <>
-                        {!selectedPlanIsFree ? <Lock className="size-4" aria-hidden /> : null}
-                        <span>{step4CtaLabel}</span>
-                        <ArrowRight className="size-4" aria-hidden />
-                      </>
-                    )}
-                  </Button>
-                  <p className="text-center text-xs text-mute sm:text-right">{step4Hint}</p>
-                </div>
-              </div>
-            ) : (
-              <div
-                className={cn(
-                  'flex flex-col-reverse gap-3 border-t border-[#CBD5E1] pt-6',
-                  step > 1
-                    ? 'sm:flex-row sm:items-center sm:justify-between'
-                    : 'sm:flex-col'
-                )}
+            <div className="flex flex-col-reverse gap-3 border-t border-[#CBD5E1] pt-6 sm:flex-col">
+              <Button
+                type="submit"
+                disabled={pending}
+                aria-busy={pending}
+                className={authPrimaryButtonClassName}
               >
-                {step > 1 ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={pending || checkoutPending}
-                    className={cn(authOutlineButtonClassName, 'sm:w-auto sm:min-w-[7.5rem]')}
-                    onClick={() => {
-                      setError(null)
-                      setStep((prev) => (prev > 1 ? ((prev - 1) as OrgWizardStep) : prev))
-                    }}
-                  >
-                    <ArrowLeft className="size-4" aria-hidden />
-                    {t('back')}
-                  </Button>
-                ) : null}
-
-                <Button
-                  type="submit"
-                  disabled={pending || checkoutPending}
-                  aria-busy={pending || checkoutPending}
-                  className={cn(
-                    authPrimaryButtonClassName,
-                    step > 1 && 'sm:w-auto sm:min-w-[14rem]'
-                  )}
-                >
-                  {pending ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin" aria-hidden />
-                      <span>{t('creating')}</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>{step === 3 ? t('createOrganization') : t('continue')}</span>
-                      <ArrowRight className="size-4" aria-hidden />
-                    </>
-                  )}
-                </Button>
-              </div>
-            )}
+                {pending ? (
+                  <>
+                    <Loader2 className="size-4 animate-spin" aria-hidden />
+                    <span>{t('creating')}</span>
+                  </>
+                ) : (
+                  <>
+                    <span>{t('continue')}</span>
+                    <ArrowRight className="size-4" aria-hidden />
+                  </>
+                )}
+              </Button>
+            </div>
           </Field>
         </FieldGroup>
       </form>
-
-      <BillingCheckoutDialog
-        open={confirmOpen}
-        pending={checkoutPending}
-        error={checkoutError}
-        planName={selectedPlan ? selectedPlan.name : ''}
-        onOpenChange={(next) => {
-          if (!checkoutPending) {
-            setConfirmOpen(next)
-            if (!next) setCheckoutError(null)
-          }
-        }}
-        onConfirm={() => {
-          void handleCheckoutConfirm()
-        }}
-      />
     </OrganizationOnboardingLayout>
   )
 }

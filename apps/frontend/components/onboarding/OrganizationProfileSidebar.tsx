@@ -10,9 +10,9 @@ type SidebarItemStatus = 'done' | 'active' | 'upcoming'
 
 const STEP_KEYS = [
   'organization',
-  'business',
   'address',
-  'review',
+  'preferences',
+  'ownerLegal',
 ] as const
 
 export function OrganizationProfileSidebar({

@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { useOrganizations } from './OrganizationsProvider'
+import { useProductAccess } from '@/hooks/useProductAccess'
 import { ORG_SETUP_PATH } from '@/lib/onboarding'
 import { cn } from '@/lib/utils'
 import {
@@ -69,6 +70,7 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
     error: organizationsError,
     selectOrganization,
   } = useOrganizations()
+  const { hasFullProductAccess, unlockPath } = useProductAccess()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [organizationOpen, setOrganizationOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
@@ -344,7 +346,7 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
                 router.push('/dashboard/profile')
               }
               if (id === 'organization' || id === 'settings') {
-                router.push('/dashboard/settings')
+                router.push(hasFullProductAccess ? '/dashboard/settings' : unlockPath)
               }
               if (id === 'billing') {
                 router.push('/dashboard/billing')

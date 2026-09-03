@@ -12,6 +12,7 @@ import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSecti
 import { cn } from '@/lib/utils'
 import { BillingCheckoutDialog } from './BillingCheckoutDialog'
 import { LimitMeter } from '@/components/dashboard/ui/LimitMeter'
+import { useRouter } from '@/i18n/navigation'
 import { useEntitlements } from '@/hooks/use-entitlements'
 import { queryKeys } from '@/lib/query-keys'
 import {
@@ -81,11 +82,14 @@ export function BillingPage() {
   const tCompare = useTranslations('pricingPage.comparison')
   const tCompareValues = useTranslations('pricingPage.comparison.values')
   const queryClient = useQueryClient()
+  const router = useRouter()
   const {
     tenantOrganizationId,
     canViewBilling,
     canManageBilling,
     isLoading: orgsLoading,
+    isSubscriptionPending,
+    refresh,
   } = useOrganizations()
 
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
@@ -119,12 +123,18 @@ export function BillingPage() {
   const checkoutMutation = useMutation({
     mutationFn: async (planId: string) => completePlanCheckout(planId),
     onSuccess: async (completion) => {
+      const returnToDashboard = isSubscriptionPending
       setCheckoutError(null)
       setConfirmOpen(false)
       setCheckoutSuccess(
         completion.kind === 'free' ? t('checkout.freeSuccess') : t('checkout.success')
       )
       await queryClient.invalidateQueries({ queryKey: queryKeys.billing.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.organizations.all })
+      await refresh()
+      if (returnToDashboard) {
+        router.replace('/dashboard')
+      }
     },
     onError: (err) => {
       const apiError = err as unknown as ApiError

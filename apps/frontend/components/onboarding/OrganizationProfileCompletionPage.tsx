@@ -13,20 +13,33 @@ import {
   Mail,
   Phone,
   Upload,
+  User,
 } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
 import { api, type ApiError } from '@/lib/api'
 import { queryKeys } from '@/lib/query-keys'
+import { useAuth } from '@/hooks/useAuth'
 import {
   COMPANY_SIZE_OPTIONS,
   COUNTRY_OPTIONS,
+  CURRENCY_OPTIONS,
+  DATE_FORMAT_OPTIONS,
   INDUSTRY_OPTIONS,
   LANGUAGE_OPTIONS,
+  NOTIFICATION_OPTIONS,
   ORGANIZATION_TYPE_OPTIONS,
+  THEME_PREFERENCE_OPTIONS,
+  TIME_FORMAT_OPTIONS,
   type CompanySizeOption,
-  type IndustryOption,
-  type OrganizationTypeOption,
+  type CurrencyOption,
+  type DateFormatOption,
+  type LanguageOption,
+  type NotificationOption,
+  type OrganizationWizardState,
+  type ThemePreferenceOption,
+  type TimeFormatOption,
 } from '@/components/onboarding/organization-wizard-types'
+import { OrganizationPreferencesStep } from '@/components/onboarding/OrganizationPreferencesStep'
 import { RequiredAsterisk } from '@/components/onboarding/required-asterisk'
 import { OnboardingSelect } from '@/components/onboarding/OnboardingSelect'
 import {
@@ -37,11 +50,6 @@ import {
 import { OrganizationProfileSidebar } from '@/components/onboarding/OrganizationProfileSidebar'
 import { OrganizationProfileStepHeader } from '@/components/onboarding/OrganizationProfileStepHeader'
 import { OrganizationProfileFormFooter } from '@/components/onboarding/OrganizationProfileFormFooter'
-import {
-  OrganizationProfileReviewCard,
-  OrganizationProfileReviewGrid,
-  OrganizationProfileReviewItem,
-} from '@/components/onboarding/OrganizationProfileReviewCard'
 import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
@@ -64,12 +72,16 @@ import {
   isValidPan,
   isValidPhone,
   isValidWebsiteUrl,
+  getTimezoneOptions,
+  ONBOARDING_PLAN_PATH,
   readPendingOrganizationPreferences,
   readPendingOnboardingOrganizationId,
+  savePendingOrganizationPreferences,
 } from '@/lib/onboarding'
 import {
   buildOrganizationProfileUpdateBody,
   calculateOrganizationProfileCompletion,
+  isSubscriptionPending,
   organizationToProfileFormValues,
   type OrganizationProfileFormValues,
 } from '@/lib/organization-profile'
@@ -96,7 +108,12 @@ function buildInitialProfileValues(
   org: Parameters<typeof organizationToProfileFormValues>[0]
 ): OrganizationProfileFormValues {
   const prefs = readPendingOrganizationPreferences()
-  const base = organizationToProfileFormValues(org)
+  const base = organizationToProfileFormValues(org, {
+    dateFormat: prefs?.dateFormat,
+    timeFormat: prefs?.timeFormat,
+    themePreference: prefs?.themePreference,
+    notifications: prefs?.notifications,
+  })
   const companySize = prefs?.companySize?.trim()
   const defaultLanguage = prefs?.defaultLanguage?.trim()
   const country = base.country
@@ -108,7 +125,61 @@ function buildInitialProfileValues(
       (COMPANY_SIZE_OPTIONS.includes(companySize as CompanySizeOption)
         ? (companySize as string)
         : ''),
-    defaultLanguage: base.defaultLanguage || defaultLanguage || '',
+    defaultLanguage: base.defaultLanguage || defaultLanguage || 'en',
+  }
+}
+
+function emptyWizardState(): OrganizationWizardState {
+  return {
+    name: '',
+    slug: '',
+    email: '',
+    phone: '',
+    website: '',
+    slugTouched: false,
+    logoFileName: '',
+    logoPreviewUrl: null,
+    organizationType: '',
+    address: '',
+    pan: '',
+    gstin: '',
+    industry: '',
+    companySize: '',
+    country: '',
+    timezone: '',
+    currency: '',
+    defaultLanguage: 'en',
+    dateFormat: 'DD/MM/YYYY',
+    timeFormat: '12h',
+    themePreference: 'system',
+    notifications: ['emailUpdates', 'campaignAlerts'],
+  }
+}
+
+function profileToPreferenceState(values: OrganizationProfileFormValues): OrganizationWizardState {
+  return {
+    ...emptyWizardState(),
+    timezone: values.timezone,
+    currency: (CURRENCY_OPTIONS.includes(values.currency as CurrencyOption)
+      ? values.currency
+      : '') as OrganizationWizardState['currency'],
+    defaultLanguage: (LANGUAGE_OPTIONS.includes(values.defaultLanguage as LanguageOption)
+      ? values.defaultLanguage
+      : 'en') as LanguageOption,
+    dateFormat: (DATE_FORMAT_OPTIONS.includes(values.dateFormat as DateFormatOption)
+      ? values.dateFormat
+      : 'DD/MM/YYYY') as DateFormatOption,
+    timeFormat: (TIME_FORMAT_OPTIONS.includes(values.timeFormat as TimeFormatOption)
+      ? values.timeFormat
+      : '12h') as TimeFormatOption,
+    themePreference: (THEME_PREFERENCE_OPTIONS.includes(
+      values.themePreference as ThemePreferenceOption
+    )
+      ? values.themePreference
+      : 'system') as ThemePreferenceOption,
+    notifications: values.notifications.filter((item): item is NotificationOption =>
+      NOTIFICATION_OPTIONS.includes(item as NotificationOption)
+    ),
   }
 }
 
@@ -117,6 +188,7 @@ export function OrganizationProfileCompletionPage() {
   const tOrg = useTranslations('onboarding.organization')
   const router = useRouter()
   const queryClient = useQueryClient()
+  const { user } = useAuth()
   const {
     activeOrganization,
     organizations,
@@ -125,6 +197,7 @@ export function OrganizationProfileCompletionPage() {
     refresh,
     isOwner,
     accessContext,
+    selectOrganization,
   } = useOrganizations()
 
   const pendingOnboardingOrgId = readPendingOnboardingOrganizationId()
@@ -138,6 +211,20 @@ export function OrganizationProfileCompletionPage() {
   const orgId = org?.id ?? null
 
   useEffect(() => {
+    if (orgsLoading || isResolvingAccess) return
+    if (!pendingOnboardingOrgId || pendingOnboardingOrgId === activeOrganization?.id) return
+    if (!organizations.some((item) => item.id === pendingOnboardingOrgId)) return
+    void selectOrganization(pendingOnboardingOrgId).catch(() => undefined)
+  }, [
+    activeOrganization?.id,
+    isResolvingAccess,
+    organizations,
+    orgsLoading,
+    pendingOnboardingOrgId,
+    selectOrganization,
+  ])
+
+  useEffect(() => {
     if (orgsLoading || isResolvingAccess || !accessContext) return
     if (!isOwner) {
       router.replace('/dashboard')
@@ -149,7 +236,6 @@ export function OrganizationProfileCompletionPage() {
   const [values, setValues] = useState<OrganizationProfileFormValues | null>(null)
   const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null)
   const [logoUploading, setLogoUploading] = useState(false)
-  const [confirmed, setConfirmed] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [formError, setFormError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -158,13 +244,11 @@ export function OrganizationProfileCompletionPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const formErrorId = useId()
-  const confirmId = useId()
 
   if (org && orgId !== hydratedOrgId) {
     setHydratedOrgId(orgId)
     setValues(buildInitialProfileValues(org))
     setStep(1)
-    setConfirmed(false)
     setFieldErrors({})
     setFormError(null)
     setSuccess(false)
@@ -231,10 +315,29 @@ export function OrganizationProfileCompletionPage() {
         next.website = t('errors.websiteInvalid')
       }
       if (!values.industry.trim()) next.industry = t('errors.industryRequired')
+      if (!values.businessSize.trim()) next.businessSize = t('errors.businessSizeRequired')
+      if (values.description.length > DESCRIPTION_MAX) {
+        next.description = t('errors.descriptionTooLong')
+      }
     }
 
     if (current === 2) {
-      if (!values.businessSize.trim()) next.businessSize = t('errors.businessSizeRequired')
+      if (!values.addressLine1.trim()) next.addressLine1 = t('errors.addressLine1Required')
+      if (!values.city.trim()) next.city = t('errors.cityRequired')
+      if (!values.state.trim()) next.state = t('errors.stateRequired')
+      if (!values.postalCode.trim()) next.postalCode = t('errors.postalCodeRequired')
+      if (!values.country.trim()) next.country = t('errors.countryRequired')
+      if (!values.timezone.trim()) next.timezone = t('errors.timezoneRequired')
+    }
+
+    if (current === 3) {
+      if (!values.defaultLanguage.trim()) next.defaultLanguage = t('errors.languageRequired')
+      if (!values.dateFormat.trim()) next.dateFormat = t('errors.dateFormatRequired')
+      if (!values.timeFormat.trim()) next.timeFormat = t('errors.timeFormatRequired')
+      if (!values.themePreference.trim()) next.themePreference = t('errors.themeRequired')
+    }
+
+    if (current === 4) {
       if (!values.pan.trim()) {
         next.pan = t('errors.panRequired')
       } else if (!isValidPan(values.pan)) {
@@ -243,25 +346,9 @@ export function OrganizationProfileCompletionPage() {
       if (values.gstin.trim() && !isValidGstin(values.gstin)) {
         next.gstin = t('errors.gstinInvalid')
       }
-      if (values.description.length > DESCRIPTION_MAX) {
-        next.description = t('errors.descriptionTooLong')
+      if (values.ownerPhone.trim() && !isValidPhone(values.ownerPhone)) {
+        next.ownerPhone = t('errors.phoneInvalid')
       }
-    }
-
-    if (current === 3) {
-      if (!values.addressLine1.trim()) next.addressLine1 = t('errors.addressLine1Required')
-      if (!values.city.trim()) next.city = t('errors.cityRequired')
-      if (!values.state.trim()) next.state = t('errors.stateRequired')
-      if (!values.postalCode.trim()) next.postalCode = t('errors.postalCodeRequired')
-      if (!values.country.trim()) next.country = t('errors.countryRequired')
-    }
-
-    if (current === 4) {
-      const result = calculateOrganizationProfileCompletion(values)
-      if (!result.requiredComplete) {
-        next.confirm = t('errors.requiredIncomplete')
-      }
-      if (!confirmed) next.confirm = t('errors.confirmRequired')
     }
 
     setFieldErrors(next)
@@ -337,8 +424,20 @@ export function OrganizationProfileCompletionPage() {
     setSaving(true)
     setFormError(null)
     try {
+      if (org.id !== activeOrganization?.id) {
+        await selectOrganization(org.id)
+      }
       const body = buildOrganizationProfileUpdateBody(values)
       await api.organizations.update(org.id, body)
+      savePendingOrganizationPreferences({
+        companySize: values.businessSize,
+        logoFileName: '',
+        defaultLanguage: values.defaultLanguage,
+        dateFormat: values.dateFormat,
+        timeFormat: values.timeFormat,
+        themePreference: values.themePreference,
+        notifications: values.notifications,
+      })
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.organizations.all }),
         refresh(),
@@ -370,10 +469,7 @@ export function OrganizationProfileCompletionPage() {
   function handleBack() {
     setFormError(null)
     if (step === 1) {
-      // Only leave when required setup is already satisfied (optional follow-up visit).
-      if (completion?.requiredComplete) {
-        router.push('/dashboard')
-      }
+      router.push('/dashboard')
       return
     }
     setStep((prev) => (prev - 1) as ProfileStep)
@@ -381,10 +477,11 @@ export function OrganizationProfileCompletionPage() {
 
   const steps = [
     { id: 1 as const, title: t('steps.organization.title'), description: t('steps.organization.description') },
-    { id: 2 as const, title: t('steps.business.title'), description: t('steps.business.description') },
-    { id: 3 as const, title: t('steps.address.title'), description: t('steps.address.description') },
-    { id: 4 as const, title: t('steps.review.title'), description: t('steps.review.description') },
+    { id: 2 as const, title: t('steps.address.title'), description: t('steps.address.description') },
+    { id: 3 as const, title: t('steps.preferences.title'), description: t('steps.preferences.description') },
+    { id: 4 as const, title: t('steps.ownerLegal.title'), description: t('steps.ownerLegal.description') },
   ]
+  const continueToPlan = isSubscriptionPending(accessContext?.status)
 
   if (orgsLoading || !values) {
     return (
@@ -421,10 +518,10 @@ export function OrganizationProfileCompletionPage() {
             <Check className="size-9 stroke-[3]" />
           </span>
           <h1 className="mt-8 text-[1.75rem] font-bold leading-tight tracking-tight text-ink sm:text-[2rem]">
-            {t('success.title')}
+            {continueToPlan ? t('success.titlePendingPlan') : t('success.title')}
           </h1>
           <p className="mt-3 max-w-sm text-[15px] leading-6 text-[#64748B]">
-            {t('success.subtitle')}
+            {continueToPlan ? t('success.subtitlePendingPlan') : t('success.subtitle')}
           </p>
           {completion ? (
             <p className="mt-4 text-sm text-[#94A3B8]">
@@ -439,9 +536,9 @@ export function OrganizationProfileCompletionPage() {
               'shadow-[0_8px_24px_rgb(37_99_235/0.4)]',
               'hover:shadow-[0_12px_28px_rgb(37_99_235/0.45)]'
             )}
-            onClick={() => router.replace('/dashboard')}
+            onClick={() => router.replace(continueToPlan ? ONBOARDING_PLAN_PATH : '/dashboard')}
           >
-            {t('success.cta')}
+            {continueToPlan ? t('success.ctaPlan') : t('success.cta')}
             <ArrowRight className="size-4" aria-hidden />
           </Button>
         </div>
@@ -492,7 +589,7 @@ export function OrganizationProfileCompletionPage() {
           ) : null}
 
           {step === 2 ? (
-            <StepBusinessInformation
+            <StepAddress
               values={values}
               errors={fieldErrors}
               onChange={patchValues}
@@ -502,20 +599,50 @@ export function OrganizationProfileCompletionPage() {
           ) : null}
 
           {step === 3 ? (
-            <StepAddress values={values} errors={fieldErrors} onChange={patchValues} t={t} />
+            <OrganizationPreferencesStep
+              hideIntro
+              state={profileToPreferenceState(values)}
+              errors={{
+                defaultLanguage: fieldErrors.defaultLanguage,
+                dateFormat: fieldErrors.dateFormat,
+                timeFormat: fieldErrors.timeFormat,
+                themePreference: fieldErrors.themePreference,
+              }}
+              pending={saving}
+              onChange={(patch) => {
+                patchValues({
+                  ...(patch.defaultLanguage !== undefined
+                    ? { defaultLanguage: patch.defaultLanguage }
+                    : {}),
+                  ...(patch.dateFormat !== undefined ? { dateFormat: patch.dateFormat } : {}),
+                  ...(patch.timeFormat !== undefined ? { timeFormat: patch.timeFormat } : {}),
+                  ...(patch.themePreference !== undefined
+                    ? { themePreference: patch.themePreference }
+                    : {}),
+                  ...(patch.notifications !== undefined
+                    ? { notifications: patch.notifications }
+                    : {}),
+                })
+              }}
+              onClearError={(key) =>
+                setFieldErrors((prev) => {
+                  const next = { ...prev }
+                  delete next[key]
+                  return next
+                })
+              }
+            />
           ) : null}
 
           {step === 4 ? (
-            <StepReview
+            <StepBusinessInformation
               values={values}
-              logoPreviewUrl={logoPreviewUrl}
-              confirmed={confirmed}
-              confirmId={confirmId}
-              confirmError={fieldErrors.confirm}
-              onConfirmChange={setConfirmed}
-              onEdit={setStep}
+              errors={fieldErrors}
+              onChange={patchValues}
               t={t}
               tOrg={tOrg}
+              ownerName={user?.name ?? ''}
+              ownerEmail={user?.email ?? ''}
             />
           ) : null}
         </div>
@@ -542,11 +669,7 @@ export function OrganizationProfileCompletionPage() {
             type="button"
             className={cn(authPrimaryButtonClassName, 'h-12 w-full gap-2 sm:w-auto sm:min-w-[12rem]')}
             onClick={() => void handleContinue()}
-            disabled={
-              saving ||
-              logoUploading ||
-              (step === 4 && (!confirmed || !completion?.requiredComplete))
-            }
+            disabled={saving || logoUploading}
           >
             {saving ? (
               <>
@@ -755,7 +878,48 @@ function StepOrganizationDetails({
             <FieldError className="text-xs leading-4 text-negative">{errors.industry}</FieldError>
           ) : null}
         </Field>
+
+        <Field data-invalid={errors.businessSize ? true : undefined} className="gap-2">
+          <FieldLabel className="text-sm font-medium leading-5 text-ink">
+            {t('fields.businessSize')}
+            <RequiredAsterisk />
+          </FieldLabel>
+          <OnboardingSelect
+            className={selectClassName(Boolean(errors.businessSize))}
+            value={values.businessSize}
+            onChange={(e) => onChange({ businessSize: e.target.value })}
+          >
+            <option value="">{t('fields.businessSizePlaceholder')}</option>
+            {COMPANY_SIZE_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {tOrg(`step2.companySizes.${option}`)}
+              </option>
+            ))}
+          </OnboardingSelect>
+          {errors.businessSize ? (
+            <FieldError className="text-xs leading-4 text-negative">{errors.businessSize}</FieldError>
+          ) : null}
+        </Field>
       </div>
+
+      <Field data-invalid={errors.description ? true : undefined} className="gap-2">
+        <FieldLabel className="text-sm font-medium leading-5 text-ink">
+          {t('fields.description')} <span className="font-normal text-mute">({t('optional')})</span>
+        </FieldLabel>
+        <div className="relative">
+          <Textarea
+            value={values.description}
+            maxLength={DESCRIPTION_MAX}
+            rows={5}
+            className={cn(onboardingTextareaClassName, 'min-h-[9rem] pb-8', errors.description && 'border-negative')}
+            onChange={(e) => onChange({ description: e.target.value })}
+          />
+          <span className="pointer-events-none absolute right-3 bottom-2 text-[11px] text-mute">
+            {values.description.length}/{DESCRIPTION_MAX}
+          </span>
+        </div>
+        {errors.description ? <FieldError>{errors.description}</FieldError> : null}
+      </Field>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="rounded-2xl border border-[#E2E8F0] bg-canvas p-4">
@@ -810,30 +974,18 @@ function StepOrganizationDetails({
   )
 }
 
-function StepBusinessInformation({ values, errors, onChange, t, tOrg }: StepProps) {
+function StepBusinessInformation({
+  values,
+  errors,
+  onChange,
+  t,
+  tOrg,
+  ownerName,
+  ownerEmail,
+}: StepProps & { ownerName: string; ownerEmail: string }) {
   return (
     <FieldGroup className="gap-5">
       <div className="grid gap-5 sm:grid-cols-2">
-        <Field data-invalid={errors.businessSize ? true : undefined} className="gap-2">
-          <FieldLabel className="text-sm font-medium text-ink">
-            {t('fields.businessSize')}
-            <RequiredAsterisk />
-          </FieldLabel>
-          <OnboardingSelect
-            className={selectClassName(Boolean(errors.businessSize))}
-            value={values.businessSize}
-            onChange={(e) => onChange({ businessSize: e.target.value })}
-          >
-            <option value="">{t('fields.businessSizePlaceholder')}</option>
-            {COMPANY_SIZE_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {tOrg(`step2.companySizes.${option}`)}
-              </option>
-            ))}
-          </OnboardingSelect>
-          {errors.businessSize ? <FieldError>{errors.businessSize}</FieldError> : null}
-        </Field>
-
         <Field className="gap-2">
           <FieldLabel className="text-sm font-medium text-ink">
             {t('fields.businessType')}{' '}
@@ -852,26 +1004,19 @@ function StepBusinessInformation({ values, errors, onChange, t, tOrg }: StepProp
             ))}
           </OnboardingSelect>
         </Field>
-      </div>
 
-      <Field data-invalid={errors.description ? true : undefined} className="gap-2">
-        <FieldLabel className="text-sm font-medium text-ink">
-          {t('fields.description')} <span className="font-normal text-mute">({t('optional')})</span>
-        </FieldLabel>
-        <div className="relative">
-          <Textarea
-            value={values.description}
-            maxLength={DESCRIPTION_MAX}
-            rows={5}
-            className={cn(onboardingTextareaClassName, 'min-h-[9rem] pb-8', errors.description && 'border-negative')}
-            onChange={(e) => onChange({ description: e.target.value })}
+        <Field className="gap-2">
+          <FieldLabel className="text-sm font-medium text-ink">
+            {t('fields.registrationNumber')}{' '}
+            <span className="font-normal text-mute">({t('optional')})</span>
+          </FieldLabel>
+          <Input
+            value={values.businessRegistrationNumber}
+            className={onboardingInputClassName}
+            onChange={(e) => onChange({ businessRegistrationNumber: e.target.value })}
           />
-          <span className="pointer-events-none absolute right-3 bottom-2 text-[11px] text-mute">
-            {values.description.length}/{DESCRIPTION_MAX}
-          </span>
-        </div>
-        {errors.description ? <FieldError>{errors.description}</FieldError> : null}
-      </Field>
+        </Field>
+      </div>
 
       <div className="grid gap-5 sm:grid-cols-2">
         <Field data-invalid={errors.pan ? true : undefined} className="gap-2">
@@ -922,33 +1067,83 @@ function StepBusinessInformation({ values, errors, onChange, t, tOrg }: StepProp
       <div className="grid gap-5 sm:grid-cols-2">
         <Field className="gap-2">
           <FieldLabel className="text-sm font-medium text-ink">
-            {t('fields.defaultLanguage')}{' '}
-            <span className="font-normal text-mute">({t('optional')})</span>
+            {t('fields.ownerName')}
           </FieldLabel>
-          <OnboardingSelect
-            className={selectClassName()}
-            value={values.defaultLanguage}
-            onChange={(e) => onChange({ defaultLanguage: e.target.value })}
-          >
-            <option value="">{t('fields.defaultLanguagePlaceholder')}</option>
-            {LANGUAGE_OPTIONS.map((option) => (
-              <option key={option} value={option}>
-                {t(`languages.${option}`)}
-              </option>
-            ))}
-          </OnboardingSelect>
+          <div className="relative">
+            <User
+              className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-mute"
+              aria-hidden
+            />
+            <Input
+              value={ownerName}
+              readOnly
+              className={cn(onboardingInputWithIconClassName, 'cursor-default bg-primary-pale/50 text-body')}
+            />
+          </div>
         </Field>
 
         <Field className="gap-2">
           <FieldLabel className="text-sm font-medium text-ink">
-            {t('fields.registrationNumber')}{' '}
+            {t('fields.ownerEmail')}
+          </FieldLabel>
+          <div className="relative">
+            <Mail
+              className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-mute"
+              aria-hidden
+            />
+            <Input
+              type="email"
+              value={ownerEmail}
+              readOnly
+              className={cn(onboardingInputWithIconClassName, 'cursor-default bg-primary-pale/50 text-body')}
+            />
+          </div>
+        </Field>
+
+        <Field className="gap-2">
+          <FieldLabel className="text-sm font-medium text-ink">
+            {t('fields.ownerRole')}
+          </FieldLabel>
+          <Input
+            value={t('fields.ownerRoleValue')}
+            readOnly
+            className={cn(onboardingInputClassName, 'cursor-default bg-primary-pale/50 text-body')}
+          />
+        </Field>
+
+        <Field className="gap-2">
+          <FieldLabel className="text-sm font-medium text-ink">
+            {t('fields.designation')}{' '}
             <span className="font-normal text-mute">({t('optional')})</span>
           </FieldLabel>
           <Input
-            value={values.businessRegistrationNumber}
+            value={values.designation}
+            placeholder={t('fields.designationPlaceholder')}
             className={onboardingInputClassName}
-            onChange={(e) => onChange({ businessRegistrationNumber: e.target.value })}
+            onChange={(e) => onChange({ designation: e.target.value })}
           />
+        </Field>
+
+        <Field data-invalid={errors.ownerPhone ? true : undefined} className="gap-2">
+          <FieldLabel className="text-sm font-medium text-ink">
+            {t('fields.ownerPhone')}{' '}
+            <span className="font-normal text-mute">({t('optional')})</span>
+          </FieldLabel>
+          <div className="relative">
+            <Phone
+              className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-mute"
+              aria-hidden
+            />
+            <Input
+              type="tel"
+              value={values.ownerPhone}
+              className={cn(onboardingInputWithIconClassName, errors.ownerPhone && 'border-negative')}
+              onChange={(e) => onChange({ ownerPhone: e.target.value })}
+            />
+          </div>
+          {errors.ownerPhone ? (
+            <FieldError className="text-xs text-negative">{errors.ownerPhone}</FieldError>
+          ) : null}
         </Field>
       </div>
     </FieldGroup>
@@ -960,9 +1155,13 @@ function StepAddress({
   errors,
   onChange,
   t,
-}: Omit<StepProps, 'tOrg'>) {
+  tOrg,
+}: StepProps) {
   const stateOptions = getSubdivisionsForCountry(values.country)
   const stateSelectDisabled = !values.country.trim() || stateOptions.length === 0
+  const timezones = Array.from(
+    new Set([values.timezone, ...getTimezoneOptions()].filter(Boolean))
+  )
 
   function handleCountryChange(country: string) {
     const patch: Partial<OrganizationProfileFormValues> = { country }
@@ -1073,161 +1272,48 @@ function StepAddress({
           {errors.postalCode ? <FieldError>{errors.postalCode}</FieldError> : null}
         </Field>
       </div>
+
+      <div className="grid gap-5 sm:grid-cols-2">
+        <Field data-invalid={errors.timezone ? true : undefined} className="gap-2">
+          <FieldLabel className="text-sm font-medium text-ink">
+            {tOrg('step2.timezone')}
+            <RequiredAsterisk />
+          </FieldLabel>
+          <OnboardingSelect
+            className={selectClassName(Boolean(errors.timezone))}
+            value={values.timezone}
+            onChange={(e) => onChange({ timezone: e.target.value })}
+          >
+            <option value="">{tOrg('step2.timezonePlaceholder')}</option>
+            {timezones.map((zone) => (
+              <option key={zone} value={zone}>
+                {zone.replace(/_/g, ' ')}
+              </option>
+            ))}
+          </OnboardingSelect>
+          {errors.timezone ? <FieldError>{errors.timezone}</FieldError> : null}
+        </Field>
+
+        <Field data-invalid={errors.currency ? true : undefined} className="gap-2">
+          <FieldLabel className="text-sm font-medium text-ink">
+            {tOrg('step2.currency')}{' '}
+            <span className="font-normal text-mute">({t('optional')})</span>
+          </FieldLabel>
+          <OnboardingSelect
+            className={selectClassName(Boolean(errors.currency))}
+            value={values.currency}
+            onChange={(e) => onChange({ currency: e.target.value })}
+          >
+            <option value="">{tOrg('step2.currencyPlaceholder')}</option>
+            {CURRENCY_OPTIONS.map((value) => (
+              <option key={value} value={value}>
+                {tOrg(`step2.currencies.${value}`)}
+              </option>
+            ))}
+          </OnboardingSelect>
+          {errors.currency ? <FieldError>{errors.currency}</FieldError> : null}
+        </Field>
+      </div>
     </FieldGroup>
-  )
-}
-
-function StepReview({
-  values,
-  logoPreviewUrl,
-  confirmed,
-  confirmId,
-  confirmError,
-  onConfirmChange,
-  onEdit,
-  t,
-  tOrg,
-}: {
-  values: OrganizationProfileFormValues
-  logoPreviewUrl: string | null
-  confirmed: boolean
-  confirmId: string
-  confirmError?: string
-  onConfirmChange: (value: boolean) => void
-  onEdit: (step: ProfileStep) => void
-  t: ReturnType<typeof useTranslations<'onboarding.organizationProfile'>>
-  tOrg: ReturnType<typeof useTranslations<'onboarding.organization'>>
-}) {
-  const industryLabel = INDUSTRY_OPTIONS.includes(values.industry as IndustryOption)
-    ? tOrg(`step2.industries.${values.industry as IndustryOption}`)
-    : values.industry || t('review.empty')
-  const sizeLabel = COMPANY_SIZE_OPTIONS.includes(values.businessSize as CompanySizeOption)
-    ? tOrg(`step2.companySizes.${values.businessSize as CompanySizeOption}`)
-    : values.businessSize || t('review.empty')
-  const typeLabel = ORGANIZATION_TYPE_OPTIONS.includes(
-    values.organizationType as OrganizationTypeOption
-  )
-    ? tOrg(`step2.organizationTypes.${values.organizationType as OrganizationTypeOption}`)
-    : values.organizationType || t('review.empty')
-
-  return (
-    <div className="flex flex-col gap-4">
-      <OrganizationProfileReviewCard
-        title={t('review.organization')}
-        onEdit={() => onEdit(1)}
-        editLabel={t('actions.edit')}
-      >
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-          <span className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary-pale text-primary">
-            {logoPreviewUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={logoPreviewUrl} alt="" className="size-full object-cover" />
-            ) : (
-              <Building2 className="size-6" aria-hidden />
-            )}
-          </span>
-          <OrganizationProfileReviewGrid className="flex-1">
-            <OrganizationProfileReviewItem label={t('fields.name')} value={values.name} />
-            <OrganizationProfileReviewItem label={t('fields.email')} value={values.email} />
-            <OrganizationProfileReviewItem
-              label={t('fields.phone')}
-              value={values.phone || t('review.empty')}
-            />
-            <OrganizationProfileReviewItem
-              label={t('fields.alternatePhone')}
-              value={values.alternatePhone || t('review.empty')}
-            />
-            <OrganizationProfileReviewItem
-              label={t('fields.website')}
-              value={values.website || t('review.empty')}
-            />
-            <OrganizationProfileReviewItem label={t('fields.industry')} value={industryLabel} />
-          </OrganizationProfileReviewGrid>
-        </div>
-      </OrganizationProfileReviewCard>
-
-      <OrganizationProfileReviewCard
-        title={t('review.business')}
-        onEdit={() => onEdit(2)}
-        editLabel={t('actions.edit')}
-      >
-        <OrganizationProfileReviewGrid>
-          <OrganizationProfileReviewItem label={t('fields.businessSize')} value={sizeLabel} />
-          <OrganizationProfileReviewItem label={t('fields.businessType')} value={typeLabel} />
-          <OrganizationProfileReviewItem
-            label={t('fields.description')}
-            value={values.description || t('review.empty')}
-            className="sm:col-span-2"
-          />
-          <OrganizationProfileReviewItem
-            label={t('fields.defaultLanguage')}
-            value={
-              values.defaultLanguage
-                ? t(`languages.${values.defaultLanguage as 'en'}`)
-                : t('review.empty')
-            }
-          />
-          <OrganizationProfileReviewItem label={t('fields.pan')} value={values.pan} />
-          <OrganizationProfileReviewItem
-            label={t('fields.gstin')}
-            value={values.gstin || t('review.empty')}
-          />
-          <OrganizationProfileReviewItem
-            label={t('fields.registrationNumber')}
-            value={values.businessRegistrationNumber || t('review.empty')}
-          />
-        </OrganizationProfileReviewGrid>
-      </OrganizationProfileReviewCard>
-
-      <OrganizationProfileReviewCard
-        title={t('review.address')}
-        onEdit={() => onEdit(3)}
-        editLabel={t('actions.edit')}
-      >
-        <OrganizationProfileReviewGrid>
-          <OrganizationProfileReviewItem
-            label={t('fields.addressLine1')}
-            value={values.addressLine1 || t('review.empty')}
-            className="sm:col-span-2"
-          />
-          <OrganizationProfileReviewItem
-            label={t('fields.addressLine2')}
-            value={values.addressLine2 || t('review.empty')}
-            className="sm:col-span-2"
-          />
-          <OrganizationProfileReviewItem
-            label={t('fields.city')}
-            value={values.city || t('review.empty')}
-          />
-          <OrganizationProfileReviewItem
-            label={t('fields.country')}
-            value={values.country || t('review.empty')}
-          />
-          <OrganizationProfileReviewItem
-            label={t('fields.state')}
-            value={values.state || t('review.empty')}
-          />
-          <OrganizationProfileReviewItem
-            label={t('fields.postalCode')}
-            value={values.postalCode || t('review.empty')}
-          />
-        </OrganizationProfileReviewGrid>
-      </OrganizationProfileReviewCard>
-
-      <label
-        htmlFor={confirmId}
-        className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3 text-sm text-ink"
-      >
-        <input
-          id={confirmId}
-          type="checkbox"
-          checked={confirmed}
-          onChange={(e) => onConfirmChange(e.target.checked)}
-          className="mt-0.5 size-4 cursor-pointer rounded border-[#CBD5E1] text-primary focus-visible:ring-primary/30"
-        />
-        <span>{t('review.confirmLabel')}</span>
-      </label>
-      {confirmError ? <p className="text-sm text-negative">{confirmError}</p> : null}
-    </div>
   )
 }

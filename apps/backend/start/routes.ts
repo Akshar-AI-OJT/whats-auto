@@ -897,15 +897,23 @@ router
   .put('/api/v1/media/uploads/:id/content', [MediaUploadsController, 'putContent'])
   .use([middleware.rateLimit({ max: 60, windowMs: 60 * 1000, name: 'media-upload-content' })])
 
-// media uploads — direct-to-storage pending → ready lifecycle + Media Library
+// Organization logo during onboarding — pending_setup may upload/read logo only.
+// Non-logo media uploads are rejected in MediaUploadsController while not active.
+router
+  .group(() => {
+    router.get('/organization-logo', [MediaAssetsController, 'organizationLogo'])
+    router.post('/uploads', [MediaUploadsController, 'store'])
+    router.post('/uploads/:id/complete', [MediaUploadsController, 'complete'])
+  })
+  .prefix('/api/v1/media')
+  .use([middleware.jwtAuth(), middleware.tenant({ skipActiveGate: true })])
+
+// Media Library — requires an active (paid) organization
 router
   .group(() => {
     router.get('/', [MediaAssetsController, 'index'])
     router.get('/quota', [MediaAssetsController, 'quota'])
-    router.get('/organization-logo', [MediaAssetsController, 'organizationLogo'])
     router.get('/:id', [MediaAssetsController, 'show'])
-    router.post('/uploads', [MediaUploadsController, 'store'])
-    router.post('/uploads/:id/complete', [MediaUploadsController, 'complete'])
     router.delete('/:id', [MediaAssetsController, 'destroy'])
     router.post('/:id/restore', [MediaAssetsController, 'restore'])
     router.post('/:id/purge', [MediaAssetsController, 'purge'])

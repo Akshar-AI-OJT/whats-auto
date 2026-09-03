@@ -1263,7 +1263,9 @@
         "subtitle": "आप स्वतः Owner बन जाते हैं। डैशबोर्ड में पहुँचने के बाद Admins, Agents और Viewers को आमंत्रित करें।",
         "setupTitle": "संगठन सेटअप",
         "setupStep": "चरण {step} में से {total}",
+        "createProgress": "अपना संगठन बनाएं",
         "accountVerified": "खाता सत्यापित",
+        "createOrganization": "संगठन बनाएं",
         "organizationCreated": "संगठन बनाया गया",
         "companyDetails": "कंपनी विवरण",
         "preferences": "वरीयताएँ",
@@ -1492,26 +1494,26 @@
       "stepBadge": "चरण {step} / {total}",
       "optional": "वैकल्पिक",
       "sidebar": {
-        "title": "अपना संगठन प्रोफ़ाइल पूरा करें",
-        "subtitle": "आवश्यक विवरण भरें ताकि आपका वर्कस्पेस तैयार हो। वैकल्पिक फ़ील्ड बाद में पूरे किए जा सकते हैं।",
-        "completionLabel": "प्रोफ़ाइल पूर्णता"
+        "title": "संगठन सेटअप पूरा करें",
+        "subtitle": "संगठन विवरण, वरीयताएँ और कानूनी जानकारी एक ही जगह पूरी करें।",
+        "completionLabel": "सेटअप पूर्णता"
       },
       "steps": {
         "organization": {
           "title": "संगठन विवरण",
-          "description": "आपके संगठन की बुनियादी जानकारी"
-        },
-        "business": {
-          "title": "व्यवसाय जानकारी",
-          "description": "अपने व्यवसाय के बारे में और बताएँ"
+          "description": "नाम, संपर्क, उद्योग और लोगो"
         },
         "address": {
-          "title": "पता",
-          "description": "आपके संगठन का पता"
+          "title": "पता विवरण",
+          "description": "देश, सड़क, शहर और पिन कोड"
         },
-        "review": {
-          "title": "समीक्षा और पुष्टि",
-          "description": "अपने विवरण की समीक्षा करें और पुष्टि करें"
+        "preferences": {
+          "title": "वरीयताएँ",
+          "description": "भाषा, समय क्षेत्र, थीम और सूचनाएँ"
+        },
+        "ownerLegal": {
+          "title": "स्वामी और कानूनी विवरण",
+          "description": "PAN, GSTIN और स्वामी जानकारी"
         }
       },
       "fields": {
@@ -1547,14 +1549,21 @@
         "statePlaceholder": "राज्य / प्रदेश चुनें",
         "postalCode": "पिन / पोस्टल कोड",
         "country": "देश",
-        "countryPlaceholder": "देश चुनें"
+        "countryPlaceholder": "देश चुनें",
+        "ownerName": "स्वामी का पूरा नाम",
+        "ownerEmail": "स्वामी ईमेल",
+        "ownerRole": "स्वामी भूमिका",
+        "ownerRoleValue": "स्वामी",
+        "designation": "स्वामी पदनाम",
+        "designationPlaceholder": "संस्थापक, CEO, आदि",
+        "ownerPhone": "स्वामी संपर्क नंबर"
       },
       "languages": {
         "en": "अंग्रेज़ी",
         "hi": "हिन्दी"
       },
       "actions": {
-        "cancel": "रद्द करें",
+        "cancel": "डैशबोर्ड पर वापस जाएँ",
         "back": "वापस",
         "continue": "जारी रखें",
         "completeSetup": "सेटअप पूरा करें",
@@ -1572,8 +1581,11 @@
       "success": {
         "title": "आपका संगठन तैयार है",
         "subtitle": "आवश्यक प्रोफ़ाइल विवरण सहेजे गए हैं। वैकल्पिक फ़ील्ड बाद में डैशबोर्ड से पूरे कर सकते हैं।",
+        "titlePendingPlan": "सेटअप पूरा हुआ",
+        "subtitlePendingPlan": "WhatsApp और बाकी वर्कस्पेस अनलॉक करने के लिए प्लान चुनें।",
         "completion": "प्रोफ़ाइल पूर्णता: {percent}%",
-        "cta": "डैशबोर्ड पर जाएँ"
+        "cta": "डैशबोर्ड पर जाएँ",
+        "ctaPlan": "प्लान पर जाएँ"
       },
       "help": {
         "needHelp": "मदद चाहिए?",
@@ -1596,11 +1608,17 @@
         "stateRequired": "राज्य / प्रदेश आवश्यक है।",
         "postalCodeRequired": "पिन / पोस्टल कोड आवश्यक है।",
         "countryRequired": "देश चुनें।",
+        "timezoneRequired": "समय क्षेत्र चुनें।",
+        "languageRequired": "डिफ़ॉल्ट भाषा चुनें।",
+        "dateFormatRequired": "तारीख प्रारूप चुनें।",
+        "timeFormatRequired": "समय प्रारूप चुनें।",
+        "themeRequired": "थीम वरीयता चुनें।",
         "requiredIncomplete": "सेटअप पूरा करने से पहले सभी आवश्यक फ़ील्ड भरें।",
         "confirmRequired": "कृपया पुष्टि करें कि जानकारी सही है।",
         "logoType": "लोगो PNG, JPG या WEBP होना चाहिए।",
         "logoSize": "लोगो 2MB या उससे छोटा होना चाहिए।",
         "logoUploadFailed": "लोगो अपलोड नहीं हो सका। कृपया फिर कोशिश करें।",
+        "logoPaymentRequired": "लोगो अपलोड सब्सक्रिप्शन के बाद उपलब्ध है। आप बिना लोगो के सेटअप पूरा कर सकते हैं।",
         "saveFailed": "प्रोफ़ाइल सहेजी नहीं जा सकी। कृपया फिर कोशिश करें।"
       }
     }
@@ -1615,6 +1633,8 @@
     "nav": {
       "ariaLabel": "डैशबोर्ड नेविगेशन",
       "comingSoon": "जल्द आ रहा है",
+      "lockedSetup": "अनलॉक करने के लिए संगठन सेटअप पूरा करें",
+      "lockedSubscribe": "अनलॉक करने के लिए प्लान चुनें",
       "dashboard": "डैशबोर्ड",
       "team": "टीम प्रबंधन",
       "teamMembers": "टीम सदस्य",
@@ -2781,6 +2801,12 @@
       "eyebrow": "चैनल",
       "title": "WhatsApp कनेक्शन",
       "subtitle": "Inbox से ग्राहक बातचीत प्राप्त और भेजने के लिए WhatsApp Business नंबर कनेक्ट करें।",
+      "locked": {
+        "title": "WhatsApp लॉक है",
+        "description": "WhatsApp कनेक्ट करने से पहले संगठन सेटअप पूरा करें और सब्सक्राइब करें।",
+        "ctaSetup": "सेटअप पूरा करें",
+        "ctaSubscribe": "प्लान चुनें"
+      },
       "connectCta": "WhatsApp कनेक्ट करें",
       "refresh": "रीफ़्रेश",
       "loading": "WhatsApp नंबर लोड हो रहे हैं…",
@@ -3324,7 +3350,10 @@
         "title": "WhatsApp कनेक्ट करें",
         "description": "ग्राहक बातचीत प्राप्त करने और Inbox से प्रबंधित करने के लिए अपना WhatsApp Business अकाउंट कनेक्ट करें।",
         "cta": "WhatsApp कनेक्ट करें",
-        "secondary": "बाद में आप कई WhatsApp Business नंबर कनेक्ट कर सकते हैं।"
+        "secondary": "बाद में आप कई WhatsApp Business नंबर कनेक्ट कर सकते हैं।",
+        "lockedDescription": "WhatsApp कनेक्शन अनलॉक करने के लिए संगठन सेटअप पूरा करें और सब्सक्राइब करें।",
+        "lockedCtaSetup": "सेटअप पूरा करें",
+        "lockedCtaSubscribe": "प्लान चुनें"
       },
       "kpis": {
         "contacts": {
@@ -3416,7 +3445,13 @@
       "profileReminder": {
         "title": "प्रोफ़ाइल {percent}% पूर्ण",
         "subtitle": "अपना संगठन प्रोफ़ाइल पूरा करने के लिए शेष वैकल्पिक विवरण जोड़ें।",
-        "cta": "प्रोफ़ाइल पूरा करें"
+        "cta": "प्रोफ़ाइल पूरा करें",
+        "incompleteTitle": "संगठन सेटअप पूरा करें",
+        "incompleteSubtitle": "और विवरण जोड़ें, वरीयताएँ सेट करें और सभी सुविधाएँ अनलॉक करने के लिए प्लान चुनें।",
+        "incompleteCta": "संगठन सेटअप पूरा करें",
+        "subscribeTitle": "सब्सक्रिप्शन प्लान चुनें",
+        "subscribeSubtitle": "संगठन विवरण सहेजे गए हैं। WhatsApp और बाकी वर्कस्पेस अनलॉक करने के लिए सब्सक्राइब करें।",
+        "subscribeCta": "प्लान पर जाएँ"
       }
     },
     "analytics": {
