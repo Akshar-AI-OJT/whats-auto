@@ -225,7 +225,7 @@ test.group('Org provisioning gate', (group) => {
     await db.table('plans').insert({
       id: planId,
       code: `growth_${organizationId.slice(0, 8)}`,
-      name: 'Growth Prov',
+      name: `Growth Prov ${organizationId.slice(0, 8)}`,
       price: 2499,
       currency: 'INR',
       billingInterval: 'month',
@@ -256,7 +256,7 @@ test.group('Org provisioning gate', (group) => {
         periodEnd: now.plus({ months: 1 }).toJSDate(),
         planSnapshot: {
           code: `growth_${organizationId.slice(0, 8)}`,
-          name: 'Growth Prov',
+          name: `Growth Prov ${organizationId.slice(0, 8)}`,
           price: 2499,
           currency: 'INR',
           interval: 'month',

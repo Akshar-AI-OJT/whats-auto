@@ -89,9 +89,22 @@ test.group('Phase 1 Policies - OwnershipPolicy', () => {
 test.group('Phase 1 Policies - OrganizationPolicy', () => {
   const policy = new OrganizationPolicy()
 
-  test('owner bypasses via before()', ({ assert }) => {
+  test('owner can update the active organization without explicit permission', ({ assert }) => {
     const owner = makePrincipal({ role: 'owner', orgId: 'org-1' })
-    assert.isTrue(policy.before(owner))
+    assert.isTrue(policy.update(owner, 'org-1'))
+  })
+
+  test('owner cannot update a different organization without set-active', ({ assert }) => {
+    const owner = makePrincipal({ role: 'owner', orgId: 'org-1' })
+    assert.instanceOf(policy.update(owner, 'org-2'), AuthorizationResponse)
+  })
+
+  test('owner cannot update an arbitrary organization id', ({ assert }) => {
+    const owner = makePrincipal({ role: 'owner', orgId: 'org-1' })
+    assert.instanceOf(
+      policy.update(owner, 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee'),
+      AuthorizationResponse
+    )
   })
 
   test('update allows when orgId matches and user has org:settings_manage', ({ assert }) => {

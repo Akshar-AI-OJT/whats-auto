@@ -1,6 +1,31 @@
 import type { OrganizationAddress, OrganizationSummary } from '@/lib/api'
 
 export const ORG_PROFILE_PATH = '/onboarding/organization-profile'
+export const ORGANIZATION_ID_QUERY_PARAM = 'organizationId'
+
+const ORGANIZATION_ID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+export function isOrganizationId(value: string | null | undefined): value is string {
+  return Boolean(value && ORGANIZATION_ID_RE.test(value))
+}
+
+/** Profile completion URL scoped to a specific organization (survives refresh). */
+export function organizationProfilePath(organizationId?: string | null): string {
+  if (!isOrganizationId(organizationId)) return ORG_PROFILE_PATH
+  const params = new URLSearchParams({ [ORGANIZATION_ID_QUERY_PARAM]: organizationId })
+  return `${ORG_PROFILE_PATH}?${params.toString()}`
+}
+
+export function readOrganizationIdQueryParam(): string | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const value = new URLSearchParams(window.location.search).get(ORGANIZATION_ID_QUERY_PARAM)
+    return isOrganizationId(value) ? value : null
+  } catch {
+    return null
+  }
+}
 
 export type OrganizationProfileSource = Pick<
   OrganizationSummary,

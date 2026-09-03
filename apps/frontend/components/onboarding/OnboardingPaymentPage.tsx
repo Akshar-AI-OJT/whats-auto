@@ -18,6 +18,8 @@ import {
 import { useRouter } from '@/i18n/navigation'
 import {
   clearOnboardingCheckoutSession,
+  organizationProfilePath,
+  readCreatedOrganizationId,
   readOnboardingCheckoutSession,
   readPendingOrganizationPlan,
   ORG_SETUP_PATH,
@@ -101,7 +103,7 @@ export function OnboardingPaymentPage() {
 
   function handleContinueToDashboard() {
     clearOnboardingCheckoutSession()
-    router.push(ORG_PROFILE_PATH)
+    router.push(organizationProfilePath(readCreatedOrganizationId()) || ORG_PROFILE_PATH)
   }
 
   if (!session) {

@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import { Building2, Menu, Plus, Search } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Building2, Menu, Plus } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
 import { useAuth } from '@/hooks/useAuth'
@@ -24,33 +24,13 @@ import {
   type OrganizationSwitcherItem,
 } from './OrganizationSwitcher'
 import { ThemeToggle } from '@/components/theme/ThemeToggle'
+import { GlobalSearch } from '@/components/search/GlobalSearch'
 
 type DashboardTopbarProps = {
   className?: string
 }
 
 const ACCENTS: OrganizationSwitcherItem['accent'][] = ['green', 'cyan', 'amber']
-
-function detectMac() {
-  if (typeof navigator === 'undefined') return false
-  return /Mac|iPhone|iPad|iPod/i.test(navigator.platform || navigator.userAgent)
-}
-
-function subscribeNoop() {
-  return () => {}
-}
-
-function subscribeLg(onStoreChange: () => void) {
-  if (typeof window === 'undefined') return () => {}
-  const media = window.matchMedia('(min-width: 1024px)')
-  media.addEventListener('change', onStoreChange)
-  return () => media.removeEventListener('change', onStoreChange)
-}
-
-function getIsLg() {
-  if (typeof window === 'undefined') return false
-  return window.matchMedia('(min-width: 1024px)').matches
-}
 
 function formatRoleLabel(role: string): string {
   if (!role) return ''
@@ -73,11 +53,6 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
   const [organizationOpen, setOrganizationOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
-  const searchInputRef = useRef<HTMLInputElement>(null)
-  const searchId = useId()
-  const [searchFocused, setSearchFocused] = useState(false)
-  const isMac = useSyncExternalStore(subscribeNoop, detectMac, () => false)
-  const isLg = useSyncExternalStore(subscribeLg, getIsLg, () => false)
 
   const switcherOrganizations = useMemo<OrganizationSwitcherItem[]>(
     () =>
@@ -106,31 +81,6 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
       .map((part) => part[0]?.toUpperCase() ?? '')
       .join('') ||
     'WA'
-
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      const isShortcut =
-        (event.key === 'k' || event.key === 'K') && (event.metaKey || event.ctrlKey)
-      if (!isShortcut) return
-
-      const target = event.target as HTMLElement | null
-      const tag = target?.tagName
-      if (
-        tag === 'INPUT' ||
-        tag === 'TEXTAREA' ||
-        tag === 'SELECT' ||
-        target?.isContentEditable
-      ) {
-        return
-      }
-
-      event.preventDefault()
-      searchInputRef.current?.focus()
-    }
-
-    document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
-  }, [])
 
   async function handleSignOut() {
     setProfileOpen(false)
@@ -235,73 +185,21 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
         />
       ) : null}
 
-      {/* Global search — own row until lg, then flexes in the header */}
-      <div
+      <GlobalSearch
+        scope="organization"
         className={cn(
-          'group/search relative order-last min-w-0 basis-full',
+          'order-last min-w-0 basis-full',
           'sm:order-2 sm:mx-1 sm:flex-1 sm:basis-auto sm:min-w-[13rem]',
           'lg:mx-2 lg:max-w-[42rem]'
         )}
-      >
-        <label htmlFor={searchId} className="sr-only">
-          {t('topbar.searchLabel')}
-        </label>
-        <Search
-          className={cn(
-            'pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-mute',
-            'transition-[transform,color] duration-200 ease-out',
-            'group-hover/search:scale-110 group-hover/search:text-positive-deep',
-            'group-focus-within/search:scale-110 group-focus-within/search:rotate-12 group-focus-within/search:text-positive-deep',
-            searchFocused && 'scale-110 rotate-12 text-positive-deep'
-          )}
-          aria-hidden
-        />
-        <input
-          ref={searchInputRef}
-          id={searchId}
-          type="search"
-          value=""
-          readOnly
-          placeholder={
-            isLg ? t('topbar.searchUnavailablePlaceholder') : t('topbar.searchPlaceholderShort')
+        onOpenChange={(open) => {
+          if (open) {
+            setOrganizationOpen(false)
+            setNotificationsOpen(false)
+            setProfileOpen(false)
           }
-          autoComplete="off"
-          aria-describedby={`${searchId}-hint ${searchId}-status`}
-          title={t('topbar.searchUnavailableHint')}
-          onFocus={() => setSearchFocused(true)}
-          onBlur={() => setSearchFocused(false)}
-          className={cn(
-            'h-9 w-full min-w-0 rounded-xl border border-dash-border bg-dash-surface/90 py-1.5 pl-9 text-sm text-ink outline-none',
-            'pr-3 lg:pr-[4.5rem]',
-            'placeholder:truncate placeholder:text-mute',
-            'transition-[border-color,box-shadow,background-color] duration-200',
-            'hover:border-dash-border-strong',
-            'focus-visible:border-primary/55 focus-visible:bg-canvas focus-visible:ring-2 focus-visible:ring-primary/30',
-            'cursor-not-allowed opacity-90'
-          )}
-        />
-        <p id={`${searchId}-status`} className="sr-only">
-          {t('topbar.searchUnavailableHint')}
-        </p>
-        <kbd
-          id={`${searchId}-hint`}
-          className={cn(
-            'pointer-events-none absolute top-1/2 right-2.5 hidden -translate-y-1/2 items-center gap-0.5 lg:inline-flex',
-            'rounded-md border border-dash-border bg-canvas px-1.5 py-0.5',
-            'text-[10px] font-semibold tracking-wide text-mute',
-            'shadow-[0_1px_0_rgb(15_23_42/0.04)]',
-            'transition-[border-color,color,opacity] duration-200',
-            searchFocused && 'border-primary/35 text-positive-deep'
-          )}
-          aria-label={t('topbar.searchShortcutLabel', {
-            shortcut: isMac ? '⌘K' : 'Ctrl+K',
-          })}
-        >
-          <span>{isMac ? '⌘' : 'Ctrl'}</span>
-          <span className="opacity-60">+</span>
-          <span>K</span>
-        </kbd>
-      </div>
+        }}
+      />
 
       <div className="order-3 ml-auto flex shrink-0 items-center gap-2 sm:gap-2.5">
         <ThemeToggle />

@@ -8,7 +8,8 @@ export function isPostgresUniqueViolation(error: unknown, constraintName?: strin
     const row = current as { code?: string; constraint?: string; detail?: string }
     if (row.code === '23505') {
       if (!constraintName) return true
-      if (row.constraint === constraintName) return true
+      const constraint = row.constraint?.replaceAll('"', '')
+      if (constraint === constraintName) return true
       if (typeof row.detail === 'string' && row.detail.includes(constraintName)) return true
     }
     current = (current as { cause?: unknown }).cause ?? (current as { original?: unknown }).original

@@ -50,6 +50,7 @@ export const middleware = router.named({
   jwtAuth: () => import('#middleware/jwt_auth_middleware'),
   rateLimit: () => import('#middleware/rate_limit_middleware'),
   tenant: () => import('#middleware/tenant_middleware'),
+  organizationProfile: () => import('#middleware/organization_profile_completion_middleware'),
   platform: () => import('#middleware/platform_middleware'),
   requirePermission: () => import('#middleware/require_permission_middleware'),
   apiKeyAuth: () => import('#middleware/api_key_auth_middleware'),

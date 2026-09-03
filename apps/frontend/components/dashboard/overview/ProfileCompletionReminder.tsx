@@ -9,7 +9,7 @@ import { api, type MediaAsset } from '@/lib/api'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import {
   calculateOrganizationProfileCompletion,
-  ORG_PROFILE_PATH,
+  organizationProfilePath,
   organizationToProfileFormValues,
 } from '@/lib/organization-profile'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
@@ -74,7 +74,7 @@ export function ProfileCompletionReminder() {
           </div>
         </div>
         <Link
-          href={ORG_PROFILE_PATH}
+          href={organizationProfilePath(activeOrganization?.id)}
           className={cn(
             'inline-flex h-10 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl px-4 text-sm font-semibold',
             'bg-primary text-on-primary hover:bg-primary-active'

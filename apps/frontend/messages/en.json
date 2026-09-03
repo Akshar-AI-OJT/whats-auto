@@ -3411,8 +3411,6 @@
       "searchLabel": "Search organization",
       "searchPlaceholder": "Find contacts, conversations, campaigns, or templates…",
       "searchPlaceholderShort": "Search organization…",
-      "searchUnavailablePlaceholder": "Global search requires a backend API…",
-      "searchUnavailableHint": "Global search is not available yet. A backend search endpoint is required before this field can query your organization.",
       "searchShortcutLabel": "Focus search ({shortcut})",
       "notifications": "Notifications",
       "profile": "Profile",
@@ -4002,7 +4000,11 @@
       "openMenu": "Open admin navigation",
       "title": "Platform console",
       "subtitle": "Manage organizations, subscriptions, and platform users",
-      "logout": "Logout"
+      "logout": "Logout",
+      "searchLabel": "Search platform",
+      "searchPlaceholder": "Find organizations, users, plans, or subscriptions…",
+      "searchPlaceholderShort": "Search platform…",
+      "searchShortcutLabel": "Focus search ({shortcut})"
     },
     "checkingAccess": "Checking access…",
     "home": {
@@ -5163,6 +5165,25 @@
         "emptyDescription": "Audit events appear after permissioned actions are performed.",
         "noDetails": "No additional details"
       }
+    }
+  },
+  "globalSearch": {
+    "loading": "Searching…",
+    "noResults": "No results",
+    "error": "Couldn’t search. Try again.",
+    "resultsLabel": "Search results",
+    "types": {
+      "contact": "Contacts",
+      "conversation": "Conversations",
+      "campaign": "Campaigns",
+      "template": "Templates",
+      "flow": "Flows",
+      "customer_group": "Customer groups",
+      "organization": "Organizations",
+      "user": "Users",
+      "plan": "Plans",
+      "subscription": "Subscriptions",
+      "invoice": "Invoices"
     }
   }
 }

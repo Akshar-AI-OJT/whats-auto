@@ -41,6 +41,15 @@ test.group('isPostgresUniqueViolation', () => {
     assert.isFalse(isPostgresUniqueViolation(error, 'other_unique'))
   })
 
+  test('matches quoted postgres index names', ({ assert }) => {
+    assert.isTrue(
+      isPostgresUniqueViolation(
+        { code: '23505', constraint: '"plans_active_logical_identity_unique"' },
+        'plans_active_logical_identity_unique'
+      )
+    )
+  })
+
   test('matches constraint name in detail when constraint field missing', ({ assert }) => {
     const error = {
       code: '23505',
