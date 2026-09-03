@@ -3,7 +3,8 @@ import { ObjectStorage } from '#services/object_storage/contracts/object_storage
 import { createObjectStorageFromEnv } from '#services/object_storage/create_object_storage_from_env'
 
 /**
- * Binds ObjectStorage (local disk or S3-compatible) for media / knowledge uploads.
+ * Binds ObjectStorage (local disk or S3-compatible) for all organization uploads
+ * (media, knowledge, contact-import CSVs, etc.).
  */
 export default class ObjectStorageProvider {
   constructor(protected app: ApplicationService) {}

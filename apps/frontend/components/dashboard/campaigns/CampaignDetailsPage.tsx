@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { ArrowLeft, Copy, Eye, Loader2, PauseCircle, Pencil, RefreshCw, Rocket } from 'lucide-react'
-import { api, type ApiError, type CampaignPreview } from '@/lib/api'
+import { api, type ApiError, type CampaignPreview, type WhatsappMessageTemplate } from '@/lib/api'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { Link, useRouter } from '@/i18n/navigation'
 import { Button } from '@/components/ui/button'
@@ -18,7 +18,6 @@ import {
   CampaignPreviewDialog,
 } from './CampaignDialogs'
 import { CampaignStatusBadge } from './CampaignStatusBadge'
-import { queryKeys } from '@/lib/query-keys'
 import {
   type CampaignChangeStatusTarget,
   formatCampaignDate,
@@ -28,8 +27,9 @@ import {
   isStatusChangeableCampaignStatus,
   ratePercent,
   unwrapCampaign,
+  unwrapTemplateItems,
 } from './campaign-utils'
-import { unwrapTemplateList } from '@/components/dashboard/templates/template-utils'
+import { queryKeys } from '@/lib/query-keys'
 
 type CampaignDetailsPageProps = {
   campaignId: string
@@ -78,7 +78,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
     enabled: Boolean(tenantOrganizationId) && canViewCampaigns && !orgsLoading,
     queryFn: async () => {
       const { data } = await api.whatsapp.listTemplates({ perPage: 100 })
-      return unwrapTemplateList(data).items
+      return unwrapTemplateItems(data)
     },
   })
 
@@ -201,7 +201,10 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
   const campaign = campaignQuery.data
   const linkedTemplate = useMemo(() => {
     if (!campaign?.messageTemplateId || !templatesQuery.data) return null
-    return templatesQuery.data.find((item) => item.id === campaign.messageTemplateId) ?? null
+    return (
+      templatesQuery.data.find((item: WhatsappMessageTemplate) => item.id === campaign.messageTemplateId) ??
+      null
+    )
   }, [campaign, templatesQuery.data])
 
   const templateName = useMemo(() => {
@@ -511,7 +514,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
         campaign={campaign}
         pending={deleteMutation.isPending}
         error={deleteError}
-        onOpenChange={(open) => {
+        onOpenChange={(open: boolean) => {
           if (!open && !deleteMutation.isPending) setDeleteOpen(false)
         }}
         onConfirm={() => deleteMutation.mutate()}
@@ -521,7 +524,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
         campaign={campaign}
         pending={cancelMutation.isPending}
         error={cancelError}
-        onOpenChange={(open) => {
+        onOpenChange={(open: boolean) => {
           if (!open && !cancelMutation.isPending) setCancelOpen(false)
         }}
         onConfirm={() => cancelMutation.mutate()}

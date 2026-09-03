@@ -36,7 +36,7 @@ export default class S3ObjectStorage extends ObjectStorage {
         secretAccessKey: config.secretAccessKey,
       },
       ...(config.endpoint ? { endpoint: config.endpoint } : {}),
-      forcePathStyle: config.forcePathStyle ?? Boolean(config.endpoint),
+      ...(config.forcePathStyle !== undefined ? { forcePathStyle: config.forcePathStyle } : {}),
       // Browser PUTs via presigned URL cannot satisfy flexible request checksums.
       requestChecksumCalculation: 'WHEN_REQUIRED',
       responseChecksumValidation: 'WHEN_REQUIRED',
@@ -97,6 +97,22 @@ export default class S3ObjectStorage extends ObjectStorage {
           Bucket: this.#bucket,
           Key: params.key,
           Range: `bytes=0-${end}`,
+        })
+      )
+      if (!result.Body) return new Uint8Array()
+      return await result.Body.transformToByteArray()
+    } catch (error) {
+      if (isNotFoundError(error)) return null
+      throw error
+    }
+  }
+
+  async getObject(key: string): Promise<Uint8Array | null> {
+    try {
+      const result = await this.#client.send(
+        new GetObjectCommand({
+          Bucket: this.#bucket,
+          Key: key,
         })
       )
       if (!result.Body) return new Uint8Array()

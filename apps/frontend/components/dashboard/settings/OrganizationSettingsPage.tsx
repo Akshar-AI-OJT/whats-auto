@@ -120,6 +120,7 @@ function normalizeWebsite(value: string): string | undefined {
 }
 
 function buildUpdateBody(form: FormState): UpdateOrganizationBody {
+  const pan = normalizeTaxId(form.pan)
   const gstin = normalizeTaxId(form.gstin)
   return {
     name: form.name.trim(),
@@ -128,8 +129,8 @@ function buildUpdateBody(form: FormState): UpdateOrganizationBody {
     industry: form.industry.trim() || undefined,
     organizationType: form.organizationType || undefined,
     address: form.address.trim(),
-    pan: normalizeTaxId(form.pan),
-    gstin: gstin || undefined,
+    pan,
+    ...(gstin ? { gstin } : {}),
     timezone: form.timezone.trim(),
     currency: form.currency.trim().slice(0, CURRENCY_MAX) || undefined,
   }

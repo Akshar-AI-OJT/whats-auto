@@ -1257,6 +1257,23 @@
         "preferences": "Preferences",
         "plan": "Plan"
       },
+      "sidebar": {
+        "brand": "Whats-Auto",
+        "heading": "Set up your organization",
+        "subtitle": "You become the Owner automatically. Invite Admins, Agents, and Viewers after you land in the dashboard.",
+        "setupTitle": "Organization setup",
+        "setupStep": "Step {step} of {total}",
+        "accountVerified": "Account verified",
+        "organizationCreated": "Organization created",
+        "companyDetails": "Company details",
+        "preferences": "Preferences",
+        "planReview": "Plan & review",
+        "done": "Done",
+        "ownerTitle": "You are Owner",
+        "ownerSubtitle": "Automatic role",
+        "readyTitle": "WhatsApp-ready organization",
+        "readySubtitle": "One organization. Clear ownership. Ready for your team."
+      },
       "ownerNote": "You become the Owner automatically when you create this organization. Owner is never selected manually.",
       "name": "Business / Organization Name",
       "namePlaceholder": "Acme Organization",
@@ -1288,8 +1305,9 @@
         "subtitle": "A few details help us tailor your Whats-Auto organization.",
         "logo": "Company Logo",
         "logoUpload": "Upload company logo",
+        "logoUploadTitle": "Upload logo",
         "logoEmpty": "No logo uploaded",
-        "logoHint": "PNG, JPG, or WebP. Optional — you can add this later.",
+        "logoHint": "PNG, JPG or WebP. Max size 2MB.",
         "logoRemove": "Remove logo",
         "organizationType": "Organization Type",
         "organizationTypePlaceholder": "Select organization type",
@@ -1378,6 +1396,11 @@
           "system": "System",
           "light": "Light",
           "dark": "Dark"
+        },
+        "themeDescriptions": {
+          "system": "Use system default",
+          "light": "Light appearance",
+          "dark": "Dark appearance"
         },
         "notificationOptions": {
           "emailUpdates": {
@@ -1507,6 +1530,10 @@
         "businessSizePlaceholder": "Select business size",
         "businessType": "Business Type",
         "businessTypePlaceholder": "Select business type",
+        "pan": "PAN",
+        "panPlaceholder": "AAAAA0000A",
+        "gstin": "GSTIN",
+        "gstinPlaceholder": "27AAAAA0000A1Z5",
         "description": "Description",
         "defaultLanguage": "Default Language",
         "defaultLanguagePlaceholder": "Select language",
@@ -1560,6 +1587,9 @@
         "websiteInvalid": "Enter a valid website URL (https://…).",
         "industryRequired": "Select an industry.",
         "businessSizeRequired": "Select a business size.",
+        "panRequired": "PAN is required.",
+        "panInvalid": "Enter a valid PAN (for example AAAAA0000A).",
+        "gstinInvalid": "Enter a valid GSTIN (15 characters), or leave it blank.",
         "descriptionTooLong": "Description must be 500 characters or fewer.",
         "addressLine1Required": "Address line 1 is required.",
         "cityRequired": "City is required.",
@@ -2206,7 +2236,10 @@
         "reasonPlaceholder": "e.g. Narrow agent inbox access for support season",
         "reasonHint": "Saved to the authorization audit log so teammates know why this change was made (minimum 5 characters).",
         "unsavedChanges": "Unsaved changes",
+        "unsavedConfirmTitle": "Discard unsaved changes?",
         "unsavedConfirm": "You have unsaved changes. Close without saving?",
+        "unsavedConfirmStay": "Keep editing",
+        "unsavedConfirmDiscard": "Discard",
         "cancel": "Cancel",
         "createSubmit": "Save Role",
         "editSubmit": "Save Role",
@@ -2364,7 +2397,14 @@
         "result": {
           "title": "Import completed",
           "subtitle": "Your contacts have been processed.",
+          "runningTitle": "Import in progress",
+          "runningSubtitle": "Contacts are being imported in the background. You can keep this window open to watch progress.",
+          "limitTitle": "Import stopped at plan limit",
+          "limitSubtitle": "No more contacts were imported because the current plan contact limit was reached.",
+          "failedTitle": "Import failed",
+          "failedSubtitle": "The import stopped because of an unexpected error. Already imported contacts were kept.",
           "totalRows": "Total rows",
+          "processedRows": "Processed",
           "imported": "Imported",
           "skipped": "Skipped (duplicates)",
           "failed": "Failed",
@@ -2378,6 +2418,7 @@
           "noHeaders": "CSV file is missing column headers.",
           "sessionExpired": "Your session expired. Please sign in again.",
           "permissionDenied": "You don’t have permission to import contacts.",
+          "pollTimedOut": "Import is still running but progress updates stopped. Refresh contacts later or try again.",
           "missingPhoneColumn": "CSV is missing a phone column.",
           "invalidCountry": "Select a valid country.",
           "tooManyRows": "CSV has too many rows.",
@@ -3991,7 +4032,7 @@
         },
         "monthlyRevenue": {
           "label": "Monthly Revenue",
-          "hint": "Current billing period"
+          "hint": "Paid invoices this month"
         },
         "activeWhatsappNumbers": {
           "label": "Active WhatsApp Numbers",
@@ -4662,6 +4703,7 @@
         "remove": "Remove line item"
       },
       "currency": {
+        "inr": "INR — Indian Rupee",
         "usd": "USD — US Dollar"
       },
       "filters": "Filters",

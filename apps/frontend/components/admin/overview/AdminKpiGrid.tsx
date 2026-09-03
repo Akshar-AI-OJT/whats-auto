@@ -66,15 +66,35 @@ export function AdminKpiGrid() {
     null
 
   const organizations = useMemo(() => orgQuery.data?.items ?? [], [orgQuery.data?.items])
-  const totalOrgs = orgQuery.data?.total ?? organizations.length
   const subscriptions = useMemo(() => subscriptionsQuery.data ?? [], [subscriptionsQuery.data])
   const orgCounts = useMemo(
     () => countOrganizationsByUiStatus(organizations),
     [organizations]
   )
+  const totalOrgs = orgQuery.data?.total ?? organizations.length
   const trialCount = countTrialOrganizations(subscriptions)
   const monthlyRevenue = monthlyRevenueQuery.data ?? 0
   const platformUserTotal = platformUsersQuery.data ?? null
+
+  if (loading) {
+    return (
+      <div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 xl:gap-5">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <KPIStatCardSkeleton key={i} className="h-full" />
+        ))}
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 xl:gap-5">
+        <div className="col-span-full rounded-2xl border border-dash-border bg-dash-surface p-6 text-center text-sm text-mute">
+          {error instanceof Error ? error.message : tAnalytics('unavailable')}
+        </div>
+      </div>
+    )
+  }
 
   const items = [
     {
@@ -137,26 +157,6 @@ export function AdminKpiGrid() {
       trend: 'neutral' as const,
     },
   ]
-
-  if (loading) {
-    return (
-      <div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 xl:gap-5">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <KPIStatCardSkeleton key={i} className="h-full" />
-        ))}
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 xl:gap-5">
-        <div className="col-span-full rounded-2xl border border-dash-border bg-dash-surface p-6 text-center text-sm text-mute">
-          {error instanceof Error ? error.message : tAnalytics('unavailable')}
-        </div>
-      </div>
-    )
-  }
 
   return (
     <div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 xl:gap-5">

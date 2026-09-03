@@ -5,8 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type AccessContext, type OrganizationSummary } from '@/lib/api'
 import { authClient } from '@/lib/auth-client'
 import {
-  forceRemintAccessToken,
-  getValidAccessToken,
+  ensureAccessTokenForOrganization,
   peekAccessTokenOrgId,
 } from '@/lib/access-token'
 import { ONBOARDING_PAYMENT_PATH } from '@/lib/onboarding'
@@ -140,17 +139,6 @@ async function fetchOrganizationList(): Promise<OrganizationSummary[]> {
 async function refreshSharedSession(): Promise<string | null> {
   const result = await authClient.getSession({ query: { disableCookieCache: true } })
   return readSessionOrganizationId(result.data?.session)
-}
-
-/** Ensure in-memory JWT org_id matches the selected organization. */
-async function ensureAccessTokenForOrganization(organizationId: string): Promise<void> {
-  await getValidAccessToken()
-  if (peekAccessTokenOrgId() === organizationId) return
-
-  await forceRemintAccessToken()
-  if (peekAccessTokenOrgId() !== organizationId) {
-    throw new Error('Access token organization did not match the selected organization')
-  }
 }
 
 /**

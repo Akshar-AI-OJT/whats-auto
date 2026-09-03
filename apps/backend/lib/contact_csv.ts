@@ -1,4 +1,4 @@
-import { parse } from 'csv-parse/sync'
+import { parse as parseSync } from 'csv-parse/sync'
 import ContactException from '#exceptions/contact_exception'
 
 export const CONTACT_CSV_FIELDS = ['phone', 'name', 'email', 'company'] as const
@@ -38,7 +38,7 @@ export function parseContactCsv(content: string): ParsedContactCsv {
 
   let records: unknown[]
   try {
-    records = parse(trimmed, {
+    records = parseSync(trimmed, {
       columns: true,
       skip_empty_lines: true,
       trim: true,
@@ -64,6 +64,19 @@ export function parseContactCsv(content: string): ParsedContactCsv {
   }
 
   return { headers, rows }
+}
+
+/**
+ * Yield CSV data rows one at a time so the import worker inserts contacts
+ * sequentially. Parsing reuses parseContactCsv (max 5000 rows).
+ */
+export async function* iterateContactCsvRows(
+  content: string
+): AsyncGenerator<Record<string, string>> {
+  const parsed = parseContactCsv(content)
+  for (const row of parsed.rows) {
+    yield row
+  }
 }
 
 export function hasExplicitColumnMapping(mapping: ContactCsvColumnMapping): boolean {

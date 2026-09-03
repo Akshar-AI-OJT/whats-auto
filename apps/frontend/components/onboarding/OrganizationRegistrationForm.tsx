@@ -4,22 +4,28 @@ import { useEffect, useId, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { ArrowLeft, ArrowRight, Loader2, Lock } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { api, type ApiError } from '@/lib/api'
+import { api, type ApiError, type CreatedOrganization } from '@/lib/api'
 import { authClient } from '@/lib/auth-client'
-import { getValidAccessToken } from '@/lib/access-token'
+import {
+  ensureAccessTokenForOrganization,
+  getValidAccessToken,
+} from '@/lib/access-token'
 import { queryKeys } from '@/lib/query-keys'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   buildCreateOrganizationPayload,
   clearPendingOnboardingContact,
   isValidEmail,
+  isValidGstin,
   isValidOrganizationSlug,
+  isValidPan,
   isValidPhone,
   isValidWebsiteUrl,
   markOnboardingChecklistVisible,
   readPendingOnboardingContact,
   savePendingOrganizationPlan,
   savePendingOrganizationPreferences,
+  savePendingOnboardingOrganizationId,
   ORG_SETUP_PATH,
 } from '@/lib/onboarding'
 import {
@@ -33,8 +39,6 @@ import {
   authOutlineButtonClassName,
   authPrimaryButtonClassName,
 } from '@/components/auth/auth-field-styles'
-import { AuthLayout } from '@/components/auth/auth-layout'
-import { AuthBranding } from '@/components/auth/auth-branding'
 import { useRouter } from '@/i18n/navigation'
 import { BillingCheckoutDialog } from '@/components/dashboard/billing/BillingCheckoutDialog'
 import {
@@ -49,6 +53,7 @@ import {
   type OnboardingPlanSelection,
 } from './SubscriptionPlanSelectionStep'
 import { OrganizationPreferencesStep } from './OrganizationPreferencesStep'
+import { OrganizationOnboardingLayout } from './OrganizationOnboardingLayout'
 import { OrganizationStepper } from './OrganizationStepper'
 import type {
   OrganizationWizardBasicsErrors,
@@ -73,6 +78,8 @@ function createInitialState(): OrganizationWizardState {
     logoPreviewUrl: null,
     organizationType: '',
     address: '',
+    pan: '',
+    gstin: '',
     industry: '',
     companySize: '',
     country: '',
@@ -83,6 +90,25 @@ function createInitialState(): OrganizationWizardState {
     timeFormat: '12h',
     themePreference: 'system',
     notifications: ['emailUpdates', 'campaignAlerts'],
+  }
+}
+
+function unwrapCreatedOrganization(data: unknown): CreatedOrganization | null {
+  if (!data || typeof data !== 'object') return null
+  const root = data as { data?: CreatedOrganization } & CreatedOrganization
+  if (root.data?.id) return root.data
+  if ('id' in root && typeof root.id === 'string') return root
+  return null
+}
+
+async function alignSessionAfterOrganizationCreate(created: CreatedOrganization): Promise<void> {
+  if (created.sessionActivated === false) {
+    await api.organizations.setActive(created.id)
+    await ensureAccessTokenForOrganization(created.id)
+  } else {
+    await authClient.getSession({ query: { disableCookieCache: true } })
+    await getValidAccessToken()
+    await ensureAccessTokenForOrganization(created.id)
   }
 }
 
@@ -202,6 +228,14 @@ export function OrganizationRegistrationForm({
     } else if (trimmedAddress.length < 8) {
       next.address = t('errors.addressTooShort')
     }
+    if (!state.pan.trim()) {
+      next.pan = t('errors.panRequired')
+    } else if (!isValidPan(state.pan)) {
+      next.pan = t('errors.panInvalid')
+    }
+    if (state.gstin.trim() && !isValidGstin(state.gstin)) {
+      next.gstin = t('errors.gstinInvalid')
+    }
     if (!state.industry) next.industry = t('errors.industryRequired')
     if (!state.companySize) next.companySize = t('errors.companySizeRequired')
     if (!state.country.trim() || state.country.trim().length < 2) {
@@ -253,16 +287,21 @@ export function OrganizationRegistrationForm({
         industry: state.industry || undefined,
         organizationType: state.organizationType as OrganizationTypeOption,
         address: state.address,
+        pan: state.pan,
+        gstin: state.gstin || undefined,
         country: state.country,
         timezone: state.timezone,
         currency: state.currency || undefined,
       })
 
-      await api.organizations.create(payload)
+      const { data } = await api.organizations.create(payload)
+      const created = unwrapCreatedOrganization(data)
+      if (!created?.id) {
+        throw new Error('Organization create did not return an id')
+      }
 
-      // Backend sets the new org active and remints JWT; align shared session before dashboard.
-      await authClient.getSession({ query: { disableCookieCache: true } })
-      await getValidAccessToken()
+      savePendingOnboardingOrganizationId(created.id)
+      await alignSessionAfterOrganizationCreate(created)
       await queryClient.invalidateQueries({ queryKey: queryKeys.organizations.all })
 
       savePendingOrganizationPreferences({
@@ -307,6 +346,12 @@ export function OrganizationRegistrationForm({
         setStep(2)
       } else if (/address/i.test(message)) {
         setCompanyErrors((prev) => ({ ...prev, address: message }))
+        setStep(2)
+      } else if (/\bpan\b/i.test(message)) {
+        setCompanyErrors((prev) => ({ ...prev, pan: message }))
+        setStep(2)
+      } else if (/gstin/i.test(message)) {
+        setCompanyErrors((prev) => ({ ...prev, gstin: message }))
         setStep(2)
       } else if (/country/i.test(message)) {
         setCompanyErrors((prev) => ({ ...prev, country: message }))
@@ -456,21 +501,17 @@ export function OrganizationRegistrationForm({
 
   if (guardingInvite) {
     return (
-      <AuthLayout branding={<AuthBranding variant="organization" />}>
+      <OrganizationOnboardingLayout currentStep={1}>
         <div className="flex items-center justify-center gap-2 py-16 text-sm text-body">
           <Loader2 className="size-4 animate-spin" aria-hidden />
           Loading…
         </div>
-      </AuthLayout>
+      </OrganizationOnboardingLayout>
     )
   }
 
   return (
-    <AuthLayout
-      branding={<AuthBranding variant="organization" />}
-      wideForm={step === 4}
-      contentClassName={step === 4 ? 'max-w-none' : undefined}
-    >
+    <OrganizationOnboardingLayout currentStep={step} wideForm={step === 4}>
       <form
         className={cn('flex w-full min-w-0 flex-col', className)}
         onSubmit={handleSubmit}
@@ -479,7 +520,7 @@ export function OrganizationRegistrationForm({
         aria-describedby={error ? formErrorId : undefined}
         {...props}
       >
-        <FieldGroup className="gap-7">
+        <FieldGroup className="gap-8">
           <div className="flex flex-col gap-4 text-left">
             <p className="text-xs font-semibold tracking-wide text-positive-deep uppercase">
               {t('eyebrow', { step, total: 4 })}
@@ -546,7 +587,7 @@ export function OrganizationRegistrationForm({
 
           <Field className="gap-0">
             {step === 4 ? (
-              <div className="flex flex-col gap-3 border-t border-[#E2E8F0] pt-5 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+              <div className="flex flex-col gap-3 border-t border-[#CBD5E1] pt-6 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                 <Button
                   type="button"
                   variant="outline"
@@ -585,31 +626,20 @@ export function OrganizationRegistrationForm({
                 </div>
               </div>
             ) : (
-              <div className={cn('flex flex-col gap-2.5', step > 1 && 'sm:flex-row-reverse')}>
-                <Button
-                  type="submit"
-                  disabled={pending || checkoutPending}
-                  aria-busy={pending || checkoutPending}
-                  className={cn(authPrimaryButtonClassName, step > 1 && 'sm:flex-1')}
-                >
-                  {pending ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin" aria-hidden />
-                      <span>{t('creating')}</span>
-                    </>
-                  ) : step === 3 ? (
-                    t('createOrganization')
-                  ) : (
-                    t('continue')
-                  )}
-                </Button>
-
+              <div
+                className={cn(
+                  'flex flex-col-reverse gap-3 border-t border-[#CBD5E1] pt-6',
+                  step > 1
+                    ? 'sm:flex-row sm:items-center sm:justify-between'
+                    : 'sm:flex-col'
+                )}
+              >
                 {step > 1 ? (
                   <Button
                     type="button"
                     variant="outline"
                     disabled={pending || checkoutPending}
-                    className={cn(authOutlineButtonClassName, 'sm:flex-1')}
+                    className={cn(authOutlineButtonClassName, 'sm:w-auto sm:min-w-[7.5rem]')}
                     onClick={() => {
                       setError(null)
                       setStep((prev) => (prev > 1 ? ((prev - 1) as OrgWizardStep) : prev))
@@ -619,6 +649,28 @@ export function OrganizationRegistrationForm({
                     {t('back')}
                   </Button>
                 ) : null}
+
+                <Button
+                  type="submit"
+                  disabled={pending || checkoutPending}
+                  aria-busy={pending || checkoutPending}
+                  className={cn(
+                    authPrimaryButtonClassName,
+                    step > 1 && 'sm:w-auto sm:min-w-[14rem]'
+                  )}
+                >
+                  {pending ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                      <span>{t('creating')}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>{step === 3 ? t('createOrganization') : t('continue')}</span>
+                      <ArrowRight className="size-4" aria-hidden />
+                    </>
+                  )}
+                </Button>
               </div>
             )}
           </Field>
@@ -640,6 +692,6 @@ export function OrganizationRegistrationForm({
           void handleCheckoutConfirm()
         }}
       />
-    </AuthLayout>
+    </OrganizationOnboardingLayout>
   )
 }

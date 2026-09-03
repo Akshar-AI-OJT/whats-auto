@@ -134,8 +134,14 @@ test.group('FakeObjectStorage', () => {
     const prefix = await storage.getObjectPrefix({ key, maxBytes: 2 })
     assert.deepEqual(Array.from(prefix ?? []), [0xff, 0xd8])
 
+    const full = await storage.getObject(key)
+    assert.deepEqual(Array.from(full ?? []), [0xff, 0xd8, 0xff, 0x00])
+    assert.isTrue(await storage.objectExists(key))
+
     await storage.deleteObject(key)
     assert.isNull(await storage.headObject(key))
+    assert.isNull(await storage.getObject(key))
+    assert.isFalse(await storage.objectExists(key))
     assert.deepEqual(storage.deletedKeys, [key])
   })
 })

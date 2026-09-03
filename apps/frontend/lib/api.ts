@@ -272,7 +272,7 @@ export type CreateOrganizationBody = {
   organizationType: OrganizationType
   /** Legacy free-text or structured address object. */
   address: string | OrganizationAddress
-  pan?: string
+  pan: string
   gstin?: string
   country: string
   timezone: string
@@ -1537,6 +1537,7 @@ export type SuperAdminInvoiceSummary = {
   cancelledAmount: number
   thisMonthCount: number
   thisMonthAmount: number
+  currency?: string
 }
 
 export type ListSuperAdminInvoicesParams = {
@@ -1992,6 +1993,11 @@ export const api = {
         }
       )
     },
+
+    getImport: (importId: string) =>
+      protectedRequest<{ data?: ContactImportResult } & ContactImportResult>(
+        `/api/v1/contacts/import/${importId}`
+      ),
   },
 
   tags: {

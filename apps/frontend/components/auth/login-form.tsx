@@ -7,7 +7,7 @@ import { Loader2, Lock, Mail } from 'lucide-react'
 import { FcGoogle } from 'react-icons/fc'
 import { cn } from '@/lib/utils'
 import type { ApiError } from '@/lib/api'
-import { authClient, formatBetterAuthError } from '@/lib/auth-client'
+import { authClient, flushAuthCookies, formatBetterAuthError } from '@/lib/auth-client'
 import { buildLocalizedAppUrl } from '@/lib/app-origin'
 import { getValidAccessToken } from '@/lib/access-token'
 import { Button } from '@/components/ui/button'
@@ -64,7 +64,10 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
     !isAccountNotFound &&
     (oauthErrorParam === 'oauth_failed' ||
       oauthErrorParam === 'state_mismatch' ||
-      oauthErrorParam === 'state_security_mismatch')
+      oauthErrorParam === 'state_security_mismatch' ||
+      oauthErrorParam === 'account_not_linked' ||
+      oauthErrorParam === 'unable_to_create_user' ||
+      oauthErrorParam === 'unable_to_create_session')
   const formErrorId = useId()
   const emailId = useId()
   const passwordId = useId()
@@ -97,6 +100,12 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
       /* ignore storage errors */
     }
   }, [])
+
+  // Failed OAuth / half-dead sessions leave sticky cookies that block the next attempt.
+  useEffect(() => {
+    if (!oauthErrorParam) return
+    void flushAuthCookies()
+  }, [oauthErrorParam])
 
   function validate(): FieldErrors {
     const next: FieldErrors = {}
@@ -132,9 +141,10 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
     setPending('google')
 
     try {
+      await flushAuthCookies()
       const redirectPath = callbackPath ?? '/dashboard'
       const callbackURL = buildLocalizedAppUrl(locale, redirectPath)
-      const errorCallbackURL = buildLocalizedAppUrl(locale, '/login?error=account_not_found')
+      const errorCallbackURL = buildLocalizedAppUrl(locale, '/login')
       const { error: authErr } = await authClient.signIn.social({
         provider: 'google',
         callbackURL,
@@ -172,6 +182,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
     setPending('email')
 
     try {
+      await flushAuthCookies()
       const { error: authErr } = await authClient.signIn.email({
         email: trimmedEmail,
         password,

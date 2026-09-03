@@ -36,7 +36,7 @@ export type CreateOrganizationInput = {
   industry?: string
   organizationType: OrganizationType
   address: string | OrganizationAddress
-  pan?: string
+  pan: string
   gstin?: string
   country: string
   timezone: string
@@ -213,7 +213,7 @@ export class OrganizationService {
             industry: data.industry ?? null,
             organizationType: data.organizationType,
             address,
-            pan: data.pan ? data.pan.replace(/\s+/g, '').toUpperCase() : null,
+            pan: data.pan.replace(/\s+/g, '').toUpperCase(),
             gstin: data.gstin ? data.gstin.replace(/\s+/g, '').toUpperCase() : null,
             country: data.country,
             timezone: data.timezone,
@@ -381,7 +381,7 @@ export class OrganizationService {
           industry: data.industry ?? null,
           organizationType: data.organizationType,
           address,
-          pan: data.pan ? data.pan.replace(/\s+/g, '').toUpperCase() : null,
+          pan: data.pan.replace(/\s+/g, '').toUpperCase(),
           gstin: data.gstin ? data.gstin.replace(/\s+/g, '').toUpperCase() : null,
           country: data.country,
           timezone: data.timezone,
@@ -547,8 +547,12 @@ export class OrganizationService {
     if (patch.address !== undefined) {
       updates.address = normalizeOrganizationAddress(patch.address)
     }
-    if (patch.pan !== undefined) updates.pan = patch.pan.replace(/\s+/g, '').toUpperCase()
-    if (patch.gstin !== undefined) updates.gstin = patch.gstin.replace(/\s+/g, '').toUpperCase()
+    if (patch.pan !== undefined) {
+      updates.pan = patch.pan.replace(/\s+/g, '').toUpperCase()
+    }
+    if (patch.gstin !== undefined) {
+      updates.gstin = patch.gstin.replace(/\s+/g, '').toUpperCase()
+    }
     if (patch.country !== undefined) updates.country = patch.country
     if (patch.timezone !== undefined) updates.timezone = patch.timezone
     if (patch.currency !== undefined) updates.currency = patch.currency

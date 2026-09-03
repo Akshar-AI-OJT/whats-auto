@@ -1,4 +1,4 @@
-import type { Campaign, PaginationMeta } from '@/lib/api'
+import type { Campaign, PaginationMeta, WhatsappMessageTemplate } from '@/lib/api'
 import { formatCampaignScheduledAt } from '@/lib/org-datetime'
 
 export type CampaignViewMode = 'cards' | 'list'
@@ -6,15 +6,16 @@ export type CampaignViewMode = 'cards' | 'list'
 /** Matches `replaceCampaignRecipientsValidator` maxLength on the backend. */
 export const CAMPAIGN_RECIPIENT_MAX = 5000
 
-export const CAMPAIGN_STATUSES = [
-  'draft',
-  'scheduled',
-  'sending',
-  'sent',
-  'failed',
-] as const
+export const CAMPAIGN_STATUSES = ['draft', 'scheduled', 'sending', 'sent', 'failed'] as const
 
 export type CampaignStatusKey = (typeof CAMPAIGN_STATUSES)[number]
+
+export const campaignQueryKeys = {
+  all: ['campaigns'] as const,
+  list: (orgId: string | null | undefined, params: Record<string, unknown>) =>
+    [...campaignQueryKeys.all, 'list', orgId ?? 'none', params] as const,
+  detail: (id: string) => [...campaignQueryKeys.all, 'detail', id] as const,
+}
 
 export function unwrapCampaignList(data: unknown): {
   items: Campaign[]
@@ -49,6 +50,22 @@ export function unwrapCampaign(data: unknown): Campaign | null {
   }
   const wrapped = data as { data?: Campaign }
   return wrapped.data ?? null
+}
+
+export function unwrapTemplateItems(data: unknown): WhatsappMessageTemplate[] {
+  if (!data) return []
+  if (Array.isArray(data)) return data as WhatsappMessageTemplate[]
+
+  const root = data as {
+    data?: WhatsappMessageTemplate[] | { data?: WhatsappMessageTemplate[] }
+  }
+
+  if (Array.isArray(root.data)) return root.data
+  if (root.data && typeof root.data === 'object' && Array.isArray(root.data.data)) {
+    return root.data.data
+  }
+
+  return []
 }
 
 export function ratePercent(part: number, total: number): number {

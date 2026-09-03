@@ -9,16 +9,12 @@ import {
   Building2,
   Check,
   Globe,
-  Headset,
   Loader2,
   Mail,
-  MapPin,
-  Pencil,
   Phone,
   Upload,
 } from 'lucide-react'
-import { Link, useRouter } from '@/i18n/navigation'
-import { AppLogo } from '@/components/branding/AppLogo'
+import { useRouter } from '@/i18n/navigation'
 import { api, type ApiError } from '@/lib/api'
 import { queryKeys } from '@/lib/query-keys'
 import {
@@ -32,29 +28,48 @@ import {
   type OrganizationTypeOption,
 } from '@/components/onboarding/organization-wizard-types'
 import { RequiredAsterisk } from '@/components/onboarding/required-asterisk'
+import { OnboardingSelect } from '@/components/onboarding/OnboardingSelect'
+import {
+  OrganizationProfileFormCard,
+  OrganizationProfileHeader,
+  OrganizationProfileLayout,
+} from '@/components/onboarding/OrganizationProfileLayout'
+import { OrganizationProfileSidebar } from '@/components/onboarding/OrganizationProfileSidebar'
+import { OrganizationProfileStepHeader } from '@/components/onboarding/OrganizationProfileStepHeader'
+import { OrganizationProfileFormFooter } from '@/components/onboarding/OrganizationProfileFormFooter'
+import {
+  OrganizationProfileReviewCard,
+  OrganizationProfileReviewGrid,
+  OrganizationProfileReviewItem,
+} from '@/components/onboarding/OrganizationProfileReviewCard'
 import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import {
-  authFloatingCardClassName,
-  authInputClassName,
-  authInputWithIconClassName,
   authOutlineButtonClassName,
   authPrimaryButtonClassName,
 } from '@/components/auth/auth-field-styles'
+import {
+  onboardingInputClassName,
+  onboardingInputWithIconClassName,
+  onboardingTextareaClassName,
+} from '@/components/onboarding/onboarding-field-styles'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import {
   clearPendingOrganizationPreferences,
+  clearPendingOnboardingOrganizationId,
   isValidEmail,
+  isValidGstin,
+  isValidPan,
   isValidPhone,
   isValidWebsiteUrl,
   readPendingOrganizationPreferences,
+  readPendingOnboardingOrganizationId,
 } from '@/lib/onboarding'
 import {
   buildOrganizationProfileUpdateBody,
   calculateOrganizationProfileCompletion,
-  formatOrganizationAddressLines,
   organizationToProfileFormValues,
   type OrganizationProfileFormValues,
 } from '@/lib/organization-profile'
@@ -74,11 +89,7 @@ type ProfileStep = 1 | 2 | 3 | 4
 type FieldErrors = Partial<Record<keyof OrganizationProfileFormValues | 'logo' | 'confirm', string>>
 
 function selectClassName(invalid?: boolean) {
-  return cn(
-    authInputClassName,
-    'h-11 w-full cursor-pointer appearance-none rounded-xl px-3.5 text-sm text-ink outline-none',
-    invalid && 'border-negative'
-  )
+  return cn(invalid && 'border-negative')
 }
 
 function buildInitialProfileValues(
@@ -116,7 +127,14 @@ export function OrganizationProfileCompletionPage() {
     accessContext,
   } = useOrganizations()
 
-  const org = activeOrganization ?? organizations[0] ?? null
+  const pendingOnboardingOrgId = readPendingOnboardingOrganizationId()
+  const org =
+    (pendingOnboardingOrgId
+      ? organizations.find((item) => item.id === pendingOnboardingOrgId)
+      : null) ??
+    activeOrganization ??
+    organizations[0] ??
+    null
   const orgId = org?.id ?? null
 
   useEffect(() => {
@@ -217,6 +235,14 @@ export function OrganizationProfileCompletionPage() {
 
     if (current === 2) {
       if (!values.businessSize.trim()) next.businessSize = t('errors.businessSizeRequired')
+      if (!values.pan.trim()) {
+        next.pan = t('errors.panRequired')
+      } else if (!isValidPan(values.pan)) {
+        next.pan = t('errors.panInvalid')
+      }
+      if (values.gstin.trim() && !isValidGstin(values.gstin)) {
+        next.gstin = t('errors.gstinInvalid')
+      }
       if (values.description.length > DESCRIPTION_MAX) {
         next.description = t('errors.descriptionTooLong')
       }
@@ -336,6 +362,7 @@ export function OrganizationProfileCompletionPage() {
     const ok = await persistProfile()
     if (ok) {
       clearPendingOrganizationPreferences()
+      clearPendingOnboardingOrganizationId()
       setSuccess(true)
     }
   }
@@ -382,7 +409,7 @@ export function OrganizationProfileCompletionPage() {
   if (success) {
     return (
       <div className="flex min-h-svh flex-col bg-canvas">
-        <ProfileTopBar />
+        <OrganizationProfileHeader />
         <div className="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center px-6 py-16 text-center">
           <span
             className={cn(
@@ -423,210 +450,124 @@ export function OrganizationProfileCompletionPage() {
   }
 
   return (
-    <div className="light-locked auth-palette min-h-svh bg-[#F8FAFC]">
-      <ProfileTopBar />
+    <OrganizationProfileLayout
+      sidebar={
+        <OrganizationProfileSidebar
+          currentStep={step}
+          completionPercent={completion?.percent ?? null}
+        />
+      }
+    >
+      <OrganizationProfileFormCard>
+        <OrganizationProfileStepHeader
+          title={steps[step - 1]?.title ?? ''}
+          description={steps[step - 1]?.description ?? ''}
+          stepBadge={t('stepBadge', { step, total: 4 })}
+        />
 
-      <div className="mx-auto grid w-full max-w-6xl gap-5 px-4 py-6 sm:gap-6 sm:px-6 lg:grid-cols-[minmax(15.5rem,17.5rem)_minmax(0,1fr)] lg:items-start lg:gap-7 lg:py-8">
-        <aside className={cn(authFloatingCardClassName, 'p-5 sm:p-6')}>
-          <h1 className="font-display text-[1.35rem] leading-7 tracking-tight text-ink sm:text-[1.5rem] sm:leading-8">
-            {t('sidebar.title')}
-          </h1>
-          <p className="mt-2 text-sm leading-6 text-pretty text-body">{t('sidebar.subtitle')}</p>
-
-          <ol className="mt-7 flex flex-col gap-5">
-            {steps.map((item) => {
-              const done = step > item.id
-              const active = step === item.id
-              return (
-                <li key={item.id} className="flex gap-3">
-                  <span
-                    className={cn(
-                      'mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold transition-colors duration-200',
-                      done && 'bg-primary text-on-primary',
-                      active && !done && 'bg-primary text-on-primary ring-4 ring-primary/20',
-                      !done && !active && 'border border-[#E2E8F0] bg-canvas text-mute'
-                    )}
-                    aria-current={active ? 'step' : undefined}
-                  >
-                    {done ? <Check className="size-3.5 stroke-[2.5]" aria-hidden /> : item.id}
-                  </span>
-                  <span className="min-w-0 pt-0.5">
-                    <span
-                      className={cn(
-                        'block text-sm font-semibold leading-5',
-                        active || done ? 'text-ink' : 'text-mute'
-                      )}
-                    >
-                      {item.title}
-                    </span>
-                    <span className="mt-0.5 block text-xs leading-5 text-mute">
-                      {item.description}
-                    </span>
-                  </span>
-                </li>
-              )
-            })}
-          </ol>
-
-          {completion ? (
-            <div className="mt-8 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-3.5 py-3">
-              <div className="flex items-center justify-between gap-2 text-xs font-semibold text-ink">
-                <span>{t('sidebar.completionLabel')}</span>
-                <span className="tabular-nums text-positive-deep">{completion.percent}%</span>
-              </div>
-              <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-[#E2E8F0]">
-                <div
-                  className="h-full rounded-full bg-gradient-to-r from-primary to-primary-active transition-[width] duration-300"
-                  style={{ width: `${completion.percent}%` }}
-                />
-              </div>
-            </div>
-          ) : null}
-        </aside>
-
-        <section className={cn(authFloatingCardClassName, 'p-5 sm:p-7 lg:p-8')}>
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0 text-left">
-              <h2 className="font-display text-[1.5rem] leading-7 tracking-tight text-ink sm:text-[1.75rem] sm:leading-8">
-                {steps[step - 1]?.title}
-              </h2>
-              <p className="mt-1.5 text-sm leading-6 text-pretty text-body">
-                {steps[step - 1]?.description}
-              </p>
-            </div>
-            <span className="shrink-0 pt-1 text-xs font-semibold tracking-wide text-positive-deep">
-              {t('stepBadge', { step, total: 4 })}
-            </span>
-          </div>
-
-          {formError ? (
-            <div
-              role="alert"
-              id={formErrorId}
-              className="mt-5 rounded-xl border border-negative/25 bg-negative/5 px-4 py-3 text-left text-sm leading-5 text-negative"
-            >
-              {formError}
-            </div>
-          ) : null}
-
-          <div className="mt-6">
-            {step === 1 ? (
-              <StepOrganizationDetails
-                values={values}
-                errors={fieldErrors}
-                logoPreviewUrl={logoPreviewUrl}
-                logoUploading={logoUploading}
-                fileInputRef={fileInputRef}
-                onChange={patchValues}
-                onPickLogo={() => fileInputRef.current?.click()}
-                onLogoSelected={(file) => void handleLogoFile(file)}
-                t={t}
-                tOrg={tOrg}
-              />
-            ) : null}
-
-            {step === 2 ? (
-              <StepBusinessInformation
-                values={values}
-                errors={fieldErrors}
-                onChange={patchValues}
-                t={t}
-                tOrg={tOrg}
-              />
-            ) : null}
-
-            {step === 3 ? (
-              <StepAddress values={values} errors={fieldErrors} onChange={patchValues} t={t} />
-            ) : null}
-
-            {step === 4 ? (
-              <StepReview
-                values={values}
-                logoPreviewUrl={logoPreviewUrl}
-                confirmed={confirmed}
-                confirmId={confirmId}
-                confirmError={fieldErrors.confirm}
-                onConfirmChange={setConfirmed}
-                onEdit={setStep}
-                t={t}
-                tOrg={tOrg}
-              />
-            ) : null}
-          </div>
-
-          <div className="mt-8 flex flex-col-reverse gap-3 border-t border-[#E2E8F0] pt-5 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-            <Button
-              type="button"
-              variant="outline"
-              className={cn(authOutlineButtonClassName, 'h-12 w-full gap-2 sm:w-auto sm:min-w-[7.5rem]')}
-              onClick={handleBack}
-              disabled={saving || logoUploading}
-            >
-              {step === 1 ? (
-                t('actions.cancel')
-              ) : (
-                <>
-                  <ArrowLeft className="size-4" aria-hidden />
-                  {t('actions.back')}
-                </>
-              )}
-            </Button>
-
-            <Button
-              type="button"
-              className={cn(authPrimaryButtonClassName, 'h-12 w-full gap-2 sm:w-auto sm:min-w-[12rem]')}
-              onClick={() => void handleContinue()}
-              disabled={
-                saving ||
-                logoUploading ||
-                (step === 4 && (!confirmed || !completion?.requiredComplete))
-              }
-            >
-              {saving ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
-                  {t('actions.saving')}
-                </>
-              ) : step === 4 ? (
-                <>
-                  <Check className="size-4" aria-hidden />
-                  {t('actions.completeSetup')}
-                </>
-              ) : (
-                <>
-                  {t('actions.continue')}
-                  <ArrowRight className="size-4" aria-hidden />
-                </>
-              )}
-            </Button>
-          </div>
-        </section>
-      </div>
-    </div>
-  )
-}
-
-function ProfileTopBar() {
-  const t = useTranslations('onboarding.organizationProfile')
-  return (
-    <header className="border-b border-[#E2E8F0] bg-canvas">
-      <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
-        <AppLogo href="/" size="lg" priority />
-        <div className="flex items-center gap-2.5 sm:gap-3">
-          <span className="hidden text-sm text-mute sm:inline">{t('help.needHelp')}</span>
-          <Link
-            href="/contact"
-            className={cn(
-              authOutlineButtonClassName,
-              'inline-flex h-9 w-auto items-center gap-2 px-3 text-sm font-semibold text-ink'
-            )}
+        {formError ? (
+          <div
+            role="alert"
+            id={formErrorId}
+            className="mt-5 rounded-xl border border-negative/25 bg-negative/5 px-4 py-3 text-left text-sm leading-5 text-negative"
           >
-            <Headset className="size-4" aria-hidden />
-            {t('help.contactSupport')}
-          </Link>
+            {formError}
+          </div>
+        ) : null}
+
+        <div className="mt-6">
+          {step === 1 ? (
+            <StepOrganizationDetails
+              values={values}
+              errors={fieldErrors}
+              logoPreviewUrl={logoPreviewUrl}
+              logoUploading={logoUploading}
+              fileInputRef={fileInputRef}
+              onChange={patchValues}
+              onPickLogo={() => fileInputRef.current?.click()}
+              onLogoSelected={(file) => void handleLogoFile(file)}
+              t={t}
+              tOrg={tOrg}
+            />
+          ) : null}
+
+          {step === 2 ? (
+            <StepBusinessInformation
+              values={values}
+              errors={fieldErrors}
+              onChange={patchValues}
+              t={t}
+              tOrg={tOrg}
+            />
+          ) : null}
+
+          {step === 3 ? (
+            <StepAddress values={values} errors={fieldErrors} onChange={patchValues} t={t} />
+          ) : null}
+
+          {step === 4 ? (
+            <StepReview
+              values={values}
+              logoPreviewUrl={logoPreviewUrl}
+              confirmed={confirmed}
+              confirmId={confirmId}
+              confirmError={fieldErrors.confirm}
+              onConfirmChange={setConfirmed}
+              onEdit={setStep}
+              t={t}
+              tOrg={tOrg}
+            />
+          ) : null}
         </div>
-      </div>
-    </header>
+
+        <OrganizationProfileFormFooter>
+          <Button
+            type="button"
+            variant="outline"
+            className={cn(authOutlineButtonClassName, 'h-12 w-full gap-2 sm:w-auto sm:min-w-[7.5rem]')}
+            onClick={handleBack}
+            disabled={saving || logoUploading}
+          >
+            {step === 1 ? (
+              t('actions.cancel')
+            ) : (
+              <>
+                <ArrowLeft className="size-4" aria-hidden />
+                {t('actions.back')}
+              </>
+            )}
+          </Button>
+
+          <Button
+            type="button"
+            className={cn(authPrimaryButtonClassName, 'h-12 w-full gap-2 sm:w-auto sm:min-w-[12rem]')}
+            onClick={() => void handleContinue()}
+            disabled={
+              saving ||
+              logoUploading ||
+              (step === 4 && (!confirmed || !completion?.requiredComplete))
+            }
+          >
+            {saving ? (
+              <>
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+                {t('actions.saving')}
+              </>
+            ) : step === 4 ? (
+              <>
+                <Check className="size-4" aria-hidden />
+                {t('actions.completeSetup')}
+              </>
+            ) : (
+              <>
+                {t('actions.continue')}
+                <ArrowRight className="size-4" aria-hidden />
+              </>
+            )}
+          </Button>
+        </OrganizationProfileFormFooter>
+      </OrganizationProfileFormCard>
+    </OrganizationProfileLayout>
   )
 }
 
@@ -673,7 +614,7 @@ function StepOrganizationDetails({
               value={values.name}
               autoComplete="organization"
               className={cn(
-                authInputWithIconClassName,
+                onboardingInputWithIconClassName,
                 errors.name && 'border-negative'
               )}
               onChange={(e) => onChange({ name: e.target.value })}
@@ -699,7 +640,7 @@ function StepOrganizationDetails({
               value={values.email}
               readOnly
               className={cn(
-                authInputWithIconClassName,
+                onboardingInputWithIconClassName,
                 'cursor-default bg-primary-pale/50 text-body',
                 errors.email && 'border-negative'
               )}
@@ -725,7 +666,7 @@ function StepOrganizationDetails({
               value={values.phone}
               placeholder={tOrg('phonePlaceholder')}
               className={cn(
-                authInputWithIconClassName,
+                onboardingInputWithIconClassName,
                 errors.phone && 'border-negative'
               )}
               onChange={(e) => onChange({ phone: e.target.value })}
@@ -753,7 +694,7 @@ function StepOrganizationDetails({
               type="tel"
               value={values.alternatePhone}
               className={cn(
-                authInputWithIconClassName,
+                onboardingInputWithIconClassName,
                 errors.alternatePhone && 'border-negative'
               )}
               onChange={(e) => onChange({ alternatePhone: e.target.value })}
@@ -767,89 +708,94 @@ function StepOrganizationDetails({
         </Field>
       </div>
 
-      <Field data-invalid={errors.website ? true : undefined} className="gap-2">
-        <FieldLabel className="text-sm font-medium leading-5 text-ink">
-          {t('fields.website')} <span className="font-normal text-mute">({t('optional')})</span>
-        </FieldLabel>
-        <div className="relative">
-          <Globe
-            className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-mute"
-            aria-hidden
-          />
-          <Input
-            type="url"
-            value={values.website}
-            placeholder={tOrg('websitePlaceholder')}
-            className={cn(
-              authInputWithIconClassName,
-              errors.website && 'border-negative'
-            )}
-            onChange={(e) => onChange({ website: e.target.value })}
-          />
-        </div>
-        {errors.website ? (
-          <FieldError className="text-xs leading-4 text-negative">{errors.website}</FieldError>
-        ) : null}
-      </Field>
+      <div className="grid gap-5 sm:grid-cols-2">
+        <Field data-invalid={errors.website ? true : undefined} className="gap-2">
+          <FieldLabel className="text-sm font-medium leading-5 text-ink">
+            {t('fields.website')} <span className="font-normal text-mute">({t('optional')})</span>
+          </FieldLabel>
+          <div className="relative">
+            <Globe
+              className="pointer-events-none absolute top-1/2 left-3.5 size-4 -translate-y-1/2 text-mute"
+              aria-hidden
+            />
+            <Input
+              type="url"
+              value={values.website}
+              placeholder={tOrg('websitePlaceholder')}
+              className={cn(
+                onboardingInputWithIconClassName,
+                errors.website && 'border-negative'
+              )}
+              onChange={(e) => onChange({ website: e.target.value })}
+            />
+          </div>
+          {errors.website ? (
+            <FieldError className="text-xs leading-4 text-negative">{errors.website}</FieldError>
+          ) : null}
+        </Field>
 
-      <Field data-invalid={errors.industry ? true : undefined} className="gap-2">
-        <FieldLabel className="text-sm font-medium leading-5 text-ink">
-          {t('fields.industry')}
-          <RequiredAsterisk />
-        </FieldLabel>
-        <select
-          className={selectClassName(Boolean(errors.industry))}
-          value={values.industry}
-          onChange={(e) => onChange({ industry: e.target.value })}
-        >
-          <option value="">{t('fields.industryPlaceholder')}</option>
-          {INDUSTRY_OPTIONS.map((option) => (
-            <option key={option} value={option}>
-              {tOrg(`step2.industries.${option}`)}
-            </option>
-          ))}
-        </select>
-        {errors.industry ? (
-          <FieldError className="text-xs leading-4 text-negative">{errors.industry}</FieldError>
-        ) : null}
-      </Field>
+        <Field data-invalid={errors.industry ? true : undefined} className="gap-2">
+          <FieldLabel className="text-sm font-medium leading-5 text-ink">
+            {t('fields.industry')}
+            <RequiredAsterisk />
+          </FieldLabel>
+          <OnboardingSelect
+            className={selectClassName(Boolean(errors.industry))}
+            value={values.industry}
+            onChange={(e) => onChange({ industry: e.target.value })}
+          >
+            <option value="">{t('fields.industryPlaceholder')}</option>
+            {INDUSTRY_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {tOrg(`step2.industries.${option}`)}
+              </option>
+            ))}
+          </OnboardingSelect>
+          {errors.industry ? (
+            <FieldError className="text-xs leading-4 text-negative">{errors.industry}</FieldError>
+          ) : null}
+        </Field>
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <button
-          type="button"
-          onClick={onPickLogo}
-          disabled={logoUploading}
-          className={cn(
-            'flex min-h-[10.5rem] cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-[#CBD5E1] bg-[#F8FAFC] px-4 py-6 text-center transition-colors',
-            'hover:border-primary/40 hover:bg-primary-pale/40',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30',
-            'disabled:cursor-not-allowed disabled:opacity-60'
-          )}
-        >
-          {logoUploading ? (
-            <Loader2 className="size-6 animate-spin text-primary" aria-hidden />
-          ) : (
-            <Upload className="size-6 text-primary" aria-hidden />
-          )}
-          <span className="text-sm font-semibold text-ink">{t('fields.logoUpload')}</span>
-          <span className="text-xs leading-4 text-mute">{t('fields.logoHint')}</span>
-        </button>
-        <div className="flex min-h-[10.5rem] flex-col items-center justify-center gap-3 rounded-2xl border border-[#E2E8F0] bg-canvas px-4 py-6">
-          <span className="text-[10px] font-semibold tracking-[0.08em] text-mute uppercase">
-            {t('fields.logoPreview')}
-          </span>
-          {logoPreviewUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={logoPreviewUrl}
-              alt=""
-              className="size-16 rounded-full object-cover ring-4 ring-primary/15"
-            />
-          ) : (
-            <span className="flex size-16 items-center justify-center rounded-full bg-primary-pale text-positive-deep ring-4 ring-primary/10">
-              <Building2 className="size-7" aria-hidden />
-            </span>
-          )}
+        <div className="rounded-2xl border border-[#E2E8F0] bg-canvas p-4">
+          <p className="mb-3 text-sm font-semibold text-ink">{t('fields.logoUpload')}</p>
+          <button
+            type="button"
+            onClick={onPickLogo}
+            disabled={logoUploading}
+            aria-label={t('fields.logoUpload')}
+            className={cn(
+              'flex min-h-[9.5rem] w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-[#CBD5E1] bg-[#F8FAFC] px-4 py-5 text-center transition-colors',
+              'hover:border-primary/40 hover:bg-primary-pale/40',
+              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30',
+              'disabled:cursor-not-allowed disabled:opacity-60'
+            )}
+          >
+            {logoUploading ? (
+              <Loader2 className="size-6 animate-spin text-primary" aria-hidden />
+            ) : (
+              <Upload className="size-6 text-primary" aria-hidden />
+            )}
+            <span className="text-xs leading-4 text-mute">{t('fields.logoHint')}</span>
+          </button>
+        </div>
+        <div className="rounded-2xl border border-[#E2E8F0] bg-canvas p-4">
+          <p className="mb-3 text-sm font-semibold text-ink">{t('fields.logoPreview')}</p>
+          <div className="flex min-h-[9.5rem] flex-col items-center justify-center gap-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] px-4 py-5">
+            {logoPreviewUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={logoPreviewUrl}
+                alt=""
+                className="size-16 rounded-full object-cover ring-4 ring-primary/15"
+              />
+            ) : (
+              <span className="flex size-16 items-center justify-center rounded-full bg-primary-pale text-primary ring-4 ring-primary/10">
+                <Building2 className="size-7" aria-hidden />
+              </span>
+            )}
+          </div>
         </div>
         <input
           ref={fileInputRef}
@@ -873,7 +819,7 @@ function StepBusinessInformation({ values, errors, onChange, t, tOrg }: StepProp
             {t('fields.businessSize')}
             <RequiredAsterisk />
           </FieldLabel>
-          <select
+          <OnboardingSelect
             className={selectClassName(Boolean(errors.businessSize))}
             value={values.businessSize}
             onChange={(e) => onChange({ businessSize: e.target.value })}
@@ -884,7 +830,7 @@ function StepBusinessInformation({ values, errors, onChange, t, tOrg }: StepProp
                 {tOrg(`step2.companySizes.${option}`)}
               </option>
             ))}
-          </select>
+          </OnboardingSelect>
           {errors.businessSize ? <FieldError>{errors.businessSize}</FieldError> : null}
         </Field>
 
@@ -893,7 +839,7 @@ function StepBusinessInformation({ values, errors, onChange, t, tOrg }: StepProp
             {t('fields.businessType')}{' '}
             <span className="font-normal text-mute">({t('optional')})</span>
           </FieldLabel>
-          <select
+          <OnboardingSelect
             className={selectClassName()}
             value={values.organizationType}
             onChange={(e) => onChange({ organizationType: e.target.value })}
@@ -904,7 +850,7 @@ function StepBusinessInformation({ values, errors, onChange, t, tOrg }: StepProp
                 {tOrg(`step2.organizationTypes.${option}`)}
               </option>
             ))}
-          </select>
+          </OnboardingSelect>
         </Field>
       </div>
 
@@ -917,7 +863,7 @@ function StepBusinessInformation({ values, errors, onChange, t, tOrg }: StepProp
             value={values.description}
             maxLength={DESCRIPTION_MAX}
             rows={5}
-            className={cn(authInputClassName, 'min-h-[8rem] resize-y pb-8', errors.description && 'border-negative')}
+            className={cn(onboardingTextareaClassName, 'min-h-[9rem] pb-8', errors.description && 'border-negative')}
             onChange={(e) => onChange({ description: e.target.value })}
           />
           <span className="pointer-events-none absolute right-3 bottom-2 text-[11px] text-mute">
@@ -928,12 +874,58 @@ function StepBusinessInformation({ values, errors, onChange, t, tOrg }: StepProp
       </Field>
 
       <div className="grid gap-5 sm:grid-cols-2">
+        <Field data-invalid={errors.pan ? true : undefined} className="gap-2">
+          <FieldLabel className="text-sm font-medium text-ink">
+            {t('fields.pan')}
+            <RequiredAsterisk />
+          </FieldLabel>
+          <Input
+            value={values.pan}
+            maxLength={10}
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
+            className={onboardingInputClassName}
+            placeholder={t('fields.panPlaceholder')}
+            aria-invalid={Boolean(errors.pan)}
+            onChange={(e) =>
+              onChange({ pan: e.target.value.replace(/\s+/g, '').toUpperCase().slice(0, 10) })
+            }
+          />
+          {errors.pan ? <FieldError className="text-xs text-negative">{errors.pan}</FieldError> : null}
+        </Field>
+
+        <Field data-invalid={errors.gstin ? true : undefined} className="gap-2">
+          <FieldLabel className="text-sm font-medium text-ink">
+            {t('fields.gstin')}{' '}
+            <span className="font-normal text-mute">({t('optional')})</span>
+          </FieldLabel>
+          <Input
+            value={values.gstin}
+            maxLength={15}
+            autoCapitalize="characters"
+            autoCorrect="off"
+            spellCheck={false}
+            className={onboardingInputClassName}
+            placeholder={t('fields.gstinPlaceholder')}
+            aria-invalid={Boolean(errors.gstin)}
+            onChange={(e) =>
+              onChange({ gstin: e.target.value.replace(/\s+/g, '').toUpperCase().slice(0, 15) })
+            }
+          />
+          {errors.gstin ? (
+            <FieldError className="text-xs text-negative">{errors.gstin}</FieldError>
+          ) : null}
+        </Field>
+      </div>
+
+      <div className="grid gap-5 sm:grid-cols-2">
         <Field className="gap-2">
           <FieldLabel className="text-sm font-medium text-ink">
             {t('fields.defaultLanguage')}{' '}
             <span className="font-normal text-mute">({t('optional')})</span>
           </FieldLabel>
-          <select
+          <OnboardingSelect
             className={selectClassName()}
             value={values.defaultLanguage}
             onChange={(e) => onChange({ defaultLanguage: e.target.value })}
@@ -944,7 +936,7 @@ function StepBusinessInformation({ values, errors, onChange, t, tOrg }: StepProp
                 {t(`languages.${option}`)}
               </option>
             ))}
-          </select>
+          </OnboardingSelect>
         </Field>
 
         <Field className="gap-2">
@@ -954,7 +946,7 @@ function StepBusinessInformation({ values, errors, onChange, t, tOrg }: StepProp
           </FieldLabel>
           <Input
             value={values.businessRegistrationNumber}
-            className={authInputClassName}
+            className={onboardingInputClassName}
             onChange={(e) => onChange({ businessRegistrationNumber: e.target.value })}
           />
         </Field>
@@ -990,7 +982,7 @@ function StepAddress({
         <Input
           value={values.addressLine1}
           placeholder={t('fields.addressLine1Placeholder')}
-          className={cn(authInputClassName, errors.addressLine1 && 'border-negative')}
+          className={cn(onboardingInputClassName, errors.addressLine1 && 'border-negative')}
           onChange={(e) => onChange({ addressLine1: e.target.value })}
         />
         {errors.addressLine1 ? <FieldError>{errors.addressLine1}</FieldError> : null}
@@ -1003,7 +995,7 @@ function StepAddress({
         <Input
           value={values.addressLine2}
           placeholder={t('fields.addressLine2Placeholder')}
-          className={authInputClassName}
+          className={onboardingInputClassName}
           onChange={(e) => onChange({ addressLine2: e.target.value })}
         />
       </Field>
@@ -1016,7 +1008,7 @@ function StepAddress({
           </FieldLabel>
           <Input
             value={values.city}
-            className={cn(authInputClassName, errors.city && 'border-negative')}
+            className={cn(onboardingInputClassName, errors.city && 'border-negative')}
             onChange={(e) => onChange({ city: e.target.value })}
           />
           {errors.city ? <FieldError>{errors.city}</FieldError> : null}
@@ -1027,7 +1019,7 @@ function StepAddress({
             {t('fields.country')}
             <RequiredAsterisk />
           </FieldLabel>
-          <select
+          <OnboardingSelect
             className={selectClassName(Boolean(errors.country))}
             value={values.country}
             onChange={(e) => handleCountryChange(e.target.value)}
@@ -1038,16 +1030,18 @@ function StepAddress({
                 {option.code}
               </option>
             ))}
-          </select>
+          </OnboardingSelect>
           {errors.country ? <FieldError>{errors.country}</FieldError> : null}
         </Field>
+      </div>
 
+      <div className="grid gap-5 sm:grid-cols-2">
         <Field data-invalid={errors.state ? true : undefined} className="gap-2">
           <FieldLabel className="text-sm font-medium text-ink" id="org-profile-state-label">
             {t('fields.state')}
             <RequiredAsterisk />
           </FieldLabel>
-          <select
+          <OnboardingSelect
             id="org-profile-state"
             aria-labelledby="org-profile-state-label"
             aria-invalid={errors.state ? true : undefined}
@@ -1062,7 +1056,7 @@ function StepAddress({
                 {option}
               </option>
             ))}
-          </select>
+          </OnboardingSelect>
           {errors.state ? <FieldError>{errors.state}</FieldError> : null}
         </Field>
 
@@ -1073,7 +1067,7 @@ function StepAddress({
           </FieldLabel>
           <Input
             value={values.postalCode}
-            className={cn(authInputClassName, errors.postalCode && 'border-negative')}
+            className={cn(onboardingInputClassName, errors.postalCode && 'border-negative')}
             onChange={(e) => onChange({ postalCode: e.target.value })}
           />
           {errors.postalCode ? <FieldError>{errors.postalCode}</FieldError> : null}
@@ -1118,9 +1112,13 @@ function StepReview({
 
   return (
     <div className="flex flex-col gap-4">
-      <ReviewCard title={t('review.organization')} onEdit={() => onEdit(1)} editLabel={t('actions.edit')}>
+      <OrganizationProfileReviewCard
+        title={t('review.organization')}
+        onEdit={() => onEdit(1)}
+        editLabel={t('actions.edit')}
+      >
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-          <span className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary-pale text-positive-deep">
+          <span className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-primary-pale text-primary">
             {logoPreviewUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={logoPreviewUrl} alt="" className="size-full object-cover" />
@@ -1128,30 +1126,40 @@ function StepReview({
               <Building2 className="size-6" aria-hidden />
             )}
           </span>
-          <dl className="grid min-w-0 flex-1 gap-2 text-sm sm:grid-cols-2">
-            <ReviewItem label={t('fields.name')} value={values.name} />
-            <ReviewItem label={t('fields.email')} value={values.email} />
-            <ReviewItem label={t('fields.phone')} value={values.phone || t('review.empty')} />
-            <ReviewItem
+          <OrganizationProfileReviewGrid className="flex-1">
+            <OrganizationProfileReviewItem label={t('fields.name')} value={values.name} />
+            <OrganizationProfileReviewItem label={t('fields.email')} value={values.email} />
+            <OrganizationProfileReviewItem
+              label={t('fields.phone')}
+              value={values.phone || t('review.empty')}
+            />
+            <OrganizationProfileReviewItem
               label={t('fields.alternatePhone')}
               value={values.alternatePhone || t('review.empty')}
             />
-            <ReviewItem label={t('fields.website')} value={values.website || t('review.empty')} />
-            <ReviewItem label={t('fields.industry')} value={industryLabel} />
-          </dl>
+            <OrganizationProfileReviewItem
+              label={t('fields.website')}
+              value={values.website || t('review.empty')}
+            />
+            <OrganizationProfileReviewItem label={t('fields.industry')} value={industryLabel} />
+          </OrganizationProfileReviewGrid>
         </div>
-      </ReviewCard>
+      </OrganizationProfileReviewCard>
 
-      <ReviewCard title={t('review.business')} onEdit={() => onEdit(2)} editLabel={t('actions.edit')}>
-        <dl className="grid gap-2 text-sm sm:grid-cols-2">
-          <ReviewItem label={t('fields.businessSize')} value={sizeLabel} />
-          <ReviewItem label={t('fields.businessType')} value={typeLabel} />
-          <ReviewItem
+      <OrganizationProfileReviewCard
+        title={t('review.business')}
+        onEdit={() => onEdit(2)}
+        editLabel={t('actions.edit')}
+      >
+        <OrganizationProfileReviewGrid>
+          <OrganizationProfileReviewItem label={t('fields.businessSize')} value={sizeLabel} />
+          <OrganizationProfileReviewItem label={t('fields.businessType')} value={typeLabel} />
+          <OrganizationProfileReviewItem
             label={t('fields.description')}
             value={values.description || t('review.empty')}
             className="sm:col-span-2"
           />
-          <ReviewItem
+          <OrganizationProfileReviewItem
             label={t('fields.defaultLanguage')}
             value={
               values.defaultLanguage
@@ -1159,30 +1167,52 @@ function StepReview({
                 : t('review.empty')
             }
           />
-          <ReviewItem
+          <OrganizationProfileReviewItem label={t('fields.pan')} value={values.pan} />
+          <OrganizationProfileReviewItem
+            label={t('fields.gstin')}
+            value={values.gstin || t('review.empty')}
+          />
+          <OrganizationProfileReviewItem
             label={t('fields.registrationNumber')}
             value={values.businessRegistrationNumber || t('review.empty')}
           />
-        </dl>
-      </ReviewCard>
+        </OrganizationProfileReviewGrid>
+      </OrganizationProfileReviewCard>
 
-      <ReviewCard title={t('review.address')} onEdit={() => onEdit(3)} editLabel={t('actions.edit')}>
-        <div className="flex items-start gap-3 text-sm text-body">
-          <MapPin className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
-          <p>
-            {formatOrganizationAddressLines(
-              {
-                addressLine1: values.addressLine1,
-                addressLine2: values.addressLine2,
-                city: values.city,
-                state: values.state,
-                postalCode: values.postalCode,
-              },
-              values.country
-            ) || t('review.empty')}
-          </p>
-        </div>
-      </ReviewCard>
+      <OrganizationProfileReviewCard
+        title={t('review.address')}
+        onEdit={() => onEdit(3)}
+        editLabel={t('actions.edit')}
+      >
+        <OrganizationProfileReviewGrid>
+          <OrganizationProfileReviewItem
+            label={t('fields.addressLine1')}
+            value={values.addressLine1 || t('review.empty')}
+            className="sm:col-span-2"
+          />
+          <OrganizationProfileReviewItem
+            label={t('fields.addressLine2')}
+            value={values.addressLine2 || t('review.empty')}
+            className="sm:col-span-2"
+          />
+          <OrganizationProfileReviewItem
+            label={t('fields.city')}
+            value={values.city || t('review.empty')}
+          />
+          <OrganizationProfileReviewItem
+            label={t('fields.country')}
+            value={values.country || t('review.empty')}
+          />
+          <OrganizationProfileReviewItem
+            label={t('fields.state')}
+            value={values.state || t('review.empty')}
+          />
+          <OrganizationProfileReviewItem
+            label={t('fields.postalCode')}
+            value={values.postalCode || t('review.empty')}
+          />
+        </OrganizationProfileReviewGrid>
+      </OrganizationProfileReviewCard>
 
       <label
         htmlFor={confirmId}
@@ -1198,52 +1228,6 @@ function StepReview({
         <span>{t('review.confirmLabel')}</span>
       </label>
       {confirmError ? <p className="text-sm text-negative">{confirmError}</p> : null}
-    </div>
-  )
-}
-
-function ReviewCard({
-  title,
-  editLabel,
-  onEdit,
-  children,
-}: {
-  title: string
-  editLabel: string
-  onEdit: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <div className="rounded-2xl border border-[#E2E8F0] bg-canvas p-4 sm:p-5">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <h3 className="text-sm font-semibold text-ink">{title}</h3>
-        <button
-          type="button"
-          onClick={onEdit}
-          className="inline-flex cursor-pointer items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
-        >
-          <Pencil className="size-3.5" aria-hidden />
-          {editLabel}
-        </button>
-      </div>
-      {children}
-    </div>
-  )
-}
-
-function ReviewItem({
-  label,
-  value,
-  className,
-}: {
-  label: string
-  value: string
-  className?: string
-}) {
-  return (
-    <div className={className}>
-      <dt className="text-xs text-mute">{label}</dt>
-      <dd className="mt-0.5 break-words font-medium text-ink">{value}</dd>
     </div>
   )
 }
