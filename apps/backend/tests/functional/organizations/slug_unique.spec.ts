@@ -1,6 +1,6 @@
 import { test } from '@japa/runner'
 import db from '@adonisjs/lucid/services/db'
-import { DEMO_PASSWORD, DEMO_USERS } from '#database/demo/credentials'
+import { DEMO_ORGS, DEMO_PASSWORD, DEMO_USERS } from '#database/demo/credentials'
 import { FIXTURE_IDS } from '#database/demo/fixture_ids'
 import DemoSeeder from '#database/seeders/demo_seeder'
 import { auth } from '#lib/auth'
@@ -91,6 +91,37 @@ test.group('Organizations HTTP — slug uniqueness', (group) => {
     assert.equal(body.code, 'E_ORG_SLUG_ALREADY_EXISTS')
     assert.equal(body.field, 'slug')
     assert.isTrue(typeof body.error === 'string' && /slug/i.test(body.error))
+    assert.notInclude(JSON.stringify(body).toLowerCase(), 'insert into')
+    assert.notInclude(JSON.stringify(body).toLowerCase(), '23505')
+  })
+
+  test('POST with existing email returns 409 E_ORG_EMAIL_ALREADY_EXISTS without SQL leak', async ({
+    client,
+    assert,
+  }) => {
+    const token = await mintDemoToken(DEMO_USERS.northstarOwner)
+
+    const response = await client
+      .post('/api/v1/organizations')
+      .header('Authorization', `Bearer ${token}`)
+      .json({
+        name: 'Collision Org',
+        slug: 'collision-email-org',
+        email: DEMO_ORGS.harbor.email,
+        phone: '+919876543210',
+        organizationType: 'company',
+        address: '221B Baker Street, Mumbai',
+        pan: 'AAAAA0000A',
+        gstin: '27AAAAA0000A1Z5',
+        country: 'IN',
+        timezone: 'Asia/Kolkata',
+      })
+
+    response.assertStatus(409)
+    const body = errorBody(response)
+    assert.equal(body.code, 'E_ORG_EMAIL_ALREADY_EXISTS')
+    assert.equal(body.field, 'email')
+    assert.isTrue(typeof body.error === 'string' && /email/i.test(body.error))
     assert.notInclude(JSON.stringify(body).toLowerCase(), 'insert into')
     assert.notInclude(JSON.stringify(body).toLowerCase(), '23505')
   })

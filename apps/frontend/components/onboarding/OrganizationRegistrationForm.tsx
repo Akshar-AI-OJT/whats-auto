@@ -332,7 +332,7 @@ export function OrganizationRegistrationForm({
       if (apiError.code === 'E_ORG_SLUG_ALREADY_EXISTS' || /slug/i.test(message)) {
         setBasicsErrors((prev) => ({ ...prev, slug: message }))
         setStep(1)
-      } else if (/email/i.test(message)) {
+      } else if (apiError.code === 'E_ORG_EMAIL_ALREADY_EXISTS' || /email/i.test(message)) {
         setBasicsErrors((prev) => ({ ...prev, email: message }))
         setStep(1)
       } else if (/phone/i.test(message)) {
