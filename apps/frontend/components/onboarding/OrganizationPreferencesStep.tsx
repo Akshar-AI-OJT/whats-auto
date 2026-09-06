@@ -39,6 +39,7 @@ type OrganizationPreferencesStepProps = {
   pending: boolean
   onChange: (patch: Partial<OrganizationWizardState>) => void
   onClearError: (key: keyof OrganizationWizardPreferencesErrors) => void
+  hideIntro?: boolean
 }
 
 export function OrganizationPreferencesStep({
@@ -47,6 +48,7 @@ export function OrganizationPreferencesStep({
   pending,
   onChange,
   onClearError,
+  hideIntro = false,
 }: OrganizationPreferencesStepProps) {
   const t = useTranslations('onboarding.organization')
 
@@ -71,12 +73,14 @@ export function OrganizationPreferencesStep({
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex flex-col gap-2.5 text-left">
-        <h2 className="font-display text-[1.5rem] leading-7 tracking-tight text-ink sm:text-[1.75rem] sm:leading-8">
-          {t('step3.title')}
-        </h2>
-        <p className="text-sm leading-6 text-pretty text-body">{t('step3.subtitle')}</p>
-      </div>
+      {!hideIntro ? (
+        <div className="flex flex-col gap-2.5 text-left">
+          <h2 className="font-display text-[1.5rem] leading-7 tracking-tight text-ink sm:text-[1.75rem] sm:leading-8">
+            {t('step3.title')}
+          </h2>
+          <p className="text-sm leading-6 text-pretty text-body">{t('step3.subtitle')}</p>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 sm:gap-x-5 lg:grid-cols-3">
         <Field data-invalid={errors.defaultLanguage ? true : undefined} className={onboardingFieldClassName}>

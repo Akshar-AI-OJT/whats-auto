@@ -25,7 +25,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
   const { enabled = true } = options
   const t = useTranslations('dashboard.notifications')
   const queryClient = useQueryClient()
-  const { tenantOrganizationId, isLoading: orgsLoading } = useOrganizations()
+  const { tenantOrganizationId, isLoading: orgsLoading, hasFullProductAccess } = useOrganizations()
 
   const feedKey = useMemo(
     () => [...queryKeys.notifications.all(tenantOrganizationId), 'feed'] as const,
@@ -47,7 +47,7 @@ export function useNotifications(options: UseNotificationsOptions = {}) {
         page: parsed.meta?.currentPage ?? 1,
       }
     },
-    enabled: enabled && !orgsLoading && Boolean(tenantOrganizationId),
+    enabled: enabled && !orgsLoading && Boolean(tenantOrganizationId) && hasFullProductAccess,
     staleTime: 30_000,
   })
 

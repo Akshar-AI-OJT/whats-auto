@@ -1263,7 +1263,9 @@
         "subtitle": "You become the Owner automatically. Invite Admins, Agents, and Viewers after you land in the dashboard.",
         "setupTitle": "Organization setup",
         "setupStep": "Step {step} of {total}",
+        "createProgress": "Create your organization",
         "accountVerified": "Account verified",
+        "createOrganization": "Create organization",
         "organizationCreated": "Organization created",
         "companyDetails": "Company details",
         "preferences": "Preferences",
@@ -1275,6 +1277,10 @@
         "readySubtitle": "One organization. Clear ownership. Ready for your team."
       },
       "ownerNote": "You become the Owner automatically when you create this organization. Owner is never selected manually.",
+      "basic": {
+        "subtitle": "Add your organization name to get started. You can finish the rest from the dashboard.",
+        "finishLaterNote": "You’ll land on the dashboard next. Complete organization setup and choose a plan whenever you’re ready."
+      },
       "name": "Business / Organization Name",
       "namePlaceholder": "Acme Organization",
       "slug": "Organization Slug",
@@ -1492,26 +1498,26 @@
       "stepBadge": "Step {step} of {total}",
       "optional": "Optional",
       "sidebar": {
-        "title": "Complete Your Organization Profile",
-        "subtitle": "Finish the required details so your workspace is ready. Optional fields can be completed later.",
-        "completionLabel": "Profile completion"
+        "title": "Complete Organization Setup",
+        "subtitle": "Finish organization details, preferences, and legal information in one place.",
+        "completionLabel": "Setup completion"
       },
       "steps": {
         "organization": {
           "title": "Organization Details",
-          "description": "Basic information about your organization"
-        },
-        "business": {
-          "title": "Business Information",
-          "description": "Tell us more about your business"
+          "description": "Name, contact, industry, and logo"
         },
         "address": {
-          "title": "Address",
-          "description": "Your organization address details"
+          "title": "Address Details",
+          "description": "Country, street, city, and postal code"
         },
-        "review": {
-          "title": "Review & Confirm",
-          "description": "Review and confirm your details"
+        "preferences": {
+          "title": "Preferences",
+          "description": "Language, timezone, theme, and notifications"
+        },
+        "ownerLegal": {
+          "title": "Owner & Legal Details",
+          "description": "PAN, GSTIN, and owner information"
         }
       },
       "fields": {
@@ -1547,14 +1553,21 @@
         "statePlaceholder": "Select state / province",
         "postalCode": "Postal Code",
         "country": "Country",
-        "countryPlaceholder": "Select country"
+        "countryPlaceholder": "Select country",
+        "ownerName": "Owner Full Name",
+        "ownerEmail": "Owner Email",
+        "ownerRole": "Owner Role",
+        "ownerRoleValue": "Owner",
+        "designation": "Owner Designation",
+        "designationPlaceholder": "Founder, CEO, etc.",
+        "ownerPhone": "Owner Contact Number"
       },
       "languages": {
         "en": "English",
         "hi": "Hindi"
       },
       "actions": {
-        "cancel": "Cancel",
+        "cancel": "Back to dashboard",
         "back": "Back",
         "continue": "Continue",
         "completeSetup": "Complete Setup",
@@ -1571,9 +1584,12 @@
       },
       "success": {
         "title": "Your organization is ready",
-        "subtitle": "Required profile details are saved. You can finish optional fields anytime from the dashboard.",
+        "subtitle": "Required details are saved. You can finish optional fields anytime from the dashboard.",
+        "titlePendingPlan": "Setup complete",
+        "subtitlePendingPlan": "Choose a plan to unlock WhatsApp and the rest of your workspace.",
         "completion": "Profile completion: {percent}%",
-        "cta": "Go to Dashboard"
+        "cta": "Go to Dashboard",
+        "ctaPlan": "Continue to Plan"
       },
       "help": {
         "needHelp": "Need help?",
@@ -1583,6 +1599,7 @@
         "noOrganization": "No organization found. Create a workspace first.",
         "nameRequired": "Organization name is required (at least 2 characters).",
         "emailInvalid": "Enter a valid business email.",
+        "phoneRequired": "Business phone number is required.",
         "phoneInvalid": "Enter a valid phone number.",
         "websiteInvalid": "Enter a valid website URL (https://…).",
         "industryRequired": "Select an industry.",
@@ -1596,11 +1613,17 @@
         "stateRequired": "State / province is required.",
         "postalCodeRequired": "Postal code is required.",
         "countryRequired": "Select a country.",
+        "timezoneRequired": "Select a timezone.",
+        "languageRequired": "Select a default language.",
+        "dateFormatRequired": "Select a date format.",
+        "timeFormatRequired": "Select a time format.",
+        "themeRequired": "Select a theme preference.",
         "requiredIncomplete": "Complete all required fields before finishing setup.",
         "confirmRequired": "Please confirm that the information is correct.",
         "logoType": "Logo must be PNG, JPG, or WEBP.",
         "logoSize": "Logo must be 2MB or smaller.",
         "logoUploadFailed": "Couldn't upload the logo. Please try again.",
+        "logoPaymentRequired": "Logo upload is available after you subscribe. You can finish setup without it.",
         "saveFailed": "Couldn't save your profile. Please try again."
       }
     }
@@ -1615,6 +1638,8 @@
     "nav": {
       "ariaLabel": "Dashboard navigation",
       "comingSoon": "Coming soon",
+      "lockedSetup": "Complete organization setup to unlock",
+      "lockedSubscribe": "Choose a plan to unlock",
       "dashboard": "Dashboard",
       "team": "Team Management",
       "teamMembers": "Team Members",
@@ -2781,6 +2806,12 @@
       "eyebrow": "Channel",
       "title": "WhatsApp Connection",
       "subtitle": "Connect WhatsApp Business numbers to receive and send customer conversations from Inbox.",
+      "locked": {
+        "title": "WhatsApp is locked",
+        "description": "Complete organization setup and subscribe before connecting WhatsApp.",
+        "ctaSetup": "Complete Setup",
+        "ctaSubscribe": "Choose a plan"
+      },
       "connectCta": "Connect WhatsApp",
       "refresh": "Refresh",
       "loading": "Loading WhatsApp numbers…",
@@ -3454,6 +3485,15 @@
       "welcome": "Welcome back",
       "welcomeNamed": "Welcome back, {name}",
       "subtitle": "Here’s what’s happening across your WhatsApp automation organization today.",
+      "setupCta": {
+        "eyebrow": "Organization setup",
+        "title": "Complete your organization setup",
+        "subtitle": "Finish setup and subscribe to unlock all features.",
+        "cta": "Complete Setup",
+        "titleSubscribe": "Choose a subscription plan",
+        "subtitleSubscribe": "Your organization details are saved. Subscribe to unlock WhatsApp and the rest of the workspace.",
+        "ctaSubscribe": "Continue to Plan"
+      },
       "checklist": {
         "eyebrow": "Getting started",
         "title": "Onboarding checklist",
@@ -3473,7 +3513,10 @@
         "title": "Connect WhatsApp",
         "description": "Connect your WhatsApp Business account to start receiving customer conversations and manage them from the Inbox.",
         "cta": "Connect WhatsApp",
-        "secondary": "You can connect multiple WhatsApp Business numbers later."
+        "secondary": "You can connect multiple WhatsApp Business numbers later.",
+        "lockedDescription": "Finish organization setup and subscribe to unlock WhatsApp connection.",
+        "lockedCtaSetup": "Complete Setup",
+        "lockedCtaSubscribe": "Choose a plan"
       },
       "kpis": {
         "contacts": {
@@ -3565,7 +3608,13 @@
       "profileReminder": {
         "title": "Profile {percent}% complete",
         "subtitle": "Add the remaining optional details to finish your organization profile.",
-        "cta": "Complete Profile"
+        "cta": "Complete Profile",
+        "incompleteTitle": "Complete your organization setup",
+        "incompleteSubtitle": "Add more details, set preferences and choose a plan to unlock all features.",
+        "incompleteCta": "Complete Organization Setup",
+        "subscribeTitle": "Choose a subscription plan",
+        "subscribeSubtitle": "Your organization details are saved. Subscribe to unlock WhatsApp and the rest of the workspace.",
+        "subscribeCta": "Continue to Plan"
       }
     },
     "analytics": {

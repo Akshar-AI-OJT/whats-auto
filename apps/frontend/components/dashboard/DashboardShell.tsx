@@ -9,6 +9,7 @@ import { DashboardChromeProvider, useDashboardChrome } from './DashboardChromeCo
 import { DashboardSidebar } from './DashboardSidebar'
 import { DashboardTopbar } from './DashboardTopbar'
 import { OrganizationsProvider } from './OrganizationsProvider'
+import { ProductAccessRouteGate } from './ProductAccessRouteGate'
 import { cn } from '@/lib/utils'
 
 type DashboardShellProps = {
@@ -19,16 +20,18 @@ type DashboardShellProps = {
 function DashboardAuthGate({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const t = useTranslations('dashboard.accessDenied')
-  const { data: sessionData, isPending } = authClient.useSession()
+  const { data: sessionData, isPending, isRefetching } = authClient.useSession()
   const isSignedIn = Boolean(sessionData?.user)
 
   useEffect(() => {
-    if (!isPending && !isSignedIn) {
+    // Wait out in-flight session refetches (e.g. right after org create) before
+    // treating a missing user as signed-out.
+    if (!isPending && !isRefetching && !isSignedIn) {
       router.replace('/login')
     }
-  }, [isPending, isSignedIn, router])
+  }, [isPending, isRefetching, isSignedIn, router])
 
-  if (isPending || !isSignedIn) {
+  if (isPending || isRefetching || !isSignedIn) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-dash-bg">
         <Loader2 className="size-6 animate-spin text-mute" aria-hidden />
@@ -58,7 +61,7 @@ function DashboardShellFrame({ children, className }: DashboardShellProps) {
       >
         <DashboardTopbar />
         <main className="min-w-0 flex-1 overflow-x-clip px-4 py-5 sm:px-5 sm:py-6 md:px-6 lg:px-8 lg:py-7">
-          {children}
+          <ProductAccessRouteGate>{children}</ProductAccessRouteGate>
         </main>
       </div>
     </div>

@@ -8,14 +8,13 @@ import {
   ensureAccessTokenForOrganization,
   peekAccessTokenOrgId,
 } from '@/lib/access-token'
-import { ONBOARDING_PAYMENT_PATH } from '@/lib/onboarding'
 import {
+  hasFullProductAccess as computeFullProductAccess,
   isOrganizationRequiredProfileComplete,
-  ORG_PROFILE_PATH,
+  isSubscriptionPending,
 } from '@/lib/organization-profile'
 import { hasPermission, PERMISSIONS } from '@/lib/rbac'
 import { queryKeys } from '@/lib/query-keys'
-import { usePathname, useRouter } from '@/i18n/navigation'
 
 const EMPTY_ORGANIZATIONS: OrganizationSummary[] = []
 
@@ -64,6 +63,12 @@ type OrganizationsContextValue = {
   canPauseCampaigns: boolean
   canViewBilling: boolean
   canManageBilling: boolean
+  /** Setup required fields are filled. */
+  isSetupComplete: boolean
+  /** Organization exists but billing has not activated it yet. */
+  isSubscriptionPending: boolean
+  /** Setup complete and subscription active — product features may be used. */
+  hasFullProductAccess: boolean
   isLoading: boolean
   /**
    * True until session/orgs/access-context are ready for permission checks.
@@ -147,8 +152,6 @@ async function refreshSharedSession(): Promise<string | null> {
  */
 export function OrganizationsProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient()
-  const router = useRouter()
-  const pathname = usePathname()
   const { data: sessionData, isPending: sessionPending } = authClient.useSession()
   const sessionOrgId = readSessionOrganizationId(sessionData?.session)
   const isSignedIn = Boolean(sessionData?.user)
@@ -202,18 +205,6 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
     livePendingActiveId && livePendingActiveId !== accessQuery.data?.organizationId
       ? null
       : (accessQuery.data ?? null)
-
-  // Pending orgs must complete payment before using the dashboard.
-  useEffect(() => {
-    if (!accessContext || accessContext.status !== 'pending_setup') return
-    if (
-      pathname.startsWith('/onboarding/payment') ||
-      pathname.startsWith('/onboarding/organization')
-    ) {
-      return
-    }
-    router.replace(ONBOARDING_PAYMENT_PATH)
-  }, [accessContext, pathname, router])
 
   // Reset bootstrap latch when the session drops (logout / account switch).
   useEffect(() => {
@@ -327,17 +318,14 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
     ? (organizations.find((org) => org.id === activeId) ?? null)
     : null
 
-  // Required profile fields: owner-only gate before dashboard (invitees are never blocked).
-  useEffect(() => {
-    if (!accessContext || accessContext.status === 'pending_setup') return
-    if (!activeOrganization) return
-    if (pathname.startsWith(ORG_PROFILE_PATH)) return
-    if (!pathname.startsWith('/dashboard')) return
-    if (!accessContext.isOwner) return
-    if (isOrganizationRequiredProfileComplete(activeOrganization)) return
-
-    router.replace(ORG_PROFILE_PATH)
-  }, [accessContext, activeOrganization, pathname, router])
+  const setupComplete = activeOrganization
+    ? isOrganizationRequiredProfileComplete(activeOrganization)
+    : false
+  const subscriptionPending = isSubscriptionPending(accessContext?.status)
+  const fullProductAccess = computeFullProductAccess({
+    status: accessContext?.status,
+    organization: activeOrganization,
+  })
 
   const sessionOrgFromContext = accessContext?.organizationId ?? null
   const activeOrgId = activeOrganization?.id ?? null
@@ -429,6 +417,9 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
     canPauseCampaigns: hasPermission(permissions, PERMISSIONS.CAMPAIGNS_PAUSE),
     canViewBilling: hasPermission(permissions, PERMISSIONS.BILLING_VIEW),
     canManageBilling: hasPermission(permissions, PERMISSIONS.BILLING_MANAGE),
+    isSetupComplete: setupComplete,
+    isSubscriptionPending: subscriptionPending,
+    hasFullProductAccess: fullProductAccess,
     // Shell / list loading — avoid treating access refetch alone as full-shell load.
     isLoading: sessionPending || orgsQuery.isLoading || liveBootstrapping,
     // Permission gates must wait for access-context (and activate/switch) or hard

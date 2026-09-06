@@ -94,3 +94,8 @@ export function retentionForNamespace(namespace: StorageNamespace): StorageReten
 export function isLegacyStorageKey(storageKey: string): boolean {
   return !storageKey.startsWith('organizations/')
 }
+
+/** True for canonical org logo keys: organizations/{orgId}/profile/logo.{ext} */
+export function isOrganizationProfileLogoKey(storageKey: string): boolean {
+  return /\/profile\/logo\.[^/]+$/i.test(storageKey)
+}

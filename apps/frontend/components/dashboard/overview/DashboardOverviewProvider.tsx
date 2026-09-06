@@ -47,8 +47,8 @@ export function DashboardOverviewProvider({
   children: ReactNode
   noDetailsLabel: string
 }) {
-  const { tenantOrganizationId, isLoading: orgsLoading } = useOrganizations()
-  const enabled = Boolean(tenantOrganizationId) && !orgsLoading
+  const { tenantOrganizationId, isLoading: orgsLoading, hasFullProductAccess } = useOrganizations()
+  const enabled = Boolean(tenantOrganizationId) && !orgsLoading && hasFullProductAccess
 
   const contactsQuery = useQuery({
     queryKey: queryKeys.overview.contacts(tenantOrganizationId),

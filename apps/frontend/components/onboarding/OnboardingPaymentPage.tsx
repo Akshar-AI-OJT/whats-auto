@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { Loader2 } from 'lucide-react'
@@ -20,10 +20,8 @@ import {
   clearOnboardingCheckoutSession,
   readOnboardingCheckoutSession,
   readPendingOrganizationPlan,
-  ORG_SETUP_PATH,
   type OnboardingCheckoutSession,
 } from '@/lib/onboarding'
-import { ORG_PROFILE_PATH } from '@/lib/organization-profile'
 import { OnboardingPaymentView, type OnboardingPaymentViewState } from './OnboardingPaymentView'
 
 function viewFromSubscription(
@@ -45,30 +43,27 @@ function readCheckoutSession(): OnboardingCheckoutSession | null {
   }
 }
 
-function subscribeCheckoutSession() {
-  return () => {}
-}
-
 export function OnboardingPaymentPage() {
   const t = useTranslations('onboarding.organization')
   const router = useRouter()
-  const session = useSyncExternalStore(
-    subscribeCheckoutSession,
-    readCheckoutSession,
-    () => null
-  )
+  // null until after mount so SSR + first client paint match (sessionStorage is client-only).
+  const [session, setSession] = useState<OnboardingCheckoutSession | null | undefined>(undefined)
   const [paying, setPaying] = useState(false)
   const [payError, setPayError] = useState<string | null>(null)
 
   useEffect(() => {
+    setSession(readCheckoutSession())
+  }, [])
+
+  useEffect(() => {
     if (session === null) {
-      router.replace(ORG_SETUP_PATH)
+      router.replace('/dashboard')
     }
   }, [session, router])
 
   const subscriptionQuery = useQuery({
     queryKey: queryKeys.onboarding.billingSubscription,
-    enabled: session !== null,
+    enabled: session != null,
     queryFn: async (): Promise<BillingSubscription | null> => {
       try {
         const { data } = await api.billing.getSubscription()
@@ -101,10 +96,10 @@ export function OnboardingPaymentPage() {
 
   function handleContinueToDashboard() {
     clearOnboardingCheckoutSession()
-    router.push(ORG_PROFILE_PATH)
+    router.push('/dashboard')
   }
 
-  if (!session) {
+  if (session == null) {
     return (
       <AuthLayout branding={<AuthBranding variant="organization" />}>
         <div className="flex items-center justify-center gap-2 py-16 text-sm text-body">

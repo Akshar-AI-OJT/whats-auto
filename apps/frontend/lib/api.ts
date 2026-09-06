@@ -55,7 +55,8 @@ function redirectToOnboardingPayment() {
   if (
     pathname.includes('/onboarding/payment') ||
     pathname.includes('/onboarding/organization') ||
-    pathname.includes('/onboarding/')
+    pathname.includes('/onboarding/') ||
+    pathname.includes('/dashboard')
   ) {
     return
   }

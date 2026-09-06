@@ -25,11 +25,12 @@ export function useWhatsappConfigs(options: UseWhatsappConfigsOptions = {}) {
     tenantOrganizationId,
     canViewWhatsapp,
     isLoading: orgsLoading,
+    hasFullProductAccess,
   } = useOrganizations()
 
   const enabled =
     options.enabled ??
-    (!orgsLoading && Boolean(tenantOrganizationId) && canViewWhatsapp)
+    (!orgsLoading && Boolean(tenantOrganizationId) && canViewWhatsapp && hasFullProductAccess)
 
   return useQuery({
     queryKey: queryKeys.whatsapp.configs(tenantOrganizationId),

@@ -1,6 +1,19 @@
 import type { OrganizationAddress, OrganizationSummary } from '@/lib/api'
 
 export const ORG_PROFILE_PATH = '/onboarding/organization-profile'
+export const BILLING_PATH = '/dashboard/billing'
+
+/** Must match `CREATE_PLACEHOLDER_*` in `lib/onboarding.ts`. */
+const CREATE_PLACEHOLDER_PAN = 'SETUP0000A'
+const CREATE_PLACEHOLDER_ADDRESS = 'Address pending'
+
+export function isCreatePlaceholderPan(value: string | null | undefined): boolean {
+  return (value ?? '').trim().replace(/\s+/g, '').toUpperCase() === CREATE_PLACEHOLDER_PAN
+}
+
+export function isCreatePlaceholderAddress(value: string | null | undefined): boolean {
+  return (value ?? '').trim().toLowerCase() === CREATE_PLACEHOLDER_ADDRESS.toLowerCase()
+}
 
 export type OrganizationProfileSource = Pick<
   OrganizationSummary,
@@ -19,6 +32,8 @@ export type OrganizationProfileSource = Pick<
       | 'alternatePhone'
       | 'defaultLanguage'
       | 'businessRegistrationNumber'
+      | 'timezone'
+      | 'currency'
     >
   >
 
@@ -42,6 +57,14 @@ export type OrganizationProfileFormValues = {
   state: string
   postalCode: string
   country: string
+  timezone: string
+  currency: string
+  dateFormat: string
+  timeFormat: string
+  themePreference: string
+  notifications: string[]
+  designation: string
+  ownerPhone: string
   /** True when a ready profile media asset exists (or was uploaded this session). */
   hasLogo: boolean
 }
@@ -127,9 +150,10 @@ export function formatOrganizationAddressLines(
   country?: string | null
 ): string {
   const parsed = parseOrganizationAddress(address)
+  const line1 = isCreatePlaceholderAddress(parsed?.addressLine1) ? '' : parsed?.addressLine1
   if (!parsed && !country?.trim()) return ''
   return [
-    parsed?.addressLine1,
+    line1,
     parsed?.addressLine2,
     parsed?.city,
     parsed?.state,
@@ -149,9 +173,19 @@ function isFilled(value: unknown): boolean {
 
 export function organizationToProfileFormValues(
   org: OrganizationProfileSource,
-  extras?: { hasLogo?: boolean }
+  extras?: {
+    hasLogo?: boolean
+    dateFormat?: string
+    timeFormat?: string
+    themePreference?: string
+    notifications?: string[]
+    designation?: string
+    ownerPhone?: string
+  }
 ): OrganizationProfileFormValues {
   const address = parseOrganizationAddress(org.address)
+  const rawPan = org.pan?.trim() ?? ''
+  const rawLine1 = address?.addressLine1?.trim() ?? ''
   return {
     name: org.name?.trim() ?? '',
     email: org.email?.trim() ?? '',
@@ -164,14 +198,22 @@ export function organizationToProfileFormValues(
     description: org.description?.trim() ?? '',
     defaultLanguage: org.defaultLanguage?.trim() ?? '',
     businessRegistrationNumber: org.businessRegistrationNumber?.trim() ?? '',
-    pan: org.pan?.trim() ?? '',
+    pan: isCreatePlaceholderPan(rawPan) ? '' : rawPan,
     gstin: org.gstin?.trim() ?? '',
-    addressLine1: address?.addressLine1?.trim() ?? '',
+    addressLine1: isCreatePlaceholderAddress(rawLine1) ? '' : rawLine1,
     addressLine2: address?.addressLine2?.trim() ?? '',
     city: address?.city?.trim() ?? '',
     state: address?.state?.trim() ?? '',
     postalCode: address?.postalCode?.trim() ?? '',
     country: (org.country ?? '').trim(),
+    timezone: org.timezone?.trim() ?? '',
+    currency: org.currency?.trim() ?? '',
+    dateFormat: extras?.dateFormat?.trim() ?? 'DD/MM/YYYY',
+    timeFormat: extras?.timeFormat?.trim() ?? '12h',
+    themePreference: extras?.themePreference?.trim() ?? 'system',
+    notifications: extras?.notifications ?? ['emailUpdates', 'campaignAlerts'],
+    designation: extras?.designation?.trim() ?? '',
+    ownerPhone: extras?.ownerPhone?.trim() ?? '',
     hasLogo: extras?.hasLogo ?? false,
   }
 }
@@ -211,6 +253,18 @@ export function isOrganizationRequiredProfileComplete(
   ).requiredComplete
 }
 
+export function isSubscriptionPending(status: string | null | undefined): boolean {
+  return status === 'pending_setup'
+}
+
+export function hasFullProductAccess(input: {
+  status?: string | null
+  organization?: OrganizationProfileSource | null
+}): boolean {
+  if (!input.organization || input.status !== 'active') return false
+  return isOrganizationRequiredProfileComplete(input.organization)
+}
+
 export function buildOrganizationProfileUpdateBody(values: OrganizationProfileFormValues): {
   name: string
   phone?: string
@@ -222,9 +276,12 @@ export function buildOrganizationProfileUpdateBody(values: OrganizationProfileFo
   alternatePhone: string | null
   defaultLanguage: string | null
   businessRegistrationNumber: string | null
-  pan: string
+  pan?: string
   gstin?: string
   country: string
+  timezone?: string
+  currency?: string
+  designation?: string | null
   address: ProfileAddressPayload
 } {
   const organizationType =
@@ -243,6 +300,9 @@ export function buildOrganizationProfileUpdateBody(values: OrganizationProfileFo
       : `https://${website}`
     : ''
   const gstin = values.gstin.trim().replace(/\s+/g, '').toUpperCase()
+  const pan = values.pan.trim().replace(/\s+/g, '').toUpperCase()
+  const timezone = values.timezone.trim()
+  const currency = values.currency.trim()
 
   return {
     name: values.name.trim(),
@@ -255,9 +315,12 @@ export function buildOrganizationProfileUpdateBody(values: OrganizationProfileFo
     alternatePhone: values.alternatePhone.trim() || null,
     defaultLanguage: values.defaultLanguage.trim() || null,
     businessRegistrationNumber: values.businessRegistrationNumber.trim() || null,
-    pan: values.pan.trim().replace(/\s+/g, '').toUpperCase(),
+    ...(pan ? { pan } : {}),
     ...(gstin ? { gstin } : {}),
     country: values.country.trim(),
+    ...(timezone ? { timezone } : {}),
+    ...(currency ? { currency } : {}),
+    designation: values.designation.trim() || null,
     address: {
       addressLine1: values.addressLine1.trim(),
       addressLine2: values.addressLine2.trim() || null,
