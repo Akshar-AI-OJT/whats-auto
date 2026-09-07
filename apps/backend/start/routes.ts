@@ -919,7 +919,8 @@ router
   .put('/api/v1/media/uploads/:id/content', [MediaUploadsController, 'putContent'])
   .use([middleware.rateLimit({ max: 60, windowMs: 60 * 1000, name: 'media-upload-content' })])
 
-// media — organization logo + upload complete are required to finish the profile
+// Organization logo during onboarding — pending_setup / incomplete profile may upload/read logo.
+// Non-logo media uploads are rejected in MediaUploadsController while not active.
 router
   .group(() => {
     router.get('/organization-logo', [MediaAssetsController, 'organizationLogo'])
@@ -927,9 +928,12 @@ router
     router.post('/uploads/:id/complete', [MediaUploadsController, 'complete'])
   })
   .prefix('/api/v1/media')
-  .use([middleware.jwtAuth(), middleware.tenant({ skipProfileCompletionGate: true })])
+  .use([
+    middleware.jwtAuth(),
+    middleware.tenant({ skipActiveGate: true, skipProfileCompletionGate: true }),
+  ])
 
-// media library — blocked until the organization profile is complete
+// Media library — requires an active (paid) organization with a complete profile
 router
   .group(() => {
     router.get('/', [MediaAssetsController, 'index'])

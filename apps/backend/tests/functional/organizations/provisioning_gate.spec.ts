@@ -202,6 +202,51 @@ test.group('Org provisioning gate', (group) => {
     response.assertStatus(200)
   })
 
+  test('organization logo upload opt-out reachable for pending_setup', async ({
+    client,
+    assert,
+  }) => {
+    const owner = await db
+      .from('users')
+      .where('email', DEMO_USERS.northstarOwner)
+      .select('id')
+      .firstOrFail()
+    const organizationId = await createPendingOrgOwnedBy(owner.id as string)
+    orgIds.push(organizationId)
+
+    const token = await mintTokenForOrg(DEMO_USERS.northstarOwner, organizationId)
+
+    const logoResponse = await client
+      .post('/api/v1/media/uploads')
+      .header('Authorization', `Bearer ${token}`)
+      .json({
+        fileName: 'logo.png',
+        mimeType: 'image/png',
+        fileSize: 1024,
+        purpose: 'organization_logo',
+      })
+
+    logoResponse.assertStatus(200)
+    assert.isDefined(logoResponse.body())
+
+    const libraryResponse = await client
+      .post('/api/v1/media/uploads')
+      .header('Authorization', `Bearer ${token}`)
+      .json({
+        fileName: 'banner.png',
+        mimeType: 'image/png',
+        fileSize: 1024,
+      })
+
+    libraryResponse.assertStatus(402)
+    assert.equal(errorBody(libraryResponse).code, 'E_ORG_PAYMENT_REQUIRED')
+
+    const getLogo = await client
+      .get('/api/v1/media/organization-logo')
+      .header('Authorization', `Bearer ${token}`)
+    getLogo.assertStatus(200)
+  })
+
   test('applyPaidOrder promotes status to active', async ({ assert }) => {
     const organizationId = randomUUID()
     const planId = randomUUID()

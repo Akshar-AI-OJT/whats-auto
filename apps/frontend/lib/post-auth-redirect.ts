@@ -1,6 +1,6 @@
 import { peekAccessTokenRole } from '@/lib/access-token'
 import { api, type ApiError } from '@/lib/api'
-import { ONBOARDING_PAYMENT_PATH, ORG_SETUP_PATH } from '@/lib/onboarding'
+import { ORG_SETUP_PATH } from '@/lib/onboarding'
 
 /** Platform console home for global superadmin (no tenant org required). */
 export const SUPER_ADMIN_HOME_PATH = '/admin/dashboard'
@@ -56,7 +56,7 @@ export async function resolvePostAuthPath(options: {
       }
 
       if (state.nextStep === 'complete_payment') {
-        return ONBOARDING_PAYMENT_PATH
+        return '/dashboard'
       }
 
       if (peekAccessTokenRole() === 'superadmin' && state.organizations.length === 0) {

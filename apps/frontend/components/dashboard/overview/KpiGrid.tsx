@@ -3,11 +3,14 @@
 import { Megaphone, MessageCircle, Send, Users } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useDashboardOverview } from './DashboardOverviewProvider'
+import { useProductAccess } from '@/hooks/useProductAccess'
+import { resolveDashboardHref } from '@/lib/product-access'
 import { KPIStatCard } from './KPIStatCard'
 
 export function KpiGrid() {
   const t = useTranslations('dashboard.home.kpis')
   const { kpis, kpisLoading, orgsLoading } = useDashboardOverview()
+  const { hasFullProductAccess, isSetupComplete } = useProductAccess()
 
   const loading = kpisLoading || orgsLoading
 
@@ -54,7 +57,7 @@ export function KpiGrid() {
           suffix={'suffix' in item ? item.suffix : undefined}
           hint={t(`${item.key}.hint`)}
           icon={item.icon}
-          href={item.href}
+          href={resolveDashboardHref(item.href, { hasFullProductAccess, isSetupComplete })}
           loading={loading}
           className="h-full"
         />

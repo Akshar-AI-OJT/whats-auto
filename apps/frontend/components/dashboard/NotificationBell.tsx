@@ -7,6 +7,8 @@ import { Link } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
 import { NotificationsList } from './notifications/NotificationsList'
 import { useNotifications } from './notifications/useNotifications'
+import { useProductAccess } from '@/hooks/useProductAccess'
+import { resolveDashboardHref } from '@/lib/product-access'
 
 export type NotificationBellProps = {
   className?: string
@@ -41,6 +43,7 @@ export function NotificationBell({
     markAllAsRead,
     markAsRead,
   } = useNotifications({ enabled: true })
+  const { hasFullProductAccess, isSetupComplete } = useProductAccess()
 
   useEffect(() => {
     if (open) refresh()
@@ -172,7 +175,10 @@ export function NotificationBell({
           />
           <div className="border-t border-dash-border px-3 py-2">
             <Link
-              href="/dashboard/notifications"
+              href={resolveDashboardHref('/dashboard/notifications', {
+                hasFullProductAccess,
+                isSetupComplete,
+              })}
               onClick={() => setOpen(false)}
               className={cn(
                 'flex w-full items-center justify-center rounded-lg px-2 py-2 text-xs font-semibold text-positive-deep',

@@ -6,6 +6,8 @@ import { ChevronDown } from 'lucide-react'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
 import { usePermissions } from '@/hooks/usePermissions'
+import { useProductAccess } from '@/hooks/useProductAccess'
+import { isUnlockedNavKey } from '@/lib/product-access'
 import { PERMISSIONS } from '@/lib/rbac'
 import {
   DASHBOARD_NAV_CHILDREN,
@@ -44,6 +46,8 @@ export function DashboardSidebarNav({
   const pathname = usePathname()
   const router = useRouter()
   const { hasPermission, hasAnyPermission, isLoading: permissionsLoading } = usePermissions()
+  const { productNavLocked, unlockPath, isSetupComplete } = useProductAccess()
+  const lockedHint = isSetupComplete ? t('lockedSubscribe') : t('lockedSetup')
   const routeOpen = initialOpenState(pathname)
   const routeOpenKey = `${Boolean(routeOpen.team)}:${Boolean(routeOpen.contacts)}`
   const [openByKey, setOpenByKey] = useState(() => routeOpen)
@@ -115,6 +119,33 @@ export function DashboardSidebarNav({
         ? 'bg-primary text-on-primary shadow-[0_4px_12px_rgb(37_99_235/0.4)]'
         : 'bg-dash-surface text-mute group-hover:text-positive-deep'
     )
+
+    const itemLocked = productNavLocked && !isUnlockedNavKey(key)
+
+    function goToUnlock() {
+      router.push(unlockPath)
+      onNavigate?.()
+    }
+
+    if (itemLocked) {
+      const lockedTitle = collapsed ? `${label} — ${lockedHint}` : lockedHint
+      return (
+        <button
+          key={key}
+          type="button"
+          title={lockedTitle}
+          aria-label={collapsed ? lockedTitle : undefined}
+          aria-disabled="true"
+          className={cn(itemClass, 'cursor-not-allowed opacity-80')}
+          onClick={goToUnlock}
+        >
+          <span className={iconWrap}>
+            <Icon className="size-4" aria-hidden />
+          </span>
+          {!collapsed ? <span className="truncate">{label}</span> : null}
+        </button>
+      )
+    }
 
     if (children && href) {
       const visibleChildren = children.filter((child) => {
