@@ -29,6 +29,17 @@ export interface MetaGraphClient {
     phoneNumberId: string
     accessToken: string
   }): Promise<MetaPhoneNumberDetails>
+  getWaba(params: { wabaId: string; accessToken: string }): Promise<{
+    id: string
+    businessVerificationStatus?: string
+    ownerBusinessId?: string
+    ownerBusinessName?: string
+  }>
+  getBusinessPortfolio(params: { businessId: string; accessToken: string }): Promise<{
+    id: string
+    name?: string
+    verificationStatus?: string
+  }>
   /**
    * Low-level Cloud API text send (session/free-form within the customer care window).
    */
@@ -226,6 +237,59 @@ export class HttpMetaGraphClient implements MetaGraphClient {
         typeof json.display_phone_number === 'string' ? json.display_phone_number : undefined,
       verifiedName: typeof json.verified_name === 'string' ? json.verified_name : undefined,
       qualityRating: typeof json.quality_rating === 'string' ? json.quality_rating : undefined,
+    }
+  }
+
+  async getWaba(params: { wabaId: string; accessToken: string }): Promise<{
+    id: string
+    businessVerificationStatus?: string
+    ownerBusinessId?: string
+    ownerBusinessName?: string
+  }> {
+    const url =
+      `${this.baseUrl}/${encodeURIComponent(params.wabaId)}` +
+      `?fields=id,business_verification_status,owner_business_info`
+
+    const json = await this.requestJson<Record<string, unknown>>('getWaba', url, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${params.accessToken}` },
+    })
+
+    const owner =
+      json.owner_business_info && typeof json.owner_business_info === 'object'
+        ? (json.owner_business_info as Record<string, unknown>)
+        : null
+
+    return {
+      id: String(json.id ?? params.wabaId),
+      businessVerificationStatus:
+        typeof json.business_verification_status === 'string'
+          ? json.business_verification_status
+          : undefined,
+      ownerBusinessId: typeof owner?.id === 'string' ? owner.id : undefined,
+      ownerBusinessName: typeof owner?.name === 'string' ? owner.name : undefined,
+    }
+  }
+
+  async getBusinessPortfolio(params: { businessId: string; accessToken: string }): Promise<{
+    id: string
+    name?: string
+    verificationStatus?: string
+  }> {
+    const url =
+      `${this.baseUrl}/${encodeURIComponent(params.businessId)}` +
+      `?fields=id,name,verification_status`
+
+    const json = await this.requestJson<Record<string, unknown>>('getBusiness', url, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${params.accessToken}` },
+    })
+
+    return {
+      id: String(json.id ?? params.businessId),
+      name: typeof json.name === 'string' ? json.name : undefined,
+      verificationStatus:
+        typeof json.verification_status === 'string' ? json.verification_status : undefined,
     }
   }
 

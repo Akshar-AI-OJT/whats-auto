@@ -8,23 +8,33 @@ import type { OrgWizardStep } from './organization-wizard-types'
 
 type SidebarItemStatus = 'done' | 'active' | 'upcoming'
 
+type SidebarItemKey =
+  | 'accountVerified'
+  | 'createOrganization'
+  | 'organizationCreated'
+  | 'preferences'
+  | 'planReview'
+
 type SidebarItem = {
-  key: 'accountVerified' | 'organizationCreated' | 'companyDetails' | 'preferences' | 'planReview'
+  key: SidebarItemKey
   status: SidebarItemStatus
   number: number
 }
 
-function getSidebarItems(step: OrgWizardStep): SidebarItem[] {
+function getCreateSidebarItems(): SidebarItem[] {
   return [
     { key: 'accountVerified', status: 'done', number: 1 },
-    {
-      key: step === 2 ? 'companyDetails' : 'organizationCreated',
-      status: step <= 2 ? 'active' : 'done',
-      number: step === 2 ? 2 : 1,
-    },
+    { key: 'createOrganization', status: 'active', number: 2 },
+  ]
+}
+
+function getPlanSidebarItems(step: OrgWizardStep): SidebarItem[] {
+  return [
+    { key: 'accountVerified', status: 'done', number: 1 },
+    { key: 'organizationCreated', status: 'done', number: 2 },
     {
       key: 'preferences',
-      status: step === 3 ? 'active' : step > 3 ? 'done' : 'upcoming',
+      status: step >= 3 ? 'done' : 'upcoming',
       number: 3,
     },
     {
@@ -36,12 +46,14 @@ function getSidebarItems(step: OrgWizardStep): SidebarItem[] {
 }
 
 export function OrganizationOnboardingSidebar({
-  currentStep,
+  currentStep = 4,
+  variant = 'plan',
 }: {
-  currentStep: OrgWizardStep
+  currentStep?: OrgWizardStep
+  variant?: 'create' | 'plan'
 }) {
   const t = useTranslations('onboarding.organization.sidebar')
-  const items = getSidebarItems(currentStep)
+  const items = variant === 'create' ? getCreateSidebarItems() : getPlanSidebarItems(currentStep)
 
   return (
     <aside className="relative flex w-full shrink-0 flex-col border-b border-[#E2E8F0] bg-[#F5F7FA] md:sticky md:top-5 md:w-[34%] md:max-w-[360px] md:self-start md:border-r md:border-b-0 lg:w-[340px]">
@@ -69,7 +81,7 @@ export function OrganizationOnboardingSidebar({
               <div className="min-w-0">
                 <p className="text-sm font-semibold text-ink">{t('setupTitle')}</p>
                 <p className="text-xs leading-5 text-mute">
-                  {t('setupStep', { step: currentStep, total: 4 })}
+                  {variant === 'create' ? t('createProgress') : t('setupStep', { step: 4, total: 4 })}
                 </p>
               </div>
             </div>

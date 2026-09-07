@@ -22,6 +22,7 @@ export default class OrganizationsController {
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 409 - { "error": "Accept or decline your pending invitation before creating an organization", "code": "E_INVITE_PENDING" }
    * @responseBody 409 - { "error": "Organization slug already in use", "code": "E_ORG_SLUG_ALREADY_EXISTS", "field": "slug" }
+   * @responseBody 409 - { "error": "Organization email already in use", "code": "E_ORG_EMAIL_ALREADY_EXISTS", "field": "email" }
    */
   async store({ request, response, serialize }: HttpContext) {
     const payload = await request.validateUsing(createOrganizationValidator)

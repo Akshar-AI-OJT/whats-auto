@@ -1,12 +1,18 @@
 import { peekAccessTokenRole } from '@/lib/access-token'
 import { api, type ApiError } from '@/lib/api'
-import { ONBOARDING_PAYMENT_PATH, ORG_SETUP_PATH } from '@/lib/onboarding'
+import { ONBOARDING_PLAN_PATH, ORG_SETUP_PATH } from '@/lib/onboarding'
+import { organizationProfilePath } from '@/lib/organization-profile'
 
 /** Platform console home for global superadmin (no tenant org required). */
 export const SUPER_ADMIN_HOME_PATH = '/admin/dashboard'
 
 export type OnboardingNextStep =
-  'create_organization' | 'select_organization' | 'complete_payment' | 'ready'
+  | 'create_organization'
+  | 'select_organization'
+  | 'connect_whatsapp'
+  | 'complete_payment'
+  | 'complete_profile'
+  | 'ready'
 
 export type OnboardingState = {
   activeOrganizationId: string | null
@@ -33,7 +39,7 @@ function unwrapOnboardingState(data: unknown): OnboardingState | null {
 }
 
 /**
- * Single post-login / post-signup router.
+ * Single post-login / post-signup router ([D70]).
  * Prefer backend onboarding state; fall back to callbackURL.
  */
 export async function resolvePostAuthPath(options: {
@@ -55,8 +61,16 @@ export async function resolvePostAuthPath(options: {
         return ORG_SETUP_PATH
       }
 
+      if (state.nextStep === 'connect_whatsapp') {
+        return '/dashboard/whatsapp'
+      }
+
       if (state.nextStep === 'complete_payment') {
-        return ONBOARDING_PAYMENT_PATH
+        return ONBOARDING_PLAN_PATH
+      }
+
+      if (state.nextStep === 'complete_profile') {
+        return organizationProfilePath(state.activeOrganizationId)
       }
 
       if (peekAccessTokenRole() === 'superadmin' && state.organizations.length === 0) {

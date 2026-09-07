@@ -32,7 +32,7 @@ async function seedOrgWithPlanAndSub(params?: {
   await db.table('plans').insert({
     id: planId,
     code: `growth_${organizationId.slice(0, 8)}`,
-    name: 'Growth Test',
+    name: `Growth Test ${organizationId.slice(0, 8)}`,
     price: 2499,
     currency: 'INR',
     billingInterval: 'month',

@@ -12,6 +12,7 @@ export type ApiError = {
   code?: string
   retryAfter?: number
   chunkCount?: number
+  details?: Record<string, unknown>
 }
 
 export type AuthRequestMode = 'public' | 'protected'
@@ -48,12 +49,17 @@ function isOrgPaymentRequired(error: ApiError): boolean {
   return error.status === 402 && error.code === 'E_ORG_PAYMENT_REQUIRED'
 }
 
-/** Soft navigate to the payment step without treating it as a permission denial. */
+function isOrgWhatsappRequired(error: ApiError): boolean {
+  return error.status === 403 && error.code === 'E_ORG_WHATSAPP_REQUIRED'
+}
+
+/** Soft navigate to the plan/payment step without treating it as a permission denial. */
 function redirectToOnboardingPayment() {
   if (typeof window === 'undefined') return
   const { pathname } = window.location
   if (
     pathname.includes('/onboarding/payment') ||
+    pathname.includes('/onboarding/plan') ||
     pathname.includes('/onboarding/organization') ||
     pathname.includes('/onboarding/')
   ) {
@@ -62,7 +68,17 @@ function redirectToOnboardingPayment() {
   const parts = pathname.split('/').filter(Boolean)
   const maybeLocale = parts[0]
   const locale = maybeLocale && /^[a-z]{2}(-[A-Za-z]{2})?$/.test(maybeLocale) ? maybeLocale : 'en'
-  window.location.assign(`/${locale}/onboarding/payment`)
+  window.location.assign(`/${locale}/onboarding/plan`)
+}
+
+function redirectToWhatsappConnect() {
+  if (typeof window === 'undefined') return
+  const { pathname } = window.location
+  if (pathname.includes('/dashboard/whatsapp')) return
+  const parts = pathname.split('/').filter(Boolean)
+  const maybeLocale = parts[0]
+  const locale = maybeLocale && /^[a-z]{2}(-[A-Za-z]{2})?$/.test(maybeLocale) ? maybeLocale : 'en'
+  window.location.assign(`/${locale}/dashboard/whatsapp`)
 }
 
 async function parseError(response: Response): Promise<ApiError> {
@@ -70,12 +86,14 @@ async function parseError(response: Response): Promise<ApiError> {
   let code: string | undefined
   let retryAfter: number | undefined
   let chunkCount: number | undefined
+  let details: Record<string, unknown> | undefined
 
   try {
     const data = (await response.json()) as {
       message?: string
       error?: string | { message?: string; code?: string }
       code?: string
+      details?: Record<string, unknown>
       retryAfter?: number
       chunkCount?: number
       errors?: Array<{ message?: string; field?: string }>
@@ -102,6 +120,10 @@ async function parseError(response: Response): Promise<ApiError> {
       code = 'EMAIL_ALREADY_EXISTS'
     }
 
+    if (data.details && typeof data.details === 'object') {
+      details = data.details
+    }
+
     if (typeof data.retryAfter === 'number') {
       retryAfter = data.retryAfter
     } else {
@@ -119,7 +141,7 @@ async function parseError(response: Response): Promise<ApiError> {
     // non-JSON body — keep statusText
   }
 
-  return { message, status: response.status, code, retryAfter, chunkCount }
+  return { message, status: response.status, code, retryAfter, chunkCount, details }
 }
 
 /**
@@ -176,6 +198,10 @@ async function request<T>(
 
     if (authMode === 'protected' && isOrgPaymentRequired(error)) {
       redirectToOnboardingPayment()
+    }
+
+    if (authMode === 'protected' && isOrgWhatsappRequired(error)) {
+      redirectToWhatsappConnect()
     }
 
     throw error
@@ -240,6 +266,46 @@ export type LoginBody = {
   password: string
 }
 
+export type DemoAvailabilitySlot = {
+  id: string
+  startTime: string
+  endTime: string
+  label: string
+  available: boolean
+}
+
+export type DemoAvailability = {
+  date: string
+  timeZone: string
+  today: string
+  durationMinutes: number
+  slots: DemoAvailabilitySlot[]
+}
+
+export type CreateDemoBookingBody = {
+  name: string
+  email: string
+  slotId: string
+  timeZone: string
+  company?: string
+  phone?: string
+  companySize?: string
+  purpose?: string
+}
+
+export type DemoBooking = {
+  id: string
+  fullName: string
+  email: string
+  startsAt: string
+  endsAt: string
+  timeZone: string
+  demoTimeZone: string
+  status: string
+  meetingUrl: string | null
+  createdAt: string
+}
+
 export type ProfileUser = {
   id: string
   name: string
@@ -290,7 +356,7 @@ export type CreatedOrganization = {
   name: string
   slug: string
   role: string
-  status?: 'pending_setup' | 'active' | 'suspended' | 'false'
+  status?: 'pending_setup' | 'verified_setup' | 'active' | 'suspended' | 'false'
   sessionActivated?: boolean
   reused?: boolean
 }
@@ -317,7 +383,7 @@ export type OrganizationSummary = {
   businessRegistrationNumber?: string | null
   role: string
   createdAt: string
-  status?: 'pending_setup' | 'active' | 'suspended' | 'false'
+  status?: 'pending_setup' | 'verified_setup' | 'active' | 'suspended' | 'false'
 }
 
 export type UpdateOrganizationBody = {
@@ -407,7 +473,7 @@ export type TestOrganizationSmtpBody = {
 export type AccessContext = {
   organizationId: string
   organizationName: string
-  status?: 'pending_setup' | 'active' | 'suspended' | 'false'
+  status?: 'pending_setup' | 'verified_setup' | 'active' | 'suspended' | 'false'
   memberId: string
   role: string
   displayName: string
@@ -797,6 +863,8 @@ export type WhatsappConfigSummary = {
   phoneNumberId: string
   displayPhoneNumber?: string | null
   wabaId?: string | null
+  businessId?: string | null
+  metaVerificationStatus?: string | null
   status: 'connected' | 'disconnected' | 'error' | string
   connectedAt?: string | null
   registeredAt?: string | null
@@ -1216,8 +1284,8 @@ export type SuperAdminOrganization = {
   country: string
   timezone: string
   currency?: string | null
-  /** pending_setup | active | suspended | false (soft-deleted) */
-  status: 'pending_setup' | 'active' | 'suspended' | 'false' | string
+  /** pending_setup | verified_setup | active | suspended | false (soft-deleted) */
+  status: 'pending_setup' | 'verified_setup' | 'active' | 'suspended' | 'false' | string
   createdAt: string
   updatedAt?: string | null
   deletedAt?: string | null
@@ -1799,6 +1867,34 @@ export type TenantBillingPlan = {
   sortOrder: number
 }
 
+export const GLOBAL_SEARCH_RESULT_TYPES = [
+  'contact',
+  'conversation',
+  'campaign',
+  'template',
+  'flow',
+  'customer_group',
+  'organization',
+  'user',
+  'plan',
+  'subscription',
+  'invoice',
+] as const
+
+export type GlobalSearchResultType = (typeof GLOBAL_SEARCH_RESULT_TYPES)[number]
+
+export type GlobalSearchResult = {
+  type: GlobalSearchResultType
+  id: string
+  title: string
+  description: string | null
+}
+
+export type GlobalSearchResponse = {
+  query: string
+  results: GlobalSearchResult[]
+}
+
 export const api = {
   auth: {
     signup: (body: SignupBody) =>
@@ -1867,6 +1963,22 @@ export const api = {
       ),
   },
 
+  demo: {
+    availability: (params: { date: string; timeZone?: string }) => {
+      const qs = new URLSearchParams({ date: params.date })
+      if (params.timeZone) qs.set('timeZone', params.timeZone)
+      return publicRequest<DemoAvailability>(`/api/v1/demo/availability?${qs.toString()}`, {
+        method: 'GET',
+      })
+    },
+
+    book: (body: CreateDemoBookingBody) =>
+      publicRequest<DemoBooking>('/api/v1/demo/bookings', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+  },
+
   account: {
     profile: () =>
       protectedRequest<{ data?: ProfileUser } & ProfileUser>('/api/v1/account/profile', {
@@ -1880,6 +1992,16 @@ export const api = {
       protectedRequest<{ data?: OnboardingState } & OnboardingState>('/api/v1/onboarding/state', {
         method: 'GET',
       }),
+  },
+
+  search: {
+    query: (q: string) => {
+      const qs = new URLSearchParams({ q })
+      return protectedRequest<{ data?: GlobalSearchResponse } & GlobalSearchResponse>(
+        `/api/v1/search?${qs.toString()}`,
+        { method: 'GET' }
+      )
+    },
   },
 
   organizations: {
@@ -2788,6 +2910,16 @@ export const api = {
   },
 
   superAdmin: {
+    search: {
+      query: (q: string) => {
+        const qs = new URLSearchParams({ q })
+        return protectedRequest<{ data?: GlobalSearchResponse } & GlobalSearchResponse>(
+          `/api/v1/super-admin/search?${qs.toString()}`,
+          { method: 'GET' }
+        )
+      },
+    },
+
     organizations: {
       list: (params: { page?: number; perPage?: number } = {}) => {
         const qs = new URLSearchParams()

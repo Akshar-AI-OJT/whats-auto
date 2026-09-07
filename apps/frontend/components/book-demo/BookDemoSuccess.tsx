@@ -15,19 +15,27 @@ const NEXT_KEYS = ['email', 'meet', 'reminder', 'contact'] as const
 type BookDemoSuccessProps = {
   dateLabel: string
   timeLabel: string
+  timeZoneLabel?: string | null
+  meetingUrl?: string | null
   onBookAnother: () => void
 }
 
 export function BookDemoSuccess({
   dateLabel,
   timeLabel,
+  timeZoneLabel,
+  meetingUrl,
   onBookAnother,
 }: BookDemoSuccessProps) {
   const t = useTranslations('bookDemoPage.booking.success')
 
   const summaryItems = [
     { emoji: '📅', label: t('summary.date'), value: dateLabel },
-    { emoji: '🕑', label: t('summary.time'), value: timeLabel },
+    {
+      emoji: '🕑',
+      label: t('summary.time'),
+      value: timeZoneLabel ? `${timeLabel} (${timeZoneLabel})` : timeLabel,
+    },
     { emoji: '⌛', label: t('summary.duration'), value: t('summary.durationValue') },
     { emoji: '📍', label: t('summary.platform'), value: t('summary.platformValue') },
   ] as const
@@ -83,6 +91,20 @@ export function BookDemoSuccess({
           </div>
         ))}
       </div>
+
+      {meetingUrl ? (
+        <p className="mt-5 text-sm leading-6 text-body">
+          {t('meetLinkLabel')}{' '}
+          <a
+            href={meetingUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="font-semibold text-positive-deep underline-offset-2 hover:underline"
+          >
+            {meetingUrl}
+          </a>
+        </p>
+      ) : null}
 
       <div className="mt-10 text-left">
         <h3 className="text-center text-sm font-semibold tracking-wide text-ink uppercase">

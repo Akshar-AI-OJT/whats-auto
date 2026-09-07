@@ -20,10 +20,8 @@ import {
   clearOnboardingCheckoutSession,
   readOnboardingCheckoutSession,
   readPendingOrganizationPlan,
-  ORG_SETUP_PATH,
   type OnboardingCheckoutSession,
 } from '@/lib/onboarding'
-import { ORG_PROFILE_PATH } from '@/lib/organization-profile'
 import { OnboardingPaymentView, type OnboardingPaymentViewState } from './OnboardingPaymentView'
 
 function viewFromSubscription(
@@ -52,23 +50,20 @@ function subscribeCheckoutSession() {
 export function OnboardingPaymentPage() {
   const t = useTranslations('onboarding.organization')
   const router = useRouter()
-  const session = useSyncExternalStore(
-    subscribeCheckoutSession,
-    readCheckoutSession,
-    () => null
-  )
+  // sessionStorage is client-only; useSyncExternalStore keeps SSR snapshot stable.
+  const session = useSyncExternalStore(subscribeCheckoutSession, readCheckoutSession, () => null)
   const [paying, setPaying] = useState(false)
   const [payError, setPayError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (session === null) {
-      router.replace(ORG_SETUP_PATH)
+    if (readCheckoutSession() === null) {
+      router.replace('/dashboard')
     }
-  }, [session, router])
+  }, [router])
 
   const subscriptionQuery = useQuery({
     queryKey: queryKeys.onboarding.billingSubscription,
-    enabled: session !== null,
+    enabled: session != null,
     queryFn: async (): Promise<BillingSubscription | null> => {
       try {
         const { data } = await api.billing.getSubscription()
@@ -101,10 +96,10 @@ export function OnboardingPaymentPage() {
 
   function handleContinueToDashboard() {
     clearOnboardingCheckoutSession()
-    router.push(ORG_PROFILE_PATH)
+    router.push('/dashboard')
   }
 
-  if (!session) {
+  if (session == null) {
     return (
       <AuthLayout branding={<AuthBranding variant="organization" />}>
         <div className="flex items-center justify-center gap-2 py-16 text-sm text-body">

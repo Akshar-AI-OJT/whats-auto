@@ -409,13 +409,19 @@
       },
       "privacyAgree": "मैं <privacy>Privacy Policy</privacy> से सहमत हूँ।",
       "cta": "डेमो बुक करें",
+      "ctaSubmitting": "बुक हो रहा है…",
+      "slotsLoading": "उपलब्ध स्लॉट लोड हो रहे हैं…",
+      "noSlots": "इस तारीख के लिए कोई उपलब्ध स्लॉट नहीं है।",
+      "pickDateHint": "उपलब्ध समय स्लॉट देखने के लिए एक तारीख चुनें।",
       "meetNote": "पुष्टि के बाद Google Meet विवरण साझा किया जाएगा।",
       "errors": {
         "nameRequired": "पूरा नाम आवश्यक है।",
         "emailInvalid": "मान्य वर्क ईमेल दर्ज करें।",
         "privacyRequired": "कृपया Privacy Policy से सहमत हों।",
         "dateRequired": "कृपया एक तारीख चुनें।",
-        "slotRequired": "कृपया एक समय स्लॉट चुनें।"
+        "slotRequired": "कृपया एक समय स्लॉट चुनें।",
+        "submitFailed": "डेमो बुक नहीं हो सका। कृपया फिर से कोशिश करें।",
+        "slotUnavailable": "वह समय स्लॉट अब उपलब्ध नहीं है। कृपया दूसरा चुनें।"
       },
       "summary": {
         "title": "डेमो सारांश",
@@ -448,6 +454,7 @@
           "durationValue": "30 मिनट",
           "platformValue": "Google Meet"
         },
+        "meetLinkLabel": "Google Meet से जुड़ें:",
         "next": {
           "email": "पुष्टि ईमेल भेजा जाएगा",
           "meet": "Google Meet आमंत्रण साझा किया जाएगा",
@@ -1263,7 +1270,9 @@
         "subtitle": "आप स्वतः Owner बन जाते हैं। डैशबोर्ड में पहुँचने के बाद Admins, Agents और Viewers को आमंत्रित करें।",
         "setupTitle": "संगठन सेटअप",
         "setupStep": "चरण {step} में से {total}",
+        "createProgress": "अपना संगठन बनाएं",
         "accountVerified": "खाता सत्यापित",
+        "createOrganization": "संगठन बनाएं",
         "organizationCreated": "संगठन बनाया गया",
         "companyDetails": "कंपनी विवरण",
         "preferences": "वरीयताएँ",
@@ -1492,26 +1501,26 @@
       "stepBadge": "चरण {step} / {total}",
       "optional": "वैकल्पिक",
       "sidebar": {
-        "title": "अपना संगठन प्रोफ़ाइल पूरा करें",
-        "subtitle": "आवश्यक विवरण भरें ताकि आपका वर्कस्पेस तैयार हो। वैकल्पिक फ़ील्ड बाद में पूरे किए जा सकते हैं।",
-        "completionLabel": "प्रोफ़ाइल पूर्णता"
+        "title": "संगठन सेटअप पूरा करें",
+        "subtitle": "संगठन विवरण, वरीयताएँ और कानूनी जानकारी एक ही जगह पूरी करें।",
+        "completionLabel": "सेटअप पूर्णता"
       },
       "steps": {
         "organization": {
           "title": "संगठन विवरण",
-          "description": "आपके संगठन की बुनियादी जानकारी"
-        },
-        "business": {
-          "title": "व्यवसाय जानकारी",
-          "description": "अपने व्यवसाय के बारे में और बताएँ"
+          "description": "नाम, संपर्क, उद्योग और लोगो"
         },
         "address": {
-          "title": "पता",
-          "description": "आपके संगठन का पता"
+          "title": "पता विवरण",
+          "description": "देश, सड़क, शहर और पिन कोड"
         },
-        "review": {
-          "title": "समीक्षा और पुष्टि",
-          "description": "अपने विवरण की समीक्षा करें और पुष्टि करें"
+        "preferences": {
+          "title": "वरीयताएँ",
+          "description": "भाषा, समय क्षेत्र, थीम और सूचनाएँ"
+        },
+        "ownerLegal": {
+          "title": "स्वामी और कानूनी विवरण",
+          "description": "PAN, GSTIN और स्वामी जानकारी"
         }
       },
       "fields": {
@@ -1519,6 +1528,7 @@
         "email": "व्यवसाय ईमेल",
         "phone": "फ़ोन नंबर",
         "phoneHint": "संभव हो तो देश कोड शामिल करें।",
+        "fromRegistration": "संगठन पंजीकरण के दौरान सेट किया गया। बाद में संगठन सेटिंग्स में बदलें।",
         "alternatePhone": "वैकल्पिक फ़ोन",
         "website": "वेबसाइट",
         "industry": "उद्योग",
@@ -1547,14 +1557,21 @@
         "statePlaceholder": "राज्य / प्रदेश चुनें",
         "postalCode": "पिन / पोस्टल कोड",
         "country": "देश",
-        "countryPlaceholder": "देश चुनें"
+        "countryPlaceholder": "देश चुनें",
+        "ownerName": "स्वामी का पूरा नाम",
+        "ownerEmail": "स्वामी ईमेल",
+        "ownerRole": "स्वामी भूमिका",
+        "ownerRoleValue": "स्वामी",
+        "designation": "स्वामी पदनाम",
+        "designationPlaceholder": "संस्थापक, CEO, आदि",
+        "ownerPhone": "स्वामी संपर्क नंबर"
       },
       "languages": {
         "en": "अंग्रेज़ी",
         "hi": "हिन्दी"
       },
       "actions": {
-        "cancel": "रद्द करें",
+        "cancel": "डैशबोर्ड पर वापस जाएँ",
         "back": "वापस",
         "continue": "जारी रखें",
         "completeSetup": "सेटअप पूरा करें",
@@ -1572,8 +1589,11 @@
       "success": {
         "title": "आपका संगठन तैयार है",
         "subtitle": "आवश्यक प्रोफ़ाइल विवरण सहेजे गए हैं। वैकल्पिक फ़ील्ड बाद में डैशबोर्ड से पूरे कर सकते हैं।",
+        "titlePendingPlan": "सेटअप पूरा हुआ",
+        "subtitlePendingPlan": "WhatsApp और बाकी वर्कस्पेस अनलॉक करने के लिए प्लान चुनें।",
         "completion": "प्रोफ़ाइल पूर्णता: {percent}%",
-        "cta": "डैशबोर्ड पर जाएँ"
+        "cta": "डैशबोर्ड पर जाएँ",
+        "ctaPlan": "प्लान पर जाएँ"
       },
       "help": {
         "needHelp": "मदद चाहिए?",
@@ -1596,11 +1616,17 @@
         "stateRequired": "राज्य / प्रदेश आवश्यक है।",
         "postalCodeRequired": "पिन / पोस्टल कोड आवश्यक है।",
         "countryRequired": "देश चुनें।",
+        "timezoneRequired": "समय क्षेत्र चुनें।",
+        "languageRequired": "डिफ़ॉल्ट भाषा चुनें।",
+        "dateFormatRequired": "तारीख प्रारूप चुनें।",
+        "timeFormatRequired": "समय प्रारूप चुनें।",
+        "themeRequired": "थीम वरीयता चुनें।",
         "requiredIncomplete": "सेटअप पूरा करने से पहले सभी आवश्यक फ़ील्ड भरें।",
         "confirmRequired": "कृपया पुष्टि करें कि जानकारी सही है।",
         "logoType": "लोगो PNG, JPG या WEBP होना चाहिए।",
         "logoSize": "लोगो 2MB या उससे छोटा होना चाहिए।",
         "logoUploadFailed": "लोगो अपलोड नहीं हो सका। कृपया फिर कोशिश करें।",
+        "logoPaymentRequired": "लोगो अपलोड सब्सक्रिप्शन के बाद उपलब्ध है। आप बिना लोगो के सेटअप पूरा कर सकते हैं।",
         "saveFailed": "प्रोफ़ाइल सहेजी नहीं जा सकी। कृपया फिर कोशिश करें।"
       }
     }
@@ -1615,6 +1641,9 @@
     "nav": {
       "ariaLabel": "डैशबोर्ड नेविगेशन",
       "comingSoon": "जल्द आ रहा है",
+      "lockedSetup": "अनलॉक करने के लिए संगठन सेटअप पूरा करें",
+      "lockedSubscribe": "अनलॉक करने के लिए प्लान चुनें",
+      "lockedConnectWhatsapp": "जारी रखने के लिए WhatsApp कनेक्ट करें",
       "dashboard": "डैशबोर्ड",
       "team": "टीम प्रबंधन",
       "teamMembers": "टीम सदस्य",
@@ -2781,6 +2810,17 @@
       "eyebrow": "चैनल",
       "title": "WhatsApp कनेक्शन",
       "subtitle": "Inbox से ग्राहक बातचीत प्राप्त और भेजने के लिए WhatsApp Business नंबर कनेक्ट करें।",
+      "locked": {
+        "title": "WhatsApp उपलब्ध नहीं है",
+        "description": "यह संगठन अभी WhatsApp कनेक्ट नहीं कर सकता। सहायता के लिए सपोर्ट से संपर्क करें।",
+        "ctaSetup": "डैशबोर्ड पर जाएँ",
+        "ctaSubscribe": "प्लान चुनें"
+      },
+      "verified": {
+        "title": "WhatsApp सत्यापित — भुगतान जारी रखें",
+        "description": "आपका Meta Business Portfolio सत्यापित है। वर्कस्पेस सक्रिय करने के लिए प्लान चुनें।",
+        "cta": "प्लान पर जाएँ"
+      },
       "connectCta": "WhatsApp कनेक्ट करें",
       "refresh": "रीफ़्रेश",
       "loading": "WhatsApp नंबर लोड हो रहे हैं…",
@@ -2811,9 +2851,13 @@
         "permissionDenied": "आपको इस संगठन में WhatsApp प्रबंधित करने की अनुमति नहीं है।",
         "sessionMissing": "WhatsApp साइनअप सत्र कॉन्फ़िगर नहीं है। Meta ऐप सेटिंग्स जांचें।",
         "signupCancelled": "WhatsApp कनेक्शन रद्द कर दिया गया।",
-        "sessionInfoMissing": "Meta से WhatsApp अकाउंट विवरण नहीं मिल सका। कृपया फिर कोशिश करें।",
+        "sessionInfoMissing": "Meta से WhatsApp अकाउंट विवरण नहीं मिल सका। फ़ोन नंबर के साथ Embedded Signup पूरा करें और फिर कोशिश करें।",
         "phoneOwned": "यह WhatsApp फ़ोन नंबर पहले से किसी अन्य संगठन से जुड़ा है।",
         "notConnected": "यह WhatsApp नंबर कनेक्ट नहीं है।",
+        "phoneRequired": "WhatsApp बिज़नेस फ़ोन नंबर आवश्यक है। फ़ोन नंबर के साथ Embedded Signup पूरा करें (केवल WABA पर्याप्त नहीं है)।",
+        "metaAccountUnusable": "कोई मान्य Meta Business Portfolio / WhatsApp अकाउंट लिंक नहीं हुआ। Embedded Signup में पोर्टफोलियो बनाएँ या चुनें और फिर कोशिश करें।",
+        "metaPortfolioUnverified": "आपका Meta Business Portfolio सत्यापित नहीं है। Meta Business Verification पूरा करें, फिर फिर कोशिश करें।",
+        "metaPortfolioUnverifiedWithHelp": "आपका Meta Business Portfolio सत्यापित नहीं है। {url} पर सत्यापन पूरा करें, फिर फिर कोशिश करें।",
         "metaGraph": "Meta Graph API त्रुटि। कृपया फिर कोशिश करें।",
         "testToRequired": "टेस्ट भेजने के लिए प्राप्तकर्ता फ़ोन नंबर दर्ज करें।"
       }
@@ -3262,8 +3306,6 @@
       "searchLabel": "संगठन खोजें",
       "searchPlaceholder": "संपर्क, बातचीत, कैंपेन या टेम्पलेट खोजें…",
       "searchPlaceholderShort": "संगठन खोजें…",
-      "searchUnavailablePlaceholder": "ग्लोबल खोज के लिए बैकएंड API आवश्यक…",
-      "searchUnavailableHint": "ग्लोबल खोज अभी उपलब्ध नहीं है। संगठन खोजने से पहले बैकएंड खोज एंडपॉइंट की आवश्यकता है।",
       "searchShortcutLabel": "खोज पर जाएँ ({shortcut})",
       "notifications": "सूचनाएँ",
       "profile": "प्रोफ़ाइल",
@@ -3322,9 +3364,15 @@
       },
       "connectWhatsapp": {
         "title": "WhatsApp कनेक्ट करें",
-        "description": "ग्राहक बातचीत प्राप्त करने और Inbox से प्रबंधित करने के लिए अपना WhatsApp Business अकाउंट कनेक्ट करें।",
+        "description": "सब्सक्राइब करने से पहले Meta सत्यापन साबित करने के लिए अपना WhatsApp Business अकाउंट कनेक्ट करें।",
         "cta": "WhatsApp कनेक्ट करें",
-        "secondary": "बाद में आप कई WhatsApp Business नंबर कनेक्ट कर सकते हैं।"
+        "secondary": "आपको Meta-सत्यापित Business Portfolio और WhatsApp फ़ोन नंबर चाहिए।",
+        "verifiedTitle": "WhatsApp सत्यापित",
+        "verifiedDescription": "आपका Meta Business Portfolio सत्यापित है। वर्कस्पेस सक्रिय करने के लिए प्लान चुनें।",
+        "verifiedCta": "प्लान पर जाएँ",
+        "lockedDescription": "यह संगठन अभी WhatsApp कनेक्ट नहीं कर सकता।",
+        "lockedCtaSetup": "डैशबोर्ड पर जाएँ",
+        "lockedCtaSubscribe": "प्लान चुनें"
       },
       "kpis": {
         "contacts": {
@@ -3416,7 +3464,16 @@
       "profileReminder": {
         "title": "प्रोफ़ाइल {percent}% पूर्ण",
         "subtitle": "अपना संगठन प्रोफ़ाइल पूरा करने के लिए शेष वैकल्पिक विवरण जोड़ें।",
-        "cta": "प्रोफ़ाइल पूरा करें"
+        "cta": "प्रोफ़ाइल पूरा करें",
+        "incompleteTitle": "संगठन प्रोफ़ाइल पूरा करें",
+        "incompleteSubtitle": "पूर्ण वर्कस्पेस अनलॉक करने के लिए आवश्यक संगठन विवरण जोड़ें।",
+        "incompleteCta": "प्रोफ़ाइल पूरा करें",
+        "whatsappTitle": "जारी रखने के लिए WhatsApp कनेक्ट करें",
+        "whatsappSubtitle": "सब्सक्राइब करने से पहले Meta-सत्यापित Business Portfolio और WhatsApp नंबर लिंक करें।",
+        "whatsappCta": "WhatsApp कनेक्ट करें",
+        "subscribeTitle": "सब्सक्रिप्शन प्लान चुनें",
+        "subscribeSubtitle": "WhatsApp सत्यापित है। वर्कस्पेस सक्रिय करने के लिए सब्सक्राइब करें।",
+        "subscribeCta": "प्लान पर जाएँ"
       }
     },
     "analytics": {
@@ -4002,7 +4059,11 @@
       "openMenu": "एडमिन नेविगेशन खोलें",
       "title": "प्लेटफ़ॉर्म कंसोल",
       "subtitle": "संगठन, सब्सक्रिप्शन और प्लेटफ़ॉर्म उपयोगकर्ता प्रबंधित करें",
-      "logout": "लॉगआउट"
+      "logout": "लॉगआउट",
+      "searchLabel": "प्लेटफ़ॉर्म खोजें",
+      "searchPlaceholder": "संगठन, उपयोगकर्ता, प्लान या सब्सक्रिप्शन खोजें…",
+      "searchPlaceholderShort": "प्लेटफ़ॉर्म खोजें…",
+      "searchShortcutLabel": "खोज पर जाएँ ({shortcut})"
     },
     "checkingAccess": "एक्सेस जाँच हो रही है…",
     "home": {
@@ -5162,6 +5223,25 @@
         "emptyDescription": "permissioned actions होने पर ऑडिट इवेंट यहाँ दिखेंगे।",
         "noDetails": "कोई अतिरिक्त विवरण नहीं"
       }
+    }
+  },
+  "globalSearch": {
+    "loading": "खोज हो रही है…",
+    "noResults": "कोई परिणाम नहीं",
+    "error": "खोज नहीं हो सकी। फिर कोशिश करें।",
+    "resultsLabel": "खोज परिणाम",
+    "types": {
+      "contact": "संपर्क",
+      "conversation": "बातचीत",
+      "campaign": "कैंपेन",
+      "template": "टेम्पलेट",
+      "flow": "फ्लो",
+      "customer_group": "ग्राहक समूह",
+      "organization": "संगठन",
+      "user": "उपयोगकर्ता",
+      "plan": "प्लान",
+      "subscription": "सब्सक्रिप्शन",
+      "invoice": "इनवॉइस"
     }
   }
 }

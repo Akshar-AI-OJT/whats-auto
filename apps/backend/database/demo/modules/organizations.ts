@@ -57,6 +57,7 @@ export const organizationsModule: DemoSeedModule = {
         phone: key === 'northstar' ? '+919876543210' : '+12125550100',
         website: key === 'northstar' ? 'https://northstar.demo' : 'https://harbor.demo',
         industry: org.industry,
+        businessSize: org.businessSize,
         organizationType: 'company',
         address:
           key === 'northstar'

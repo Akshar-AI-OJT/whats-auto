@@ -7,6 +7,8 @@ import { cn } from '@/lib/utils'
 import { DashboardPanel } from '../ui/DashboardPanel'
 import { DashboardSectionHeader } from '../ui/DashboardSectionHeader'
 import { useDashboardOverview } from './DashboardOverviewProvider'
+import { useProductAccess } from '@/hooks/useProductAccess'
+import { resolveDashboardHref } from '@/lib/product-access'
 import { PanelError, PanelLoading } from './DashboardSectionState'
 import { DashboardEmptyState } from './DashboardEmptyState'
 import { ConversationRow } from './ConversationRow'
@@ -26,6 +28,8 @@ export function RecentConversations() {
     refetchConversations,
     orgsLoading,
   } = useDashboardOverview()
+  const { hasFullProductAccess, isSetupComplete, organizationId, organizationStatus } =
+    useProductAccess()
 
   const loading = conversationsLoading || orgsLoading
 
@@ -36,7 +40,12 @@ export function RecentConversations() {
         description={t('conversations.description')}
         action={
           <Link
-            href="/dashboard/inbox"
+            href={resolveDashboardHref('/dashboard/inbox', {
+              hasFullProductAccess,
+              isSetupComplete,
+              organizationId,
+              organizationStatus,
+            })}
             className={cn(
               'inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-sm font-semibold text-positive-deep',
               'transition-[background-color,color] duration-200 hover:bg-primary-pale'

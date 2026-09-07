@@ -408,15 +408,21 @@
         "other": "Other"
       },
       "privacyAgree": "I agree to the <privacy>Privacy Policy</privacy>.",
-      "cta": "Book Demo",
-      "meetNote": "Google Meet details will be shared after confirmation.",
-      "errors": {
-        "nameRequired": "Full name is required.",
-        "emailInvalid": "Enter a valid work email.",
-        "privacyRequired": "Please agree to the Privacy Policy.",
-        "dateRequired": "Please select a date.",
-        "slotRequired": "Please select a time slot."
-      },
+        "cta": "Book Demo",
+        "ctaSubmitting": "Booking…",
+        "slotsLoading": "Loading available slots…",
+        "noSlots": "No available slots for this date.",
+        "pickDateHint": "Select a date to see available time slots.",
+        "meetNote": "Google Meet details will be shared after confirmation.",
+        "errors": {
+          "nameRequired": "Full name is required.",
+          "emailInvalid": "Enter a valid work email.",
+          "privacyRequired": "Please agree to the Privacy Policy.",
+          "dateRequired": "Please select a date.",
+          "slotRequired": "Please select a time slot.",
+          "submitFailed": "We could not book that demo. Please try again.",
+          "slotUnavailable": "That time slot is no longer available. Please pick another."
+        },
       "summary": {
         "title": "Demo Summary",
         "date": "Date",
@@ -448,6 +454,7 @@
           "durationValue": "30 Minutes",
           "platformValue": "Google Meet"
         },
+        "meetLinkLabel": "Join with Google Meet:",
         "next": {
           "email": "Confirmation email will be sent",
           "meet": "Google Meet invitation will be shared",
@@ -1263,7 +1270,9 @@
         "subtitle": "You become the Owner automatically. Invite Admins, Agents, and Viewers after you land in the dashboard.",
         "setupTitle": "Organization setup",
         "setupStep": "Step {step} of {total}",
+        "createProgress": "Create your organization",
         "accountVerified": "Account verified",
+        "createOrganization": "Create organization",
         "organizationCreated": "Organization created",
         "companyDetails": "Company details",
         "preferences": "Preferences",
@@ -1275,6 +1284,10 @@
         "readySubtitle": "One organization. Clear ownership. Ready for your team."
       },
       "ownerNote": "You become the Owner automatically when you create this organization. Owner is never selected manually.",
+      "basic": {
+        "subtitle": "Add your organization name to get started. You can finish the rest from the dashboard.",
+        "finishLaterNote": "You’ll land on the dashboard next. Complete organization setup and choose a plan whenever you’re ready."
+      },
       "name": "Business / Organization Name",
       "namePlaceholder": "Acme Organization",
       "slug": "Organization Slug",
@@ -1492,26 +1505,26 @@
       "stepBadge": "Step {step} of {total}",
       "optional": "Optional",
       "sidebar": {
-        "title": "Complete Your Organization Profile",
-        "subtitle": "Finish the required details so your workspace is ready. Optional fields can be completed later.",
-        "completionLabel": "Profile completion"
+        "title": "Complete Organization Setup",
+        "subtitle": "Finish organization details, preferences, and legal information in one place.",
+        "completionLabel": "Setup completion"
       },
       "steps": {
         "organization": {
           "title": "Organization Details",
-          "description": "Basic information about your organization"
-        },
-        "business": {
-          "title": "Business Information",
-          "description": "Tell us more about your business"
+          "description": "Name, contact, industry, and logo"
         },
         "address": {
-          "title": "Address",
-          "description": "Your organization address details"
+          "title": "Address Details",
+          "description": "Country, street, city, and postal code"
         },
-        "review": {
-          "title": "Review & Confirm",
-          "description": "Review and confirm your details"
+        "preferences": {
+          "title": "Preferences",
+          "description": "Language, timezone, theme, and notifications"
+        },
+        "ownerLegal": {
+          "title": "Owner & Legal Details",
+          "description": "PAN, GSTIN, and owner information"
         }
       },
       "fields": {
@@ -1519,6 +1532,7 @@
         "email": "Business Email",
         "phone": "Phone Number",
         "phoneHint": "Include country code when possible.",
+        "fromRegistration": "Set during organization registration. Change later in organization settings.",
         "alternatePhone": "Alternate Phone",
         "website": "Website",
         "industry": "Industry",
@@ -1547,14 +1561,21 @@
         "statePlaceholder": "Select state / province",
         "postalCode": "Postal Code",
         "country": "Country",
-        "countryPlaceholder": "Select country"
+        "countryPlaceholder": "Select country",
+        "ownerName": "Owner Full Name",
+        "ownerEmail": "Owner Email",
+        "ownerRole": "Owner Role",
+        "ownerRoleValue": "Owner",
+        "designation": "Owner Designation",
+        "designationPlaceholder": "Founder, CEO, etc.",
+        "ownerPhone": "Owner Contact Number"
       },
       "languages": {
         "en": "English",
         "hi": "Hindi"
       },
       "actions": {
-        "cancel": "Cancel",
+        "cancel": "Back to dashboard",
         "back": "Back",
         "continue": "Continue",
         "completeSetup": "Complete Setup",
@@ -1571,9 +1592,12 @@
       },
       "success": {
         "title": "Your organization is ready",
-        "subtitle": "Required profile details are saved. You can finish optional fields anytime from the dashboard.",
+        "subtitle": "Required details are saved. You can finish optional fields anytime from the dashboard.",
+        "titlePendingPlan": "Setup complete",
+        "subtitlePendingPlan": "Choose a plan to unlock WhatsApp and the rest of your workspace.",
         "completion": "Profile completion: {percent}%",
-        "cta": "Go to Dashboard"
+        "cta": "Go to Dashboard",
+        "ctaPlan": "Continue to Plan"
       },
       "help": {
         "needHelp": "Need help?",
@@ -1583,6 +1607,7 @@
         "noOrganization": "No organization found. Create a workspace first.",
         "nameRequired": "Organization name is required (at least 2 characters).",
         "emailInvalid": "Enter a valid business email.",
+        "phoneRequired": "Business phone number is required.",
         "phoneInvalid": "Enter a valid phone number.",
         "websiteInvalid": "Enter a valid website URL (https://…).",
         "industryRequired": "Select an industry.",
@@ -1596,11 +1621,17 @@
         "stateRequired": "State / province is required.",
         "postalCodeRequired": "Postal code is required.",
         "countryRequired": "Select a country.",
+        "timezoneRequired": "Select a timezone.",
+        "languageRequired": "Select a default language.",
+        "dateFormatRequired": "Select a date format.",
+        "timeFormatRequired": "Select a time format.",
+        "themeRequired": "Select a theme preference.",
         "requiredIncomplete": "Complete all required fields before finishing setup.",
         "confirmRequired": "Please confirm that the information is correct.",
         "logoType": "Logo must be PNG, JPG, or WEBP.",
         "logoSize": "Logo must be 2MB or smaller.",
         "logoUploadFailed": "Couldn't upload the logo. Please try again.",
+        "logoPaymentRequired": "Logo upload is available after you subscribe. You can finish setup without it.",
         "saveFailed": "Couldn't save your profile. Please try again."
       }
     }
@@ -1615,6 +1646,9 @@
     "nav": {
       "ariaLabel": "Dashboard navigation",
       "comingSoon": "Coming soon",
+      "lockedSetup": "Complete organization setup to unlock",
+      "lockedSubscribe": "Choose a plan to unlock",
+      "lockedConnectWhatsapp": "Connect WhatsApp to continue",
       "dashboard": "Dashboard",
       "team": "Team Management",
       "teamMembers": "Team Members",
@@ -2781,6 +2815,17 @@
       "eyebrow": "Channel",
       "title": "WhatsApp Connection",
       "subtitle": "Connect WhatsApp Business numbers to receive and send customer conversations from Inbox.",
+      "locked": {
+        "title": "WhatsApp is unavailable",
+        "description": "This organization cannot connect WhatsApp right now. Contact support if you need help.",
+        "ctaSetup": "Go to dashboard",
+        "ctaSubscribe": "Choose a plan"
+      },
+      "verified": {
+        "title": "WhatsApp verified — continue to payment",
+        "description": "Your Meta Business Portfolio is verified. Choose a plan to activate the workspace.",
+        "cta": "Continue to plan"
+      },
       "connectCta": "Connect WhatsApp",
       "refresh": "Refresh",
       "loading": "Loading WhatsApp numbers…",
@@ -2811,9 +2856,13 @@
         "permissionDenied": "You don’t have permission to manage WhatsApp in this organization.",
         "sessionMissing": "WhatsApp signup session is not configured. Check Meta app settings.",
         "signupCancelled": "WhatsApp connection was cancelled.",
-        "sessionInfoMissing": "Couldn’t read WhatsApp account details from Meta. Please try again.",
+        "sessionInfoMissing": "Couldn’t read WhatsApp account details from Meta. Complete Embedded Signup with a phone number and try again.",
         "phoneOwned": "This WhatsApp phone number is already connected to another organization.",
         "notConnected": "This WhatsApp number is not connected.",
+        "phoneRequired": "A WhatsApp business phone number is required. Finish Embedded Signup with a phone number (WABA-only is not enough).",
+        "metaAccountUnusable": "No valid Meta Business Portfolio / WhatsApp account was linked. Create or select a portfolio in Embedded Signup and try again.",
+        "metaPortfolioUnverified": "Your Meta Business Portfolio is not verified. Complete Meta Business Verification, then try again.",
+        "metaPortfolioUnverifiedWithHelp": "Your Meta Business Portfolio is not verified. Complete verification at {url}, then try again.",
         "metaGraph": "Meta Graph API error. Please try again.",
         "testToRequired": "Enter a recipient phone number to send a test."
       }
@@ -3411,8 +3460,6 @@
       "searchLabel": "Search organization",
       "searchPlaceholder": "Find contacts, conversations, campaigns, or templates…",
       "searchPlaceholderShort": "Search organization…",
-      "searchUnavailablePlaceholder": "Global search requires a backend API…",
-      "searchUnavailableHint": "Global search is not available yet. A backend search endpoint is required before this field can query your organization.",
       "searchShortcutLabel": "Focus search ({shortcut})",
       "notifications": "Notifications",
       "profile": "Profile",
@@ -3454,6 +3501,15 @@
       "welcome": "Welcome back",
       "welcomeNamed": "Welcome back, {name}",
       "subtitle": "Here’s what’s happening across your WhatsApp automation organization today.",
+      "setupCta": {
+        "eyebrow": "Organization setup",
+        "title": "Complete your organization setup",
+        "subtitle": "Finish setup and subscribe to unlock all features.",
+        "cta": "Complete Setup",
+        "titleSubscribe": "Choose a subscription plan",
+        "subtitleSubscribe": "Your organization details are saved. Subscribe to unlock WhatsApp and the rest of the workspace.",
+        "ctaSubscribe": "Continue to Plan"
+      },
       "checklist": {
         "eyebrow": "Getting started",
         "title": "Onboarding checklist",
@@ -3471,9 +3527,15 @@
       },
       "connectWhatsapp": {
         "title": "Connect WhatsApp",
-        "description": "Connect your WhatsApp Business account to start receiving customer conversations and manage them from the Inbox.",
+        "description": "Connect your WhatsApp Business account to prove Meta verification before you subscribe.",
         "cta": "Connect WhatsApp",
-        "secondary": "You can connect multiple WhatsApp Business numbers later."
+        "secondary": "You need a Meta-verified Business Portfolio and a WhatsApp phone number.",
+        "verifiedTitle": "WhatsApp verified",
+        "verifiedDescription": "Your Meta Business Portfolio is verified. Choose a plan to activate the workspace.",
+        "verifiedCta": "Continue to plan",
+        "lockedDescription": "This organization cannot connect WhatsApp right now.",
+        "lockedCtaSetup": "Go to dashboard",
+        "lockedCtaSubscribe": "Choose a plan"
       },
       "kpis": {
         "contacts": {
@@ -3565,7 +3627,16 @@
       "profileReminder": {
         "title": "Profile {percent}% complete",
         "subtitle": "Add the remaining optional details to finish your organization profile.",
-        "cta": "Complete Profile"
+        "cta": "Complete Profile",
+        "incompleteTitle": "Complete your organization profile",
+        "incompleteSubtitle": "Add required organization details to unlock the full workspace.",
+        "incompleteCta": "Complete Profile",
+        "whatsappTitle": "Connect WhatsApp to continue",
+        "whatsappSubtitle": "Link a Meta-verified Business Portfolio and WhatsApp number before you subscribe.",
+        "whatsappCta": "Connect WhatsApp",
+        "subscribeTitle": "Choose a subscription plan",
+        "subscribeSubtitle": "WhatsApp is verified. Subscribe to activate the workspace.",
+        "subscribeCta": "Continue to Plan"
       }
     },
     "analytics": {
@@ -4002,7 +4073,11 @@
       "openMenu": "Open admin navigation",
       "title": "Platform console",
       "subtitle": "Manage organizations, subscriptions, and platform users",
-      "logout": "Logout"
+      "logout": "Logout",
+      "searchLabel": "Search platform",
+      "searchPlaceholder": "Find organizations, users, plans, or subscriptions…",
+      "searchPlaceholderShort": "Search platform…",
+      "searchShortcutLabel": "Focus search ({shortcut})"
     },
     "checkingAccess": "Checking access…",
     "home": {
@@ -5163,6 +5238,25 @@
         "emptyDescription": "Audit events appear after permissioned actions are performed.",
         "noDetails": "No additional details"
       }
+    }
+  },
+  "globalSearch": {
+    "loading": "Searching…",
+    "noResults": "No results",
+    "error": "Couldn’t search. Try again.",
+    "resultsLabel": "Search results",
+    "types": {
+      "contact": "Contacts",
+      "conversation": "Conversations",
+      "campaign": "Campaigns",
+      "template": "Templates",
+      "flow": "Flows",
+      "customer_group": "Customer groups",
+      "organization": "Organizations",
+      "user": "Users",
+      "plan": "Plans",
+      "subscription": "Subscriptions",
+      "invoice": "Invoices"
     }
   }
 }

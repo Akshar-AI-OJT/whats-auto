@@ -30,7 +30,7 @@ async function seedOrgPlanAndOrder() {
   await db.table('plans').insert({
     id: planId,
     code: `growth_${organizationId.slice(0, 8)}`,
-    name: 'Growth Apply',
+    name: `Growth Apply ${organizationId.slice(0, 8)}`,
     price: 2499,
     currency: 'INR',
     billingInterval: 'month',
@@ -61,7 +61,7 @@ async function seedOrgPlanAndOrder() {
       periodEnd,
       planSnapshot: {
         code: `growth_${organizationId.slice(0, 8)}`,
-        name: 'Growth Apply',
+        name: `Growth Apply ${organizationId.slice(0, 8)}`,
         price: 2499,
         currency: 'INR',
         interval: 'month',

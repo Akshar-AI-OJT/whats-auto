@@ -48,5 +48,5 @@ export const FLOWS_SESSION_RECOVERY_CRON = '*/1 * * * *'
 /** Cron for order expiry, grace, subscription expiry, and renewal reminders. */
 export const BILLING_SUBSCRIPTION_LIFECYCLE_CRON = '0 * * * *'
 
-/** Cron for expired pre-signup OTPs and aged pending_setup org purge (daily). */
+/** Cron for expired pre-signup OTPs and aged unpaid setup org purge (daily). */
 export const ONBOARDING_CLEANUP_CRON = '15 3 * * *'

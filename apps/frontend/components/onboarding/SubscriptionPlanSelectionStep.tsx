@@ -128,7 +128,7 @@ export function SubscriptionPlanSelectionStep({
         <>
           <div
             className={cn(
-              'grid auto-rows-fr grid-cols-1 items-stretch gap-4 sm:gap-5',
+              'grid grid-cols-1 items-stretch gap-4 sm:gap-5',
               plansGridClass(plans.length)
             )}
           >
@@ -158,14 +158,14 @@ export function SubscriptionPlanSelectionStep({
                   aria-pressed={isSelected}
                   className={cn(
                     'group relative flex h-full min-h-0 flex-col rounded-2xl p-5 text-left sm:p-6',
-                    'border bg-canvas transition-[border-color,box-shadow,background-color,transform] duration-200 ease-out',
+                    'border bg-canvas transition-[border-color,box-shadow,background-color] duration-200 ease-out',
                     selfServe
                       ? 'cursor-pointer'
                       : 'cursor-not-allowed opacity-80',
                     'disabled:cursor-not-allowed disabled:opacity-70',
                     isSelected
                       ? 'border-primary bg-primary/[0.03] shadow-[0_0_0_1px_rgb(37_99_235/0.35),0_12px_28px_rgb(37_99_235/0.08)]'
-                      : 'border-[#E2E8F0] shadow-[0_1px_2px_rgb(15_23_42/0.04)] hover:-translate-y-0.5 hover:border-primary/35 hover:shadow-[0_10px_24px_rgb(15_23_42/0.06)]'
+                      : 'border-[#E2E8F0] shadow-[0_1px_2px_rgb(15_23_42/0.04)] hover:border-primary/35 hover:shadow-[0_10px_24px_rgb(15_23_42/0.06)]'
                   )}
                 >
                   {plan.popular ? (
@@ -186,7 +186,7 @@ export function SubscriptionPlanSelectionStep({
                     </span>
                   ) : null}
 
-                  <div className={cn('min-w-0 pr-8', isFree && 'pt-7')}>
+                  <div className={cn('min-w-0 shrink-0 pr-8', isFree && 'pt-7')}>
                     <h3 className="font-display text-xl font-semibold tracking-tight text-ink">
                       {plan.name}
                     </h3>
@@ -195,14 +195,14 @@ export function SubscriptionPlanSelectionStep({
                     </p>
                   </div>
 
-                  <div className="mt-5 flex items-baseline gap-1.5">
+                  <div className="mt-5 flex shrink-0 items-baseline gap-1.5">
                     <span className="font-display text-3xl font-semibold tracking-tight text-ink tabular-nums sm:text-[2.15rem]">
                       {priceLabel}
                     </span>
                     {plan.price != null ? <span className="text-sm text-mute">{perMonth}</span> : null}
                   </div>
 
-                  <div className="mt-5 border-t border-[#E2E8F0] pt-4">
+                  <div className="mt-5 shrink-0 border-t border-[#E2E8F0] pt-4">
                     <ul className="flex flex-col gap-2.5">
                       <li className="flex items-center justify-between gap-3 text-sm">
                         <span className="inline-flex items-center gap-2 text-mute">
@@ -222,24 +222,36 @@ export function SubscriptionPlanSelectionStep({
                   </div>
 
                   <div className="mt-5 flex min-h-0 flex-1 flex-col">
-                    <p className="text-[11px] font-semibold tracking-[0.08em] text-mute uppercase">
-                      {tSubs('featuresLabel')}
-                    </p>
-                    <ul className="mt-3 flex flex-col gap-2">
-                      {enabledFeatures.map((f) => (
-                        <li key={f.key} className="flex items-start gap-2.5 text-sm leading-5 text-body">
-                          <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-primary-pale text-primary">
-                            <Check className="size-3 stroke-[2.5]" aria-hidden />
-                          </span>
-                          <span>
-                            {resolvePlanFeatureLabel(tFeatures, f.key, f.name, PLAN_FEATURE_I18N_NS)}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
+                    {enabledFeatures.length > 0 ? (
+                      <>
+                        <p className="text-[11px] font-semibold tracking-[0.08em] text-mute uppercase">
+                          {tSubs('featuresLabel')}
+                        </p>
+                        <ul className="mt-3 flex flex-col gap-2">
+                          {enabledFeatures.map((f) => (
+                            <li
+                              key={f.key}
+                              className="flex items-start gap-2.5 text-sm leading-5 text-body"
+                            >
+                              <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-primary-pale text-primary">
+                                <Check className="size-3 stroke-[2.5]" aria-hidden />
+                              </span>
+                              <span>
+                                {resolvePlanFeatureLabel(
+                                  tFeatures,
+                                  f.key,
+                                  f.name,
+                                  PLAN_FEATURE_I18N_NS
+                                )}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    ) : null}
                   </div>
 
-                  <div className="mt-6">
+                  <div className="mt-6 shrink-0">
                     {!selfServe ? (
                       <div className="flex h-11 items-center justify-center rounded-xl border border-dash-border bg-[#F8FAFC] px-3 text-sm font-semibold text-positive-deep">
                         {t('step4.enterpriseCta')}
