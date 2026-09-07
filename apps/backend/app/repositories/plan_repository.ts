@@ -83,7 +83,10 @@ export class PlanRepository {
         END = ?`,
         [interval]
       )
-      .where('billingIntervalCount', identity.billingIntervalCount >= 1 ? identity.billingIntervalCount : 1)
+      .where(
+        'billingIntervalCount',
+        identity.billingIntervalCount >= 1 ? identity.billingIntervalCount : 1
+      )
       .where('price', identity.price)
       .whereRaw('upper("currency") = ?', [identity.currency.trim().toUpperCase()])
       .orderBy('createdAt', 'asc')

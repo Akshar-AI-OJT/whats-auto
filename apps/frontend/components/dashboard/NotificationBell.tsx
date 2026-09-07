@@ -43,7 +43,8 @@ export function NotificationBell({
     markAllAsRead,
     markAsRead,
   } = useNotifications({ enabled: true })
-  const { hasFullProductAccess, isSetupComplete, organizationId } = useProductAccess()
+  const { hasFullProductAccess, isSetupComplete, organizationId, organizationStatus } =
+    useProductAccess()
 
   useEffect(() => {
     if (open) refresh()
@@ -179,6 +180,7 @@ export function NotificationBell({
                 hasFullProductAccess,
                 isSetupComplete,
                 organizationId,
+                organizationStatus,
               })}
               onClick={() => setOpen(false)}
               className={cn(

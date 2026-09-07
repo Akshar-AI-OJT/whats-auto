@@ -36,6 +36,16 @@ export default class OrganizationException extends Exception {
     })
   }
 
+  static whatsappRequired() {
+    return new this(
+      'Connect a verified Meta WhatsApp Business account before using the product or starting checkout.',
+      {
+        status: 403,
+        code: 'E_ORG_WHATSAPP_REQUIRED',
+      }
+    )
+  }
+
   static profileIncomplete() {
     return new this('Complete the organization profile before accessing this functionality.', {
       status: 403,

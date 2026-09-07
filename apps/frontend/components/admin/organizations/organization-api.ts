@@ -37,7 +37,7 @@ function unwrapPaginated(
 
 export function mapOrganizationUiStatus(org: SuperAdminOrganization): AdminOrganizationUiStatus {
   if (org.deletedAt || org.status === 'false') return 'archived'
-  if (org.status === 'pending_setup') return 'pending'
+  if (org.status === 'pending_setup' || org.status === 'verified_setup') return 'pending'
   if (org.status === 'suspended') return 'suspended'
   return 'active'
 }

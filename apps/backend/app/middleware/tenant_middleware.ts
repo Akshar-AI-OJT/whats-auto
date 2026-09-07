@@ -40,6 +40,7 @@ export type TenantMiddlewareOptions = {
 function asOrganizationStatus(value: unknown): OrganizationStatusValue {
   if (
     value === OrganizationStatus.PENDING_SETUP ||
+    value === OrganizationStatus.VERIFIED_SETUP ||
     value === OrganizationStatus.ACTIVE ||
     value === OrganizationStatus.SUSPENDED ||
     value === OrganizationStatus.FALSE
@@ -50,13 +51,16 @@ function asOrganizationStatus(value: unknown): OrganizationStatusValue {
   return OrganizationStatus.ACTIVE
 }
 
-/** Fail-closed product gate: only status === 'active' proceeds (402, not 403). */
-function assertOrganizationActive(
-  status: string | undefined
-): asserts status is typeof OrganizationStatus.ACTIVE {
-  if (status !== OrganizationStatus.ACTIVE) {
+/** Fail-closed product gate ([D70]): active only; unpaid statuses get distinct codes. */
+function assertOrganizationProvisioned(status: string | undefined): void {
+  if (status === OrganizationStatus.ACTIVE) return
+  if (status === OrganizationStatus.PENDING_SETUP) {
+    throw OrganizationException.whatsappRequired()
+  }
+  if (status === OrganizationStatus.VERIFIED_SETUP) {
     throw OrganizationException.paymentRequired()
   }
+  throw OrganizationException.paymentRequired()
 }
 
 export default class TenantMiddleware {
@@ -134,7 +138,7 @@ export default class TenantMiddleware {
       }
 
       if (!options.skipActiveGate) {
-        assertOrganizationActive(request.organizationStatus)
+        assertOrganizationProvisioned(request.organizationStatus)
       }
 
       if (!options.skipProfileCompletionGate) {
@@ -193,7 +197,7 @@ export default class TenantMiddleware {
     request.memberPermissions = await authz.resolvePermissions(orgId, member.roleId as string)
 
     if (!options.skipActiveGate) {
-      assertOrganizationActive(request.organizationStatus)
+      assertOrganizationProvisioned(request.organizationStatus)
     }
 
     if (!options.skipProfileCompletionGate) {

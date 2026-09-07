@@ -61,7 +61,8 @@ export function OnboardingChecklist({ className }: { className?: string }) {
     hasOrganizations,
     canInviteMembers,
   } = useOrganizations()
-  const { hasFullProductAccess, isSetupComplete, organizationId } = useProductAccess()
+  const { hasFullProductAccess, isSetupComplete, organizationId, organizationStatus } =
+    useProductAccess()
   const dismissed = !useSyncExternalStore(
     subscribeChecklist,
     getChecklistSnapshot,
@@ -157,6 +158,7 @@ export function OnboardingChecklist({ className }: { className?: string }) {
                       hasFullProductAccess,
                       isSetupComplete,
                       organizationId,
+                      organizationStatus,
                     })}
                     className={cn(
                       'flex cursor-pointer items-center gap-3 rounded-xl border border-dash-border bg-canvas px-3.5 py-3',

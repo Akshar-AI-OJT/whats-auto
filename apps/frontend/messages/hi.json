@@ -1528,6 +1528,7 @@
         "email": "व्यवसाय ईमेल",
         "phone": "फ़ोन नंबर",
         "phoneHint": "संभव हो तो देश कोड शामिल करें।",
+        "fromRegistration": "संगठन पंजीकरण के दौरान सेट किया गया। बाद में संगठन सेटिंग्स में बदलें।",
         "alternatePhone": "वैकल्पिक फ़ोन",
         "website": "वेबसाइट",
         "industry": "उद्योग",
@@ -1642,6 +1643,7 @@
       "comingSoon": "जल्द आ रहा है",
       "lockedSetup": "अनलॉक करने के लिए संगठन सेटअप पूरा करें",
       "lockedSubscribe": "अनलॉक करने के लिए प्लान चुनें",
+      "lockedConnectWhatsapp": "जारी रखने के लिए WhatsApp कनेक्ट करें",
       "dashboard": "डैशबोर्ड",
       "team": "टीम प्रबंधन",
       "teamMembers": "टीम सदस्य",
@@ -2809,10 +2811,15 @@
       "title": "WhatsApp कनेक्शन",
       "subtitle": "Inbox से ग्राहक बातचीत प्राप्त और भेजने के लिए WhatsApp Business नंबर कनेक्ट करें।",
       "locked": {
-        "title": "WhatsApp लॉक है",
-        "description": "WhatsApp कनेक्ट करने से पहले संगठन सेटअप पूरा करें और सब्सक्राइब करें।",
-        "ctaSetup": "सेटअप पूरा करें",
+        "title": "WhatsApp उपलब्ध नहीं है",
+        "description": "यह संगठन अभी WhatsApp कनेक्ट नहीं कर सकता। सहायता के लिए सपोर्ट से संपर्क करें।",
+        "ctaSetup": "डैशबोर्ड पर जाएँ",
         "ctaSubscribe": "प्लान चुनें"
+      },
+      "verified": {
+        "title": "WhatsApp सत्यापित — भुगतान जारी रखें",
+        "description": "आपका Meta Business Portfolio सत्यापित है। वर्कस्पेस सक्रिय करने के लिए प्लान चुनें।",
+        "cta": "प्लान पर जाएँ"
       },
       "connectCta": "WhatsApp कनेक्ट करें",
       "refresh": "रीफ़्रेश",
@@ -2844,9 +2851,13 @@
         "permissionDenied": "आपको इस संगठन में WhatsApp प्रबंधित करने की अनुमति नहीं है।",
         "sessionMissing": "WhatsApp साइनअप सत्र कॉन्फ़िगर नहीं है। Meta ऐप सेटिंग्स जांचें।",
         "signupCancelled": "WhatsApp कनेक्शन रद्द कर दिया गया।",
-        "sessionInfoMissing": "Meta से WhatsApp अकाउंट विवरण नहीं मिल सका। कृपया फिर कोशिश करें।",
+        "sessionInfoMissing": "Meta से WhatsApp अकाउंट विवरण नहीं मिल सका। फ़ोन नंबर के साथ Embedded Signup पूरा करें और फिर कोशिश करें।",
         "phoneOwned": "यह WhatsApp फ़ोन नंबर पहले से किसी अन्य संगठन से जुड़ा है।",
         "notConnected": "यह WhatsApp नंबर कनेक्ट नहीं है।",
+        "phoneRequired": "WhatsApp बिज़नेस फ़ोन नंबर आवश्यक है। फ़ोन नंबर के साथ Embedded Signup पूरा करें (केवल WABA पर्याप्त नहीं है)।",
+        "metaAccountUnusable": "कोई मान्य Meta Business Portfolio / WhatsApp अकाउंट लिंक नहीं हुआ। Embedded Signup में पोर्टफोलियो बनाएँ या चुनें और फिर कोशिश करें।",
+        "metaPortfolioUnverified": "आपका Meta Business Portfolio सत्यापित नहीं है। Meta Business Verification पूरा करें, फिर फिर कोशिश करें।",
+        "metaPortfolioUnverifiedWithHelp": "आपका Meta Business Portfolio सत्यापित नहीं है। {url} पर सत्यापन पूरा करें, फिर फिर कोशिश करें।",
         "metaGraph": "Meta Graph API त्रुटि। कृपया फिर कोशिश करें।",
         "testToRequired": "टेस्ट भेजने के लिए प्राप्तकर्ता फ़ोन नंबर दर्ज करें।"
       }
@@ -3353,11 +3364,14 @@
       },
       "connectWhatsapp": {
         "title": "WhatsApp कनेक्ट करें",
-        "description": "ग्राहक बातचीत प्राप्त करने और Inbox से प्रबंधित करने के लिए अपना WhatsApp Business अकाउंट कनेक्ट करें।",
+        "description": "सब्सक्राइब करने से पहले Meta सत्यापन साबित करने के लिए अपना WhatsApp Business अकाउंट कनेक्ट करें।",
         "cta": "WhatsApp कनेक्ट करें",
-        "secondary": "बाद में आप कई WhatsApp Business नंबर कनेक्ट कर सकते हैं।",
-        "lockedDescription": "WhatsApp कनेक्शन अनलॉक करने के लिए संगठन सेटअप पूरा करें और सब्सक्राइब करें।",
-        "lockedCtaSetup": "सेटअप पूरा करें",
+        "secondary": "आपको Meta-सत्यापित Business Portfolio और WhatsApp फ़ोन नंबर चाहिए।",
+        "verifiedTitle": "WhatsApp सत्यापित",
+        "verifiedDescription": "आपका Meta Business Portfolio सत्यापित है। वर्कस्पेस सक्रिय करने के लिए प्लान चुनें।",
+        "verifiedCta": "प्लान पर जाएँ",
+        "lockedDescription": "यह संगठन अभी WhatsApp कनेक्ट नहीं कर सकता।",
+        "lockedCtaSetup": "डैशबोर्ड पर जाएँ",
         "lockedCtaSubscribe": "प्लान चुनें"
       },
       "kpis": {
@@ -3451,11 +3465,14 @@
         "title": "प्रोफ़ाइल {percent}% पूर्ण",
         "subtitle": "अपना संगठन प्रोफ़ाइल पूरा करने के लिए शेष वैकल्पिक विवरण जोड़ें।",
         "cta": "प्रोफ़ाइल पूरा करें",
-        "incompleteTitle": "संगठन सेटअप पूरा करें",
-        "incompleteSubtitle": "और विवरण जोड़ें, वरीयताएँ सेट करें और सभी सुविधाएँ अनलॉक करने के लिए प्लान चुनें।",
-        "incompleteCta": "संगठन सेटअप पूरा करें",
+        "incompleteTitle": "संगठन प्रोफ़ाइल पूरा करें",
+        "incompleteSubtitle": "पूर्ण वर्कस्पेस अनलॉक करने के लिए आवश्यक संगठन विवरण जोड़ें।",
+        "incompleteCta": "प्रोफ़ाइल पूरा करें",
+        "whatsappTitle": "जारी रखने के लिए WhatsApp कनेक्ट करें",
+        "whatsappSubtitle": "सब्सक्राइब करने से पहले Meta-सत्यापित Business Portfolio और WhatsApp नंबर लिंक करें।",
+        "whatsappCta": "WhatsApp कनेक्ट करें",
         "subscribeTitle": "सब्सक्रिप्शन प्लान चुनें",
-        "subscribeSubtitle": "संगठन विवरण सहेजे गए हैं। WhatsApp और बाकी वर्कस्पेस अनलॉक करने के लिए सब्सक्राइब करें।",
+        "subscribeSubtitle": "WhatsApp सत्यापित है। वर्कस्पेस सक्रिय करने के लिए सब्सक्राइब करें।",
         "subscribeCta": "प्लान पर जाएँ"
       }
     },

@@ -79,7 +79,12 @@ function getIsLg() {
   return window.matchMedia('(min-width: 1024px)').matches
 }
 
-export function GlobalSearch({ scope, organizationId, className, onOpenChange }: GlobalSearchProps) {
+export function GlobalSearch({
+  scope,
+  organizationId,
+  className,
+  onOpenChange,
+}: GlobalSearchProps) {
   const t = useTranslations(scope === 'platform' ? 'admin.navbar' : 'dashboard.topbar')
   const tSearch = useTranslations('globalSearch')
   const router = useRouter()
@@ -91,6 +96,7 @@ export function GlobalSearch({ scope, organizationId, className, onOpenChange }:
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [focused, setFocused] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
+  const [activeIndexEpoch, setActiveIndexEpoch] = useState('')
   const isMac = useSyncExternalStore(subscribeNoop, detectMac, () => false)
   const isLg = useSyncExternalStore(subscribeLg, getIsLg, () => false)
 
@@ -101,8 +107,7 @@ export function GlobalSearch({ scope, organizationId, className, onOpenChange }:
     return () => window.clearTimeout(handle)
   }, [query])
 
-  const enabled =
-    debouncedQuery.length > 0 && (scope === 'platform' || Boolean(organizationId))
+  const enabled = debouncedQuery.length > 0 && (scope === 'platform' || Boolean(organizationId))
   const searchQuery = useQuery({
     queryKey: queryKeys.search.query(scope, debouncedQuery, organizationId),
     queryFn: async () => {
@@ -127,10 +132,11 @@ export function GlobalSearch({ scope, organizationId, className, onOpenChange }:
     panelOpen && enabled && !searchQuery.isFetching && !searchQuery.isError && results.length === 0
   const showResults = panelOpen && enabled && !searchQuery.isFetching && results.length > 0
   const waitingForDebounce = panelOpen && query.trim().length > 0 && query.trim() !== debouncedQuery
-
-  useEffect(() => {
+  const resultsEpoch = `${debouncedQuery}:${searchQuery.dataUpdatedAt}`
+  if (activeIndexEpoch !== resultsEpoch) {
+    setActiveIndexEpoch(resultsEpoch)
     setActiveIndex(-1)
-  }, [debouncedQuery, searchQuery.dataUpdatedAt])
+  }
 
   useEffect(() => {
     onOpenChange?.(panelOpen)
@@ -236,9 +242,7 @@ export function GlobalSearch({ scope, organizationId, className, onOpenChange }:
         aria-autocomplete="list"
         aria-expanded={panelOpen}
         aria-controls={panelOpen ? listboxId : undefined}
-        aria-activedescendant={
-          activeIndex >= 0 ? `${searchId}-option-${activeIndex}` : undefined
-        }
+        aria-activedescendant={activeIndex >= 0 ? `${searchId}-option-${activeIndex}` : undefined}
         onChange={(event) => {
           setQuery(event.target.value)
           setActiveIndex(-1)
@@ -296,9 +300,7 @@ export function GlobalSearch({ scope, organizationId, className, onOpenChange }:
             </p>
           ) : null}
 
-          {showError ? (
-            <p className="px-3 py-3 text-sm text-negative">{tSearch('error')}</p>
-          ) : null}
+          {showError ? <p className="px-3 py-3 text-sm text-negative">{tSearch('error')}</p> : null}
 
           {showEmpty ? <p className="px-3 py-3 text-sm text-mute">{tSearch('noResults')}</p> : null}
 
@@ -337,7 +339,9 @@ export function GlobalSearch({ scope, organizationId, className, onOpenChange }:
                             {item.title}
                           </span>
                           {item.description ? (
-                            <span className="block truncate text-xs text-mute">{item.description}</span>
+                            <span className="block truncate text-xs text-mute">
+                              {item.description}
+                            </span>
                           ) : null}
                         </span>
                       </button>

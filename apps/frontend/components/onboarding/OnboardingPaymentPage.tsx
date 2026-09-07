@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { Loader2 } from 'lucide-react'
@@ -43,23 +43,23 @@ function readCheckoutSession(): OnboardingCheckoutSession | null {
   }
 }
 
+function subscribeCheckoutSession() {
+  return () => {}
+}
+
 export function OnboardingPaymentPage() {
   const t = useTranslations('onboarding.organization')
   const router = useRouter()
-  // null until after mount so SSR + first client paint match (sessionStorage is client-only).
-  const [session, setSession] = useState<OnboardingCheckoutSession | null | undefined>(undefined)
+  // sessionStorage is client-only; useSyncExternalStore keeps SSR snapshot stable.
+  const session = useSyncExternalStore(subscribeCheckoutSession, readCheckoutSession, () => null)
   const [paying, setPaying] = useState(false)
   const [payError, setPayError] = useState<string | null>(null)
 
   useEffect(() => {
-    setSession(readCheckoutSession())
-  }, [])
-
-  useEffect(() => {
-    if (session === null) {
+    if (readCheckoutSession() === null) {
       router.replace('/dashboard')
     }
-  }, [session, router])
+  }, [router])
 
   const subscriptionQuery = useQuery({
     queryKey: queryKeys.onboarding.billingSubscription,
