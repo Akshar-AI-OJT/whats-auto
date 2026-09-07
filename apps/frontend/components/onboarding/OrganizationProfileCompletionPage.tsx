@@ -106,6 +106,12 @@ function selectClassName(invalid?: boolean) {
   return cn(invalid && 'border-negative')
 }
 
+/** Identity fields captured at registration — confirm only, not re-entered here. */
+const registrationLockedInputClassName = cn(
+  onboardingInputWithIconClassName,
+  'cursor-default bg-primary-pale/50 text-body'
+)
+
 function buildInitialProfileValues(
   org: Parameters<typeof organizationToProfileFormValues>[0]
 ): OrganizationProfileFormValues {
@@ -781,13 +787,13 @@ function StepOrganizationDetails({
             <Input
               value={values.name}
               autoComplete="organization"
-              className={cn(
-                onboardingInputWithIconClassName,
-                errors.name && 'border-negative'
-              )}
-              onChange={(e) => onChange({ name: e.target.value })}
+              readOnly
+              className={cn(registrationLockedInputClassName, errors.name && 'border-negative')}
             />
           </div>
+          <FieldDescription className="text-xs leading-4 text-mute">
+            {t('fields.fromRegistration')}
+          </FieldDescription>
           {errors.name ? (
             <FieldError className="text-xs leading-4 text-negative">{errors.name}</FieldError>
           ) : null}
@@ -807,13 +813,12 @@ function StepOrganizationDetails({
               type="email"
               value={values.email}
               readOnly
-              className={cn(
-                onboardingInputWithIconClassName,
-                'cursor-default bg-primary-pale/50 text-body',
-                errors.email && 'border-negative'
-              )}
+              className={cn(registrationLockedInputClassName, errors.email && 'border-negative')}
             />
           </div>
+          <FieldDescription className="text-xs leading-4 text-mute">
+            {t('fields.fromRegistration')}
+          </FieldDescription>
           {errors.email ? (
             <FieldError className="text-xs leading-4 text-negative">{errors.email}</FieldError>
           ) : null}
@@ -821,8 +826,8 @@ function StepOrganizationDetails({
 
         <Field data-invalid={errors.phone ? true : undefined} className="gap-2">
           <FieldLabel className="text-sm font-medium leading-5 text-ink">
-            {t('fields.phone')}{' '}
-            <span className="font-normal text-mute">({t('optional')})</span>
+            {t('fields.phone')}
+            <RequiredAsterisk />
           </FieldLabel>
           <div className="relative">
             <Phone
@@ -832,16 +837,12 @@ function StepOrganizationDetails({
             <Input
               type="tel"
               value={values.phone}
-              placeholder={tOrg('phonePlaceholder')}
-              className={cn(
-                onboardingInputWithIconClassName,
-                errors.phone && 'border-negative'
-              )}
-              onChange={(e) => onChange({ phone: e.target.value })}
+              readOnly
+              className={cn(registrationLockedInputClassName, errors.phone && 'border-negative')}
             />
           </div>
           <FieldDescription className="text-xs leading-4 text-mute">
-            {t('fields.phoneHint')}
+            {t('fields.fromRegistration')}
           </FieldDescription>
           {errors.phone ? (
             <FieldError className="text-xs leading-4 text-negative">{errors.phone}</FieldError>
@@ -889,14 +890,13 @@ function StepOrganizationDetails({
             <Input
               type="url"
               value={values.website}
-              placeholder={tOrg('websitePlaceholder')}
-              className={cn(
-                onboardingInputWithIconClassName,
-                errors.website && 'border-negative'
-              )}
-              onChange={(e) => onChange({ website: e.target.value })}
+              readOnly
+              className={cn(registrationLockedInputClassName, errors.website && 'border-negative')}
             />
           </div>
+          <FieldDescription className="text-xs leading-4 text-mute">
+            {t('fields.fromRegistration')}
+          </FieldDescription>
           {errors.website ? (
             <FieldError className="text-xs leading-4 text-negative">{errors.website}</FieldError>
           ) : null}

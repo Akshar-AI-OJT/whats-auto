@@ -722,18 +722,25 @@ router
 
 /*
 |--------------------------------------------------------------------------
-| Tenant WhatsApp product APIs (Phase 2+)
-| Embedded Signup + whatsapp_configs â€” jwtAuth + tenant + whatsapp:* perms
+| Tenant WhatsApp — setup (unpaid Embedded Signup) vs messaging product APIs
 |--------------------------------------------------------------------------
 */
 router
   .group(() => {
     router.get('/embedded-signup/session', [WhatsappEmbeddedSignupController, 'session'])
     router.post('/embedded-signup/complete', [WhatsappEmbeddedSignupController, 'complete'])
-
     router.get('/configs', [WhatsappConfigsController, 'index'])
-    router.get('/configs/:id', [WhatsappConfigsController, 'show'])
     router.delete('/configs/:id', [WhatsappConfigsController, 'destroy'])
+  })
+  .prefix('/api/v1/whatsapp')
+  .use([
+    middleware.jwtAuth(),
+    middleware.tenant({ skipActiveGate: true, skipProfileCompletionGate: true }),
+  ])
+
+router
+  .group(() => {
+    router.get('/configs/:id', [WhatsappConfigsController, 'show'])
     router.post('/configs/:id/test', [WhatsappConfigsController, 'test'])
 
     router.get('/templates', [MessageTemplatesController, 'index'])
@@ -798,9 +805,9 @@ router
     router.patch('/ai-config', [SuperAdminAiConfigController, 'update'])
     router.get('/audit-logs', [SuperAdminAuditController, 'index'])
     router.get('/platform-users', [SuperAdminPlatformUsersController, 'index'])
-    router.get('/search', [SuperAdminSearchController, 'index']).use(
-      middleware.rateLimit({ max: 60, windowMs: 60 * 1000, name: 'super-admin-search' })
-    )
+    router
+      .get('/search', [SuperAdminSearchController, 'index'])
+      .use(middleware.rateLimit({ max: 60, windowMs: 60 * 1000, name: 'super-admin-search' }))
   })
   .prefix('/api/v1/super-admin')
   .use([middleware.jwtAuth(), middleware.platform()])

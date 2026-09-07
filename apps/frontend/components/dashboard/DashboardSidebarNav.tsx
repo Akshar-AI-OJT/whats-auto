@@ -46,8 +46,15 @@ export function DashboardSidebarNav({
   const pathname = usePathname()
   const router = useRouter()
   const { hasPermission, hasAnyPermission, isLoading: permissionsLoading } = usePermissions()
-  const { productNavLocked, unlockPath, isSetupComplete } = useProductAccess()
-  const lockedHint = isSetupComplete ? t('lockedSubscribe') : t('lockedSetup')
+  const { productNavLocked, unlockPath, isSetupComplete, organizationStatus } = useProductAccess()
+  const lockedHint =
+    organizationStatus === 'pending_setup'
+      ? t('lockedConnectWhatsapp')
+      : organizationStatus === 'verified_setup'
+        ? t('lockedSubscribe')
+        : isSetupComplete
+          ? t('lockedSubscribe')
+          : t('lockedSetup')
   const routeOpen = initialOpenState(pathname)
   const routeOpenKey = `${Boolean(routeOpen.team)}:${Boolean(routeOpen.contacts)}`
   const [openByKey, setOpenByKey] = useState(() => routeOpen)

@@ -22,23 +22,47 @@ test.group('resolveNextStep', () => {
     )
   })
 
-  test('pending_setup active organization must complete payment', ({ assert }) => {
+  test('pending_setup routes to connect_whatsapp', ({ assert }) => {
     assert.equal(
       resolveNextStep({
         organizationCount: 1,
         activeOrganizationId: 'org-1',
         activeOrgStatus: 'pending_setup',
       }),
+      'connect_whatsapp'
+    )
+  })
+
+  test('verified_setup routes to complete_payment', ({ assert }) => {
+    assert.equal(
+      resolveNextStep({
+        organizationCount: 1,
+        activeOrganizationId: 'org-1',
+        activeOrgStatus: 'verified_setup',
+      }),
       'complete_payment'
     )
   })
 
-  test('active organization routes to ready', ({ assert }) => {
+  test('active incomplete profile routes to complete_profile', ({ assert }) => {
     assert.equal(
       resolveNextStep({
         organizationCount: 1,
         activeOrganizationId: 'org-1',
         activeOrgStatus: 'active',
+        profileComplete: false,
+      }),
+      'complete_profile'
+    )
+  })
+
+  test('active complete organization routes to ready', ({ assert }) => {
+    assert.equal(
+      resolveNextStep({
+        organizationCount: 1,
+        activeOrganizationId: 'org-1',
+        activeOrgStatus: 'active',
+        profileComplete: true,
       }),
       'ready'
     )

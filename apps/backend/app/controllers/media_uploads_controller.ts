@@ -36,11 +36,15 @@ export default class MediaUploadsController {
 
     const payload = await request.validateUsing(initiateMediaUploadValidator)
 
-    // pending_setup may upload the org logo during Complete Organization Setup only.
+    // Org logo uploads are allowed during unpaid setup (route skips active gate).
+    // Other media stays locked until the org is active ([D70]).
     if (
       request.organizationStatus !== OrganizationStatus.ACTIVE &&
       payload.purpose !== 'organization_logo'
     ) {
+      if (request.organizationStatus === OrganizationStatus.PENDING_SETUP) {
+        throw OrganizationException.whatsappRequired()
+      }
       throw OrganizationException.paymentRequired()
     }
 
@@ -122,6 +126,9 @@ export default class MediaUploadsController {
         mediaAssetId: id,
       })
       if (!pending || !isOrganizationProfileLogoKey(pending.storageKey)) {
+        if (request.organizationStatus === OrganizationStatus.PENDING_SETUP) {
+          throw OrganizationException.whatsappRequired()
+        }
         throw OrganizationException.paymentRequired()
       }
     }

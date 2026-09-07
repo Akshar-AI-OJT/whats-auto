@@ -1,7 +1,9 @@
 import db from '@adonisjs/lucid/services/db'
 import logger from '@adonisjs/core/services/logger'
 import env from '#start/env'
+import { OrganizationStatus } from '#enums/organization_status'
 import WhatsappConfigException from '#exceptions/whatsapp_config_exception'
+import { insertAuthorizationAudit } from '#lib/authorization_audit'
 import { generateWhatsappRegistrationPin } from '#lib/meta_whatsapp/access_token_crypto'
 import {
   createMetaGraphClient,
@@ -9,11 +11,8 @@ import {
   type MetaGraphClient,
 } from '#lib/meta_whatsapp/graph_client'
 import { NotificationService } from '#services/notification_service'
-import {
-  WhatsappConfigService,
-  type WhatsappConfigDto,
-  type WhatsappConfigStatus,
-} from '#services/whatsapp_config_service'
+import { OrganizationService } from '#services/organization_service'
+import { WhatsappConfigService, type WhatsappConfigDto } from '#services/whatsapp_config_service'
 
 export type EmbeddedSignupSession = {
   appId: string
@@ -28,9 +27,11 @@ export type CompleteEmbeddedSignupInput = {
   businessId?: string
 }
 
+const META_VERIFICATION_HELP_URL = 'https://business.facebook.com/settings/security'
+
 /**
- * Org-first Embedded Signup orchestration.
- * Graph I/O is delegated to MetaGraphClient; persistence to WhatsappConfigService.
+ * Org-first Embedded Signup orchestration ([D70]).
+ * Exchange → resolve/validate Meta portfolio → subscribe/register → verified_setup.
  */
 export class WhatsappEmbeddedSignupService {
   constructor(
@@ -38,10 +39,6 @@ export class WhatsappEmbeddedSignupService {
     protected configService: WhatsappConfigService = new WhatsappConfigService(graphClient)
   ) {}
 
-  /**
-   * Public SDK bootstrap values (no secrets). FE still may use NEXT_PUBLIC_* ;
-   * this endpoint is the single server source of truth when preferred.
-   */
   getSession(): EmbeddedSignupSession {
     return {
       appId: env.get('META_APP_ID'),
@@ -50,17 +47,18 @@ export class WhatsappEmbeddedSignupService {
     }
   }
 
-  /**
-   * Exchange ES code → subscribe WABA → register phone → upsert whatsapp_configs.
-   * Partial Meta failures still persist status=error when a token was obtained,
-   * so the org can retry without repeating the popup when we add retry later.
-   */
   async complete(params: {
     organizationId: string
     userId: string
     input: CompleteEmbeddedSignupInput
   }): Promise<WhatsappConfigDto> {
-    await this.assertOrganizationActive(params.organizationId)
+    await this.assertOrganizationEligible(params.organizationId)
+
+    const phoneNumberId = params.input.phoneNumberId?.trim()
+    const wabaId = params.input.wabaId?.trim()
+    if (!phoneNumberId || !wabaId) {
+      throw WhatsappConfigException.phoneRequired()
+    }
 
     let accessToken: string
     try {
@@ -70,52 +68,117 @@ export class WhatsappEmbeddedSignupService {
       throw this.mapGraphError(error)
     }
 
-    let subscribed = false
-    let registered = false
-    let status: WhatsappConfigStatus = 'error'
+    let businessId = params.input.businessId?.trim() || null
+    let verificationStatus: string | null = null
 
     try {
-      await this.graphClient.subscribeAppToWaba({
-        wabaId: params.input.wabaId,
+      if (!businessId) {
+        const waba = await this.graphClient.getWaba({ wabaId, accessToken })
+        businessId = waba.ownerBusinessId ?? null
+        if (!businessId) {
+          throw WhatsappConfigException.metaAccountUnusable(
+            'Could not resolve a Meta Business Portfolio for this WhatsApp account.',
+            { wabaId }
+          )
+        }
+      }
+
+      const portfolio = await this.graphClient.getBusinessPortfolio({
+        businessId,
         accessToken,
       })
+      verificationStatus = portfolio.verificationStatus?.toLowerCase() ?? null
+
+      if (!verificationStatus) {
+        throw WhatsappConfigException.metaAccountUnusable(
+          'Meta did not return a Business Portfolio verification status.',
+          { businessId }
+        )
+      }
+
+      if (verificationStatus !== 'verified') {
+        await this.configService.upsertFromEmbeddedSignup({
+          organizationId: params.organizationId,
+          userId: params.userId,
+          phoneNumberId,
+          wabaId,
+          businessId,
+          metaVerificationStatus: verificationStatus,
+          accessTokenPlain: accessToken,
+          status: 'error',
+          subscribed: false,
+          registered: false,
+        })
+        throw WhatsappConfigException.metaPortfolioUnverified({
+          businessId,
+          verificationStatus,
+          helpUrl: META_VERIFICATION_HELP_URL,
+        })
+      }
+    } catch (error) {
+      if (error instanceof WhatsappConfigException) {
+        throw error
+      }
+      if (error instanceof MetaGraphApiError) {
+        await this.#persistErrorConfigBestEffort({
+          organizationId: params.organizationId,
+          userId: params.userId,
+          phoneNumberId,
+          wabaId,
+          businessId,
+          metaVerificationStatus: verificationStatus,
+          accessToken,
+        })
+        throw WhatsappConfigException.metaAccountUnusable(
+          error.message ||
+            'No valid Meta Business Portfolio could be linked. Create or select a portfolio in Embedded Signup and try again.',
+          { wabaId, businessId: businessId ?? undefined }
+        )
+      }
+      throw this.mapGraphError(error)
+    }
+
+    let subscribed = false
+    let registered = false
+
+    try {
+      await this.graphClient.subscribeAppToWaba({ wabaId, accessToken })
       subscribed = true
 
       const pin = generateWhatsappRegistrationPin()
       await this.graphClient.registerPhoneNumber({
-        phoneNumberId: params.input.phoneNumberId,
+        phoneNumberId,
         accessToken,
         pin,
       })
       registered = true
-      status = 'connected'
     } catch (error) {
       const previous = await db
         .from('whatsapp_configs')
         .where('organizationId', params.organizationId)
-        .where('phoneNumberId', params.input.phoneNumberId)
+        .where('phoneNumberId', phoneNumberId)
         .select('status')
         .first()
 
-      // Persist partial state below, then surface Meta error to the client.
       await this.configService.upsertFromEmbeddedSignup({
         organizationId: params.organizationId,
         userId: params.userId,
-        phoneNumberId: params.input.phoneNumberId,
-        wabaId: params.input.wabaId,
+        phoneNumberId,
+        wabaId,
+        businessId,
+        metaVerificationStatus: verificationStatus,
         accessTokenPlain: accessToken,
         status: 'error',
         subscribed,
         registered,
       })
 
-      // Notify only on transition into error (skip retries that stay status=error).
       if ((previous?.status as string | undefined) !== 'error') {
         const detail = error instanceof Error ? error.message : 'WhatsApp connection failed'
         await this.#notifyOwnerConnectionErrorBestEffort({
           organizationId: params.organizationId,
           actorUserId: params.userId,
-          phoneNumberId: params.input.phoneNumberId,
+          phoneNumberId,
           detail,
         })
       }
@@ -123,24 +186,61 @@ export class WhatsappEmbeddedSignupService {
       throw this.mapGraphError(error)
     }
 
-    return this.configService.upsertFromEmbeddedSignup({
+    const dto = await this.configService.upsertFromEmbeddedSignup({
       organizationId: params.organizationId,
       userId: params.userId,
-      phoneNumberId: params.input.phoneNumberId,
-      wabaId: params.input.wabaId,
+      phoneNumberId,
+      wabaId,
+      businessId,
+      metaVerificationStatus: verificationStatus,
       accessTokenPlain: accessToken,
-      status,
-      subscribed,
-      registered,
+      status: 'connected',
+      subscribed: true,
+      registered: true,
     })
+
+    await new OrganizationService().promoteToVerifiedSetup(params.organizationId)
+
+    try {
+      await insertAuthorizationAudit({
+        organizationId: params.organizationId,
+        actorUserId: params.userId,
+        targetType: 'organization',
+        targetId: params.organizationId,
+        eventType: 'organization.whatsapp_verified',
+        after: {
+          businessId,
+          wabaId,
+          phoneNumberId,
+          verificationStatus,
+        },
+      })
+    } catch (error) {
+      logger.warn(
+        {
+          organizationId: params.organizationId,
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'whatsapp.audit_whatsapp_verified_failed'
+      )
+    }
+
+    return dto
   }
 
-  protected async assertOrganizationActive(organizationId: string): Promise<void> {
+  /**
+   * Allow Embedded Signup for unpaid setup and already-active orgs (reconnect).
+   */
+  protected async assertOrganizationEligible(organizationId: string): Promise<void> {
     const org = await db
       .from('organizations')
       .where('id', organizationId)
       .whereNull('deletedAt')
-      .where('status', 'active')
+      .whereIn('status', [
+        OrganizationStatus.PENDING_SETUP,
+        OrganizationStatus.VERIFIED_SETUP,
+        OrganizationStatus.ACTIVE,
+      ])
       .select('id')
       .first()
 
@@ -163,6 +263,39 @@ export class WhatsappEmbeddedSignupService {
     return WhatsappConfigException.metaGraphFailed('Meta Graph request failed')
   }
 
+  async #persistErrorConfigBestEffort(params: {
+    organizationId: string
+    userId: string
+    phoneNumberId: string
+    wabaId: string
+    businessId: string | null
+    metaVerificationStatus: string | null
+    accessToken: string
+  }): Promise<void> {
+    try {
+      await this.configService.upsertFromEmbeddedSignup({
+        organizationId: params.organizationId,
+        userId: params.userId,
+        phoneNumberId: params.phoneNumberId,
+        wabaId: params.wabaId,
+        businessId: params.businessId,
+        metaVerificationStatus: params.metaVerificationStatus,
+        accessTokenPlain: params.accessToken,
+        status: 'error',
+        subscribed: false,
+        registered: false,
+      })
+    } catch (error) {
+      logger.warn(
+        {
+          organizationId: params.organizationId,
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'whatsapp.persist_error_config_failed'
+      )
+    }
+  }
+
   async #resolveOwnerUserId(organizationId: string): Promise<string | null> {
     const row = await db
       .from('organization_members')
@@ -176,10 +309,6 @@ export class WhatsappEmbeddedSignupService {
     return (row?.userId as string | undefined) ?? null
   }
 
-  /**
-   * Best-effort owner notification after WhatsApp config is persisted with status=error.
-   * Never throws — connection-error persistence/throw path must not fail on notify.
-   */
   async #notifyOwnerConnectionErrorBestEffort(params: {
     organizationId: string
     actorUserId: string
