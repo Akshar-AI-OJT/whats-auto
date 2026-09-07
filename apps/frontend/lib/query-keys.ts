@@ -163,8 +163,10 @@ export const queryKeys = {
   },
   search: {
     all: ['global-search'] as const,
-    query: (scope: 'organization' | 'platform', q: string) =>
-      [...queryKeys.search.all, scope, q] as const,
+    query: (scope: 'organization' | 'platform', q: string, organizationId?: string | null) =>
+      scope === 'platform'
+        ? ([...queryKeys.search.all, 'platform', q] as const)
+        : ([...queryKeys.search.all, 'organization', organizationId ?? 'none', q] as const),
   },
   admin: {
     organizations: (params?: Record<string, unknown>) =>

@@ -23,6 +23,13 @@ export type DuplicatePlanCleanupResult = {
   groups: DuplicatePlanCleanupGroup[]
 }
 
+export type DuplicatePlanPreviewGroup = {
+  identityKey: string
+  canonicalId: string
+  archivedIds: string[]
+  candidateIds: string[]
+}
+
 type DuplicateIdentityGroupRow = {
   ids: unknown
 }
@@ -121,6 +128,34 @@ export async function findDuplicateActivePlanGroups(client: Db = db): Promise<Pl
     groups.push(rows)
   }
   return groups
+}
+
+/**
+ * Pre-change report using the same canonical-selection rules as cleanup
+ * (reference counts, then oldest createdAt, then smallest id).
+ */
+export async function previewDuplicateActivePlanGroups(
+  client: Db = db
+): Promise<DuplicatePlanPreviewGroup[]> {
+  const duplicateGroups = await findDuplicateActivePlanGroups(client)
+  const preview: DuplicatePlanPreviewGroup[] = []
+
+  for (const rows of duplicateGroups) {
+    const refs = await countRefs(
+      rows.map((row) => row.id),
+      client
+    )
+    const canonical = pickCanonicalPlanRow(rows, refs)
+    const candidateIds = rows.map((row) => row.id)
+    preview.push({
+      identityKey: planLogicalIdentityKey(canonical),
+      canonicalId: canonical.id,
+      archivedIds: candidateIds.filter((id) => id !== canonical.id),
+      candidateIds,
+    })
+  }
+
+  return preview
 }
 
 async function runCleanup(client: TransactionClientContract): Promise<DuplicatePlanCleanupResult> {

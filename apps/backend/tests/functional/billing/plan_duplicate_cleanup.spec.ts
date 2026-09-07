@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto'
 import db from '@adonisjs/lucid/services/db'
 import { PlanRepository } from '#repositories/plan_repository'
 import { PlanService } from '#services/billing/plan_service'
-import { cleanupDuplicateActivePlans } from '#services/billing/plan_duplicate_cleanup'
+import { cleanupDuplicateActivePlans, previewDuplicateActivePlanGroups } from '#services/billing/plan_duplicate_cleanup'
 import { EntitlementService } from '#services/billing/entitlement_service'
 import { runWithTenant } from '#services/tenant_context'
 import { derivePlanStatus } from '#transformers/plan_transformer'
@@ -133,6 +133,12 @@ test.group('Duplicate active plan cleanup', (group) => {
           })
         })
 
+        const preview = await previewDuplicateActivePlanGroups()
+        const previewGroup = preview.find((item) => item.candidateIds.includes(canonicalId))
+        assert.exists(previewGroup)
+        assert.equal(previewGroup!.canonicalId, canonicalId)
+        assert.include(previewGroup!.archivedIds, duplicateId)
+
         const result = await cleanupDuplicateActivePlans()
         const group = result.groups.find((item) => item.canonicalId === canonicalId)
         assert.exists(group)
@@ -150,7 +156,7 @@ test.group('Duplicate active plan cleanup', (group) => {
 
         assert.equal(subscription?.planId, canonicalId)
         assert.equal(order?.planId, canonicalId)
-        assert.equal(invoice?.planId, duplicateId)
+        assert.equal(invoice?.planId, canonicalId)
         assert.equal(invoice?.planName, `Cleanup Growth ${suffix}`)
         assert.equal(Number(invoice?.total), 2499)
 

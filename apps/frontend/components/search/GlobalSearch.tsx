@@ -25,7 +25,7 @@ import {
   Users,
 } from 'lucide-react'
 import { useRouter } from '@/i18n/navigation'
-import { api, type ApiError, type GlobalSearchResult, type GlobalSearchResultType } from '@/lib/api'
+import { api, type GlobalSearchResult, type GlobalSearchResultType } from '@/lib/api'
 import { queryKeys } from '@/lib/query-keys'
 import {
   GLOBAL_SEARCH_DEBOUNCE_MS,
@@ -37,6 +37,7 @@ import { cn } from '@/lib/utils'
 
 type GlobalSearchProps = {
   scope: 'organization' | 'platform'
+  organizationId?: string | null
   className?: string
   onOpenChange?: (open: boolean) => void
 }
@@ -78,15 +79,7 @@ function getIsLg() {
   return window.matchMedia('(min-width: 1024px)').matches
 }
 
-function searchErrorMessage(error: unknown, fallback: string): string {
-  if (error && typeof error === 'object' && 'message' in error) {
-    const message = (error as ApiError).message
-    if (typeof message === 'string' && message.trim()) return message
-  }
-  return fallback
-}
-
-export function GlobalSearch({ scope, className, onOpenChange }: GlobalSearchProps) {
+export function GlobalSearch({ scope, organizationId, className, onOpenChange }: GlobalSearchProps) {
   const t = useTranslations(scope === 'platform' ? 'admin.navbar' : 'dashboard.topbar')
   const tSearch = useTranslations('globalSearch')
   const router = useRouter()
@@ -108,9 +101,10 @@ export function GlobalSearch({ scope, className, onOpenChange }: GlobalSearchPro
     return () => window.clearTimeout(handle)
   }, [query])
 
-  const enabled = debouncedQuery.length > 0
+  const enabled =
+    debouncedQuery.length > 0 && (scope === 'platform' || Boolean(organizationId))
   const searchQuery = useQuery({
-    queryKey: queryKeys.search.query(scope, debouncedQuery),
+    queryKey: queryKeys.search.query(scope, debouncedQuery, organizationId),
     queryFn: async () => {
       const response =
         scope === 'platform'
@@ -133,6 +127,10 @@ export function GlobalSearch({ scope, className, onOpenChange }: GlobalSearchPro
     panelOpen && enabled && !searchQuery.isFetching && !searchQuery.isError && results.length === 0
   const showResults = panelOpen && enabled && !searchQuery.isFetching && results.length > 0
   const waitingForDebounce = panelOpen && query.trim().length > 0 && query.trim() !== debouncedQuery
+
+  useEffect(() => {
+    setActiveIndex(-1)
+  }, [debouncedQuery, searchQuery.dataUpdatedAt])
 
   useEffect(() => {
     onOpenChange?.(panelOpen)
@@ -299,9 +297,7 @@ export function GlobalSearch({ scope, className, onOpenChange }: GlobalSearchPro
           ) : null}
 
           {showError ? (
-            <p className="px-3 py-3 text-sm text-negative">
-              {searchErrorMessage(searchQuery.error, tSearch('error'))}
-            </p>
+            <p className="px-3 py-3 text-sm text-negative">{tSearch('error')}</p>
           ) : null}
 
           {showEmpty ? <p className="px-3 py-3 text-sm text-mute">{tSearch('noResults')}</p> : null}

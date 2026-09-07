@@ -1,20 +1,13 @@
-import type { GlobalSearchResponse, GlobalSearchResult, GlobalSearchResultType } from '@/lib/api'
+import {
+  GLOBAL_SEARCH_RESULT_TYPES,
+  type GlobalSearchResponse,
+  type GlobalSearchResult,
+  type GlobalSearchResultType,
+} from '@/lib/api'
 
 export const GLOBAL_SEARCH_DEBOUNCE_MS = 300
 
-const RESULT_TYPE_SET = new Set<string>([
-  'contact',
-  'conversation',
-  'campaign',
-  'template',
-  'flow',
-  'customer_group',
-  'organization',
-  'user',
-  'plan',
-  'subscription',
-  'invoice',
-])
+const RESULT_TYPE_SET = new Set<string>(GLOBAL_SEARCH_RESULT_TYPES)
 
 export function unwrapGlobalSearch(
   data: { data?: GlobalSearchResponse } | GlobalSearchResponse | undefined
@@ -66,7 +59,7 @@ export function hrefForSearchResult(
     case 'plan':
       return `/admin/plans/${result.id}`
     case 'subscription':
-      return '/admin/subscriptions'
+      return `/admin/subscriptions/${result.id}`
     case 'invoice':
       return `/admin/invoices/${result.id}`
     default:
@@ -74,19 +67,7 @@ export function hrefForSearchResult(
   }
 }
 
-const TYPE_ORDER: GlobalSearchResultType[] = [
-  'contact',
-  'conversation',
-  'campaign',
-  'template',
-  'flow',
-  'customer_group',
-  'organization',
-  'user',
-  'plan',
-  'subscription',
-  'invoice',
-]
+const TYPE_ORDER: GlobalSearchResultType[] = [...GLOBAL_SEARCH_RESULT_TYPES]
 
 export function groupSearchResults(
   results: GlobalSearchResult[]

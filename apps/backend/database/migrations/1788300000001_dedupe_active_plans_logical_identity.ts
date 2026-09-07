@@ -3,19 +3,18 @@ import db from '@adonisjs/lucid/services/db'
 import {
   CREATE_PLANS_ACTIVE_LOGICAL_IDENTITY_INDEX_SQL,
   DROP_PLANS_ACTIVE_LOGICAL_IDENTITY_INDEX_SQL,
-  pickCanonicalPlanRow,
-  planLogicalIdentityKey,
 } from '#lib/billing/plan_logical_identity'
 import {
   cleanupDuplicateActivePlans,
-  findDuplicateActivePlanGroups,
+  previewDuplicateActivePlanGroups,
 } from '#services/billing/plan_duplicate_cleanup'
 
 /**
  * 1. Collapse duplicate *active* plan SKUs (same name + interval + price + currency).
  *    Canonical row is the one with the most billing references; extras are archived
- *    (not hard-deleted) after subscriptions and billing orders are re-pointed.
- *    Invoice rows keep their original planId and snapshot fields (planName, totals).
+ *    (not hard-deleted) after subscriptions, billing orders, and invoices are
+ *    re-pointed onto the canonical planId. Invoice snapshot fields (planName,
+ *    totals) remain unchanged.
  * 2. Enforce that uniqueness going forward with a partial unique index on active rows.
  */
 export default class extends BaseSchema {
@@ -23,15 +22,8 @@ export default class extends BaseSchema {
     this.defer(async () => {
       const result = await db.transaction(async (trx) => {
         await trx.rawQuery('SET LOCAL row_security = off')
-        const identified = await findDuplicateActivePlanGroups(trx)
-        if (identified.length > 0) {
-          const preview = identified.map((rows) => {
-            const canonical = pickCanonicalPlanRow(rows)
-            return {
-              identityKey: planLogicalIdentityKey(canonical),
-              candidateIds: rows.map((row) => row.id),
-            }
-          })
+        const preview = await previewDuplicateActivePlanGroups(trx)
+        if (preview.length > 0) {
           console.info('[plans] duplicate active groups before cleanup', preview)
         }
         const cleaned = await cleanupDuplicateActivePlans(trx)

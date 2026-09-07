@@ -19,6 +19,7 @@ const ORGANIZATION_PROFILE_SELECT = [
   'o.email as orgEmail',
   'o.industry',
   'o.businessSize',
+  'o.pan',
   'o.country',
   'o.address',
 ] as const

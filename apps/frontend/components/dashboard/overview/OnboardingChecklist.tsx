@@ -61,7 +61,7 @@ export function OnboardingChecklist({ className }: { className?: string }) {
     hasOrganizations,
     canInviteMembers,
   } = useOrganizations()
-  const { hasFullProductAccess, isSetupComplete } = useProductAccess()
+  const { hasFullProductAccess, isSetupComplete, organizationId } = useProductAccess()
   const dismissed = !useSyncExternalStore(
     subscribeChecklist,
     getChecklistSnapshot,
@@ -153,7 +153,11 @@ export function OnboardingChecklist({ className }: { className?: string }) {
               return (
                 <li key={step.id}>
                   <Link
-                    href={resolveDashboardHref(step.href, { hasFullProductAccess, isSetupComplete })}
+                    href={resolveDashboardHref(step.href, {
+                      hasFullProductAccess,
+                      isSetupComplete,
+                      organizationId,
+                    })}
                     className={cn(
                       'flex cursor-pointer items-center gap-3 rounded-xl border border-dash-border bg-canvas px-3.5 py-3',
                       'transition-[border-color,background-color] duration-150 hover:border-dash-border-strong hover:bg-dash-surface'

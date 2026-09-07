@@ -768,7 +768,9 @@ router
     router.patch('/ai-config', [SuperAdminAiConfigController, 'update'])
     router.get('/audit-logs', [SuperAdminAuditController, 'index'])
     router.get('/platform-users', [SuperAdminPlatformUsersController, 'index'])
-    router.get('/search', [SuperAdminSearchController, 'index'])
+    router.get('/search', [SuperAdminSearchController, 'index']).use(
+      middleware.rateLimit({ max: 60, windowMs: 60 * 1000, name: 'super-admin-search' })
+    )
   })
   .prefix('/api/v1/super-admin')
   .use([middleware.jwtAuth(), middleware.platform()])
@@ -826,7 +828,11 @@ router
 // Global search — tenant-scoped; organization id always comes from auth, never the query string
 router
   .get('/api/v1/search', [GlobalSearchController, 'index'])
-  .use([middleware.jwtAuth(), middleware.tenant()])
+  .use([
+    middleware.jwtAuth(),
+    middleware.tenant(),
+    middleware.rateLimit({ max: 60, windowMs: 60 * 1000, name: 'tenant-search' }),
+  ])
 
 // Onboarding state — no active org required; tells the client which screen comes next
 router.get('/api/v1/onboarding/state', [OnboardingController, 'show']).use([middleware.jwtAuth()])

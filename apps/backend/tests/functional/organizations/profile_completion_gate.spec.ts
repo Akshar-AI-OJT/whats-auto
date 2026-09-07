@@ -99,6 +99,7 @@ async function createIncompleteActiveOrgOwnedBy(userId: string) {
 const COMPLETE_PROFILE_PATCH = {
   industry: 'Retail',
   businessSize: '11-50',
+  pan: 'AAAAA0000A',
   country: 'IN',
   address: {
     addressLine1: '12 MG Road',
@@ -275,6 +276,34 @@ test.group('Organization profile completion gate', (group) => {
 
     const after = await client.get('/api/v1/contacts').header('Authorization', `Bearer ${token}`)
     after.assertStatus(200)
+  })
+
+  test('placeholder PAN and address do not unblock protected APIs', async ({ client, assert }) => {
+    const owner = await db
+      .from('users')
+      .where('email', DEMO_USERS.northstarOwner)
+      .select('id')
+      .firstOrFail()
+    const organizationId = await createIncompleteActiveOrgOwnedBy(owner.id as string)
+    orgIds.push(organizationId)
+
+    const token = await mintTokenForOrg(DEMO_USERS.northstarOwner, organizationId)
+    const saved = await client
+      .patch(`/api/v1/organizations/${organizationId}`)
+      .header('Authorization', `Bearer ${token}`)
+      .json({
+        ...COMPLETE_PROFILE_PATCH,
+        pan: 'SETUP0000A',
+        address: {
+          ...COMPLETE_PROFILE_PATCH.address,
+          addressLine1: 'Address pending',
+        },
+      })
+    saved.assertStatus(200)
+
+    const blocked = await client.get('/api/v1/contacts').header('Authorization', `Bearer ${token}`)
+    blocked.assertStatus(403)
+    assert.equal(errorBody(blocked).code, 'E_ORGANIZATION_PROFILE_INCOMPLETE')
   })
 
   test('gate uses the authenticated tenant org and ignores a different organizationId', async ({

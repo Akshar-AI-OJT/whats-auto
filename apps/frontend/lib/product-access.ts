@@ -1,5 +1,5 @@
 import { ONBOARDING_PLAN_PATH } from '@/lib/onboarding'
-import { ORG_PROFILE_PATH } from '@/lib/organization-profile'
+import { organizationProfilePath } from '@/lib/organization-profile'
 import { normalizeAppPath } from '@/lib/post-auth-redirect'
 
 /** Sidebar / account destinations that stay available before setup + subscription. */
@@ -17,9 +17,12 @@ function stripQueryAndHash(pathname: string): string {
   return withoutQuery
 }
 
-/** Setup incomplete → profile. Setup done + unpaid → onboarding plan (not dashboard billing). */
-export function getProductUnlockPath(input: { isSetupComplete: boolean }): string {
-  return input.isSetupComplete ? ONBOARDING_PLAN_PATH : ORG_PROFILE_PATH
+/** Setup incomplete → profile (tenant-scoped). Setup done + unpaid → onboarding plan. */
+export function getProductUnlockPath(input: {
+  isSetupComplete: boolean
+  organizationId?: string | null
+}): string {
+  return input.isSetupComplete ? ONBOARDING_PLAN_PATH : organizationProfilePath(input.organizationId)
 }
 
 export function isUnlockedNavKey(key: string): boolean {
@@ -37,7 +40,11 @@ export function isAlwaysAllowedDashboardPath(pathname: string): boolean {
 export function resolveDashboardHref(href: string, input: {
   hasFullProductAccess: boolean
   isSetupComplete: boolean
+  organizationId?: string | null
 }): string {
   if (input.hasFullProductAccess || isAlwaysAllowedDashboardPath(href)) return href
-  return getProductUnlockPath({ isSetupComplete: input.isSetupComplete })
+  return getProductUnlockPath({
+    isSetupComplete: input.isSetupComplete,
+    organizationId: input.organizationId,
+  })
 }

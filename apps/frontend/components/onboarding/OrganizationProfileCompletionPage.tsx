@@ -384,7 +384,7 @@ export function OrganizationProfileCompletionPage() {
   }
 
   async function handleLogoFile(file: File | null) {
-    if (!file || !org?.id || !values) return
+    if (!file || !org?.id || !values || !tenantMatchesOrg) return
     setFormError(null)
 
     if (!LOGO_ACCEPT.split(',').includes(file.type)) {

@@ -45,6 +45,7 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
   const {
     organizations,
     activeOrganizationId,
+    tenantOrganizationId,
     hasOrganizations,
     isLoading: orgsLoading,
     error: organizationsError,
@@ -189,6 +190,7 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
 
       <GlobalSearch
         scope="organization"
+        organizationId={tenantOrganizationId}
         className={cn(
           'order-last min-w-0 basis-full',
           'sm:order-2 sm:mx-1 sm:flex-1 sm:basis-auto sm:min-w-[13rem]',

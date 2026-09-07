@@ -13,6 +13,7 @@ export const ORGANIZATION_PROFILE_COMPLETION_COLUMNS = [
   'email',
   'industry',
   'businessSize',
+  'pan',
   'country',
   'address',
 ] as const
@@ -38,16 +39,19 @@ export function organizationProfileSourceFromOrgRow(
     email: (row.orgEmail as string | null | undefined) ?? (row.email as string | null | undefined),
     industry: row.industry as string | null | undefined,
     businessSize: row.businessSize as string | null | undefined,
+    pan: row.pan as string | null | undefined,
     country: row.country as string | null | undefined,
     address: row.address,
   }
 }
 
 /**
- * Organization profile completion guard.
+ * Organization profile completion helpers used by tenant middleware.
+ * The live gate is `assertOrganizationProfileComplete` inside tenant
+ * middleware — this class is not mounted on routes.
  *
- * Runs after JWT auth + tenant resolution. Opt out on routes needed to
- * complete the profile via `tenant({ skipProfileCompletionGate: true })`.
+ * Opt out on routes needed to complete the profile via
+ * `tenant({ skipProfileCompletionGate: true })`.
  */
 export default class OrganizationProfileCompletionMiddleware {
   async handle({ request }: HttpContext, next: NextFn) {
