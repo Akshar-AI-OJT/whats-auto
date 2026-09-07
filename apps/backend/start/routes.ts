@@ -61,6 +61,7 @@ const IntegrationConnectionsController = () =>
   import('#controllers/integration_connections_controller')
 const ExternalEventsController = () => import('#controllers/external_events_controller')
 const ShopenupIntegrationsController = () => import('#controllers/shopenup_integrations_controller')
+const DemoBookingsController = () => import('#controllers/demo_bookings_controller')
 
 type JsonSchema = {
   type: 'object'
@@ -599,6 +600,19 @@ const requestBodySchemas: Record<string, JsonSchema> = {
     },
     ['externalEventId', 'type', 'occurredAt', 'payload']
   ),
+  'post /api/v1/demo/bookings': bodySchema(
+    {
+      name: { type: 'string', example: 'Jane Doe' },
+      email: { type: 'string', format: 'email', example: 'jane@company.com' },
+      slotId: { type: 'string', example: '2026-09-15T04:30:00.000Z' },
+      timeZone: { type: 'string', example: 'Asia/Kolkata' },
+      company: { type: 'string', example: 'Acme Inc.' },
+      phone: { type: 'string', example: '+15550000000' },
+      companySize: { type: 'string', example: '11-50' },
+      purpose: { type: 'string', example: 'overview' },
+    },
+    ['name', 'email', 'slotId', 'timeZone']
+  ),
   'post /api/v1/integrations/shopenup/events': bodySchema(
     {
       eventType: { type: 'string', example: 'order.placed' },
@@ -673,6 +687,22 @@ router
     router.post('/billing/razorpay', [BillingRazorpayWebhookController, 'receive'])
   })
   .prefix('/api/v1/webhooks')
+
+/*
+|--------------------------------------------------------------------------
+| Public Book Demo (landing page — no jwtAuth / tenant)
+|--------------------------------------------------------------------------
+*/
+router
+  .group(() => {
+    router
+      .get('/availability', [DemoBookingsController, 'availability'])
+      .use(middleware.rateLimit({ max: 60, windowMs: 60 * 1000, name: 'demo-availability' }))
+    router
+      .post('/bookings', [DemoBookingsController, 'store'])
+      .use(middleware.rateLimit({ max: 10, windowMs: 15 * 60 * 1000, name: 'demo-bookings' }))
+  })
+  .prefix('/api/v1/demo')
 
 /*
 |--------------------------------------------------------------------------
