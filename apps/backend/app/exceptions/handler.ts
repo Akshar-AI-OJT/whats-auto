@@ -1,6 +1,8 @@
 import app from '@adonisjs/core/services/app'
 import { type HttpContext, ExceptionHandler } from '@adonisjs/core/http'
 import { extractPostgresError, extractUniqueViolationField } from '#lib/pg_unique_violation'
+import { PLAN_ACTIVE_LOGICAL_IDENTITY_INDEX } from '#lib/billing/plan_logical_identity'
+import { DEMO_BOOKINGS_CONFIRMED_SLOT_INDEX } from '#lib/demo_schedule'
 
 function isBouncerForbidden(
   error: unknown
@@ -29,6 +31,28 @@ export default class HttpExceptionHandler extends ExceptionHandler {
     // this catches any unmapped 23505 across the API surface.
     const pgError = extractPostgresError(error)
     if (pgError?.code === '23505') {
+      const constraint = pgError.constraint?.replaceAll('"', '') ?? ''
+      if (
+        constraint === PLAN_ACTIVE_LOGICAL_IDENTITY_INDEX ||
+        (typeof pgError.detail === 'string' &&
+          pgError.detail.includes(PLAN_ACTIVE_LOGICAL_IDENTITY_INDEX))
+      ) {
+        return ctx.response.status(409).send({
+          error:
+            'An active plan with the same name, billing interval, price, and currency already exists',
+          code: 'E_PLAN_DUPLICATE_ACTIVE',
+        })
+      }
+      if (
+        constraint === DEMO_BOOKINGS_CONFIRMED_SLOT_INDEX ||
+        (typeof pgError.detail === 'string' &&
+          pgError.detail.includes(DEMO_BOOKINGS_CONFIRMED_SLOT_INDEX))
+      ) {
+        return ctx.response.status(409).send({
+          error: 'This time slot is no longer available',
+          code: 'E_DEMO_SLOT_UNAVAILABLE',
+        })
+      }
       const field = extractUniqueViolationField(pgError.detail) || 'field'
       return ctx.response.status(409).send({
         error: `A record with this ${field} already exists.`,

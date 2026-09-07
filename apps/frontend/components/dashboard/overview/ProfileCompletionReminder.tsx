@@ -10,7 +10,7 @@ import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { ONBOARDING_PLAN_PATH } from '@/lib/onboarding'
 import {
   calculateOrganizationProfileCompletion,
-  ORG_PROFILE_PATH,
+  organizationProfilePath,
   organizationToProfileFormValues,
 } from '@/lib/organization-profile'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
@@ -61,7 +61,9 @@ export function ProfileCompletionReminder() {
 
   const needsSetup = !isSetupComplete
   const needsPlan = isSetupComplete && isSubscriptionPending
-  const href = needsSetup ? ORG_PROFILE_PATH : needsPlan ? ONBOARDING_PLAN_PATH : ORG_PROFILE_PATH
+  const href = needsPlan
+    ? ONBOARDING_PLAN_PATH
+    : organizationProfilePath(activeOrganization?.id)
   const title = needsSetup
     ? t('incompleteTitle')
     : needsPlan

@@ -32,7 +32,7 @@ async function seedOrgAndCheckoutablePlan() {
   await db.table('plans').insert({
     id: planId,
     code: `growth_${organizationId.slice(0, 8)}`,
-    name: 'Growth CK',
+    name: `Growth CK ${organizationId.slice(0, 8)}`,
     price: 2499,
     currency: 'INR',
     billingInterval: 'month',
@@ -285,7 +285,7 @@ test.group('BillingCheckoutService free activation', () => {
     await db.table('plans').insert({
       id: planId,
       code: `free_trial_${organizationId.slice(0, 8)}`,
-      name: 'Free Trial',
+      name: `Free Trial ${organizationId.slice(0, 8)}`,
       price: 0,
       currency: 'INR',
       billingInterval: 'month',
@@ -410,7 +410,7 @@ test.group('BillingCheckoutService free activation', () => {
     await db.table('plans').insert({
       id: planId,
       code: `free_idem_${organizationId.slice(0, 8)}`,
-      name: 'Free Trial',
+      name: `Free Trial ${organizationId.slice(0, 8)}`,
       price: 0,
       currency: 'INR',
       billingInterval: 'month',

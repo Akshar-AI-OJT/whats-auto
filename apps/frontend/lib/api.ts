@@ -241,6 +241,46 @@ export type LoginBody = {
   password: string
 }
 
+export type DemoAvailabilitySlot = {
+  id: string
+  startTime: string
+  endTime: string
+  label: string
+  available: boolean
+}
+
+export type DemoAvailability = {
+  date: string
+  timeZone: string
+  today: string
+  durationMinutes: number
+  slots: DemoAvailabilitySlot[]
+}
+
+export type CreateDemoBookingBody = {
+  name: string
+  email: string
+  slotId: string
+  timeZone: string
+  company?: string
+  phone?: string
+  companySize?: string
+  purpose?: string
+}
+
+export type DemoBooking = {
+  id: string
+  fullName: string
+  email: string
+  startsAt: string
+  endsAt: string
+  timeZone: string
+  demoTimeZone: string
+  status: string
+  meetingUrl: string | null
+  createdAt: string
+}
+
 export type ProfileUser = {
   id: string
   name: string
@@ -1800,6 +1840,34 @@ export type TenantBillingPlan = {
   sortOrder: number
 }
 
+export const GLOBAL_SEARCH_RESULT_TYPES = [
+  'contact',
+  'conversation',
+  'campaign',
+  'template',
+  'flow',
+  'customer_group',
+  'organization',
+  'user',
+  'plan',
+  'subscription',
+  'invoice',
+] as const
+
+export type GlobalSearchResultType = (typeof GLOBAL_SEARCH_RESULT_TYPES)[number]
+
+export type GlobalSearchResult = {
+  type: GlobalSearchResultType
+  id: string
+  title: string
+  description: string | null
+}
+
+export type GlobalSearchResponse = {
+  query: string
+  results: GlobalSearchResult[]
+}
+
 export const api = {
   auth: {
     signup: (body: SignupBody) =>
@@ -1868,6 +1936,22 @@ export const api = {
       ),
   },
 
+  demo: {
+    availability: (params: { date: string; timeZone?: string }) => {
+      const qs = new URLSearchParams({ date: params.date })
+      if (params.timeZone) qs.set('timeZone', params.timeZone)
+      return publicRequest<DemoAvailability>(`/api/v1/demo/availability?${qs.toString()}`, {
+        method: 'GET',
+      })
+    },
+
+    book: (body: CreateDemoBookingBody) =>
+      publicRequest<DemoBooking>('/api/v1/demo/bookings', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+  },
+
   account: {
     profile: () =>
       protectedRequest<{ data?: ProfileUser } & ProfileUser>('/api/v1/account/profile', {
@@ -1881,6 +1965,16 @@ export const api = {
       protectedRequest<{ data?: OnboardingState } & OnboardingState>('/api/v1/onboarding/state', {
         method: 'GET',
       }),
+  },
+
+  search: {
+    query: (q: string) => {
+      const qs = new URLSearchParams({ q })
+      return protectedRequest<{ data?: GlobalSearchResponse } & GlobalSearchResponse>(
+        `/api/v1/search?${qs.toString()}`,
+        { method: 'GET' }
+      )
+    },
   },
 
   organizations: {
@@ -2789,6 +2883,16 @@ export const api = {
   },
 
   superAdmin: {
+    search: {
+      query: (q: string) => {
+        const qs = new URLSearchParams({ q })
+        return protectedRequest<{ data?: GlobalSearchResponse } & GlobalSearchResponse>(
+          `/api/v1/super-admin/search?${qs.toString()}`,
+          { method: 'GET' }
+        )
+      },
+    },
+
     organizations: {
       list: (params: { page?: number; perPage?: number } = {}) => {
         const qs = new URLSearchParams()

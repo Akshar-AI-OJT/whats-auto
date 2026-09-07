@@ -408,15 +408,21 @@
         "other": "Other"
       },
       "privacyAgree": "I agree to the <privacy>Privacy Policy</privacy>.",
-      "cta": "Book Demo",
-      "meetNote": "Google Meet details will be shared after confirmation.",
-      "errors": {
-        "nameRequired": "Full name is required.",
-        "emailInvalid": "Enter a valid work email.",
-        "privacyRequired": "Please agree to the Privacy Policy.",
-        "dateRequired": "Please select a date.",
-        "slotRequired": "Please select a time slot."
-      },
+        "cta": "Book Demo",
+        "ctaSubmitting": "Booking…",
+        "slotsLoading": "Loading available slots…",
+        "noSlots": "No available slots for this date.",
+        "pickDateHint": "Select a date to see available time slots.",
+        "meetNote": "Google Meet details will be shared after confirmation.",
+        "errors": {
+          "nameRequired": "Full name is required.",
+          "emailInvalid": "Enter a valid work email.",
+          "privacyRequired": "Please agree to the Privacy Policy.",
+          "dateRequired": "Please select a date.",
+          "slotRequired": "Please select a time slot.",
+          "submitFailed": "We could not book that demo. Please try again.",
+          "slotUnavailable": "That time slot is no longer available. Please pick another."
+        },
       "summary": {
         "title": "Demo Summary",
         "date": "Date",
@@ -448,6 +454,7 @@
           "durationValue": "30 Minutes",
           "platformValue": "Google Meet"
         },
+        "meetLinkLabel": "Join with Google Meet:",
         "next": {
           "email": "Confirmation email will be sent",
           "meet": "Google Meet invitation will be shared",
@@ -3442,8 +3449,6 @@
       "searchLabel": "Search organization",
       "searchPlaceholder": "Find contacts, conversations, campaigns, or templates…",
       "searchPlaceholderShort": "Search organization…",
-      "searchUnavailablePlaceholder": "Global search requires a backend API…",
-      "searchUnavailableHint": "Global search is not available yet. A backend search endpoint is required before this field can query your organization.",
       "searchShortcutLabel": "Focus search ({shortcut})",
       "notifications": "Notifications",
       "profile": "Profile",
@@ -4051,7 +4056,11 @@
       "openMenu": "Open admin navigation",
       "title": "Platform console",
       "subtitle": "Manage organizations, subscriptions, and platform users",
-      "logout": "Logout"
+      "logout": "Logout",
+      "searchLabel": "Search platform",
+      "searchPlaceholder": "Find organizations, users, plans, or subscriptions…",
+      "searchPlaceholderShort": "Search platform…",
+      "searchShortcutLabel": "Focus search ({shortcut})"
     },
     "checkingAccess": "Checking access…",
     "home": {
@@ -5212,6 +5221,25 @@
         "emptyDescription": "Audit events appear after permissioned actions are performed.",
         "noDetails": "No additional details"
       }
+    }
+  },
+  "globalSearch": {
+    "loading": "Searching…",
+    "noResults": "No results",
+    "error": "Couldn’t search. Try again.",
+    "resultsLabel": "Search results",
+    "types": {
+      "contact": "Contacts",
+      "conversation": "Conversations",
+      "campaign": "Campaigns",
+      "template": "Templates",
+      "flow": "Flows",
+      "customer_group": "Customer groups",
+      "organization": "Organizations",
+      "user": "Users",
+      "plan": "Plans",
+      "subscription": "Subscriptions",
+      "invoice": "Invoices"
     }
   }
 }

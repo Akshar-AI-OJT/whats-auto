@@ -5,20 +5,20 @@ import { Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { usePathname, useRouter } from '@/i18n/navigation'
 import { useProductAccess } from '@/hooks/useProductAccess'
-import { getProductUnlockPath, isAlwaysAllowedDashboardPath } from '@/lib/product-access'
+import { isAlwaysAllowedDashboardPath } from '@/lib/product-access'
 
 export function ProductAccessRouteGate({ children }: { children: React.ReactNode }) {
   const t = useTranslations('dashboard')
   const pathname = usePathname()
   const router = useRouter()
-  const { accessReady, hasFullProductAccess, isSetupComplete } = useProductAccess()
+  const { accessReady, hasFullProductAccess, unlockPath } = useProductAccess()
   const pathAllowed = isAlwaysAllowedDashboardPath(pathname)
   const canStay = pathAllowed || hasFullProductAccess
 
   useEffect(() => {
     if (!accessReady || canStay) return
-    router.replace(getProductUnlockPath({ isSetupComplete }))
-  }, [accessReady, canStay, isSetupComplete, router])
+    router.replace(unlockPath)
+  }, [accessReady, canStay, unlockPath, router])
 
   if (canStay) return children
 

@@ -243,6 +243,9 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
         await queryClient.invalidateQueries({
           queryKey: queryKeys.organizations.accessContext(userId),
         })
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.search.all,
+        })
         setSwitchError(null)
       } catch (err) {
         bootstrapStarted.current = false
@@ -305,6 +308,9 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
       await refreshSharedSession().catch(() => null)
       await queryClient.invalidateQueries({
         queryKey: queryKeys.organizations.accessContext(userId),
+      })
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.search.all,
       })
     } catch (err) {
       setSwitchError(errorMessage(err, 'Failed to switch organization'))

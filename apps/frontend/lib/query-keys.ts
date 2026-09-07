@@ -161,6 +161,13 @@ export const queryKeys = {
     plans: ['onboarding', 'plans'] as const,
     billingSubscription: ['onboarding', 'billing', 'subscription'] as const,
   },
+  search: {
+    all: ['global-search'] as const,
+    query: (scope: 'organization' | 'platform', q: string, organizationId?: string | null) =>
+      scope === 'platform'
+        ? ([...queryKeys.search.all, 'platform', q] as const)
+        : ([...queryKeys.search.all, 'organization', organizationId ?? 'none', q] as const),
+  },
   admin: {
     organizations: (params?: Record<string, unknown>) =>
       ['admin', 'organizations', params ?? {}] as const,

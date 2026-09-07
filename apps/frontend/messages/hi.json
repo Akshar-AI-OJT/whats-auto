@@ -409,13 +409,19 @@
       },
       "privacyAgree": "मैं <privacy>Privacy Policy</privacy> से सहमत हूँ।",
       "cta": "डेमो बुक करें",
+      "ctaSubmitting": "बुक हो रहा है…",
+      "slotsLoading": "उपलब्ध स्लॉट लोड हो रहे हैं…",
+      "noSlots": "इस तारीख के लिए कोई उपलब्ध स्लॉट नहीं है।",
+      "pickDateHint": "उपलब्ध समय स्लॉट देखने के लिए एक तारीख चुनें।",
       "meetNote": "पुष्टि के बाद Google Meet विवरण साझा किया जाएगा।",
       "errors": {
         "nameRequired": "पूरा नाम आवश्यक है।",
         "emailInvalid": "मान्य वर्क ईमेल दर्ज करें।",
         "privacyRequired": "कृपया Privacy Policy से सहमत हों।",
         "dateRequired": "कृपया एक तारीख चुनें।",
-        "slotRequired": "कृपया एक समय स्लॉट चुनें।"
+        "slotRequired": "कृपया एक समय स्लॉट चुनें।",
+        "submitFailed": "डेमो बुक नहीं हो सका। कृपया फिर से कोशिश करें।",
+        "slotUnavailable": "वह समय स्लॉट अब उपलब्ध नहीं है। कृपया दूसरा चुनें।"
       },
       "summary": {
         "title": "डेमो सारांश",
@@ -448,6 +454,7 @@
           "durationValue": "30 मिनट",
           "platformValue": "Google Meet"
         },
+        "meetLinkLabel": "Google Meet से जुड़ें:",
         "next": {
           "email": "पुष्टि ईमेल भेजा जाएगा",
           "meet": "Google Meet आमंत्रण साझा किया जाएगा",
@@ -3288,8 +3295,6 @@
       "searchLabel": "संगठन खोजें",
       "searchPlaceholder": "संपर्क, बातचीत, कैंपेन या टेम्पलेट खोजें…",
       "searchPlaceholderShort": "संगठन खोजें…",
-      "searchUnavailablePlaceholder": "ग्लोबल खोज के लिए बैकएंड API आवश्यक…",
-      "searchUnavailableHint": "ग्लोबल खोज अभी उपलब्ध नहीं है। संगठन खोजने से पहले बैकएंड खोज एंडपॉइंट की आवश्यकता है।",
       "searchShortcutLabel": "खोज पर जाएँ ({shortcut})",
       "notifications": "सूचनाएँ",
       "profile": "प्रोफ़ाइल",
@@ -4037,7 +4042,11 @@
       "openMenu": "एडमिन नेविगेशन खोलें",
       "title": "प्लेटफ़ॉर्म कंसोल",
       "subtitle": "संगठन, सब्सक्रिप्शन और प्लेटफ़ॉर्म उपयोगकर्ता प्रबंधित करें",
-      "logout": "लॉगआउट"
+      "logout": "लॉगआउट",
+      "searchLabel": "प्लेटफ़ॉर्म खोजें",
+      "searchPlaceholder": "संगठन, उपयोगकर्ता, प्लान या सब्सक्रिप्शन खोजें…",
+      "searchPlaceholderShort": "प्लेटफ़ॉर्म खोजें…",
+      "searchShortcutLabel": "खोज पर जाएँ ({shortcut})"
     },
     "checkingAccess": "एक्सेस जाँच हो रही है…",
     "home": {
@@ -5197,6 +5206,25 @@
         "emptyDescription": "permissioned actions होने पर ऑडिट इवेंट यहाँ दिखेंगे।",
         "noDetails": "कोई अतिरिक्त विवरण नहीं"
       }
+    }
+  },
+  "globalSearch": {
+    "loading": "खोज हो रही है…",
+    "noResults": "कोई परिणाम नहीं",
+    "error": "खोज नहीं हो सकी। फिर कोशिश करें।",
+    "resultsLabel": "खोज परिणाम",
+    "types": {
+      "contact": "संपर्क",
+      "conversation": "बातचीत",
+      "campaign": "कैंपेन",
+      "template": "टेम्पलेट",
+      "flow": "फ्लो",
+      "customer_group": "ग्राहक समूह",
+      "organization": "संगठन",
+      "user": "उपयोगकर्ता",
+      "plan": "प्लान",
+      "subscription": "सब्सक्रिप्शन",
+      "invoice": "इनवॉइस"
     }
   }
 }

@@ -1,4 +1,5 @@
 import { test } from '@japa/runner'
+import { randomUUID } from 'node:crypto'
 import db from '@adonisjs/lucid/services/db'
 import { DEMO_PASSWORD, DEMO_USERS } from '#database/demo/credentials'
 import { FIXTURE_IDS } from '#database/demo/fixture_ids'
@@ -127,5 +128,158 @@ test.group('Super-admin plans HTTP', (group) => {
     assert.equal(archived.body().data.status, 'archived')
 
     await db.from('plans').where('id', planId).delete()
+  })
+
+  test('rejects creating a duplicate active logical plan', async ({ client, assert }) => {
+    const token = await mintToken(DEMO_USERS.superadmin)
+    const suffix = randomUUID().slice(0, 8)
+
+    const created = await client
+      .post('/api/v1/super-admin/plans')
+      .header('Authorization', `Bearer ${token}`)
+      .json({
+        name: `HTTP Dup Create ${suffix}`,
+        code: `http_dup_${suffix}`,
+        price: 1800,
+        currency: 'INR',
+        billingPeriod: 'monthly',
+        status: 'active',
+        limits: {},
+      })
+
+    created.assertStatus(200)
+    const planId = created.body().data.id as string
+
+    try {
+      const duplicate = await client
+        .post('/api/v1/super-admin/plans')
+        .header('Authorization', `Bearer ${token}`)
+        .json({
+          name: `HTTP Dup Create ${suffix}`,
+          code: `http_dup_2_${suffix}`,
+          price: 1800,
+          currency: 'INR',
+          billingPeriod: 'monthly',
+          status: 'active',
+          limits: {},
+        })
+
+      duplicate.assertStatus(409)
+      assert.equal(duplicate.body().code, 'E_PLAN_DUPLICATE_ACTIVE')
+    } finally {
+      await db.from('plans').where('id', planId).delete()
+    }
+  })
+
+  test('allows a yearly variant and a different price of the same name', async ({
+    client,
+    assert,
+  }) => {
+    const token = await mintToken(DEMO_USERS.superadmin)
+    const suffix = randomUUID().slice(0, 8)
+    const createdIds: string[] = []
+
+    try {
+      const monthly = await client
+        .post('/api/v1/super-admin/plans')
+        .header('Authorization', `Bearer ${token}`)
+        .json({
+          name: `HTTP Variant ${suffix}`,
+          code: `http_var_m_${suffix}`,
+          price: 999,
+          currency: 'INR',
+          billingPeriod: 'monthly',
+          status: 'active',
+          limits: {},
+        })
+      monthly.assertStatus(200)
+      createdIds.push(monthly.body().data.id as string)
+
+      const yearly = await client
+        .post('/api/v1/super-admin/plans')
+        .header('Authorization', `Bearer ${token}`)
+        .json({
+          name: `HTTP Variant ${suffix}`,
+          code: `http_var_y_${suffix}`,
+          price: 9999,
+          currency: 'INR',
+          billingPeriod: 'yearly',
+          status: 'active',
+          limits: {},
+        })
+      yearly.assertStatus(200)
+      createdIds.push(yearly.body().data.id as string)
+      assert.notEqual(yearly.body().data.id, monthly.body().data.id)
+
+      const dearer = await client
+        .post('/api/v1/super-admin/plans')
+        .header('Authorization', `Bearer ${token}`)
+        .json({
+          name: `HTTP Variant ${suffix}`,
+          code: `http_var_hi_${suffix}`,
+          price: 1999,
+          currency: 'INR',
+          billingPeriod: 'monthly',
+          status: 'active',
+          limits: {},
+        })
+      dearer.assertStatus(200)
+      createdIds.push(dearer.body().data.id as string)
+      assert.notEqual(dearer.body().data.id, monthly.body().data.id)
+    } finally {
+      if (createdIds.length > 0) {
+        await db.from('plans').whereIn('id', createdIds).delete()
+      }
+    }
+  })
+
+  test('creating an archived equivalent reactivates the existing row', async ({
+    client,
+    assert,
+  }) => {
+    const token = await mintToken(DEMO_USERS.superadmin)
+    const suffix = randomUUID().slice(0, 8)
+
+    const created = await client
+      .post('/api/v1/super-admin/plans')
+      .header('Authorization', `Bearer ${token}`)
+      .json({
+        name: `HTTP Reuse ${suffix}`,
+        code: `http_reuse_${suffix}`,
+        price: 1500,
+        currency: 'INR',
+        billingPeriod: 'monthly',
+        status: 'active',
+        limits: { users: 4 },
+      })
+    created.assertStatus(200)
+    const planId = created.body().data.id as string
+
+    try {
+      const archived = await client
+        .delete(`/api/v1/super-admin/plans/${planId}`)
+        .header('Authorization', `Bearer ${token}`)
+      archived.assertStatus(200)
+      assert.equal(archived.body().data.status, 'archived')
+
+      const reused = await client
+        .post('/api/v1/super-admin/plans')
+        .header('Authorization', `Bearer ${token}`)
+        .json({
+          name: `HTTP Reuse ${suffix}`,
+          code: `http_reuse_new_${suffix}`,
+          price: 1500,
+          currency: 'INR',
+          billingPeriod: 'monthly',
+          status: 'active',
+          limits: { users: 8 },
+        })
+      reused.assertStatus(200)
+      assert.equal(reused.body().data.id, planId)
+      assert.equal(reused.body().data.status, 'active')
+      assert.equal(reused.body().data.limits.users, 8)
+    } finally {
+      await db.from('plans').where('id', planId).delete()
+    }
   })
 })

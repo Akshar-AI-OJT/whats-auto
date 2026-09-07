@@ -45,6 +45,7 @@ export default class SuperAdminPlansController {
    * @requestBody { "name": "Growth", "price": 2499, "currency": "INR", "billingPeriod": "monthly", "status": "active", "limits": {} }
    * @responseBody 200 - { "data": { "id": "uuid", "name": "Growth", "status": "active", "gatewayPlanId": null } }
    * @responseBody 403 - { "error": "Permission denied: platform:tenants_billing", "code": "PERMISSION_DENIED" }
+   * @responseBody 409 - { "error": "An active plan with the same name, billing interval, price, and currency already exists", "code": "E_PLAN_DUPLICATE_ACTIVE" }
    */
   @inject()
   async store({ bouncer, request, serialize }: HttpContext, plans: PlanService) {
@@ -84,6 +85,7 @@ export default class SuperAdminPlansController {
    * @paramPath id - Plan id - @type(string)
    * @responseBody 200 - { "data": { "id": "uuid", "name": "Growth" } }
    * @responseBody 404 - { "error": "Plan Not Found", "code": "E_PLAN_NOT_FOUND" }
+   * @responseBody 409 - { "error": "An active plan with the same name, billing interval, price, and currency already exists", "code": "E_PLAN_DUPLICATE_ACTIVE" }
    */
   @inject()
   async update({ bouncer, request, params, serialize }: HttpContext, plans: PlanService) {

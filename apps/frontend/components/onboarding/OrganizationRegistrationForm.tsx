@@ -20,6 +20,7 @@ import {
   isValidWebsiteUrl,
   markOnboardingChecklistVisible,
   readPendingOnboardingContact,
+  saveCreatedOrganizationId,
   savePendingOnboardingOrganizationId,
   ORG_SETUP_PATH,
 } from '@/lib/onboarding'
@@ -91,6 +92,7 @@ async function alignSessionAfterOrganizationCreate(created: CreatedOrganization)
   }
   await ensureAccessTokenForOrganization(created.id)
 }
+
 
 /**
  * Create Organization page — existing Basics UI.
@@ -198,6 +200,7 @@ export function OrganizationRegistrationForm({
     }
 
     savePendingOnboardingOrganizationId(created.id)
+    saveCreatedOrganizationId(created.id)
     try {
       await alignSessionAfterOrganizationCreate(created)
     } catch {

@@ -1,5 +1,20 @@
 /** Client-side onboarding helpers — no backend coupling beyond API contracts. */
 
+import {
+  isOrganizationId,
+  readOrganizationIdQueryParam,
+} from '@/lib/organization-profile'
+
+export {
+  CREATE_PLACEHOLDER_ADDRESS,
+  CREATE_PLACEHOLDER_PAN,
+  isCreatePlaceholderAddress,
+  isCreatePlaceholderPan,
+  ORG_PROFILE_PATH,
+  organizationProfilePath,
+  readOrganizationIdQueryParam,
+} from '@/lib/organization-profile'
+
 const PENDING_PHONE_KEY = 'wa-onboarding-phone'
 const PENDING_EMAIL_KEY = 'wa-onboarding-email'
 const CHECKLIST_KEY = 'wa-onboarding-checklist'
@@ -9,7 +24,6 @@ const PENDING_ORG_KEY = 'wa-onboarding-organization-id'
 export const ORG_SETUP_PATH = '/onboarding/organization'
 export const ONBOARDING_PLAN_PATH = '/onboarding/plan'
 export const ONBOARDING_PAYMENT_PATH = '/onboarding/payment'
-export { ORG_PROFILE_PATH } from '@/lib/organization-profile'
 export const TEAM_MEMBERS_PATH = '/dashboard/team'
 export const ASSIGNABLE_ROLES = ['admin', 'agent', 'viewer'] as const
 export type AssignableRole = (typeof ASSIGNABLE_ROLES)[number]
@@ -142,20 +156,11 @@ export function getTimezoneOptions(): string[] {
 }
 
 /**
- * Backend create still requires address/PAN/country. These sentinels satisfy the
- * API without collecting those fields on the Create Organization page.
+ * Backend create still requires address/PAN/country. PAN/address sentinels live in
+ * `organization-profile.ts` (shared with the completion gate). Country `IN` is a
+ * create-time default, not a profile-completion placeholder.
  */
-export const CREATE_PLACEHOLDER_PAN = 'SETUP0000A'
-export const CREATE_PLACEHOLDER_ADDRESS = 'Address pending'
 export const CREATE_PLACEHOLDER_COUNTRY = 'IN'
-
-export function isCreatePlaceholderPan(value: string | null | undefined): boolean {
-  return normalizeTaxId(value ?? '') === CREATE_PLACEHOLDER_PAN
-}
-
-export function isCreatePlaceholderAddress(value: string | null | undefined): boolean {
-  return (value ?? '').trim().toLowerCase() === CREATE_PLACEHOLDER_ADDRESS.toLowerCase()
-}
 
 /**
  * Maps wizard state to the POST /api/v1/organizations request body.
@@ -262,6 +267,46 @@ export function clearPendingOrganizationPreferences() {
   }
 }
 
+const CREATED_ORGANIZATION_ID_KEY = 'wa-created-organization-id'
+
+export function saveCreatedOrganizationId(organizationId: string) {
+  if (typeof window === 'undefined') return
+  if (!isOrganizationId(organizationId)) return
+  try {
+    window.sessionStorage.setItem(CREATED_ORGANIZATION_ID_KEY, organizationId)
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+export function readCreatedOrganizationId(): string | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const value = window.sessionStorage.getItem(CREATED_ORGANIZATION_ID_KEY)
+    return isOrganizationId(value) ? value : null
+  } catch {
+    return null
+  }
+}
+
+export function clearCreatedOrganizationId() {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.removeItem(CREATED_ORGANIZATION_ID_KEY)
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Organization the create-org wizard must complete next.
+ * Query param wins (refresh / shared URL); sessionStorage is the same-tab backup.
+ * Never fall back to the current/active organization here.
+ */
+export function readProfileCompletionOrganizationId(): string | null {
+  return readOrganizationIdQueryParam() ?? readCreatedOrganizationId()
+}
+
 export function markOnboardingChecklistVisible() {
   if (typeof window === 'undefined') return
   try {
@@ -322,9 +367,15 @@ export function clearPendingOrganizationPlan() {
   }
 }
 
-/** New org id from onboarding create — used until profile completion finishes. */
+/** New org id from onboarding create — used until profile completion finishes.
+ * Key: `wa-onboarding-organization-id`. This is a same-tab backup distinct from
+ * `wa-created-organization-id` (`saveCreatedOrganizationId`), which is the
+ * profile-completion / payment backup. Create writes both; completion prefers
+ * the query param, then created-org id, then this pending id.
+ */
 export function savePendingOnboardingOrganizationId(organizationId: string) {
   if (typeof window === 'undefined') return
+  if (!isOrganizationId(organizationId)) return
   try {
     window.sessionStorage.setItem(PENDING_ORG_KEY, organizationId)
   } catch {
@@ -335,7 +386,8 @@ export function savePendingOnboardingOrganizationId(organizationId: string) {
 export function readPendingOnboardingOrganizationId(): string | null {
   if (typeof window === 'undefined') return null
   try {
-    return window.sessionStorage.getItem(PENDING_ORG_KEY)
+    const value = window.sessionStorage.getItem(PENDING_ORG_KEY)
+    return isOrganizationId(value) ? value : null
   } catch {
     return null
   }

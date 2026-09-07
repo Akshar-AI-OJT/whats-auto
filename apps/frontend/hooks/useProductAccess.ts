@@ -12,11 +12,14 @@ export function useProductAccess() {
     isSubscriptionPending,
     isLoading,
     isResolvingAccess,
+    tenantOrganizationId,
+    activeOrganizationId,
   } = useOrganizations()
 
   const accessReady = !isLoading && !isResolvingAccess
   const productNavLocked = accessReady && !hasFullProductAccess
-  const unlockPath = getProductUnlockPath({ isSetupComplete })
+  const organizationId = tenantOrganizationId ?? activeOrganizationId
+  const unlockPath = getProductUnlockPath({ isSetupComplete, organizationId })
 
   return {
     hasFullProductAccess,
@@ -26,6 +29,7 @@ export function useProductAccess() {
     isResolvingAccess,
     accessReady,
     productNavLocked,
+    organizationId,
     unlockPath,
   }
 }

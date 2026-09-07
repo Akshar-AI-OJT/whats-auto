@@ -35,7 +35,7 @@ async function seedBillingOrg() {
   await db.table('plans').insert({
     id: planId,
     code: `plan_${organizationId.slice(0, 8)}`,
-    name: 'Growth WH',
+    name: `Growth WH ${organizationId.slice(0, 8)}`,
     price: 2499,
     currency: 'INR',
     billingInterval: 'month',
