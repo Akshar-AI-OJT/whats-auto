@@ -97,23 +97,7 @@ export class AiKnowledgeDocumentSchema extends BaseModel {
 }
 
 export class AiUsageLogSchema extends BaseModel {
-  static $columns = [
-    'completionTokens',
-    'conversationId',
-    'createdAt',
-    'decision',
-    'estimatedCostUsd',
-    'id',
-    'latencyMs',
-    'messageId',
-    'modelName',
-    'operationType',
-    'organizationId',
-    'promptTokens',
-    'provider',
-    'retrievalScore',
-    'totalTokens',
-  ] as const
+  static $columns = ['completionTokens', 'conversationId', 'createdAt', 'decision', 'estimatedCostUsd', 'id', 'latencyMs', 'messageId', 'modelName', 'operationType', 'organizationId', 'promptTokens', 'provider', 'retrievalScore', 'totalTokens'] as const
   $columns = AiUsageLogSchema.$columns
   @column()
   declare completionTokens: number
@@ -383,24 +367,7 @@ export class ContactImportRowSchema extends BaseModel {
 }
 
 export class ContactImportSchema extends BaseModel {
-  static $columns = [
-    'columnMapping',
-    'completedAt',
-    'createdAt',
-    'createdByUserId',
-    'csvContent',
-    'defaultCountryCode',
-    'errorCount',
-    'fileName',
-    'filePath',
-    'id',
-    'organizationId',
-    'processedRows',
-    'status',
-    'successCount',
-    'totalRows',
-    'updatedAt',
-  ] as const
+  static $columns = ['columnMapping', 'completedAt', 'createdAt', 'createdByUserId', 'csvContent', 'defaultCountryCode', 'errorCount', 'fileName', 'filePath', 'id', 'organizationId', 'processedRows', 'status', 'successCount', 'totalRows', 'updatedAt'] as const
   $columns = ContactImportSchema.$columns
   @column()
   declare columnMapping: any | null
@@ -557,6 +524,43 @@ export class ConversationSchema extends BaseModel {
   declare updatedAt: DateTime | null
   @column()
   declare whatsappConfigId: string
+}
+
+export class DemoBookingSchema extends BaseModel {
+  static $columns = ['calendarEventId', 'company', 'companySize', 'createdAt', 'demoTimeZone', 'email', 'endsAt', 'fullName', 'id', 'meetingUrl', 'phone', 'purpose', 'startsAt', 'status', 'timeZone', 'updatedAt'] as const
+  $columns = DemoBookingSchema.$columns
+  @column()
+  declare calendarEventId: string | null
+  @column()
+  declare company: string | null
+  @column()
+  declare companySize: string | null
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare demoTimeZone: string
+  @column()
+  declare email: string
+  @column.dateTime()
+  declare endsAt: DateTime
+  @column()
+  declare fullName: string
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare meetingUrl: string | null
+  @column()
+  declare phone: string | null
+  @column()
+  declare purpose: string | null
+  @column.dateTime()
+  declare startsAt: DateTime
+  @column()
+  declare status: string
+  @column()
+  declare timeZone: string
+  @column.dateTime()
+  declare updatedAt: DateTime | null
 }
 
 export class FlowExecutionLogSchema extends BaseModel {
@@ -1044,18 +1048,7 @@ export class NotificationSchema extends BaseModel {
 }
 
 export class OrganizationInvitationSchema extends BaseModel {
-  static $columns = [
-    'createdAt',
-    'email',
-    'expiresAt',
-    'id',
-    'inviterId',
-    'organizationId',
-    'roleId',
-    'status',
-    'tokenHash',
-    'userId',
-  ] as const
+  static $columns = ['createdAt', 'email', 'expiresAt', 'id', 'inviterId', 'organizationId', 'roleId', 'status', 'tokenHash', 'userId'] as const
   $columns = OrganizationInvitationSchema.$columns
   @column.dateTime()
   declare createdAt: DateTime

@@ -409,13 +409,19 @@
       },
       "privacyAgree": "मैं <privacy>Privacy Policy</privacy> से सहमत हूँ।",
       "cta": "डेमो बुक करें",
+      "ctaSubmitting": "बुक हो रहा है…",
+      "slotsLoading": "उपलब्ध स्लॉट लोड हो रहे हैं…",
+      "noSlots": "इस तारीख के लिए कोई उपलब्ध स्लॉट नहीं है।",
+      "pickDateHint": "उपलब्ध समय स्लॉट देखने के लिए एक तारीख चुनें।",
       "meetNote": "पुष्टि के बाद Google Meet विवरण साझा किया जाएगा।",
       "errors": {
         "nameRequired": "पूरा नाम आवश्यक है।",
         "emailInvalid": "मान्य वर्क ईमेल दर्ज करें।",
         "privacyRequired": "कृपया Privacy Policy से सहमत हों।",
         "dateRequired": "कृपया एक तारीख चुनें।",
-        "slotRequired": "कृपया एक समय स्लॉट चुनें।"
+        "slotRequired": "कृपया एक समय स्लॉट चुनें।",
+        "submitFailed": "डेमो बुक नहीं हो सका। कृपया फिर से कोशिश करें।",
+        "slotUnavailable": "वह समय स्लॉट अब उपलब्ध नहीं है। कृपया दूसरा चुनें।"
       },
       "summary": {
         "title": "डेमो सारांश",
@@ -448,6 +454,7 @@
           "durationValue": "30 मिनट",
           "platformValue": "Google Meet"
         },
+        "meetLinkLabel": "Google Meet से जुड़ें:",
         "next": {
           "email": "पुष्टि ईमेल भेजा जाएगा",
           "meet": "Google Meet आमंत्रण साझा किया जाएगा",

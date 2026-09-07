@@ -408,15 +408,21 @@
         "other": "Other"
       },
       "privacyAgree": "I agree to the <privacy>Privacy Policy</privacy>.",
-      "cta": "Book Demo",
-      "meetNote": "Google Meet details will be shared after confirmation.",
-      "errors": {
-        "nameRequired": "Full name is required.",
-        "emailInvalid": "Enter a valid work email.",
-        "privacyRequired": "Please agree to the Privacy Policy.",
-        "dateRequired": "Please select a date.",
-        "slotRequired": "Please select a time slot."
-      },
+        "cta": "Book Demo",
+        "ctaSubmitting": "Booking…",
+        "slotsLoading": "Loading available slots…",
+        "noSlots": "No available slots for this date.",
+        "pickDateHint": "Select a date to see available time slots.",
+        "meetNote": "Google Meet details will be shared after confirmation.",
+        "errors": {
+          "nameRequired": "Full name is required.",
+          "emailInvalid": "Enter a valid work email.",
+          "privacyRequired": "Please agree to the Privacy Policy.",
+          "dateRequired": "Please select a date.",
+          "slotRequired": "Please select a time slot.",
+          "submitFailed": "We could not book that demo. Please try again.",
+          "slotUnavailable": "That time slot is no longer available. Please pick another."
+        },
       "summary": {
         "title": "Demo Summary",
         "date": "Date",
@@ -448,6 +454,7 @@
           "durationValue": "30 Minutes",
           "platformValue": "Google Meet"
         },
+        "meetLinkLabel": "Join with Google Meet:",
         "next": {
           "email": "Confirmation email will be sent",
           "meet": "Google Meet invitation will be shared",

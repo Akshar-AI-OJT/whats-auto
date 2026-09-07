@@ -241,6 +241,46 @@ export type LoginBody = {
   password: string
 }
 
+export type DemoAvailabilitySlot = {
+  id: string
+  startTime: string
+  endTime: string
+  label: string
+  available: boolean
+}
+
+export type DemoAvailability = {
+  date: string
+  timeZone: string
+  today: string
+  durationMinutes: number
+  slots: DemoAvailabilitySlot[]
+}
+
+export type CreateDemoBookingBody = {
+  name: string
+  email: string
+  slotId: string
+  timeZone: string
+  company?: string
+  phone?: string
+  companySize?: string
+  purpose?: string
+}
+
+export type DemoBooking = {
+  id: string
+  fullName: string
+  email: string
+  startsAt: string
+  endsAt: string
+  timeZone: string
+  demoTimeZone: string
+  status: string
+  meetingUrl: string | null
+  createdAt: string
+}
+
 export type ProfileUser = {
   id: string
   name: string
@@ -1894,6 +1934,22 @@ export const api = {
           signal: AbortSignal.timeout(4000),
         }
       ),
+  },
+
+  demo: {
+    availability: (params: { date: string; timeZone?: string }) => {
+      const qs = new URLSearchParams({ date: params.date })
+      if (params.timeZone) qs.set('timeZone', params.timeZone)
+      return publicRequest<DemoAvailability>(`/api/v1/demo/availability?${qs.toString()}`, {
+        method: 'GET',
+      })
+    },
+
+    book: (body: CreateDemoBookingBody) =>
+      publicRequest<DemoBooking>('/api/v1/demo/bookings', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
   },
 
   account: {
