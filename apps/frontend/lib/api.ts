@@ -53,13 +53,13 @@ function isOrgWhatsappRequired(error: ApiError): boolean {
   return error.status === 403 && error.code === 'E_ORG_WHATSAPP_REQUIRED'
 }
 
-/** Soft navigate to the plan/payment step without treating it as a permission denial. */
-function redirectToOnboardingPayment() {
+/** Soft navigate to first-activation plan selection without treating it as a permission denial. */
+function redirectToOnboardingPlan() {
   if (typeof window === 'undefined') return
   const { pathname } = window.location
   if (
-    pathname.includes('/onboarding/payment') ||
     pathname.includes('/onboarding/plan') ||
+    pathname.includes('/onboarding/payment') ||
     pathname.includes('/onboarding/organization') ||
     pathname.includes('/onboarding/')
   ) {
@@ -197,7 +197,7 @@ async function request<T>(
     }
 
     if (authMode === 'protected' && isOrgPaymentRequired(error)) {
-      redirectToOnboardingPayment()
+      redirectToOnboardingPlan()
     }
 
     if (authMode === 'protected' && isOrgWhatsappRequired(error)) {

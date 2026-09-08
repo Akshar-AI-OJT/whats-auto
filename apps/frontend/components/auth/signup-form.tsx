@@ -16,8 +16,10 @@ import {
   savePendingOnboardingContact,
 } from '@/lib/onboarding'
 import {
+  authContinuePath,
   authHandoffHref,
   resolvePostAuthPath,
+  safeCallbackPath,
 } from '@/lib/post-auth-redirect'
 import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
@@ -51,13 +53,6 @@ type FieldErrors = {
 }
 
 const OTP_LENGTH = 6
-
-/** Only allow same-origin relative paths (blocks open redirects). */
-function safeCallbackPath(raw: string | null): string | null {
-  if (!raw) return null
-  if (!raw.startsWith('/') || raw.startsWith('//')) return null
-  return raw
-}
 
 function readSignupQuery(): {
   callbackPath: string | null
@@ -260,8 +255,8 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
     setPending('google')
 
     try {
-      // Pre-auth: only invite callbackURL (or create-org default) can be used.
-      const redirectPath = callbackPath ?? ORG_SETUP_PATH
+      // Post-OAuth: resolve via /auth/continue (zero orgs → org setup, not dashboard).
+      const redirectPath = authContinuePath(callbackPath ?? ORG_SETUP_PATH)
       const callbackURL = buildLocalizedAppUrl(locale, redirectPath)
       const errorCallbackURL = buildLocalizedAppUrl(locale, '/signup?error=oauth_failed')
       const { error: authErr } = await authClient.signIn.social({

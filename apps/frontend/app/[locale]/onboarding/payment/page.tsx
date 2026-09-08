@@ -1,5 +1,10 @@
+import { OrganizationsProvider } from '@/components/dashboard/OrganizationsProvider'
 import { OnboardingPaymentPage } from '@/components/onboarding/OnboardingPaymentPage'
 
 export default function OrganizationOnboardingPaymentPage() {
-  return <OnboardingPaymentPage />
+  return (
+    <OrganizationsProvider>
+      <OnboardingPaymentPage />
+    </OrganizationsProvider>
+  )
 }

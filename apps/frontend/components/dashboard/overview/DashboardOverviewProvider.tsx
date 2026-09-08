@@ -47,8 +47,14 @@ export function DashboardOverviewProvider({
   children: ReactNode
   noDetailsLabel: string
 }) {
-  const { tenantOrganizationId, isLoading: orgsLoading, hasFullProductAccess } = useOrganizations()
-  const enabled = Boolean(tenantOrganizationId) && !orgsLoading && hasFullProductAccess
+  const {
+    tenantOrganizationId,
+    isLoading: orgsLoading,
+    hasFullProductAccess,
+    isResolvingAccess,
+  } = useOrganizations()
+  const enabled =
+    Boolean(tenantOrganizationId) && !orgsLoading && !isResolvingAccess && hasFullProductAccess
 
   const contactsQuery = useQuery({
     queryKey: queryKeys.overview.contacts(tenantOrganizationId),
@@ -91,6 +97,8 @@ export function DashboardOverviewProvider({
 
   const kpisLoading =
     orgsLoading ||
+    isResolvingAccess ||
+    !tenantOrganizationId ||
     contactsQuery.isLoading ||
     conversationsQuery.isLoading ||
     campaignsQuery.isLoading
@@ -126,22 +134,23 @@ export function DashboardOverviewProvider({
       refetchKpis,
       conversations: conversationsQuery.data?.items ?? [],
       conversationsTotal: conversationsQuery.data?.total ?? 0,
-      conversationsLoading: orgsLoading || conversationsQuery.isLoading,
+      conversationsLoading: orgsLoading || isResolvingAccess || !tenantOrganizationId || conversationsQuery.isLoading,
       conversationsError: conversationsQuery.isError,
       refetchConversations,
       campaigns: campaignsQuery.data?.recent ?? [],
-      campaignsLoading: orgsLoading || campaignsQuery.isLoading,
+      campaignsLoading: orgsLoading || isResolvingAccess || !tenantOrganizationId || campaignsQuery.isLoading,
       campaignsError: campaignsQuery.isError,
       refetchCampaigns,
       auditEvents: auditQuery.data ?? [],
       auditItems,
-      auditLoading: orgsLoading || auditQuery.isLoading,
+      auditLoading: orgsLoading || isResolvingAccess || !tenantOrganizationId || auditQuery.isLoading,
       auditError: auditQuery.isError,
       refetchAudit,
     }),
     [
       tenantOrganizationId,
       orgsLoading,
+      isResolvingAccess,
       kpis,
       kpisLoading,
       kpisError,

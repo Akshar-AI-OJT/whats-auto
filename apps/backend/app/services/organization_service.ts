@@ -471,6 +471,7 @@ export class OrganizationService {
       .innerJoin('organizations as o', 'o.id', 'm.organizationId')
       .innerJoin('roles as r', 'r.id', 'm.roleId')
       .where('m.userId', userId)
+      .where('m.isDeleted', false)
       .whereNull('o.deletedAt')
       .select(
         'o.id',
@@ -533,6 +534,7 @@ export class OrganizationService {
       .innerJoin('organizations as o', 'o.id', 'm.organizationId')
       .where('m.userId', userId)
       .where('m.organizationId', organizationId)
+      .where('m.isDeleted', false)
       .whereNull('o.deletedAt')
       .select('m.id')
       .first()
