@@ -298,7 +298,7 @@ export function isOrganizationRequiredProfileComplete(
 }
 
 export function isSubscriptionPending(status: string | null | undefined): boolean {
-  return status === 'pending_setup'
+  return status === 'pending_setup' || status === 'verified_setup'
 }
 
 export function hasFullProductAccess(input: {

@@ -1,5 +1,8 @@
 import BillingException from '#exceptions/billing_exception'
+import OrganizationException from '#exceptions/organization_exception'
 import { inject } from '@adonisjs/core'
+import db from '@adonisjs/lucid/services/db'
+import { OrganizationStatus } from '#enums/organization_status'
 import { PlanRepository } from '#repositories/plan_repository'
 import {
   BillingOrderApplyService,
@@ -39,6 +42,8 @@ export class BillingCheckoutService {
   ) {}
 
   async checkout(params: BillingCheckoutParams): Promise<BillingCheckoutResponse> {
+    await this.#assertCheckoutAllowed(params.organizationId)
+
     const plan = await this.plans.findById(params.planId)
     if (!plan) {
       throw BillingException.planNotFound()
@@ -55,5 +60,43 @@ export class BillingCheckoutService {
     }
 
     throw BillingException.planNotActivatable()
+  }
+
+  /**
+   * D70: checkout requires verified_setup or active + a connected WhatsApp config.
+   */
+  async #assertCheckoutAllowed(organizationId: string): Promise<void> {
+    const org = await db
+      .from('organizations')
+      .where('id', organizationId)
+      .whereNull('deletedAt')
+      .select('status')
+      .first()
+
+    if (!org) {
+      throw OrganizationException.notFound()
+    }
+
+    if (org.status === OrganizationStatus.PENDING_SETUP) {
+      throw OrganizationException.whatsappRequired()
+    }
+
+    if (
+      org.status !== OrganizationStatus.VERIFIED_SETUP &&
+      org.status !== OrganizationStatus.ACTIVE
+    ) {
+      throw OrganizationException.paymentRequired()
+    }
+
+    const connected = await db
+      .from('whatsapp_configs')
+      .where('organizationId', organizationId)
+      .where('status', 'connected')
+      .select('id')
+      .first()
+
+    if (!connected) {
+      throw OrganizationException.whatsappRequired()
+    }
   }
 }

@@ -3,40 +3,28 @@
 import { useCallback, useId, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
-import {
-  Loader2,
-  Phone,
-  PlugZap,
-  RefreshCw,
-  Send,
-  Unplug,
-} from 'lucide-react'
+import { Loader2, Phone, PlugZap, RefreshCw, Send, Unplug } from 'lucide-react'
 import { FaWhatsapp } from 'react-icons/fa'
-import {
-  api,
-  type ApiError,
-  type WhatsappEmbeddedSignupSession,
-} from '@/lib/api'
+import { api, type ApiError, type WhatsappEmbeddedSignupSession } from '@/lib/api'
 import {
   loadFacebookSdk,
   parseEmbeddedSignupMessage,
   type EmbeddedSignupSessionInfo,
 } from '@/lib/meta-fb-sdk'
+import { ONBOARDING_PLAN_PATH } from '@/lib/onboarding'
 import { hasPermission, PERMISSIONS } from '@/lib/rbac'
 import { cn } from '@/lib/utils'
 import { queryKeys } from '@/lib/query-keys'
+import { useAuth } from '@/hooks/useAuth'
 import { useWhatsappConfigs } from '@/hooks/useWhatsappConfigs'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { useProductAccess } from '@/hooks/useProductAccess'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
-import {
-  DashboardToast,
-  useDashboardToast,
-} from '@/components/dashboard/ui/use-dashboard-toast'
+import { DashboardToast, useDashboardToast } from '@/components/dashboard/ui/use-dashboard-toast'
 import { unwrapSingle } from '@/components/dashboard/inbox/inbox-utils'
-import { Link } from '@/i18n/navigation'
+import { Link, useRouter } from '@/i18n/navigation'
 
 function formatConnectedAt(value: string | null | undefined) {
   if (!value) return null
@@ -50,24 +38,32 @@ function formatConnectedAt(value: string | null | undefined) {
   }
 }
 
-function mapWhatsappError(apiError: ApiError, t: (key: string) => string) {
+function mapWhatsappError(
+  apiError: ApiError,
+  t: (key: string, values?: Record<string, string>) => string
+) {
   if (apiError.status === 401) return t('errors.sessionExpired')
   if (apiError.status === 403 || apiError.code === 'PERMISSION_DENIED') {
     return t('errors.permissionDenied')
   }
   if (apiError.code === 'E_WA_PHONE_OWNED') return t('errors.phoneOwned')
   if (apiError.code === 'E_WA_NOT_CONNECTED') return t('errors.notConnected')
+  if (apiError.code === 'E_WA_PHONE_REQUIRED') return t('errors.phoneRequired')
+  if (apiError.code === 'E_META_ACCOUNT_UNUSABLE') {
+    return apiError.message || t('errors.metaAccountUnusable')
+  }
+  if (apiError.code === 'E_META_PORTFOLIO_UNVERIFIED') {
+    const helpUrl =
+      typeof apiError.details?.helpUrl === 'string' ? apiError.details.helpUrl : undefined
+    return helpUrl
+      ? t('errors.metaPortfolioUnverifiedWithHelp', { url: helpUrl })
+      : apiError.message || t('errors.metaPortfolioUnverified')
+  }
   if (apiError.code === 'E_WA_META_GRAPH') return apiError.message || t('errors.metaGraph')
   return apiError.message || t('errors.generic')
 }
 
-function StatusBadge({
-  status,
-  label,
-}: {
-  status: string
-  label: string
-}) {
+function StatusBadge({ status, label }: { status: string; label: string }) {
   const tone =
     status === 'connected'
       ? 'bg-primary-pale text-positive-deep ring-primary/25'
@@ -85,18 +81,21 @@ function StatusBadge({
 export function WhatsappConnectionPage() {
   const t = useTranslations('dashboard.whatsapp')
   const queryClient = useQueryClient()
+  const router = useRouter()
+  const { user } = useAuth()
   const {
     tenantOrganizationId,
     permissions,
     isLoading: orgsLoading,
     hasFullProductAccess,
-    isSetupComplete,
   } = useOrganizations()
-  const { unlockPath } = useProductAccess()
+  const { unlockPath, whatsappSetupAllowed, organizationStatus, isSubscriptionPending } =
+    useProductAccess()
 
   const canView = hasPermission(permissions, PERMISSIONS.WHATSAPP_VIEW)
   const canConnect = hasPermission(permissions, PERMISSIONS.WHATSAPP_CONNECT)
   const canManage = hasPermission(permissions, PERMISSIONS.WHATSAPP_MANAGE)
+  const canTest = canManage && hasFullProductAccess
 
   const { toast, showToast, clearToast } = useDashboardToast()
   const testInputId = useId()
@@ -107,6 +106,9 @@ export function WhatsappConnectionPage() {
   const listError = configsQuery.error
     ? mapWhatsappError(configsQuery.error as unknown as ApiError, t)
     : null
+  const showContinuePayment =
+    organizationStatus === 'verified_setup' ||
+    (isSubscriptionPending && Boolean(configsQuery.data?.isConnected))
 
   const [connecting, setConnecting] = useState(false)
   const [actionId, setActionId] = useState<string | null>(null)
@@ -136,7 +138,8 @@ export function WhatsappConnectionPage() {
       }
       const parsed = parseEmbeddedSignupMessage(event.data)
       if (!parsed) return
-      if (parsed.event === 'FINISH' || parsed.event === 'FINISH_ONLY_WABA') {
+      // D70: FINISH_ONLY_WABA is not activation success (phone required).
+      if (parsed.event === 'FINISH') {
         sessionInfoRef.current = parsed.data ?? null
       }
     }
@@ -200,7 +203,19 @@ export function WhatsappConnectionPage() {
       })
 
       showToast(t('toasts.connected'), 'success')
-      await refreshConfigs()
+      await Promise.all([
+        refreshConfigs(),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.organizations.accessContext(user?.id),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.organizations.list(user?.id),
+        }),
+      ])
+
+      if (organizationStatus === 'pending_setup' || organizationStatus === 'verified_setup') {
+        router.push(ONBOARDING_PLAN_PATH)
+      }
     } catch (err) {
       const message =
         err && typeof err === 'object' && 'status' in err
@@ -213,7 +228,18 @@ export function WhatsappConnectionPage() {
       window.removeEventListener('message', onMessage)
       setConnecting(false)
     }
-  }, [canConnect, clearToast, connecting, refreshConfigs, showToast, t])
+  }, [
+    canConnect,
+    clearToast,
+    connecting,
+    organizationStatus,
+    queryClient,
+    refreshConfigs,
+    router,
+    showToast,
+    t,
+    user,
+  ])
 
   const handleDisconnect = useCallback(
     async (configId: string) => {
@@ -223,14 +249,22 @@ export function WhatsappConnectionPage() {
       try {
         await api.whatsapp.disconnectConfig(configId)
         showToast(t('toasts.disconnected'), 'success')
-        await refreshConfigs()
+        await Promise.all([
+          refreshConfigs(),
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.organizations.accessContext(user?.id),
+          }),
+          queryClient.invalidateQueries({
+            queryKey: queryKeys.organizations.list(user?.id),
+          }),
+        ])
       } catch (err) {
         showToast(mapWhatsappError(err as ApiError, t), 'error')
       } finally {
         setActionId(null)
       }
     },
-    [actionId, canConnect, clearToast, refreshConfigs, showToast, t]
+    [actionId, canConnect, clearToast, queryClient, refreshConfigs, showToast, t, user]
   )
 
   const handleTest = useCallback(
@@ -266,16 +300,15 @@ export function WhatsappConnectionPage() {
     )
   }
 
-  if (!orgsLoading && !hasFullProductAccess) {
+  if (!orgsLoading && !whatsappSetupAllowed) {
     return (
       <DashboardPanel className="px-4 py-5 sm:px-6 sm:py-6">
         <h1 className="font-display text-2xl tracking-tight text-ink">{t('locked.title')}</h1>
         <p className="mt-2 max-w-xl text-sm leading-6 text-body">{t('locked.description')}</p>
-        <Link
-          href={unlockPath}
-          className={cn(buttonVariants(), 'mt-5')}
-        >
-          {isSetupComplete ? t('locked.ctaSubscribe') : t('locked.ctaSetup')}
+        <Link href={unlockPath} className={cn(buttonVariants(), 'mt-5')}>
+          {organizationStatus === 'verified_setup'
+            ? t('locked.ctaSubscribe')
+            : t('locked.ctaSetup')}
         </Link>
       </DashboardPanel>
     )
@@ -283,6 +316,23 @@ export function WhatsappConnectionPage() {
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-5 sm:gap-6">
+      {showContinuePayment ? (
+        <DashboardPanel className="px-4 py-4 sm:px-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-ink">{t('verified.title')}</p>
+              <p className="mt-1 text-sm text-body">{t('verified.description')}</p>
+            </div>
+            <Link
+              href={ONBOARDING_PLAN_PATH}
+              className={cn(buttonVariants({ size: 'sm' }), 'w-full shrink-0 sm:w-auto')}
+            >
+              {t('verified.cta')}
+            </Link>
+          </div>
+        </DashboardPanel>
+      ) : null}
+
       <DashboardPanel className="relative overflow-hidden px-4 py-5 sm:px-6 sm:py-6">
         <div
           aria-hidden
@@ -300,9 +350,7 @@ export function WhatsappConnectionPage() {
               <h1 className="mt-1 font-display text-2xl tracking-tight text-ink sm:text-3xl">
                 {t('title')}
               </h1>
-              <p className="mt-1.5 max-w-2xl text-sm leading-6 text-body">
-                {t('subtitle')}
-              </p>
+              <p className="mt-1.5 max-w-2xl text-sm leading-6 text-body">{t('subtitle')}</p>
             </div>
           </div>
 
@@ -339,11 +387,7 @@ export function WhatsappConnectionPage() {
       </DashboardPanel>
 
       {toast ? (
-        <DashboardToast
-          message={toast.message}
-          variant={toast.variant}
-          onDismiss={clearToast}
-        />
+        <DashboardToast message={toast.message} variant={toast.variant} onDismiss={clearToast} />
       ) : null}
 
       <DashboardPanel className="px-4 py-5 sm:px-6">
@@ -373,9 +417,7 @@ export function WhatsappConnectionPage() {
               <FaWhatsapp className="size-5" aria-hidden />
             </span>
             <p className="mt-3 text-sm font-semibold text-ink">{t('emptyTitle')}</p>
-            <p className="mt-1 max-w-md text-sm leading-5 text-mute">
-              {t('emptyDescription')}
-            </p>
+            <p className="mt-1 max-w-md text-sm leading-5 text-mute">{t('emptyDescription')}</p>
             {canConnect ? (
               <Button
                 type="button"
@@ -456,7 +498,7 @@ export function WhatsappConnectionPage() {
                     </div>
                   </div>
 
-                  {canManage && config.status === 'connected' ? (
+                  {canTest && config.status === 'connected' ? (
                     <div className="mt-3 flex flex-col gap-2 rounded-xl border border-dash-border bg-dash-surface/40 p-3 sm:flex-row sm:items-end">
                       <div className="min-w-0 flex-1">
                         <label

@@ -310,6 +310,38 @@ export class OrganizationService {
     await query
   }
 
+  /**
+   * After WhatsApp Embedded Signup succeeds with Meta-verified portfolio ([D70]).
+   * Only moves unpaid setup states → verified_setup (never touches active/suspended/false).
+   */
+  async promoteToVerifiedSetup(
+    organizationId: string,
+    trx?: TransactionClientContract
+  ): Promise<void> {
+    await (trx ?? db)
+      .from('organizations')
+      .where('id', organizationId)
+      .whereNull('deletedAt')
+      .whereIn('status', [OrganizationStatus.PENDING_SETUP, OrganizationStatus.VERIFIED_SETUP])
+      .update({ status: OrganizationStatus.VERIFIED_SETUP })
+  }
+
+  /**
+   * WhatsApp disconnect while unpaid: verified_setup → pending_setup ([D70] 2A).
+   * No-op for active / other statuses.
+   */
+  async demoteToPendingSetup(
+    organizationId: string,
+    trx?: TransactionClientContract
+  ): Promise<void> {
+    await (trx ?? db)
+      .from('organizations')
+      .where('id', organizationId)
+      .whereNull('deletedAt')
+      .where('status', OrganizationStatus.VERIFIED_SETUP)
+      .update({ status: OrganizationStatus.PENDING_SETUP })
+  }
+
   async #userHasActiveOrganization(userId: string): Promise<boolean> {
     const row = await db
       .from('organization_members as m')

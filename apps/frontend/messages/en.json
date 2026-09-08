@@ -1532,6 +1532,7 @@
         "email": "Business Email",
         "phone": "Phone Number",
         "phoneHint": "Include country code when possible.",
+        "fromRegistration": "Set during organization registration. Change later in organization settings.",
         "alternatePhone": "Alternate Phone",
         "website": "Website",
         "industry": "Industry",
@@ -1647,6 +1648,7 @@
       "comingSoon": "Coming soon",
       "lockedSetup": "Complete organization setup to unlock",
       "lockedSubscribe": "Choose a plan to unlock",
+      "lockedConnectWhatsapp": "Connect WhatsApp to continue",
       "dashboard": "Dashboard",
       "team": "Team Management",
       "teamMembers": "Team Members",
@@ -2814,10 +2816,15 @@
       "title": "WhatsApp Connection",
       "subtitle": "Connect WhatsApp Business numbers to receive and send customer conversations from Inbox.",
       "locked": {
-        "title": "WhatsApp is locked",
-        "description": "Complete organization setup and subscribe before connecting WhatsApp.",
-        "ctaSetup": "Complete Setup",
+        "title": "WhatsApp is unavailable",
+        "description": "This organization cannot connect WhatsApp right now. Contact support if you need help.",
+        "ctaSetup": "Go to dashboard",
         "ctaSubscribe": "Choose a plan"
+      },
+      "verified": {
+        "title": "WhatsApp verified — continue to payment",
+        "description": "Your Meta Business Portfolio is verified. Choose a plan to activate the workspace.",
+        "cta": "Continue to plan"
       },
       "connectCta": "Connect WhatsApp",
       "refresh": "Refresh",
@@ -2849,9 +2856,13 @@
         "permissionDenied": "You don’t have permission to manage WhatsApp in this organization.",
         "sessionMissing": "WhatsApp signup session is not configured. Check Meta app settings.",
         "signupCancelled": "WhatsApp connection was cancelled.",
-        "sessionInfoMissing": "Couldn’t read WhatsApp account details from Meta. Please try again.",
+        "sessionInfoMissing": "Couldn’t read WhatsApp account details from Meta. Complete Embedded Signup with a phone number and try again.",
         "phoneOwned": "This WhatsApp phone number is already connected to another organization.",
         "notConnected": "This WhatsApp number is not connected.",
+        "phoneRequired": "A WhatsApp business phone number is required. Finish Embedded Signup with a phone number (WABA-only is not enough).",
+        "metaAccountUnusable": "No valid Meta Business Portfolio / WhatsApp account was linked. Create or select a portfolio in Embedded Signup and try again.",
+        "metaPortfolioUnverified": "Your Meta Business Portfolio is not verified. Complete Meta Business Verification, then try again.",
+        "metaPortfolioUnverifiedWithHelp": "Your Meta Business Portfolio is not verified. Complete verification at {url}, then try again.",
         "metaGraph": "Meta Graph API error. Please try again.",
         "testToRequired": "Enter a recipient phone number to send a test."
       }
@@ -3516,11 +3527,14 @@
       },
       "connectWhatsapp": {
         "title": "Connect WhatsApp",
-        "description": "Connect your WhatsApp Business account to start receiving customer conversations and manage them from the Inbox.",
+        "description": "Connect your WhatsApp Business account to prove Meta verification before you subscribe.",
         "cta": "Connect WhatsApp",
-        "secondary": "You can connect multiple WhatsApp Business numbers later.",
-        "lockedDescription": "Finish organization setup and subscribe to unlock WhatsApp connection.",
-        "lockedCtaSetup": "Complete Setup",
+        "secondary": "You need a Meta-verified Business Portfolio and a WhatsApp phone number.",
+        "verifiedTitle": "WhatsApp verified",
+        "verifiedDescription": "Your Meta Business Portfolio is verified. Choose a plan to activate the workspace.",
+        "verifiedCta": "Continue to plan",
+        "lockedDescription": "This organization cannot connect WhatsApp right now.",
+        "lockedCtaSetup": "Go to dashboard",
         "lockedCtaSubscribe": "Choose a plan"
       },
       "kpis": {
@@ -3614,11 +3628,14 @@
         "title": "Profile {percent}% complete",
         "subtitle": "Add the remaining optional details to finish your organization profile.",
         "cta": "Complete Profile",
-        "incompleteTitle": "Complete your organization setup",
-        "incompleteSubtitle": "Add more details, set preferences and choose a plan to unlock all features.",
-        "incompleteCta": "Complete Organization Setup",
+        "incompleteTitle": "Complete your organization profile",
+        "incompleteSubtitle": "Add required organization details to unlock the full workspace.",
+        "incompleteCta": "Complete Profile",
+        "whatsappTitle": "Connect WhatsApp to continue",
+        "whatsappSubtitle": "Link a Meta-verified Business Portfolio and WhatsApp number before you subscribe.",
+        "whatsappCta": "Connect WhatsApp",
         "subscribeTitle": "Choose a subscription plan",
-        "subscribeSubtitle": "Your organization details are saved. Subscribe to unlock WhatsApp and the rest of the workspace.",
+        "subscribeSubtitle": "WhatsApp is verified. Subscribe to activate the workspace.",
         "subscribeCta": "Continue to Plan"
       }
     },

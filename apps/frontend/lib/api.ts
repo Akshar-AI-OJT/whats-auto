@@ -12,6 +12,7 @@ export type ApiError = {
   code?: string
   retryAfter?: number
   chunkCount?: number
+  details?: Record<string, unknown>
 }
 
 export type AuthRequestMode = 'public' | 'protected'
@@ -48,22 +49,36 @@ function isOrgPaymentRequired(error: ApiError): boolean {
   return error.status === 402 && error.code === 'E_ORG_PAYMENT_REQUIRED'
 }
 
-/** Soft navigate to the payment step without treating it as a permission denial. */
+function isOrgWhatsappRequired(error: ApiError): boolean {
+  return error.status === 403 && error.code === 'E_ORG_WHATSAPP_REQUIRED'
+}
+
+/** Soft navigate to the plan/payment step without treating it as a permission denial. */
 function redirectToOnboardingPayment() {
   if (typeof window === 'undefined') return
   const { pathname } = window.location
   if (
     pathname.includes('/onboarding/payment') ||
+    pathname.includes('/onboarding/plan') ||
     pathname.includes('/onboarding/organization') ||
-    pathname.includes('/onboarding/') ||
-    pathname.includes('/dashboard')
+    pathname.includes('/onboarding/')
   ) {
     return
   }
   const parts = pathname.split('/').filter(Boolean)
   const maybeLocale = parts[0]
   const locale = maybeLocale && /^[a-z]{2}(-[A-Za-z]{2})?$/.test(maybeLocale) ? maybeLocale : 'en'
-  window.location.assign(`/${locale}/onboarding/payment`)
+  window.location.assign(`/${locale}/onboarding/plan`)
+}
+
+function redirectToWhatsappConnect() {
+  if (typeof window === 'undefined') return
+  const { pathname } = window.location
+  if (pathname.includes('/dashboard/whatsapp')) return
+  const parts = pathname.split('/').filter(Boolean)
+  const maybeLocale = parts[0]
+  const locale = maybeLocale && /^[a-z]{2}(-[A-Za-z]{2})?$/.test(maybeLocale) ? maybeLocale : 'en'
+  window.location.assign(`/${locale}/dashboard/whatsapp`)
 }
 
 async function parseError(response: Response): Promise<ApiError> {
@@ -71,12 +86,14 @@ async function parseError(response: Response): Promise<ApiError> {
   let code: string | undefined
   let retryAfter: number | undefined
   let chunkCount: number | undefined
+  let details: Record<string, unknown> | undefined
 
   try {
     const data = (await response.json()) as {
       message?: string
       error?: string | { message?: string; code?: string }
       code?: string
+      details?: Record<string, unknown>
       retryAfter?: number
       chunkCount?: number
       errors?: Array<{ message?: string; field?: string }>
@@ -103,6 +120,10 @@ async function parseError(response: Response): Promise<ApiError> {
       code = 'EMAIL_ALREADY_EXISTS'
     }
 
+    if (data.details && typeof data.details === 'object') {
+      details = data.details
+    }
+
     if (typeof data.retryAfter === 'number') {
       retryAfter = data.retryAfter
     } else {
@@ -120,7 +141,7 @@ async function parseError(response: Response): Promise<ApiError> {
     // non-JSON body — keep statusText
   }
 
-  return { message, status: response.status, code, retryAfter, chunkCount }
+  return { message, status: response.status, code, retryAfter, chunkCount, details }
 }
 
 /**
@@ -177,6 +198,10 @@ async function request<T>(
 
     if (authMode === 'protected' && isOrgPaymentRequired(error)) {
       redirectToOnboardingPayment()
+    }
+
+    if (authMode === 'protected' && isOrgWhatsappRequired(error)) {
+      redirectToWhatsappConnect()
     }
 
     throw error
@@ -331,7 +356,7 @@ export type CreatedOrganization = {
   name: string
   slug: string
   role: string
-  status?: 'pending_setup' | 'active' | 'suspended' | 'false'
+  status?: 'pending_setup' | 'verified_setup' | 'active' | 'suspended' | 'false'
   sessionActivated?: boolean
   reused?: boolean
 }
@@ -358,7 +383,7 @@ export type OrganizationSummary = {
   businessRegistrationNumber?: string | null
   role: string
   createdAt: string
-  status?: 'pending_setup' | 'active' | 'suspended' | 'false'
+  status?: 'pending_setup' | 'verified_setup' | 'active' | 'suspended' | 'false'
 }
 
 export type UpdateOrganizationBody = {
@@ -448,7 +473,7 @@ export type TestOrganizationSmtpBody = {
 export type AccessContext = {
   organizationId: string
   organizationName: string
-  status?: 'pending_setup' | 'active' | 'suspended' | 'false'
+  status?: 'pending_setup' | 'verified_setup' | 'active' | 'suspended' | 'false'
   memberId: string
   role: string
   displayName: string
@@ -838,6 +863,8 @@ export type WhatsappConfigSummary = {
   phoneNumberId: string
   displayPhoneNumber?: string | null
   wabaId?: string | null
+  businessId?: string | null
+  metaVerificationStatus?: string | null
   status: 'connected' | 'disconnected' | 'error' | string
   connectedAt?: string | null
   registeredAt?: string | null
@@ -1257,8 +1284,8 @@ export type SuperAdminOrganization = {
   country: string
   timezone: string
   currency?: string | null
-  /** pending_setup | active | suspended | false (soft-deleted) */
-  status: 'pending_setup' | 'active' | 'suspended' | 'false' | string
+  /** pending_setup | verified_setup | active | suspended | false (soft-deleted) */
+  status: 'pending_setup' | 'verified_setup' | 'active' | 'suspended' | 'false' | string
   createdAt: string
   updatedAt?: string | null
   deletedAt?: string | null

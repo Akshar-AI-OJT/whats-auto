@@ -12,8 +12,9 @@ export type OnboardingCleanupResult = {
 }
 
 /**
- * Daily sweep: expire abandoned pre-signup OTP rows and purge aged pending_setup orgs
- * that never paid. Guarded delete — never touches orgs with paid evidence.
+ * Daily sweep: expire abandoned pre-signup OTP rows and purge aged unpaid setup orgs
+ * (`pending_setup` | `verified_setup`) that never paid. Guarded delete — never touches
+ * orgs with paid evidence.
  */
 export class OnboardingCleanupService {
   async run(params?: {
@@ -31,10 +32,10 @@ export class OnboardingCleanupService {
 
     const candidates = await db
       .from('organizations')
-      .where('status', OrganizationStatus.PENDING_SETUP)
+      .whereIn('status', [OrganizationStatus.PENDING_SETUP, OrganizationStatus.VERIFIED_SETUP])
       .whereNull('deletedAt')
       .where('createdAt', '<', cutoff)
-      .select('id', 'slug', 'createdAt')
+      .select('id', 'slug', 'status', 'createdAt')
 
     let purgedOrganizations = 0
     let skippedOrganizations = 0
@@ -48,9 +49,10 @@ export class OnboardingCleanupService {
           {
             organizationId,
             slug: org.slug,
+            status: org.status,
             reason: paidEvidence,
           },
-          'onboarding.cleanup.skip_pending_org_with_paid_evidence'
+          'onboarding.cleanup.skip_unpaid_org_with_paid_evidence'
         )
         continue
       }
@@ -60,8 +62,13 @@ export class OnboardingCleanupService {
       })
       purgedOrganizations += 1
       logger.info(
-        { organizationId, slug: org.slug, createdAt: org.createdAt },
-        'onboarding.cleanup.purged_pending_org'
+        {
+          organizationId,
+          slug: org.slug,
+          status: org.status,
+          createdAt: org.createdAt,
+        },
+        'onboarding.cleanup.purged_unpaid_org'
       )
     }
 

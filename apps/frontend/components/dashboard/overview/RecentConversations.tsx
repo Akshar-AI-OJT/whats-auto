@@ -28,7 +28,8 @@ export function RecentConversations() {
     refetchConversations,
     orgsLoading,
   } = useDashboardOverview()
-  const { hasFullProductAccess, isSetupComplete, organizationId } = useProductAccess()
+  const { hasFullProductAccess, isSetupComplete, organizationId, organizationStatus } =
+    useProductAccess()
 
   const loading = conversationsLoading || orgsLoading
 
@@ -43,6 +44,7 @@ export function RecentConversations() {
               hasFullProductAccess,
               isSetupComplete,
               organizationId,
+              organizationStatus,
             })}
             className={cn(
               'inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-sm font-semibold text-positive-deep',

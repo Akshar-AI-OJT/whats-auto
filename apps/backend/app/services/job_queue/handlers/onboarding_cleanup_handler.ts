@@ -5,7 +5,8 @@ import { OnboardingCleanupService } from '#services/onboarding_cleanup_service'
 export type OnboardingCleanupJobData = Record<string, never>
 
 /**
- * Daily: sweep expired pre-signup verifications and aged pending_setup orgs.
+ * Daily: sweep expired pre-signup verifications and aged unpaid setup orgs
+ * (`pending_setup` | `verified_setup`).
  */
 export function createOnboardingCleanupHandler(
   cleanup: OnboardingCleanupService = new OnboardingCleanupService()
