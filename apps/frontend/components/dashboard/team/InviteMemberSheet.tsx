@@ -4,7 +4,7 @@ import { useId, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Loader2, Mail, Phone, UserPlus } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { api, type ApiError } from '@/lib/api'
+import { api, type ApiError, type CreatedInvitation } from '@/lib/api'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { ASSIGNABLE_ROLES, isValidEmail, isValidPhone, type AssignableRole } from '@/lib/onboarding'
 import { Button } from '@/components/ui/button'
@@ -30,6 +30,18 @@ type FieldErrors = {
   firstname?: string
   phone?: string
   role?: string
+}
+
+function unwrapCreatedInvitation(payload: unknown): CreatedInvitation | null {
+  if (!payload || typeof payload !== 'object') return null
+  const root = payload as { data?: CreatedInvitation } & Partial<CreatedInvitation>
+  if (root.data && typeof root.data === 'object' && typeof root.data.emailSent === 'boolean') {
+    return root.data
+  }
+  if (typeof root.emailSent === 'boolean' && typeof root.email === 'string') {
+    return root as CreatedInvitation
+  }
+  return null
 }
 
 /**
@@ -58,6 +70,7 @@ export function InviteMemberSheet({ open, onOpenChange, onInvited }: InviteMembe
   const [role, setRole] = useState<AssignableRole>('agent')
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [error, setError] = useState<string | null>(null)
+  const [warning, setWarning] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
 
@@ -70,6 +83,7 @@ export function InviteMemberSheet({ open, onOpenChange, onInvited }: InviteMembe
     setRole('agent')
     setFieldErrors({})
     setError(null)
+    setWarning(null)
     setSuccess(null)
     setPending(false)
     submitLockRef.current = false
@@ -113,6 +127,7 @@ export function InviteMemberSheet({ open, onOpenChange, onInvited }: InviteMembe
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
+    setWarning(null)
     setSuccess(null)
 
     const nextErrors = validate()
@@ -135,21 +150,32 @@ export function InviteMemberSheet({ open, onOpenChange, onInvited }: InviteMembe
 
     setPending(true)
     try {
-      await api.invitations.create(tenantOrganizationId, {
+      const { data } = await api.invitations.create(tenantOrganizationId, {
         email: email.trim(),
         firstname: firstname.trim(),
         lastname: lastname.trim() || undefined,
         role,
         designation: designation.trim() || undefined,
       })
-      // 2xx from create means the invite row was accepted — do not re-validate
-      // response wrapping here (serialize may nest under `data`).
-      setSuccess(t('success'))
+      const created = unwrapCreatedInvitation(data)
       onInvited?.()
-      window.setTimeout(() => {
-        reset()
-        onOpenChange(false)
-      }, 700)
+
+      // Only an explicit true means the setup email was sent.
+      if (created?.emailSent === true) {
+        setSuccess(t('success'))
+        window.setTimeout(() => {
+          reset()
+          onOpenChange(false)
+        }, 700)
+        return
+      }
+
+      if (created?.emailSent === false) {
+        setWarning(t('errors.createdButEmailFailed'))
+      } else {
+        setWarning(t('errors.emailStatusUnknown'))
+      }
+      submitLockRef.current = false
     } catch (err) {
       setError(mapInviteError(err as ApiError))
       submitLockRef.current = false
@@ -182,7 +208,7 @@ export function InviteMemberSheet({ open, onOpenChange, onInvited }: InviteMembe
           onSubmit={handleSubmit}
           noValidate
           aria-busy={pending}
-          aria-describedby={error ? formErrorId : undefined}
+          aria-describedby={error || warning ? formErrorId : undefined}
         >
           <FieldGroup className="gap-5">
             <Field data-invalid={fieldErrors.email ? true : undefined} className="gap-2">
@@ -305,6 +331,16 @@ export function InviteMemberSheet({ open, onOpenChange, onInvited }: InviteMembe
               className="rounded-xl border border-negative/25 bg-negative/5 px-3.5 py-3 text-sm text-negative"
             >
               {error}
+            </div>
+          ) : null}
+
+          {warning ? (
+            <div
+              id={formErrorId}
+              role="alert"
+              className="rounded-xl border border-warning/30 bg-warning/10 px-3.5 py-3 text-sm text-ink"
+            >
+              {warning}
             </div>
           ) : null}
 
