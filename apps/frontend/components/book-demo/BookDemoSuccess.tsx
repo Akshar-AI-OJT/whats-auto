@@ -1,6 +1,6 @@
 'use client'
 
-import { Check, Home, RotateCcw } from 'lucide-react'
+import { Check, Home, RotateCcw, Video } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
 import { buttonVariants } from '@/components/ui/button'
@@ -93,17 +93,21 @@ export function BookDemoSuccess({
       </div>
 
       {meetingUrl ? (
-        <p className="mt-5 text-sm leading-6 text-body">
-          {t('meetLinkLabel')}{' '}
-          <a
-            href={meetingUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="font-semibold text-positive-deep underline-offset-2 hover:underline"
-          >
-            {meetingUrl}
-          </a>
-        </p>
+        <a
+          href={meetingUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={cn(
+            'mt-4 flex items-center justify-center gap-2 rounded-2xl border border-primary/30 bg-primary-pale px-4 py-3.5',
+            'text-sm font-semibold text-positive-deep',
+            'transition-[transform,box-shadow,border-color] duration-200',
+            'hover:-translate-y-0.5 hover:border-primary/50',
+            'hover:shadow-[0_8px_20px_rgb(15_23_42/0.06),0_0_0_3px_rgb(37_99_235/0.12)]'
+          )}
+        >
+          <Video className="size-4 shrink-0" aria-hidden />
+          <span className="truncate">{t('joinMeet')}</span>
+        </a>
       ) : null}
 
       <div className="mt-10 text-left">

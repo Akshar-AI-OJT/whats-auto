@@ -23,6 +23,7 @@ import {
   type ListCustomerGroupsParams,
   type TagRecord,
   type UpdateCustomerGroupBody,
+  type UpdateTagBody,
 } from '@/lib/api'
 import { remapTagErrorMessage, unwrapContacts } from './customer-group-utils'
 
@@ -112,15 +113,23 @@ function unwrapTagList(payload: unknown): TagRecord[] {
   return []
 }
 
+function mapTagDescription(value: string | null | undefined): string {
+  return typeof value === 'string' ? value : ''
+}
+
+function mapTagStatus(value: string | null | undefined): CustomerGroup['status'] {
+  return value === 'inactive' ? 'inactive' : 'active'
+}
+
 function mapTagToCustomerGroup(tag: TagRecord, contactIds?: string[]): CustomerGroup {
   const hasLoadedMembers = contactIds !== undefined
   return {
     id: tag.id,
     organizationId: tag.organizationId,
     name: tag.name,
-    description: '',
+    description: mapTagDescription(tag.description),
     type: 'static',
-    status: 'active',
+    status: mapTagStatus(tag.status),
     contactIds: contactIds ?? [],
     contactCount: hasLoadedMembers ? contactIds.length : Number(tag.contactCount ?? 0),
     usedInCampaigns: null,
@@ -238,8 +247,17 @@ export async function createCustomerGroup(
 
   let tag: TagRecord
   try {
-    const { data } = await api.tags.create({ name })
+    const { data } = await api.tags.create({
+      name,
+      description: body.description?.trim() ?? '',
+    })
     tag = unwrapTag(data)
+
+    const desiredStatus = mapTagStatus(body.status)
+    if (desiredStatus === 'inactive') {
+      const updated = await api.tags.update(tag.id, { status: 'inactive' })
+      tag = unwrapTag(updated.data)
+    }
   } catch (error) {
     throwMapped(error)
   }
@@ -271,10 +289,23 @@ export async function updateCustomerGroup(
     throw new CustomerGroupServiceError('Group name is required.', { status: 422 })
   }
 
+  const description =
+    body.description !== undefined ? body.description.trim() : existing.description
+  const status = body.status !== undefined ? mapTagStatus(body.status) : existing.status
+
+  const patch: UpdateTagBody = {}
+  if (name !== existing.name) patch.name = name
+  if (body.description !== undefined && description !== existing.description) {
+    patch.description = description
+  }
+  if (body.status !== undefined && status !== existing.status) {
+    patch.status = status
+  }
+
   let tagId = existing.id
-  if (name !== existing.name) {
+  if (Object.keys(patch).length > 0) {
     try {
-      const { data } = await api.tags.update(groupId, { name })
+      const { data } = await api.tags.update(groupId, patch)
       tagId = unwrapTag(data).id
     } catch (error) {
       throwMapped(error)

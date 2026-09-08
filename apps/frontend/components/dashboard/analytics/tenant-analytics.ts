@@ -54,8 +54,10 @@ async function fetchAllByPages<T>(fetchPage: (page: number, perPage: number) => 
 }
 
 export async function fetchAnalyticsContacts(): Promise<ContactSummary[]> {
-  const { data } = await api.contacts.list()
-  return unwrapList<ContactSummary>(data)
+  return fetchAllByPages(async (page, perPage) => {
+    const { data } = await api.contacts.list({ page, perPage })
+    return unwrapPaginated<ContactSummary>(data)
+  })
 }
 
 export async function fetchAnalyticsCampaigns(): Promise<Campaign[]> {

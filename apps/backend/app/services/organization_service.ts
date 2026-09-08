@@ -519,6 +519,23 @@ export class OrganizationService {
   }
 
   /**
+   * Platform-scoped organization by id. Includes soft-deleted rows so Super Admin
+   * can open archived tenants that still appear in the paginated list.
+   */
+  async getOrganizationById(organizationId: string) {
+    const organization = await db.from('organizations').where('id', organizationId).first()
+
+    if (!organization) {
+      throw new Exception('Organization Not Found', {
+        status: 404,
+        code: 'E_ORGANIZATION_NOT_FOUND',
+      })
+    }
+
+    return organization
+  }
+
+  /**
    * Set the active organization on the caller's session.
    */
   async setActiveOrganization(params: {

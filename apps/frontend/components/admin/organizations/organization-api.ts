@@ -96,26 +96,28 @@ export async function deleteSuperAdminOrganization(organizationId: string): Prom
   await api.superAdmin.organizations.destroy(organizationId)
 }
 
-/**
- * No get-by-id endpoint — locate the org in a single page fetch (demo-scale).
- * Walks a few pages if needed.
- */
-export async function findSuperAdminOrganization(
+function unwrapOrganization(data: unknown): SuperAdminOrganization {
+  if (!data || typeof data !== 'object') {
+    throw new Error('Organization payload missing')
+  }
+
+  const root = data as { data?: SuperAdminOrganization } & SuperAdminOrganization
+  const org =
+    root.data && typeof root.data === 'object' && typeof root.data.id === 'string' ? root.data : root
+
+  if (typeof org.id !== 'string' || !org.id) {
+    throw new Error('Organization payload missing id')
+  }
+
+  return org
+}
+
+/** Dedicated Super Admin GET-by-id. Throws ApiError on 404 / auth failures. */
+export async function getSuperAdminOrganization(
   organizationId: string
-): Promise<AdminOrganizationListItem | null> {
-  const perPage = 100
-  let page = 1
-  let lastPage = 1
-
-  do {
-    const { items, meta } = await listSuperAdminOrganizations({ page, perPage })
-    const found = items.find((org) => org.id === organizationId)
-    if (found) return found
-    lastPage = meta?.lastPage ?? page
-    page += 1
-  } while (page <= lastPage && page <= 10)
-
-  return null
+): Promise<AdminOrganizationListItem> {
+  const { data } = await api.superAdmin.organizations.get(organizationId)
+  return toAdminOrganizationListItem(unwrapOrganization(data))
 }
 
 export function mapOrgApiError(error: unknown, fallback: string): string {

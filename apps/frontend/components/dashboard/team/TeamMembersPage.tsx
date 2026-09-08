@@ -186,7 +186,22 @@ export function TeamMembersPage() {
   const [page, setPage] = useState(1)
   const perPage = DEFAULT_PER_PAGE
   const [searchQuery, setSearchQuery] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState<'all' | AssignableRole | 'owner'>('all')
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(searchQuery), 250)
+    return () => window.clearTimeout(timer)
+  }, [searchQuery])
+
+  const filterKey = `${debouncedSearch}|${roleFilter}`
+  const [appliedFilterKey, setAppliedFilterKey] = useState(filterKey)
+  const filtersChanged = filterKey !== appliedFilterKey
+  if (filtersChanged) {
+    setAppliedFilterKey(filterKey)
+    setPage(1)
+  }
+  const listPage = filtersChanged ? 1 : page
 
   // Reset filter/pagination when organization changes.
   const [listOrganizationId, setListOrganizationId] = useState(tenantOrganizationId)
@@ -194,17 +209,33 @@ export function TeamMembersPage() {
     setListOrganizationId(tenantOrganizationId)
     setPage(1)
     setSearchQuery('')
+    setDebouncedSearch('')
     setRoleFilter('all')
   }
+
+  const listParams = useMemo(
+    () => ({
+      page: listPage,
+      perPage,
+      search: debouncedSearch.trim() || undefined,
+      role: roleFilter === 'all' ? undefined : roleFilter,
+    }),
+    [listPage, perPage, debouncedSearch, roleFilter]
+  )
 
   const teamEnabled =
     !orgsLoading && !isResolvingAccess && Boolean(tenantOrganizationId) && canViewTeam
 
   const membersQuery = useQuery({
-    queryKey: queryKeys.team.list(tenantOrganizationId, { page, perPage }),
+    queryKey: queryKeys.team.list(tenantOrganizationId, listParams),
     queryFn: async () => {
       try {
-        const usersResult = await api.organizationAdmin.listUsers({ page, perPage })
+        const usersResult = await api.organizationAdmin.listUsers({
+          page: listParams.page,
+          perPage: listParams.perPage,
+          search: listParams.search,
+          role: listParams.role,
+        })
         const { users, meta: nextMeta } = unwrapPaginatedUsers(usersResult.data)
         return {
           members: users.map(fromAdminUser),
@@ -213,7 +244,7 @@ export function TeamMembersPage() {
             ({
               total: users.length,
               perPage,
-              currentPage: page,
+              currentPage: listPage,
               lastPage: 1,
             } satisfies PaginationMeta),
           paginatedSource: true as const,
@@ -312,7 +343,7 @@ export function TeamMembersPage() {
     setActionError(null)
     setRolePendingId(member.memberId)
     queryClient.setQueryData(
-      queryKeys.team.list(tenantOrganizationId, { page, perPage }),
+      queryKeys.team.list(tenantOrganizationId, listParams),
       (old: typeof membersQuery.data) => {
         if (!old) return old
         return {
@@ -327,7 +358,7 @@ export function TeamMembersPage() {
       await api.members.assignRole(member.memberId, nextRole)
     } catch (err) {
       queryClient.setQueryData(
-        queryKeys.team.list(tenantOrganizationId, { page, perPage }),
+        queryKeys.team.list(tenantOrganizationId, listParams),
         (old: typeof membersQuery.data) => {
           if (!old) return old
           return {
@@ -381,13 +412,17 @@ export function TeamMembersPage() {
     })
   }, [members, searchQuery, roleFilter])
 
-  const showEmpty = !listLoading && !listError && members.length === 0
+  const hasActiveFilters = paginatedSource
+    ? Boolean(debouncedSearch.trim()) || roleFilter !== 'all'
+    : Boolean(searchQuery.trim()) || roleFilter !== 'all'
+  const displayMembers = paginatedSource ? members : filteredMembers
+  const showEmpty = !listLoading && !listError && !hasActiveFilters && members.length === 0
   const showNoMatches =
-    !listLoading && !listError && members.length > 0 && filteredMembers.length === 0
+    !listLoading && !listError && hasActiveFilters && displayMembers.length === 0
   const currentMemberId = accessContext?.memberId ?? null
   const lastPage = meta?.lastPage ?? 1
-  const currentPage = meta?.currentPage ?? page
-  const total = meta?.total ?? members.length
+  const currentPage = meta?.currentPage ?? listPage
+  const total = meta?.total ?? (paginatedSource ? members.length : displayMembers.length)
   const canGoPrev = paginatedSource && currentPage > 1
   const canGoNext = paginatedSource && currentPage < lastPage
 
@@ -474,10 +509,6 @@ export function TeamMembersPage() {
           </div>
         ) : null}
 
-        {paginatedSource && searchQuery.trim() ? (
-          <p className="mt-2 text-xs text-mute">{t('searchPageHint')}</p>
-        ) : null}
-
         {actionError ? (
           <div
             role="alert"
@@ -514,7 +545,7 @@ export function TeamMembersPage() {
         ) : (
           <>
             <ul className="mt-6 divide-y divide-dash-border overflow-hidden rounded-2xl border border-dash-border">
-              {filteredMembers.map((member) => {
+              {displayMembers.map((member) => {
                 const roleKey = roleLabelKey(member.role)
                 const isOwner = member.role.toLowerCase() === 'owner'
                 const isSelf = Boolean(currentMemberId && member.memberId === currentMemberId)

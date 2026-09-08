@@ -107,6 +107,19 @@ const requestBodySchemas: Record<string, JsonSchema> = {
     },
     ['email', 'otp', 'password']
   ),
+  'post /api/v1/demo/bookings': bodySchema(
+    {
+      name: { type: 'string', example: 'Jane Doe' },
+      email: { type: 'string', format: 'email', example: 'jane@company.com' },
+      slotId: { type: 'string', example: '2026-09-15T04:30:00.000Z' },
+      timeZone: { type: 'string', example: 'Asia/Kolkata' },
+      company: { type: 'string', example: 'Acme Inc.' },
+      phone: { type: 'string', example: '+15550000000' },
+      companySize: { type: 'string', example: '11-50' },
+      purpose: { type: 'string', example: 'overview' },
+    },
+    ['name', 'email', 'slotId', 'timeZone']
+  ),
   'post /api/v1/organizations': bodySchema(
     {
       name: { type: 'string', example: 'Krishna Demo Company' },
@@ -369,6 +382,23 @@ const requestBodySchemas: Record<string, JsonSchema> = {
     },
     ['phoneNumber']
   ),
+  'patch /api/v1/contacts/{id}': bodySchema({
+    phoneNumber: {
+      type: 'string',
+      example: '9876543210',
+      description:
+        'National number with countryCode, or international beginning with + (for example +14155552671).',
+    },
+    countryCode: {
+      type: 'string',
+      example: 'IN',
+      description:
+        'ISO 3166-1 alpha-2. Required for national numbers; optional when phoneNumber starts with +.',
+    },
+    name: { type: 'string', example: 'John', nullable: true },
+    email: { type: 'string', format: 'email', example: 'john@example.com', nullable: true },
+    company: { type: 'string', example: 'Example', nullable: true },
+  }),
   'post /api/v1/tags': bodySchema(
     {
       name: { type: 'string', example: 'VIP' },
@@ -600,19 +630,6 @@ const requestBodySchemas: Record<string, JsonSchema> = {
     },
     ['externalEventId', 'type', 'occurredAt', 'payload']
   ),
-  'post /api/v1/demo/bookings': bodySchema(
-    {
-      name: { type: 'string', example: 'Jane Doe' },
-      email: { type: 'string', format: 'email', example: 'jane@company.com' },
-      slotId: { type: 'string', example: '2026-09-15T04:30:00.000Z' },
-      timeZone: { type: 'string', example: 'Asia/Kolkata' },
-      company: { type: 'string', example: 'Acme Inc.' },
-      phone: { type: 'string', example: '+15550000000' },
-      companySize: { type: 'string', example: '11-50' },
-      purpose: { type: 'string', example: 'overview' },
-    },
-    ['name', 'email', 'slotId', 'timeZone']
-  ),
   'post /api/v1/integrations/shopenup/events': bodySchema(
     {
       eventType: { type: 'string', example: 'order.placed' },
@@ -700,7 +717,7 @@ router
       .use(middleware.rateLimit({ max: 60, windowMs: 60 * 1000, name: 'demo-availability' }))
     router
       .post('/bookings', [DemoBookingsController, 'store'])
-      .use(middleware.rateLimit({ max: 10, windowMs: 15 * 60 * 1000, name: 'demo-bookings' }))
+      .use(middleware.rateLimit({ max: 15, windowMs: 15 * 60 * 1000, name: 'demo-bookings' }))
   })
   .prefix('/api/v1/demo')
 
@@ -777,6 +794,7 @@ router
 router
   .group(() => {
     router.get('/organizations', [SuperAdminOrganizationsController, 'index'])
+    router.get('/organizations/:id', [SuperAdminOrganizationsController, 'show'])
     router.patch('/organizations/:id', [SuperAdminOrganizationsController, 'update'])
     router.delete('/organizations/:id', [SuperAdminOrganizationsController, 'softDelete'])
 
@@ -916,6 +934,8 @@ router
     router.post('/', [ContactsController, 'store'])
     router.post('/import', [ContactsController, 'importCsv'])
     router.get('/import/:id', [ContactsController, 'showImport'])
+    router.get('/:id', [ContactsController, 'show'])
+    router.patch('/:id', [ContactsController, 'update'])
     router.delete('/:id', [ContactsController, 'softDelete'])
   })
   .prefix('/api/v1/contacts')

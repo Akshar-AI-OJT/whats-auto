@@ -45,6 +45,7 @@ type OrganizationsContextValue = {
   canManageRoles: boolean
   canViewContacts: boolean
   canCreateContacts: boolean
+  canEditContacts: boolean
   canDeleteContacts: boolean
   canImportContacts: boolean
   canViewInbox: boolean
@@ -430,6 +431,7 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
     canManageRoles: hasPermission(permissions, PERMISSIONS.ROLES_MANAGE),
     canViewContacts: hasPermission(permissions, PERMISSIONS.CONTACTS_VIEW),
     canCreateContacts: hasPermission(permissions, PERMISSIONS.CONTACTS_CREATE),
+    canEditContacts: hasPermission(permissions, PERMISSIONS.CONTACTS_EDIT),
     canDeleteContacts: hasPermission(permissions, PERMISSIONS.CONTACTS_DELETE),
     canImportContacts: hasPermission(permissions, PERMISSIONS.CONTACTS_IMPORT),
     canViewInbox: hasPermission(permissions, PERMISSIONS.INBOX_VIEW),

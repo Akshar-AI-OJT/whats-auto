@@ -10,15 +10,34 @@ import {
   Send,
   Users,
 } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
+import { queryKeys } from '@/lib/query-keys'
+import {
+  api,
+  type ApiError,
+  type AuthorizationAuditEvent,
+  type SuperAdminPlan,
+  type SuperAdminPlatformUser,
+  type SuperAdminSubscription,
+} from '@/lib/api'
 import { KPIStatCard } from '@/components/dashboard/overview/KPIStatCard'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
+import { listSuperAdminPlatformUsers } from '@/components/admin/platform-users/platform-users-api'
 import {
-  findSuperAdminOrganization,
+  findPlanById,
+  listSuperAdminPlansCatalog,
+  listSuperAdminSubscriptions,
+  planAmountLabel,
+  planBillingKind,
+  planLabel,
+} from '@/components/admin/subscriptions/subscription-api'
+import {
+  getSuperAdminOrganization,
   mapOrgApiError,
   type AdminOrganizationListItem,
 } from './organization-api'
@@ -37,6 +56,19 @@ function formatDate(value: string) {
   })
 }
 
+function formatDateTime(value: string | Date | null | undefined, empty: string) {
+  if (!value) return empty
+  const date = value instanceof Date ? value : new Date(value)
+  if (Number.isNaN(date.getTime())) return String(value)
+  return date.toLocaleString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 function getInitials(name: string) {
   return name
     .split(/\s+/)
@@ -44,6 +76,35 @@ function getInitials(name: string) {
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase() ?? '')
     .join('')
+}
+
+function isOrgNotFound(error: unknown): boolean {
+  const apiError = error as ApiError
+  return apiError?.status === 404 || apiError?.code === 'E_ORGANIZATION_NOT_FOUND'
+}
+
+function unwrapAuditEvents(data: unknown): AuthorizationAuditEvent[] {
+  if (!data) return []
+  if (Array.isArray(data)) return data as AuthorizationAuditEvent[]
+  if (typeof data === 'object' && data !== null && 'data' in data) {
+    const wrapped = data as { data?: AuthorizationAuditEvent[] }
+    if (Array.isArray(wrapped.data)) return wrapped.data
+  }
+  return []
+}
+
+function pickSubscription(
+  subscriptions: SuperAdminSubscription[],
+  organizationId: string
+): SuperAdminSubscription | null {
+  const matches = subscriptions.filter((row) => row.organizationId === organizationId)
+  if (matches.length === 0) return null
+  const rank = (status: string) => (status === 'active' ? 0 : status === 'trialing' ? 1 : 2)
+  return [...matches].sort((a, b) => rank(String(a.status)) - rank(String(b.status)))[0] ?? null
+}
+
+function membershipRole(user: SuperAdminPlatformUser, organizationId: string): string {
+  return user.organizations.find((org) => org.organizationId === organizationId)?.role ?? ''
 }
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
@@ -57,7 +118,13 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   )
 }
 
-function OrganizationHeader({ org }: { org: AdminOrganizationListItem }) {
+function OrganizationHeader({
+  org,
+  planBadgeLabel,
+}: {
+  org: AdminOrganizationListItem
+  planBadgeLabel: string
+}) {
   const t = useTranslations('admin.organizations')
   const td = useTranslations('admin.organizations.detail')
 
@@ -100,7 +167,7 @@ function OrganizationHeader({ org }: { org: AdminOrganizationListItem }) {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <OrganizationPlanBadge label={t('filters.plan.unavailable')} />
+            <OrganizationPlanBadge label={planBadgeLabel} />
             <OrganizationStatusBadge
               status={org.uiStatus}
               label={t(`filters.status.${org.uiStatus}`)}
@@ -112,7 +179,15 @@ function OrganizationHeader({ org }: { org: AdminOrganizationListItem }) {
   )
 }
 
-function GeneralInformation({ org }: { org: AdminOrganizationListItem }) {
+function GeneralInformation({
+  org,
+  ownerName,
+  ownerEmail,
+}: {
+  org: AdminOrganizationListItem
+  ownerName: string
+  ownerEmail: string
+}) {
   const t = useTranslations('admin.organizations.detail.general')
 
   return (
@@ -121,8 +196,8 @@ function GeneralInformation({ org }: { org: AdminOrganizationListItem }) {
       <dl className="mt-2">
         <InfoRow label={t('fields.name')} value={org.name} />
         <InfoRow label={t('fields.slug')} value={org.slug} />
-        <InfoRow label={t('fields.owner')} value="—" />
-        <InfoRow label={t('fields.ownerEmail')} value={org.email} />
+        <InfoRow label={t('fields.owner')} value={ownerName} />
+        <InfoRow label={t('fields.ownerEmail')} value={ownerEmail} />
         <InfoRow label={t('fields.industry')} value={org.industry || '—'} />
         <InfoRow
           label={t('fields.website')}
@@ -150,13 +225,75 @@ function GeneralInformation({ org }: { org: AdminOrganizationListItem }) {
   )
 }
 
-function SubscriptionSection() {
+function billingCycleLabel(
+  planId: string,
+  plans: SuperAdminPlan[],
+  labels: { monthly: string; annual: string; custom: string }
+): string {
+  const plan = findPlanById(plans, planId)
+  if (!plan) return '—'
+  if (plan.billingPeriod === 'monthly') return labels.monthly
+  if (plan.billingPeriod === 'yearly') return labels.annual
+  if (plan.billingPeriod === 'custom' || planBillingKind(planId, plans) === 'custom') {
+    return labels.custom
+  }
+  return '—'
+}
+
+function SubscriptionSection({
+  subscription,
+  plans,
+  isLoading,
+  isError,
+}: {
+  subscription: SuperAdminSubscription | null
+  plans: SuperAdminPlan[]
+  isLoading: boolean
+  isError: boolean
+}) {
   const t = useTranslations('admin.organizations.detail.subscription')
+  const plan = subscription ? findPlanById(plans, subscription.planId) : undefined
+  const seats =
+    typeof plan?.limits.users === 'number' ? String(plan.limits.users) : '—'
 
   return (
     <DashboardPanel as="section" className="flex h-full flex-col p-4 sm:p-5 md:p-6">
       <DashboardSectionHeader title={t('title')} description={t('description')} />
-      <p className="mt-6 text-sm text-mute">{t('unavailable')}</p>
+      {isLoading ? (
+        <div className="mt-6 flex items-center gap-2 text-sm text-mute">
+          <Loader2 className="size-4 animate-spin" aria-hidden />
+          {t('loading')}
+        </div>
+      ) : isError ? (
+        <p role="alert" className="mt-6 text-sm text-negative">
+          {t('failed')}
+        </p>
+      ) : !subscription ? (
+        <p className="mt-6 text-sm text-mute">{t('empty')}</p>
+      ) : (
+        <dl className="mt-2">
+          <InfoRow label={t('fields.plan')} value={planLabel(subscription.planId, plans)} />
+          <InfoRow
+            label={t('fields.billingCycle')}
+            value={billingCycleLabel(subscription.planId, plans, {
+              monthly: t('billingCycle.monthly'),
+              annual: t('billingCycle.annual'),
+              custom: t('billingCycle.custom'),
+            })}
+          />
+          <InfoRow
+            label={t('fields.amount')}
+            value={planAmountLabel(subscription.planId, plans, '—')}
+          />
+          <InfoRow label={t('fields.seats')} value={seats} />
+          <InfoRow
+            label={t('fields.renewsOn')}
+            value={formatDate(subscription.currentPeriodEnd)}
+          />
+          <InfoRow label={t('fields.paymentMethod')} value="—" />
+          <InfoRow label={t('fields.invoiceEmail')} value="—" />
+        </dl>
+      )}
     </DashboardPanel>
   )
 }
@@ -196,24 +333,135 @@ function OrganizationStatistics() {
   )
 }
 
-function TeamMembersSection() {
+function memberRoleLabel(role: string, labels: { owner: string; admin: string; member: string }): string {
+  if (role === 'owner') return labels.owner
+  if (role === 'admin') return labels.admin
+  if (role === 'member') return labels.member
+  return role || '—'
+}
+
+function TeamMembersSection({
+  organizationId,
+  members,
+  isLoading,
+  isError,
+}: {
+  organizationId: string
+  members: SuperAdminPlatformUser[]
+  isLoading: boolean
+  isError: boolean
+}) {
   const t = useTranslations('admin.organizations.detail.members')
 
   return (
     <DashboardPanel as="section" className="p-4 sm:p-5 md:p-6">
-      <DashboardSectionHeader title={t('title')} description={t('description', { count: 0 })} />
-      <p className="mt-6 text-sm text-mute">{t('unavailable')}</p>
+      <DashboardSectionHeader
+        title={t('title')}
+        description={t('description', { count: isLoading || isError ? 0 : members.length })}
+      />
+      {isLoading ? (
+        <div className="mt-6 flex items-center gap-2 text-sm text-mute">
+          <Loader2 className="size-4 animate-spin" aria-hidden />
+          {t('loading')}
+        </div>
+      ) : isError ? (
+        <p role="alert" className="mt-6 text-sm text-negative">
+          {t('failed')}
+        </p>
+      ) : members.length === 0 ? (
+        <p className="mt-6 text-sm text-mute">{t('empty')}</p>
+      ) : (
+        <div className="mt-4 overflow-hidden rounded-2xl border border-dash-border">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[480px] border-collapse text-left">
+              <thead>
+                <tr className="border-b border-dash-border bg-dash-surface">
+                  <th className="px-4 py-3.5 text-sm font-semibold text-ink">
+                    {t('columns.member')}
+                  </th>
+                  <th className="px-4 py-3.5 text-sm font-semibold text-ink">
+                    {t('columns.role')}
+                  </th>
+                  <th className="px-4 py-3.5 text-sm font-semibold text-ink">
+                    {t('columns.lastActive')}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {members.map((member, index) => (
+                  <tr
+                    key={member.id}
+                    className={cn(
+                      'border-b border-dash-border last:border-b-0',
+                      index % 2 === 1 && 'bg-dash-surface/60'
+                    )}
+                  >
+                    <td className="px-4 py-3.5">
+                      <span className="block truncate text-sm font-semibold text-ink">
+                        {member.name || '—'}
+                      </span>
+                      <span className="block truncate text-xs text-mute">
+                        {member.email || '—'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3.5 text-sm text-ink">
+                      {memberRoleLabel(membershipRole(member, organizationId), {
+                        owner: t('roles.owner'),
+                        admin: t('roles.admin'),
+                        member: t('roles.member'),
+                      })}
+                    </td>
+                    <td className="px-4 py-3.5 text-sm tabular-nums text-mute">—</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
     </DashboardPanel>
   )
 }
 
-function RecentActivitySection() {
+function RecentActivitySection({
+  events,
+  isLoading,
+  isError,
+}: {
+  events: AuthorizationAuditEvent[]
+  isLoading: boolean
+  isError: boolean
+}) {
   const t = useTranslations('admin.organizations.detail.activity')
 
   return (
     <DashboardPanel as="section" className="p-4 sm:p-5 md:p-6">
       <DashboardSectionHeader title={t('title')} description={t('description')} />
-      <p className="mt-6 text-sm text-mute">{t('unavailable')}</p>
+      {isLoading ? (
+        <div className="mt-6 flex items-center gap-2 text-sm text-mute">
+          <Loader2 className="size-4 animate-spin" aria-hidden />
+          {t('loading')}
+        </div>
+      ) : isError ? (
+        <p role="alert" className="mt-6 text-sm text-negative">
+          {t('failed')}
+        </p>
+      ) : events.length === 0 ? (
+        <p className="mt-6 text-sm text-mute">{t('empty')}</p>
+      ) : (
+        <ul className="mt-4 flex flex-col gap-2">
+          {events.map((event) => (
+            <li
+              key={event.id}
+              className="rounded-xl border border-dash-border bg-dash-surface/40 px-4 py-3"
+            >
+              <p className="text-sm font-medium text-ink">{event.eventType}</p>
+              <p className="mt-1 text-xs text-mute">{formatDateTime(event.createdAt, '—')}</p>
+              {event.reason ? <p className="mt-1 text-xs text-body">{event.reason}</p> : null}
+            </li>
+          ))}
+        </ul>
+      )}
     </DashboardPanel>
   )
 }
@@ -243,32 +491,64 @@ function OrganizationNotFound() {
 
 export function OrganizationDetailsPage({ orgId }: { orgId: string }) {
   const t = useTranslations('admin.organizations')
-  const [org, setOrg] = useState<AdminOrganizationListItem | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    let cancelled = false
-    void findSuperAdminOrganization(orgId)
-      .then((found) => {
-        if (cancelled) return
-        setOrg(found)
-        setError(null)
-      })
-      .catch((err) => {
-        if (cancelled) return
-        setOrg(null)
-        setError(mapOrgApiError(err, t('errors.loadFailed')))
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [orgId, t])
+  const orgQuery = useQuery({
+    queryKey: queryKeys.admin.organizationDetail(orgId),
+    queryFn: () => getSuperAdminOrganization(orgId),
+    retry: (failureCount, error) => !isOrgNotFound(error) && failureCount < 1,
+  })
 
-  if (loading) {
+  const plansQuery = useQuery({
+    queryKey: queryKeys.admin.plans({ status: 'all', scope: 'organization-detail' }),
+    queryFn: () => listSuperAdminPlansCatalog('all'),
+    enabled: orgQuery.isSuccess,
+  })
+
+  const subscriptionQuery = useQuery({
+    queryKey: queryKeys.admin.organizationSubscription(orgId),
+    queryFn: async () => {
+      const { items } = await listSuperAdminSubscriptions({
+        search: orgId,
+        page: 1,
+        perPage: 100,
+      })
+      return pickSubscription(items, orgId)
+    },
+    enabled: orgQuery.isSuccess,
+  })
+
+  const membersQuery = useQuery({
+    queryKey: queryKeys.admin.organizationMembers(orgId),
+    queryFn: async () => {
+      const { items } = await listSuperAdminPlatformUsers({
+        organizationId: orgId,
+        page: 1,
+        perPage: 100,
+      })
+      return items
+    },
+    enabled: orgQuery.isSuccess,
+  })
+
+  const activityQuery = useQuery({
+    queryKey: queryKeys.admin.organizationActivity(orgId),
+    queryFn: async () => {
+      const { data } = await api.superAdmin.auditLogs.list({ limit: 50, organizationId: orgId })
+      return unwrapAuditEvents(data)
+    },
+    enabled: orgQuery.isSuccess,
+  })
+
+  const org = orgQuery.data ?? null
+  const members = membersQuery.data ?? []
+  const plans = plansQuery.data ?? []
+  const subscription = subscriptionQuery.data ?? null
+  const owner = members.find((user) => membershipRole(user, orgId) === 'owner')
+  const planBadgeLabel = subscription
+    ? planLabel(subscription.planId, plans)
+    : t('filters.plan.unavailable')
+
+  if (orgQuery.isLoading) {
     return (
       <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5">
         <DashboardPanel className="flex items-center justify-center gap-2 px-5 py-16 text-sm text-body">
@@ -279,12 +559,16 @@ export function OrganizationDetailsPage({ orgId }: { orgId: string }) {
     )
   }
 
-  if (error) {
+  if (orgQuery.isError && isOrgNotFound(orgQuery.error)) {
+    return <OrganizationNotFound />
+  }
+
+  if (orgQuery.isError) {
     return (
       <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5">
         <DashboardPanel className="px-5 py-10 text-center sm:px-8">
           <p role="alert" className="text-sm text-negative">
-            {error}
+            {mapOrgApiError(orgQuery.error, t('errors.loadFailed'))}
           </p>
           <Link
             href="/admin/organizations"
@@ -304,20 +588,38 @@ export function OrganizationDetailsPage({ orgId }: { orgId: string }) {
 
   return (
     <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 sm:gap-6 xl:gap-7">
-      <OrganizationHeader org={org} />
+      <OrganizationHeader org={org} planBadgeLabel={planBadgeLabel} />
 
       <div className="grid grid-cols-1 gap-5 sm:gap-6 xl:grid-cols-12 xl:gap-6">
         <div className="min-w-0 xl:col-span-7">
-          <GeneralInformation org={org} />
+          <GeneralInformation
+            org={org}
+            ownerName={owner?.name || '—'}
+            ownerEmail={owner?.email || '—'}
+          />
         </div>
         <div className="min-w-0 xl:col-span-5">
-          <SubscriptionSection />
+          <SubscriptionSection
+            subscription={subscription}
+            plans={plans}
+            isLoading={subscriptionQuery.isLoading || plansQuery.isLoading}
+            isError={subscriptionQuery.isError || plansQuery.isError}
+          />
         </div>
       </div>
 
       <OrganizationStatistics />
-      <TeamMembersSection />
-      <RecentActivitySection />
+      <TeamMembersSection
+        organizationId={orgId}
+        members={members}
+        isLoading={membersQuery.isLoading}
+        isError={membersQuery.isError}
+      />
+      <RecentActivitySection
+        events={activityQuery.data ?? []}
+        isLoading={activityQuery.isLoading}
+        isError={activityQuery.isError}
+      />
     </div>
   )
 }
