@@ -5,9 +5,20 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
 import { useRouter, usePathname } from '@/i18n/navigation'
-import { Loader2, Search, Trash2, Upload, UserPlus, Users } from 'lucide-react'
-import { api, type ApiError, type ContactSummary } from '@/lib/api'
+import {
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  Pencil,
+  Search,
+  Trash2,
+  Upload,
+  UserPlus,
+  Users,
+} from 'lucide-react'
+import { api, type ApiError, type ContactSummary, type PaginationMeta } from '@/lib/api'
 import { queryKeys } from '@/lib/query-keys'
+import { unwrapPaginated } from '@/components/dashboard/inbox/inbox-utils'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -18,12 +29,7 @@ import { AddContactSheet } from '@/components/dashboard/contacts/AddContactSheet
 import { ContactDeleteDialog } from '@/components/dashboard/contacts/ContactDeleteDialog'
 import { ImportContactsDialog } from '@/components/dashboard/contacts/ImportContactsDialog'
 
-function unwrapList<T>(data: { data?: T[] } | T[] | undefined): T[] {
-  if (!data) return []
-  if (Array.isArray(data)) return data
-  if (Array.isArray(data.data)) return data.data
-  return []
-}
+const DEFAULT_PER_PAGE = 20
 
 function initialsFromContact(contact: ContactSummary) {
   const source = (contact.name?.trim() || contact.phone).trim()
@@ -55,6 +61,7 @@ export function ContactsPage() {
     tenantOrganizationId,
     canViewContacts,
     canCreateContacts,
+    canEditContacts,
     canDeleteContacts,
     canImportContacts,
     isLoading: orgsLoading,
@@ -65,23 +72,65 @@ export function ContactsPage() {
   const [addForced, setAddForced] = useState(false)
   const addOpen = canCreateContacts && (addFromQuery || addForced)
   const [query, setQuery] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [page, setPage] = useState(1)
+  const perPage = DEFAULT_PER_PAGE
   const [importOpen, setImportOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<ContactSummary | null>(null)
+  const [editTarget, setEditTarget] = useState<ContactSummary | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [deletePending, setDeletePending] = useState(false)
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(query), 250)
+    return () => window.clearTimeout(timer)
+  }, [query])
+
+  const filterKey = debouncedSearch
+  const [appliedFilterKey, setAppliedFilterKey] = useState(filterKey)
+  const filtersChanged = filterKey !== appliedFilterKey
+  if (filtersChanged) {
+    setAppliedFilterKey(filterKey)
+    setPage(1)
+  }
+  const listPage = filtersChanged ? 1 : page
+
+  const listParams = useMemo(
+    () => ({
+      page: listPage,
+      perPage,
+      search: debouncedSearch.trim() || undefined,
+    }),
+    [listPage, perPage, debouncedSearch]
+  )
+
   const contactsQuery = useQuery({
-    queryKey: queryKeys.contacts.list(tenantOrganizationId),
+    queryKey: queryKeys.contacts.list(tenantOrganizationId, listParams),
     queryFn: async () => {
-      const organizationId = tenantOrganizationId!
-      const { data } = await api.contacts.list()
-      return unwrapList(data).filter((c) => c.organizationId === organizationId)
+      const { data } = await api.contacts.list({
+        page: listParams.page,
+        perPage: listParams.perPage,
+        search: listParams.search,
+      })
+      const { items, meta: nextMeta } = unwrapPaginated<ContactSummary>(data)
+      return {
+        contacts: items,
+        meta:
+          nextMeta ??
+          ({
+            total: items.length,
+            perPage,
+            currentPage: listPage,
+            lastPage: 1,
+          } satisfies PaginationMeta),
+      }
     },
     enabled: !orgsLoading && !isResolvingAccess && Boolean(tenantOrganizationId) && canViewContacts,
     staleTime: 2 * 60_000,
   })
 
-  const contacts = useMemo(() => contactsQuery.data ?? [], [contactsQuery.data])
+  const contacts = useMemo(() => contactsQuery.data?.contacts ?? [], [contactsQuery.data])
+  const meta = contactsQuery.data?.meta ?? null
   const listLoading =
     contactsQuery.isLoading || orgsLoading || isResolvingAccess || !tenantOrganizationId
   const listError = contactsQuery.error
@@ -139,7 +188,10 @@ export function ContactsPage() {
   if (prevOrgScope !== orgScope) {
     setPrevOrgScope(orgScope)
     setQuery('')
+    setDebouncedSearch('')
+    setPage(1)
     setDeleteTarget(null)
+    setEditTarget(null)
     setDeleteError(null)
   }
 
@@ -155,17 +207,14 @@ export function ContactsPage() {
     }
   }
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    if (!q) return contacts
-    return contacts.filter((c) => {
-      const haystack = [c.name, c.phone, c.phoneNormalized, c.email, c.company]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase()
-      return haystack.includes(q)
-    })
-  }, [contacts, query])
+  const hasActiveSearch = Boolean(debouncedSearch.trim() || query.trim())
+  const total = meta?.total ?? contacts.length
+  const lastPage = meta?.lastPage ?? 1
+  const currentPage = meta?.currentPage ?? listPage
+  const canGoPrev = currentPage > 1
+  const canGoNext = currentPage < lastPage
+  const showEmpty = !listLoading && !listError && !hasActiveSearch && total === 0
+  const showNoMatches = !listLoading && !listError && hasActiveSearch && contacts.length === 0
 
   if (!orgsLoading && !isResolvingAccess && !canViewContacts) {
     return (
@@ -187,9 +236,6 @@ export function ContactsPage() {
       </div>
     )
   }
-
-  const showEmpty = !listLoading && !listError && contacts.length === 0
-  const showNoMatches = !listLoading && !listError && contacts.length > 0 && filtered.length === 0
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-5 sm:gap-6">
@@ -305,8 +351,9 @@ export function ContactsPage() {
         ) : showNoMatches ? (
           <p className="mt-8 py-10 text-center text-sm text-body">{t('noMatches')}</p>
         ) : (
+          <>
           <ul className="mt-6 divide-y divide-dash-border overflow-hidden rounded-2xl border border-dash-border">
-            {filtered.map((contact) => (
+            {contacts.map((contact) => (
               <li
                 key={contact.id}
                 className="flex flex-col gap-3 bg-canvas px-4 py-3.5 sm:flex-row sm:items-center sm:gap-4 sm:px-5"
@@ -328,27 +375,82 @@ export function ContactsPage() {
                       {t('addedAt', { date: formatCreatedAt(contact.createdAt) })}
                     </p>
                   </div>
-                  {canDeleteContacts ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      className="shrink-0 text-mute hover:bg-negative/10 hover:text-negative"
-                      aria-label={t('deleteAria', {
-                        name: contact.name?.trim() || contact.phone,
-                      })}
-                      onClick={() => {
-                        setDeleteError(null)
-                        setDeleteTarget(contact)
-                      }}
-                    >
-                      <Trash2 className="size-4" aria-hidden />
-                    </Button>
+                  {canEditContacts || canDeleteContacts ? (
+                    <div className="flex shrink-0 items-center gap-1">
+                      {canEditContacts ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          className="shrink-0 text-mute hover:bg-primary-pale hover:text-ink"
+                          aria-label={t('editAria', {
+                            name: contact.name?.trim() || contact.phone,
+                          })}
+                          onClick={() => setEditTarget(contact)}
+                        >
+                          <Pencil className="size-4" aria-hidden />
+                        </Button>
+                      ) : null}
+                      {canDeleteContacts ? (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          className="shrink-0 text-mute hover:bg-negative/10 hover:text-negative"
+                          aria-label={t('deleteAria', {
+                            name: contact.name?.trim() || contact.phone,
+                          })}
+                          onClick={() => {
+                            setDeleteError(null)
+                            setDeleteTarget(contact)
+                          }}
+                        >
+                          <Trash2 className="size-4" aria-hidden />
+                        </Button>
+                      ) : null}
+                    </div>
                   ) : null}
                 </div>
               </li>
             ))}
           </ul>
+
+          {meta ? (
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-body">
+                {t('paginationSummary', {
+                  page: currentPage,
+                  lastPage,
+                  total,
+                })}
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1"
+                  disabled={!canGoPrev || listLoading}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                >
+                  <ChevronLeft className="size-4" aria-hidden />
+                  {t('prevPage')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="gap-1"
+                  disabled={!canGoNext || listLoading}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  {t('nextPage')}
+                  <ChevronRight className="size-4" aria-hidden />
+                </Button>
+              </div>
+            </div>
+          ) : null}
+          </>
         )}
       </DashboardPanel>
 
@@ -356,7 +458,20 @@ export function ContactsPage() {
         <AddContactSheet
           open={addOpen}
           onOpenChange={handleAddOpenChange}
-          onCreated={() => {
+          onSaved={() => {
+            void refreshContacts()
+          }}
+        />
+      ) : null}
+
+      {canEditContacts ? (
+        <AddContactSheet
+          open={Boolean(editTarget)}
+          contact={editTarget}
+          onOpenChange={(open) => {
+            if (!open) setEditTarget(null)
+          }}
+          onSaved={() => {
             void refreshContacts()
           }}
         />

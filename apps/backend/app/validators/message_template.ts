@@ -10,6 +10,7 @@ export const listMessageTemplatesValidator = vine.create(
     status: vine.string().trim().optional(),
     category: vine.string().trim().optional(),
     search: vine.string().trim().optional(),
+    language: vine.string().trim().minLength(2).maxLength(10).optional(),
   })
 )
 

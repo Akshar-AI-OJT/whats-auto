@@ -92,12 +92,10 @@ export function buildAuditActivityItems(
   })
 }
 
-export async function fetchOverviewContacts(organizationId: string): Promise<number> {
-  const { data } = await api.contacts.list()
-  const rows = unwrapList<ContactSummary>(data).filter(
-    (contact) => contact.organizationId === organizationId
-  )
-  return rows.length
+export async function fetchOverviewContacts(_organizationId: string): Promise<number> {
+  const { data } = await api.contacts.list({ page: 1, perPage: 1 })
+  const { items, meta } = unwrapPaginated<ContactSummary>(data)
+  return meta?.total ?? items.length
 }
 
 export async function fetchOverviewConversations(): Promise<{

@@ -1,11 +1,12 @@
 'use client'
 
-import { useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent } from 'react'
 import {
   Check,
   ChevronLeft,
   ChevronRight,
   Clock3,
+  Loader2,
   Video,
 } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
@@ -13,15 +14,14 @@ import { Link } from '@/i18n/navigation'
 import { buttonVariants } from '@/components/ui/button'
 import { featuresPrimaryBtn } from '@/components/features/page/features-styles'
 import { cn } from '@/lib/utils'
+import {
+  api,
+  type ApiError,
+  type CreateDemoBookingBody,
+  type DemoAvailabilitySlot,
+  type DemoBooking,
+} from '@/lib/api'
 import { BookDemoSuccess } from './BookDemoSuccess'
-
-const MOCK_SLOTS = [
-  '10:00 AM',
-  '11:00 AM',
-  '2:00 PM',
-  '3:30 PM',
-  '5:00 PM',
-] as const
 
 const COMPANY_SIZES = ['1-10', '11-50', '51-200', '200+'] as const
 
@@ -61,6 +61,38 @@ function daysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate()
 }
 
+function toCivilDate(d: Date) {
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+function detectTimeZone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+  } catch {
+    return 'UTC'
+  }
+}
+
+function bookingErrorMessage(
+  error: unknown,
+  t: ReturnType<typeof useTranslations>
+) {
+  const apiError = error as ApiError
+  if (apiError?.code === 'E_DEMO_SLOT_UNAVAILABLE' || apiError?.status === 409) {
+    return t('errors.slotUnavailable')
+  }
+  if (apiError?.code === 'E_DEMO_SLOT_INVALID') {
+    return t('errors.slotInvalid')
+  }
+  if (apiError?.code === 'RATE_LIMITED' || apiError?.status === 429) {
+    return t('errors.tooManyRequests')
+  }
+  return t('errors.bookingFailed')
+}
+
 function fieldClassName(invalid?: boolean) {
   return cn(
     'h-11 w-full rounded-xl border bg-[#F8FAFC]/90 px-3.5 text-sm text-ink outline-none',
@@ -78,11 +110,17 @@ export function BookDemoBookingPanel() {
   const t = useTranslations('bookDemoPage.booking')
   const locale = useLocale()
   const today = useMemo(() => startOfDay(new Date()), [])
+  const timeZone = useMemo(() => detectTimeZone(), [])
 
   const [viewYear, setViewYear] = useState(today.getFullYear())
   const [viewMonth, setViewMonth] = useState(today.getMonth())
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
-  const [selectedSlot, setSelectedSlot] = useState<string | null>(null)
+  const [selectedSlot, setSelectedSlot] = useState<DemoAvailabilitySlot | null>(
+    null
+  )
+  const [slots, setSlots] = useState<DemoAvailabilitySlot[]>([])
+  const [slotsLoading, setSlotsLoading] = useState(false)
+  const [slotsError, setSlotsError] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>({
     fullName: '',
     email: '',
@@ -93,7 +131,9 @@ export function BookDemoBookingPanel() {
     privacy: false,
   })
   const [touched, setTouched] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [booking, setBooking] = useState<DemoBooking | null>(null)
 
   const monthLabel = useMemo(
     () =>
@@ -134,6 +174,33 @@ export function BookDemoBookingPanel() {
     viewYear > today.getFullYear() ||
     (viewYear === today.getFullYear() && viewMonth > today.getMonth())
 
+  useEffect(() => {
+    if (!selectedDate) return
+
+    let cancelled = false
+    const date = toCivilDate(selectedDate)
+
+    api.demo
+      .availability(date, timeZone)
+      .then(({ data }) => {
+        if (cancelled) return
+        setSlots(data.slots.filter((slot) => slot.available !== false))
+        setSlotsError(null)
+      })
+      .catch(() => {
+        if (cancelled) return
+        setSlots([])
+        setSlotsError(t('errors.availabilityFailed'))
+      })
+      .finally(() => {
+        if (!cancelled) setSlotsLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [selectedDate, timeZone, t])
+
   function goPrevMonth() {
     if (!canGoPrev) return
     if (viewMonth === 0) {
@@ -157,12 +224,17 @@ export function BookDemoBookingPanel() {
     if (startOfDay(date) < today) return
     setSelectedDate(date)
     setSelectedSlot(null)
-    setSubmitted(false)
+    setSlots([])
+    setSlotsLoading(true)
+    setSlotsError(null)
+    setSubmitError(null)
+    setBooking(null)
   }
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
-    setSubmitted(false)
+    setSubmitError(null)
+    setBooking(null)
   }
 
   const errors = {
@@ -175,9 +247,11 @@ export function BookDemoBookingPanel() {
     slot: touched && !selectedSlot,
   }
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    if (submitting) return
     setTouched(true)
+    setSubmitError(null)
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())
     if (
       !form.fullName.trim() ||
@@ -188,18 +262,41 @@ export function BookDemoBookingPanel() {
     ) {
       return
     }
-    // Frontend-only: simulate successful booking (no API).
-    setSubmitted(true)
-    requestAnimationFrame(() => {
-      document
-        .getElementById('booking')
-        ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    })
+
+    const payload: CreateDemoBookingBody = {
+      name: form.fullName.trim(),
+      email: form.email.trim(),
+      slotId: selectedSlot.id,
+      timeZone,
+    }
+    const company = form.company.trim()
+    const phone = form.phone.trim()
+    if (company) payload.company = company
+    if (phone) payload.phone = phone
+    if (form.companySize) payload.companySize = form.companySize
+    if (form.purpose) payload.purpose = form.purpose
+
+    setSubmitting(true)
+    try {
+      const { data } = await api.demo.book(payload)
+      setBooking(data)
+      requestAnimationFrame(() => {
+        document
+          .getElementById('booking')
+          ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
+    } catch (error) {
+      setSubmitError(bookingErrorMessage(error, t))
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   function resetBooking() {
     setSelectedDate(null)
     setSelectedSlot(null)
+    setSlots([])
+    setSlotsError(null)
     setForm({
       fullName: '',
       email: '',
@@ -210,14 +307,17 @@ export function BookDemoBookingPanel() {
       privacy: false,
     })
     setTouched(false)
-    setSubmitted(false)
+    setSubmitting(false)
+    setSubmitError(null)
+    setBooking(null)
   }
 
-  if (submitted && selectedDate && selectedSlot) {
+  if (booking && selectedDate && selectedSlot) {
     return (
       <BookDemoSuccess
         dateLabel={formattedDate}
-        timeLabel={selectedSlot}
+        timeLabel={selectedSlot.label}
+        meetingUrl={booking.meetingUrl}
         onBookAnother={resetBooking}
       />
     )
@@ -307,7 +407,7 @@ export function BookDemoBookingPanel() {
                     <button
                       key={key}
                       type="button"
-                      disabled={past}
+                      disabled={past || submitting}
                       onClick={() => selectDate(date)}
                       aria-pressed={selected}
                       aria-label={date.toLocaleDateString(locale, {
@@ -342,31 +442,47 @@ export function BookDemoBookingPanel() {
 
           <div className="space-y-3">
             <p className="text-sm font-medium text-ink">{t('slotsLabel')}</p>
-            <div className="flex flex-wrap gap-2.5">
-              {MOCK_SLOTS.map((slot) => {
-                const selected = selectedSlot === slot
-                return (
-                  <button
-                    key={slot}
-                    type="button"
-                    onClick={() => {
-                      setSelectedSlot(slot)
-                      setSubmitted(false)
-                    }}
-                    aria-pressed={selected}
-                    className={cn(
-                      'min-w-[6.5rem] flex-1 rounded-xl border px-3.5 py-2.5 text-sm font-medium sm:flex-none',
-                      'transition-[transform,background-color,border-color,box-shadow,color] duration-200',
-                      selected
-                        ? 'border-primary bg-primary text-on-primary shadow-[0_0_0_3px_rgb(37_99_235/0.22),0_8px_18px_rgb(37_99_235/0.3)]'
-                        : 'border-[#E2E8F0] bg-canvas text-ink hover:-translate-y-0.5 hover:border-primary/50 hover:bg-primary-pale hover:shadow-[0_0_0_3px_rgb(37_99_235/0.14)]'
-                    )}
-                  >
-                    {slot}
-                  </button>
-                )
-              })}
-            </div>
+            {slotsLoading ? (
+              <p className="flex items-center gap-2 text-sm text-body">
+                <Loader2 className="size-4 shrink-0 animate-spin" aria-hidden />
+                {t('slotsLoading')}
+              </p>
+            ) : slotsError ? (
+              <p className="text-xs font-medium text-negative">{slotsError}</p>
+            ) : !selectedDate ? (
+              <p className="text-sm text-mute">{t('slotsPickDate')}</p>
+            ) : slots.length === 0 ? (
+              <p className="text-sm text-body">{t('slotsEmpty')}</p>
+            ) : (
+              <div className="flex flex-wrap gap-2.5">
+                {slots.map((slot) => {
+                  const selected = selectedSlot?.id === slot.id
+                  return (
+                    <button
+                      key={slot.id}
+                      type="button"
+                      disabled={submitting}
+                      onClick={() => {
+                        setSelectedSlot(slot)
+                        setSubmitError(null)
+                        setBooking(null)
+                      }}
+                      aria-pressed={selected}
+                      className={cn(
+                        'min-w-[6.5rem] flex-1 rounded-xl border px-3.5 py-2.5 text-sm font-medium sm:flex-none',
+                        'transition-[transform,background-color,border-color,box-shadow,color] duration-200',
+                        'disabled:cursor-not-allowed disabled:opacity-60',
+                        selected
+                          ? 'border-primary bg-primary text-on-primary shadow-[0_0_0_3px_rgb(37_99_235/0.22),0_8px_18px_rgb(37_99_235/0.3)]'
+                          : 'border-[#E2E8F0] bg-canvas text-ink hover:-translate-y-0.5 hover:border-primary/50 hover:bg-primary-pale hover:shadow-[0_0_0_3px_rgb(37_99_235/0.14)]'
+                      )}
+                    >
+                      {slot.label}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
             {errors.slot ? (
               <p className="text-xs font-medium text-negative">
                 {t('errors.slotRequired')}
@@ -546,15 +662,26 @@ export function BookDemoBookingPanel() {
               </p>
             ) : null}
 
+            {submitError ? (
+              <p className="text-xs font-medium text-negative" role="alert">
+                {submitError}
+              </p>
+            ) : null}
+
             <button
               type="submit"
+              disabled={submitting}
               className={cn(
                 buttonVariants({ size: 'lg' }),
                 featuresPrimaryBtn,
-                'mt-2 w-full justify-center'
+                'mt-2 w-full justify-center gap-2',
+                'disabled:cursor-not-allowed disabled:opacity-70'
               )}
             >
-              {t('cta')}
+              {submitting ? (
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : null}
+              {submitting ? t('ctaBooking') : t('cta')}
             </button>
           </form>
         </article>
@@ -573,7 +700,7 @@ export function BookDemoBookingPanel() {
             {(
               [
                 ['date', formattedDate],
-                ['time', selectedSlot ?? t('summary.pending')],
+                ['time', selectedSlot?.label ?? t('summary.pending')],
                 ['duration', t('summary.durationValue')],
                 ['platform', t('summary.platformValue')],
                 ['price', t('summary.priceValue')],

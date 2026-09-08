@@ -8,27 +8,50 @@ export default class AuditController {
   /**
    * @index
    * @summary List tenant authorization audit events
-   * @description Active-organization scoped. Requires audit:view. Newest first. Optional limit query (1–100, default 50). Client organizationId is ignored.
+   * @description Active-organization scoped. Requires audit:view. Newest first. Filters apply before limit. Client organizationId is ignored.
    * @tag Audit
    * @security BearerAuth
-   * @paramQuery limit - Max events to return (1-100) - @type(number)
+   * @paramQuery search - Case-insensitive match on event, reason, target, and actor - @type(string)
+   * @paramQuery eventType - Tenant catalog event type - @type(string)
+   * @paramQuery actorUserId - Actor user id - @type(string)
+   * @paramQuery targetType - Entity / target type - @type(string)
+   * @paramQuery dateFrom - Inclusive start on createdAt - @type(string)
+   * @paramQuery dateTo - Inclusive end on createdAt - @type(string)
+   * @paramQuery limit - Max events to return (1-100, default 50) - @type(number)
    * @responseBody 200 - { "data": [{ "id": "uuid", "organizationId": "uuid", "eventType": "role.created" }] }
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 403 - { "error": "Permission denied: audit:view", "code": "PERMISSION_DENIED" }
    */
   async index({ bouncer, request, serialize }: HttpContext) {
-    const { limit } = await request.validateUsing(listTenantAuditValidator, {
+    const params = await request.validateUsing(listTenantAuditValidator, {
       data: request.qs(),
     })
 
     const organizationId = request.activeMember!.organizationId
     await bouncer.with(AuditPolicy).authorize('view', organizationId)
 
-    const events = await new AuditService().listEvents({
+    const result = await new AuditService().listEvents({
       scope: 'tenant',
       organizationId,
-      limit,
+      limit: params.limit,
+      search: params.search,
+      eventType: params.eventType,
+      actorUserId: params.actorUserId,
+      targetType: params.targetType,
+      dateFrom: params.dateFrom,
+      dateTo: params.dateTo,
+      includeFacets: params.includeFacets,
     })
-    return serialize(events)
+
+    if (params.includeFacets) {
+      return serialize.withoutWrapping({
+        data: result.events,
+        eventTypes: result.eventTypes ?? [],
+        actors: result.actors ?? [],
+        targetTypes: result.targetTypes ?? [],
+      })
+    }
+
+    return serialize(result.events)
   }
 }

@@ -103,7 +103,7 @@ export async function fetchInvoiceSummary(): Promise<SuperAdminInvoiceSummary | 
 }
 
 export async function fetchRecentAudit(): Promise<AuthorizationAuditEvent[]> {
-  const { data } = await api.audit.list({ limit: 10 })
+  const { data } = await api.superAdmin.auditLogs.list({ limit: 10 })
   return unwrapList<AuthorizationAuditEvent>(data)
 }
 

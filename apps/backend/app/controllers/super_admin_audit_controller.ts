@@ -7,10 +7,16 @@ import '#types/http'
 export default class SuperAdminAuditController {
   /**
    * @summary List platform audit events (Super Admin)
-   * @description Org-lifecycle, billing, plan, and AI config events. Requires platform:audit_view. Optional organizationId filters to one tenant without exposing tenant RBAC events.
+   * @description Org-lifecycle, billing, plan, and AI config events. Requires platform:audit_view. Filters apply before limit. Optional organizationId filters to one tenant without exposing tenant RBAC events.
    * @tag Super Admin
    * @security BearerAuth
-   * @paramQuery limit - Max events to return (1-100) - @type(number)
+   * @paramQuery search - Case-insensitive match on event, reason, target, actor, and organization - @type(string)
+   * @paramQuery eventType - Platform catalog event type - @type(string)
+   * @paramQuery actorUserId - Actor user id - @type(string)
+   * @paramQuery targetType - Entity / target type - @type(string)
+   * @paramQuery dateFrom - Inclusive start on createdAt - @type(string)
+   * @paramQuery dateTo - Inclusive end on createdAt - @type(string)
+   * @paramQuery limit - Max events to return (1-100, default 50) - @type(number)
    * @paramQuery organizationId - Filter to one organization - @type(string)
    * @responseBody 200 - { "data": [{ "id": "uuid", "eventType": "organization.created" }] }
    * @responseBody 403 - { "error": "Permission denied: platform:audit_view", "code": "PERMISSION_DENIED" }
@@ -18,15 +24,32 @@ export default class SuperAdminAuditController {
   async index({ bouncer, request, serialize }: HttpContext) {
     await bouncer.with(SuperAdminPolicy).authorize('viewAuditLogs')
 
-    const { limit, organizationId } = await request.validateUsing(listPlatformAuditValidator, {
+    const params = await request.validateUsing(listPlatformAuditValidator, {
       data: request.qs(),
     })
 
-    const events = await new AuditService().listEvents({
+    const result = await new AuditService().listEvents({
       scope: 'platform',
-      organizationId: organizationId ?? null,
-      limit,
+      organizationId: params.organizationId ?? null,
+      limit: params.limit,
+      search: params.search,
+      eventType: params.eventType,
+      actorUserId: params.actorUserId,
+      targetType: params.targetType,
+      dateFrom: params.dateFrom,
+      dateTo: params.dateTo,
+      includeFacets: params.includeFacets,
     })
-    return serialize(events)
+
+    if (params.includeFacets) {
+      return serialize.withoutWrapping({
+        data: result.events,
+        eventTypes: result.eventTypes ?? [],
+        actors: result.actors ?? [],
+        targetTypes: result.targetTypes ?? [],
+      })
+    }
+
+    return serialize(result.events)
   }
 }

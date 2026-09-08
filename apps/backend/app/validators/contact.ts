@@ -21,6 +21,22 @@ export const createContactValidator = vine.create(
   })
 )
 
+/** Partial update. Empty strings for name/email/company are treated as null (clear). */
+export const updateContactValidator = vine.create(
+  vine.object({
+    phoneNumber: vine.string().trim().minLength(1).maxLength(32).optional(),
+    countryCode: vine
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(/^[A-Z]{2}$/)
+      .optional(),
+    name: vine.string().trim().maxLength(255).nullable().optional(),
+    email: vine.string().trim().email().maxLength(255).nullable().optional(),
+    company: vine.string().trim().maxLength(255).nullable().optional(),
+  })
+)
+
 export const contactProfileFieldsValidator = vine.create(vine.object(contactProfileFieldRules()))
 
 export type ContactProfileFields = {
@@ -81,6 +97,14 @@ export async function validateContactProfileFields(
     throw error
   }
 }
+
+export const listContactsValidator = vine.create(
+  vine.object({
+    page: vine.number().withoutDecimals().min(1).optional(),
+    perPage: vine.number().withoutDecimals().min(1).max(100).optional(),
+    search: vine.string().trim().maxLength(200).optional(),
+  })
+)
 
 export const importContactsValidator = vine.create(
   vine.object({

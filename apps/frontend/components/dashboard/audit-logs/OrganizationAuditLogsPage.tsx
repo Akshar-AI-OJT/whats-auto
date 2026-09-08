@@ -1,10 +1,11 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { Loader2, RefreshCw, ScrollText, Search } from 'lucide-react'
 import { api, type ApiError, type AuthorizationAuditEvent } from '@/lib/api'
+import { actorFacetLabel, unwrapAuditList } from '@/lib/audit-list'
 import { cn } from '@/lib/utils'
 import { queryKeys } from '@/lib/query-keys'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
@@ -24,16 +25,6 @@ import {
 const LIMIT_OPTIONS = [25, 50, 100] as const
 
 type AuditStatus = 'granted' | 'revoked' | 'recorded'
-
-function unwrapAuditEvents(data: unknown): AuthorizationAuditEvent[] {
-  if (!data) return []
-  if (Array.isArray(data)) return data as AuthorizationAuditEvent[]
-  if (typeof data === 'object' && data !== null && 'data' in data) {
-    const wrapped = data as { data?: AuthorizationAuditEvent[] }
-    if (Array.isArray(wrapped.data)) return wrapped.data
-  }
-  return []
-}
 
 function formatTimestamp(value: string | Date | null | undefined) {
   if (!value) return '—'
@@ -60,13 +51,6 @@ function formatJson(value: unknown) {
   } catch {
     return String(value)
   }
-}
-
-function eventTime(value: string | Date | null | undefined): number | null {
-  if (!value) return null
-  const date = value instanceof Date ? value : new Date(value)
-  const time = date.getTime()
-  return Number.isNaN(time) ? null : time
 }
 
 function actorLabel(event: AuthorizationAuditEvent, empty: string) {
@@ -97,6 +81,7 @@ export function OrganizationAuditLogsPage() {
   const { tenantOrganizationId, activeOrganization } = useOrganizations()
   const [limit, setLimit] = useState<(typeof LIMIT_OPTIONS)[number]>(50)
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [eventFilter, setEventFilter] = useState('all')
   const [actorFilter, setActorFilter] = useState('all')
   const [entityFilter, setEntityFilter] = useState('all')
@@ -106,69 +91,47 @@ export function OrganizationAuditLogsPage() {
 
   const organizationLabel = activeOrganization?.name || t('thisOrganization')
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search), 250)
+    return () => window.clearTimeout(timer)
+  }, [search])
+
+  const listParams = useMemo(
+    () => ({
+      limit,
+      search: debouncedSearch.trim() || undefined,
+      eventType: eventFilter === 'all' ? undefined : eventFilter,
+      actorUserId: actorFilter === 'all' ? undefined : actorFilter,
+      targetType: entityFilter === 'all' ? undefined : entityFilter,
+      dateFrom: dateFrom || undefined,
+      dateTo: dateTo || undefined,
+      includeFacets: true,
+    }),
+    [actorFilter, dateFrom, dateTo, debouncedSearch, entityFilter, eventFilter, limit]
+  )
+
   const auditQuery = useQuery({
-    queryKey: queryKeys.audit.org(tenantOrganizationId, limit),
+    queryKey: queryKeys.audit.org(tenantOrganizationId, listParams),
     enabled: Boolean(tenantOrganizationId),
     queryFn: async () => {
-      const { data } = await api.audit.list({ limit })
-      return unwrapAuditEvents(data)
+      const { data } = await api.audit.list(listParams)
+      return unwrapAuditList(data)
     },
   })
 
-  const events = useMemo(() => auditQuery.data ?? [], [auditQuery.data])
-
-  const eventOptions = useMemo(
-    () => [...new Set(events.map((event) => event.eventType).filter(Boolean))].sort(),
-    [events]
+  const events = useMemo(() => auditQuery.data?.events ?? [], [auditQuery.data])
+  const eventOptions = useMemo(() => auditQuery.data?.eventTypes ?? [], [auditQuery.data])
+  const actorOptions = useMemo(() => auditQuery.data?.actors ?? [], [auditQuery.data])
+  const entityOptions = useMemo(() => auditQuery.data?.targetTypes ?? [], [auditQuery.data])
+  const hasActiveFilters = Boolean(
+    debouncedSearch.trim() ||
+      search.trim() ||
+      eventFilter !== 'all' ||
+      actorFilter !== 'all' ||
+      entityFilter !== 'all' ||
+      dateFrom ||
+      dateTo
   )
-
-  const actorOptions = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const event of events) {
-      const key = event.actorUserId || actorLabel(event, t('emptyValue'))
-      if (!map.has(key)) map.set(key, actorLabel(event, t('emptyValue')))
-    }
-    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]))
-  }, [events, t])
-
-  const entityOptions = useMemo(
-    () => [...new Set(events.map((event) => event.targetType).filter(Boolean))].sort(),
-    [events]
-  )
-
-  const filteredEvents = useMemo(() => {
-    const query = search.trim().toLowerCase()
-    const fromTime = dateFrom ? new Date(`${dateFrom}T00:00:00`).getTime() : null
-    const toTime = dateTo ? new Date(`${dateTo}T23:59:59.999`).getTime() : null
-
-    return events.filter((event) => {
-      if (eventFilter !== 'all' && event.eventType !== eventFilter) return false
-      if (actorFilter !== 'all') {
-        const key = event.actorUserId || actorLabel(event, t('emptyValue'))
-        if (key !== actorFilter) return false
-      }
-      if (entityFilter !== 'all' && event.targetType !== entityFilter) return false
-
-      const time = eventTime(event.createdAt)
-      if (fromTime != null && (time == null || time < fromTime)) return false
-      if (toTime != null && (time == null || time > toTime)) return false
-
-      if (!query) return true
-      const haystack = [
-        event.eventType,
-        event.reason,
-        event.targetType,
-        event.targetId,
-        event.actorUserId,
-        event.actorName,
-        event.actorEmail,
-      ]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase()
-      return haystack.includes(query)
-    })
-  }, [actorFilter, dateFrom, dateTo, entityFilter, eventFilter, events, search, t])
 
   const selectedBefore = useMemo(() => (selected ? formatJson(selected.before) : null), [selected])
   const selectedAfter = useMemo(() => (selected ? formatJson(selected.after) : null), [selected])
@@ -234,7 +197,7 @@ export function OrganizationAuditLogsPage() {
           title={t('tableTitle')}
           description={
             auditQuery.isSuccess
-              ? t('tableDescription', { count: filteredEvents.length })
+              ? t('tableDescription', { count: events.length })
               : t('tableDescriptionLoading')
           }
         />
@@ -279,9 +242,9 @@ export function OrganizationAuditLogsPage() {
             onChange={(event) => setActorFilter(event.target.value)}
           >
             <option value="all">{t('filters.allActors')}</option>
-            {actorOptions.map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
+            {actorOptions.map((actor) => (
+              <option key={actor.id} value={actor.id}>
+                {actorFacetLabel(actor, t('emptyValue'))}
               </option>
             ))}
           </select>
@@ -331,7 +294,7 @@ export function OrganizationAuditLogsPage() {
             <p>{(auditQuery.error as unknown as ApiError)?.message || t('errors.loadFailed')}</p>
             <p className="text-body">{t('errors.loadFailedHint')}</p>
           </div>
-        ) : events.length === 0 ? (
+        ) : events.length === 0 && !hasActiveFilters ? (
           <div className="mt-8 flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-dash-border bg-dash-surface/50 px-6 py-16 text-center">
             <span className="flex size-12 items-center justify-center rounded-2xl bg-primary-pale text-positive-deep">
               <ScrollText className="size-5" aria-hidden />
@@ -339,7 +302,7 @@ export function OrganizationAuditLogsPage() {
             <p className="font-medium text-ink">{t('emptyTitle')}</p>
             <p className="max-w-md text-sm text-body">{t('emptyDescription')}</p>
           </div>
-        ) : filteredEvents.length === 0 ? (
+        ) : events.length === 0 ? (
           <div className="mt-8 flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-dash-border bg-dash-surface/50 px-6 py-16 text-center">
             <p className="font-medium text-ink">{t('emptyFilteredTitle')}</p>
             <p className="max-w-md text-sm text-body">{t('emptyFilteredDescription')}</p>
@@ -372,7 +335,7 @@ export function OrganizationAuditLogsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredEvents.map((event, index) => {
+                    {events.map((event, index) => {
                       const status = auditStatus(event.granted)
                       return (
                         <tr
@@ -429,7 +392,7 @@ export function OrganizationAuditLogsPage() {
             </div>
 
             <ul className="mt-5 flex flex-col gap-3 md:hidden">
-              {filteredEvents.map((event) => {
+              {events.map((event) => {
                 const status = auditStatus(event.granted)
                 return (
                   <li

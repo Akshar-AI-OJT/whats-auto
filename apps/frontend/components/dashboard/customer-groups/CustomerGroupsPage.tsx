@@ -19,7 +19,7 @@ import {
   Trash2,
   Users,
 } from 'lucide-react'
-import { api, type CustomerGroup, type CustomerGroupStatus } from '@/lib/api'
+import { type CustomerGroup, type CustomerGroupStatus } from '@/lib/api'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
@@ -52,8 +52,8 @@ import {
   formatGroupDate,
   groupAccentClass,
   groupInitials,
-  unwrapContacts,
 } from './customer-group-utils'
+import { listAllOrganizationContacts } from '@/components/dashboard/contacts/contact-list'
 
 const selectClassName = cn(
   'h-11 w-full min-w-0 rounded-xl border border-dash-border bg-canvas px-3 text-sm text-ink outline-none',
@@ -137,10 +137,7 @@ export function CustomerGroupsPage() {
   const contactsQuery = useQuery({
     queryKey: queryKeys.customerGroups.contacts(tenantOrganizationId),
     enabled: Boolean(tenantOrganizationId) && canViewContacts && !orgsLoading && formOpen,
-    queryFn: async () => {
-      const { data } = await api.contacts.list()
-      return unwrapContacts(data)
-    },
+    queryFn: () => listAllOrganizationContacts(),
   })
 
   const groups = useMemo(() => listQuery.data ?? [], [listQuery.data])

@@ -21,13 +21,15 @@ export default class CampaignsController {
   /**
    * @index
    * @summary List campaigns
-   * @description Paginated campaigns for the active organization. Supports search, status filter, and sorting.
+   * @description Paginated campaigns for the active organization. Supports search, status, date range, and sorting. Date filters are applied before pagination.
    * @tag Campaigns
    * @security BearerAuth
    * @paramQuery page - Page number (default 1) - @type(number)
    * @paramQuery limit - Items per page (1-100, default 20); alias: perPage - @type(number)
    * @paramQuery search - Case-insensitive name search - @type(string)
    * @paramQuery status - Filter by status (draft, scheduled, sending, sent, failed) - @type(string)
+   * @paramQuery startDate - Inclusive start on createdAt (fallback scheduledAt); YYYY-MM-DD or YYYY-MM-DD HH:mm:ss - @type(string)
+   * @paramQuery endDate - Inclusive end on createdAt (fallback scheduledAt); YYYY-MM-DD or YYYY-MM-DD HH:mm:ss - @type(string)
    * @paramQuery sortBy - Sort field (default createdAt) - @type(string)
    * @paramQuery sortOrder - asc or desc (default desc) - @type(string)
    * @responseBody 200 - { "data": [{ "id": "uuid", "name": "July Product Launch", "status": "draft" }], "meta": { "total": 1, "perPage": 20, "currentPage": 1, "lastPage": 1 } }

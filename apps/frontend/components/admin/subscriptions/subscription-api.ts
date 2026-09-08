@@ -6,7 +6,9 @@ import {
   type SuperAdminPlan,
   type SuperAdminPlanStatus,
   type SuperAdminSubscription,
+  type SuperAdminSubscriptionListSummary,
   type SuperAdminSubscriptionStatus,
+  type ListSuperAdminSubscriptionsParams,
   type UpdateSuperAdminSubscriptionBody,
 } from '@/lib/api'
 
@@ -142,24 +144,41 @@ export function toPlanSelectOptions(
 
 function unwrapPaginated(
   data: unknown
-): { items: SuperAdminSubscription[]; meta: PaginationMeta | null } {
-  if (!data) return { items: [], meta: null }
-  if (Array.isArray(data)) return { items: data, meta: null }
+): {
+  items: SuperAdminSubscription[]
+  meta: PaginationMeta | null
+  summary: SuperAdminSubscriptionListSummary | null
+} {
+  if (!data) return { items: [], meta: null, summary: null }
+  if (Array.isArray(data)) return { items: data, meta: null, summary: null }
 
   const root = data as {
-    data?: SuperAdminSubscription[] | { data?: SuperAdminSubscription[]; meta?: PaginationMeta }
+    data?:
+      | SuperAdminSubscription[]
+      | {
+          data?: SuperAdminSubscription[]
+          meta?: PaginationMeta
+          summary?: SuperAdminSubscriptionListSummary
+        }
     meta?: PaginationMeta
+    summary?: SuperAdminSubscriptionListSummary
   }
 
+  const summary = root.summary ?? null
+
   if (Array.isArray(root.data)) {
-    return { items: root.data, meta: root.meta ?? null }
+    return { items: root.data, meta: root.meta ?? null, summary }
   }
 
   if (root.data && typeof root.data === 'object' && Array.isArray(root.data.data)) {
-    return { items: root.data.data, meta: root.data.meta ?? root.meta ?? null }
+    return {
+      items: root.data.data,
+      meta: root.data.meta ?? root.meta ?? null,
+      summary: root.data.summary ?? summary,
+    }
   }
 
-  return { items: [], meta: null }
+  return { items: [], meta: null, summary }
 }
 
 function unwrapSubscription(data: unknown): SuperAdminSubscription {
@@ -173,10 +192,13 @@ function unwrapSubscription(data: unknown): SuperAdminSubscription {
   return root as SuperAdminSubscription
 }
 
-export async function listSuperAdminSubscriptions(params: {
-  page?: number
-  perPage?: number
-}): Promise<{ items: SuperAdminSubscription[]; meta: PaginationMeta | null }> {
+export async function listSuperAdminSubscriptions(
+  params: ListSuperAdminSubscriptionsParams = {}
+): Promise<{
+  items: SuperAdminSubscription[]
+  meta: PaginationMeta | null
+  summary: SuperAdminSubscriptionListSummary | null
+}> {
   const { data } = await api.superAdmin.subscriptions.list(params)
   return unwrapPaginated(data)
 }

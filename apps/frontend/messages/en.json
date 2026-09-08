@@ -409,13 +409,22 @@
       },
       "privacyAgree": "I agree to the <privacy>Privacy Policy</privacy>.",
       "cta": "Book Demo",
+      "ctaBooking": "Booking…",
+      "slotsLoading": "Loading available times…",
+      "slotsEmpty": "No time slots are available on this date. Please pick another day.",
+      "slotsPickDate": "Select a date to see available times.",
       "meetNote": "Google Meet details will be shared after confirmation.",
       "errors": {
         "nameRequired": "Full name is required.",
         "emailInvalid": "Enter a valid work email.",
         "privacyRequired": "Please agree to the Privacy Policy.",
         "dateRequired": "Please select a date.",
-        "slotRequired": "Please select a time slot."
+        "slotRequired": "Please select a time slot.",
+        "availabilityFailed": "Could not load available times. Please try again.",
+        "bookingFailed": "Could not book this demo. Please try again.",
+        "slotUnavailable": "This time slot is no longer available. Please pick another time.",
+        "slotInvalid": "The selected time slot is not valid. Please pick another time.",
+        "tooManyRequests": "Too many booking attempts. Please wait a moment and try again."
       },
       "summary": {
         "title": "Demo Summary",
@@ -440,6 +449,7 @@
         "whatsNext": "What's Next",
         "backHome": "Back to Home",
         "bookAnother": "Book Another Demo",
+        "joinMeet": "Join Google Meet",
         "summary": {
           "date": "Date",
           "time": "Time",
@@ -2420,6 +2430,10 @@
       "emptyDescription": "Add your first contact to start conversations and campaigns.",
       "noMatches": "No contacts match your search.",
       "addedAt": "Added {date}",
+      "paginationSummary": "Page {page} of {lastPage} · {total} total",
+      "prevPage": "Previous",
+      "nextPage": "Next",
+      "editAria": "Edit {name}",
       "deleteAria": "Delete {name}",
       "deleteConfirmTitle": "Delete this contact?",
       "deleteConfirmBody": "“{name}” will be removed from this organization. You can add the same phone number again later.",
@@ -2459,7 +2473,21 @@
           "phoneExists": "A contact with this phone number already exists.",
           "sessionExpired": "Your session expired. Please sign in again.",
           "permissionDenied": "You don’t have permission to add contacts.",
+          "notFound": "This contact was not found.",
           "generic": "Couldn’t save this contact. Please try again."
+        }
+      },
+      "edit": {
+        "title": "Edit Contact",
+        "subtitle": "Update this contact’s phone number and profile details.",
+        "loading": "Loading contact…",
+        "submit": "Save changes",
+        "submitting": "Saving…",
+        "success": "Contact updated.",
+        "errors": {
+          "permissionDenied": "You don’t have permission to edit contacts.",
+          "notFound": "This contact was not found.",
+          "generic": "Couldn’t update this contact. Please try again."
         }
       },
       "import": {
@@ -4394,6 +4422,9 @@
           "title": "Subscription",
           "description": "Current plan, billing, and renewal details.",
           "unavailable": "Subscription details aren’t available from the API yet.",
+          "loading": "Loading subscription…",
+          "failed": "Couldn’t load subscription for this organization.",
+          "empty": "This organization has no subscription in the platform billing list.",
           "fields": {
             "plan": "Plan",
             "billingCycle": "Billing cycle",
@@ -4406,6 +4437,7 @@
           "billingCycle": {
             "monthly": "Monthly",
             "annual": "Annual",
+            "custom": "Custom",
             "short": {
               "monthly": "mo",
               "annual": "yr"
@@ -4446,6 +4478,9 @@
           "title": "Organization Members",
           "description": "{count, plural, one {Showing # member} other {Showing # members}}",
           "unavailable": "Member roster isn’t available from the API yet.",
+          "loading": "Loading members…",
+          "failed": "Couldn’t load members for this organization.",
+          "empty": "No members found for this organization.",
           "columns": {
             "member": "Member",
             "role": "Role",
@@ -4460,7 +4495,10 @@
         "activity": {
           "title": "Recent Activity",
           "description": "Latest events inside this organization.",
-          "unavailable": "Activity isn’t available from the API yet."
+          "unavailable": "Activity isn’t available from the API yet.",
+          "loading": "Loading activity…",
+          "failed": "Couldn’t load activity for this organization.",
+          "empty": "No audit events for this organization."
         }
       }
     },

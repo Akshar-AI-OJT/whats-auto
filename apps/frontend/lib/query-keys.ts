@@ -21,8 +21,10 @@ export const queryKeys = {
   },
   contacts: {
     all: (orgId?: string | null) => ['contacts', orgId ?? 'none'] as const,
-    list: (orgId?: string | null, query?: string) =>
-      [...queryKeys.contacts.all(orgId), 'list', { query: query ?? '' }] as const,
+    list: (orgId?: string | null, params?: Record<string, unknown>) =>
+      [...queryKeys.contacts.all(orgId), 'list', params ?? {}] as const,
+    detail: (orgId?: string | null, contactId?: string | null) =>
+      [...queryKeys.contacts.all(orgId), 'detail', contactId ?? 'none'] as const,
   },
   team: {
     all: (orgId?: string | null) => ['team', orgId ?? 'none'] as const,
@@ -159,8 +161,8 @@ export const queryKeys = {
       ['dashboard-overview', 'audit', organizationId ?? null] as const,
   },
   audit: {
-    org: (orgId?: string | null, limit?: number) =>
-      ['org-audit-logs', orgId ?? null, limit ?? 50] as const,
+    org: (orgId?: string | null, params?: Record<string, unknown>) =>
+      ['org-audit-logs', orgId ?? null, params ?? {}] as const,
   },
   onboarding: {
     plans: ['onboarding', 'plans'] as const,
@@ -174,6 +176,12 @@ export const queryKeys = {
   admin: {
     organizations: (params?: Record<string, unknown>) =>
       ['admin', 'organizations', params ?? {}] as const,
+    organizationDetail: (organizationId: string) =>
+      ['admin', 'organizations', 'detail', organizationId] as const,
+    organizationMembers: (organizationId: string) =>
+      ['admin', 'organizations', 'members', organizationId] as const,
+    organizationSubscription: (organizationId: string) =>
+      ['admin', 'organizations', 'subscription', organizationId] as const,
     organizationActivity: (organizationId?: string | null) =>
       ['admin-org-activity', organizationId ?? null] as const,
     /** Prefix for invalidating all plan list/detail queries. */
@@ -187,8 +195,8 @@ export const queryKeys = {
     invoices: (params?: Record<string, unknown>) => ['admin', 'invoices', params ?? {}] as const,
     invoiceSummary: (params?: Record<string, unknown>) =>
       ['admin', 'invoices', 'summary', params ?? {}] as const,
-    auditLogs: (limit?: number, organizationId?: string | null) =>
-      ['admin-audit-logs', limit ?? 50, organizationId ?? null] as const,
+    auditLogs: (params?: Record<string, unknown>) =>
+      ['admin-audit-logs', params ?? {}] as const,
     auditLogOrganizations: ['admin-audit-log-organizations'] as const,
     analytics: {
       all: ['super-admin-analytics'] as const,

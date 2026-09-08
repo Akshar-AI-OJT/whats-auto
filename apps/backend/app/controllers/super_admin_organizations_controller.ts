@@ -42,6 +42,41 @@ export default class SuperAdminOrganizationsController {
   }
 
   /**
+   * @show
+   * @summary Get one organization (Super Admin)
+   * @description Platform-scoped organization by id. Includes soft-deleted tenants. Requires Super Admin role and platform:tenants_view permission.
+   * @tag Super-Admin
+   * @security BearerAuth
+   * @paramPath id - Organization id - @type(string)
+   * @responseBody 200 - { "data": { "id": "uuid", "name": "Acme", "slug": "acme", "email": "ops@acme.com", "status": true } }
+   * @responseBody 401 - { "error": "Missing or invalid session" }
+   * @responseBody 403 - { "error": "Permission denied: platform:tenants_view", "code": "PERMISSION_DENIED" }
+   * @responseBody 404 - { "error": "Organization Not Found", "code": "E_ORGANIZATION_NOT_FOUND" }
+   * @responseBody 422 - { "errors": [{ "message": "The id field must be a valid UUID", "field": "id" }] }
+   */
+  async show({ bouncer, request, params, response, serialize }: HttpContext) {
+    await bouncer.authorize(accessPlatform)
+    await bouncer.with(SuperAdminPolicy).authorize('viewTenants')
+
+    await request.validateUsing(organizationIdParamValidator, {
+      data: params,
+    })
+
+    try {
+      const organization = await new OrganizationService().getOrganizationById(params.id)
+      return serialize(organization)
+    } catch (error) {
+      if (error instanceof Exception && error.code === 'E_ORGANIZATION_NOT_FOUND') {
+        return response.notFound({
+          error: 'Organization Not Found',
+          code: 'E_ORGANIZATION_NOT_FOUND',
+        })
+      }
+      return mapRbacError(error, response)
+    }
+  }
+
+  /**
    * @summary Update an organization (Super Admin)
    * @description Platform-scoped partial update. Only provided fields are changed. Requires Super Admin role and platform:tenants_update permission.
    * @tag Super Admin

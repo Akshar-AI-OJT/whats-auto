@@ -62,6 +62,7 @@ const IntegrationConnectionsController = () =>
   import('#controllers/integration_connections_controller')
 const ExternalEventsController = () => import('#controllers/external_events_controller')
 const ShopenupIntegrationsController = () => import('#controllers/shopenup_integrations_controller')
+const DemoBookingsController = () => import('#controllers/demo_bookings_controller')
 
 type JsonSchema = {
   type: 'object'
@@ -106,6 +107,19 @@ const requestBodySchemas: Record<string, JsonSchema> = {
       password: { type: 'string', format: 'password', example: 'secret1234' },
     },
     ['email', 'otp', 'password']
+  ),
+  'post /api/v1/demo/bookings': bodySchema(
+    {
+      name: { type: 'string', example: 'Jane Doe' },
+      email: { type: 'string', format: 'email', example: 'jane@company.com' },
+      slotId: { type: 'string', example: '2026-09-15T04:30:00.000Z' },
+      timeZone: { type: 'string', example: 'Asia/Kolkata' },
+      company: { type: 'string', example: 'Acme Inc.' },
+      phone: { type: 'string', example: '+15550000000' },
+      companySize: { type: 'string', example: '11-50' },
+      purpose: { type: 'string', example: 'overview' },
+    },
+    ['name', 'email', 'slotId', 'timeZone']
   ),
   'post /api/v1/organizations': bodySchema(
     {
@@ -366,6 +380,23 @@ const requestBodySchemas: Record<string, JsonSchema> = {
     },
     ['phoneNumber']
   ),
+  'patch /api/v1/contacts/{id}': bodySchema({
+    phoneNumber: {
+      type: 'string',
+      example: '9876543210',
+      description:
+        'National number with countryCode, or international beginning with + (for example +14155552671).',
+    },
+    countryCode: {
+      type: 'string',
+      example: 'IN',
+      description:
+        'ISO 3166-1 alpha-2. Required for national numbers; optional when phoneNumber starts with +.',
+    },
+    name: { type: 'string', example: 'John', nullable: true },
+    email: { type: 'string', format: 'email', example: 'john@example.com', nullable: true },
+    company: { type: 'string', example: 'Example', nullable: true },
+  }),
   'post /api/v1/tags': bodySchema(
     {
       name: { type: 'string', example: 'VIP' },
@@ -683,6 +714,22 @@ router
 
 /*
 |--------------------------------------------------------------------------
+| Public Book Demo (landing page — no jwtAuth / tenant)
+|--------------------------------------------------------------------------
+*/
+router
+  .group(() => {
+    router
+      .get('/availability', [DemoBookingsController, 'availability'])
+      .use(middleware.rateLimit({ max: 60, windowMs: 60 * 1000, name: 'demo-availability' }))
+    router
+      .post('/bookings', [DemoBookingsController, 'store'])
+      .use(middleware.rateLimit({ max: 15, windowMs: 15 * 60 * 1000, name: 'demo-bookings' }))
+  })
+  .prefix('/api/v1/demo')
+
+/*
+|--------------------------------------------------------------------------
 | Public integration ingress (API key — no jwtAuth / tenant)
 |--------------------------------------------------------------------------
 */
@@ -747,6 +794,7 @@ router
 router
   .group(() => {
     router.get('/organizations', [SuperAdminOrganizationsController, 'index'])
+    router.get('/organizations/:id', [SuperAdminOrganizationsController, 'show'])
     router.patch('/organizations/:id', [SuperAdminOrganizationsController, 'update'])
     router.delete('/organizations/:id', [SuperAdminOrganizationsController, 'softDelete'])
 
@@ -893,6 +941,8 @@ router
     router.get('/', [ContactsController, 'index'])
     router.post('/', [ContactsController, 'store'])
     router.post('/import', [ContactsController, 'importCsv'])
+    router.get('/:id', [ContactsController, 'show'])
+    router.patch('/:id', [ContactsController, 'update'])
     router.delete('/:id', [ContactsController, 'softDelete'])
   })
   .prefix('/api/v1/contacts')
