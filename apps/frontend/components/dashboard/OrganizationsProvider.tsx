@@ -14,7 +14,7 @@ import {
   isSubscriptionPending,
 } from '@/lib/organization-profile'
 import { hasPermission, PERMISSIONS } from '@/lib/rbac'
-import { queryKeys } from '@/lib/query-keys'
+import { isTenantScopedQueryKey, queryKeys } from '@/lib/query-keys'
 
 const EMPTY_ORGANIZATIONS: OrganizationSummary[] = []
 
@@ -158,18 +158,26 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
   const userId = sessionData?.user?.id ?? null
   const previousUserIdRef = useRef<string | null>(userId)
 
+  /** Optimistic UI selection while set-active + session remint are in flight. */
+  const [pendingActiveId, setPendingActiveId] = useState<string | null>(null)
+  /**
+   * Last org that set-active + JWT remint succeeded for. Better Auth's useSession()
+   * often keeps a stale activeOrganizationId after switch until a full reload.
+   */
+  const [activatedOrganizationId, setActivatedOrganizationId] = useState<string | null>(null)
+  const [switchError, setSwitchError] = useState<string | null>(null)
+  const [isBootstrapping, setIsBootstrapping] = useState(false)
+  const bootstrapStarted = useRef(false)
+  const lastTenantOrganizationIdRef = useRef<string | null>(null)
+
   // Drop cached orgs/permissions when the signed-in user changes (account switch).
   useEffect(() => {
     if (previousUserIdRef.current === userId) return
     previousUserIdRef.current = userId
+    setActivatedOrganizationId(null)
+    lastTenantOrganizationIdRef.current = null
     queryClient.removeQueries({ queryKey: queryKeys.organizations.all })
   }, [userId, queryClient])
-
-  /** Optimistic UI selection while set-active + session remint are in flight. */
-  const [pendingActiveId, setPendingActiveId] = useState<string | null>(null)
-  const [switchError, setSwitchError] = useState<string | null>(null)
-  const [isBootstrapping, setIsBootstrapping] = useState(false)
-  const bootstrapStarted = useRef(false)
 
   const orgsQuery = useQuery({
     queryKey: queryKeys.organizations.list(userId),
@@ -190,13 +198,21 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
 
   // Ignore stale local switch/bootstrap state after logout.
   const livePendingActiveId = isSignedIn ? pendingActiveId : null
+  const liveActivatedOrganizationId = isSignedIn ? activatedOrganizationId : null
   const liveSwitchError = isSignedIn ? switchError : null
   const liveBootstrapping = isSignedIn && isBootstrapping
 
+  const accessOrgId = orgInList(organizations, accessQuery.data?.organizationId ?? null)
+  // JWT is reminted in set-active; prefer it over a stale session hook value.
+  const jwtAlignedAccessOrgId =
+    accessOrgId && peekAccessTokenOrgId() === accessOrgId ? accessOrgId : null
+
   const resolvedActiveId =
     orgInList(organizations, livePendingActiveId) ??
+    orgInList(organizations, liveActivatedOrganizationId) ??
+    jwtAlignedAccessOrgId ??
     orgInList(organizations, sessionOrgId) ??
-    orgInList(organizations, accessQuery.data?.organizationId ?? null)
+    accessOrgId
 
   const activeId = resolvedActiveId
 
@@ -243,6 +259,7 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
         await queryClient.invalidateQueries({
           queryKey: queryKeys.organizations.accessContext(userId),
         })
+        setActivatedOrganizationId(fallbackId)
         await queryClient.invalidateQueries({
           queryKey: queryKeys.search.all,
         })
@@ -298,6 +315,9 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
 
     setPendingActiveId(organizationId)
     setSwitchError(null)
+    queryClient.removeQueries({
+      predicate: (query) => isTenantScopedQueryKey(query.queryKey),
+    })
 
     try {
       // set-active remints JWT via set-auth-jwt (applied in api.ts).
@@ -309,6 +329,7 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
       await queryClient.invalidateQueries({
         queryKey: queryKeys.organizations.accessContext(userId),
       })
+      setActivatedOrganizationId(organizationId)
       await queryClient.invalidateQueries({
         queryKey: queryKeys.search.all,
       })
@@ -369,6 +390,18 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
     tokenReadyOrgId === activeOrgId
       ? sessionOrgFromContext
       : null
+
+  // After A → (null) → B, drop leftover tenant caches (including org-less keys).
+  useEffect(() => {
+    const previous = lastTenantOrganizationIdRef.current
+    if (tenantOrganizationId) {
+      lastTenantOrganizationIdRef.current = tenantOrganizationId
+    }
+    if (!previous || !tenantOrganizationId || previous === tenantOrganizationId) return
+    queryClient.removeQueries({
+      predicate: (query) => isTenantScopedQueryKey(query.queryKey),
+    })
+  }, [tenantOrganizationId, queryClient])
 
   const permissions = accessContext?.permissions ?? []
   const listError = orgsQuery.error
@@ -439,7 +472,8 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
       (isSignedIn &&
         Boolean(activeOrgId) &&
         sessionOrgFromContext === activeOrgId &&
-        tokenReadyOrgId !== activeOrgId),
+        tokenReadyOrgId !== activeOrgId) ||
+      (isSignedIn && Boolean(activeOrgId) && !tenantOrganizationId),
     error: liveSwitchError ?? listError,
     refresh,
     selectOrganization,
