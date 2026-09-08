@@ -4944,6 +4944,13 @@
         "active": "सक्रिय",
         "inactive": "निष्क्रिय"
       },
+      "organizationStatuses": {
+        "active": "सक्रिय",
+        "suspended": "निलंबित",
+        "pending_setup": "सेटअप लंबित",
+        "verified_setup": "सत्यापित सेटअप",
+        "false": "संग्रहित"
+      },
       "errors": {
         "loadFailed": "प्लेटफ़ॉर्म उपयोगकर्ता लोड नहीं हो सके। कृपया फिर से कोशिश करें।"
       }

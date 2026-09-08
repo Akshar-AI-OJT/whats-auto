@@ -4958,6 +4958,13 @@
         "active": "Active",
         "inactive": "Inactive"
       },
+      "organizationStatuses": {
+        "active": "Active",
+        "suspended": "Suspended",
+        "pending_setup": "Pending setup",
+        "verified_setup": "Verified setup",
+        "false": "Archived"
+      },
       "errors": {
         "loadFailed": "Couldn't load platform users. Please try again."
       }

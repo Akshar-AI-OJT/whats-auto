@@ -1232,13 +1232,22 @@ export type RoleUpdatePreview = {
   affectedMembers: Array<{ id: string; userId: string }>
 }
 
+/** Organization usability / provisioning status returned by the API. */
+export type OrganizationStatusValue =
+  | 'pending_setup'
+  | 'verified_setup'
+  | 'active'
+  | 'suspended'
+  | 'false'
+
 /** Nested org membership from GET /api/v1/super-admin/platform-users */
 export type SuperAdminPlatformUserOrganization = {
   memberId: string
   organizationId: string
   organizationName: string
   organizationSlug: string
-  organizationStatus: string
+  /** Exact backend status string — never coerced with Boolean(). */
+  organizationStatus: OrganizationStatusValue | string
   role: string
   roleId: string
 }

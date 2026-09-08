@@ -1,4 +1,5 @@
 import db from '@adonisjs/lucid/services/db'
+import type { OrganizationStatusValue } from '#enums/organization_status'
 
 export type PlatformUserStatusFilter = 'active' | 'inactive' | 'all'
 
@@ -16,7 +17,8 @@ export type PlatformUserOrganization = {
   organizationId: string
   organizationName: string
   organizationSlug: string
-  organizationStatus: string
+  /** Exact organizations.status string — never Boolean()-coerced. */
+  organizationStatus: OrganizationStatusValue | string
   role: string
   roleId: string
 }
@@ -55,7 +57,7 @@ type MembershipRow = {
   organizationId: string
   organizationName: string
   organizationSlug: string
-  organizationStatus: string
+  organizationStatus: OrganizationStatusValue | string
   role: string | null
   roleId: string
 }

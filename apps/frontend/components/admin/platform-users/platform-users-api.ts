@@ -2,9 +2,39 @@ import {
   api,
   type ApiError,
   type ListSuperAdminPlatformUsersParams,
+  type OrganizationStatusValue,
   type PaginationMeta,
   type SuperAdminPlatformUser,
+  type SuperAdminPlatformUserOrganization,
 } from '@/lib/api'
+
+export const PLATFORM_ORGANIZATION_STATUSES = [
+  'pending_setup',
+  'verified_setup',
+  'active',
+  'suspended',
+  'false',
+] as const satisfies readonly OrganizationStatusValue[]
+
+/**
+ * Preserve exact backend organization status strings.
+ * Never use Boolean(status) — Boolean("active") is true and drops the real value.
+ */
+export function normalizeOrganizationStatus(value: unknown): string {
+  if (typeof value === 'string') return value.trim()
+  // Legacy payloads that collapsed status with Boolean() cannot be recovered.
+  if (typeof value === 'boolean' || value == null) return ''
+  return String(value).trim()
+}
+
+function normalizePlatformUserOrganization(
+  org: SuperAdminPlatformUserOrganization
+): SuperAdminPlatformUserOrganization {
+  return {
+    ...org,
+    organizationStatus: normalizeOrganizationStatus(org.organizationStatus),
+  }
+}
 
 function normalizePaginationMeta(meta: unknown): PaginationMeta | null {
   if (!meta || typeof meta !== 'object') return null
@@ -61,9 +91,13 @@ function unwrapPaginated(
 }
 
 function normalizePlatformUser(user: SuperAdminPlatformUser): SuperAdminPlatformUser {
+  const organizations = Array.isArray(user.organizations)
+    ? user.organizations.map(normalizePlatformUserOrganization)
+    : []
+
   return {
     ...user,
-    organizations: Array.isArray(user.organizations) ? user.organizations : [],
+    organizations,
     status: user.status === 'inactive' || user.isActive === false ? 'inactive' : 'active',
   }
 }
