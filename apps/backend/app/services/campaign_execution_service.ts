@@ -4,12 +4,7 @@ import db from '@adonisjs/lucid/services/db'
 import CampaignException from '#exceptions/campaign_exception'
 import { MediaAssetReferenceRepository } from '#repositories/media_asset_reference_repository'
 import { WhatsappWebhookRepository } from '#repositories/whatsapp_webhook_repository'
-import { PlanEnforcementService } from '#services/billing/plan_enforcement_service'
-import {
-  assertApprovedTemplate,
-  assertConnectedWhatsappConfig,
-  assertReadyMediaAsset,
-} from '#services/campaign_preflight'
+import { assertApprovedTemplate, assertConnectedWhatsappConfig } from '#services/campaign_preflight'
 import { enqueueCampaignWake } from '#services/campaign_queue'
 import { runWithTenant } from '#services/tenant_context'
 import WhatsappOutboundService from '#services/whatsapp_outbound_service'
@@ -25,7 +20,7 @@ export type CampaignRecipientInput = {
 }
 
 /**
- * Executable campaign workflow: recipient snapshot, schedule/cancel, claim-and-send.
+ * Executable campaign workflow: recipient fan-out, cancel-in-progress, and recovery.
  */
 @inject()
 export class CampaignExecutionService {
@@ -37,7 +32,7 @@ export class CampaignExecutionService {
   ) {}
 
   /**
-   * Replace the recipient snapshot for a draft/scheduled campaign.
+   * Replace the recipient snapshot for a draft campaign.
    */
   async replaceRecipients(params: {
     organizationId: string
@@ -48,129 +43,6 @@ export class CampaignExecutionService {
   }): Promise<CampaignDto> {
     return runWithTenant(params.organizationId, async () => {
       return this.campaigns.replaceRecipients(params)
-    })
-  }
-
-  /**
-   * Schedule (or immediately start) a campaign after validating recipients + template.
-   */
-  async scheduleCampaign(params: {
-    organizationId: string
-    campaignId: string
-    scheduledAt?: Date | null
-  }): Promise<CampaignDto> {
-    return runWithTenant(params.organizationId, async () => {
-      const campaign = await this.#loadEditableCampaign(params)
-
-      if (!campaign.messageTemplateId) {
-        throw CampaignException.templateRequired()
-      }
-      if (!campaign.whatsappConfigId) {
-        throw CampaignException.whatsappConfigRequired()
-      }
-      if (Number(campaign.totalRecipients) < 1) {
-        throw CampaignException.recipientsRequired()
-      }
-
-      await assertApprovedTemplate(params.organizationId, campaign.messageTemplateId as string)
-      await assertConnectedWhatsappConfig(
-        params.organizationId,
-        campaign.whatsappConfigId as string
-      )
-
-      if (campaign.headerMediaAssetId) {
-        await assertReadyMediaAsset(params.organizationId, campaign.headerMediaAssetId as string)
-      }
-
-      const scheduledAt = params.scheduledAt
-        ? new Date(params.scheduledAt)
-        : campaign.scheduledAt
-          ? new Date(campaign.scheduledAt as string | Date)
-          : new Date()
-
-      if (Number.isNaN(scheduledAt.getTime())) {
-        throw CampaignException.scheduledAtRequired()
-      }
-
-      const now = new Date()
-      const isImmediate = scheduledAt.getTime() <= now.getTime() + 1000
-      const enforcement = new PlanEnforcementService()
-
-      if (!isImmediate) {
-        await enforcement.requireFeature(params.organizationId, 'scheduledCampaigns')
-      }
-
-      const totalRecipients = Number(campaign.totalRecipients)
-      if (totalRecipients > 0) {
-        const recipientCount = totalRecipients - 1
-        await enforcement.requireUnderLimit(
-          params.organizationId,
-          'maxBroadcastRecipients',
-          recipientCount
-        )
-      }
-
-      await enforcement.requireMeter(params.organizationId, 'campaigns', 'campaignsPerMonth')
-
-      const previousStatus = campaign.status as string
-      const previousScheduledAt = campaign.scheduledAt
-        ? new Date(campaign.scheduledAt as string | Date)
-        : null
-
-      await db.transaction(async (trx) => {
-        await trx
-          .from('broadcasts')
-          .where('id', params.campaignId)
-          .where('organizationId', params.organizationId)
-          .update({
-            status: isImmediate ? 'sending' : 'scheduled',
-            scheduledAt,
-          })
-
-        if (campaign.headerMediaAssetId) {
-          await this.mediaReferences.upsert(
-            {
-              organizationId: params.organizationId,
-              mediaAssetId: campaign.headerMediaAssetId as string,
-              ownerType: 'campaign',
-              ownerId: params.campaignId,
-              protectedUntil: null,
-            },
-            trx
-          )
-        }
-      })
-
-      try {
-        await enqueueCampaignWake({
-          organizationId: params.organizationId,
-          campaignId: params.campaignId,
-          runAt: isImmediate ? undefined : scheduledAt,
-        })
-      } catch (error) {
-        await db
-          .from('broadcasts')
-          .where('id', params.campaignId)
-          .where('organizationId', params.organizationId)
-          .update({
-            status: previousStatus,
-            scheduledAt: previousScheduledAt,
-          })
-        logger.error(
-          {
-            campaignId: params.campaignId,
-            organizationId: params.organizationId,
-            err: error instanceof Error ? error.message : 'unknown',
-          },
-          'campaigns.enqueue_failed'
-        )
-        throw error
-      }
-
-      return this.campaigns.getCampaignById({
-        campaignId: params.campaignId,
-        organizationId: params.organizationId,
-      })
     })
   }
 
@@ -201,6 +73,20 @@ export class CampaignExecutionService {
     return runWithTenant(params.organizationId, async () => {
       const campaign = await this.#loadCampaignRow(params)
       const status = campaign.status as string
+      const scheduledAtIso = campaign.scheduledAt
+        ? new Date(campaign.scheduledAt as string | Date).toISOString()
+        : null
+
+      logger.info(
+        {
+          event: 'campaign.execute_received',
+          campaignId: params.campaignId,
+          organizationId: params.organizationId,
+          status,
+          scheduledAt: scheduledAtIso,
+        },
+        'campaign.execute_received'
+      )
 
       if (
         status === 'cancelled' ||
@@ -221,6 +107,17 @@ export class CampaignExecutionService {
           ? new Date(campaign.scheduledAt as string | Date)
           : null
         if (scheduledAt && scheduledAt.getTime() > Date.now() + 1000) {
+          const latenessMs = Date.now() - scheduledAt.getTime()
+          logger.info(
+            {
+              event: 'campaign.early_wake_deferred',
+              campaignId: params.campaignId,
+              organizationId: params.organizationId,
+              scheduledAt: scheduledAt.toISOString(),
+              latenessMs,
+            },
+            'campaign.early_wake_deferred'
+          )
           try {
             await enqueueCampaignWake({
               organizationId: params.organizationId,
@@ -230,8 +127,10 @@ export class CampaignExecutionService {
           } catch (error) {
             logger.warn(
               {
+                event: 'campaign.queue_failure',
                 campaignId: params.campaignId,
                 organizationId: params.organizationId,
+                scheduledAt: scheduledAt.toISOString(),
                 err: error instanceof Error ? error.message : 'unknown',
               },
               'campaigns.execute.reschedule_failed'
@@ -248,6 +147,17 @@ export class CampaignExecutionService {
           .returning(['id', 'name', 'createdByUserId'])
 
         if (started) {
+          const latenessMs = scheduledAt ? Date.now() - scheduledAt.getTime() : 0
+          logger.info(
+            {
+              event: 'campaign.transitioned_to_sending',
+              campaignId: params.campaignId,
+              organizationId: params.organizationId,
+              scheduledAt: scheduledAtIso,
+              latenessMs,
+            },
+            'campaign.transitioned_to_sending'
+          )
           await this.campaigns.notifyCreatorBestEffort({
             organizationId: params.organizationId,
             createdByUserId: (started.createdByUserId as string | null) ?? null,
@@ -417,6 +327,15 @@ export class CampaignExecutionService {
           organizationId,
           campaignId: row.id as string,
         })
+        logger.info(
+          {
+            event: 'campaign.recovery_wake',
+            campaignId: row.id,
+            organizationId,
+            jobId: row.id,
+          },
+          'campaign.recovery_wake'
+        )
         woken += 1
         remaining -= 1
         if (remaining <= 0) break
@@ -639,18 +558,6 @@ export class CampaignExecutionService {
         campaignId: params.campaignId,
       })
     }
-  }
-
-  async #loadEditableCampaign(params: {
-    organizationId: string
-    campaignId: string
-  }): Promise<Record<string, unknown>> {
-    const campaign = await this.#loadCampaignRow(params)
-    const status = campaign.status as string
-    if (status !== 'draft' && status !== 'scheduled') {
-      throw CampaignException.notEditable(status)
-    }
-    return campaign
   }
 
   async #loadCampaignRow(params: {

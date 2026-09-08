@@ -26,9 +26,9 @@ export type CampaignCardProps = {
   status: CampaignStatus
   statusLabel: string
   when: string
-  /** UTC ISO instant from the API. When set with `timeZone`, formatted in org local time. */
+  /** UTC ISO instant from the API. When set, formatted in UTC. */
   scheduledAt?: string | null
-  /** Organization IANA timezone (`organizations.timezone`). */
+  /** @deprecated Campaign timestamps are always shown in UTC. */
   timeZone?: string
   sentLabel: string
   deliveredLabel: string
@@ -83,7 +83,7 @@ export function CampaignCard({
   statusLabel,
   when,
   scheduledAt,
-  timeZone,
+  timeZone: _timeZone,
   sentLabel,
   deliveredLabel,
   progressLabel,
@@ -103,8 +103,11 @@ export function CampaignCard({
   const deliveryValue =
     deliveredPercent === null ? null : clampPercent(deliveredPercent)
   const whenLabel =
-    scheduledAt && timeZone
-      ? formatCampaignScheduledAt(scheduledAt, timeZone) || when
+    scheduledAt
+      ? (() => {
+          const formatted = formatCampaignScheduledAt(scheduledAt)
+          return formatted ? `${formatted} UTC` : when
+        })()
       : when
 
   useEffect(() => {

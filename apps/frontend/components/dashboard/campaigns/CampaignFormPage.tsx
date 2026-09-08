@@ -24,12 +24,10 @@ import {
   listCustomerGroupContacts,
   listCustomerGroups,
 } from '@/components/dashboard/customer-groups/customer-group-service'
-import { getTimezoneOptions } from '@/lib/onboarding'
 import {
   formatDateTimeLocalInput,
   isCampaignScheduleInFuture,
   isoInstantToDateTimeLocal,
-  resolveDisplayTimeZone,
   toCampaignScheduledAtPayload,
 } from '@/lib/org-datetime'
 import { CampaignRecipientList } from './CampaignRecipientList'
@@ -73,7 +71,6 @@ type FormState = {
   audienceLabel: string
   scheduleMode: 'now' | 'later'
   scheduledAt: string
-  timeZone: string
 }
 
 const emptyForm: FormState = {
@@ -82,7 +79,6 @@ const emptyForm: FormState = {
   audienceLabel: '',
   scheduleMode: 'now',
   scheduledAt: '',
-  timeZone: '',
 }
 
 export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
@@ -96,7 +92,6 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
     canLaunchCampaigns,
     canViewContacts,
     isLoading: orgsLoading,
-    activeOrganization,
   } = useOrganizations()
 
   const [fromId] = useState(() => (mode === 'create' ? readDuplicateFromId() : null))
@@ -113,13 +108,6 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
   }>({})
 
   const canSubmit = mode === 'create' ? canCreateCampaigns : canEditCampaigns
-  const orgTimeZone = resolveDisplayTimeZone(activeOrganization?.timezone)
-  const scheduleTimeZone = form.timeZone || orgTimeZone
-  const timezones = useMemo(
-    () =>
-      Array.from(new Set([scheduleTimeZone, orgTimeZone, ...getTimezoneOptions()].filter(Boolean))),
-    [scheduleTimeZone, orgTimeZone]
-  )
 
   const sourceQuery = useQuery({
     queryKey: queryKeys.campaigns.detail(campaignId || fromId || 'none'),
@@ -201,8 +189,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
           ? 'all-contacts'
           : '',
       scheduleMode: source.scheduledAt ? 'later' : 'now',
-      scheduledAt: isoInstantToDateTimeLocal(source.scheduledAt, orgTimeZone),
-      timeZone: orgTimeZone,
+      scheduledAt: isoInstantToDateTimeLocal(source.scheduledAt),
     })
     setSelectedGroupId(source.audienceTagId ?? '')
     const fromApi = draftsFromApiMappings(source.variableMappings)
@@ -216,9 +203,6 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
       setMappingDrafts(fromApi)
       setReconciledMappingKey('')
     }
-  }
-  if (!form.timeZone && orgTimeZone) {
-    setForm((prev) => (prev.timeZone ? prev : { ...prev, timeZone: orgTimeZone }))
   }
 
   const selectedTemplate = useMemo(
@@ -391,10 +375,9 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
       }
 
       if (form.scheduleMode === 'later') {
-        const scheduledAt = toCampaignScheduledAtPayload(form.scheduledAt, scheduleTimeZone)
+        const scheduledAt = toCampaignScheduledAtPayload(form.scheduledAt)
         const { data } = await api.campaigns.schedule(campaign.id, {
           scheduledAt,
-          timeZone: scheduleTimeZone,
         })
         campaign = unwrapCampaign(data) ?? campaign
       } else if (
@@ -471,7 +454,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
         setFieldErrors(next)
         return false
       }
-      if (!isCampaignScheduleInFuture(form.scheduledAt, scheduleTimeZone)) {
+      if (!isCampaignScheduleInFuture(form.scheduledAt)) {
         setError(t('form.errors.scheduledAtFuture'))
         setFieldErrors(next)
         return false
@@ -758,43 +741,23 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
               {t('form.scheduleLater')}
             </label>
             {form.scheduleMode === 'later' ? (
-              <div className="flex max-w-xl flex-col gap-3 sm:flex-row sm:items-end">
-                <div className="min-w-0 flex-1 space-y-1.5">
-                  <label htmlFor="campaign-scheduled-at" className="text-xs font-medium text-ink">
-                    {t('form.scheduledAt')}
-                  </label>
+              <div className="max-w-md space-y-1.5">
+                <label htmlFor="campaign-scheduled-at" className="text-xs font-medium text-ink">
+                  {t('form.scheduledAt')}
+                </label>
+                <div className="flex items-center gap-2">
                   <Input
                     id="campaign-scheduled-at"
                     type="datetime-local"
                     value={form.scheduledAt}
                     onChange={(e) => setForm((prev) => ({ ...prev, scheduledAt: e.target.value }))}
                   />
-                </div>
-                <div className="min-w-0 flex-1 space-y-1.5">
-                  <label htmlFor="campaign-timezone" className="text-xs font-medium text-ink">
-                    {t('form.timezone')}
-                  </label>
-                  <select
-                    id="campaign-timezone"
-                    className="h-11 w-full rounded-md border border-dash-border bg-canvas px-3 text-sm text-ink"
-                    value={scheduleTimeZone}
-                    onChange={(e) => setForm((prev) => ({ ...prev, timeZone: e.target.value }))}
-                    aria-label={t('form.timezone')}
-                  >
-                    {timezones.map((zone) => (
-                      <option key={zone} value={zone}>
-                        {zone}
-                        {zone === orgTimeZone ? ` (${t('form.orgTimezone')})` : ''}
-                      </option>
-                    ))}
-                  </select>
+                  <span className="shrink-0 text-sm font-medium text-mute">{t('form.utcLabel')}</span>
                 </div>
               </div>
             ) : null}
             <p className="text-xs text-mute">
-              {form.scheduleMode === 'later'
-                ? t('form.scheduleLaterHint', { timezone: scheduleTimeZone })
-                : t('form.scheduleHint')}
+              {form.scheduleMode === 'later' ? t('form.scheduleLaterHint') : t('form.scheduleHint')}
             </p>
           </fieldset>
 
@@ -914,7 +877,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
                 <dd className="text-right font-medium text-ink">
                   {form.scheduleMode === 'later'
                     ? form.scheduledAt
-                      ? `${formatDateTimeLocalInput(form.scheduledAt)} (${scheduleTimeZone})`
+                      ? `${formatDateTimeLocalInput(form.scheduledAt)} UTC`
                       : t('form.scheduleLater')
                     : t('form.sendNow')}
                 </dd>

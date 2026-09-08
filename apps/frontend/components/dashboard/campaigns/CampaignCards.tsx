@@ -22,7 +22,6 @@ type CampaignActionsMenuProps = {
   onView: () => void
   onEdit: () => void
   onDuplicate: () => void
-  onChangeStatus?: () => void
   onPause: () => void
   onDelete: () => void
 }
@@ -36,7 +35,6 @@ export function CampaignActionsMenu({
   onView,
   onEdit,
   onDuplicate,
-  onChangeStatus,
   onPause,
   onDelete,
 }: CampaignActionsMenuProps) {
@@ -44,7 +42,7 @@ export function CampaignActionsMenu({
   const [open, setOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const buttonId = useId()
-  const editable = campaign.status === 'draft' || campaign.status === 'scheduled'
+  const editable = campaign.status === 'draft'
   const cancellable = campaign.status === 'scheduled' || campaign.status === 'sending'
 
   useEffect(() => {
@@ -109,19 +107,6 @@ export function CampaignActionsMenu({
               {t('edit')}
             </button>
           ) : null}
-          {canEdit && editable && onChangeStatus ? (
-            <button
-              type="button"
-              role="menuitem"
-              className="block w-full cursor-pointer px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
-              onClick={() => {
-                setOpen(false)
-                onChangeStatus()
-              }}
-            >
-              {t('changeStatus')}
-            </button>
-          ) : null}
           {canCreate ? (
             <button
               type="button"
@@ -177,10 +162,8 @@ type CampaignCardsProps = {
   onView: (campaign: Campaign) => void
   onEdit: (campaign: Campaign) => void
   onDuplicate: (campaign: Campaign) => void
-  onChangeStatus?: (campaign: Campaign) => void
   onPause: (campaign: Campaign) => void
   onDelete: (campaign: Campaign) => void
-  timeZone?: string | null
 }
 
 export function CampaignCards({
@@ -193,10 +176,8 @@ export function CampaignCards({
   onView,
   onEdit,
   onDuplicate,
-  onChangeStatus,
   onPause,
   onDelete,
-  timeZone,
 }: CampaignCardsProps) {
   const t = useTranslations('dashboard.campaigns')
 
@@ -243,9 +224,6 @@ export function CampaignCards({
                       onView={() => onView(campaign)}
                       onEdit={() => onEdit(campaign)}
                       onDuplicate={() => onDuplicate(campaign)}
-                      onChangeStatus={
-                        onChangeStatus ? () => onChangeStatus(campaign) : undefined
-                      }
                       onPause={() => onPause(campaign)}
                       onDelete={() => onDelete(campaign)}
                     />
@@ -286,7 +264,7 @@ export function CampaignCards({
             <div className="mt-4 flex items-center justify-between gap-2 border-t border-dash-border pt-3">
               <CampaignStatusBadge status={campaign.status} />
               <p className="text-xs text-mute">
-                {formatCampaignDate(campaign.scheduledAt ?? campaign.createdAt, timeZone)}
+                {formatCampaignDate(campaign.scheduledAt ?? campaign.createdAt)}
               </p>
             </div>
           </article>

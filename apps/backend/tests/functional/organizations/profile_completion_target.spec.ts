@@ -110,16 +110,7 @@ async function snapshotOrganization(organizationId: string): Promise<ProfileSnap
     .from('organizations')
     .where('id', organizationId)
     .whereNull('deletedAt')
-    .select(
-      'id',
-      'name',
-      'email',
-      'industry',
-      'businessSize',
-      'country',
-      'address',
-      'description'
-    )
+    .select('id', 'name', 'email', 'industry', 'businessSize', 'country', 'address', 'description')
     .firstOrFail()
 }
 

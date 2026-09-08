@@ -32,8 +32,7 @@ export const ORGANIZATION_REQUIRED_PROFILE_FIELDS = [
   'country',
 ] as const
 
-export type OrganizationRequiredProfileField =
-  (typeof ORGANIZATION_REQUIRED_PROFILE_FIELDS)[number]
+export type OrganizationRequiredProfileField = (typeof ORGANIZATION_REQUIRED_PROFILE_FIELDS)[number]
 
 /** Columns used to decide whether the organization profile is complete. */
 export type OrganizationProfileCompletionSource = {

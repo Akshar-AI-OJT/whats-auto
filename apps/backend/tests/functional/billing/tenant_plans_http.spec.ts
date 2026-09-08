@@ -420,7 +420,10 @@ test.group('Tenant billing plans HTTP', (group) => {
     })
   })
 
-  test('keeps monthly and yearly variants as separate catalog plans', async ({ client, assert }) => {
+  test('keeps monthly and yearly variants as separate catalog plans', async ({
+    client,
+    assert,
+  }) => {
     const suffix = randomUUID().slice(0, 8)
     const monthlyId = randomUUID()
     const yearlyId = randomUUID()
