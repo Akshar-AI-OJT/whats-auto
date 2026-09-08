@@ -205,5 +205,6 @@ export const queryKeys = {
         ['super-admin-analytics', 'monthly-revenue', locale, months] as const,
     },
     aiConfig: ['admin', 'ai-config'] as const,
+    platformSettings: ['admin', 'platform-settings'] as const,
   },
 } as const

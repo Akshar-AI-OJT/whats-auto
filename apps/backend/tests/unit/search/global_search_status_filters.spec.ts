@@ -1,4 +1,5 @@
 import { test } from '@japa/runner'
+import type { Assert } from '@japa/assert'
 import { randomUUID } from 'node:crypto'
 import db from '@adonisjs/lucid/services/db'
 import { PERMISSIONS, type Permission } from '#abilities/permissions'
@@ -54,6 +55,8 @@ test.group('GlobalSearchService | active/archived filters', (group) => {
 
   test('excludes archived flows and inactive customer groups; scopes by organization', async ({
     assert,
+  }: {
+    assert: Assert
   }) => {
     const orgA = await createOrg('a')
     const orgB = await createOrg('b')
@@ -159,7 +162,11 @@ test.group('GlobalSearchService | active/archived filters', (group) => {
     assert.notInclude(groupIds, otherOrgGroupId)
   })
 
-  test('platform plan search returns only isActive plans', async ({ assert }) => {
+  test('platform plan search returns only isActive plans', async ({
+    assert,
+  }: {
+    assert: Assert
+  }) => {
     const marker = `GsPlan${randomUUID().slice(0, 6)}`
     const activePlanId = randomUUID()
     const inactivePlanId = randomUUID()

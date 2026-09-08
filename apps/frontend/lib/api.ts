@@ -1328,6 +1328,25 @@ export type CreateSuperAdminSubscriptionBody = {
   cancelAt?: string
 }
 
+/** Row item from GET /api/v1/super-admin/platform-settings */
+export type PlatformSettingState = 'enabled' | 'disabled' | 'scheduled'
+
+export type PlatformSettingItem = {
+  id: string
+  key: string
+  value: string
+  state: PlatformSettingState
+}
+
+export type PlatformSettingsSnapshot = {
+  branding: PlatformSettingItem[]
+  authentication: PlatformSettingItem[]
+  smtp: PlatformSettingItem[]
+  oauth: PlatformSettingItem[]
+  maintenanceMode: PlatformSettingItem[]
+  configuration: PlatformSettingItem[]
+}
+
 /** Row from GET /api/v1/super-admin/ai-config (no API keys). */
 export type PlatformAiConfig = {
   id: string
@@ -3136,6 +3155,14 @@ export const api = {
             method: 'PATCH',
             body: JSON.stringify(body),
           }
+        ),
+    },
+
+    platformSettings: {
+      get: () =>
+        protectedRequest<{ data?: PlatformSettingsSnapshot } & PlatformSettingsSnapshot>(
+          '/api/v1/super-admin/platform-settings',
+          { method: 'GET' }
         ),
     },
 
