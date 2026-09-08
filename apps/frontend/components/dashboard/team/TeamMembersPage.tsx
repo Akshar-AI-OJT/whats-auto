@@ -169,6 +169,7 @@ export function TeamMembersPage() {
     canAssignRole,
     canRemoveMember,
     isLoading: orgsLoading,
+    isResolvingAccess,
   } = useOrganizations()
 
   const inviteFromQuery = searchParams.get('invite') === '1'
@@ -200,7 +201,8 @@ export function TeamMembersPage() {
     setRoleFilter('all')
   }
 
-  const teamEnabled = !orgsLoading && Boolean(tenantOrganizationId) && canViewTeam
+  const teamEnabled =
+    !orgsLoading && !isResolvingAccess && Boolean(tenantOrganizationId) && canViewTeam
 
   const membersQuery = useQuery({
     queryKey: queryKeys.team.list(tenantOrganizationId, { page, perPage }),
@@ -239,7 +241,6 @@ export function TeamMembersPage() {
     },
     enabled: teamEnabled,
     staleTime: 60_000,
-    placeholderData: (previous) => previous,
   })
 
   const invitesQuery = useQuery({
@@ -260,7 +261,12 @@ export function TeamMembersPage() {
   const pendingInvites = invitesQuery.data ?? []
   const meta = membersQuery.data?.meta ?? null
   const paginatedSource = membersQuery.data?.paginatedSource ?? false
-  const listLoading = membersQuery.isLoading || invitesQuery.isLoading || orgsLoading
+  const listLoading =
+    membersQuery.isLoading ||
+    invitesQuery.isLoading ||
+    orgsLoading ||
+    isResolvingAccess ||
+    !tenantOrganizationId
   const listError = membersQuery.error
     ? (membersQuery.error as unknown as ApiError).message || t('errors.loadFailed')
     : null
@@ -413,7 +419,7 @@ export function TeamMembersPage() {
   const canGoPrev = paginatedSource && currentPage > 1
   const canGoNext = paginatedSource && currentPage < lastPage
 
-  if (!orgsLoading && !canViewTeam) {
+  if (!orgsLoading && !isResolvingAccess && !canViewTeam) {
     return (
       <div className="flex w-full min-w-0 flex-col gap-5 sm:gap-6">
         <DashboardPanel as="section" className="px-4 py-5 sm:px-6 sm:py-6">

@@ -58,6 +58,7 @@ export function ContactsPage() {
     canDeleteContacts,
     canImportContacts,
     isLoading: orgsLoading,
+    isResolvingAccess,
   } = useOrganizations()
 
   const addFromQuery = searchParams.get('add') === '1'
@@ -76,12 +77,13 @@ export function ContactsPage() {
       const { data } = await api.contacts.list()
       return unwrapList(data).filter((c) => c.organizationId === organizationId)
     },
-    enabled: !orgsLoading && Boolean(tenantOrganizationId) && canViewContacts,
+    enabled: !orgsLoading && !isResolvingAccess && Boolean(tenantOrganizationId) && canViewContacts,
     staleTime: 2 * 60_000,
   })
 
   const contacts = useMemo(() => contactsQuery.data ?? [], [contactsQuery.data])
-  const listLoading = contactsQuery.isLoading || orgsLoading
+  const listLoading =
+    contactsQuery.isLoading || orgsLoading || isResolvingAccess || !tenantOrganizationId
   const listError = contactsQuery.error
     ? (contactsQuery.error as unknown as ApiError).message || t('errors.loadFailed')
     : null
@@ -165,7 +167,7 @@ export function ContactsPage() {
     })
   }, [contacts, query])
 
-  if (!orgsLoading && !canViewContacts) {
+  if (!orgsLoading && !isResolvingAccess && !canViewContacts) {
     return (
       <div className="flex w-full min-w-0 flex-col gap-5 sm:gap-6">
         <DashboardPanel as="section" className="px-4 py-5 sm:px-6 sm:py-6">

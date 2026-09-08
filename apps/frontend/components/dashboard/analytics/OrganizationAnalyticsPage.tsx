@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Activity, BarChart3, CheckCheck, MessageCircle, Phone, Send, Tags, Users, XCircle } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
+import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import { Button } from '@/components/ui/button'
@@ -151,6 +152,7 @@ function SummaryPill({ label, value }: { label: string; value: string }) {
 export function OrganizationAnalyticsPage() {
   const t = useTranslations('dashboard.analytics')
   const locale = useLocale()
+  const { tenantOrganizationId, isResolvingAccess } = useOrganizations()
   const { hasPermission, hasAnyPermission } = usePermissions()
 
   const canViewContacts = hasPermission(PERMISSIONS.CONTACTS_VIEW)
@@ -159,53 +161,54 @@ export function OrganizationAnalyticsPage() {
   const canViewWhatsapp = hasPermission(PERMISSIONS.WHATSAPP_VIEW)
   const canViewTemplates = hasAnyPermission([PERMISSIONS.TEMPLATES_VIEW, PERMISSIONS.WHATSAPP_VIEW])
   const canViewAudit = hasPermission(PERMISSIONS.AUDIT_VIEW)
+  const analyticsReady = Boolean(tenantOrganizationId) && !isResolvingAccess
 
   const contactsQuery = useQuery({
-    queryKey: queryKeys.analytics.contacts,
+    queryKey: queryKeys.analytics.contacts(tenantOrganizationId),
     queryFn: fetchAnalyticsContacts,
-    enabled: canViewContacts,
+    enabled: analyticsReady && canViewContacts,
     staleTime: 60_000,
   })
 
   const campaignsQuery = useQuery({
-    queryKey: queryKeys.analytics.campaigns,
+    queryKey: queryKeys.analytics.campaigns(tenantOrganizationId),
     queryFn: fetchAnalyticsCampaigns,
-    enabled: canViewCampaigns,
+    enabled: analyticsReady && canViewCampaigns,
     staleTime: 60_000,
   })
 
   const configsQuery = useQuery({
-    queryKey: queryKeys.analytics.configs,
+    queryKey: queryKeys.analytics.configs(tenantOrganizationId),
     queryFn: fetchAnalyticsConfigs,
-    enabled: canViewWhatsapp,
+    enabled: analyticsReady && canViewWhatsapp,
     staleTime: 60_000,
   })
 
   const templatesQuery = useQuery({
-    queryKey: queryKeys.analytics.templates,
+    queryKey: queryKeys.analytics.templates(tenantOrganizationId),
     queryFn: fetchAnalyticsTemplates,
-    enabled: canViewTemplates,
+    enabled: analyticsReady && canViewTemplates,
     staleTime: 60_000,
   })
 
   const conversationsQuery = useQuery({
-    queryKey: queryKeys.analytics.conversations,
+    queryKey: queryKeys.analytics.conversations(tenantOrganizationId),
     queryFn: fetchAnalyticsConversations,
-    enabled: canViewInbox,
+    enabled: analyticsReady && canViewInbox,
     staleTime: 60_000,
   })
 
   const tagsQuery = useQuery({
-    queryKey: queryKeys.analytics.tags,
+    queryKey: queryKeys.analytics.tags(tenantOrganizationId),
     queryFn: fetchAnalyticsTags,
-    enabled: canViewContacts,
+    enabled: analyticsReady && canViewContacts,
     staleTime: 60_000,
   })
 
   const auditQuery = useQuery({
-    queryKey: queryKeys.analytics.audit,
+    queryKey: queryKeys.analytics.audit(tenantOrganizationId),
     queryFn: fetchAnalyticsAudit,
-    enabled: canViewAudit,
+    enabled: analyticsReady && canViewAudit,
     staleTime: 60_000,
   })
 
@@ -335,7 +338,7 @@ export function OrganizationAnalyticsPage() {
           value={canViewContacts ? contacts.length : t('unavailable')}
           format={canViewContacts ? 'number' : 'plain'}
           icon={Users}
-          loading={canViewContacts && contactsQuery.isLoading}
+          loading={canViewContacts && (!analyticsReady || contactsQuery.isLoading)}
           className="h-full"
         />
         <KPIStatCard
@@ -343,7 +346,7 @@ export function OrganizationAnalyticsPage() {
           value={canViewCampaigns ? campaignMetrics.totalCampaigns : t('unavailable')}
           format={canViewCampaigns ? 'number' : 'plain'}
           icon={BarChart3}
-          loading={canViewCampaigns && campaignsQuery.isLoading}
+          loading={canViewCampaigns && (!analyticsReady || campaignsQuery.isLoading)}
           className="h-full"
         />
         <KPIStatCard
@@ -351,7 +354,7 @@ export function OrganizationAnalyticsPage() {
           value={canViewCampaigns ? campaignMetrics.sentCount : t('unavailable')}
           format={canViewCampaigns ? 'number' : 'plain'}
           icon={Send}
-          loading={canViewCampaigns && campaignsQuery.isLoading}
+          loading={canViewCampaigns && (!analyticsReady || campaignsQuery.isLoading)}
           className="h-full"
         />
         <KPIStatCard
@@ -359,7 +362,7 @@ export function OrganizationAnalyticsPage() {
           value={canViewCampaigns ? campaignMetrics.deliveredCount : t('unavailable')}
           format={canViewCampaigns ? 'number' : 'plain'}
           icon={CheckCheck}
-          loading={canViewCampaigns && campaignsQuery.isLoading}
+          loading={canViewCampaigns && (!analyticsReady || campaignsQuery.isLoading)}
           className="h-full"
         />
         <KPIStatCard
@@ -367,7 +370,7 @@ export function OrganizationAnalyticsPage() {
           value={canViewCampaigns ? campaignMetrics.failedCount : t('unavailable')}
           format={canViewCampaigns ? 'number' : 'plain'}
           icon={XCircle}
-          loading={canViewCampaigns && campaignsQuery.isLoading}
+          loading={canViewCampaigns && (!analyticsReady || campaignsQuery.isLoading)}
           className="h-full"
         />
         <KPIStatCard
@@ -376,7 +379,7 @@ export function OrganizationAnalyticsPage() {
           format={canViewCampaigns ? 'percent' : 'plain'}
           suffix={canViewCampaigns ? '%' : undefined}
           icon={Send}
-          loading={canViewCampaigns && campaignsQuery.isLoading}
+          loading={canViewCampaigns && (!analyticsReady || campaignsQuery.isLoading)}
           className="h-full"
         />
         <KPIStatCard
@@ -384,7 +387,7 @@ export function OrganizationAnalyticsPage() {
           value={canViewInbox ? conversationMetrics.total : t('unavailable')}
           format={canViewInbox ? 'number' : 'plain'}
           icon={MessageCircle}
-          loading={canViewInbox && conversationsQuery.isLoading}
+          loading={canViewInbox && (!analyticsReady || conversationsQuery.isLoading)}
           className="h-full"
         />
         <KPIStatCard
@@ -392,7 +395,7 @@ export function OrganizationAnalyticsPage() {
           value={canViewWhatsapp ? connectedCount : t('unavailable')}
           format={canViewWhatsapp ? 'number' : 'plain'}
           icon={Phone}
-          loading={canViewWhatsapp && configsQuery.isLoading}
+          loading={canViewWhatsapp && (!analyticsReady || configsQuery.isLoading)}
           className="h-full"
         />
       </div>
@@ -405,7 +408,7 @@ export function OrganizationAnalyticsPage() {
           />
           {!canViewContacts ? (
             <PanelUnavailable label={t('unavailable')} />
-          ) : contactsQuery.isLoading ? (
+          ) : (!analyticsReady || contactsQuery.isLoading) ? (
             <PanelLoading label={t('loading.contacts')} />
           ) : contactsQuery.isError ? (
             <PanelError label={t('errors.contacts')} retryLabel={t('retry')} retry={() => void contactsQuery.refetch()} />
@@ -429,7 +432,7 @@ export function OrganizationAnalyticsPage() {
           />
           {!canViewCampaigns ? (
             <PanelUnavailable label={t('unavailable')} />
-          ) : campaignsQuery.isLoading ? (
+          ) : (!analyticsReady || campaignsQuery.isLoading) ? (
             <PanelLoading label={t('loading.campaigns')} />
           ) : campaignsQuery.isError ? (
             <PanelError label={t('errors.campaigns')} retryLabel={t('retry')} retry={() => void campaignsQuery.refetch()} />
@@ -459,7 +462,7 @@ export function OrganizationAnalyticsPage() {
           />
           {!canViewCampaigns ? (
             <PanelUnavailable label={t('unavailable')} />
-          ) : campaignsQuery.isLoading ? (
+          ) : (!analyticsReady || campaignsQuery.isLoading) ? (
             <PanelLoading label={t('loading.campaigns')} />
           ) : campaignsQuery.isError ? (
             <PanelError label={t('errors.campaigns')} retryLabel={t('retry')} retry={() => void campaignsQuery.refetch()} />
@@ -486,7 +489,7 @@ export function OrganizationAnalyticsPage() {
           />
           {!canViewInbox ? (
             <PanelUnavailable label={t('unavailable')} />
-          ) : conversationsQuery.isLoading ? (
+          ) : (!analyticsReady || conversationsQuery.isLoading) ? (
             <PanelLoading label={t('loading.conversations')} />
           ) : conversationsQuery.isError ? (
             <PanelError label={t('errors.conversations')} retryLabel={t('retry')} retry={() => void conversationsQuery.refetch()} />
@@ -515,7 +518,7 @@ export function OrganizationAnalyticsPage() {
         />
         {!canViewCampaigns ? (
           <PanelUnavailable label={t('unavailable')} />
-        ) : campaignsQuery.isLoading ? (
+        ) : (!analyticsReady || campaignsQuery.isLoading) ? (
           <PanelLoading label={t('loading.campaigns')} />
         ) : campaignsQuery.isError ? (
           <PanelError label={t('errors.campaigns')} retryLabel={t('retry')} retry={() => void campaignsQuery.refetch()} />
@@ -572,7 +575,7 @@ export function OrganizationAnalyticsPage() {
           <DashboardSectionHeader title={t('whatsapp.title')} description={t('whatsapp.description')} />
           {!canViewWhatsapp ? (
             <PanelUnavailable label={t('unavailable')} />
-          ) : configsQuery.isLoading ? (
+          ) : (!analyticsReady || configsQuery.isLoading) ? (
             <PanelLoading label={t('loading.whatsapp')} />
           ) : configsQuery.isError ? (
             <PanelError label={t('errors.whatsapp')} retryLabel={t('retry')} retry={() => void configsQuery.refetch()} />
@@ -608,7 +611,7 @@ export function OrganizationAnalyticsPage() {
           <DashboardSectionHeader title={t('templates.title')} description={t('templates.description')} />
           {!canViewTemplates ? (
             <PanelUnavailable label={t('unavailable')} />
-          ) : templatesQuery.isLoading ? (
+          ) : (!analyticsReady || templatesQuery.isLoading) ? (
             <PanelLoading label={t('loading.templates')} />
           ) : templatesQuery.isError ? (
             <PanelError label={t('errors.templates')} retryLabel={t('retry')} retry={() => void templatesQuery.refetch()} />
@@ -656,7 +659,7 @@ export function OrganizationAnalyticsPage() {
           <DashboardSectionHeader title={t('groups.title')} description={t('groups.description')} />
           {!canViewContacts ? (
             <PanelUnavailable label={t('unavailable')} />
-          ) : tagsQuery.isLoading ? (
+          ) : (!analyticsReady || tagsQuery.isLoading) ? (
             <PanelLoading label={t('loading.groups')} />
           ) : tagsQuery.isError ? (
             <PanelError label={t('errors.groups')} retryLabel={t('retry')} retry={() => void tagsQuery.refetch()} />
@@ -686,7 +689,7 @@ export function OrganizationAnalyticsPage() {
         <DashboardSectionHeader title={t('audit.title')} description={t('audit.description')} />
         {!canViewAudit ? (
           <PanelUnavailable label={t('unavailable')} />
-        ) : auditQuery.isLoading ? (
+        ) : (!analyticsReady || auditQuery.isLoading) ? (
           <PanelLoading label={t('loading.audit')} />
         ) : auditQuery.isError ? (
           <PanelError label={t('errors.audit')} retryLabel={t('retry')} retry={() => void auditQuery.refetch()} />

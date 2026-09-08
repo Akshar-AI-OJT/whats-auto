@@ -132,13 +132,20 @@ export const queryKeys = {
   },
   analytics: {
     all: ['tenant-analytics'] as const,
-    contacts: ['tenant-analytics', 'contacts'] as const,
-    campaigns: ['tenant-analytics', 'campaigns'] as const,
-    templates: ['tenant-analytics', 'templates'] as const,
-    configs: ['tenant-analytics', 'configs'] as const,
-    conversations: ['tenant-analytics', 'conversations'] as const,
-    tags: ['tenant-analytics', 'tags'] as const,
-    audit: ['tenant-analytics', 'audit'] as const,
+    contacts: (orgId?: string | null) =>
+      [...queryKeys.analytics.all, 'contacts', orgId ?? 'none'] as const,
+    campaigns: (orgId?: string | null) =>
+      [...queryKeys.analytics.all, 'campaigns', orgId ?? 'none'] as const,
+    templates: (orgId?: string | null) =>
+      [...queryKeys.analytics.all, 'templates', orgId ?? 'none'] as const,
+    configs: (orgId?: string | null) =>
+      [...queryKeys.analytics.all, 'configs', orgId ?? 'none'] as const,
+    conversations: (orgId?: string | null) =>
+      [...queryKeys.analytics.all, 'conversations', orgId ?? 'none'] as const,
+    tags: (orgId?: string | null) =>
+      [...queryKeys.analytics.all, 'tags', orgId ?? 'none'] as const,
+    audit: (orgId?: string | null) =>
+      [...queryKeys.analytics.all, 'audit', orgId ?? 'none'] as const,
   },
   overview: {
     all: ['dashboard-overview'] as const,
@@ -197,3 +204,32 @@ export const queryKeys = {
     aiConfig: ['admin', 'ai-config'] as const,
   },
 } as const
+
+/** Root keys for organization-scoped React Query caches (not orgs list / access-context). */
+const TENANT_QUERY_ROOTS = new Set<string>([
+  'contacts',
+  'team',
+  'roles',
+  'notifications',
+  'billing',
+  'whatsapp-configs',
+  'whatsapp-templates',
+  'media-library',
+  'knowledge-documents',
+  'flows',
+  'customer-groups',
+  'campaigns',
+  'inbox',
+  'integrations',
+  'tenant-analytics',
+  'dashboard-overview',
+  'org-audit-logs',
+  'global-search',
+  'organization-logo',
+])
+
+/** True when a query cache belongs to the active tenant (drop/refetch on org switch). */
+export function isTenantScopedQueryKey(queryKey: readonly unknown[]): boolean {
+  const root = queryKey[0]
+  return typeof root === 'string' && TENANT_QUERY_ROOTS.has(root)
+}
