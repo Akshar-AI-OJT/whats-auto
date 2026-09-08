@@ -18,9 +18,8 @@ import {
 import { useRouter } from '@/i18n/navigation'
 import {
   clearOnboardingCheckoutSession,
-  readOnboardingCheckoutSession,
-  readPendingOrganizationPlan,
-  type OnboardingCheckoutSession,
+  ONBOARDING_PLAN_PATH,
+  resolveOnboardingCheckoutSession,
 } from '@/lib/onboarding'
 import { OnboardingPaymentView, type OnboardingPaymentViewState } from './OnboardingPaymentView'
 
@@ -32,17 +31,6 @@ function viewFromSubscription(
   return 'pending'
 }
 
-function readCheckoutSession(): OnboardingCheckoutSession | null {
-  const stored = readOnboardingCheckoutSession()
-  if (stored) return stored
-  const pendingPlan = readPendingOrganizationPlan()
-  if (!pendingPlan) return null
-  return {
-    planId: pendingPlan,
-    checkoutPlanId: pendingPlan,
-  }
-}
-
 function subscribeCheckoutSession() {
   return () => {}
 }
@@ -50,14 +38,18 @@ function subscribeCheckoutSession() {
 export function OnboardingPaymentPage() {
   const t = useTranslations('onboarding.organization')
   const router = useRouter()
-  // sessionStorage is client-only; useSyncExternalStore keeps SSR snapshot stable.
-  const session = useSyncExternalStore(subscribeCheckoutSession, readCheckoutSession, () => null)
+  // Prefer URL planId (survives refresh); sessionStorage is backup only.
+  const session = useSyncExternalStore(
+    subscribeCheckoutSession,
+    resolveOnboardingCheckoutSession,
+    () => null
+  )
   const [paying, setPaying] = useState(false)
   const [payError, setPayError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (readCheckoutSession() === null) {
-      router.replace('/dashboard')
+    if (resolveOnboardingCheckoutSession() === null) {
+      router.replace(ONBOARDING_PLAN_PATH)
     }
   }, [router])
 

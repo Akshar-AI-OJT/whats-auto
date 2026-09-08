@@ -27,7 +27,6 @@ import {
 import {
   normalizeAppPath,
   resolvePostAuthPath,
-  SUPER_ADMIN_HOME_PATH,
 } from '@/lib/post-auth-redirect'
 import { Button } from '@/components/ui/button'
 import { Field, FieldGroup } from '@/components/ui/field'
@@ -123,7 +122,8 @@ export function OrganizationRegistrationForm({
         })
         if (cancelled) return
         const normalized = normalizeAppPath(nextPath)
-        if (normalized === SUPER_ADMIN_HOME_PATH || normalized.startsWith('/admin')) {
+        // Already provisioned (or superadmin) — leave create-org.
+        if (normalized !== ORG_SETUP_PATH) {
           router.replace(nextPath)
           return
         }

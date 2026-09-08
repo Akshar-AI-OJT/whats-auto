@@ -6,6 +6,12 @@ import { organizationProfilePath } from '@/lib/organization-profile'
 /** Platform console home for global superadmin (no tenant org required). */
 export const SUPER_ADMIN_HOME_PATH = '/admin/dashboard'
 
+/**
+ * Post-OAuth landing that runs {@link resolvePostAuthPath} (email login already
+ * does this client-side). Keeps Google from hard-landing on `/dashboard`.
+ */
+export const AUTH_CONTINUE_PATH = '/auth/continue'
+
 export type OnboardingNextStep =
   | 'create_organization'
   | 'select_organization'
@@ -92,6 +98,24 @@ export async function resolvePostAuthPath(options: {
   }
 
   return options.fallback
+}
+
+/** Only allow same-origin relative paths (blocks open redirects). */
+export function safeCallbackPath(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  if (!raw.startsWith('/') || raw.startsWith('//')) return null
+  return normalizeAppPath(raw)
+}
+
+/**
+ * OAuth success URL → `/auth/continue` (optionally carrying a preferred callback).
+ */
+export function authContinuePath(preferredCallback?: string | null): string {
+  const preferred = safeCallbackPath(preferredCallback)
+  if (!preferred) return AUTH_CONTINUE_PATH
+  const params = new URLSearchParams()
+  params.set('callbackURL', preferred)
+  return `${AUTH_CONTINUE_PATH}?${params.toString()}`
 }
 
 /** Build /login or /register href while preserving callback (+ email). */

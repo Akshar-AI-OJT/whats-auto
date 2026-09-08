@@ -28,7 +28,8 @@ import {
   authPrimaryButtonClassName,
 } from '@/components/auth/auth-field-styles'
 import { Link, useRouter } from '@/i18n/navigation'
-import { authHandoffHref, resolvePostAuthPath } from '@/lib/post-auth-redirect'
+import { ORG_SETUP_PATH } from '@/lib/onboarding'
+import { authContinuePath, authHandoffHref, resolvePostAuthPath, safeCallbackPath } from '@/lib/post-auth-redirect'
 
 const REMEMBER_EMAIL_KEY = 'whats-auto-remember-email'
 
@@ -39,13 +40,6 @@ type FieldErrors = {
 
 function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
-}
-
-/** Only allow same-origin relative paths (blocks open redirects). */
-function safeCallbackPath(raw: string | null): string | null {
-  if (!raw) return null
-  if (!raw.startsWith('/') || raw.startsWith('//')) return null
-  return raw
 }
 
 export function LoginForm({ className, ...props }: React.ComponentProps<'form'>) {
@@ -142,8 +136,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
 
     try {
       await flushAuthCookies()
-      const redirectPath = callbackPath ?? '/dashboard'
-      const callbackURL = buildLocalizedAppUrl(locale, redirectPath)
+      const callbackURL = buildLocalizedAppUrl(locale, authContinuePath(callbackPath))
       const errorCallbackURL = buildLocalizedAppUrl(locale, '/login')
       const { error: authErr } = await authClient.signIn.social({
         provider: 'google',
@@ -195,7 +188,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
 
       const nextPath = await resolvePostAuthPath({
         preferredCallback: callbackPath,
-        fallback: '/dashboard',
+        fallback: ORG_SETUP_PATH,
       })
       router.push(nextPath)
       router.refresh()
