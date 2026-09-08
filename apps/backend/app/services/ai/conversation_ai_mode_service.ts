@@ -1,6 +1,7 @@
 import app from '@adonisjs/core/services/app'
 import logger from '@adonisjs/core/services/logger'
 import { ConversationAiMode } from '#enums/conversation_ai_mode'
+import { FlowSessionStatus } from '#enums/flow_session_status'
 import ConversationException from '#exceptions/conversation_exception'
 import {
   ConversationAiRepository,
@@ -46,16 +47,40 @@ export default class ConversationAiModeService {
     return state
   }
 
+  /**
+   * Soft vs hard claim ([D74](docs/decisions.md)):
+   * - Mid-flow (live open session) or HANDOVER → HUMAN_ACTIVE + pause (no race with engine).
+   * - Idle AI_AUTO (COMPLETED / no live session) → stay AI_AUTO so keyword flows stay armed.
+   * Explicit Take Over still always claims HUMAN_ACTIVE.
+   */
   async onAgentReply(params: { organizationId: string; conversationId: string }): Promise<void> {
     const state = await runWithTenant(params.organizationId, () =>
       this.conversations.findById(params)
     )
-    if (!state || state.aiMode === ConversationAiMode.HUMAN_ACTIVE) {
+    if (!state) {
+      await this.#pauseFlowSessions(params)
+      await this.#cancelPendingFlowAdvance(params)
+      return
+    }
+
+    if (state.aiMode === ConversationAiMode.HUMAN_ACTIVE) {
       await this.#pauseFlowSessions(params)
       await this.#cancelPendingFlowAdvance(params)
       await this.#publishModeUpdated(params)
       return
     }
+
+    const midFlow = await this.#hasLiveOpenSession(params)
+    const shouldClaim =
+      state.aiMode === ConversationAiMode.HANDOVER ||
+      (state.aiMode === ConversationAiMode.AI_AUTO && midFlow)
+
+    if (!shouldClaim) {
+      // Idle automation-ready thread: do not mute keyword triggers.
+      await this.#cancelPendingFlowAdvance(params)
+      return
+    }
+
     if (!canTransitionAiMode(state.aiMode, ConversationAiMode.HUMAN_ACTIVE)) return
 
     await runWithTenant(params.organizationId, () =>
@@ -141,6 +166,18 @@ export default class ConversationAiModeService {
         'conversation.ai_mode.sse_failed'
       )
     }
+  }
+
+  async #hasLiveOpenSession(params: {
+    organizationId: string
+    conversationId: string
+  }): Promise<boolean> {
+    const open = await runWithTenant(params.organizationId, () =>
+      this.sessions.findOpenForConversation(params)
+    )
+    if (!open) return false
+    // PAUSED_FOR_HUMAN is ownership/pause, not an in-flight engine race.
+    return open.status !== FlowSessionStatus.PAUSED_FOR_HUMAN
   }
 
   async #pauseFlowSessions(params: {

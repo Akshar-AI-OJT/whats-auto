@@ -152,7 +152,6 @@ test.group('Campaign template variables', (group) => {
         actorUserId: userId,
         name: 'Named vars',
         messageTemplateId: templateId,
-        status: 'draft',
       })
     )
 
@@ -203,7 +202,6 @@ test.group('Campaign template variables', (group) => {
         actorUserId: userId,
         name: 'Overrides',
         messageTemplateId: templateId,
-        status: 'draft',
       })
     )
 
@@ -245,7 +243,6 @@ test.group('Campaign template variables', (group) => {
         actorUserId: userId,
         name: 'Missing otp',
         messageTemplateId: templateId,
-        status: 'draft',
       })
     )
 
@@ -286,7 +283,6 @@ test.group('Campaign template variables', (group) => {
         actorUserId: userId,
         name: 'No vars',
         messageTemplateId: templateId,
-        status: 'draft',
       })
     )
 
@@ -326,7 +322,6 @@ test.group('Campaign template variables', (group) => {
         actorUserId: userId,
         name: 'Numbered',
         messageTemplateId: templateId,
-        status: 'draft',
         variableMappings: {
           '1': { source: 'contact_field', field: 'name' },
           '2': { source: 'static', value: 'NS-1001' },
@@ -369,7 +364,6 @@ test.group('Campaign template variables', (group) => {
         organizationId,
         actorUserId: userId,
         name: 'Send missing',
-        status: 'draft',
       })
     )
 
@@ -431,7 +425,6 @@ test.group('Campaign template variables', (group) => {
         name: 'Send no vars',
         messageTemplateId: templateId,
         whatsappConfigId,
-        status: 'draft',
       })
     )
 

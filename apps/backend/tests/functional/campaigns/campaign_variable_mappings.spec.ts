@@ -91,7 +91,6 @@ test.group('Campaign variableMappings persistence', (group) => {
         organizationId,
         actorUserId: userId,
         name: 'No mappings',
-        status: 'draft',
       })
     )
 
@@ -117,7 +116,6 @@ test.group('Campaign variableMappings persistence', (group) => {
         organizationId,
         actorUserId: userId,
         name: 'Mapped',
-        status: 'draft',
         variableMappings: MAPPINGS,
       })
     )
@@ -144,7 +142,6 @@ test.group('Campaign variableMappings persistence', (group) => {
         organizationId,
         actorUserId: userId,
         name: 'Patch maps',
-        status: 'draft',
         variableMappings: MAPPINGS,
       })
     )
@@ -185,7 +182,6 @@ test.group('Campaign variableMappings persistence', (group) => {
         organizationId,
         actorUserId: userId,
         name: 'Source mapped',
-        status: 'draft',
         variableMappings: MAPPINGS,
       })
     )

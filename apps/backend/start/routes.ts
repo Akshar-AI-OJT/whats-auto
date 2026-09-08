@@ -391,8 +391,6 @@ const requestBodySchemas: Record<string, JsonSchema> = {
       name: { type: 'string', example: 'July Product Launch' },
       whatsappConfigId: { type: 'string', format: 'uuid' },
       messageTemplateId: { type: 'string', format: 'uuid' },
-      scheduledAt: { type: 'string', format: 'date-time', example: '2026-08-07T10:00:00.000Z' },
-      status: { type: 'string', example: 'draft', enum: ['draft', 'scheduled'] },
       variableMappings: {
         type: 'object',
         additionalProperties: {
@@ -428,31 +426,15 @@ const requestBodySchemas: Record<string, JsonSchema> = {
         type: 'string',
         format: 'date-time',
         example: '2026-08-07T10:00:00.000Z',
+        description: 'UTC ISO-8601 instant ending in Z',
       },
     },
     ['scheduledAt']
-  ),
-  'patch /api/v1/campaigns/{id}/status': bodySchema(
-    {
-      status: {
-        type: 'string',
-        example: 'sent',
-        enum: ['draft', 'scheduled', 'sending', 'sent', 'failed', 'cancelled'],
-      },
-    },
-    ['status']
   ),
   'patch /api/v1/campaigns/{id}': bodySchema({
     name: { type: 'string', example: 'July Product Launch v2' },
     whatsappConfigId: { type: 'string', format: 'uuid', nullable: true },
     messageTemplateId: { type: 'string', format: 'uuid', nullable: true },
-    scheduledAt: {
-      type: 'string',
-      format: 'date-time',
-      example: '2026-08-07T10:00:00.000Z',
-      nullable: true,
-    },
-    status: { type: 'string', example: 'scheduled', enum: ['draft', 'scheduled'] },
     variableMappings: {
       type: 'object',
       nullable: true,
@@ -1026,7 +1008,6 @@ router
     router.post('/:id/schedule', [CampaignsController, 'schedule'])
     router.patch('/:id/cancel', [CampaignsController, 'cancel'])
     router.post('/:id/duplicate', [CampaignsController, 'duplicate'])
-    router.patch('/:id/status', [CampaignsController, 'changeStatus'])
     router.get('/:id', [CampaignsController, 'show'])
     router.post('/', [CampaignsController, 'store'])
     router.patch('/:id', [CampaignsController, 'update'])

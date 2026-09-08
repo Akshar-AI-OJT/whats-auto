@@ -589,6 +589,91 @@ test.group('Flows | session lifecycle', (group) => {
     assert.equal(sessions[1].status, FlowSessionStatus.WAITING_FOR_INPUT)
   })
 
+  test('idle agent reply after COMPLETED keeps AI_AUTO so keyword can start a fresh flow', async ({
+    assert,
+  }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const { fixture, session } = await startWaitingSession({
+      organizationId,
+      queue,
+      onExpiry: 'RESUME_PROMPT',
+    })
+
+    await runWithTenant(organizationId, () =>
+      db.from('flow_sessions').where('id', session!.id).update({
+        status: FlowSessionStatus.COMPLETED,
+        updatedAt: new Date(),
+      })
+    )
+
+    await new ConversationAiModeService().onAgentReply({
+      organizationId,
+      conversationId: fixture.conversationId,
+    })
+
+    const conversation = await runWithTenant(organizationId, () =>
+      db.from('conversations').where('id', fixture.conversationId).first()
+    )
+    assert.equal(conversation?.aiMode, ConversationAiMode.AI_AUTO)
+
+    queue.clearEnqueued()
+    await dispatchInbound({
+      organizationId,
+      conversationId: fixture.conversationId,
+      contactId: fixture.contactId,
+      contentText: 'hi',
+    })
+    await drainFlowAdvanceJobs(queue)
+
+    const sessions = await runWithTenant(organizationId, () =>
+      db
+        .from('flow_sessions')
+        .where('conversationId', fixture.conversationId)
+        .orderBy('createdAt', 'asc')
+    )
+    assert.equal(sessions.length, 2)
+    assert.equal(sessions[1].status, FlowSessionStatus.WAITING_FOR_INPUT)
+  })
+
+  test('mid-flow agent reply claims HUMAN_ACTIVE and blocks keyword start until resume', async ({
+    assert,
+  }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const { fixture, session } = await startWaitingSession({
+      organizationId,
+      queue,
+      onExpiry: 'RESUME_PROMPT',
+    })
+
+    await new ConversationAiModeService().onAgentReply({
+      organizationId,
+      conversationId: fixture.conversationId,
+    })
+
+    const conversation = await runWithTenant(organizationId, () =>
+      db.from('conversations').where('id', fixture.conversationId).first()
+    )
+    assert.equal(conversation?.aiMode, ConversationAiMode.HUMAN_ACTIVE)
+    assert.equal(conversation?.aiHandoverReason, 'agent_reply')
+
+    const paused = await runWithTenant(organizationId, () =>
+      db.from('flow_sessions').where('id', session!.id).first()
+    )
+    assert.equal(paused?.status, FlowSessionStatus.PAUSED_FOR_HUMAN)
+
+    queue.clearEnqueued()
+    await dispatchInbound({
+      organizationId,
+      conversationId: fixture.conversationId,
+      contactId: fixture.contactId,
+      contentText: 'hi',
+    })
+    await drainFlowAdvanceJobs(queue)
+    assert.isFalse(queue.enqueued.some((job) => job.name === JOB_NAMES.FLOWS_ADVANCE_SESSION))
+  })
+
   test('orphan PAUSED_FOR_HUMAN with AI_AUTO blocks until resume terminates it', async ({
     assert,
   }) => {

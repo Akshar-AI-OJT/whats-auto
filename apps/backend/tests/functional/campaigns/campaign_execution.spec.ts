@@ -30,7 +30,44 @@ async function createOrg() {
       status: 'active',
     })
     .returning(['id'])
-  return row.id as string
+  const organizationId = row.id as string
+  await seedScheduledCampaignPlan(organizationId)
+  return organizationId
+}
+
+async function seedScheduledCampaignPlan(organizationId: string) {
+  const planId = randomUUID()
+  await db.table('plans').insert({
+    id: planId,
+    code: `camp_sched_${organizationId.slice(0, 8)}`,
+    name: `Campaign Schedule Plan ${organizationId.slice(0, 8)}`,
+    price: Number.parseInt(organizationId.replace(/-/g, '').slice(0, 8), 16) % 1_000_000_000,
+    currency: 'USD',
+    billingInterval: 'month',
+    billingIntervalCount: 1,
+    trialDays: 0,
+    gateway: null,
+    gatewayPlanId: null,
+    limits: { maxBroadcastRecipients: 10000, campaignsPerMonth: 1000 },
+    isActive: true,
+    sortOrder: 1,
+    metadata: {
+      features: [{ key: 'scheduledCampaigns', enabled: true }],
+    },
+  })
+  await runWithTenant(organizationId, async () => {
+    await db.table('organization_subscriptions').insert({
+      id: randomUUID(),
+      organizationId,
+      planId,
+      status: 'active',
+      currentPeriodStart: new Date(Date.now() - 86400000),
+      currentPeriodEnd: new Date(Date.now() + 20 * 86400000),
+      cancelAtPeriodEnd: false,
+      metadata: {},
+    })
+  })
+  return planId
 }
 
 async function seedUser() {
@@ -156,12 +193,18 @@ test.group('CampaignExecutionService', (group) => {
         await db.from('contacts').where('organizationId', organizationId).delete()
         await db.from('whatsapp_configs').where('organizationId', organizationId).delete()
         await db.from('media_asset_references').where('organizationId', organizationId).delete()
+        await db.from('usage_meters').where('organizationId', organizationId).delete()
+        await db.from('organization_subscriptions').where('organizationId', organizationId).delete()
       })
+      await db
+        .from('plans')
+        .whereILike('code', `camp_sched_${organizationId.slice(0, 8)}%`)
+        .delete()
       await db.from('organizations').where('id', organizationId).delete()
     }
   })
 
-  test('schedules campaign, executes recipients, and finalizes', async ({ assert }) => {
+  test('sends campaign, executes recipients, and finalizes', async ({ assert }) => {
     const organizationId = await createOrg()
     orgIds.push(organizationId)
     const userId = await seedUser()
@@ -176,7 +219,6 @@ test.group('CampaignExecutionService', (group) => {
       name: 'Phase 3 Launch',
       whatsappConfigId: seeded.whatsappConfigId,
       messageTemplateId: seeded.messageTemplateId,
-      status: 'draft',
     })
 
     await execution.replaceRecipients({
@@ -186,12 +228,11 @@ test.group('CampaignExecutionService', (group) => {
       variables: { name: 'Ada' },
     })
 
-    const scheduled = await execution.scheduleCampaign({
-      organizationId,
+    const sending = await campaigns.sendCampaign({
       campaignId: campaign.id,
-      scheduledAt: new Date(Date.now() - 1000),
+      organizationId,
     })
-    assert.equal(scheduled.status, 'sending')
+    assert.equal(sending.status, 'sending')
 
     const result = await execution.executeCampaign({
       organizationId,
@@ -227,7 +268,6 @@ test.group('CampaignExecutionService', (group) => {
       name: 'Cancel me',
       whatsappConfigId: seeded.whatsappConfigId,
       messageTemplateId: seeded.messageTemplateId,
-      status: 'draft',
     })
 
     await execution.replaceRecipients({
@@ -236,10 +276,10 @@ test.group('CampaignExecutionService', (group) => {
       contactIds: [seeded.contactId],
     })
 
-    await execution.scheduleCampaign({
+    await campaigns.scheduleCampaign({
       organizationId,
       campaignId: campaign.id,
-      scheduledAt: new Date(Date.now() + 60 * 60 * 1000),
+      scheduledAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
     })
 
     const cancelled = await execution.cancelCampaign({
@@ -263,7 +303,6 @@ test.group('CampaignExecutionService', (group) => {
       name: 'Unapproved template',
       whatsappConfigId: seeded.whatsappConfigId,
       messageTemplateId: seeded.messageTemplateId,
-      status: 'draft',
     })
 
     await execution.replaceRecipients({
@@ -308,7 +347,6 @@ test.group('CampaignExecutionService', (group) => {
       name: 'Disconnected WA',
       whatsappConfigId: seeded.whatsappConfigId,
       messageTemplateId: seeded.messageTemplateId,
-      status: 'draft',
     })
 
     await execution.replaceRecipients({
@@ -352,7 +390,6 @@ test.group('CampaignExecutionService', (group) => {
       name: 'Enqueue fail',
       whatsappConfigId: seeded.whatsappConfigId,
       messageTemplateId: seeded.messageTemplateId,
-      status: 'draft',
     })
 
     await execution.replaceRecipients({
@@ -399,7 +436,6 @@ test.group('CampaignExecutionService', (group) => {
       name: 'Future schedule',
       whatsappConfigId: seeded.whatsappConfigId,
       messageTemplateId: seeded.messageTemplateId,
-      status: 'draft',
     })
 
     await execution.replaceRecipients({
@@ -445,7 +481,6 @@ test.group('CampaignExecutionService', (group) => {
       name: 'Wait for schedule',
       whatsappConfigId: seeded.whatsappConfigId,
       messageTemplateId: seeded.messageTemplateId,
-      status: 'draft',
     })
 
     await execution.replaceRecipients({
@@ -503,7 +538,6 @@ test.group('CampaignExecutionService', (group) => {
       name: 'Overdue recovery',
       whatsappConfigId: seeded.whatsappConfigId,
       messageTemplateId: seeded.messageTemplateId,
-      status: 'draft',
     })
 
     await execution.replaceRecipients({
@@ -560,7 +594,6 @@ test.group('CampaignExecutionService', (group) => {
       name: 'Due schedule execute',
       whatsappConfigId: seeded.whatsappConfigId,
       messageTemplateId: seeded.messageTemplateId,
-      status: 'draft',
     })
 
     await execution.replaceRecipients({
@@ -661,7 +694,6 @@ test.group('CampaignExecutionService', (group) => {
       name: 'Launch now',
       whatsappConfigId: seeded.whatsappConfigId,
       messageTemplateId: seeded.messageTemplateId,
-      status: 'draft',
     })
 
     await execution.replaceRecipients({
@@ -703,7 +735,6 @@ test.group('CampaignExecutionService', (group) => {
       name: 'Cancel schedule',
       whatsappConfigId: seeded.whatsappConfigId,
       messageTemplateId: seeded.messageTemplateId,
-      status: 'draft',
     })
 
     await execution.replaceRecipients({
@@ -755,7 +786,6 @@ test.group('CampaignExecutionService', (group) => {
       name: 'Cancel sending',
       whatsappConfigId: seeded.whatsappConfigId,
       messageTemplateId: seeded.messageTemplateId,
-      status: 'draft',
     })
 
     await execution.replaceRecipients({
@@ -798,7 +828,6 @@ test.group('CampaignExecutionService', (group) => {
       name: 'Still draft',
       whatsappConfigId: seeded.whatsappConfigId,
       messageTemplateId: seeded.messageTemplateId,
-      status: 'draft',
     })
 
     try {
@@ -813,7 +842,7 @@ test.group('CampaignExecutionService', (group) => {
     }
   })
 
-  test('changeCampaignStatus rejects terminal to draft', async ({ assert }) => {
+  test('updateCampaign rejects terminal campaigns', async ({ assert }) => {
     const organizationId = await createOrg()
     orgIds.push(organizationId)
     const userId = await seedUser()
@@ -826,7 +855,6 @@ test.group('CampaignExecutionService', (group) => {
       name: 'Already sent',
       whatsappConfigId: seeded.whatsappConfigId,
       messageTemplateId: seeded.messageTemplateId,
-      status: 'draft',
     })
 
     await runWithTenant(organizationId, async () => {
@@ -834,15 +862,15 @@ test.group('CampaignExecutionService', (group) => {
     })
 
     try {
-      await campaigns.changeCampaignStatus({
+      await campaigns.updateCampaign({
         campaignId: campaign.id,
         organizationId,
-        status: 'draft',
+        name: 'Nope',
       })
-      assert.fail('expected changeCampaignStatus to reject')
+      assert.fail('expected updateCampaign to reject')
     } catch (error) {
       assert.instanceOf(error, CampaignException)
-      assert.equal((error as CampaignException).code, 'E_CAMPAIGN_INVALID_STATUS_TRANSITION')
+      assert.equal((error as CampaignException).code, 'E_CAMPAIGN_NOT_EDITABLE')
     }
   })
 
@@ -859,7 +887,6 @@ test.group('CampaignExecutionService', (group) => {
       name: 'Execute unapproved',
       whatsappConfigId: seeded.whatsappConfigId,
       messageTemplateId: seeded.messageTemplateId,
-      status: 'draft',
     })
 
     await execution.replaceRecipients({

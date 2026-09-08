@@ -407,3 +407,25 @@ Mail (`MAIL_MAILER`) must work. Then use Forgot password for `SUPERADMIN_EMAIL`.
 
 **`down -v`**  
 Deletes only this stack’s Docker volumes, not ServeOS.
+
+---
+
+## 14. Campaign scheduling readiness (UTC auto-launch)
+
+Before releasing campaign schedule changes, deploy **backend + worker + frontend** together and verify:
+
+1. **Worker container is running** (`whats-auto-worker`) and consuming jobs.
+2. **Redis is reachable** (`REDIS_URL`) and preferably AOF-enabled for durability.
+3. **BullMQ** accepts delayed jobs (`JOB_QUEUE_DRIVER=bullmq`).
+4. **Recovery cron** is registered: `campaigns.recovery` at `*/1 * * * *`.
+5. Logs show the worker consuming `campaigns.execute`.
+
+Smoke test:
+
+1. Confirm no `broadcasts` rows with `status = scheduled` (or drain them).
+2. Create a draft campaign with recipients + approved template.
+3. `POST /api/v1/campaigns/:id/schedule` with a UTC instant a few minutes ahead, e.g. `"scheduledAt": "2026-09-08T16:05:00.000Z"` (must end in `Z`).
+4. Do **not** call Send now. Wait until the UTC time (or force recovery after making `scheduledAt` due).
+5. Confirm status becomes `sending`/`sent` and structured logs include `campaign.wake_registered` / `campaign.transitioned_to_sending` (or `campaign.recovery_wake`).
+
+Alert guidance: a campaign still `scheduled` more than **two minutes** after its UTC `scheduledAt` indicates a lost wake or stalled worker.

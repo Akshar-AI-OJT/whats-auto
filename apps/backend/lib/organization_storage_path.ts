@@ -1,5 +1,4 @@
-const ORGANIZATION_ID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const ORGANIZATION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 export const CONTACT_IMPORTS_FOLDER = 'imports/contacts'
 
@@ -66,10 +65,7 @@ export function uniqueContactImportStorageKey(
  * Ensure a stored key stays under this organization's contact-import folder
  * and does not traverse into another tenant or sibling folder.
  */
-export function assertContactImportStorageKey(
-  organizationId: string,
-  key: string
-): string {
+export function assertContactImportStorageKey(organizationId: string, key: string): string {
   if (typeof key !== 'string' || !key) {
     throw new Error('Contact import file path is missing')
   }
