@@ -132,7 +132,7 @@ export function ContactsPage() {
   const contacts = useMemo(() => contactsQuery.data?.contacts ?? [], [contactsQuery.data])
   const meta = contactsQuery.data?.meta ?? null
   const listLoading =
-    contactsQuery.isLoading || orgsLoading || isResolvingAccess || !tenantOrganizationId
+    contactsQuery.isPending || orgsLoading || isResolvingAccess || !tenantOrganizationId
   const listError = contactsQuery.error
     ? (contactsQuery.error as unknown as ApiError).message || t('errors.loadFailed')
     : null

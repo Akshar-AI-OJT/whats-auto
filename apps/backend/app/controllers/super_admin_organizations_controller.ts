@@ -1,6 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { accessPlatform } from '#abilities/main'
 import SuperAdminPolicy from '#policies/super_admin_policy'
+import { OrganizationStatus } from '#enums/organization_status'
 import { OrganizationService } from '#services/organization_service'
 import { Exception } from '@adonisjs/core/exceptions'
 import {
@@ -147,6 +148,82 @@ export default class SuperAdminOrganizationsController {
       }
 
       return serialize({ ok: true })
+    } catch (error) {
+      if (error instanceof Exception && error.code === 'E_ORGANIZATION_NOT_FOUND') {
+        return response.notFound({
+          error: 'Organization Not Found',
+          code: 'E_ORGANIZATION_NOT_FOUND',
+        })
+      }
+      return mapRbacError(error, response)
+    }
+  }
+
+  /**
+   * @summary Suspend an organization (Super Admin)
+   * @description Sets persisted status to suspended. Does not archive or set deletedAt. Requires platform:tenants_suspend.
+   * @tag Super-Admin
+   * @security BearerAuth
+   * @paramPath id - Organization id - @type(string)
+   * @responseBody 200 - { "data": { "id": "uuid", "status": "suspended" } }
+   * @responseBody 401 - { "error": "Missing or invalid session" }
+   * @responseBody 403 - { "error": "Permission denied: platform:tenants_suspend", "code": "PERMISSION_DENIED" }
+   * @responseBody 404 - { "error": "Organization Not Found", "code": "E_ORGANIZATION_NOT_FOUND" }
+   * @responseBody 409 - { "error": "Archived organizations cannot be suspended or activated.", "code": "E_ORGANIZATION_ARCHIVED" }
+   */
+  async suspend({ bouncer, request, params, response, serialize }: HttpContext) {
+    await bouncer.authorize(accessPlatform)
+    await bouncer.with(SuperAdminPolicy).authorize('suspendTenants')
+
+    await request.validateUsing(organizationIdParamValidator, {
+      data: params,
+    })
+
+    try {
+      const organization = await new OrganizationService().setOrganizationLifecycleStatus({
+        organizationId: params.id,
+        actorUserId: request.authUser!.id,
+        status: OrganizationStatus.SUSPENDED,
+      })
+      return serialize(organization)
+    } catch (error) {
+      if (error instanceof Exception && error.code === 'E_ORGANIZATION_NOT_FOUND') {
+        return response.notFound({
+          error: 'Organization Not Found',
+          code: 'E_ORGANIZATION_NOT_FOUND',
+        })
+      }
+      return mapRbacError(error, response)
+    }
+  }
+
+  /**
+   * @summary Activate a suspended organization (Super Admin)
+   * @description Sets persisted status back to active. Does not restore archived tenants. Requires platform:tenants_suspend.
+   * @tag Super-Admin
+   * @security BearerAuth
+   * @paramPath id - Organization id - @type(string)
+   * @responseBody 200 - { "data": { "id": "uuid", "status": "active" } }
+   * @responseBody 401 - { "error": "Missing or invalid session" }
+   * @responseBody 403 - { "error": "Permission denied: platform:tenants_suspend", "code": "PERMISSION_DENIED" }
+   * @responseBody 404 - { "error": "Organization Not Found", "code": "E_ORGANIZATION_NOT_FOUND" }
+   * @responseBody 409 - { "error": "Only a suspended organization can be activated.", "code": "E_ORGANIZATION_LIFECYCLE_INVALID" }
+   */
+  async activate({ bouncer, request, params, response, serialize }: HttpContext) {
+    await bouncer.authorize(accessPlatform)
+    await bouncer.with(SuperAdminPolicy).authorize('suspendTenants')
+
+    await request.validateUsing(organizationIdParamValidator, {
+      data: params,
+    })
+
+    try {
+      const organization = await new OrganizationService().setOrganizationLifecycleStatus({
+        organizationId: params.id,
+        actorUserId: request.authUser!.id,
+        status: OrganizationStatus.ACTIVE,
+      })
+      return serialize(organization)
     } catch (error) {
       if (error instanceof Exception && error.code === 'E_ORGANIZATION_NOT_FOUND') {
         return response.notFound({

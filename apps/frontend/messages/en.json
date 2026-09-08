@@ -4275,7 +4275,9 @@
       },
       "toast": {
         "updated": "Updated “{name}”.",
-        "deleted": "Archived “{name}”."
+        "deleted": "Archived “{name}”.",
+        "suspended": "Suspended “{name}”.",
+        "activated": "Activated “{name}”."
       },
       "kpis": {
         "total": {
@@ -4331,16 +4333,23 @@
         "menuLabel": "Actions for {name}",
         "view": "View",
         "edit": "Edit",
-        "suspend": "Change status",
-        "activate": "Change status",
+        "suspend": "Suspend",
+        "activate": "Activate",
         "delete": "Archive"
       },
       "statusDialog": {
         "title": "Change status",
-        "body": "Activate and suspend are not available on the organization API. You can archive “{name}” with a soft-delete.",
-        "archivedBody": "“{name}” is already archived. Restore is not available from the API.",
+        "suspendTitle": "Suspend organization",
+        "activateTitle": "Activate organization",
+        "archivedTitle": "Archived organization",
+        "suspendBody": "Suspend “{name}”? Members will not be able to use this organization until it is activated again. This does not archive the organization.",
+        "activateBody": "Activate “{name}”? The organization will be set back to active.",
+        "archivedBody": "“{name}” is already archived. Restore is not available from this action.",
         "cancel": "Cancel",
-        "archive": "Archive organization"
+        "confirmSuspend": "Suspend",
+        "confirmActivate": "Activate",
+        "suspending": "Suspending…",
+        "activating": "Activating…"
       },
       "drawer": {
         "tabs": {
@@ -4394,6 +4403,8 @@
         "loadFailed": "Couldn’t load organizations. Please try again.",
         "updateFailed": "Couldn’t update this organization.",
         "deleteFailed": "Couldn’t archive this organization.",
+        "suspendFailed": "Couldn’t suspend this organization.",
+        "activateFailed": "Couldn’t activate this organization.",
         "nameRequired": "Name must be at least 2 characters.",
         "actionUnavailable": "This action isn’t available from the API yet."
       },
@@ -4987,6 +4998,7 @@
         "createFailed": "Failed to generate invoice.",
         "notFound": "Invoice not found.",
         "cannotMarkCancelledPaid": "Cancelled invoices cannot be marked as paid.",
+        "missingRecipient": "This invoice has no billing email address.",
         "sendFailed": "Failed to send invoice. Please try again.",
         "downloadFailed": "Failed to download invoice. Please try again.",
         "organizationRequired": "Select an organization.",

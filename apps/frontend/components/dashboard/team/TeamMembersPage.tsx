@@ -293,8 +293,8 @@ export function TeamMembersPage() {
   const meta = membersQuery.data?.meta ?? null
   const paginatedSource = membersQuery.data?.paginatedSource ?? false
   const listLoading =
-    membersQuery.isLoading ||
-    invitesQuery.isLoading ||
+    membersQuery.isPending ||
+    invitesQuery.isPending ||
     orgsLoading ||
     isResolvingAccess ||
     !tenantOrganizationId

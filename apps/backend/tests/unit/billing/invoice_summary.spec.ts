@@ -51,6 +51,7 @@ test.group('buildInvoiceSummary', () => {
           status: 'pending',
           total: 236,
           issueDate: '2026-09-03',
+          dueDate: '2026-09-30',
           paidAt: null,
         }),
         invoice({

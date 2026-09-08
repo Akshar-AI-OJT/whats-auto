@@ -85,11 +85,21 @@ export async function updateSuperAdminOrganization(
   body: UpdateSuperAdminOrganizationBody
 ): Promise<AdminOrganizationListItem> {
   const { data } = await api.superAdmin.organizations.update(organizationId, body)
-  const org =
-    data && typeof data === 'object' && 'data' in data && data.data
-      ? data.data
-      : (data as SuperAdminOrganization)
-  return toAdminOrganizationListItem(org)
+  return toAdminOrganizationListItem(unwrapOrganization(data))
+}
+
+export async function suspendSuperAdminOrganization(
+  organizationId: string
+): Promise<AdminOrganizationListItem> {
+  const { data } = await api.superAdmin.organizations.suspend(organizationId)
+  return toAdminOrganizationListItem(unwrapOrganization(data))
+}
+
+export async function activateSuperAdminOrganization(
+  organizationId: string
+): Promise<AdminOrganizationListItem> {
+  const { data } = await api.superAdmin.organizations.activate(organizationId)
+  return toAdminOrganizationListItem(unwrapOrganization(data))
 }
 
 export async function deleteSuperAdminOrganization(organizationId: string): Promise<void> {
@@ -125,5 +135,11 @@ export function mapOrgApiError(error: unknown, fallback: string): string {
   if (apiError.status === 401) return 'Your session expired. Please sign in again.'
   if (apiError.status === 403) return 'You do not have permission for this action.'
   if (apiError.code === 'E_ORGANIZATION_NOT_FOUND') return 'Organization not found.'
+  if (apiError.code === 'E_ORGANIZATION_ARCHIVED') {
+    return 'Archived organizations cannot be suspended or activated.'
+  }
+  if (apiError.code === 'E_ORGANIZATION_LIFECYCLE_INVALID') {
+    return apiError.message || 'This organization cannot change to that status.'
+  }
   return apiError.message || fallback
 }

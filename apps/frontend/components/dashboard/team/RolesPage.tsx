@@ -68,7 +68,7 @@ export function RolesPage() {
   })
 
   const roles = rolesQuery.data ?? []
-  const listLoading = rolesQuery.isLoading || orgsLoading || isResolvingAccess || !tenantOrganizationId
+  const listLoading = rolesQuery.isPending || orgsLoading || isResolvingAccess || !tenantOrganizationId
   const listError = rolesQuery.error
     ? (rolesQuery.error as unknown as ApiError).message || t('errors.loadFailed')
     : null

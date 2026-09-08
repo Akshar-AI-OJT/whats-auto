@@ -1,9 +1,15 @@
 'use client'
 
-import { api, type AuthorizationAuditEvent, type Campaign, type ContactSummary, type InboxConversation, type PaginationMeta, type TagRecord, type WhatsappConfigSummary, type WhatsappMessageTemplate } from '@/lib/api'
+import {
+  api,
+  type AuthorizationAuditEvent,
+  type Campaign,
+  type PaginationMeta,
+  type TenantAnalyticsSummary,
+  type WhatsappConfigSummary,
+} from '@/lib/api'
 import { unwrapCampaignList, ratePercent } from '@/components/dashboard/campaigns/campaign-utils'
-import { unwrapPaginated, unwrapList } from '@/components/dashboard/inbox/inbox-utils'
-import { unwrapTemplateList } from '@/components/dashboard/templates/template-utils'
+import { unwrapList } from '@/components/dashboard/inbox/inbox-utils'
 
 export type AnalyticsMonthPoint = {
   key: string
@@ -29,12 +35,6 @@ export type CampaignAggregate = {
   statusBreakdown: BreakdownItem[]
 }
 
-export type ConversationAggregate = {
-  total: number
-  unread: number
-  statusBreakdown: BreakdownItem[]
-}
-
 async function fetchAllByPages<T>(fetchPage: (page: number, perPage: number) => Promise<{ items: T[]; meta: PaginationMeta | null }>): Promise<T[]> {
   const perPage = 100
   let page = 1
@@ -53,11 +53,21 @@ async function fetchAllByPages<T>(fetchPage: (page: number, perPage: number) => 
   return items
 }
 
-export async function fetchAnalyticsContacts(): Promise<ContactSummary[]> {
-  return fetchAllByPages(async (page, perPage) => {
-    const { data } = await api.contacts.list({ page, perPage })
-    return unwrapPaginated<ContactSummary>(data)
-  })
+function unwrapObject<T extends object>(payload: unknown, marker: keyof T): T | null {
+  if (!payload || typeof payload !== 'object') return null
+  const root = payload as { data?: T } & T
+  if (root.data && typeof root.data === 'object' && marker in root.data) return root.data
+  if (marker in root) return root as T
+  return null
+}
+
+export async function fetchTenantAnalyticsSummary(): Promise<TenantAnalyticsSummary> {
+  const { data } = await api.analytics.summary()
+  const summary = unwrapObject<TenantAnalyticsSummary>(data, 'totalContacts')
+  if (!summary) {
+    throw new Error('Analytics summary was empty')
+  }
+  return summary
 }
 
 export async function fetchAnalyticsCampaigns(): Promise<Campaign[]> {
@@ -67,28 +77,9 @@ export async function fetchAnalyticsCampaigns(): Promise<Campaign[]> {
   })
 }
 
-export async function fetchAnalyticsTemplates(): Promise<WhatsappMessageTemplate[]> {
-  return fetchAllByPages(async (page, perPage) => {
-    const { data } = await api.whatsapp.listTemplates({ page, perPage })
-    return unwrapTemplateList(data)
-  })
-}
-
 export async function fetchAnalyticsConfigs(): Promise<WhatsappConfigSummary[]> {
   const { data } = await api.whatsapp.listConfigs()
   return unwrapList<WhatsappConfigSummary>(data)
-}
-
-export async function fetchAnalyticsConversations(): Promise<InboxConversation[]> {
-  return fetchAllByPages(async (page, perPage) => {
-    const { data } = await api.inbox.listConversations({ page, limit: perPage })
-    return unwrapPaginated<InboxConversation>(data)
-  })
-}
-
-export async function fetchAnalyticsTags(): Promise<TagRecord[]> {
-  const { data } = await api.tags.list()
-  return unwrapList<TagRecord>(data)
 }
 
 export async function fetchAnalyticsAudit(): Promise<AuthorizationAuditEvent[]> {
@@ -96,32 +87,26 @@ export async function fetchAnalyticsAudit(): Promise<AuthorizationAuditEvent[]> 
   return unwrapList<AuthorizationAuditEvent>(data)
 }
 
-export function buildMonthlySeries(
-  values: Array<{ createdAt?: string | null }>,
-  locale: string,
-  months = 6
-): AnalyticsMonthPoint[] {
-  const now = new Date()
-  const monthStarts: Date[] = []
-  for (let i = months - 1; i >= 0; i -= 1) {
-    monthStarts.push(new Date(now.getFullYear(), now.getMonth() - i, 1))
-  }
+export async function fetchRecentCampaigns(limit = 10): Promise<Campaign[]> {
+  const { data } = await api.campaigns.list({
+    page: 1,
+    perPage: limit,
+    sortBy: 'createdAt',
+    sortOrder: 'desc',
+  })
+  return unwrapCampaignList(data).items
+}
 
-  const counts = new Map<string, number>()
-  for (const item of values) {
-    if (!item.createdAt) continue
-    const date = new Date(item.createdAt)
-    if (Number.isNaN(date.getTime())) continue
-    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-    counts.set(key, (counts.get(key) ?? 0) + 1)
-  }
-
-  return monthStarts.map((date) => {
-    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+export function withMonthLabels<T extends { key: string }>(
+  points: T[],
+  locale: string
+): Array<T & { label: string }> {
+  return points.map((point) => {
+    const [year, month] = point.key.split('-').map(Number)
+    const date = new Date(Number.isFinite(year) ? year : 1970, (Number.isFinite(month) ? month : 1) - 1, 1)
     return {
-      key,
+      ...point,
       label: new Intl.DateTimeFormat(locale, { month: 'short' }).format(date),
-      value: counts.get(key) ?? 0,
     }
   })
 }
@@ -155,58 +140,6 @@ export function sumCampaignMetrics(campaigns: Campaign[]): CampaignAggregate {
     deliveryRate: ratePercent(deliveredCount, sentCount),
     statusBreakdown,
   }
-}
-
-export function sumConversationMetrics(conversations: InboxConversation[]): ConversationAggregate {
-  const byStatus = new Map<string, number>()
-  let unread = 0
-
-  for (const conversation of conversations) {
-    const key = String(conversation.status || 'unknown').toLowerCase()
-    byStatus.set(key, (byStatus.get(key) ?? 0) + 1)
-    unread += Number(conversation.unreadCount ?? 0)
-  }
-
-  return {
-    total: conversations.length,
-    unread,
-    statusBreakdown: Array.from(byStatus.entries())
-      .map(([key, value]) => ({ key, label: key, value }))
-      .sort((a, b) => b.value - a.value),
-  }
-}
-
-export function buildBreakdown(values: string[]): BreakdownItem[] {
-  const counts = new Map<string, number>()
-  for (const raw of values) {
-    const key = String(raw || 'unknown').toLowerCase()
-    counts.set(key, (counts.get(key) ?? 0) + 1)
-  }
-  return Array.from(counts.entries())
-    .map(([key, value]) => ({ key, label: key, value }))
-    .sort((a, b) => b.value - a.value)
-}
-
-export function buildTemplateUsage(campaigns: Campaign[], templates: WhatsappMessageTemplate[]): BreakdownItem[] {
-  const names = new Map<string, string>(templates.map((item) => [item.id, item.name]))
-  const counts = new Map<string, BreakdownItem>()
-
-  for (const campaign of campaigns) {
-    if (!campaign.messageTemplateId) continue
-    const key = campaign.messageTemplateId
-    const current = counts.get(key)
-    if (current) {
-      current.value += 1
-      continue
-    }
-    counts.set(key, {
-      key,
-      label: names.get(key) ?? key,
-      value: 1,
-    })
-  }
-
-  return Array.from(counts.values()).sort((a, b) => b.value - a.value)
 }
 
 export function formatAnalyticsDate(value: string | null | undefined, locale?: string): string {
