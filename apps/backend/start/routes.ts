@@ -35,6 +35,8 @@ const SuperAdminAuditController = () => import('#controllers/super_admin_audit_c
 const SuperAdminPlatformUsersController = () =>
   import('#controllers/super_admin_platform_users_controller')
 const SuperAdminSearchController = () => import('#controllers/super_admin_search_controller')
+const SuperAdminAnalyticsController = () => import('#controllers/super_admin_analytics_controller')
+const AnalyticsController = () => import('#controllers/analytics_controller')
 const GlobalSearchController = () => import('#controllers/global_search_controller')
 const OrganizationAdminUsersController = () =>
   import('#controllers/organization_admin_users_controller')
@@ -796,6 +798,8 @@ router
     router.get('/organizations', [SuperAdminOrganizationsController, 'index'])
     router.get('/organizations/:id', [SuperAdminOrganizationsController, 'show'])
     router.patch('/organizations/:id', [SuperAdminOrganizationsController, 'update'])
+    router.post('/organizations/:id/suspend', [SuperAdminOrganizationsController, 'suspend'])
+    router.post('/organizations/:id/activate', [SuperAdminOrganizationsController, 'activate'])
     router.delete('/organizations/:id', [SuperAdminOrganizationsController, 'softDelete'])
 
     router.get('/subscriptions', [SuperAdminSubscriptionsController, 'index'])
@@ -822,6 +826,7 @@ router
     router.get('/ai-config', [SuperAdminAiConfigController, 'show'])
     router.patch('/ai-config', [SuperAdminAiConfigController, 'update'])
     router.get('/audit-logs', [SuperAdminAuditController, 'index'])
+    router.get('/analytics/summary', [SuperAdminAnalyticsController, 'summary'])
     router.get('/platform-users', [SuperAdminPlatformUsersController, 'index'])
     router
       .get('/search', [SuperAdminSearchController, 'index'])
@@ -925,6 +930,10 @@ router
 // audit history — tenant-scoped (audit:view). Super Admin uses /api/v1/super-admin/audit-logs.
 router
   .get('/api/v1/audit', [controllers.Audit, 'index'])
+  .use([middleware.jwtAuth(), middleware.tenant()])
+
+router
+  .get('/api/v1/analytics/summary', [AnalyticsController, 'summary'])
   .use([middleware.jwtAuth(), middleware.tenant()])
 
 // contacts — tenant isolation (feature gates via ContactPolicy in the controller)

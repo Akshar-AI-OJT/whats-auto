@@ -316,8 +316,11 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
 
     setPendingActiveId(organizationId)
     setSwitchError(null)
+    // Drop idle tenant caches only. Removing observed queries cancels in-flight
+    // fetches and React Query v5 observers often stay empty until a hard refresh.
     queryClient.removeQueries({
-      predicate: (query) => isTenantScopedQueryKey(query.queryKey),
+      predicate: (query) =>
+        isTenantScopedQueryKey(query.queryKey) && query.getObserversCount() === 0,
     })
 
     try {
@@ -392,7 +395,8 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
       ? sessionOrgFromContext
       : null
 
-  // After A → (null) → B, drop leftover tenant caches (including org-less keys).
+  // After A → (null) → B, drop idle leftover caches and refetch mounted tenant queries
+  // with the aligned JWT. removeQueries on observed queries was cancelling that refetch.
   useEffect(() => {
     const previous = lastTenantOrganizationIdRef.current
     if (tenantOrganizationId) {
@@ -400,6 +404,10 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
     }
     if (!previous || !tenantOrganizationId || previous === tenantOrganizationId) return
     queryClient.removeQueries({
+      predicate: (query) =>
+        isTenantScopedQueryKey(query.queryKey) && query.getObserversCount() === 0,
+    })
+    void queryClient.invalidateQueries({
       predicate: (query) => isTenantScopedQueryKey(query.queryKey),
     })
   }, [tenantOrganizationId, queryClient])

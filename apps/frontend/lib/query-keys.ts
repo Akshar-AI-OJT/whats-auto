@@ -136,18 +136,12 @@ export const queryKeys = {
   },
   analytics: {
     all: ['tenant-analytics'] as const,
-    contacts: (orgId?: string | null) =>
-      [...queryKeys.analytics.all, 'contacts', orgId ?? 'none'] as const,
+    summary: (orgId?: string | null) =>
+      [...queryKeys.analytics.all, 'summary', orgId ?? 'none'] as const,
     campaigns: (orgId?: string | null) =>
       [...queryKeys.analytics.all, 'campaigns', orgId ?? 'none'] as const,
-    templates: (orgId?: string | null) =>
-      [...queryKeys.analytics.all, 'templates', orgId ?? 'none'] as const,
     configs: (orgId?: string | null) =>
       [...queryKeys.analytics.all, 'configs', orgId ?? 'none'] as const,
-    conversations: (orgId?: string | null) =>
-      [...queryKeys.analytics.all, 'conversations', orgId ?? 'none'] as const,
-    tags: (orgId?: string | null) =>
-      [...queryKeys.analytics.all, 'tags', orgId ?? 'none'] as const,
     audit: (orgId?: string | null) =>
       [...queryKeys.analytics.all, 'audit', orgId ?? 'none'] as const,
   },
@@ -212,6 +206,7 @@ export const queryKeys = {
       subscriptions: ['super-admin-analytics', 'subscriptions'] as const,
       plans: ['super-admin-analytics', 'plans'] as const,
       invoiceSummary: ['super-admin-analytics', 'invoice-summary'] as const,
+      summary: ['super-admin-analytics', 'summary'] as const,
       currentMonthPaidRevenue: ['super-admin-analytics', 'current-month-paid-revenue'] as const,
       platformUsersTotal: ['super-admin-analytics', 'platform-users-total'] as const,
       platformUsers: ['super-admin-analytics', 'platform-users'] as const,

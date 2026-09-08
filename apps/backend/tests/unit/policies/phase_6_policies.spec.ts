@@ -46,6 +46,7 @@ test.group('Phase 6 Policies - SuperAdminPolicy', () => {
       permissions: [
         'platform:tenants_view',
         'platform:tenants_update',
+        'platform:tenants_suspend',
         'platform:tenants_delete',
         'platform:tenants_billing',
         'platform:config_view',
@@ -60,6 +61,9 @@ test.group('Phase 6 Policies - SuperAdminPolicy', () => {
 
     assert.isTrue(policy.updateTenants(admin))
     assert.isFalse(policy.updateTenants(unprivileged))
+
+    assert.isTrue(policy.suspendTenants(admin))
+    assert.isFalse(policy.suspendTenants(unprivileged))
 
     assert.isTrue(policy.deleteTenants(admin))
     assert.isFalse(policy.deleteTenants(unprivileged))

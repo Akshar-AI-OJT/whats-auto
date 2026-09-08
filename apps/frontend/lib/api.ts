@@ -1191,6 +1191,47 @@ export type AuditListPayload =
   | AuthorizationAuditEvent[]
   | { data?: AuthorizationAuditEvent[]; eventTypes?: string[]; actors?: AuditActorFacet[]; targetTypes?: string[] }
 
+export type AnalyticsBreakdownItem = {
+  key: string
+  label: string
+  value: number
+}
+
+export type TenantAnalyticsSummary = {
+  totalContacts: number
+  contactGrowth: Array<{ key: string; value: number }>
+  totalCampaigns: number
+  totalRecipients: number
+  sentCount: number
+  deliveredCount: number
+  readCount: number
+  repliedCount: number
+  failedCount: number
+  deliveryRate: number
+  campaignStatusBreakdown: AnalyticsBreakdownItem[]
+  totalConversations: number
+  unreadMessages: number
+  conversationStatusBreakdown: AnalyticsBreakdownItem[]
+  connectedWhatsappNumbers: number
+  whatsappStatusBreakdown: AnalyticsBreakdownItem[]
+  totalTemplates: number
+  templateStatusBreakdown: AnalyticsBreakdownItem[]
+  templateCategoryBreakdown: AnalyticsBreakdownItem[]
+  templateUsage: AnalyticsBreakdownItem[]
+  totalGroups: number
+  topGroups: Array<{ id: string; name: string; contactCount: number }>
+}
+
+export type PlatformAnalyticsSummary = {
+  totalOrganizations: number
+  activeOrganizations: number
+  inactiveOrganizations: number
+  trialOrganizations: number
+  organizationGrowth: Array<{ key: string; created: number; cumulative: number }>
+  activeInactive: AnalyticsBreakdownItem[]
+  planDistribution: AnalyticsBreakdownItem[]
+}
+
 export type PendingInvitation = {
   id: string
   email: string
@@ -2930,6 +2971,14 @@ export const api = {
     },
   },
 
+  analytics: {
+    summary: () =>
+      protectedRequest<{ data?: TenantAnalyticsSummary } & TenantAnalyticsSummary>(
+        '/api/v1/analytics/summary',
+        { method: 'GET' }
+      ),
+  },
+
   organizationAdmin: {
     /**
      * Paginated org users — Owner/Admin only (`accessOrgAdmin`).
@@ -3077,6 +3126,18 @@ export const api = {
             method: 'PATCH',
             body: JSON.stringify(body),
           }
+        ),
+
+      suspend: (organizationId: string) =>
+        protectedRequest<{ data?: SuperAdminOrganization } & SuperAdminOrganization>(
+          `/api/v1/super-admin/organizations/${organizationId}/suspend`,
+          { method: 'POST' }
+        ),
+
+      activate: (organizationId: string) =>
+        protectedRequest<{ data?: SuperAdminOrganization } & SuperAdminOrganization>(
+          `/api/v1/super-admin/organizations/${organizationId}/activate`,
+          { method: 'POST' }
         ),
 
       destroy: (organizationId: string) =>
@@ -3295,6 +3356,14 @@ export const api = {
           }
         )
       },
+    },
+
+    analytics: {
+      summary: () =>
+        protectedRequest<{ data?: PlatformAnalyticsSummary } & PlatformAnalyticsSummary>(
+          '/api/v1/super-admin/analytics/summary',
+          { method: 'GET' }
+        ),
     },
 
     platformUsers: {
