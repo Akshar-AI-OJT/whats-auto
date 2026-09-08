@@ -473,16 +473,12 @@ export function clearOnboardingCheckoutSession() {
 }
 
 /**
- * Resolve the plan for `/onboarding/payment`.
+ * Resolve the plan for `/onboarding/payment` (pure read — no storage writes).
  * Prefer URL query (stable), then sessionStorage backup.
  */
 export function resolveOnboardingCheckoutSession(): OnboardingCheckoutSession | null {
   const fromUrl = readOnboardingPaymentPlanFromUrl()
-  if (fromUrl) {
-    saveOnboardingCheckoutSession(fromUrl)
-    savePendingOrganizationPlan(fromUrl.planId)
-    return fromUrl
-  }
+  if (fromUrl) return fromUrl
   const stored = readOnboardingCheckoutSession()
   if (stored?.planId) return stored
   const pendingPlan = readPendingOrganizationPlan()
@@ -491,4 +487,10 @@ export function resolveOnboardingCheckoutSession(): OnboardingCheckoutSession | 
     planId: pendingPlan,
     checkoutPlanId: pendingPlan,
   }
+}
+
+/** Persist a resolved checkout session for same-tab backup (call from effects, not render). */
+export function persistOnboardingCheckoutSession(session: OnboardingCheckoutSession) {
+  saveOnboardingCheckoutSession(session)
+  savePendingOrganizationPlan(session.planId)
 }
