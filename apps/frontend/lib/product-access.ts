@@ -1,5 +1,5 @@
 import { ONBOARDING_PLAN_PATH } from '@/lib/onboarding'
-import { organizationProfilePath } from '@/lib/organization-profile'
+import { BILLING_PATH, organizationProfilePath } from '@/lib/organization-profile'
 import { normalizeAppPath } from '@/lib/post-auth-redirect'
 
 /** Sidebar / account destinations that stay available before full product access. */
@@ -7,7 +7,7 @@ const UNLOCKED_NAV_KEYS = new Set(['dashboard', 'billing'])
 
 /** Dashboard paths reachable during unpaid / incomplete onboarding ([D70]). */
 const UNLOCKED_DASHBOARD_PREFIXES = [
-  '/dashboard/billing',
+  BILLING_PATH,
   '/dashboard/profile',
   '/dashboard/whatsapp',
 ] as const
@@ -24,9 +24,9 @@ function stripQueryAndHash(pathname: string): string {
 /**
  * D70 unlock destinations:
  * - pending_setup → Connect WhatsApp
- * - verified_setup → plan/payment
+ * - verified_setup → onboarding plan (first activation)
  * - active + incomplete profile → organization profile
- * - otherwise → plan (legacy unpaid fallback)
+ * - otherwise → onboarding plan (unpaid fallback)
  */
 export function getProductUnlockPath(input: {
   isSetupComplete: boolean

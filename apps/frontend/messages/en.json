@@ -1141,6 +1141,13 @@
         "passwordRequired": "Password is required."
       }
     },
+    "continue": {
+      "loading": "Signing you in…",
+      "backToLogin": "Back to login",
+      "errors": {
+        "generic": "We couldn’t finish signing you in. Please try again."
+      }
+    },
     "register": {
       "title": "Create your account",
       "subtitle": "Start automating customer conversations in just a few minutes.",
@@ -1311,7 +1318,8 @@
       "creating": "Creating organization…",
       "step1": {
         "title": "Create your organization",
-        "subtitle": "This organization is where your WhatsApp team will collaborate."
+        "subtitle": "This organization is where your WhatsApp team will collaborate.",
+        "inviteHint": "Waiting for an invite? Ask your admin to add you again."
       },
       "step2": {
         "title": "Tell us about your company",
