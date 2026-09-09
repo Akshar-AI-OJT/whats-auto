@@ -212,11 +212,7 @@
           "name": "Starter",
           "price": "₹499/mo",
           "cta": "Get Started",
-          "features": [
-            "AI Assistant",
-            "Shared Inbox",
-            "Broadcast Campaigns"
-          ]
+          "features": ["AI Assistant", "Shared Inbox", "Broadcast Campaigns"]
         },
         "growth": {
           "name": "Growth",
@@ -234,11 +230,7 @@
           "name": "Enterprise",
           "price": "Custom",
           "cta": "Contact Sales",
-          "features": [
-            "Dedicated Support",
-            "Custom Integrations",
-            "Enterprise Security"
-          ]
+          "features": ["Dedicated Support", "Custom Integrations", "Enterprise Security"]
         }
       }
     },
@@ -276,11 +268,7 @@
       "secondary": "Book Demo",
       "secondaryBadge": "Coming Soon",
       "secondaryTooltip": "Demo booking will be available soon.",
-      "perks": [
-        "No credit card required",
-        "Setup in minutes",
-        "Secure authentication"
-      ]
+      "perks": ["No credit card required", "Setup in minutes", "Secure authentication"]
     }
   },
   "footer": {
@@ -772,67 +760,35 @@
       "items": {
         "ai": {
           "title": "AI Assistant",
-          "bullets": [
-            "AI-generated replies",
-            "Context-aware suggestions",
-            "Smart automation"
-          ]
+          "bullets": ["AI-generated replies", "Context-aware suggestions", "Smart automation"]
         },
         "broadcast": {
           "title": "Broadcast Campaigns",
-          "bullets": [
-            "Create campaigns",
-            "Schedule broadcasts",
-            "Delivery tracking"
-          ]
+          "bullets": ["Create campaigns", "Schedule broadcasts", "Delivery tracking"]
         },
         "inbox": {
           "title": "Shared Team Inbox",
-          "bullets": [
-            "Assign conversations",
-            "Collaborate",
-            "Notes & mentions"
-          ]
+          "bullets": ["Assign conversations", "Collaborate", "Notes & mentions"]
         },
         "analytics": {
           "title": "Analytics",
-          "bullets": [
-            "Conversation metrics",
-            "Response time",
-            "Campaign performance"
-          ]
+          "bullets": ["Conversation metrics", "Response time", "Campaign performance"]
         },
         "multiTenant": {
           "title": "Multi-Tenant",
-          "bullets": [
-            "Separate organizations",
-            "Organization isolation",
-            "Role management"
-          ]
+          "bullets": ["Separate organizations", "Organization isolation", "Role management"]
         },
         "auth": {
           "title": "Secure Authentication",
-          "bullets": [
-            "Google OAuth",
-            "OTP verification",
-            "Password recovery & JWT"
-          ]
+          "bullets": ["Google OAuth", "OTP verification", "Password recovery & JWT"]
         },
         "workflow": {
           "title": "Workflow Automation",
-          "bullets": [
-            "Automated flows",
-            "Message triggers",
-            "Conditional actions"
-          ]
+          "bullets": ["Automated flows", "Message triggers", "Conditional actions"]
         },
         "templates": {
           "title": "Templates",
-          "bullets": [
-            "Saved responses",
-            "Reusable campaigns",
-            "Quick deployment"
-          ]
+          "bullets": ["Saved responses", "Reusable campaigns", "Quick deployment"]
         }
       }
     },
@@ -844,42 +800,25 @@
           "title": "AI Assistant",
           "description": "Answer customers instantly with human-like AI replies, then hand off to your team when needed.",
           "visualLabel": "AI assistant conversation",
-          "points": [
-            "AI replies",
-            "Human handoff",
-            "Smart suggestions",
-            "Instant responses"
-          ]
+          "points": ["AI replies", "Human handoff", "Smart suggestions", "Instant responses"]
         },
         "broadcast": {
           "title": "Broadcast Campaigns",
           "description": "Reach opted-in audiences with scheduled campaigns and clear delivery visibility.",
           "visualLabel": "Broadcast campaign mockup",
-          "points": [
-            "Schedule",
-            "Segment contacts",
-            "Delivery insights"
-          ]
+          "points": ["Schedule", "Segment contacts", "Delivery insights"]
         },
         "inbox": {
           "title": "Team Collaboration",
           "description": "Run support from one shared WhatsApp organization with assignment and internal context.",
           "visualLabel": "Shared inbox illustration",
-          "points": [
-            "Assign chats",
-            "Internal notes",
-            "Multi-agent support"
-          ]
+          "points": ["Assign chats", "Internal notes", "Multi-agent support"]
         },
         "analytics": {
           "title": "Analytics & Reports",
           "description": "Understand engagement and campaign performance without leaving your organization.",
           "visualLabel": "Analytics illustration",
-          "points": [
-            "Campaign metrics",
-            "Reply rates",
-            "Team performance"
-          ]
+          "points": ["Campaign metrics", "Reply rates", "Team performance"]
         }
       }
     },
@@ -1138,7 +1077,7 @@
       "errors": {
         "generic": "Something went wrong. Please try again.",
         "oauthFailed": "Google sign-in failed. Please try again.",
-        "accountNotFound": "No account found with this email. Please contact your administrator for an invitation.",
+        "accountNotFound": "User is not registered in system. Create your account to proceed for organization creation otherwise Please contact your administrator for an invitation.",
         "emailExists": "An account with this email already exists. Please sign in with your password.",
         "emailRequired": "Email is required.",
         "emailInvalid": "Enter a valid email address.",
