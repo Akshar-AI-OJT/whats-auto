@@ -208,9 +208,9 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
       aria-describedby={displayError ? formErrorId : undefined}
       {...props}
     >
-      <FieldGroup className="gap-8">
-        <div className="flex flex-col gap-3 text-left">
-          <h1 className="font-display text-[1.75rem] leading-8 tracking-tight text-ink sm:text-2xl">
+      <FieldGroup className="gap-5 sm:gap-6">
+        <div className="flex flex-col gap-1.5 text-left sm:gap-2">
+          <h1 className="font-display text-[1.625rem] leading-8 tracking-tight text-ink sm:text-2xl">
             {t('title')}
           </h1>
           <p className="text-sm leading-6 text-pretty text-body">{t('subtitle')}</p>

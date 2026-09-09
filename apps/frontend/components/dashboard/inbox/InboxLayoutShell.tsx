@@ -41,7 +41,7 @@ function InboxLayoutShellInner({ children }: InboxLayoutShellProps) {
       </div>
 
       {/* Desktop: persistent 3-pane layout */}
-      <div className="hidden lg:flex lg:h-[calc(100dvh-7.5rem)] lg:min-h-0 lg:gap-0">
+      <div className="hidden lg:flex lg:h-[calc(100dvh-8.5rem)] lg:min-h-0 lg:gap-0">
         <InboxConversationListSidebar
           selectedConversationId={conversationId ?? undefined}
           variant="panel"

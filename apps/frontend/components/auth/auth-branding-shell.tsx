@@ -15,7 +15,8 @@ export function AuthBrandingShell({
   return (
     <aside
       className={cn(
-        'relative flex w-full flex-col justify-between overflow-hidden border-b border-[#E2E8F0] bg-[#FAFBFC] md:w-[40%] md:min-h-full md:border-r md:border-b-0',
+        // Phones / small tablets: hide tall marketing panel so the form (incl. Google) fits and scrolls.
+        'relative hidden w-full flex-col justify-between overflow-hidden border-b border-[#E2E8F0] bg-[#FAFBFC] lg:flex lg:w-[40%] lg:min-h-full lg:border-r lg:border-b-0',
         className
       )}
     >
@@ -51,12 +52,12 @@ export function AuthBrandingShell({
         className="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#F8FAFC]/90 to-transparent"
       />
 
-      <div className="relative z-10 flex flex-col gap-6 px-6 py-7 sm:px-8 sm:py-9 md:gap-8 md:px-10 md:py-10 lg:px-12">
+      <div className="relative z-10 flex flex-col gap-6 px-6 py-7 sm:px-8 sm:py-9 lg:gap-8 lg:px-10 lg:py-10 xl:px-12">
         {children}
       </div>
 
       {footer ? (
-        <p className="relative z-10 hidden px-10 pb-10 text-xs leading-5 text-mute md:block lg:px-12">
+        <p className="relative z-10 hidden px-10 pb-10 text-xs leading-5 text-mute lg:block lg:px-12">
           {footer}
         </p>
       ) : null}

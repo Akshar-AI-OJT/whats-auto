@@ -44,11 +44,17 @@ export type UpsertOrganizationSmtpConfigParams = {
 type Db = typeof db | TransactionClientContract
 
 function mapRow(row: Record<string, unknown>): OrganizationSmtpConfigRow {
+  const providerPresetRaw = row.providerPreset
+  const providerPreset =
+    typeof providerPresetRaw === 'string' && providerPresetRaw.length > 0
+      ? (providerPresetRaw as OrganizationSmtpProviderPresetValue)
+      : ('custom' as OrganizationSmtpProviderPresetValue)
+
   return {
     id: String(row.id),
     organizationId: String(row.organizationId),
     transport: String(row.transport) as OrganizationSmtpTransportValue,
-    providerPreset: String(row.providerPreset) as OrganizationSmtpProviderPresetValue,
+    providerPreset,
     senderName: String(row.senderName),
     senderEmail: String(row.senderEmail),
     host: (row.host as string | null) ?? null,

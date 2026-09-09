@@ -2107,7 +2107,8 @@
         "inviteNotPending": "This invitation is no longer pending.",
         "inviteNotFound": "This invitation was not found.",
         "actionFailed": "Couldn’t update this member. Please try again.",
-        "resendInviteError": "Could not resend the setup email. Please try again."
+        "resendInviteError": "Could not resend the setup email. Please try again.",
+        "smtpRequired": "Configure organization email delivery in Settings before inviting teammates."
       },
       "invite": {
         "title": "Invite Member",
@@ -2139,6 +2140,7 @@
           "alreadyPending": "An invitation is already pending for that email. Cancel it first or wait for a response.",
           "roleInvalid": "That role isn’t available for this organization.",
           "emailFailed": "Could not send the setup email. Check email delivery settings and try again.",
+          "smtpRequired": "Configure organization email delivery in Settings before inviting teammates.",
           "createdButEmailFailed": "Teammate was added, but the setup email could not be sent. You can resend it from the team list.",
           "emailStatusUnknown": "Teammate was added, but we could not confirm whether the setup email was sent. Check the team list and resend if needed.",
           "generic": "Could not add this teammate. Please try again.",
@@ -3249,20 +3251,68 @@
       },
       "smtp": {
         "title": "Custom SMTP Email",
-        "description": "Send organization emails from your own domain.",
+        "description": "Configure how your organization sends emails.",
         "status": {
-          "verified": "Verified & Active",
-          "failed": "Connection Failed",
-          "default": "Using Platform Default"
+          "connected": "Connected",
+          "active": "Active",
+          "verified": "Verified",
+          "failed": "Connection failed",
+          "notConfigured": "Not configured",
+          "testing": "Testing connection...",
+          "withProvider": "{provider} · {status}"
+        },
+        "empty": {
+          "title": "Email sending isn't configured",
+          "description": "Choose an email provider to configure email sending for this organization."
+        },
+        "currentConfig": {
+          "label": "Current configuration",
+          "summary": "{provider} · {email}",
+          "verifiedAt": "Verified {date}",
+          "failedAt": "Last tested {date}"
         },
         "provider": {
-          "label": "Provider Preset",
+          "label": "Email Provider",
           "gmail": "Gmail",
           "sendgrid": "SendGrid",
           "resend": "Resend",
           "ses": "Amazon SES",
           "brevo": "Brevo",
-          "custom": "Custom SMTP"
+          "custom": "Custom SMTP",
+          "descriptions": {
+            "gmail": "Send email through Gmail SMTP",
+            "sendgrid": "Send email through SendGrid",
+            "resend": "Send email through Resend",
+            "ses": "Send email through Amazon SES",
+            "brevo": "Send email through Brevo",
+            "custom": "Connect your own SMTP server"
+          },
+          "connected": "Connected",
+          "verified": "Verified",
+          "failed": "Failed",
+          "selected": "Selected"
+        },
+        "sections": {
+          "sender": {
+            "title": "Sender",
+            "description": "This is the address recipients will see when your organization sends emails."
+          },
+          "connection": {
+            "title": "Connection",
+            "description": "SMTP server host and port for this provider."
+          },
+          "advancedConnection": {
+            "title": "Advanced connection settings",
+            "description": "Host and port are prefilled from the provider defaults. Change them only if your account requires it."
+          },
+          "authentication": {
+            "title": "Authentication",
+            "description": "Credentials used to authenticate with your email provider."
+          },
+          "security": {
+            "title": "Security",
+            "description": "Encrypt the connection between your application and the email server."
+          }
         },
         "fields": {
           "senderName": "Sender Name",
@@ -3270,16 +3320,47 @@
           "host": "SMTP Host",
           "port": "Port",
           "username": "Username",
-          "password": "Password / App Key",
+          "password": "SMTP password",
+          "appPassword": "App password",
+          "apiKey": "API key",
           "passwordPlaceholder": "Leave blank to keep existing password",
-          "secure": "Use SSL/TLS"
+          "apiKeyPlaceholder": "Leave blank to keep existing API key",
+          "secure": "Use SSL/TLS",
+          "secureOn": "ON",
+          "secureOff": "OFF"
+        },
+        "placeholders": {
+          "senderName": "Acme Support",
+          "senderEmail": "noreply@yourcompany.com",
+          "host": {
+            "gmail": "smtp.gmail.com",
+            "ses": "email-smtp.us-east-1.amazonaws.com",
+            "custom": "smtp.yourdomain.com"
+          },
+          "port": "587",
+          "username": {
+            "gmail": "you@gmail.com",
+            "ses": "AKIA… SMTP username",
+            "custom": "smtp-username"
+          },
+          "password": "Your SMTP password",
+          "appPassword": "xxxx xxxx xxxx xxxx",
+          "apiKey": {
+            "sendgrid": "SG.xxxxxxxx",
+            "resend": "re_xxxxxxxx",
+            "brevo": "xkeysib-xxxxxxxx",
+            "default": "Paste your API key"
+          }
         },
         "actions": {
-          "save": "Save Configuration",
-          "test": "Test Connection",
+          "save": "Save configuration",
+          "test": "Test connection",
           "reset": "Reset to Default",
           "resetConfirm": "Are you sure? This will revert to the platform default mail sender.",
-          "resetCancel": "Cancel"
+          "resetCancel": "Cancel",
+          "moreOptions": "More options",
+          "saving": "Saving…",
+          "testing": "Testing…"
         },
         "toast": {
           "saveSuccess": "SMTP configuration saved and verified.",

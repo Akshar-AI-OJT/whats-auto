@@ -320,6 +320,7 @@ export function TeamMembersPage() {
       return t('errors.roleInvalid')
     }
     if (apiError.code === 'E_INVITE_PASSWORD_ALREADY_SET') return t('errors.resendInviteError')
+    if (apiError.code === 'E_ORG_SMTP_REQUIRED') return t('errors.smtpRequired')
     return apiError.message || t('errors.actionFailed')
   }
 
@@ -331,6 +332,11 @@ export function TeamMembersPage() {
       await api.members.resendInvite(member.memberId)
       setActionError(null)
     } catch (err) {
+      const apiError = err as ApiError
+      if (apiError.code === 'E_ORG_SMTP_REQUIRED') {
+        router.push('/dashboard/settings?section=smtp')
+        return
+      }
       setActionError(mapMemberActionError(err))
     } finally {
       setResendPendingId(null)

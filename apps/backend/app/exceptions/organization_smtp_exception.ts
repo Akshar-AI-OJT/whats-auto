@@ -23,6 +23,13 @@ export default class OrganizationSmtpException extends Exception {
     )
   }
 
+  static required() {
+    return new OrganizationSmtpException(
+      'Configure organization email delivery in Settings before inviting teammates.',
+      { status: 422, code: 'E_ORG_SMTP_REQUIRED' }
+    )
+  }
+
   static passwordDecryptionFailed() {
     return new OrganizationSmtpException(
       'Failed to decrypt SMTP credentials. Re-save the configuration.',

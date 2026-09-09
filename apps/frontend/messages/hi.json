@@ -2099,7 +2099,8 @@
         "inviteNotPending": "यह निमंत्रण अब लंबित नहीं है।",
         "inviteNotFound": "यह निमंत्रण नहीं मिला।",
         "actionFailed": "सदस्य अपडेट नहीं हो सका। कृपया फिर कोशिश करें।",
-        "resendInviteError": "सेटअप ईमेल पुनः नहीं भेजा जा सका।"
+        "resendInviteError": "सेटअप ईमेल पुनः नहीं भेजा जा सका।",
+        "smtpRequired": "सदस्यों को आमंत्रित करने से पहले सेटिंग्स में संगठन ईमेल डिलीवरी कॉन्फ़िगर करें।"
       },
       "invite": {
         "title": "सदस्य आमंत्रित करें",
@@ -2131,6 +2132,7 @@
           "alreadyPending": "इस ईमेल के लिए निमंत्रण पहले से लंबित है। पहले उसे रद्द करें या जवाब की प्रतीक्षा करें।",
           "roleInvalid": "यह भूमिका इस संगठन के लिए उपलब्ध नहीं है।",
           "emailFailed": "सेटअप ईमेल नहीं भेजा जा सका। ईमेल सेटिंग्स जांचें और पुनः प्रयास करें।",
+          "smtpRequired": "सदस्यों को आमंत्रित करने से पहले सेटिंग्स में संगठन ईमेल डिलीवरी कॉन्फ़िगर करें।",
           "createdButEmailFailed": "सहकर्मी जोड़ दिया गया, लेकिन सेटअप ईमेल नहीं भेजा जा सका। आप टीम सूची से इसे पुनः भेज सकते हैं।",
           "emailStatusUnknown": "सहकर्मी जोड़ दिया गया, लेकिन सेटअप ईमेल भेजा गया या नहीं, इसकी पुष्टि नहीं हो सकी। टीम सूची जांचें और ज़रूरत हो तो पुनः भेजें।",
           "generic": "सहकर्मी नहीं जोड़ा जा सका। कृपया पुनः प्रयास करें।",
@@ -3244,20 +3246,68 @@
       },
       "smtp": {
         "title": "कस्टम SMTP ईमेल",
-        "description": "अपने डोमेन से संगठन ईमेल भेजें।",
+        "description": "कॉन्फ़िगर करें कि आपका संगठन ईमेल कैसे भेजे।",
         "status": {
-          "verified": "सत्यापित और सक्रिय",
+          "connected": "कनेक्टेड",
+          "active": "सक्रिय",
+          "verified": "सत्यापित",
           "failed": "कनेक्शन विफल",
-          "default": "प्लेटफ़ॉर्म डिफ़ॉल्ट उपयोग में"
+          "notConfigured": "कॉन्फ़िगर नहीं",
+          "testing": "कनेक्शन परीक्षण हो रहा है...",
+          "withProvider": "{provider} · {status}"
+        },
+        "empty": {
+          "title": "ईमेल भेजना कॉन्फ़िगर नहीं है",
+          "description": "इस संगठन के लिए ईमेल भेजने को कॉन्फ़िगर करने हेतु एक ईमेल प्रदाता चुनें।"
+        },
+        "currentConfig": {
+          "label": "वर्तमान कॉन्फ़िगरेशन",
+          "summary": "{provider} · {email}",
+          "verifiedAt": "सत्यापित {date}",
+          "failedAt": "अंतिम परीक्षण {date}"
         },
         "provider": {
-          "label": "प्रदाता प्रीसेट",
+          "label": "ईमेल प्रदाता",
           "gmail": "Gmail",
           "sendgrid": "SendGrid",
           "resend": "Resend",
           "ses": "Amazon SES",
           "brevo": "Brevo",
-          "custom": "कस्टम SMTP"
+          "custom": "कस्टम SMTP",
+          "descriptions": {
+            "gmail": "Gmail SMTP के माध्यम से ईमेल भेजें",
+            "sendgrid": "SendGrid के माध्यम से ईमेल भेजें",
+            "resend": "Resend के माध्यम से ईमेल भेजें",
+            "ses": "Amazon SES के माध्यम से ईमेल भेजें",
+            "brevo": "Brevo के माध्यम से ईमेल भेजें",
+            "custom": "अपना स्वयं का SMTP सर्वर कनेक्ट करें"
+          },
+          "connected": "कनेक्टेड",
+          "verified": "सत्यापित",
+          "failed": "विफल",
+          "selected": "चयनित"
+        },
+        "sections": {
+          "sender": {
+            "title": "प्रेषक",
+            "description": "यह वह पता है जिसे प्राप्तकर्ता आपके संगठन के ईमेल भेजने पर देखेंगे।"
+          },
+          "connection": {
+            "title": "कनेक्शन",
+            "description": "इस प्रदाता के लिए SMTP सर्वर होस्ट और पोर्ट।"
+          },
+          "advancedConnection": {
+            "title": "उन्नत कनेक्शन सेटिंग्स",
+            "description": "होस्ट और पोर्ट प्रदाता डिफ़ॉल्ट से भरे गए हैं। केवल तभी बदलें जब आपके खाते को इसकी आवश्यकता हो।"
+          },
+          "authentication": {
+            "title": "प्रमाणीकरण",
+            "description": "आपके ईमेल प्रदाता से प्रमाणित करने के लिए क्रेडेंशियल्स।"
+          },
+          "security": {
+            "title": "सुरक्षा",
+            "description": "आपके एप्लिकेशन और ईमेल सर्वर के बीच कनेक्शन को एन्क्रिप्ट करें।"
+          }
         },
         "fields": {
           "senderName": "प्रेषक नाम",
@@ -3265,16 +3315,47 @@
           "host": "SMTP होस्ट",
           "port": "पोर्ट",
           "username": "उपयोगकर्ता नाम",
-          "password": "पासवर्ड / ऐप की",
+          "password": "SMTP पासवर्ड",
+          "appPassword": "ऐप पासवर्ड",
+          "apiKey": "API कुंजी",
           "passwordPlaceholder": "मौजूदा पासवर्ड रखने के लिए खाली छोड़ें",
-          "secure": "SSL/TLS उपयोग करें"
+          "apiKeyPlaceholder": "मौजूदा API कुंजी रखने के लिए खाली छोड़ें",
+          "secure": "SSL/TLS उपयोग करें",
+          "secureOn": "चालू",
+          "secureOff": "बंद"
+        },
+        "placeholders": {
+          "senderName": "Acme Support",
+          "senderEmail": "noreply@yourcompany.com",
+          "host": {
+            "gmail": "smtp.gmail.com",
+            "ses": "email-smtp.us-east-1.amazonaws.com",
+            "custom": "smtp.yourdomain.com"
+          },
+          "port": "587",
+          "username": {
+            "gmail": "you@gmail.com",
+            "ses": "AKIA… SMTP उपयोगकर्ता नाम",
+            "custom": "smtp-username"
+          },
+          "password": "आपका SMTP पासवर्ड",
+          "appPassword": "xxxx xxxx xxxx xxxx",
+          "apiKey": {
+            "sendgrid": "SG.xxxxxxxx",
+            "resend": "re_xxxxxxxx",
+            "brevo": "xkeysib-xxxxxxxx",
+            "default": "अपनी API कुंजी पेस्ट करें"
+          }
         },
         "actions": {
           "save": "कॉन्फ़िगरेशन सहेजें",
           "test": "कनेक्शन परीक्षण",
           "reset": "डिफ़ॉल्ट पर रीसेट",
           "resetConfirm": "क्या आप सुनिश्चित हैं? यह प्लेटफ़ॉर्म डिफ़ॉल्ट मेल पर वापस कर देगा।",
-          "resetCancel": "रद्द करें"
+          "resetCancel": "रद्द करें",
+          "moreOptions": "अधिक विकल्प",
+          "saving": "सहेजा जा रहा है…",
+          "testing": "परीक्षण हो रहा है…"
         },
         "toast": {
           "saveSuccess": "SMTP कॉन्फ़िगरेशन सहेजा और सत्यापित किया गया।",
