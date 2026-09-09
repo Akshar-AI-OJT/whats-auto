@@ -132,16 +132,18 @@ export class MessageTemplateService {
    * List templates paginated for the active organization.
    */
   async listTemplatesPaginated(params: {
+    organizationId: string
     page?: number
     perPage?: number
     status?: string
     category?: string
     search?: string
+    language?: string
   }) {
     const page = params.page ?? 1
     const perPage = params.perPage ?? 20
 
-    let query = db.from('message_templates')
+    let query = db.from('message_templates').where('organizationId', params.organizationId)
 
     if (params.status) {
       query = query.where('status', params.status.toLowerCase())
@@ -156,6 +158,10 @@ export class MessageTemplateService {
       query = query.where((q) => {
         q.whereILike('name', term).orWhereILike('bodyText', term)
       })
+    }
+
+    if (params.language) {
+      query = query.whereRaw("COALESCE(language, '') = COALESCE(?, '')", [params.language])
     }
 
     const countResult = await query.clone().count('* as total').first()

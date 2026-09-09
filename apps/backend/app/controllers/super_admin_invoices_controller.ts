@@ -147,33 +147,44 @@ export default class SuperAdminInvoicesController {
 
   /**
    * @summary Send an invoice (Super Admin)
-   * @description Placeholder until email delivery is implemented.
+   * @description Emails the invoice PDF to the billed-to address. Requires platform:tenants_billing.
    * @tag Super Admin
    * @security BearerAuth
-   * @responseBody 501 - { "error": "Invoice email delivery is not available yet", "code": "E_INVOICE_ACTION_UNAVAILABLE" }
+   * @paramPath id - Invoice id - @type(string)
+   * @responseBody 200 - { "data": { "ok": true, "invoiceNumber": "INV-2026-000001" } }
+   * @responseBody 404 - { "error": "Invoice Not Found", "code": "E_INVOICE_NOT_FOUND" }
+   * @responseBody 422 - { "error": "Invoice has no billing email address", "code": "E_INVOICE_RECIPIENT_MISSING" }
    */
   @inject()
-  async send({ bouncer, request, params }: HttpContext, invoices: InvoiceService) {
+  async send({ bouncer, request, params, serialize }: HttpContext, invoices: InvoiceService) {
     await bouncer.with(SuperAdminPolicy).authorize('manageBilling')
 
     const { id } = await request.validateUsing(invoiceIdParamValidator, { data: params })
-    await invoices.getInvoiceById(id)
-    invoices.sendInvoiceUnavailable()
+    const result = await invoices.sendInvoice(id, request.authUser!.id)
+    return serialize(result)
   }
 
   /**
    * @summary Download an invoice PDF (Super Admin)
-   * @description Placeholder until PDF generation is implemented.
+   * @description Returns a generated invoice PDF. Requires platform:tenants_billing.
    * @tag Super Admin
    * @security BearerAuth
-   * @responseBody 501 - { "error": "Invoice PDF download is not available yet", "code": "E_INVOICE_ACTION_UNAVAILABLE" }
+   * @paramPath id - Invoice id - @type(string)
+   * @responseBody 200 - application/pdf
+   * @responseBody 404 - { "error": "Invoice Not Found", "code": "E_INVOICE_NOT_FOUND" }
    */
   @inject()
-  async download({ bouncer, request, params }: HttpContext, invoices: InvoiceService) {
+  async download({ bouncer, request, params, response }: HttpContext, invoices: InvoiceService) {
     await bouncer.with(SuperAdminPolicy).authorize('manageBilling')
 
     const { id } = await request.validateUsing(invoiceIdParamValidator, { data: params })
-    await invoices.getInvoiceById(id)
-    invoices.downloadInvoiceUnavailable()
+    const file = await invoices.downloadInvoicePdf(id)
+    const safeFilename = file.filename.replaceAll('"', '')
+
+    return response
+      .header('Content-Type', file.contentType)
+      .header('Content-Disposition', `attachment; filename="${safeFilename}"`)
+      .header('Cache-Control', 'no-store')
+      .send(file.buffer)
   }
 }

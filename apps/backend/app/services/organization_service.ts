@@ -520,6 +520,76 @@ export class OrganizationService {
   }
 
   /**
+   * Platform-scoped organization by id. Includes soft-deleted rows so Super Admin
+   * can open archived tenants that still appear in the paginated list.
+   */
+  async getOrganizationById(organizationId: string) {
+    const organization = await db.from('organizations').where('id', organizationId).first()
+
+    if (!organization) {
+      throw new Exception('Organization Not Found', {
+        status: 404,
+        code: 'E_ORGANIZATION_NOT_FOUND',
+      })
+    }
+
+    return organization
+  }
+
+  /**
+   * Super Admin suspend/activate. Updates organizations.status only.
+   * Does not set or clear deletedAt (archive/soft-delete stays on DELETE).
+   */
+  async setOrganizationLifecycleStatus(params: {
+    organizationId: string
+    actorUserId: string
+    status: typeof OrganizationStatus.SUSPENDED | typeof OrganizationStatus.ACTIVE
+  }) {
+    const { organizationId, actorUserId, status } = params
+    const organization = await this.getOrganizationById(organizationId)
+    const currentStatus = organization.status as OrganizationStatusValue
+    const deletedAt = organization.deletedAt as string | Date | null | undefined
+
+    if (deletedAt || currentStatus === OrganizationStatus.FALSE) {
+      throw OrganizationException.archivedLifecycle()
+    }
+
+    if (status === OrganizationStatus.ACTIVE && currentStatus !== OrganizationStatus.SUSPENDED) {
+      if (currentStatus === OrganizationStatus.ACTIVE) {
+        return organization
+      }
+      throw OrganizationException.invalidLifecycle(
+        'Only a suspended organization can be activated.'
+      )
+    }
+
+    if (status === OrganizationStatus.SUSPENDED && currentStatus === OrganizationStatus.SUSPENDED) {
+      return organization
+    }
+
+    const eventType =
+      status === OrganizationStatus.SUSPENDED ? 'organization.suspended' : 'organization.activated'
+
+    await db.transaction(async (trx) => {
+      await trx.table('authorization_audits').insert({
+        organizationId,
+        actorUserId,
+        targetType: 'organization',
+        targetId: organizationId,
+        eventType,
+        before: JSON.stringify({ status: currentStatus, deletedAt: deletedAt ?? null }),
+        after: JSON.stringify({ status, deletedAt: deletedAt ?? null }),
+      })
+
+      await trx.from('organizations').where('id', organizationId).update({
+        status,
+      })
+    })
+
+    return this.getOrganizationById(organizationId)
+  }
+
+  /**
    * Set the active organization on the caller's session.
    */
   async setActiveOrganization(params: {

@@ -14,7 +14,13 @@ import { Link } from '@/i18n/navigation'
 import { buttonVariants } from '@/components/ui/button'
 import { featuresPrimaryBtn } from '@/components/features/page/features-styles'
 import { cn } from '@/lib/utils'
-import { api, type ApiError, type DemoAvailabilitySlot } from '@/lib/api'
+import {
+  api,
+  type ApiError,
+  type CreateDemoBookingBody,
+  type DemoAvailabilitySlot,
+  type DemoBooking,
+} from '@/lib/api'
 import { BookDemoSuccess } from './BookDemoSuccess'
 
 const COMPANY_SIZES = ['1-10', '11-50', '51-200', '200+'] as const
@@ -62,12 +68,29 @@ function toCivilDate(date: Date) {
   return `${year}-${month}-${day}`
 }
 
-function viewerTimeZone() {
+function detectTimeZone() {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
   } catch {
     return 'UTC'
   }
+}
+
+function bookingErrorMessage(
+  error: unknown,
+  t: ReturnType<typeof useTranslations>
+) {
+  const apiError = error as ApiError
+  if (apiError?.code === 'E_DEMO_SLOT_UNAVAILABLE' || apiError?.status === 409) {
+    return t('errors.slotUnavailable')
+  }
+  if (apiError?.code === 'E_DEMO_SLOT_INVALID') {
+    return t('errors.slotInvalid')
+  }
+  if (apiError?.code === 'RATE_LIMITED' || apiError?.status === 429) {
+    return t('errors.tooManyRequests')
+  }
+  return t('errors.bookingFailed')
 }
 
 function fieldClassName(invalid?: boolean) {
@@ -87,19 +110,18 @@ export function BookDemoBookingPanel() {
   const t = useTranslations('bookDemoPage.booking')
   const locale = useLocale()
   const today = useMemo(() => startOfDay(new Date()), [])
-  const timeZone = useMemo(() => viewerTimeZone(), [])
+  const timeZone = useMemo(() => detectTimeZone(), [])
 
   const [viewYear, setViewYear] = useState(today.getFullYear())
   const [viewMonth, setViewMonth] = useState(today.getMonth())
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
-  const [selectedSlot, setSelectedSlot] = useState<DemoAvailabilitySlot | null>(null)
+  const [selectedSlot, setSelectedSlot] = useState<DemoAvailabilitySlot | null>(
+    null
+  )
   const [slots, setSlots] = useState<DemoAvailabilitySlot[]>([])
   const [slotsLoading, setSlotsLoading] = useState(false)
   const [slotsError, setSlotsError] = useState<string | null>(null)
   const [demoTimeZone, setDemoTimeZone] = useState<string | null>(null)
-  const [submitError, setSubmitError] = useState<string | null>(null)
-  const [submitting, setSubmitting] = useState(false)
-  const [meetingUrl, setMeetingUrl] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>({
     fullName: '',
     email: '',
@@ -110,7 +132,9 @@ export function BookDemoBookingPanel() {
     privacy: false,
   })
   const [touched, setTouched] = useState(false)
-  const [submitted, setSubmitted] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [booking, setBooking] = useState<DemoBooking | null>(null)
 
   const monthLabel = useMemo(
     () =>
@@ -152,25 +176,23 @@ export function BookDemoBookingPanel() {
     (viewYear === today.getFullYear() && viewMonth > today.getMonth())
 
   useEffect(() => {
-    if (!selectedDate) {
-      return
-    }
+    if (!selectedDate) return
 
-    const date = toCivilDate(selectedDate)
     let cancelled = false
+    const date = toCivilDate(selectedDate)
 
     void api.demo
       .availability({ date, timeZone })
       .then(({ data }) => {
         if (cancelled) return
-        setSlots(data.slots.filter((slot) => slot.available))
+        setSlots(data.slots.filter((slot) => slot.available !== false))
         setDemoTimeZone(data.timeZone)
         setSlotsError(null)
       })
-      .catch((error: ApiError) => {
+      .catch(() => {
         if (cancelled) return
         setSlots([])
-        setSlotsError(error.message || t('errors.submitFailed'))
+        setSlotsError(t('errors.availabilityFailed'))
       })
       .finally(() => {
         if (!cancelled) setSlotsLoading(false)
@@ -179,7 +201,7 @@ export function BookDemoBookingPanel() {
     return () => {
       cancelled = true
     }
-  }, [selectedDate, t, timeZone])
+  }, [selectedDate, timeZone, t])
 
   function goPrevMonth() {
     if (!canGoPrev) return
@@ -205,17 +227,16 @@ export function BookDemoBookingPanel() {
     setSelectedDate(date)
     setSelectedSlot(null)
     setSlots([])
-    setSlotsError(null)
     setSlotsLoading(true)
-    setSubmitted(false)
+    setSlotsError(null)
     setSubmitError(null)
-    setMeetingUrl(null)
+    setBooking(null)
   }
 
   function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((prev) => ({ ...prev, [key]: value }))
-    setSubmitted(false)
     setSubmitError(null)
+    setBooking(null)
   }
 
   const errors = {
@@ -230,6 +251,7 @@ export function BookDemoBookingPanel() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
+    if (submitting) return
     setTouched(true)
     setSubmitError(null)
     const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())
@@ -244,33 +266,31 @@ export function BookDemoBookingPanel() {
       return
     }
 
+    const payload: CreateDemoBookingBody = {
+      name: form.fullName.trim(),
+      email: form.email.trim(),
+      slotId: selectedSlot.id,
+      timeZone,
+    }
+    const company = form.company.trim()
+    const phone = form.phone.trim()
+    if (company) payload.company = company
+    if (phone) payload.phone = phone
+    if (form.companySize) payload.companySize = form.companySize
+    if (form.purpose) payload.purpose = form.purpose
+
     setSubmitting(true)
     try {
-      const { data } = await api.demo.book({
-        name: form.fullName.trim(),
-        email: form.email.trim(),
-        slotId: selectedSlot.id,
-        timeZone,
-        company: form.company.trim() || undefined,
-        phone: form.phone.trim() || undefined,
-        companySize: form.companySize || undefined,
-        purpose: form.purpose || undefined,
-      })
-      setMeetingUrl(data.meetingUrl)
+      const { data } = await api.demo.book(payload)
+      setBooking(data)
       if (data.demoTimeZone) setDemoTimeZone(data.demoTimeZone)
-      setSubmitted(true)
       requestAnimationFrame(() => {
         document
           .getElementById('booking')
           ?.scrollIntoView({ behavior: 'smooth', block: 'start' })
       })
     } catch (error) {
-      const apiError = error as ApiError
-      setSubmitError(
-        apiError.code === 'E_DEMO_SLOT_UNAVAILABLE'
-          ? t('errors.slotUnavailable')
-          : t('errors.submitFailed')
-      )
+      setSubmitError(bookingErrorMessage(error, t))
     } finally {
       setSubmitting(false)
     }
@@ -281,8 +301,7 @@ export function BookDemoBookingPanel() {
     setSelectedSlot(null)
     setSlots([])
     setSlotsError(null)
-    setSubmitError(null)
-    setMeetingUrl(null)
+    setDemoTimeZone(null)
     setForm({
       fullName: '',
       email: '',
@@ -293,16 +312,18 @@ export function BookDemoBookingPanel() {
       privacy: false,
     })
     setTouched(false)
-    setSubmitted(false)
+    setSubmitting(false)
+    setSubmitError(null)
+    setBooking(null)
   }
 
-  if (submitted && selectedDate && selectedSlot) {
+  if (booking && selectedDate && selectedSlot) {
     return (
       <BookDemoSuccess
         dateLabel={formattedDate}
         timeLabel={selectedSlot.label}
         timeZoneLabel={demoTimeZone}
-        meetingUrl={meetingUrl}
+        meetingUrl={booking.meetingUrl}
         onBookAnother={resetBooking}
       />
     )
@@ -392,7 +413,7 @@ export function BookDemoBookingPanel() {
                     <button
                       key={key}
                       type="button"
-                      disabled={past}
+                      disabled={past || submitting}
                       onClick={() => selectDate(date)}
                       aria-pressed={selected}
                       aria-label={date.toLocaleDateString(locale, {
@@ -427,17 +448,17 @@ export function BookDemoBookingPanel() {
 
           <div className="space-y-3">
             <p className="text-sm font-medium text-ink">{t('slotsLabel')}</p>
-            {!selectedDate ? (
-              <p className="text-sm text-mute">{t('pickDateHint')}</p>
-            ) : slotsLoading ? (
-              <p className="flex items-center gap-2 text-sm text-mute">
-                <Loader2 className="size-4 animate-spin" aria-hidden />
+            {slotsLoading ? (
+              <p className="flex items-center gap-2 text-sm text-body">
+                <Loader2 className="size-4 shrink-0 animate-spin" aria-hidden />
                 {t('slotsLoading')}
               </p>
             ) : slotsError ? (
               <p className="text-xs font-medium text-negative">{slotsError}</p>
+            ) : !selectedDate ? (
+              <p className="text-sm text-mute">{t('slotsPickDate')}</p>
             ) : slots.length === 0 ? (
-              <p className="text-sm text-mute">{t('noSlots')}</p>
+              <p className="text-sm text-body">{t('slotsEmpty')}</p>
             ) : (
               <div className="flex flex-wrap gap-2.5">
                 {slots.map((slot) => {
@@ -446,15 +467,17 @@ export function BookDemoBookingPanel() {
                     <button
                       key={slot.id}
                       type="button"
+                      disabled={submitting}
                       onClick={() => {
                         setSelectedSlot(slot)
-                        setSubmitted(false)
                         setSubmitError(null)
+                        setBooking(null)
                       }}
                       aria-pressed={selected}
                       className={cn(
                         'min-w-[6.5rem] flex-1 rounded-xl border px-3.5 py-2.5 text-sm font-medium sm:flex-none',
                         'transition-[transform,background-color,border-color,box-shadow,color] duration-200',
+                        'disabled:cursor-not-allowed disabled:opacity-60',
                         selected
                           ? 'border-primary bg-primary text-on-primary shadow-[0_0_0_3px_rgb(37_99_235/0.22),0_8px_18px_rgb(37_99_235/0.3)]'
                           : 'border-[#E2E8F0] bg-canvas text-ink hover:-translate-y-0.5 hover:border-primary/50 hover:bg-primary-pale hover:shadow-[0_0_0_3px_rgb(37_99_235/0.14)]'
@@ -646,7 +669,7 @@ export function BookDemoBookingPanel() {
             ) : null}
 
             {submitError ? (
-              <p className="text-sm font-medium text-negative" role="alert">
+              <p className="text-xs font-medium text-negative" role="alert">
                 {submitError}
               </p>
             ) : null}
@@ -657,18 +680,14 @@ export function BookDemoBookingPanel() {
               className={cn(
                 buttonVariants({ size: 'lg' }),
                 featuresPrimaryBtn,
-                'mt-2 w-full justify-center',
-                submitting && 'pointer-events-none opacity-70'
+                'mt-2 w-full justify-center gap-2',
+                'disabled:cursor-not-allowed disabled:opacity-70'
               )}
             >
               {submitting ? (
-                <span className="inline-flex items-center gap-2">
-                  <Loader2 className="size-4 animate-spin" aria-hidden />
-                  {t('ctaSubmitting')}
-                </span>
-              ) : (
-                t('cta')
-              )}
+                <Loader2 className="size-4 animate-spin" aria-hidden />
+              ) : null}
+              {submitting ? t('ctaBooking') : t('cta')}
             </button>
           </form>
         </article>

@@ -20,7 +20,6 @@ import { CampaignTable } from './CampaignTable'
 import {
   type CampaignChangeStatusTarget,
   type CampaignViewMode,
-  filterCampaignsByDateRange,
   unwrapCampaign,
   unwrapCampaignList,
   unwrapTemplateItems,
@@ -66,8 +65,10 @@ export function CampaignsListPage() {
       page,
       perPage: 12,
       ...(search.trim() ? { search: search.trim() } : {}),
+      ...(startDate.trim() ? { startDate: startDate.trim() } : {}),
+      ...(endDate.trim() ? { endDate: endDate.trim() } : {}),
     }),
-    [page, search]
+    [page, search, startDate, endDate]
   )
 
   const campaignsQuery = useQuery({
@@ -178,10 +179,7 @@ export function CampaignsListPage() {
     },
   })
 
-  const items = useMemo(
-    () => filterCampaignsByDateRange(campaignsQuery.data?.items ?? [], startDate, endDate),
-    [campaignsQuery.data?.items, startDate, endDate]
-  )
+  const items = campaignsQuery.data?.items ?? []
 
   const meta = campaignsQuery.data?.meta
   const total = meta?.total ?? items.length

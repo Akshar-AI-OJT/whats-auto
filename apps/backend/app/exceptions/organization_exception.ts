@@ -53,6 +53,20 @@ export default class OrganizationException extends Exception {
     })
   }
 
+  static archivedLifecycle() {
+    return new this('Archived organizations cannot be suspended or activated.', {
+      status: 409,
+      code: 'E_ORGANIZATION_ARCHIVED',
+    })
+  }
+
+  static invalidLifecycle(message: string) {
+    return new this(message, {
+      status: 409,
+      code: 'E_ORGANIZATION_LIFECYCLE_INVALID',
+    })
+  }
+
   handle(error: this, { response }: HttpContext) {
     const field =
       error.code === 'E_ORG_SLUG_ALREADY_EXISTS'

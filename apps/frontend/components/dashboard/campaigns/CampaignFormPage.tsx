@@ -8,7 +8,6 @@ import {
   api,
   type ApiError,
   type Campaign,
-  type ContactSummary,
   type CreateCampaignBody,
   type UpdateCampaignBody,
 } from '@/lib/api'
@@ -18,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { queryKeys } from '@/lib/query-keys'
+import { listAllOrganizationContacts } from '@/components/dashboard/contacts/contact-list'
 import { normalizeSampleValues } from '@/components/dashboard/templates/template-utils'
 import { CAMPAIGN_RECIPIENT_MAX, unwrapCampaign, unwrapTemplateItems, isEditableCampaignStatus } from './campaign-utils'
 import {
@@ -54,12 +54,6 @@ function readDuplicateFromId(): string | null {
   } catch {
     return null
   }
-}
-
-function unwrapContacts(data: unknown): ContactSummary[] {
-  if (Array.isArray(data)) return data as ContactSummary[]
-  const wrapped = data as { data?: ContactSummary[] }
-  return Array.isArray(wrapped.data) ? wrapped.data : []
 }
 
 type CampaignFormPageProps = {
@@ -148,10 +142,7 @@ export function CampaignFormPage({ mode, campaignId }: CampaignFormPageProps) {
   const contactsQuery = useQuery({
     queryKey: [...queryKeys.campaigns.all, 'form-contacts', tenantOrganizationId],
     enabled: Boolean(tenantOrganizationId) && canViewContacts && canSubmit && !orgsLoading,
-    queryFn: async () => {
-      const { data } = await api.contacts.list()
-      return unwrapContacts(data)
-    },
+    queryFn: () => listAllOrganizationContacts(),
   })
 
   const groupsQuery = useQuery({

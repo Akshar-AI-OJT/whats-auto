@@ -12,13 +12,14 @@ export default class MessageTemplatesController {
   /**
    * @index
    * @summary List message templates for active organization
-   * @description Returns paginated list of WhatsApp message templates. Requires whatsapp:view or templates:view permission.
+   * @description Returns paginated list of WhatsApp message templates. Supports search, status, category, and language. Language is applied before pagination. Requires whatsapp:view or templates:view permission.
    * @tag WhatsApp Templates
    * @security BearerAuth
    * @paramQuery page - Page number (default 1) - @type(number)
    * @paramQuery perPage - Items per page (1-100, default 20) - @type(number)
    * @paramQuery status - Filter by status (approved, pending, rejected, draft) - @type(string)
    * @paramQuery category - Filter by category (UTILITY, MARKETING, AUTHENTICATION) - @type(string)
+   * @paramQuery language - Filter by language code (e.g. en_US, hi) - @type(string)
    * @paramQuery search - Search term for template name or body text - @type(string)
    * @responseBody 200 - { "data": [{ "id": "uuid", "name": "order_update", "category": "UTILITY", "language": "en_US", "status": "approved", "bodyText": "Hello {{1}}" }], "meta": { "total": 1, "perPage": 20, "currentPage": 1, "lastPage": 1 } }
    * @responseBody 401 - { "error": "Missing or invalid session" }
@@ -31,7 +32,10 @@ export default class MessageTemplatesController {
       data: request.qs(),
     })
 
-    const templates = await new MessageTemplateService().listTemplatesPaginated(params)
+    const templates = await new MessageTemplateService().listTemplatesPaginated({
+      ...params,
+      organizationId: request.activeMember?.organizationId ?? request.activeOrganizationId!,
+    })
     return serialize(templates)
   }
 

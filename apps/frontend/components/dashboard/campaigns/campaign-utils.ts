@@ -112,23 +112,3 @@ export function isLaunchableCampaignStatus(status: string): boolean {
 export function isCancellableCampaignStatus(status: string): boolean {
   return status === 'scheduled' || status === 'sending'
 }
-
-/** Client-side date range filter when API has no start/end params. */
-export function filterCampaignsByDateRange(
-  items: Campaign[],
-  startDate: string,
-  endDate: string
-): Campaign[] {
-  if (!startDate && !endDate) return items
-  const start = startDate ? new Date(`${startDate}T00:00:00`) : null
-  const end = endDate ? new Date(`${endDate}T23:59:59.999`) : null
-  return items.filter((item) => {
-    const raw = item.createdAt ?? item.scheduledAt
-    if (!raw) return false
-    const created = new Date(raw)
-    if (Number.isNaN(created.getTime())) return false
-    if (start && created < start) return false
-    if (end && created > end) return false
-    return true
-  })
-}

@@ -71,7 +71,7 @@ export function OrganizationActionsMenu({
       id: 'suspend',
       label: t('suspend'),
       icon: <PauseCircle />,
-      hidden: organization.uiStatus === 'suspended',
+      hidden: organization.uiStatus === 'suspended' || organization.uiStatus === 'archived',
     },
     {
       id: 'activate',
