@@ -102,11 +102,12 @@ function AdminShellFrame({ children, className }: AdminShellProps) {
           ['--sidebar-w' as string]: `${sidebarWidthPx}px`,
         }}
       >
-        <div style={{ flexShrink: 0 }}>
+        {/* Above #app-scroll-root so navbar menus are not covered by page content */}
+        <div className="relative z-40 shrink-0">
           <AdminNavbar />
         </div>
 
-        <div style={{ position: 'relative', flex: '1 1 auto', minHeight: 0 }}>
+        <div className="relative z-0 min-h-0 flex-1">
           <div
             id="app-scroll-root"
             className={cn('px-3 pt-4', 'sm:px-4 sm:pt-5 lg:px-5 lg:pt-6')}

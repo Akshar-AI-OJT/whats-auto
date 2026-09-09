@@ -983,22 +983,6 @@ export function RoleEditorFullPage({
             {error}
           </p>
         ) : null}
-
-        <div
-          className={cn(
-            'sticky bottom-0 z-10 rounded-2xl border border-dash-border bg-canvas/95 px-4 py-3.5 backdrop-blur-sm',
-            'shadow-[0_-10px_28px_rgb(15_23_42/0.06)]'
-          )}
-        >
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-            <div className="min-h-5">
-              {dirty ? (
-                <p className="text-xs font-medium text-mute">{t('unsavedChanges')}</p>
-              ) : null}
-            </div>
-            {headerActions}
-          </div>
-        </div>
       </form>
     </div>
   )

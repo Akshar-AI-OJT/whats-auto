@@ -121,11 +121,12 @@ function DashboardShellFrame({ children, className }: DashboardShellProps) {
           ['--sidebar-w' as string]: `${sidebarWidthPx}px`,
         }}
       >
-        <div style={{ flexShrink: 0 }}>
+        {/* Above #app-scroll-root so topbar dropdowns (profile/org/search) are not covered */}
+        <div className="relative z-40 shrink-0">
           <DashboardTopbar />
         </div>
 
-        <div style={{ position: 'relative', flex: '1 1 auto', minHeight: 0 }}>
+        <div className="relative z-0 min-h-0 flex-1">
           <div
             id="app-scroll-root"
             className={cn(
