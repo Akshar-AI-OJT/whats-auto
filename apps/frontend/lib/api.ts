@@ -53,13 +53,13 @@ function isOrgWhatsappRequired(error: ApiError): boolean {
   return error.status === 403 && error.code === 'E_ORG_WHATSAPP_REQUIRED'
 }
 
-/** Soft navigate to the plan/payment step without treating it as a permission denial. */
-function redirectToOnboardingPayment() {
+/** Soft navigate to first-activation plan selection without treating it as a permission denial. */
+function redirectToOnboardingPlan() {
   if (typeof window === 'undefined') return
   const { pathname } = window.location
   if (
-    pathname.includes('/onboarding/payment') ||
     pathname.includes('/onboarding/plan') ||
+    pathname.includes('/onboarding/payment') ||
     pathname.includes('/onboarding/organization') ||
     pathname.includes('/onboarding/')
   ) {
@@ -197,7 +197,7 @@ async function request<T>(
     }
 
     if (authMode === 'protected' && isOrgPaymentRequired(error)) {
-      redirectToOnboardingPayment()
+      redirectToOnboardingPlan()
     }
 
     if (authMode === 'protected' && isOrgWhatsappRequired(error)) {
@@ -1295,13 +1295,22 @@ export type RoleUpdatePreview = {
   affectedMembers: Array<{ id: string; userId: string }>
 }
 
+/** Organization usability / provisioning status returned by the API. */
+export type OrganizationStatusValue =
+  | 'pending_setup'
+  | 'verified_setup'
+  | 'active'
+  | 'suspended'
+  | 'false'
+
 /** Nested org membership from GET /api/v1/super-admin/platform-users */
 export type SuperAdminPlatformUserOrganization = {
   memberId: string
   organizationId: string
   organizationName: string
   organizationSlug: string
-  organizationStatus: string
+  /** Exact backend status string — never coerced with Boolean(). */
+  organizationStatus: OrganizationStatusValue | string
   role: string
   roleId: string
 }
@@ -1407,6 +1416,25 @@ export type CreateSuperAdminSubscriptionBody = {
   currentPeriodStart: string
   currentPeriodEnd: string
   cancelAt?: string
+}
+
+/** Row item from GET /api/v1/super-admin/platform-settings */
+export type PlatformSettingState = 'enabled' | 'disabled' | 'scheduled'
+
+export type PlatformSettingItem = {
+  id: string
+  key: string
+  value: string
+  state: PlatformSettingState
+}
+
+export type PlatformSettingsSnapshot = {
+  branding: PlatformSettingItem[]
+  authentication: PlatformSettingItem[]
+  smtp: PlatformSettingItem[]
+  oauth: PlatformSettingItem[]
+  maintenanceMode: PlatformSettingItem[]
+  configuration: PlatformSettingItem[]
 }
 
 /** Row from GET /api/v1/super-admin/ai-config (no API keys). */
@@ -3343,6 +3371,14 @@ export const api = {
             method: 'PATCH',
             body: JSON.stringify(body),
           }
+        ),
+    },
+
+    platformSettings: {
+      get: () =>
+        protectedRequest<{ data?: PlatformSettingsSnapshot } & PlatformSettingsSnapshot>(
+          '/api/v1/super-admin/platform-settings',
+          { method: 'GET' }
         ),
     },
 

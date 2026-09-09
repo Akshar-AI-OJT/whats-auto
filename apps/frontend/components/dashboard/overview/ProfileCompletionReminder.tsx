@@ -8,12 +8,12 @@ import { Link } from '@/i18n/navigation'
 import { api, type MediaAsset } from '@/lib/api'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { useProductAccess } from '@/hooks/useProductAccess'
-import { ONBOARDING_PLAN_PATH } from '@/lib/onboarding'
 import {
   calculateOrganizationProfileCompletion,
   organizationProfilePath,
   organizationToProfileFormValues,
 } from '@/lib/organization-profile'
+import { ONBOARDING_PLAN_PATH } from '@/lib/onboarding'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { cn } from '@/lib/utils'
 

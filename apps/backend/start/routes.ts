@@ -31,6 +31,8 @@ const SuperAdminSubscriptionsController = () =>
 const SuperAdminPlansController = () => import('#controllers/super_admin_plans_controller')
 const SuperAdminInvoicesController = () => import('#controllers/super_admin_invoices_controller')
 const SuperAdminAiConfigController = () => import('#controllers/super_admin_ai_config_controller')
+const SuperAdminPlatformSettingsController = () =>
+  import('#controllers/super_admin_platform_settings_controller')
 const SuperAdminAuditController = () => import('#controllers/super_admin_audit_controller')
 const SuperAdminPlatformUsersController = () =>
   import('#controllers/super_admin_platform_users_controller')
@@ -825,6 +827,7 @@ router
 
     router.get('/ai-config', [SuperAdminAiConfigController, 'show'])
     router.patch('/ai-config', [SuperAdminAiConfigController, 'update'])
+    router.get('/platform-settings', [SuperAdminPlatformSettingsController, 'show'])
     router.get('/audit-logs', [SuperAdminAuditController, 'index'])
     router.get('/analytics/summary', [SuperAdminAnalyticsController, 'summary'])
     router.get('/platform-users', [SuperAdminPlatformUsersController, 'index'])

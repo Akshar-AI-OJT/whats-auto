@@ -22,8 +22,11 @@ const PENDING_PLAN_KEY = 'wa-onboarding-plan'
 const PENDING_ORG_KEY = 'wa-onboarding-organization-id'
 
 export const ORG_SETUP_PATH = '/onboarding/organization'
+/** First-activation plan selection (not dashboard billing renewals). */
 export const ONBOARDING_PLAN_PATH = '/onboarding/plan'
 export const ONBOARDING_PAYMENT_PATH = '/onboarding/payment'
+export const ONBOARDING_PLAN_ID_QUERY = 'planId'
+export const ONBOARDING_PLAN_NAME_QUERY = 'planName'
 export const TEAM_MEMBERS_PATH = '/dashboard/team'
 export const ASSIGNABLE_ROLES = ['admin', 'agent', 'viewer'] as const
 export type AssignableRole = (typeof ASSIGNABLE_ROLES)[number]
@@ -410,6 +413,34 @@ export type OnboardingCheckoutSession = {
   planName?: string
 }
 
+/** Payment URL with plan id in the query — survives refresh without sessionStorage. */
+export function onboardingPaymentPath(input: {
+  planId: string
+  planName?: string
+}): string {
+  const params = new URLSearchParams({ [ONBOARDING_PLAN_ID_QUERY]: input.planId })
+  const name = input.planName?.trim()
+  if (name) params.set(ONBOARDING_PLAN_NAME_QUERY, name)
+  return `${ONBOARDING_PAYMENT_PATH}?${params.toString()}`
+}
+
+export function readOnboardingPaymentPlanFromUrl(): OnboardingCheckoutSession | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const params = new URLSearchParams(window.location.search)
+    const planId = params.get(ONBOARDING_PLAN_ID_QUERY)?.trim()
+    if (!planId || !isOrganizationId(planId)) return null
+    const planName = params.get(ONBOARDING_PLAN_NAME_QUERY)?.trim() || undefined
+    return {
+      planId,
+      checkoutPlanId: planId,
+      planName,
+    }
+  } catch {
+    return null
+  }
+}
+
 export function saveOnboardingCheckoutSession(session: OnboardingCheckoutSession) {
   if (typeof window === 'undefined') return
   try {
@@ -439,4 +470,27 @@ export function clearOnboardingCheckoutSession() {
   } catch {
     /* ignore */
   }
+}
+
+/**
+ * Resolve the plan for `/onboarding/payment` (pure read — no storage writes).
+ * Prefer URL query (stable), then sessionStorage backup.
+ */
+export function resolveOnboardingCheckoutSession(): OnboardingCheckoutSession | null {
+  const fromUrl = readOnboardingPaymentPlanFromUrl()
+  if (fromUrl) return fromUrl
+  const stored = readOnboardingCheckoutSession()
+  if (stored?.planId) return stored
+  const pendingPlan = readPendingOrganizationPlan()
+  if (!pendingPlan || !isOrganizationId(pendingPlan)) return null
+  return {
+    planId: pendingPlan,
+    checkoutPlanId: pendingPlan,
+  }
+}
+
+/** Persist a resolved checkout session for same-tab backup (call from effects, not render). */
+export function persistOnboardingCheckoutSession(session: OnboardingCheckoutSession) {
+  saveOnboardingCheckoutSession(session)
+  savePendingOrganizationPlan(session.planId)
 }

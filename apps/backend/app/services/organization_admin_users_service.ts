@@ -224,6 +224,12 @@ export class OrganizationAdminUsersService {
         userId,
       })
 
+      await trx
+        .from('sessions')
+        .where('userId', userId)
+        .where('activeOrganizationId', organizationId)
+        .update({ activeOrganizationId: null })
+
       await trx.table('authorization_audits').insert({
         organizationId,
         actorUserId,

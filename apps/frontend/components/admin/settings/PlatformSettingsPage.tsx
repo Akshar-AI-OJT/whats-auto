@@ -1,65 +1,6 @@
 import { getTranslations } from 'next-intl/server'
-import { cn } from '@/lib/utils'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
-import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
-import {
-  MOCK_PLATFORM_SETTINGS,
-  type MockPlatformSettingItem,
-  type PlatformSettingState,
-} from '../mock-data'
-
-const STATE_STYLES: Record<PlatformSettingState, string> = {
-  enabled: 'bg-primary-pale text-positive-deep ring-1 ring-primary/30',
-  disabled: 'bg-dash-surface text-mute ring-1 ring-dash-border',
-  scheduled: 'bg-dash-info-soft text-dash-info ring-1 ring-accent-cyan/35',
-}
-
-type SettingsSectionProps = {
-  title: string
-  description: string
-  items: MockPlatformSettingItem[]
-  labelFor: (key: string) => string
-  stateLabelFor: (state: PlatformSettingState) => string
-}
-
-function SettingsSection({
-  title,
-  description,
-  items,
-  labelFor,
-  stateLabelFor,
-}: SettingsSectionProps) {
-  return (
-    <DashboardPanel as="section" className="p-4 sm:p-5 md:p-6">
-      <DashboardSectionHeader title={title} description={description} />
-      <div className="mt-5 overflow-hidden rounded-2xl border border-dash-border">
-        {items.map((item, index) => (
-          <div
-            key={item.id}
-            className={cn(
-              'flex flex-col gap-3 px-4 py-3.5 sm:px-5',
-              index % 2 === 1 ? 'bg-dash-surface/60' : 'bg-transparent',
-              'border-b border-dash-border last:border-b-0 md:flex-row md:items-center md:justify-between'
-            )}
-          >
-            <div className="min-w-0 md:max-w-[70%]">
-              <p className="text-sm font-semibold text-ink">{labelFor(item.key)}</p>
-              <p className="mt-1 break-all text-sm text-body">{item.value}</p>
-            </div>
-            <span
-              className={cn(
-                'inline-flex w-fit rounded-lg px-2 py-0.5 text-[11px] font-semibold',
-                STATE_STYLES[item.state]
-              )}
-            >
-              {stateLabelFor(item.state)}
-            </span>
-          </div>
-        ))}
-      </div>
-    </DashboardPanel>
-  )
-}
+import { PlatformSettingsPanels } from './PlatformSettingsPanels'
 
 export async function PlatformSettingsPage() {
   const t = await getTranslations('admin.settings')
@@ -87,62 +28,7 @@ export async function PlatformSettingsPage() {
         </div>
       </DashboardPanel>
 
-      <div className="grid grid-cols-1 gap-5 sm:gap-6 xl:grid-cols-2 xl:gap-6">
-        <div className="min-w-0">
-          <SettingsSection
-            title={t('sections.platformBranding.title')}
-            description={t('sections.platformBranding.description')}
-            items={MOCK_PLATFORM_SETTINGS.branding}
-            labelFor={(key) => t(`fields.${key}`)}
-            stateLabelFor={(state) => t(`states.${state}`)}
-          />
-        </div>
-        <div className="min-w-0">
-          <SettingsSection
-            title={t('sections.authentication.title')}
-            description={t('sections.authentication.description')}
-            items={MOCK_PLATFORM_SETTINGS.authentication}
-            labelFor={(key) => t(`fields.${key}`)}
-            stateLabelFor={(state) => t(`states.${state}`)}
-          />
-        </div>
-        <div className="min-w-0">
-          <SettingsSection
-            title={t('sections.smtp.title')}
-            description={t('sections.smtp.description')}
-            items={MOCK_PLATFORM_SETTINGS.smtp}
-            labelFor={(key) => t(`fields.${key}`)}
-            stateLabelFor={(state) => t(`states.${state}`)}
-          />
-        </div>
-        <div className="min-w-0">
-          <SettingsSection
-            title={t('sections.oauth.title')}
-            description={t('sections.oauth.description')}
-            items={MOCK_PLATFORM_SETTINGS.oauth}
-            labelFor={(key) => t(`fields.${key}`)}
-            stateLabelFor={(state) => t(`states.${state}`)}
-          />
-        </div>
-        <div className="min-w-0">
-          <SettingsSection
-            title={t('sections.maintenanceMode.title')}
-            description={t('sections.maintenanceMode.description')}
-            items={MOCK_PLATFORM_SETTINGS.maintenanceMode}
-            labelFor={(key) => t(`fields.${key}`)}
-            stateLabelFor={(state) => t(`states.${state}`)}
-          />
-        </div>
-        <div className="min-w-0">
-          <SettingsSection
-            title={t('sections.platformConfiguration.title')}
-            description={t('sections.platformConfiguration.description')}
-            items={MOCK_PLATFORM_SETTINGS.configuration}
-            labelFor={(key) => t(`fields.${key}`)}
-            stateLabelFor={(state) => t(`states.${state}`)}
-          />
-        </div>
-      </div>
+      <PlatformSettingsPanels />
     </div>
   )
 }

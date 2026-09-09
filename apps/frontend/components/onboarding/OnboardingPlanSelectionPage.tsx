@@ -17,7 +17,7 @@ import {
 import { useRouter } from '@/i18n/navigation'
 import { type ApiError } from '@/lib/api'
 import {
-  ONBOARDING_PAYMENT_PATH,
+  onboardingPaymentPath,
   saveOnboardingCheckoutSession,
   savePendingOrganizationPlan,
 } from '@/lib/onboarding'
@@ -81,7 +81,12 @@ export function OnboardingPlanSelectionPage() {
         checkoutPlanId: selectedPlan.id,
         planName: selectedPlan.name,
       })
-      router.replace(ONBOARDING_PAYMENT_PATH)
+      router.replace(
+        onboardingPaymentPath({
+          planId: selectedPlan.id,
+          planName: selectedPlan.name,
+        })
+      )
     } catch (err) {
       lockRef.current = false
       const apiError = err as ApiError

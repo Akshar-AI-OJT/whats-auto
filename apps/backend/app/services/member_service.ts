@@ -180,6 +180,14 @@ export class MemberService {
         userId: member.userId as string,
       })
 
+      // Drop this org from the removed user's sessions so login/onboarding
+      // cannot keep treating them as still active in it.
+      await trx
+        .from('sessions')
+        .where('userId', member.userId as string)
+        .where('activeOrganizationId', organizationId)
+        .update({ activeOrganizationId: null })
+
       await trx.table('authorization_audits').insert({
         organizationId,
         actorUserId,
