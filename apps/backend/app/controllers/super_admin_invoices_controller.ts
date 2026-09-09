@@ -74,6 +74,21 @@ export default class SuperAdminInvoicesController {
   }
 
   /**
+   * @summary Platform seller identity for invoice preview (Super Admin)
+   * @description Display-ready “From” block from platform_settings. Empty billing fields map to Not configured — never a mock GSTIN. Requires platform:tenants_billing.
+   * @tag Super Admin
+   * @security BearerAuth
+   * @responseBody 200 - { "data": { "brandName": "WhatsAuto", "legalName": "Not configured", "gstin": "" } }
+   * @responseBody 401 - { "error": "Missing or invalid session" }
+   * @responseBody 403 - { "error": "Permission denied: platform:tenants_billing", "code": "PERMISSION_DENIED" }
+   */
+  @inject()
+  async billingProfile({ bouncer, serialize }: HttpContext, invoices: InvoiceService) {
+    await bouncer.with(SuperAdminPolicy).authorize('manageBilling')
+    return serialize(await invoices.getBillingProfile())
+  }
+
+  /**
    * @summary Create an invoice (Super Admin)
    * @description Generate a manual platform invoice for an organization. Requires platform:tenants_billing.
    * @tag Super Admin

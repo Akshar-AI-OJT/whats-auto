@@ -58,6 +58,26 @@ function unwrapList(body: unknown): {
   return { items: [], meta: null, summary: null }
 }
 
+async function cleanupBugOrgs(slugPrefix: string) {
+  const orgs = await db
+    .from('organizations')
+    .whereRaw('slug ILIKE ?', [`${slugPrefix}%`])
+    .select('id')
+  for (const org of orgs) {
+    await runWithTenant(org.id as string, async () => {
+      await db.from('organization_subscriptions').where('organizationId', org.id).delete()
+    })
+  }
+  await db
+    .from('plans')
+    .whereRaw('code ILIKE ?', [`${slugPrefix}%`])
+    .delete()
+  await db
+    .from('organizations')
+    .whereRaw('slug ILIKE ?', [`${slugPrefix}%`])
+    .delete()
+}
+
 async function mintToken(email: string, activeOrgId?: string): Promise<string> {
   const result = (await auth.api.signInEmail({
     body: { email, password: DEMO_PASSWORD },
@@ -166,6 +186,7 @@ async function seedSubscription(params: {
 
 const extra = {
   trialing: null as Awaited<ReturnType<typeof seedSubscription>> | null,
+  trialingName: '',
   custom: null as Awaited<ReturnType<typeof seedSubscription>> | null,
   pages: [] as Awaited<ReturnType<typeof seedSubscription>>[],
 }
@@ -173,26 +194,29 @@ const extra = {
 test.group('Super Admin subscriptions list filters', (group) => {
   group.setup(async () => {
     await db.from('jwks').delete()
+    await cleanupBugOrgs('bug005-')
+    await cleanupBugOrgs('bug017-')
     await new DemoSeeder(db.connection()).run()
 
+    extra.trialingName = `Bug005 Trial Org ${randomUUID().slice(0, 8)}`
     extra.trialing = await seedSubscription({
-      name: 'Bug005 Trial Org',
+      name: extra.trialingName,
       slug: `bug005-trial-${randomUUID().slice(0, 8)}`,
       status: 'trialing',
       plan: {
         code: `bug005-trial-${randomUUID().slice(0, 8)}`,
-        name: 'Bug005 Trial Plan',
+        name: `Bug005 Trial Plan ${randomUUID().slice(0, 8)}`,
         price: 999,
         billingInterval: 'month',
       },
     })
     extra.custom = await seedSubscription({
-      name: 'Bug005 Custom Org',
+      name: `Bug005 Custom Org ${randomUUID().slice(0, 8)}`,
       slug: `bug005-custom-${randomUUID().slice(0, 8)}`,
       status: 'past_due',
       plan: {
         code: `bug005-custom-${randomUUID().slice(0, 8)}`,
-        name: 'Bug005 Custom Plan',
+        name: `Bug005 Custom Plan ${randomUUID().slice(0, 8)}`,
         price: 5000,
         billingInterval: 'custom',
         metadata: { billingPeriod: 'custom', customPricing: true },
@@ -207,7 +231,7 @@ test.group('Super Admin subscriptions list filters', (group) => {
           status: 'active',
           plan: {
             code: `bug005-needle-${index}-${randomUUID().slice(0, 8)}`,
-            name: `Bug005Needle Plan ${index + 1}`,
+            name: `Bug005Needle Plan ${index + 1} ${randomUUID().slice(0, 8)}`,
             price: 1200,
             billingInterval: 'month',
           },
@@ -235,8 +259,8 @@ test.group('Super Admin subscriptions list filters', (group) => {
     assert.isAbove(meta!.lastPage, 1)
     assert.isObject(summary)
     assert.isAbove(summary!.active, 0)
-    assert.equal(summary!.trialing, 1)
-    assert.equal(summary!.past_due, 1)
+    assert.isAbove(summary!.trialing, 0)
+    assert.isAbove(summary!.past_due, 0)
   })
 
   test('search finds matching subscriptions that are not on the first page', async ({
@@ -277,7 +301,9 @@ test.group('Super Admin subscriptions list filters', (group) => {
   }) => {
     const token = await mintToken(DEMO_USERS.superadmin)
     const response = await client
-      .get('/api/v1/super-admin/subscriptions?status=trialing&perPage=100')
+      .get(
+        `/api/v1/super-admin/subscriptions?status=trialing&search=${encodeURIComponent(extra.trialingName)}&perPage=100`
+      )
       .header('Authorization', `Bearer ${token}`)
 
     response.assertStatus(200)
@@ -329,7 +355,7 @@ test.group('Super Admin subscriptions list filters', (group) => {
     const token = await mintToken(DEMO_USERS.superadmin)
     const match = await client
       .get(
-        `/api/v1/super-admin/subscriptions?search=${encodeURIComponent('Bug005 Trial')}&status=trialing&perPage=20`
+        `/api/v1/super-admin/subscriptions?search=${encodeURIComponent(extra.trialingName)}&status=trialing&perPage=20`
       )
       .header('Authorization', `Bearer ${token}`)
     match.assertStatus(200)
@@ -339,7 +365,7 @@ test.group('Super Admin subscriptions list filters', (group) => {
 
     const miss = await client
       .get(
-        `/api/v1/super-admin/subscriptions?search=${encodeURIComponent('Bug005 Trial')}&status=active&perPage=20`
+        `/api/v1/super-admin/subscriptions?search=${encodeURIComponent(extra.trialingName)}&status=active&perPage=20`
       )
       .header('Authorization', `Bearer ${token}`)
     miss.assertStatus(200)

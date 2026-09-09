@@ -17,6 +17,7 @@ import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
 import { queryKeys } from '@/lib/query-keys'
+import { invalidateAnalyticsAfterSubscriptionMutation } from '@/lib/super-admin-analytics-cache'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
@@ -256,15 +257,6 @@ export function SubscriptionsPage() {
     ? mapSubscriptionApiError(subsQuery.error, t('errors.loadFailed'))
     : null
 
-  function patchSubscriptions(
-    updater: (prev: SuperAdminSubscription[]) => SuperAdminSubscription[]
-  ) {
-    queryClient.setQueryData<typeof subsQuery.data>(subsQueryKey, (old) => {
-      if (!old) return old
-      return { ...old, items: updater(old.items) }
-    })
-  }
-
   const orgById = useMemo(() => {
     const map = new Map<string, AdminOrganizationListItem>()
     for (const org of organizations) map.set(org.id, org)
@@ -319,6 +311,13 @@ export function SubscriptionsPage() {
     return null
   }
 
+  async function refreshSubscriptionQueries() {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.subscriptionsRoot }),
+      invalidateAnalyticsAfterSubscriptionMutation(queryClient),
+    ])
+  }
+
   async function handleEditSave() {
     if (!editTarget || !editForm) return
     const validation = validateForm(editForm)
@@ -329,15 +328,13 @@ export function SubscriptionsPage() {
     setEditPending(true)
     setEditError(null)
     try {
-      const updated = await updateSuperAdminSubscription(editTarget.id, {
+      await updateSuperAdminSubscription(editTarget.id, {
         planId: editForm.planId.trim(),
         status: editForm.status,
         currentPeriodStart: dateInputToIso(editForm.startDate),
         currentPeriodEnd: dateInputToIso(editForm.endDate, true),
       })
-      patchSubscriptions((prev) =>
-        prev.map((row) => (row.id === updated.id ? { ...row, ...updated } : row))
-      )
+      await refreshSubscriptionQueries()
       setActionMessage(t('toast.updated'))
       setActionError(null)
       setEditTarget(null)
@@ -355,11 +352,7 @@ export function SubscriptionsPage() {
     setDeleteError(null)
     try {
       await deleteSuperAdminSubscription(deleteTarget.id)
-      patchSubscriptions((prev) => prev.filter((row) => row.id !== deleteTarget.id))
-      queryClient.setQueryData<typeof subsQuery.data>(subsQueryKey, (old) => {
-        if (!old) return old
-        return { ...old, total: Math.max(0, old.total - 1) }
-      })
+      await refreshSubscriptionQueries()
       setActionMessage(t('toast.deleted'))
       setActionError(null)
       setDeleteTarget(null)
@@ -923,19 +916,21 @@ export function SubscriptionsPage() {
               <PauseCircle className="size-3.5 shrink-0" aria-hidden />
               {t('actions.pause')}
             </button>
-            <button
-              type="button"
-              role="menuitem"
-              className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm text-negative hover:bg-negative/5"
-              onClick={() => {
-                setDeleteTarget(menuSubscription)
-                setDeleteError(null)
-                closeMenu()
-              }}
-            >
-              <Trash2 className="size-3.5 shrink-0" aria-hidden />
-              {t('actions.delete')}
-            </button>
+            {menuSubscription.status !== 'cancelled' ? (
+              <button
+                type="button"
+                role="menuitem"
+                className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm text-negative hover:bg-negative/5"
+                onClick={() => {
+                  setDeleteTarget(menuSubscription)
+                  setDeleteError(null)
+                  closeMenu()
+                }}
+              >
+                <Trash2 className="size-3.5 shrink-0" aria-hidden />
+                {t('actions.delete')}
+              </button>
+            ) : null}
           </>
         ) : null}
       </AdminOverflowMenu>

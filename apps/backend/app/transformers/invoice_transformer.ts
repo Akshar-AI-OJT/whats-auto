@@ -47,13 +47,23 @@ function toDateOnly(value: Date | string): string {
   return date.toISOString().slice(0, 10)
 }
 
+/** UTC calendar date (YYYY-MM-DD). List SQL pending/overdue filters must match this. */
+export function utcCalendarDate(now: Date = new Date()): string {
+  return now.toISOString().slice(0, 10)
+}
+
+/**
+ * Stored `pending` becomes `overdue` when dueDate is before UTC today.
+ * dueDate on or after UTC today stays `pending`. Other stored statuses are unchanged.
+ * Invoice list/summary SQL in invoice_repository mirrors this rule.
+ */
 export function resolveEffectiveInvoiceStatus(
   row: Pick<InvoiceRow, 'status' | 'dueDate'>,
   now: Date = new Date()
 ): InvoiceStatus {
   if (row.status === 'pending') {
     const due = toDateOnly(row.dueDate)
-    const today = now.toISOString().slice(0, 10)
+    const today = utcCalendarDate(now)
     if (due < today) {
       return 'overdue'
     }

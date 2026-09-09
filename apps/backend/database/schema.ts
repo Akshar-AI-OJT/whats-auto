@@ -2224,6 +2224,69 @@ export class PlatformAiConfigSchema extends BaseModel {
   declare workingSetSize: number
 }
 
+export class PlatformSettingSchema extends BaseModel {
+  static $columns = ['allowlistedIps', 'apiRateLimitPerMinute', 'billingAddress', 'billingBrandName', 'billingEmail', 'billingGstin', 'billingLegalName', 'billingPhone', 'billingTagline', 'billingWebsite', 'createdAt', 'dataRetentionDays', 'defaultTimezone', 'googleSignInEnabled', 'id', 'maintenanceEnabled', 'mfaEnforcement', 'microsoftSignInEnabled', 'nextMaintenanceWindow', 'oauthRedirectUrl', 'passwordMinLength', 'platformName', 'primaryDomain', 'sessionTimeoutHours', 'singletonKey', 'smtpDailyLimit', 'supportEmail', 'updatedAt', 'updatedByUserId'] as const
+  $columns = PlatformSettingSchema.$columns
+  @column()
+  declare allowlistedIps: any
+  @column()
+  declare apiRateLimitPerMinute: number
+  @column()
+  declare billingAddress: string
+  @column()
+  declare billingBrandName: string
+  @column()
+  declare billingEmail: string
+  @column()
+  declare billingGstin: string
+  @column()
+  declare billingLegalName: string
+  @column()
+  declare billingPhone: string
+  @column()
+  declare billingTagline: string
+  @column()
+  declare billingWebsite: string
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare dataRetentionDays: number
+  @column()
+  declare defaultTimezone: string
+  @column()
+  declare googleSignInEnabled: boolean
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare maintenanceEnabled: boolean
+  @column()
+  declare mfaEnforcement: string
+  @column()
+  declare microsoftSignInEnabled: boolean
+  @column.dateTime()
+  declare nextMaintenanceWindow: DateTime | null
+  @column()
+  declare oauthRedirectUrl: string
+  @column()
+  declare passwordMinLength: number
+  @column()
+  declare platformName: string
+  @column()
+  declare primaryDomain: string
+  @column()
+  declare sessionTimeoutHours: number
+  @column()
+  declare singletonKey: string
+  @column()
+  declare smtpDailyLimit: number
+  @column()
+  declare supportEmail: string
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+  @column()
+  declare updatedByUserId: string | null
+}
+
 export class RolePermissionSchema extends BaseModel {
   static $columns = ['permissionId', 'roleId'] as const
   $columns = RolePermissionSchema.$columns

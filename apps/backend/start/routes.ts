@@ -228,6 +228,32 @@ const requestBodySchemas: Record<string, JsonSchema> = {
     paymentMethod: { type: 'string', example: 'Manual' },
     paymentTransactionId: { type: 'string', format: 'uuid' },
   }),
+  'patch /api/v1/super-admin/platform-settings': bodySchema({
+    platformName: { type: 'string', example: 'WhatsAuto' },
+    primaryDomain: { type: 'string', example: 'app.whatsauto.com' },
+    supportEmail: { type: 'string', format: 'email', example: 'support@example.com' },
+    sessionTimeoutHours: { type: 'integer', example: 12 },
+    mfaEnforcement: { type: 'string', example: 'super_admin_and_platform_admin' },
+    passwordMinLength: { type: 'integer', example: 12 },
+    smtpDailyLimit: { type: 'integer', example: 50000 },
+    googleSignInEnabled: { type: 'boolean', example: true },
+    microsoftSignInEnabled: { type: 'boolean', example: false },
+    oauthRedirectUrl: {
+      type: 'string',
+      format: 'uri',
+      example: 'http://localhost:3000/auth/callback',
+    },
+    maintenanceEnabled: { type: 'boolean', example: false },
+    allowlistedIps: { type: 'array', items: { type: 'string', example: '127.0.0.1' } },
+    nextMaintenanceWindow: {
+      type: 'string',
+      format: 'date-time',
+      example: '2026-09-14T02:00:00.000Z',
+    },
+    defaultTimezone: { type: 'string', example: 'Asia/Kolkata' },
+    dataRetentionDays: { type: 'integer', example: 180 },
+    apiRateLimitPerMinute: { type: 'integer', example: 1000 },
+  }),
   'patch /api/v1/super-admin/ai-config': bodySchema({
     isEnabled: { type: 'boolean', example: true },
     chatProvider: { type: 'string', example: 'openai' },
@@ -817,6 +843,7 @@ router
     router.delete('/plans/:id', [SuperAdminPlansController, 'softDelete'])
 
     router.get('/invoices/summary', [SuperAdminInvoicesController, 'summary'])
+    router.get('/invoices/billing-profile', [SuperAdminInvoicesController, 'billingProfile'])
     router.get('/invoices', [SuperAdminInvoicesController, 'index'])
     router.post('/invoices', [SuperAdminInvoicesController, 'store'])
     router.get('/invoices/:id', [SuperAdminInvoicesController, 'show'])
@@ -825,9 +852,10 @@ router
     router.post('/invoices/:id/send', [SuperAdminInvoicesController, 'send'])
     router.get('/invoices/:id/download', [SuperAdminInvoicesController, 'download'])
 
+    router.get('/platform-settings', [SuperAdminPlatformSettingsController, 'show'])
+    router.patch('/platform-settings', [SuperAdminPlatformSettingsController, 'update'])
     router.get('/ai-config', [SuperAdminAiConfigController, 'show'])
     router.patch('/ai-config', [SuperAdminAiConfigController, 'update'])
-    router.get('/platform-settings', [SuperAdminPlatformSettingsController, 'show'])
     router.get('/audit-logs', [SuperAdminAuditController, 'index'])
     router.get('/analytics/summary', [SuperAdminAnalyticsController, 'summary'])
     router.get('/platform-users', [SuperAdminPlatformUsersController, 'index'])
