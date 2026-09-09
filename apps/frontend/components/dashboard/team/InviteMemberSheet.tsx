@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { api, type ApiError, type CreatedInvitation } from '@/lib/api'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { ASSIGNABLE_ROLES, isValidEmail, isValidPhone, type AssignableRole } from '@/lib/onboarding'
+import { useRouter } from '@/i18n/navigation'
 import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
@@ -52,6 +53,7 @@ function unwrapCreatedInvitation(payload: unknown): CreatedInvitation | null {
  */
 export function InviteMemberSheet({ open, onOpenChange, onInvited }: InviteMemberFormProps) {
   const t = useTranslations('dashboard.team.invite')
+  const router = useRouter()
   const { tenantOrganizationId, canInviteMembers, isLoading: orgsLoading } = useOrganizations()
   const emailId = useId()
   const firstnameId = useId()
@@ -113,6 +115,7 @@ export function InviteMemberSheet({ open, onOpenChange, onInvited }: InviteMembe
       if (apiError.code === 'ORG_ID_MISMATCH') return t('errors.orgMismatch')
       return t('errors.permissionDenied')
     }
+    if (apiError.code === 'E_ORG_SMTP_REQUIRED') return t('errors.smtpRequired')
     if (apiError.code === 'E_INVITE_ALREADY_MEMBER') return t('errors.alreadyMember')
     if (apiError.code === 'E_SUPERADMIN_NOT_INVITABLE') return t('errors.superadminNotInvitable')
     if (apiError.code === 'E_INVITE_OWNER_PROTECTED') return t('errors.ownerNotInvitable')
@@ -122,6 +125,12 @@ export function InviteMemberSheet({ open, onOpenChange, onInvited }: InviteMembe
     // Bare fetch fallback ("Request failed") when statusText/body are empty — show generic copy.
     if (!apiError.message || apiError.message === 'Request failed') return t('errors.generic')
     return apiError.message
+  }
+
+  function redirectToSmtpSettings() {
+    reset()
+    onOpenChange(false)
+    router.push('/dashboard/settings?section=smtp')
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -177,7 +186,12 @@ export function InviteMemberSheet({ open, onOpenChange, onInvited }: InviteMembe
       }
       submitLockRef.current = false
     } catch (err) {
-      setError(mapInviteError(err as ApiError))
+      const apiError = err as ApiError
+      if (apiError.code === 'E_ORG_SMTP_REQUIRED') {
+        redirectToSmtpSettings()
+        return
+      }
+      setError(mapInviteError(apiError))
       submitLockRef.current = false
     } finally {
       setPending(false)
