@@ -1,10 +1,52 @@
 import type { OrganizationAddress, OrganizationSummary } from '@/lib/api'
 
 export const ORG_PROFILE_PATH = '/onboarding/organization-profile'
+export const ORGANIZATION_ID_QUERY_PARAM = 'organizationId'
+export const BILLING_PATH = '/dashboard/billing'
+
+const ORGANIZATION_ID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+export function isOrganizationId(value: string | null | undefined): value is string {
+  return Boolean(value && ORGANIZATION_ID_RE.test(value))
+}
+
+/** Profile completion URL scoped to a specific organization (survives refresh). */
+export function organizationProfilePath(organizationId?: string | null): string {
+  if (!isOrganizationId(organizationId)) return ORG_PROFILE_PATH
+  const params = new URLSearchParams({ [ORGANIZATION_ID_QUERY_PARAM]: organizationId })
+  return `${ORG_PROFILE_PATH}?${params.toString()}`
+}
+
+export function readOrganizationIdQueryParam(): string | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const value = new URLSearchParams(window.location.search).get(ORGANIZATION_ID_QUERY_PARAM)
+    return isOrganizationId(value) ? value : null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Create-org sentinels — must stay aligned with backend
+ * `CREATE_PLACEHOLDER_*` in `apps/backend/lib/organization_profile_completion.ts`.
+ * They satisfy the create API but do not complete the profile gate.
+ */
+export const CREATE_PLACEHOLDER_PAN = 'SETUP0000A'
+export const CREATE_PLACEHOLDER_ADDRESS = 'Address pending'
+
+export function isCreatePlaceholderPan(value: string | null | undefined): boolean {
+  return (value ?? '').trim().replace(/\s+/g, '').toUpperCase() === CREATE_PLACEHOLDER_PAN
+}
+
+export function isCreatePlaceholderAddress(value: string | null | undefined): boolean {
+  return (value ?? '').trim().toLowerCase() === CREATE_PLACEHOLDER_ADDRESS.toLowerCase()
+}
 
 export type OrganizationProfileSource = Pick<
   OrganizationSummary,
-  'name' | 'email' | 'country'
+  'name' | 'email' | 'country' | 'pan' | 'gstin'
 > &
   Partial<
     Pick<
@@ -19,6 +61,8 @@ export type OrganizationProfileSource = Pick<
       | 'alternatePhone'
       | 'defaultLanguage'
       | 'businessRegistrationNumber'
+      | 'timezone'
+      | 'currency'
     >
   >
 
@@ -34,22 +78,38 @@ export type OrganizationProfileFormValues = {
   description: string
   defaultLanguage: string
   businessRegistrationNumber: string
+  pan: string
+  gstin: string
   addressLine1: string
   addressLine2: string
   city: string
   state: string
   postalCode: string
   country: string
+  timezone: string
+  currency: string
+  dateFormat: string
+  timeFormat: string
+  themePreference: string
+  notifications: string[]
+  designation: string
+  ownerPhone: string
   /** True when a ready profile media asset exists (or was uploaded this session). */
   hasLogo: boolean
 }
 
-/** Fields required before the owner may finish initial setup / enter the dashboard. */
+/**
+ * Fields required before the owner may finish initial setup / enter the dashboard.
+ * Must stay aligned with `ORGANIZATION_REQUIRED_PROFILE_FIELDS` in
+ * `apps/backend/lib/organization_profile_completion.ts`.
+ * Placeholder PAN (`SETUP0000A`) and address (`Address pending`) are not complete.
+ */
 export const REQUIRED_PROFILE_FIELDS = [
   'name',
   'email',
   'industry',
   'businessSize',
+  'pan',
   'addressLine1',
   'city',
   'state',
@@ -66,6 +126,7 @@ export const OPTIONAL_PROFILE_FIELDS = [
   'description',
   'defaultLanguage',
   'businessRegistrationNumber',
+  'gstin',
   'addressLine2',
   'hasLogo',
 ] as const
@@ -123,9 +184,10 @@ export function formatOrganizationAddressLines(
   country?: string | null
 ): string {
   const parsed = parseOrganizationAddress(address)
+  const line1 = isCreatePlaceholderAddress(parsed?.addressLine1) ? '' : parsed?.addressLine1
   if (!parsed && !country?.trim()) return ''
   return [
-    parsed?.addressLine1,
+    line1,
     parsed?.addressLine2,
     parsed?.city,
     parsed?.state,
@@ -143,11 +205,29 @@ function isFilled(value: unknown): boolean {
   return false
 }
 
+function isRequiredProfileValueFilled(key: (typeof REQUIRED_PROFILE_FIELDS)[number], value: unknown): boolean {
+  if (key === 'pan' && typeof value === 'string' && isCreatePlaceholderPan(value)) return false
+  if (key === 'addressLine1' && typeof value === 'string' && isCreatePlaceholderAddress(value)) {
+    return false
+  }
+  return isFilled(value)
+}
+
 export function organizationToProfileFormValues(
   org: OrganizationProfileSource,
-  extras?: { hasLogo?: boolean }
+  extras?: {
+    hasLogo?: boolean
+    dateFormat?: string
+    timeFormat?: string
+    themePreference?: string
+    notifications?: string[]
+    designation?: string
+    ownerPhone?: string
+  }
 ): OrganizationProfileFormValues {
   const address = parseOrganizationAddress(org.address)
+  const rawPan = org.pan?.trim() ?? ''
+  const rawLine1 = address?.addressLine1?.trim() ?? ''
   return {
     name: org.name?.trim() ?? '',
     email: org.email?.trim() ?? '',
@@ -160,12 +240,22 @@ export function organizationToProfileFormValues(
     description: org.description?.trim() ?? '',
     defaultLanguage: org.defaultLanguage?.trim() ?? '',
     businessRegistrationNumber: org.businessRegistrationNumber?.trim() ?? '',
-    addressLine1: address?.addressLine1?.trim() ?? '',
+    pan: isCreatePlaceholderPan(rawPan) ? '' : rawPan,
+    gstin: org.gstin?.trim() ?? '',
+    addressLine1: isCreatePlaceholderAddress(rawLine1) ? '' : rawLine1,
     addressLine2: address?.addressLine2?.trim() ?? '',
     city: address?.city?.trim() ?? '',
     state: address?.state?.trim() ?? '',
     postalCode: address?.postalCode?.trim() ?? '',
     country: (org.country ?? '').trim(),
+    timezone: org.timezone?.trim() ?? '',
+    currency: org.currency?.trim() ?? '',
+    dateFormat: extras?.dateFormat?.trim() ?? 'DD/MM/YYYY',
+    timeFormat: extras?.timeFormat?.trim() ?? '12h',
+    themePreference: extras?.themePreference?.trim() ?? 'system',
+    notifications: extras?.notifications ?? ['emailUpdates', 'campaignAlerts'],
+    designation: extras?.designation?.trim() ?? '',
+    ownerPhone: extras?.ownerPhone?.trim() ?? '',
     hasLogo: extras?.hasLogo ?? false,
   }
 }
@@ -173,7 +263,9 @@ export function organizationToProfileFormValues(
 export function calculateOrganizationProfileCompletion(
   values: OrganizationProfileFormValues
 ): ProfileCompletionResult {
-  const missingRequired = REQUIRED_PROFILE_FIELDS.filter((key) => !isFilled(values[key]))
+  const missingRequired = REQUIRED_PROFILE_FIELDS.filter(
+    (key) => !isRequiredProfileValueFilled(key, values[key])
+  )
   const missingOptional = OPTIONAL_PROFILE_FIELDS.filter((key) => !isFilled(values[key]))
 
   const totalRequired = REQUIRED_PROFILE_FIELDS.length
@@ -205,6 +297,18 @@ export function isOrganizationRequiredProfileComplete(
   ).requiredComplete
 }
 
+export function isSubscriptionPending(status: string | null | undefined): boolean {
+  return status === 'pending_setup' || status === 'verified_setup'
+}
+
+export function hasFullProductAccess(input: {
+  status?: string | null
+  organization?: OrganizationProfileSource | null
+}): boolean {
+  if (!input.organization || input.status !== 'active') return false
+  return isOrganizationRequiredProfileComplete(input.organization)
+}
+
 export function buildOrganizationProfileUpdateBody(values: OrganizationProfileFormValues): {
   name: string
   phone?: string
@@ -216,7 +320,12 @@ export function buildOrganizationProfileUpdateBody(values: OrganizationProfileFo
   alternatePhone: string | null
   defaultLanguage: string | null
   businessRegistrationNumber: string | null
+  pan?: string
+  gstin?: string
   country: string
+  timezone?: string
+  currency?: string
+  designation?: string | null
   address: ProfileAddressPayload
 } {
   const organizationType =
@@ -234,6 +343,10 @@ export function buildOrganizationProfileUpdateBody(values: OrganizationProfileFo
       ? website
       : `https://${website}`
     : ''
+  const gstin = values.gstin.trim().replace(/\s+/g, '').toUpperCase()
+  const pan = values.pan.trim().replace(/\s+/g, '').toUpperCase()
+  const timezone = values.timezone.trim()
+  const currency = values.currency.trim()
 
   return {
     name: values.name.trim(),
@@ -246,7 +359,12 @@ export function buildOrganizationProfileUpdateBody(values: OrganizationProfileFo
     alternatePhone: values.alternatePhone.trim() || null,
     defaultLanguage: values.defaultLanguage.trim() || null,
     businessRegistrationNumber: values.businessRegistrationNumber.trim() || null,
+    ...(pan ? { pan } : {}),
+    ...(gstin ? { gstin } : {}),
     country: values.country.trim(),
+    ...(timezone ? { timezone } : {}),
+    ...(currency ? { currency } : {}),
+    designation: values.designation.trim() || null,
     address: {
       addressLine1: values.addressLine1.trim(),
       addressLine2: values.addressLine2.trim() || null,

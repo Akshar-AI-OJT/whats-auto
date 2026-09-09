@@ -4,8 +4,9 @@ import type { InferDriveDisks } from '@adonisjs/drive/types'
 import env from '#start/env'
 
 /**
- * Drive disks mirror OBJECT_STORAGE_DRIVER.
- * Media uploads use ObjectStorage; Drive stays available for other disk ops.
+ * Drive disks mirror OBJECT_STORAGE_DRIVER for package compatibility.
+ * **Organization uploads must use ObjectStorage** (media, knowledge, contact-import
+ * CSVs under organizations/{id}/…), not Drive APIs directly.
  * Public WhatsApp/media links use MEDIA_PUBLIC_BASE_URL, not ACLs.
  *
  * Both disks are registered so InferDriveDisks stays stable across fs/s3 env;
@@ -27,7 +28,8 @@ const s3AccessKeyId = env.get('S3_ACCESS_KEY_ID') ?? 'unused'
 const s3SecretAccessKey = env.get('S3_SECRET_ACCESS_KEY')?.release() ?? 'unused'
 const s3Region = env.get('S3_REGION') ?? 'unused'
 const s3Bucket = env.get('S3_BUCKET') ?? 'unused'
-const s3Endpoint = env.get('S3_ENDPOINT') ?? 'https://example.invalid'
+const s3Endpoint = env.get('S3_ENDPOINT') ?? undefined
+const s3ForcePathStyle = env.get('S3_FORCE_PATH_STYLE')
 
 const diskServices = {
   fs: services.fs({
@@ -42,8 +44,12 @@ const diskServices = {
     },
     region: s3Region,
     bucket: s3Bucket,
-    endpoint: s3Endpoint,
-    forcePathStyle: env.get('S3_FORCE_PATH_STYLE') ?? true,
+    ...(s3Endpoint
+      ? { endpoint: s3Endpoint }
+      : driver === 'fs'
+        ? { endpoint: 'https://example.invalid' }
+        : {}),
+    ...(s3ForcePathStyle !== undefined ? { forcePathStyle: s3ForcePathStyle } : {}),
     visibility: 'private' as const,
   }),
 }

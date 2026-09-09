@@ -6,7 +6,9 @@ import {
   type SuperAdminPlan,
   type SuperAdminPlanStatus,
   type SuperAdminSubscription,
+  type SuperAdminSubscriptionListSummary,
   type SuperAdminSubscriptionStatus,
+  type ListSuperAdminSubscriptionsParams,
   type UpdateSuperAdminSubscriptionBody,
 } from '@/lib/api'
 
@@ -140,43 +142,136 @@ export function toPlanSelectOptions(
     }))
 }
 
-function unwrapPaginated(
-  data: unknown
-): { items: SuperAdminSubscription[]; meta: PaginationMeta | null } {
-  if (!data) return { items: [], meta: null }
-  if (Array.isArray(data)) return { items: data, meta: null }
+function pickScalar(record: Record<string, unknown>, ...keys: string[]): string {
+  for (const key of keys) {
+    const value = record[key]
+    if (value == null) continue
+    if (typeof value === 'string') return value.trim()
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value)
+  }
+  return ''
+}
 
-  const root = data as {
-    data?: SuperAdminSubscription[] | { data?: SuperAdminSubscription[]; meta?: PaginationMeta }
-    meta?: PaginationMeta
+function flattenSubscriptionRecord(raw: Record<string, unknown>): Record<string, unknown> {
+  const attributes = raw.attributes
+  if (attributes && typeof attributes === 'object' && !Array.isArray(attributes)) {
+    return { ...(attributes as Record<string, unknown>), ...raw }
+  }
+  return raw
+}
+
+/** Normalize list/get/create/update payloads (Knex camelCase or Lucid snake_case). */
+export function normalizeSuperAdminSubscription(raw: unknown): SuperAdminSubscription | null {
+  if (!raw || typeof raw !== 'object') return null
+
+  let record = flattenSubscriptionRecord(raw as Record<string, unknown>)
+
+  for (let depth = 0; depth < 4; depth++) {
+    record = flattenSubscriptionRecord(record)
+
+    const id = pickScalar(record, 'id')
+    const organizationId = pickScalar(record, 'organizationId', 'organization_id')
+    const planId = pickScalar(record, 'planId', 'plan_id')
+
+    if (id && organizationId && planId) {
+      return {
+        id,
+        organizationId,
+        planId,
+        status: pickScalar(record, 'status') || 'active',
+        currentPeriodStart: pickScalar(
+          record,
+          'currentPeriodStart',
+          'current_period_start'
+        ),
+        currentPeriodEnd: pickScalar(record, 'currentPeriodEnd', 'current_period_end'),
+        cancelAt: (record.cancelAt ?? record.cancel_at ?? null) as string | null,
+        createdAt: pickScalar(record, 'createdAt', 'created_at') || undefined,
+        updatedAt: (pickScalar(record, 'updatedAt', 'updated_at') || null) as string | null,
+      }
+    }
+
+    if (typeof record.data === 'object' && record.data !== null) {
+      record = record.data as Record<string, unknown>
+      continue
+    }
+
+    break
   }
 
+  return null
+}
+
+function unwrapPaginated(
+  data: unknown
+): {
+  items: SuperAdminSubscription[]
+  meta: PaginationMeta | null
+  summary: SuperAdminSubscriptionListSummary | null
+} {
+  if (!data) return { items: [], meta: null, summary: null }
+  if (Array.isArray(data)) {
+    return {
+      items: data
+        .map((item) => normalizeSuperAdminSubscription(item))
+        .filter((item): item is SuperAdminSubscription => item !== null),
+      meta: null,
+      summary: null,
+    }
+  }
+
+  const root = data as {
+    data?:
+      | SuperAdminSubscription[]
+      | {
+          data?: SuperAdminSubscription[]
+          meta?: PaginationMeta
+          summary?: SuperAdminSubscriptionListSummary
+        }
+    meta?: PaginationMeta
+    summary?: SuperAdminSubscriptionListSummary
+  }
+
+  const summary = root.summary ?? null
+
   if (Array.isArray(root.data)) {
-    return { items: root.data, meta: root.meta ?? null }
+    return {
+      items: root.data
+        .map((item) => normalizeSuperAdminSubscription(item))
+        .filter((item): item is SuperAdminSubscription => item !== null),
+      meta: root.meta ?? null,
+      summary,
+    }
   }
 
   if (root.data && typeof root.data === 'object' && Array.isArray(root.data.data)) {
-    return { items: root.data.data, meta: root.data.meta ?? root.meta ?? null }
+    return {
+      items: root.data.data
+        .map((item) => normalizeSuperAdminSubscription(item))
+        .filter((item): item is SuperAdminSubscription => item !== null),
+      meta: root.data.meta ?? root.meta ?? null,
+      summary: root.data.summary ?? summary,
+    }
   }
 
-  return { items: [], meta: null }
+  return { items: [], meta: null, summary }
 }
 
 function unwrapSubscription(data: unknown): SuperAdminSubscription {
-  if (!data || typeof data !== 'object') {
+  const subscription = normalizeSuperAdminSubscription(data)
+  if (!subscription) {
     throw new Error('Invalid subscription response')
   }
-  const root = data as { data?: SuperAdminSubscription } & SuperAdminSubscription
-  if (root.data && typeof root.data === 'object' && 'id' in root.data) {
-    return root.data
-  }
-  return root as SuperAdminSubscription
+  return subscription
 }
 
-export async function listSuperAdminSubscriptions(params: {
-  page?: number
-  perPage?: number
-}): Promise<{ items: SuperAdminSubscription[]; meta: PaginationMeta | null }> {
+export async function listSuperAdminSubscriptions(
+  params: ListSuperAdminSubscriptionsParams = {}
+): Promise<{
+  items: SuperAdminSubscription[]
+  meta: PaginationMeta | null
+  summary: SuperAdminSubscriptionListSummary | null
+}> {
   const { data } = await api.superAdmin.subscriptions.list(params)
   return unwrapPaginated(data)
 }
@@ -201,7 +296,21 @@ export async function getSuperAdminSubscription(
   subscriptionId: string
 ): Promise<SuperAdminSubscription> {
   const { data } = await api.superAdmin.subscriptions.get(subscriptionId)
-  return unwrapSubscription(data)
+  const direct = normalizeSuperAdminSubscription(data)
+  if (direct) return direct
+
+  // Fallback: list endpoint already returns normalized Knex rows.
+  let page = 1
+  let lastPage = 1
+  do {
+    const { items, meta } = await listSuperAdminSubscriptions({ page, perPage: 100 })
+    const found = items.find((item) => item.id === subscriptionId)
+    if (found) return found
+    lastPage = meta?.lastPage ?? page
+    page += 1
+  } while (page <= lastPage && page <= 20)
+
+  throw new Error('Invalid subscription response')
 }
 
 export async function createSuperAdminSubscription(
@@ -240,6 +349,9 @@ export function mapSubscriptionApiError(error: unknown, fallback: string): strin
   }
   if (apiError.code === 'E_SUBSCRIPTION_ALREADY_DELETED') {
     return 'Subscription is already cancelled.'
+  }
+  if (error instanceof Error && error.message === 'Invalid subscription response') {
+    return 'Subscription not found.'
   }
   return apiError.message || fallback
 }

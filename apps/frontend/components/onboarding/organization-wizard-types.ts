@@ -97,6 +97,8 @@ export type OrganizationWizardState = {
   logoPreviewUrl: string | null
   organizationType: OrganizationTypeOption | ''
   address: string
+  pan: string
+  gstin: string
   industry: IndustryOption | ''
   companySize: CompanySizeOption | ''
   country: string
@@ -121,6 +123,8 @@ export type OrganizationWizardBasicsErrors = {
 export type OrganizationWizardCompanyErrors = {
   organizationType?: string
   address?: string
+  pan?: string
+  gstin?: string
   industry?: string
   companySize?: string
   country?: string

@@ -24,7 +24,7 @@ export default class PreSignupController {
    * @responseBody 500 - { "error": "Failed to send OTP. Please try again." }
    * @responseBody 429 - { "error": "Too many requests. Please try again later.", "code": "RATE_LIMITED" }
    */
-  async handle({ request, response }: HttpContext) {
+  async handle({ request, response, logger }: HttpContext) {
     const { firstname, lastname, email, password } = await request.validateUsing(preSignupValidator)
 
     const { rows } = await pool.query(`SELECT id FROM "users" WHERE "email" = $1 LIMIT 1`, [email])
@@ -49,7 +49,8 @@ export default class PreSignupController {
         lastSentAt: Date.now(),
       })
       await sendSignupOtpEmail(email, otp)
-    } catch {
+    } catch (error) {
+      logger.error({ err: error, email }, 'auth.pre_signup.otp_send_failed')
       return response.internalServerError({ error: 'Failed to send OTP. Please try again.' })
     }
 
@@ -67,7 +68,7 @@ export default class PreSignupController {
    * @responseBody 429 - { "error": "Please wait 45s before requesting another code.", "code": "RESEND_COOLDOWN", "retryAfter": 45 }
    * @responseBody 500 - { "error": "Failed to send OTP. Please try again." }
    */
-  async resend({ request, response }: HttpContext) {
+  async resend({ request, response, logger }: HttpContext) {
     const { email } = await request.validateUsing(resendSignupOtpValidator)
     const pending = await loadPendingSignup(email)
 
@@ -100,7 +101,8 @@ export default class PreSignupController {
         lastSentAt: Date.now(),
       })
       await sendSignupOtpEmail(email, otp)
-    } catch {
+    } catch (error) {
+      logger.error({ err: error, email }, 'auth.pre_signup.otp_resend_failed')
       return response.internalServerError({ error: 'Failed to send OTP. Please try again.' })
     }
 

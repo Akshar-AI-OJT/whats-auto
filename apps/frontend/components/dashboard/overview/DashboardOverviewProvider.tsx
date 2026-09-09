@@ -47,8 +47,14 @@ export function DashboardOverviewProvider({
   children: ReactNode
   noDetailsLabel: string
 }) {
-  const { tenantOrganizationId, isLoading: orgsLoading } = useOrganizations()
-  const enabled = Boolean(tenantOrganizationId) && !orgsLoading
+  const {
+    tenantOrganizationId,
+    isLoading: orgsLoading,
+    hasFullProductAccess,
+    isResolvingAccess,
+  } = useOrganizations()
+  const enabled =
+    Boolean(tenantOrganizationId) && !orgsLoading && !isResolvingAccess && hasFullProductAccess
 
   const contactsQuery = useQuery({
     queryKey: queryKeys.overview.contacts(tenantOrganizationId),
@@ -91,9 +97,11 @@ export function DashboardOverviewProvider({
 
   const kpisLoading =
     orgsLoading ||
-    contactsQuery.isLoading ||
-    conversationsQuery.isLoading ||
-    campaignsQuery.isLoading
+    isResolvingAccess ||
+    !tenantOrganizationId ||
+    contactsQuery.isPending ||
+    conversationsQuery.isPending ||
+    campaignsQuery.isPending
 
   const kpisError =
     contactsQuery.isError || conversationsQuery.isError || campaignsQuery.isError
@@ -126,38 +134,39 @@ export function DashboardOverviewProvider({
       refetchKpis,
       conversations: conversationsQuery.data?.items ?? [],
       conversationsTotal: conversationsQuery.data?.total ?? 0,
-      conversationsLoading: orgsLoading || conversationsQuery.isLoading,
+      conversationsLoading: orgsLoading || isResolvingAccess || !tenantOrganizationId || conversationsQuery.isPending,
       conversationsError: conversationsQuery.isError,
       refetchConversations,
       campaigns: campaignsQuery.data?.recent ?? [],
-      campaignsLoading: orgsLoading || campaignsQuery.isLoading,
+      campaignsLoading: orgsLoading || isResolvingAccess || !tenantOrganizationId || campaignsQuery.isPending,
       campaignsError: campaignsQuery.isError,
       refetchCampaigns,
       auditEvents: auditQuery.data ?? [],
       auditItems,
-      auditLoading: orgsLoading || auditQuery.isLoading,
+      auditLoading: orgsLoading || isResolvingAccess || !tenantOrganizationId || auditQuery.isPending,
       auditError: auditQuery.isError,
       refetchAudit,
     }),
     [
       tenantOrganizationId,
       orgsLoading,
+      isResolvingAccess,
       kpis,
       kpisLoading,
       kpisError,
       refetchKpis,
       conversationsQuery.data?.items,
       conversationsQuery.data?.total,
-      conversationsQuery.isLoading,
+      conversationsQuery.isPending,
       conversationsQuery.isError,
       refetchConversations,
       campaignsQuery.data?.recent,
-      campaignsQuery.isLoading,
+      campaignsQuery.isPending,
       campaignsQuery.isError,
       refetchCampaigns,
       auditQuery.data,
       auditItems,
-      auditQuery.isLoading,
+      auditQuery.isPending,
       auditQuery.isError,
       refetchAudit,
     ]

@@ -147,8 +147,10 @@ export class AiUsageLogSchema extends BaseModel {
     'latencyMs',
     'messageId',
     'modelName',
+    'operationType',
     'organizationId',
     'promptTokens',
+    'provider',
     'retrievalScore',
     'totalTokens',
   ] as const
@@ -156,7 +158,7 @@ export class AiUsageLogSchema extends BaseModel {
   @column()
   declare completionTokens: number
   @column()
-  declare conversationId: string
+  declare conversationId: string | null
   @column.dateTime()
   declare createdAt: DateTime
   @column()
@@ -172,9 +174,13 @@ export class AiUsageLogSchema extends BaseModel {
   @column()
   declare modelName: string
   @column()
+  declare operationType: string
+  @column()
   declare organizationId: string
   @column()
   declare promptTokens: number
+  @column()
+  declare provider: string
   @column()
   declare retrievalScore: string | null
   @column()
@@ -529,9 +535,11 @@ export class ContactImportSchema extends BaseModel {
     'completedAt',
     'createdAt',
     'createdByUserId',
+    'csvContent',
     'defaultCountryCode',
     'errorCount',
     'fileName',
+    'filePath',
     'id',
     'organizationId',
     'processedRows',
@@ -550,11 +558,15 @@ export class ContactImportSchema extends BaseModel {
   @column()
   declare createdByUserId: string | null
   @column()
+  declare csvContent: string | null
+  @column()
   declare defaultCountryCode: string | null
   @column()
   declare errorCount: number
   @column()
   declare fileName: string
+  @column()
+  declare filePath: string | null
   @column({ isPrimary: true })
   declare id: string
   @column()
@@ -741,6 +753,60 @@ export class ConversationSchema extends BaseModel {
   declare updatedAt: DateTime | null
   @column()
   declare whatsappConfigId: string
+}
+
+export class DemoBookingSchema extends BaseModel {
+  static $columns = [
+    'calendarEventId',
+    'company',
+    'companySize',
+    'createdAt',
+    'demoTimeZone',
+    'email',
+    'endsAt',
+    'fullName',
+    'id',
+    'meetingUrl',
+    'phone',
+    'purpose',
+    'startsAt',
+    'status',
+    'timeZone',
+    'updatedAt',
+  ] as const
+  $columns = DemoBookingSchema.$columns
+  @column()
+  declare calendarEventId: string | null
+  @column()
+  declare company: string | null
+  @column()
+  declare companySize: string | null
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare demoTimeZone: string
+  @column()
+  declare email: string
+  @column.dateTime()
+  declare endsAt: DateTime
+  @column()
+  declare fullName: string
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare meetingUrl: string | null
+  @column()
+  declare phone: string | null
+  @column()
+  declare purpose: string | null
+  @column.dateTime()
+  declare startsAt: DateTime
+  @column()
+  declare status: string
+  @column()
+  declare timeZone: string
+  @column.dateTime()
+  declare updatedAt: DateTime | null
 }
 
 export class FlowExecutionLogSchema extends BaseModel {
@@ -1458,6 +1524,8 @@ export class OrganizationInvitationSchema extends BaseModel {
     'organizationId',
     'roleId',
     'status',
+    'tokenHash',
+    'userId',
   ] as const
   $columns = OrganizationInvitationSchema.$columns
   @column.dateTime()
@@ -1476,6 +1544,10 @@ export class OrganizationInvitationSchema extends BaseModel {
   declare roleId: string
   @column()
   declare status: string
+  @column()
+  declare tokenHash: string | null
+  @column()
+  declare userId: string | null
 }
 
 export class OrganizationMemberSchema extends BaseModel {
@@ -2391,10 +2463,12 @@ export class VerificationSchema extends BaseModel {
 export class WhatsappConfigSchema extends BaseModel {
   static $columns = [
     'accessToken',
+    'businessId',
     'connectedAt',
     'createdAt',
     'createdByUserId',
     'id',
+    'metaVerificationStatus',
     'organizationId',
     'phoneNumberId',
     'registeredAt',
@@ -2407,6 +2481,8 @@ export class WhatsappConfigSchema extends BaseModel {
   $columns = WhatsappConfigSchema.$columns
   @column()
   declare accessToken: string
+  @column()
+  declare businessId: string | null
   @column.dateTime()
   declare connectedAt: DateTime | null
   @column.dateTime()
@@ -2415,6 +2491,8 @@ export class WhatsappConfigSchema extends BaseModel {
   declare createdByUserId: string | null
   @column({ isPrimary: true })
   declare id: string
+  @column()
+  declare metaVerificationStatus: string | null
   @column()
   declare organizationId: string
   @column()

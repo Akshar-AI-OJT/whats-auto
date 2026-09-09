@@ -76,8 +76,9 @@ export function TemplatesListPage() {
       ...(statusTab !== 'all' ? { status: statusTab } : {}),
       ...(category ? { category } : {}),
       ...(search.trim() ? { search: search.trim() } : {}),
+      ...(language.trim() ? { language: language.trim() } : {}),
     }),
-    [page, statusTab, category, search]
+    [page, statusTab, category, search, language]
   )
 
   const hasActiveFilters = Boolean(
@@ -149,11 +150,7 @@ export function TemplatesListPage() {
     },
   })
 
-  const items = useMemo(() => {
-    const rows = templatesQuery.data?.items ?? []
-    if (!language) return rows
-    return rows.filter((row) => (row.language ?? '') === language)
-  }, [templatesQuery.data?.items, language])
+  const items = templatesQuery.data?.items ?? []
 
   const meta = templatesQuery.data?.meta
   const total = meta?.total ?? items.length

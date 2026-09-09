@@ -1,4 +1,5 @@
 import db from '@adonisjs/lucid/services/db'
+import type { OrganizationStatusValue } from '#enums/organization_status'
 
 export type PlatformUserStatusFilter = 'active' | 'inactive' | 'all'
 
@@ -16,7 +17,8 @@ export type PlatformUserOrganization = {
   organizationId: string
   organizationName: string
   organizationSlug: string
-  organizationStatus: boolean
+  /** Exact organizations.status string — never Boolean()-coerced. */
+  organizationStatus: OrganizationStatusValue | string
   role: string
   roleId: string
 }
@@ -55,8 +57,8 @@ type MembershipRow = {
   organizationId: string
   organizationName: string
   organizationSlug: string
-  organizationStatus: boolean
-  role: string
+  organizationStatus: OrganizationStatusValue | string
+  role: string | null
   roleId: string
 }
 
@@ -172,7 +174,7 @@ export class SuperAdminPlatformUsersService {
     const rows = (await db
       .from('organization_members as m')
       .innerJoin('organizations as o', 'o.id', 'm.organizationId')
-      .innerJoin('roles as r', 'r.id', 'm.roleId')
+      .leftJoin('roles as r', 'r.id', 'm.roleId')
       .whereIn('m.userId', userIds)
       .where('m.isDeleted', false)
       .select(
@@ -195,8 +197,8 @@ export class SuperAdminPlatformUsersService {
         organizationId: row.organizationId,
         organizationName: row.organizationName,
         organizationSlug: row.organizationSlug,
-        organizationStatus: Boolean(row.organizationStatus),
-        role: row.role,
+        organizationStatus: String(row.organizationStatus ?? ''),
+        role: row.role ?? 'member',
         roleId: row.roleId,
       })
       byUser.set(row.userId, memberships)

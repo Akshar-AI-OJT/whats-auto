@@ -3,6 +3,7 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { buttonVariants } from '@/components/ui/button'
 import { Link } from '@/i18n/navigation'
+import { AppLogo } from '@/components/branding/AppLogo'
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
 import type { NavAnchorLink, NavData } from '@/components/layout/types'
 import { cn } from '@/lib/utils'
@@ -50,8 +51,8 @@ export function MobileMenu({
         className="w-full gap-0 border-l border-[#E2E8F0] bg-canvas/95 p-0 backdrop-blur-xl duration-300 sm:max-w-sm"
       >
         <SheetHeader className="border-b border-[#E2E8F0] px-5 py-4">
-          <SheetTitle className="font-display text-left text-lg tracking-tight text-ink">
-            {nav.brand}
+          <SheetTitle className="text-left">
+            <AppLogo href="/" size="md" />
           </SheetTitle>
         </SheetHeader>
 

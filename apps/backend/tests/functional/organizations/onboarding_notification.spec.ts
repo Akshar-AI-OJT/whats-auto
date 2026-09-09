@@ -67,6 +67,7 @@ function createOrgPayload(name: string, slug: string) {
     organizationType: 'company' as const,
     address: '221B Baker Street, Mumbai',
     pan: 'AAAAA0000A',
+    gstin: '27AAAAA0000A1Z5',
     country: 'IN',
     timezone: 'Asia/Kolkata',
   }

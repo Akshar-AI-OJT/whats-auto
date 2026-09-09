@@ -21,6 +21,7 @@ import type {
   SubscriptionPlan,
   UpdatePlanInput,
 } from './types'
+import { DEFAULT_PLAN_LIMITS } from './types'
 
 function unwrapPlan(data: unknown): SuperAdminPlan {
   if (!data || typeof data !== 'object') {
@@ -53,8 +54,17 @@ function toSubscriptionPlan(plan: SuperAdminPlan): SubscriptionPlan {
     popular: Boolean(plan.popular),
     trialDays: plan.trialDays,
     limits: {
-      users: plan.limits?.users ?? null,
+      ...DEFAULT_PLAN_LIMITS,
+      ...(plan.limits ?? {}),
+      users: plan.limits?.users ?? plan.limits?.seats ?? null,
+      seats: plan.limits?.seats ?? plan.limits?.users ?? null,
       messagesPerMonth: plan.limits?.messagesPerMonth ?? null,
+      maxFileUploadMb: plan.limits?.maxFileUploadMb ?? DEFAULT_PLAN_LIMITS.maxFileUploadMb,
+      aiGenerationsPerConversationHour:
+        plan.limits?.aiGenerationsPerConversationHour ??
+        DEFAULT_PLAN_LIMITS.aiGenerationsPerConversationHour,
+      dispatchRatePerSec:
+        plan.limits?.dispatchRatePerSec ?? DEFAULT_PLAN_LIMITS.dispatchRatePerSec,
     },
     features,
     createdAt: plan.createdAt,

@@ -45,3 +45,18 @@ export function formatBetterAuthError(
     code: error?.code ?? undefined,
   }
 }
+
+/**
+ * Drop a sticky/half-dead session before a fresh sign-in.
+ * Stale `session_token` + `session_data` cookies (e.g. after JWKS mint failures)
+ * otherwise block login until the user clears cookies manually.
+ */
+export async function flushAuthCookies(): Promise<void> {
+  try {
+    await authClient.signOut()
+  } catch {
+    // No session / network — still clear in-memory JWT below.
+  } finally {
+    clearAccessToken()
+  }
+}

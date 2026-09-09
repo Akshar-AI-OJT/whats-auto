@@ -32,6 +32,38 @@ export type UpdateSubscriptionInput = {
   cancelAt?: DateTime | Date | null
 }
 
+export type ListSubscriptionsParams = {
+  page: number
+  perPage: number
+  search?: string
+  status?: string
+  plan?: string
+  billing?: 'monthly' | 'custom' | 'all' | string
+}
+
+export type SubscriptionListSummary = {
+  active: number
+  trialing: number
+  past_due: number
+  cancelled: number
+}
+
+function escapeIlike(value: string): string {
+  return `%${value.replace(/[%_\\]/g, '\\$&')}%`
+}
+
+/**
+ * Matches frontend `planBillingKind`: custom when the plan is missing, price is
+ * null, billing period is custom, or customPricing metadata is set; otherwise monthly.
+ */
+const PLAN_CUSTOM_BILLING_SQL = `(
+  p.id IS NULL
+  OR p.price IS NULL
+  OR lower(coalesce(p.metadata->>'billingPeriod', '')) = 'custom'
+  OR lower(p."billingInterval") = 'custom'
+  OR coalesce(p.metadata->>'customPricing', 'false') IN ('true', 't', '1')
+)`
+
 export class SubscriptionService {
   /**
    * Base query for platform-wide subscription reads.
@@ -68,24 +100,113 @@ export class SubscriptionService {
   }
 
   /**
-   * Platform-wide paginated subscription list for Super Admin.
+   * Platform-wide filtered query for Super Admin list/summary.
+   * Excludes soft-deleted rows (status = cancelled). Joins org/plan for search and billing.
    */
-  async listSubscriptionsPaginated(params: { page: number; perPage: number }) {
+  protected filteredSubscriptionsQuery(params: Omit<ListSubscriptionsParams, 'page' | 'perPage'>) {
+    const query = db
+      .from('organization_subscriptions as s')
+      .innerJoin('organizations as o', 'o.id', 's.organizationId')
+      .leftJoin('plans as p', 'p.id', 's.planId')
+      .whereNot('s.status', SUBSCRIPTION_SOFT_DELETED_STATUS)
+
+    const search = params.search?.trim()
+    if (search) {
+      const pattern = escapeIlike(search)
+      query.where((builder) => {
+        builder
+          .whereILike('o.name', pattern)
+          .orWhereILike('o.website', pattern)
+          .orWhereILike('p.name', pattern)
+          .orWhereILike('p.code', pattern)
+          .orWhereILike('s.status', pattern)
+          .orWhereRaw('cast(s."organizationId" as text) ilike ?', [pattern])
+      })
+    }
+
+    const status = params.status?.trim()
+    if (status && status !== 'all') {
+      query.where('s.status', status)
+    }
+
+    const plan = params.plan?.trim()
+    if (plan) {
+      query.where('s.planId', plan)
+    }
+
+    const billing = params.billing?.trim()
+    if (billing && billing !== 'all') {
+      if (billing === 'custom') {
+        query.whereRaw(PLAN_CUSTOM_BILLING_SQL)
+      } else if (billing === 'monthly') {
+        query.whereRaw(`NOT ${PLAN_CUSTOM_BILLING_SQL}`)
+      }
+    }
+
+    return query
+  }
+
+  /**
+   * Platform-wide paginated subscription list for Super Admin.
+   * Search/status/plan/billing are applied before pagination so meta.total matches the filtered set.
+   */
+  async listSubscriptionsPaginated(params: ListSubscriptionsParams) {
     const { page, perPage } = params
+    const query = this.filteredSubscriptionsQuery(params)
+
+    const countRows = (await query
+      .clone()
+      .clearSelect()
+      .clearOrder()
+      .select('s.status')
+      .count({ total: '*' })
+      .groupBy('s.status')) as Array<{ status: string; total: string | number }>
+
+    const summary: SubscriptionListSummary = {
+      active: 0,
+      trialing: 0,
+      past_due: 0,
+      cancelled: 0,
+    }
+    for (const row of countRows) {
+      const total = Number(row.total) || 0
+      if (row.status === 'active') summary.active = total
+      else if (row.status === 'trialing') summary.trialing = total
+      else if (row.status === 'past_due') summary.past_due = total
+      else if (row.status === 'cancelled') summary.cancelled = total
+    }
 
     // Query builder: DB columns are camelCase; Lucid orderBy would emit created_at.
-    return db
-      .from('organization_subscriptions')
-      .whereNot('status', SUBSCRIPTION_SOFT_DELETED_STATUS)
-      .orderBy('createdAt', 'desc')
+    const paginator = await query
+      .clone()
+      .clearSelect()
+      .select('s.*')
+      .orderBy('s.createdAt', 'desc')
       .paginate(page, perPage)
+
+    return {
+      data: paginator.all(),
+      meta: paginator.getMeta(),
+      summary,
+    }
   }
 
   /**
    * Fetch one subscription by id for Super Admin.
+   * Uses Knex (not Lucid) so the JSON shape matches {@link listSubscriptionsPaginated}.
    */
   async getSubscriptionById(subscriptionId: string) {
-    return this.findSubscriptionOrFail(subscriptionId)
+    const subscription = await db
+      .from('organization_subscriptions')
+      .where('id', subscriptionId)
+      .whereNot('status', SUBSCRIPTION_SOFT_DELETED_STATUS)
+      .first()
+
+    if (!subscription) {
+      throw SubscriptionException.notFound()
+    }
+
+    return subscription
   }
 
   /**

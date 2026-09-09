@@ -1,6 +1,7 @@
 import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { FlowStatus } from '#enums/flow_status'
+import { FlowNodeType } from '#enums/flow_node_type'
 import { FlowTriggerType } from '#enums/flow_trigger_type'
 import { FlowValidationStatus } from '#enums/flow_validation_status'
 import FlowException from '#exceptions/flow_exception'
@@ -17,6 +18,7 @@ import {
 } from '#lib/flow/flow_graph'
 import { validateFlowGraph, validateFlowTrigger } from '#lib/flow/flow_graph_validator'
 import { FlowRepository } from '#repositories/flow_repository'
+import { PlanEnforcementService } from '#services/billing/plan_enforcement_service'
 import { runWithTenant } from '#services/tenant_context'
 import {
   transformFlowDetail,
@@ -95,6 +97,8 @@ export default class FlowService {
     isDefault?: boolean
   }): Promise<FlowDetailResponse> {
     return runWithTenant(params.organizationId, async () => {
+      await new PlanEnforcementService().requireFeature(params.organizationId, 'flowBuilder')
+
       return db.transaction(async (trx) => {
         const settings = parseFlowSettings({
           ...DEFAULT_FLOW_SETTINGS,
@@ -314,6 +318,9 @@ export default class FlowService {
 
   async publish(params: { organizationId: string; flowId: string }): Promise<FlowDetailResponse> {
     return runWithTenant(params.organizationId, async () => {
+      const enforcement = new PlanEnforcementService()
+      await enforcement.requireFeature(params.organizationId, 'flowBuilder')
+
       return db.transaction(async (trx) => {
         const flow = await this.requireFlow(params.organizationId, params.flowId, trx)
         if (flow.status === FlowStatus.ARCHIVED) {
@@ -326,6 +333,28 @@ export default class FlowService {
           edges: version.edges,
           viewport: version.viewport,
         })
+
+        const nodeTypes = new Set(graph.nodes.map((node) => node.type))
+        if (
+          [FlowNodeType.CONDITION, FlowNodeType.AI_RAG, FlowNodeType.SUBFLOW].some((type) =>
+            nodeTypes.has(type)
+          )
+        ) {
+          await enforcement.requireFeature(params.organizationId, 'flowAdvancedNodes')
+        }
+        if (nodeTypes.has(FlowNodeType.AI_RAG)) {
+          await enforcement.requireFeature(params.organizationId, 'aiAutonomous')
+        }
+
+        if (flow.status !== FlowStatus.PUBLISHED) {
+          const published = await this.flows.listPublishedForOrg(params.organizationId, trx)
+          await enforcement.requireUnderLimit(
+            params.organizationId,
+            'maxActiveFlows',
+            published.length
+          )
+        }
+
         const publishedSubflows = await this.flows.listPublishedSubflowTargets(
           params.organizationId,
           trx

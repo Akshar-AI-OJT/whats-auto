@@ -12,6 +12,7 @@ export type ApiError = {
   code?: string
   retryAfter?: number
   chunkCount?: number
+  details?: Record<string, unknown>
 }
 
 export type AuthRequestMode = 'public' | 'protected'
@@ -48,11 +49,16 @@ function isOrgPaymentRequired(error: ApiError): boolean {
   return error.status === 402 && error.code === 'E_ORG_PAYMENT_REQUIRED'
 }
 
-/** Soft navigate to the payment step without treating it as a permission denial. */
-function redirectToOnboardingPayment() {
+function isOrgWhatsappRequired(error: ApiError): boolean {
+  return error.status === 403 && error.code === 'E_ORG_WHATSAPP_REQUIRED'
+}
+
+/** Soft navigate to first-activation plan selection without treating it as a permission denial. */
+function redirectToOnboardingPlan() {
   if (typeof window === 'undefined') return
   const { pathname } = window.location
   if (
+    pathname.includes('/onboarding/plan') ||
     pathname.includes('/onboarding/payment') ||
     pathname.includes('/onboarding/organization') ||
     pathname.includes('/onboarding/')
@@ -62,7 +68,17 @@ function redirectToOnboardingPayment() {
   const parts = pathname.split('/').filter(Boolean)
   const maybeLocale = parts[0]
   const locale = maybeLocale && /^[a-z]{2}(-[A-Za-z]{2})?$/.test(maybeLocale) ? maybeLocale : 'en'
-  window.location.assign(`/${locale}/onboarding/payment`)
+  window.location.assign(`/${locale}/onboarding/plan`)
+}
+
+function redirectToWhatsappConnect() {
+  if (typeof window === 'undefined') return
+  const { pathname } = window.location
+  if (pathname.includes('/dashboard/whatsapp')) return
+  const parts = pathname.split('/').filter(Boolean)
+  const maybeLocale = parts[0]
+  const locale = maybeLocale && /^[a-z]{2}(-[A-Za-z]{2})?$/.test(maybeLocale) ? maybeLocale : 'en'
+  window.location.assign(`/${locale}/dashboard/whatsapp`)
 }
 
 async function parseError(response: Response): Promise<ApiError> {
@@ -70,12 +86,14 @@ async function parseError(response: Response): Promise<ApiError> {
   let code: string | undefined
   let retryAfter: number | undefined
   let chunkCount: number | undefined
+  let details: Record<string, unknown> | undefined
 
   try {
     const data = (await response.json()) as {
       message?: string
       error?: string | { message?: string; code?: string }
       code?: string
+      details?: Record<string, unknown>
       retryAfter?: number
       chunkCount?: number
       errors?: Array<{ message?: string; field?: string }>
@@ -102,6 +120,10 @@ async function parseError(response: Response): Promise<ApiError> {
       code = 'EMAIL_ALREADY_EXISTS'
     }
 
+    if (data.details && typeof data.details === 'object') {
+      details = data.details
+    }
+
     if (typeof data.retryAfter === 'number') {
       retryAfter = data.retryAfter
     } else {
@@ -119,7 +141,7 @@ async function parseError(response: Response): Promise<ApiError> {
     // non-JSON body — keep statusText
   }
 
-  return { message, status: response.status, code, retryAfter, chunkCount }
+  return { message, status: response.status, code, retryAfter, chunkCount, details }
 }
 
 /**
@@ -175,7 +197,11 @@ async function request<T>(
     }
 
     if (authMode === 'protected' && isOrgPaymentRequired(error)) {
-      redirectToOnboardingPayment()
+      redirectToOnboardingPlan()
+    }
+
+    if (authMode === 'protected' && isOrgWhatsappRequired(error)) {
+      redirectToWhatsappConnect()
     }
 
     throw error
@@ -272,7 +298,7 @@ export type CreateOrganizationBody = {
   organizationType: OrganizationType
   /** Legacy free-text or structured address object. */
   address: string | OrganizationAddress
-  pan?: string
+  pan: string
   gstin?: string
   country: string
   timezone: string
@@ -290,7 +316,7 @@ export type CreatedOrganization = {
   name: string
   slug: string
   role: string
-  status?: 'pending_setup' | 'active' | 'suspended' | 'false'
+  status?: 'pending_setup' | 'verified_setup' | 'active' | 'suspended' | 'false'
   sessionActivated?: boolean
   reused?: boolean
 }
@@ -317,7 +343,7 @@ export type OrganizationSummary = {
   businessRegistrationNumber?: string | null
   role: string
   createdAt: string
-  status?: 'pending_setup' | 'active' | 'suspended' | 'false'
+  status?: 'pending_setup' | 'verified_setup' | 'active' | 'suspended' | 'false'
 }
 
 export type UpdateOrganizationBody = {
@@ -365,12 +391,7 @@ export type OrganizationDetails = {
 export type OrganizationSmtpTransport = 'smtp' | 'api'
 
 export type OrganizationSmtpProviderPreset =
-  | 'gmail'
-  | 'sendgrid'
-  | 'resend'
-  | 'ses'
-  | 'brevo'
-  | 'custom'
+  'gmail' | 'sendgrid' | 'resend' | 'ses' | 'brevo' | 'custom'
 
 export type OrganizationSmtpConfig = {
   id: string
@@ -412,7 +433,7 @@ export type TestOrganizationSmtpBody = {
 export type AccessContext = {
   organizationId: string
   organizationName: string
-  status?: 'pending_setup' | 'active' | 'suspended' | 'false'
+  status?: 'pending_setup' | 'verified_setup' | 'active' | 'suspended' | 'false'
   memberId: string
   role: string
   displayName: string
@@ -434,6 +455,12 @@ export type ContactSummary = {
   updatedAt?: string | null
 }
 
+export type ListContactsParams = {
+  page?: number
+  perPage?: number
+  search?: string
+}
+
 export type CustomerGroupSummary = {
   id: string
   name: string
@@ -448,6 +475,14 @@ export type CreateContactBody = {
   name?: string
   email?: string
   company?: string
+}
+
+export type UpdateContactBody = {
+  phoneNumber?: string
+  countryCode?: string
+  name?: string | null
+  email?: string | null
+  company?: string | null
 }
 
 export type ContactCsvColumnMapping = {
@@ -489,8 +524,8 @@ export type ImportContactsBody = {
 
 /**
  * UI model for Customer Groups. Backed by `/api/v1/tags` — see `api.tags`
- * and `customer-group-service.ts`. Fields the Tags API does not persist
- * (description, status, type, campaign usage) stay as UI defaults.
+ * and `customer-group-service.ts`. `type` is always static in this UI.
+ * Campaign usage is not mapped into the Customer Group list.
  */
 export type CustomerGroupStatus = 'active' | 'inactive'
 
@@ -539,6 +574,8 @@ export type TagRecord = {
   createdByUserId: string | null
   name: string
   color: string | null
+  description?: string | null
+  status?: CustomerGroupStatus
   createdAt: string
   contactCount: number
 }
@@ -553,11 +590,14 @@ export type TagAssignmentRecord = {
 export type CreateTagBody = {
   name: string
   color?: string | null
+  description?: string | null
 }
 
 export type UpdateTagBody = {
   name?: string
   color?: string | null
+  description?: string | null
+  status?: CustomerGroupStatus
 }
 
 export type AssignTagContactBody = {
@@ -802,6 +842,8 @@ export type WhatsappConfigSummary = {
   phoneNumberId: string
   displayPhoneNumber?: string | null
   wabaId?: string | null
+  businessId?: string | null
+  metaVerificationStatus?: string | null
   status: 'connected' | 'disconnected' | 'error' | string
   connectedAt?: string | null
   registeredAt?: string | null
@@ -930,6 +972,7 @@ export type ListWhatsappTemplatesParams = {
   status?: string
   category?: string
   search?: string
+  language?: string
 }
 
 export type CreateWhatsappTemplateBody = {
@@ -992,6 +1035,8 @@ export type ListCampaignsParams = {
   perPage?: number
   search?: string
   status?: string
+  startDate?: string
+  endDate?: string
   sortBy?: string
   sortOrder?: 'asc' | 'desc'
 }
@@ -1024,24 +1069,21 @@ export type ReplaceCampaignRecipientsBody = {
 
 export type CreateInvitationBody = {
   email: string
+  firstname: string
+  lastname?: string
   role: string
+  designation?: string
 }
 
 export type CreatedInvitation = {
-  id: string
+  userId: string
+  invitationId: string
   email: string
-  role?: string
-  status: string
-  expiresAt?: string
-}
-
-export type InvitationPreview = {
-  id: string
-  organizationName: string
   role: string
-  inviterName: string
-  email: string
-  status: string
+  isNewUser: boolean
+  hasExistingPassword: boolean
+  emailSent: boolean
+  needsSetup: boolean
 }
 
 export type OrganizationMember = {
@@ -1050,6 +1092,8 @@ export type OrganizationMember = {
   role: string
   email: string
   name: string
+  emailVerified?: boolean
+  designation?: string | null
   createdAt?: string
 }
 
@@ -1067,6 +1111,7 @@ export type OrganizationAdminUser = {
   firstname?: string | null
   lastname?: string | null
   email: string
+  emailVerified?: boolean
   isActive?: boolean
   memberId: string
   role: string
@@ -1090,6 +1135,8 @@ export type Paginated<T> = {
 export type ListOrganizationAdminUsersParams = {
   page?: number
   perPage?: number
+  search?: string
+  role?: string
 }
 
 /** PATCH /api/v1/organization-admin/users/:id */
@@ -1124,6 +1171,65 @@ export type ListAuditParams = {
   limit?: number
   /** Super Admin platform list only — omit for platform-wide events. */
   organizationId?: string
+  search?: string
+  eventType?: string
+  actorUserId?: string
+  targetType?: string
+  dateFrom?: string
+  dateTo?: string
+  /** Audit log pages only — not used by overview/analytics recent lists. */
+  includeFacets?: boolean
+}
+
+export type AuditActorFacet = {
+  id: string
+  name: string | null
+  email: string | null
+}
+
+export type AuditListPayload =
+  | AuthorizationAuditEvent[]
+  | { data?: AuthorizationAuditEvent[]; eventTypes?: string[]; actors?: AuditActorFacet[]; targetTypes?: string[] }
+
+export type AnalyticsBreakdownItem = {
+  key: string
+  label: string
+  value: number
+}
+
+export type TenantAnalyticsSummary = {
+  totalContacts: number
+  contactGrowth: Array<{ key: string; value: number }>
+  totalCampaigns: number
+  totalRecipients: number
+  sentCount: number
+  deliveredCount: number
+  readCount: number
+  repliedCount: number
+  failedCount: number
+  deliveryRate: number
+  campaignStatusBreakdown: AnalyticsBreakdownItem[]
+  totalConversations: number
+  unreadMessages: number
+  conversationStatusBreakdown: AnalyticsBreakdownItem[]
+  connectedWhatsappNumbers: number
+  whatsappStatusBreakdown: AnalyticsBreakdownItem[]
+  totalTemplates: number
+  templateStatusBreakdown: AnalyticsBreakdownItem[]
+  templateCategoryBreakdown: AnalyticsBreakdownItem[]
+  templateUsage: AnalyticsBreakdownItem[]
+  totalGroups: number
+  topGroups: Array<{ id: string; name: string; contactCount: number }>
+}
+
+export type PlatformAnalyticsSummary = {
+  totalOrganizations: number
+  activeOrganizations: number
+  inactiveOrganizations: number
+  trialOrganizations: number
+  organizationGrowth: Array<{ key: string; created: number; cumulative: number }>
+  activeInactive: AnalyticsBreakdownItem[]
+  planDistribution: AnalyticsBreakdownItem[]
 }
 
 export type PendingInvitation = {
@@ -1145,14 +1251,16 @@ export type OnboardingPendingInvitation = {
   expiresAt: string
 }
 
+
 export type OnboardingNextStep =
-  'accept_invitation' | 'create_organization' | 'select_organization' | 'complete_payment' | 'ready'
+  'create_organization' | 'select_organization' | 'complete_payment' | 'ready'
 
 export type OnboardingState = {
   activeOrganizationId: string | null
   organizations: Array<{ id: string; name: string; role?: string }>
-  pendingInvitations: OnboardingPendingInvitation[]
   nextStep: OnboardingNextStep
+  /** Global superadmin — no tenant org required ([D72]). */
+  isPlatformAdmin?: boolean
 }
 
 export type OrganizationRole = {
@@ -1189,13 +1297,22 @@ export type RoleUpdatePreview = {
   affectedMembers: Array<{ id: string; userId: string }>
 }
 
+/** Organization usability / provisioning status returned by the API. */
+export type OrganizationStatusValue =
+  | 'pending_setup'
+  | 'verified_setup'
+  | 'active'
+  | 'suspended'
+  | 'false'
+
 /** Nested org membership from GET /api/v1/super-admin/platform-users */
 export type SuperAdminPlatformUserOrganization = {
   memberId: string
   organizationId: string
   organizationName: string
   organizationSlug: string
-  organizationStatus: string
+  /** Exact backend status string — never coerced with Boolean(). */
+  organizationStatus: OrganizationStatusValue | string
   role: string
   roleId: string
 }
@@ -1241,8 +1358,8 @@ export type SuperAdminOrganization = {
   country: string
   timezone: string
   currency?: string | null
-  /** pending_setup | active | suspended | false (soft-deleted) */
-  status: 'pending_setup' | 'active' | 'suspended' | 'false' | string
+  /** pending_setup | verified_setup | active | suspended | false (soft-deleted) */
+  status: 'pending_setup' | 'verified_setup' | 'active' | 'suspended' | 'false' | string
   createdAt: string
   updatedAt?: string | null
   deletedAt?: string | null
@@ -1262,6 +1379,24 @@ export type UpdateSuperAdminOrganizationBody = {
 }
 
 export type SuperAdminSubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'cancelled'
+
+export type SuperAdminSubscriptionBillingFilter = 'monthly' | 'custom' | 'all'
+
+export type ListSuperAdminSubscriptionsParams = {
+  page?: number
+  perPage?: number
+  search?: string
+  status?: SuperAdminSubscriptionStatus | 'all'
+  plan?: string
+  billing?: SuperAdminSubscriptionBillingFilter
+}
+
+export type SuperAdminSubscriptionListSummary = {
+  active: number
+  trialing: number
+  past_due: number
+  cancelled: number
+}
 
 /** Row from GET /api/v1/super-admin/subscriptions */
 export type SuperAdminSubscription = {
@@ -1283,6 +1418,25 @@ export type CreateSuperAdminSubscriptionBody = {
   currentPeriodStart: string
   currentPeriodEnd: string
   cancelAt?: string
+}
+
+/** Row item from GET /api/v1/super-admin/platform-settings */
+export type PlatformSettingState = 'enabled' | 'disabled' | 'scheduled'
+
+export type PlatformSettingItem = {
+  id: string
+  key: string
+  value: string
+  state: PlatformSettingState
+}
+
+export type PlatformSettingsSnapshot = {
+  branding: PlatformSettingItem[]
+  authentication: PlatformSettingItem[]
+  smtp: PlatformSettingItem[]
+  oauth: PlatformSettingItem[]
+  maintenanceMode: PlatformSettingItem[]
+  configuration: PlatformSettingItem[]
 }
 
 /** Row from GET /api/v1/super-admin/ai-config (no API keys). */
@@ -1562,6 +1716,7 @@ export type SuperAdminInvoiceSummary = {
   cancelledAmount: number
   thisMonthCount: number
   thisMonthAmount: number
+  currency?: string
 }
 
 export type ListSuperAdminInvoicesParams = {
@@ -1620,7 +1775,27 @@ export type SuperAdminPlanFeature = {
 
 export type SuperAdminPlanLimits = {
   users: number | null
+  seats?: number | null
+  whatsappNumbers?: number | null
+  maxContacts?: number | null
   messagesPerMonth: number | null
+  campaignsPerMonth?: number | null
+  maxBroadcastRecipients?: number | null
+  storageBytes?: number | null
+  maxFileUploadMb?: number
+  maxActiveFlows?: number | null
+  maxKnowledgeDocs?: number | null
+  maxKnowledgeDocSizeMb?: number | null
+  aiRepliesPerMonth?: number | null
+  maxStoreConnections?: number | null
+  maxApiKeys?: number | null
+  maxWebhookEndpoints?: number | null
+  analyticsRetentionDays?: number | null
+  auditLogRetentionDays?: number | null
+  maxTemplates?: number | null
+  conversationInboxRetentionDays?: number | null
+  aiGenerationsPerConversationHour?: number
+  dispatchRatePerSec?: number
 }
 
 export type SuperAdminPlan = {
@@ -1664,10 +1839,7 @@ export type CreateSuperAdminPlanBody = {
   status: Exclude<SuperAdminPlanStatus, 'archived'>
   popular?: boolean
   trialDays?: number | null
-  limits: {
-    users?: number | null
-    messagesPerMonth?: number | null
-  }
+  limits: SuperAdminPlanLimits
   features?: SuperAdminPlanFeature[]
   sortOrder?: number
 }
@@ -1696,6 +1868,25 @@ export type BillingSubscription = {
   lastPaymentAt?: string | null
 }
 
+/** GET /api/v1/billing/entitlements — resolved plan limits, features, and meters */
+export type BillingEntitlementsSnapshot = {
+  limits: Record<string, number | null> | null
+  features: Array<{ key: string; enabled: boolean }>
+  usage: {
+    messages: { used: number; limit: number | null }
+    campaigns: { used: number; limit: number | null }
+    aiCustomerLlmCalls: {
+      used: number
+      limit: number | null
+      percentUsed: number | null
+      nearLimit: boolean
+      exceeded: boolean
+    }
+    storageBytes: { used: number; limit: number | null }
+  }
+}
+
+/** POST /api/v1/billing/checkout — Orders API Checkout.js fields */
 /** POST /api/v1/billing/checkout — free activation or Razorpay Checkout.js fields */
 export type BillingCheckoutFreeResult = {
   mode: 'free'
@@ -1787,6 +1978,96 @@ export type TenantBillingPlan = {
   sortOrder: number
 }
 
+export const GLOBAL_SEARCH_RESULT_TYPES = [
+  'contact',
+  'conversation',
+  'campaign',
+  'template',
+  'flow',
+  'customer_group',
+  'organization',
+  'user',
+  'plan',
+  'subscription',
+  'invoice',
+] as const
+
+export type GlobalSearchResultType = (typeof GLOBAL_SEARCH_RESULT_TYPES)[number]
+
+export type GlobalSearchResult = {
+  type: GlobalSearchResultType
+  id: string
+  title: string
+  description: string | null
+}
+
+export type GlobalSearchResponse = {
+  query: string
+  results: GlobalSearchResult[]
+}
+
+/** GET /api/v1/demo/availability */
+export type DemoAvailabilitySlot = {
+  id: string
+  startTime: string
+  endTime: string
+  label: string
+  available: boolean
+}
+
+export type DemoAvailability = {
+  date: string
+  timeZone: string
+  today: string
+  durationMinutes: number
+  slots: DemoAvailabilitySlot[]
+}
+
+/** POST /api/v1/demo/bookings */
+export type CreateDemoBookingBody = {
+  name: string
+  email: string
+  slotId: string
+  timeZone: string
+  company?: string
+  phone?: string
+  companySize?: string
+  purpose?: string
+}
+
+export type DemoBooking = {
+  id: string
+  fullName: string
+  email: string
+  company: string | null
+  phone: string | null
+  companySize: string | null
+  purpose: string | null
+  startsAt: string
+  endsAt: string
+  timeZone: string
+  demoTimeZone: string
+  status: string
+  meetingUrl: string | null
+  calendarEventId: string | null
+  createdAt: string
+}
+
+function auditListQueryString(params: ListAuditParams) {
+  const qs = new URLSearchParams()
+  if (params.limit != null) qs.set('limit', String(params.limit))
+  if (params.organizationId) qs.set('organizationId', params.organizationId)
+  const search = params.search?.trim()
+  if (search) qs.set('search', search)
+  if (params.eventType) qs.set('eventType', params.eventType)
+  if (params.actorUserId) qs.set('actorUserId', params.actorUserId)
+  if (params.targetType) qs.set('targetType', params.targetType)
+  if (params.dateFrom) qs.set('dateFrom', params.dateFrom)
+  if (params.dateTo) qs.set('dateTo', params.dateTo)
+  if (params.includeFacets) qs.set('includeFacets', 'true')
+  return qs.toString()
+}
+
 export const api = {
   auth: {
     signup: (body: SignupBody) =>
@@ -1855,6 +2136,22 @@ export const api = {
       ),
   },
 
+  demo: {
+    availability: (params: { date: string; timeZone?: string }) => {
+      const qs = new URLSearchParams({ date: params.date })
+      if (params.timeZone) qs.set('timeZone', params.timeZone)
+      return publicRequest<DemoAvailability>(`/api/v1/demo/availability?${qs.toString()}`, {
+        method: 'GET',
+      })
+    },
+
+    book: (body: CreateDemoBookingBody) =>
+      publicRequest<DemoBooking>('/api/v1/demo/bookings', {
+        method: 'POST',
+        body: JSON.stringify(body),
+      }),
+  },
+
   account: {
     profile: () =>
       protectedRequest<{ data?: ProfileUser } & ProfileUser>('/api/v1/account/profile', {
@@ -1868,6 +2165,16 @@ export const api = {
       protectedRequest<{ data?: OnboardingState } & OnboardingState>('/api/v1/onboarding/state', {
         method: 'GET',
       }),
+  },
+
+  search: {
+    query: (q: string) => {
+      const qs = new URLSearchParams({ q })
+      return protectedRequest<{ data?: GlobalSearchResponse } & GlobalSearchResponse>(
+        `/api/v1/search?${qs.toString()}`,
+        { method: 'GET' }
+      )
+    },
   },
 
   organizations: {
@@ -1949,16 +2256,42 @@ export const api = {
   },
 
   contacts: {
-    list: () =>
-      protectedRequest<{ data?: ContactSummary[] } | ContactSummary[]>('/api/v1/contacts', {
+    list: (params: ListContactsParams = {}) => {
+      const qs = new URLSearchParams()
+      if (params.page != null) qs.set('page', String(params.page))
+      if (params.perPage != null) qs.set('perPage', String(params.perPage))
+      const search = params.search?.trim()
+      if (search) qs.set('search', search)
+      const query = qs.toString()
+      return protectedRequest<
+        | Paginated<ContactSummary>
+        | { data?: ContactSummary[]; meta?: PaginationMeta }
+        | ContactSummary[]
+      >(`/api/v1/contacts${query ? `?${query}` : ''}`, {
         method: 'GET',
-      }),
+      })
+    },
 
     create: (body: CreateContactBody) =>
       protectedRequest<{ data?: ContactSummary } & ContactSummary>('/api/v1/contacts', {
         method: 'POST',
         body: JSON.stringify(body),
       }),
+
+    get: (contactId: string) =>
+      protectedRequest<{ data?: ContactSummary } & ContactSummary>(
+        `/api/v1/contacts/${contactId}`,
+        { method: 'GET' }
+      ),
+
+    update: (contactId: string, body: UpdateContactBody) =>
+      protectedRequest<{ data?: ContactSummary } & ContactSummary>(
+        `/api/v1/contacts/${contactId}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify(body),
+        }
+      ),
 
     delete: (contactId: string) =>
       protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
@@ -1981,6 +2314,11 @@ export const api = {
         }
       )
     },
+
+    getImport: (importId: string) =>
+      protectedRequest<{ data?: ContactImportResult } & ContactImportResult>(
+        `/api/v1/contacts/import/${importId}`
+      ),
   },
 
   tags: {
@@ -2226,6 +2564,7 @@ export const api = {
       if (params.status) qs.set('status', params.status)
       if (params.category) qs.set('category', params.category)
       if (params.search?.trim()) qs.set('search', params.search.trim())
+      if (params.language?.trim()) qs.set('language', params.language.trim())
       const query = qs.toString()
       return protectedRequest<
         | Paginated<WhatsappMessageTemplate>
@@ -2492,6 +2831,12 @@ export const api = {
         method: 'GET',
       }),
 
+    entitlements: () =>
+      protectedRequest<{ data?: BillingEntitlementsSnapshot } & BillingEntitlementsSnapshot>(
+        '/api/v1/billing/entitlements',
+        { method: 'GET' }
+      ),
+
     checkout: (body: BillingCheckoutBody) =>
       protectedRequest<{ data?: BillingCheckoutResult } & BillingCheckoutResult>(
         '/api/v1/billing/checkout',
@@ -2519,6 +2864,8 @@ export const api = {
       if (params.perPage != null) qs.set('perPage', String(params.perPage))
       if (params.search?.trim()) qs.set('search', params.search.trim())
       if (params.status) qs.set('status', params.status)
+      if (params.startDate?.trim()) qs.set('startDate', params.startDate.trim())
+      if (params.endDate?.trim()) qs.set('endDate', params.endDate.trim())
       if (params.sortBy) qs.set('sortBy', params.sortBy)
       if (params.sortOrder) qs.set('sortOrder', params.sortOrder)
       const query = qs.toString()
@@ -2563,7 +2910,7 @@ export const api = {
         }
       ),
 
-    schedule: (campaignId: string, body: { scheduledAt: string; timeZone?: string }) =>
+    schedule: (campaignId: string, body: { scheduledAt: string }) =>
       protectedRequest<{ data?: Campaign } & Campaign>(`/api/v1/campaigns/${campaignId}/schedule`, {
         method: 'POST',
         body: JSON.stringify(body),
@@ -2593,12 +2940,6 @@ export const api = {
         `/api/v1/campaigns/${campaignId}/duplicate`,
         { method: 'POST' }
       ),
-
-    changeStatus: (campaignId: string, body: { status: CampaignStatus }) =>
-      protectedRequest<{ data?: Campaign } & Campaign>(`/api/v1/campaigns/${campaignId}/status`, {
-        method: 'PATCH',
-        body: JSON.stringify(body),
-      }),
   },
 
   members: {
@@ -2621,6 +2962,12 @@ export const api = {
         `/api/v1/members/${memberId}`,
         { method: 'DELETE' }
       ),
+
+    resendInvite: (memberId: string) =>
+      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
+        `/api/v1/members/${memberId}/resend-invite`,
+        { method: 'POST' }
+      ),
   },
 
   ownership: {
@@ -2641,16 +2988,19 @@ export const api = {
      * Active-organization scoped. Requires audit:view.
      */
     list: (params: ListAuditParams = {}) => {
-      const qs = new URLSearchParams()
-      if (params.limit != null) qs.set('limit', String(params.limit))
-      const query = qs.toString()
-      return protectedRequest<{ data?: AuthorizationAuditEvent[] } | AuthorizationAuditEvent[]>(
-        `/api/v1/audit${query ? `?${query}` : ''}`,
-        {
-          method: 'GET',
-        }
-      )
+      const query = auditListQueryString(params)
+      return protectedRequest<AuditListPayload>(`/api/v1/audit${query ? `?${query}` : ''}`, {
+        method: 'GET',
+      })
     },
+  },
+
+  analytics: {
+    summary: () =>
+      protectedRequest<{ data?: TenantAnalyticsSummary } & TenantAnalyticsSummary>(
+        '/api/v1/analytics/summary',
+        { method: 'GET' }
+      ),
   },
 
   organizationAdmin: {
@@ -2662,6 +3012,10 @@ export const api = {
       const qs = new URLSearchParams()
       if (params.page != null) qs.set('page', String(params.page))
       if (params.perPage != null) qs.set('perPage', String(params.perPage))
+      const search = params.search?.trim()
+      if (search) qs.set('search', search)
+      const role = params.role?.trim()
+      if (role) qs.set('role', role)
       const query = qs.toString()
       return protectedRequest<
         Paginated<OrganizationAdminUser> | { data?: OrganizationAdminUser[]; meta?: PaginationMeta }
@@ -2706,41 +3060,6 @@ export const api = {
           method: 'POST',
           body: JSON.stringify(body),
         }
-      ),
-
-    list: () =>
-      protectedRequest<{ data?: PendingInvitation[] } | PendingInvitation[]>(
-        '/api/v1/invitations',
-        { method: 'GET' }
-      ),
-
-    /** Public preview — invitation id is the secret. */
-    get: (invitationId: string) =>
-      publicRequest<{ data?: InvitationPreview } & InvitationPreview>(
-        `/api/v1/invitations/${invitationId}`,
-        { method: 'GET' }
-      ),
-
-    accept: (invitationId: string) =>
-      protectedRequest<{ data?: { organizationId: string } } & { organizationId: string }>(
-        `/api/v1/invitations/${invitationId}/accept`,
-        { method: 'POST' }
-      ),
-
-    reject: (invitationId: string) =>
-      publicRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
-        `/api/v1/invitations/${invitationId}/reject`,
-        {
-          method: 'POST',
-          // Local DB can be slow on first hit; keep UI from hanging forever.
-          signal: AbortSignal.timeout(15000),
-        }
-      ),
-
-    cancel: (invitationId: string) =>
-      protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
-        `/api/v1/invitations/${invitationId}/cancel`,
-        { method: 'POST' }
       ),
   },
 
@@ -2794,6 +3113,16 @@ export const api = {
   },
 
   superAdmin: {
+    search: {
+      query: (q: string) => {
+        const qs = new URLSearchParams({ q })
+        return protectedRequest<{ data?: GlobalSearchResponse } & GlobalSearchResponse>(
+          `/api/v1/super-admin/search?${qs.toString()}`,
+          { method: 'GET' }
+        )
+      },
+    },
+
     organizations: {
       list: (params: { page?: number; perPage?: number } = {}) => {
         const qs = new URLSearchParams()
@@ -2808,6 +3137,12 @@ export const api = {
         })
       },
 
+      get: (organizationId: string) =>
+        protectedRequest<{ data?: SuperAdminOrganization } & SuperAdminOrganization>(
+          `/api/v1/super-admin/organizations/${organizationId}`,
+          { method: 'GET' }
+        ),
+
       update: (organizationId: string, body: UpdateSuperAdminOrganizationBody) =>
         protectedRequest<{ data?: SuperAdminOrganization } & SuperAdminOrganization>(
           `/api/v1/super-admin/organizations/${organizationId}`,
@@ -2815,6 +3150,18 @@ export const api = {
             method: 'PATCH',
             body: JSON.stringify(body),
           }
+        ),
+
+      suspend: (organizationId: string) =>
+        protectedRequest<{ data?: SuperAdminOrganization } & SuperAdminOrganization>(
+          `/api/v1/super-admin/organizations/${organizationId}/suspend`,
+          { method: 'POST' }
+        ),
+
+      activate: (organizationId: string) =>
+        protectedRequest<{ data?: SuperAdminOrganization } & SuperAdminOrganization>(
+          `/api/v1/super-admin/organizations/${organizationId}/activate`,
+          { method: 'POST' }
         ),
 
       destroy: (organizationId: string) =>
@@ -2825,14 +3172,24 @@ export const api = {
     },
 
     subscriptions: {
-      list: (params: { page?: number; perPage?: number } = {}) => {
+      list: (params: ListSuperAdminSubscriptionsParams = {}) => {
         const qs = new URLSearchParams()
         if (params.page != null) qs.set('page', String(params.page))
         if (params.perPage != null) qs.set('perPage', String(params.perPage))
+        const search = params.search?.trim()
+        if (search) qs.set('search', search)
+        if (params.status && params.status !== 'all') qs.set('status', params.status)
+        const plan = params.plan?.trim()
+        if (plan) qs.set('plan', plan)
+        if (params.billing && params.billing !== 'all') qs.set('billing', params.billing)
         const query = qs.toString()
         return protectedRequest<
           | Paginated<SuperAdminSubscription>
-          | { data?: SuperAdminSubscription[]; meta?: PaginationMeta }
+          | {
+              data?: SuperAdminSubscription[]
+              meta?: PaginationMeta
+              summary?: SuperAdminSubscriptionListSummary
+            }
         >(`/api/v1/super-admin/subscriptions${query ? `?${query}` : ''}`, {
           method: 'GET',
         })
@@ -3013,19 +3370,32 @@ export const api = {
         ),
     },
 
+    platformSettings: {
+      get: () =>
+        protectedRequest<{ data?: PlatformSettingsSnapshot } & PlatformSettingsSnapshot>(
+          '/api/v1/super-admin/platform-settings',
+          { method: 'GET' }
+        ),
+    },
+
     auditLogs: {
       list: (params: ListAuditParams = {}) => {
-        const qs = new URLSearchParams()
-        if (params.limit != null) qs.set('limit', String(params.limit))
-        if (params.organizationId) qs.set('organizationId', params.organizationId)
-        const query = qs.toString()
-        return protectedRequest<{ data?: AuthorizationAuditEvent[] } | AuthorizationAuditEvent[]>(
+        const query = auditListQueryString(params)
+        return protectedRequest<AuditListPayload>(
           `/api/v1/super-admin/audit-logs${query ? `?${query}` : ''}`,
           {
             method: 'GET',
           }
         )
       },
+    },
+
+    analytics: {
+      summary: () =>
+        protectedRequest<{ data?: PlatformAnalyticsSummary } & PlatformAnalyticsSummary>(
+          '/api/v1/super-admin/analytics/summary',
+          { method: 'GET' }
+        ),
     },
 
     platformUsers: {

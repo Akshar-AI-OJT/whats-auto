@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { api, type WhatsappConfigSummary } from '@/lib/api'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
+import { useProductAccess } from '@/hooks/useProductAccess'
 import { unwrapList } from '@/components/dashboard/inbox/inbox-utils'
 import { queryKeys } from '@/lib/query-keys'
 
@@ -19,6 +20,7 @@ type UseWhatsappConfigsOptions = {
 
 /**
  * Shared WhatsApp config query — dedupes dashboard home cards + connection page.
+ * Allowed during unpaid setup ([D70]) so Embedded Signup and disconnect work before payment.
  */
 export function useWhatsappConfigs(options: UseWhatsappConfigsOptions = {}) {
   const {
@@ -26,10 +28,11 @@ export function useWhatsappConfigs(options: UseWhatsappConfigsOptions = {}) {
     canViewWhatsapp,
     isLoading: orgsLoading,
   } = useOrganizations()
+  const { whatsappSetupAllowed } = useProductAccess()
 
   const enabled =
     options.enabled ??
-    (!orgsLoading && Boolean(tenantOrganizationId) && canViewWhatsapp)
+    (!orgsLoading && Boolean(tenantOrganizationId) && canViewWhatsapp && whatsappSetupAllowed)
 
   return useQuery({
     queryKey: queryKeys.whatsapp.configs(tenantOrganizationId),

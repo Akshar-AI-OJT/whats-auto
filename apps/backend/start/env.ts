@@ -40,6 +40,17 @@ export default await Env.create(new URL('../', import.meta.url), {
   GOOGLE_CLIENT_ID: Env.schema.string(),
   GOOGLE_CLIENT_SECRET: Env.schema.secret(),
 
+  // Public Book Demo schedule (optional — code defaults apply when unset)
+  DEMO_TIMEZONE: Env.schema.string.optional(),
+  DEMO_SLOT_TIMES: Env.schema.string.optional(),
+  DEMO_WEEKDAYS: Env.schema.string.optional(),
+  DEMO_DURATION_MINUTES: Env.schema.number.optional(),
+  DEMO_BOOKING_HORIZON_DAYS: Env.schema.number.optional(),
+
+  // Google Calendar + Meet for demo bookings (optional; booking still succeeds without Meet)
+  GOOGLE_CALENDAR_ID: Env.schema.string.optional(),
+  GOOGLE_CALENDAR_REFRESH_TOKEN: Env.schema.secret.optional(),
+
   // Postgres
   PG_HOST: Env.schema.string(),
   PG_PORT: Env.schema.number(),
@@ -69,8 +80,14 @@ export default await Env.create(new URL('../', import.meta.url), {
   // Keep optional so NODE_ENV=test with null driver still boots; config asserts when bullmq.
   REDIS_URL: Env.schema.string.optional(),
 
+  /** Platform hard cap for per-conversation AI generation rate (plan value is min'd with this). */
+  AI_CONV_RATE_LIMIT_HARD_CAP: Env.schema.number.optional(),
+  /** Platform hard cap for campaign dispatchRatePerSec (keeps headroom under Meta ~80 mps). */
+  CAMPAIGN_DISPATCH_RATE_HARD_CAP: Env.schema.number.optional(),
+
   // Comma-separated hostnames allowed for outbound media public URLs (optional)
   OUTBOUND_MEDIA_ALLOWED_HOSTS: Env.schema.string.optional(),
+
   RAZORPAY_KEY_ID: Env.schema.string(),
   RAZORPAY_KEY_SECRET: Env.schema.secret(),
   RAZORPAY_WEBHOOK_SECRET: Env.schema.secret(),
@@ -100,12 +117,11 @@ export default await Env.create(new URL('../', import.meta.url), {
   | Variables for configuring the mail package
   |----------------------------------------------------------
   */
-  MAIL_MAILER: Env.schema.enum(['smtp', 'brevo'] as const),
+  MAIL_MAILER: Env.schema.enum(['smtp'] as const),
   MAIL_FROM_NAME: Env.schema.string(),
   MAIL_FROM_ADDRESS: Env.schema.string(),
   SMTP_HOST: Env.schema.string.optional(),
   SMTP_PORT: Env.schema.number.optional(),
   SMTP_USERNAME: Env.schema.string.optional(),
   SMTP_PASSWORD: Env.schema.secret.optional(),
-  BREVO_API: Env.schema.secret.optional(),
 })

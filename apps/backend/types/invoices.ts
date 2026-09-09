@@ -67,6 +67,8 @@ export type SuperAdminInvoiceSummary = {
   cancelledAmount: number
   thisMonthCount: number
   thisMonthAmount: number
+  /** Majority invoice currency for aggregated amounts (defaults to INR). */
+  currency: string
 }
 
 export type SuperAdminInvoiceActionResult = {

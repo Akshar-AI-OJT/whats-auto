@@ -8,7 +8,6 @@ export function AuthLayout({
   branding,
   children,
   className,
-  showBrandLink = true,
   compact = false,
   contentClassName,
   wideForm = false,
@@ -16,7 +15,6 @@ export function AuthLayout({
   branding: React.ReactNode
   children: React.ReactNode
   className?: string
-  showBrandLink?: boolean
   compact?: boolean
   contentClassName?: string
   wideForm?: boolean
@@ -25,7 +23,6 @@ export function AuthLayout({
     <AuthSplitLayout
       branding={branding}
       className={className}
-      showBrandLink={showBrandLink}
       compact={compact}
       contentClassName={contentClassName}
       wideForm={wideForm}

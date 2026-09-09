@@ -78,7 +78,9 @@ test.group('Phase 7 - Comprehensive Policy Edge Cases & Invariant Matrix', () =>
     assert.instanceOf(deleteOrgRes, AuthorizationResponse)
 
     const invitePolicy = new InvitationPolicy()
-    assert.isFalse(invitePolicy.viewAny(anonymousPrincipal))
+    const storeInviteRes = invitePolicy.store(anonymousPrincipal, 'org-1')
+    assert.instanceOf(storeInviteRes, AuthorizationResponse)
+    assert.isFalse(invitePolicy.resend(anonymousPrincipal))
 
     const convoPolicy = new ConversationPolicy()
     assert.isFalse(convoPolicy.viewAny(anonymousPrincipal))
@@ -151,7 +153,8 @@ test.group('Phase 7 - Comprehensive Policy Edge Cases & Invariant Matrix', () =>
   }) => {
     const owner = makePrincipal({ role: 'owner', orgId: 'org-1' })
 
-    assert.isTrue(new OrganizationPolicy().before(owner))
+    assert.isTrue(new OrganizationPolicy().update(owner, 'org-1'))
+    assert.instanceOf(new OrganizationPolicy().update(owner, 'org-2'), AuthorizationResponse)
     assert.isTrue(new ConversationPolicy().before(owner))
     assert.isTrue(new MessagePolicy().before(owner))
     assert.isTrue(new ConversationNotePolicy().before(owner))

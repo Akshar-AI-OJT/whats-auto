@@ -1,6 +1,6 @@
 'use client'
 
-import { useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Check, Download, Loader2, Upload } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -83,8 +83,16 @@ function skippedCount(result: ContactImportResult) {
   if (Array.isArray(result.rows) && result.rows.length > 0) {
     return result.rows.filter((row) => row.status === 'skipped').length
   }
-  return Math.max(0, result.totalRows - result.successCount - result.errorCount)
+  return Math.max(0, result.processedRows - result.successCount - result.errorCount)
 }
+
+function isImportInProgress(status: string) {
+  return status === 'pending' || status === 'processing'
+}
+
+/** Stop polling after this many attempts (~10 min at 1s interval). */
+const IMPORT_POLL_MAX_ATTEMPTS = 600
+const IMPORT_POLL_INTERVAL_MS = 1000
 
 function buildReportCsv(result: ContactImportResult) {
   const extraHeaders: string[] = []
@@ -124,6 +132,7 @@ export function ImportContactsDialog({
   const tCountries = useTranslations('onboarding.organization.step2.countries')
   const { canImportContacts, isLoading: orgsLoading } = useOrganizations()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const pollCancelledRef = useRef(false)
   const fileId = useId()
   const countryId = useId()
   const duplicatesId = useId()
@@ -140,6 +149,18 @@ export function ImportContactsDialog({
   const [pending, setPending] = useState(false)
   const [result, setResult] = useState<ContactImportResult | null>(null)
 
+  useEffect(() => {
+    if (!open) {
+      pollCancelledRef.current = true
+    }
+  }, [open])
+
+  useEffect(() => {
+    return () => {
+      pollCancelledRef.current = true
+    }
+  }, [])
+
   const step: WizardStep = screen === 'result' ? 4 : screen
   const mapping = toBackendColumnMapping(csvToField)
   const mappedFields = mappedFieldsList(csvToField)
@@ -148,6 +169,7 @@ export function ImportContactsDialog({
     !defaultCountryCode && hasNationalMappedPhones(parsed, mapping.phone)
 
   function reset() {
+    pollCancelledRef.current = true
     setScreen(1)
     setFile(null)
     setParsed(null)
@@ -268,6 +290,7 @@ export function ImportContactsDialog({
 
     setPending(true)
     setError(null)
+    pollCancelledRef.current = false
     try {
       const { data } = await api.contacts.importCsv({
         file,
@@ -281,15 +304,57 @@ export function ImportContactsDialog({
       }
       setResult(imported)
       setScreen('result')
-      try {
-        onImported?.()
-      } catch {
-        // Import already succeeded; list refresh is best-effort.
+      setPending(false)
+      if (isImportInProgress(imported.status)) {
+        await pollImport(imported.id)
+      } else {
+        try {
+          onImported?.()
+        } catch {
+          // Import already succeeded; list refresh is best-effort.
+        }
       }
     } catch (err) {
       setError(mapImportError(err as ApiError))
     } finally {
       setPending(false)
+    }
+  }
+
+  async function pollImport(importId: string) {
+    let attempts = 0
+    while (!pollCancelledRef.current) {
+      await new Promise((resolve) => setTimeout(resolve, IMPORT_POLL_INTERVAL_MS))
+      if (pollCancelledRef.current) return
+      attempts += 1
+      if (attempts > IMPORT_POLL_MAX_ATTEMPTS) {
+        setResult((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: 'failed',
+              }
+            : prev
+        )
+        setError(t('errors.pollTimedOut'))
+        return
+      }
+      try {
+        const { data } = await api.contacts.getImport(importId)
+        const next = unwrapImport(data)
+        if (!next) return
+        setResult(next)
+        if (!isImportInProgress(next.status)) {
+          try {
+            onImported?.()
+          } catch {
+            // Import already succeeded; list refresh is best-effort.
+          }
+          return
+        }
+      } catch {
+        return
+      }
     }
   }
 
@@ -622,7 +687,7 @@ export function ImportContactsDialog({
         <DialogFooter className="flex-col-reverse gap-2 border-t border-dash-border sm:flex-row sm:justify-end">
           {screen === 'result' ? (
             <>
-              {result?.rows?.length ? (
+              {result?.rows?.length && !isImportInProgress(result.status) ? (
                 <Button
                   type="button"
                   variant="outline"
@@ -722,17 +787,40 @@ function ImportResultView({
   skipped: number
 }) {
   const t = useTranslations('dashboard.contacts.import')
+  const inProgress = isImportInProgress(result.status)
+  const stoppedAtLimit = result.status === 'stopped_due_to_limit'
+  const failed = result.status === 'failed'
+  const title = inProgress
+    ? t('result.runningTitle')
+    : stoppedAtLimit
+      ? t('result.limitTitle')
+      : failed
+        ? t('result.failedTitle')
+        : t('result.title')
+  const subtitle = inProgress
+    ? t('result.runningSubtitle')
+    : stoppedAtLimit
+      ? t('result.limitSubtitle')
+      : failed
+        ? t('result.failedSubtitle')
+        : t('result.subtitle')
+
   return (
     <div className="flex flex-col items-center gap-5 py-2 text-center">
       <span className="flex size-16 items-center justify-center rounded-full bg-primary text-on-primary">
-        <Check className="size-8" aria-hidden />
+        {inProgress ? (
+          <Loader2 className="size-8 animate-spin" aria-hidden />
+        ) : (
+          <Check className="size-8" aria-hidden />
+        )}
       </span>
       <div>
-        <p className="font-display text-xl text-ink">{t('result.title')}</p>
-        <p className="mt-1 text-sm text-body">{t('result.subtitle')}</p>
+        <p className="font-display text-xl text-ink">{title}</p>
+        <p className="mt-1 text-sm text-body">{subtitle}</p>
       </div>
       <dl className="w-full divide-y divide-dash-border overflow-hidden rounded-2xl border border-dash-border text-left">
         <ReviewRow label={t('result.totalRows')} value={String(result.totalRows)} />
+        <ReviewRow label={t('result.processedRows')} value={String(result.processedRows)} />
         <div className="flex items-start justify-between gap-4 bg-canvas px-4 py-3">
           <dt className="text-sm text-body">{t('result.imported')}</dt>
           <dd className="text-sm font-medium text-positive-deep">{result.successCount}</dd>

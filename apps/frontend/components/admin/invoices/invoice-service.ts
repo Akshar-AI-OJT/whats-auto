@@ -108,7 +108,7 @@ function mapInvoice(apiInvoice: SuperAdminInvoice): Invoice {
     status: apiInvoice.status as InvoiceStatus,
     issueDate: apiInvoice.issueDate,
     dueDate: apiInvoice.dueDate,
-    currency: apiInvoice.currency || 'USD',
+    currency: apiInvoice.currency || 'INR',
     lineItems: apiInvoice.lineItems.map((item) => ({
       id: item.id,
       description: item.description,
@@ -149,6 +149,12 @@ function mapActionError(error: unknown): InvoiceActionResult {
     }
     if (error.code === 'E_INVOICE_CANNOT_MARK_CANCELLED_PAID') {
       return { ok: false, reason: 'invalid', messageKey: 'errors.cannotMarkCancelledPaid' }
+    }
+    if (error.code === 'E_INVOICE_RECIPIENT_MISSING') {
+      return { ok: false, reason: 'invalid', messageKey: 'errors.missingRecipient' }
+    }
+    if (error.code === 'E_INVOICE_SEND_FAILED') {
+      return { ok: false, reason: 'invalid', messageKey: 'errors.sendFailed' }
     }
     if (error.status === 501 || error.code === 'E_INVOICE_ACTION_UNAVAILABLE') {
       return { ok: false, reason: 'unavailable', messageKey: 'actions.sendSoon' }
@@ -223,7 +229,7 @@ function toCreateBody(input: CreateInvoiceInput) {
     periodEnd: input.periodEnd,
     issueDate: input.issueDate,
     dueDate: input.dueDate,
-    currency: 'USD',
+    currency: 'INR',
     taxRate: input.taxRate,
     discount: input.discount,
     notes: input.notes,

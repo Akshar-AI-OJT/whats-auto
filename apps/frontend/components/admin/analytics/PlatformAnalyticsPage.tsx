@@ -20,14 +20,9 @@ import { KPIStatCard } from '@/components/dashboard/overview/KPIStatCard'
 import { DashboardEmptyState } from '@/components/dashboard/overview/DashboardEmptyState'
 import { ActivityItem, type ActivityTone } from '@/components/dashboard/overview/ActivityItem'
 import {
-  buildOrganizationGrowth,
-  computeCurrentOrganizationSplit,
-  computePlanDistribution,
-  countTrialOrganizations,
-  fetchAllOrganizations,
-  fetchAllPlans,
-  fetchAllSubscriptions,
+  fetchCurrentMonthPaidRevenue,
   fetchInvoiceSummary,
+  fetchPlatformAnalyticsSummary,
   fetchRecentAudit,
   formatCurrency,
   type BreakdownItem,
@@ -135,27 +130,21 @@ export function PlatformAnalyticsPage() {
   const t = useTranslations('admin.analytics')
   const locale = useLocale()
 
-  const orgQuery = useQuery({
-    queryKey: queryKeys.admin.analytics.organizations,
-    queryFn: fetchAllOrganizations,
-    staleTime: 60_000,
-  })
-
-  const subscriptionsQuery = useQuery({
-    queryKey: queryKeys.admin.analytics.subscriptions,
-    queryFn: fetchAllSubscriptions,
-    staleTime: 60_000,
-  })
-
-  const plansQuery = useQuery({
-    queryKey: queryKeys.admin.analytics.plans,
-    queryFn: fetchAllPlans,
+  const summaryQuery = useQuery({
+    queryKey: queryKeys.admin.analytics.summary,
+    queryFn: fetchPlatformAnalyticsSummary,
     staleTime: 60_000,
   })
 
   const invoiceSummaryQuery = useQuery({
     queryKey: queryKeys.admin.analytics.invoiceSummary,
-    queryFn: fetchInvoiceSummary,
+    queryFn: () => fetchInvoiceSummary(),
+    staleTime: 60_000,
+  })
+
+  const currentMonthPaidRevenueQuery = useQuery({
+    queryKey: queryKeys.admin.analytics.currentMonthPaidRevenue,
+    queryFn: fetchCurrentMonthPaidRevenue,
     staleTime: 60_000,
   })
 
@@ -165,43 +154,37 @@ export function PlatformAnalyticsPage() {
     staleTime: 60_000,
   })
 
-  const organizations = useMemo(() => orgQuery.data?.items ?? [], [orgQuery.data?.items])
-  const organizationsTotal = orgQuery.data?.total ?? organizations.length
-  const subscriptions = useMemo(() => subscriptionsQuery.data ?? [], [subscriptionsQuery.data])
-  const plans = useMemo(() => plansQuery.data ?? [], [plansQuery.data])
+  const summary = summaryQuery.data
+  const organizationsTotal = summary?.totalOrganizations ?? 0
   const invoiceSummary = invoiceSummaryQuery.data
   const audits = useMemo(() => auditQuery.data ?? [], [auditQuery.data])
 
-  const activeCount = useMemo(
-    () => organizations.filter((org) => org.deletedAt == null && org.status === 'active').length,
-    [organizations]
-  )
-  const inactiveCount = useMemo(
-    () =>
-      organizations.filter(
-        (org) =>
-          org.deletedAt == null && (org.status === 'suspended' || org.status === 'false')
-      ).length,
-    [organizations]
-  )
-  const trialCount = useMemo(() => countTrialOrganizations(subscriptions), [subscriptions])
+  const activeCount = summary?.activeOrganizations ?? 0
+  const inactiveCount = summary?.inactiveOrganizations ?? 0
+  const trialCount = summary?.trialOrganizations ?? 0
   const invoicePendingOverdue = useMemo(
     () => (invoiceSummary ? invoiceSummary.pendingCount + invoiceSummary.overdueCount : 0),
     [invoiceSummary]
   )
 
-  const growthPoints = useMemo(
-    () => buildOrganizationGrowth(organizations, locale, 6),
-    [organizations, locale]
+  const growthPoints = useMemo<GrowthPoint[]>(
+    () =>
+      (summary?.organizationGrowth ?? []).map((point) => {
+        const [year, month] = point.key.split('-').map(Number)
+        const date = new Date(
+          Number.isFinite(year) ? year : 1970,
+          (Number.isFinite(month) ? month : 1) - 1,
+          1
+        )
+        return {
+          ...point,
+          label: new Intl.DateTimeFormat(locale, { month: 'short' }).format(date),
+        }
+      }),
+    [locale, summary?.organizationGrowth]
   )
-  const activeSplit = useMemo(
-    () => computeCurrentOrganizationSplit(organizations),
-    [organizations]
-  )
-  const planDistribution = useMemo(
-    () => computePlanDistribution(subscriptions, plans),
-    [subscriptions, plans]
-  )
+  const activeSplit = summary?.activeInactive ?? []
+  const planDistribution = summary?.planDistribution ?? []
 
   const auditItems = useMemo(
     () =>
@@ -250,45 +233,49 @@ export function PlatformAnalyticsPage() {
           label={t('kpis.totalOrganizations')}
           value={organizationsTotal}
           icon={Building2}
-          loading={orgQuery.isLoading}
+          loading={summaryQuery.isLoading}
           className="h-full"
         />
         <KPIStatCard
           label={t('kpis.activeOrganizations')}
           value={activeCount}
           icon={Building}
-          loading={orgQuery.isLoading}
+          loading={summaryQuery.isLoading}
           className="h-full"
         />
         <KPIStatCard
           label={t('kpis.inactiveOrganizations')}
           value={inactiveCount}
           icon={PauseCircle}
-          loading={orgQuery.isLoading}
+          loading={summaryQuery.isLoading}
           className="h-full"
         />
         <KPIStatCard
           label={t('kpis.trialOrganizations')}
           value={trialCount}
           icon={Sparkles}
-          loading={subscriptionsQuery.isLoading}
+          loading={summaryQuery.isLoading}
           className="h-full"
         />
         <KPIStatCard
           label={t('kpis.thisMonthRevenue')}
-          value={invoiceSummary?.thisMonthAmount ?? 0}
+          value={formatCurrency(
+            currentMonthPaidRevenueQuery.data ?? 0,
+            locale,
+            invoiceSummary?.currency
+          )}
+          format="plain"
           icon={CircleDollarSign}
-          loading={invoiceSummaryQuery.isLoading}
+          loading={currentMonthPaidRevenueQuery.isLoading}
           className="h-full"
-          prefix="$"
         />
         <KPIStatCard
           label={t('kpis.paidRevenue')}
-          value={invoiceSummary?.paidAmount ?? 0}
+          value={formatCurrency(invoiceSummary?.paidAmount ?? 0, locale, invoiceSummary?.currency)}
+          format="plain"
           icon={CreditCard}
           loading={invoiceSummaryQuery.isLoading}
           className="h-full"
-          prefix="$"
         />
         <KPIStatCard
           label={t('kpis.pendingOverdueInvoices')}
@@ -306,15 +293,15 @@ export function PlatformAnalyticsPage() {
               title={t('sections.organizationGrowth.title')}
               description={t('sections.organizationGrowth.description')}
             />
-            {orgQuery.isLoading ? (
+            {summaryQuery.isLoading ? (
               <PanelLoading label={t('loading.organizations')} />
-            ) : orgQuery.isError ? (
+            ) : summaryQuery.isError ? (
               <PanelError
                 label={t('errors.organizations')}
                 retryLabel={t('retry')}
-                retry={() => void orgQuery.refetch()}
+                retry={() => void summaryQuery.refetch()}
               />
-            ) : organizations.length === 0 ? (
+            ) : organizationsTotal === 0 ? (
               <DashboardEmptyState
                 title={t('sections.organizationGrowth.emptyTitle')}
                 description={t('sections.organizationGrowth.emptyDescription')}
@@ -331,13 +318,13 @@ export function PlatformAnalyticsPage() {
               title={t('sections.activeInactive.title')}
               description={t('sections.activeInactive.description')}
             />
-            {orgQuery.isLoading ? (
+            {summaryQuery.isLoading ? (
               <PanelLoading label={t('loading.organizations')} />
-            ) : orgQuery.isError ? (
+            ) : summaryQuery.isError ? (
               <PanelError
                 label={t('errors.organizations')}
                 retryLabel={t('retry')}
-                retry={() => void orgQuery.refetch()}
+                retry={() => void summaryQuery.refetch()}
               />
             ) : (
               <>
@@ -381,11 +368,19 @@ export function PlatformAnalyticsPage() {
               <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
                 <SummaryTile
                   label={t('sections.revenueSummary.thisMonthAmount')}
-                  value={formatCurrency(invoiceSummary.thisMonthAmount, locale)}
+                  value={formatCurrency(
+                    invoiceSummary.thisMonthAmount,
+                    locale,
+                    invoiceSummary.currency
+                  )}
                 />
                 <SummaryTile
                   label={t('sections.revenueSummary.paidAmount')}
-                  value={formatCurrency(invoiceSummary.paidAmount, locale)}
+                  value={formatCurrency(
+                    invoiceSummary.paidAmount,
+                    locale,
+                    invoiceSummary.currency
+                  )}
                 />
                 <SummaryTile
                   label={t('sections.revenueSummary.pendingOverdue')}
@@ -401,16 +396,13 @@ export function PlatformAnalyticsPage() {
               title={t('sections.subscriptionMix.title')}
               description={t('sections.subscriptionMix.description')}
             />
-            {subscriptionsQuery.isLoading || plansQuery.isLoading ? (
+            {summaryQuery.isLoading ? (
               <PanelLoading label={t('loading.subscriptions')} />
-            ) : subscriptionsQuery.isError || plansQuery.isError ? (
+            ) : summaryQuery.isError ? (
               <PanelError
                 label={t('errors.subscriptions')}
                 retryLabel={t('retry')}
-                retry={() => {
-                  void subscriptionsQuery.refetch()
-                  void plansQuery.refetch()
-                }}
+                retry={() => void summaryQuery.refetch()}
               />
             ) : planDistribution.length === 0 ? (
               <DashboardEmptyState

@@ -5,10 +5,11 @@ import { useTranslations } from 'next-intl'
 import { Loader2 } from 'lucide-react'
 import type { Campaign, CampaignPreview } from '@/lib/api'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import {
-  CAMPAIGN_CHANGE_STATUS_TARGETS,
-  type CampaignChangeStatusTarget,
-} from './campaign-utils'
+  isoInstantToDateTimeLocal,
+  isCampaignScheduleInFuture,
+} from '@/lib/org-datetime'
 import {
   Dialog,
   DialogContent,
@@ -119,6 +120,7 @@ export function CampaignCancelDialog({
             </Button>
             <Button
               type="button"
+              variant="destructive"
               disabled={pending || !campaign}
               className="gap-2"
               onClick={onConfirm}
@@ -163,7 +165,7 @@ export function CampaignPreviewDialog({
         </DialogHeader>
         <div className="space-y-4 px-5 py-4 sm:px-6">
           {pending ? (
-            <p className="flex items-center gap-2 text-sm text-body">
+            <p className="inline-flex items-center gap-2 text-sm text-body">
               <Loader2 className="size-4 animate-spin" aria-hidden />
               {t('loading')}
             </p>
@@ -174,8 +176,19 @@ export function CampaignPreviewDialog({
             </p>
           ) : null}
           {!pending && !error && preview ? (
-            <div className="rounded-xl border border-dash-border bg-dash-surface/60 px-4 py-3 text-sm leading-6 text-ink whitespace-pre-wrap">
-              {preview.bodyPreview}
+            <div className="rounded-2xl border border-dash-border bg-dash-surface/40 p-4 text-sm">
+              {preview.templateName ? (
+                <p className="text-xs font-semibold tracking-wide text-mute uppercase">
+                  {preview.templateName}
+                </p>
+              ) : null}
+              {preview.headerPreview ? (
+                <p className="mt-2 font-semibold text-ink">{preview.headerPreview}</p>
+              ) : null}
+              <p className="mt-2 whitespace-pre-wrap text-ink">{preview.bodyPreview}</p>
+              {preview.footerPreview ? (
+                <p className="mt-2 text-xs text-mute">{preview.footerPreview}</p>
+              ) : null}
             </div>
           ) : null}
           <DialogFooter className="border-0 bg-transparent p-0 sm:justify-end">
@@ -189,38 +202,52 @@ export function CampaignPreviewDialog({
   )
 }
 
-type CampaignChangeStatusDialogProps = {
+type CampaignRescheduleDialogProps = {
   open: boolean
   campaign: Campaign | null
   pending: boolean
   error: string | null
   onOpenChange: (open: boolean) => void
-  onConfirm: (status: CampaignChangeStatusTarget) => void
+  onConfirm: (scheduledAtLocal: string) => void
 }
 
-export function CampaignChangeStatusDialog({
+export function CampaignRescheduleDialog({
   open,
   campaign,
   pending,
   error,
   onOpenChange,
   onConfirm,
-}: CampaignChangeStatusDialogProps) {
-  const t = useTranslations('dashboard.campaigns.changeStatus')
-  const tStatus = useTranslations('dashboard.campaigns.status')
-  const derivedStatus: CampaignChangeStatusTarget =
-    campaign?.status === 'scheduled' ? 'scheduled' : 'draft'
-  const campaignKey = open && campaign ? `${campaign.id}:${campaign.status}` : ''
+}: CampaignRescheduleDialogProps) {
+  const t = useTranslations('dashboard.campaigns.reschedule')
+  const tForm = useTranslations('dashboard.campaigns.form')
+  const campaignKey = open && campaign ? `${campaign.id}:${campaign.scheduledAt ?? ''}` : ''
   const [trackedKey, setTrackedKey] = useState(campaignKey)
-  const [nextStatus, setNextStatus] = useState<CampaignChangeStatusTarget>(derivedStatus)
+  const [scheduledAt, setScheduledAt] = useState(() =>
+    isoInstantToDateTimeLocal(campaign?.scheduledAt)
+  )
+  const [localError, setLocalError] = useState<string | null>(null)
+
   if (campaignKey !== trackedKey) {
     setTrackedKey(campaignKey)
     if (campaignKey) {
-      setNextStatus(derivedStatus)
+      setScheduledAt(isoInstantToDateTimeLocal(campaign?.scheduledAt))
+      setLocalError(null)
     }
   }
 
-  const unchanged = campaign ? nextStatus === campaign.status : true
+  function handleConfirm() {
+    if (!scheduledAt) {
+      setLocalError(tForm('errors.scheduledAtRequired'))
+      return
+    }
+    if (!isCampaignScheduleInFuture(scheduledAt)) {
+      setLocalError(tForm('errors.scheduledAtFuture'))
+      return
+    }
+    setLocalError(null)
+    onConfirm(scheduledAt)
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -230,29 +257,28 @@ export function CampaignChangeStatusDialog({
           <DialogDescription>{t('body', { name: campaign?.name ?? '' })}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4 px-5 py-4 sm:px-6">
-          <p className="text-xs text-mute">{t('hint')}</p>
-          <fieldset className="space-y-2">
-            <legend className="text-sm font-medium text-ink">{t('label')}</legend>
-            {CAMPAIGN_CHANGE_STATUS_TARGETS.map((status) => (
-              <label
-                key={status}
-                className="flex cursor-pointer items-center gap-2 rounded-xl border border-dash-border px-3 py-2 text-sm text-ink"
-              >
-                <input
-                  type="radio"
-                  name="campaign-change-status"
-                  value={status}
-                  checked={nextStatus === status}
-                  disabled={pending}
-                  onChange={() => setNextStatus(status)}
-                />
-                {tStatus(status)}
-              </label>
-            ))}
-          </fieldset>
-          {error ? (
+          <div className="space-y-1.5">
+            <label htmlFor="campaign-reschedule-at" className="text-sm font-medium text-ink">
+              {t('scheduledAt')}
+            </label>
+            <div className="flex items-center gap-2">
+              <Input
+                id="campaign-reschedule-at"
+                type="datetime-local"
+                value={scheduledAt}
+                disabled={pending}
+                onChange={(e) => {
+                  setScheduledAt(e.target.value)
+                  setLocalError(null)
+                }}
+              />
+              <span className="shrink-0 text-sm font-medium text-mute">{t('utcLabel')}</span>
+            </div>
+            <p className="text-xs text-mute">{t('hint')}</p>
+          </div>
+          {localError || error ? (
             <p role="alert" className="text-sm text-negative">
-              {error}
+              {localError || error}
             </p>
           ) : null}
           <DialogFooter className="border-0 bg-transparent p-0 sm:justify-end">
@@ -266,9 +292,9 @@ export function CampaignChangeStatusDialog({
             </Button>
             <Button
               type="button"
-              disabled={pending || !campaign || unchanged}
+              disabled={pending || !campaign}
               className="gap-2"
-              onClick={() => onConfirm(nextStatus)}
+              onClick={handleConfirm}
             >
               {pending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
               {pending ? t('saving') : t('confirm')}

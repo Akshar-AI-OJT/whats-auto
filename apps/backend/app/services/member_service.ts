@@ -4,6 +4,7 @@ import { AuthorizationService } from '#services/authorization_service'
 import type { Permission } from '#abilities/permissions'
 import RoleException from '#exceptions/role_exception'
 import { resolveAssignableRoleForOrg } from '#services/role_service'
+import { revokeTeammateSetupAccess } from '#services/invitation_service'
 import { NotificationService } from '#services/notification_service'
 import { DateTime } from 'luxon'
 
@@ -49,6 +50,7 @@ export class MemberService {
         'u.id as userId',
         'u.name',
         'u.email',
+        'u.emailVerified',
         'r.name as role'
       )
       .orderBy('u.name', 'asc')
@@ -58,6 +60,7 @@ export class MemberService {
       userId: r.userId as string,
       name: r.name as string,
       email: r.email as string,
+      emailVerified: Boolean(r.emailVerified),
       role: r.role as string,
       designation: (r.designation as string | null) ?? null,
       createdAt: r.createdAt as string,
@@ -171,6 +174,19 @@ export class MemberService {
         isDeleted: true,
         deletedAt: DateTime.utc().toSQL(),
       })
+
+      await revokeTeammateSetupAccess(trx, {
+        organizationId,
+        userId: member.userId as string,
+      })
+
+      // Drop this org from the removed user's sessions so login/onboarding
+      // cannot keep treating them as still active in it.
+      await trx
+        .from('sessions')
+        .where('userId', member.userId as string)
+        .where('activeOrganizationId', organizationId)
+        .update({ activeOrganizationId: null })
 
       await trx.table('authorization_audits').insert({
         organizationId,

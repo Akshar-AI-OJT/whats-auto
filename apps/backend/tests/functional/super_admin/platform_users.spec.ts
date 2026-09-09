@@ -4,6 +4,7 @@ import { DateTime } from 'luxon'
 import { DEMO_PASSWORD, DEMO_USERS } from '#database/demo/credentials'
 import { FIXTURE_IDS } from '#database/demo/fixture_ids'
 import DemoSeeder from '#database/seeders/demo_seeder'
+import { ORGANIZATION_STATUSES } from '#enums/organization_status'
 import { auth } from '#lib/auth'
 import { AccessTokenClaimsService } from '#services/access_token_claims_service'
 
@@ -12,7 +13,7 @@ type PlatformUserOrganization = {
   organizationId: string
   organizationName: string
   organizationSlug: string
-  organizationStatus: boolean
+  organizationStatus: string
   role: string
   roleId: string
 }
@@ -139,6 +140,36 @@ test.group('Super Admin Platform Users HTTP', (group) => {
       assert.isTrue(user.status === 'active' || user.status === 'inactive')
       assert.isTrue(user.platformRole === 'superadmin' || user.platformRole === null)
       assert.isArray(user.organizations)
+      for (const org of user.organizations) {
+        assert.isString(org.organizationStatus)
+        assert.notEqual(typeof org.organizationStatus, 'boolean')
+        assert.isTrue(
+          (ORGANIZATION_STATUSES as readonly string[]).includes(org.organizationStatus),
+          `unexpected organizationStatus: ${org.organizationStatus}`
+        )
+      }
+    }
+  })
+
+  test('organizationStatus preserves backend status strings (not boolean)', async ({
+    client,
+    assert,
+  }) => {
+    const token = await mintToken(DEMO_USERS.superadmin)
+    const response = await client
+      .get('/api/v1/super-admin/platform-users?perPage=100')
+      .header('Authorization', `Bearer ${token}`)
+
+    response.assertStatus(200)
+    const { items } = unwrapList(response.body())
+    const withOrg = items.find((user) => user.organizations.length > 0)
+    assert.exists(withOrg)
+
+    for (const org of withOrg!.organizations) {
+      // Legacy Boolean(status) produced true/false; API must keep real status strings.
+      assert.equal(typeof org.organizationStatus, 'string')
+      assert.notEqual(org.organizationStatus, 'true')
+      assert.include(ORGANIZATION_STATUSES as readonly string[], org.organizationStatus)
     }
   })
 

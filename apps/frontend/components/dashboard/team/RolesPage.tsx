@@ -41,6 +41,7 @@ export function RolesPage() {
     canViewRoles,
     canManageRoles,
     isLoading: orgsLoading,
+    isResolvingAccess,
   } = useOrganizations()
 
   const [actionError, setActionError] = useState<string | null>(null)
@@ -62,12 +63,12 @@ export function RolesPage() {
       const { data } = await api.roles.list()
       return unwrapList<OrganizationRole>(data)
     },
-    enabled: !orgsLoading && Boolean(tenantOrganizationId) && canViewRoles,
+    enabled: !orgsLoading && !isResolvingAccess && Boolean(tenantOrganizationId) && canViewRoles,
     staleTime: 2 * 60_000,
   })
 
   const roles = rolesQuery.data ?? []
-  const listLoading = rolesQuery.isLoading || orgsLoading
+  const listLoading = rolesQuery.isPending || orgsLoading || isResolvingAccess || !tenantOrganizationId
   const listError = rolesQuery.error
     ? (rolesQuery.error as unknown as ApiError).message || t('errors.loadFailed')
     : null
@@ -146,7 +147,7 @@ export function RolesPage() {
     .filter((r) => r.role !== deleteTarget?.role)
     .map((r) => r.role)
 
-  if (!orgsLoading && !canViewRoles) {
+  if (!orgsLoading && !isResolvingAccess && !canViewRoles) {
     return (
       <div className="flex w-full min-w-0 flex-col gap-5 sm:gap-6">
         <DashboardPanel as="section" className="px-4 py-5 sm:px-6 sm:py-6">

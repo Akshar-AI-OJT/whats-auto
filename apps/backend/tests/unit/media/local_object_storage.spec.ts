@@ -38,6 +38,10 @@ test.group('LocalObjectStorage', (group) => {
     assert.isNotNull(head)
     assert.equal(head!.contentLength, body.byteLength)
 
+    const full = await s.getObject(key)
+    assert.deepEqual(Array.from(full!), Array.from(body))
+    assert.isTrue(await s.objectExists(key))
+
     const prefix = await s.getObjectPrefix({ key, maxBytes: 3 })
     assert.deepEqual(Array.from(prefix!), [0xff, 0xd8, 0xff])
 
@@ -46,6 +50,8 @@ test.group('LocalObjectStorage', (group) => {
 
     await s.deleteObject(key)
     assert.isNull(await s.headObject(key))
+    assert.isNull(await s.getObject(key))
+    assert.isFalse(await s.objectExists(key))
   })
 
   test('rejects path traversal keys', async ({ assert }) => {

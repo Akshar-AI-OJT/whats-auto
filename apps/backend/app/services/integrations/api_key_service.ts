@@ -5,6 +5,7 @@ import {
   type ApiKeyRow,
   type ResolvedApiKey,
 } from '#repositories/api_key_repository'
+import { PlanEnforcementService } from '#services/billing/plan_enforcement_service'
 
 const DEFAULT_SCOPES = ['events:write'] as const
 
@@ -21,6 +22,16 @@ export class ApiKeyService {
     name: string
     scopes?: string[]
   }): Promise<{ row: ApiKeyRow; secretToken: string }> {
+    await new PlanEnforcementService().requireFeature(params.organizationId, 'apiAccess')
+
+    const existing = await this.keys.listForOrg(params.organizationId)
+    const activeCount = existing.filter((key) => !key.revokedAt).length
+    await new PlanEnforcementService().requireUnderLimit(
+      params.organizationId,
+      'maxApiKeys',
+      activeCount
+    )
+
     const generated = generateApiKey()
     const row = await this.keys.insert({
       organizationId: params.organizationId,

@@ -12,8 +12,9 @@ export type ObjectHeadResult = {
 }
 
 /**
- * Swappable object-store boundary for media (presign / verify / delete).
- * Drive remains available for other disk ops; direct-upload uses this contract.
+ * Swappable object-store boundary for **all** organization uploads
+ * (media, knowledge, contact-import CSVs, etc.).
+ * Prefer IoC `ObjectStorage` — do not write org files via Drive directly.
  */
 export abstract class ObjectStorage {
   abstract createPresignedUpload(params: {
@@ -30,7 +31,7 @@ export abstract class ObjectStorage {
 
   abstract deleteObject(key: string): Promise<void>
 
-  /** Server-side write (manual KB text). Browser uploads still use presign. */
+  /** Server-side write (manual KB text, contact-import CSV, etc.). Browser uploads still use presign. */
   abstract writeObject(params: {
     key: string
     body: Uint8Array
@@ -42,4 +43,13 @@ export abstract class ObjectStorage {
    * Returns null when the object is missing.
    */
   abstract getObjectPrefix(params: { key: string; maxBytes: number }): Promise<Uint8Array | null>
+
+  /**
+   * Read the full object body. Returns null when the object is missing.
+   */
+  abstract getObject(key: string): Promise<Uint8Array | null>
+
+  async objectExists(key: string): Promise<boolean> {
+    return (await this.headObject(key)) !== null
+  }
 }

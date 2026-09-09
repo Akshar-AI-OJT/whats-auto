@@ -108,6 +108,17 @@ export default class LocalObjectStorage extends ObjectStorage {
     }
   }
 
+  async getObject(key: string): Promise<Uint8Array | null> {
+    try {
+      const filePath = this.#resolveKey(key)
+      const body = await readFile(filePath)
+      return new Uint8Array(body)
+    } catch (error) {
+      if (isNotFound(error)) return null
+      throw error
+    }
+  }
+
   async deleteObject(key: string): Promise<void> {
     try {
       const filePath = this.#resolveKey(key)

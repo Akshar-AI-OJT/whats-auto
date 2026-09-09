@@ -1,7 +1,10 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import { OrganizationStatus } from '#enums/organization_status'
 import MediaException from '#exceptions/media_exception'
+import OrganizationException from '#exceptions/organization_exception'
 import MediaAssetPolicy from '#policies/media_asset_policy'
 import { MediaAssetService } from '#services/media_asset_service'
+import { isOrganizationProfileLogoKey } from '#lib/media/organization_storage_key'
 import { StorageNamespace } from '#lib/media/storage_types'
 import { initiateMediaUploadValidator, mediaUploadIdParamValidator } from '#validators/media'
 import vine from '@vinejs/vine'
@@ -32,6 +35,18 @@ export default class MediaUploadsController {
     await bouncer.with(MediaAssetPolicy).authorize('upload')
 
     const payload = await request.validateUsing(initiateMediaUploadValidator)
+
+    // Org logo uploads are allowed during unpaid setup (route skips active gate).
+    // Other media stays locked until the org is active ([D70]).
+    if (
+      request.organizationStatus !== OrganizationStatus.ACTIVE &&
+      payload.purpose !== 'organization_logo'
+    ) {
+      if (request.organizationStatus === OrganizationStatus.PENDING_SETUP) {
+        throw OrganizationException.whatsappRequired()
+      }
+      throw OrganizationException.paymentRequired()
+    }
 
     const result = await new MediaAssetService().initiateUpload({
       organizationId: request.activeMember!.organizationId,
@@ -102,8 +117,24 @@ export default class MediaUploadsController {
       data: params,
     })
 
-    const asset = await new MediaAssetService().completeUpload({
-      organizationId: request.activeMember!.organizationId,
+    const organizationId = request.activeMember!.organizationId
+    const service = new MediaAssetService()
+
+    if (request.organizationStatus !== OrganizationStatus.ACTIVE) {
+      const pending = await service.findPendingUploadAsset({
+        organizationId,
+        mediaAssetId: id,
+      })
+      if (!pending || !isOrganizationProfileLogoKey(pending.storageKey)) {
+        if (request.organizationStatus === OrganizationStatus.PENDING_SETUP) {
+          throw OrganizationException.whatsappRequired()
+        }
+        throw OrganizationException.paymentRequired()
+      }
+    }
+
+    const asset = await service.completeUpload({
+      organizationId,
       mediaAssetId: id,
     })
 

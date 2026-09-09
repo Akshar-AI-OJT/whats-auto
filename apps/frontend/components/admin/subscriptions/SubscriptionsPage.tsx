@@ -1,6 +1,6 @@
 'use client'
 
-import { useId, useMemo, useState } from 'react'
+import { useCallback, useEffect, useId, useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   CreditCard,
@@ -14,17 +14,18 @@ import {
   Trash2,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { useRouter } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
 import { queryKeys } from '@/lib/query-keys'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { KPIStatCard } from '@/components/dashboard/overview/KPIStatCard'
+import { AdminOverflowMenu } from '@/components/admin/ui/AdminOverflowMenu'
 import {
   listSuperAdminOrganizations,
   type AdminOrganizationListItem,
 } from '@/components/admin/organizations/organization-api'
-import { SubscriptionDetailPanel } from './SubscriptionDetailPanel'
 import {
   dateInputToIso,
   deleteSuperAdminSubscription,
@@ -138,6 +139,7 @@ function StatusBadge({ status, label }: { status: string; label: string }) {
 
 export function SubscriptionsPage() {
   const t = useTranslations('admin.subscriptions')
+  const router = useRouter()
   const queryClient = useQueryClient()
   const editTitleId = useId()
   const deleteTitleId = useId()
@@ -148,11 +150,38 @@ export function SubscriptionsPage() {
   const [actionMessage, setActionMessage] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [planFilter, setPlanFilter] = useState<PlanFilter>('all')
   const [billingFilter, setBillingFilter] = useState<BillingFilter>('all')
-  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [menuId, setMenuId] = useState<string | null>(null)
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(search), 250)
+    return () => window.clearTimeout(timer)
+  }, [search])
+
+  const filterKey = `${debouncedSearch}|${statusFilter}|${planFilter}|${billingFilter}`
+  const [appliedFilterKey, setAppliedFilterKey] = useState(filterKey)
+  const filtersChanged = filterKey !== appliedFilterKey
+  if (filtersChanged) {
+    setAppliedFilterKey(filterKey)
+    setPage(1)
+  }
+  const listPage = filtersChanged ? 1 : page
+
+  const listParams = useMemo(
+    () => ({
+      page: listPage,
+      perPage: PER_PAGE,
+      search: debouncedSearch.trim() || undefined,
+      status: statusFilter === 'all' ? undefined : statusFilter,
+      plan: planFilter === 'all' ? undefined : planFilter,
+      billing: billingFilter === 'all' ? undefined : billingFilter,
+    }),
+    [listPage, debouncedSearch, statusFilter, planFilter, billingFilter]
+  )
 
   const [editTarget, setEditTarget] = useState<SuperAdminSubscription | null>(null)
   const [editForm, setEditForm] = useState<SubscriptionFormState | null>(null)
@@ -163,19 +192,17 @@ export function SubscriptionsPage() {
   const [deletePending, setDeletePending] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
-  const subsQueryKey = queryKeys.admin.subscriptions({ page, perPage: PER_PAGE })
+  const subsQueryKey = queryKeys.admin.subscriptions(listParams)
   const subsQuery = useQuery({
     queryKey: subsQueryKey,
     queryFn: async () => {
-      const { items, meta } = await listSuperAdminSubscriptions({
-        page,
-        perPage: PER_PAGE,
-      })
+      const { items, meta, summary } = await listSuperAdminSubscriptions(listParams)
       return {
         items,
-        page: meta?.currentPage ?? page,
+        page: meta?.currentPage ?? listPage,
         lastPage: meta?.lastPage ?? 1,
         total: meta?.total ?? items.length,
+        summary,
       }
     },
     staleTime: 60_000,
@@ -244,31 +271,31 @@ export function SubscriptionsPage() {
     return map
   }, [organizations])
 
-  const visibleSubscriptions = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    return subscriptions.filter((sub) => {
-      if (statusFilter !== 'all' && sub.status !== statusFilter) return false
-      if (planFilter !== 'all' && sub.planId !== planFilter) return false
-      if (billingFilter !== 'all' && planBillingKind(sub.planId, plans) !== billingFilter) {
-        return false
-      }
-      if (!q) return true
-      const orgName = orgById.get(sub.organizationId)?.name.toLowerCase() ?? ''
-      const website = orgById.get(sub.organizationId)?.website?.toLowerCase() ?? ''
-      const plan = planLabel(sub.planId, plans).toLowerCase()
-      return (
-        orgName.includes(q) ||
-        website.includes(q) ||
-        plan.includes(q) ||
-        sub.status.toLowerCase().includes(q) ||
-        sub.organizationId.toLowerCase().includes(q)
-      )
-    })
-  }, [subscriptions, search, statusFilter, planFilter, billingFilter, orgById, plans])
+  const visibleSubscriptions = subscriptions
+  const hasActiveFilters =
+    Boolean(debouncedSearch.trim()) ||
+    statusFilter !== 'all' ||
+    planFilter !== 'all' ||
+    billingFilter !== 'all'
 
-  const selected = visibleSubscriptions.find((sub) => sub.id === selectedId) ?? null
+  const menuSubscription =
+    menuId != null ? (visibleSubscriptions.find((sub) => sub.id === menuId) ?? null) : null
+
+  const closeMenu = useCallback(() => {
+    setMenuId(null)
+    setMenuAnchor(null)
+  }, [])
 
   const kpiCounts = useMemo(() => {
+    const summary = subsQuery.data?.summary
+    if (summary) {
+      return {
+        active: summary.active,
+        trialing: summary.trialing,
+        past_due: summary.past_due,
+        cancelled: summary.cancelled,
+      }
+    }
     const counts = { active: 0, trialing: 0, past_due: 0, cancelled: 0 }
     for (const sub of subscriptions) {
       if (sub.status === 'active') counts.active += 1
@@ -277,7 +304,7 @@ export function SubscriptionsPage() {
       else if (sub.status === 'cancelled') counts.cancelled += 1
     }
     return counts
-  }, [subscriptions])
+  }, [subsQuery.data?.summary, subscriptions])
 
   function validateForm(form: SubscriptionFormState): string | null {
     if (!UUID_RE.test(form.planId.trim())) {
@@ -333,7 +360,6 @@ export function SubscriptionsPage() {
         if (!old) return old
         return { ...old, total: Math.max(0, old.total - 1) }
       })
-      if (selectedId === deleteTarget.id) setSelectedId(null)
       setActionMessage(t('toast.deleted'))
       setActionError(null)
       setDeleteTarget(null)
@@ -348,7 +374,7 @@ export function SubscriptionsPage() {
     setEditTarget(sub)
     setEditForm(formFromSubscription(sub))
     setEditError(null)
-    setMenuId(null)
+    closeMenu()
     setActionMessage(null)
   }
 
@@ -461,8 +487,9 @@ export function SubscriptionsPage() {
   )
 }
 
-  const rangeStart = total === 0 ? 0 : (page - 1) * PER_PAGE + 1
-  const rangeEnd = Math.min(page * PER_PAGE, total)
+  const currentPage = subsQuery.data?.page ?? listPage
+  const rangeStart = total === 0 ? 0 : (currentPage - 1) * PER_PAGE + 1
+  const rangeEnd = Math.min(currentPage * PER_PAGE, total)
 
   return (
     <div className="flex w-full flex-col gap-4 sm:gap-5">
@@ -527,8 +554,7 @@ export function SubscriptionsPage() {
         />
       </div>
 
-      <div className={cn('flex min-h-0 flex-col gap-4', selected ? 'xl:flex-row' : '')}>
-        <DashboardPanel as="section" className="min-w-0 flex-1 p-4 sm:p-5">
+      <DashboardPanel as="section" className="min-w-0 p-4 sm:p-5">
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_9rem_9rem_9rem_auto]">
             <div className="relative min-w-0">
               <Search
@@ -647,23 +673,17 @@ export function SubscriptionsPage() {
                       {visibleSubscriptions.length === 0 ? (
                         <tr>
                           <td colSpan={8} className="px-5 py-12 text-center text-sm text-mute">
-                            {search.trim() || statusFilter !== 'all' || planFilter !== 'all'
-                              ? t('noMatches')
-                              : t('empty')}
+                            {hasActiveFilters ? t('noMatches') : t('empty')}
                           </td>
                         </tr>
                       ) : (
                         visibleSubscriptions.map((sub) => {
                           const relative = relativeFromEnd(sub.currentPeriodEnd, t)
-                          const isSelected = selectedId === sub.id
                           return (
                             <tr
                               key={sub.id}
-                              onClick={() => setSelectedId(sub.id)}
-                              className={cn(
-                                'cursor-pointer border-b border-dash-border last:border-b-0 transition-colors',
-                                isSelected ? 'bg-primary-pale/50' : 'hover:bg-dash-surface/50'
-                              )}
+                              onClick={() => router.push(`/admin/subscriptions/${sub.id}`)}
+                              className="cursor-pointer border-b border-dash-border last:border-b-0 transition-colors hover:bg-dash-surface/50"
                             >
                               <td className="px-4 py-3">{renderOrgCell(sub)}</td>
                               <td className="px-4 py-3 text-sm font-medium text-ink">
@@ -696,48 +716,25 @@ export function SubscriptionsPage() {
                               <td className="px-4 py-3 text-sm tabular-nums text-body">
                                 {formatDisplayDate(sub.currentPeriodStart)}
                               </td>
-                              <td className="relative px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
+                              <td className="px-4 py-3 text-right" onClick={(e) => e.stopPropagation()}>
                                 <button
                                   type="button"
                                   className="inline-flex size-8 items-center justify-center rounded-lg text-mute hover:bg-dash-surface hover:text-ink"
                                   aria-label={t('actions.openMenu')}
-                                  onClick={() => setMenuId((id) => (id === sub.id ? null : sub.id))}
+                                  aria-haspopup="menu"
+                                  aria-expanded={menuId === sub.id}
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    if (menuId === sub.id) {
+                                      closeMenu()
+                                      return
+                                    }
+                                    setMenuId(sub.id)
+                                    setMenuAnchor(e.currentTarget)
+                                  }}
                                 >
                                   <MoreHorizontal className="size-4" />
                                 </button>
-                                {menuId === sub.id ? (
-                                  <div className="absolute right-4 z-20 mt-1 w-44 overflow-hidden rounded-xl border border-dash-border bg-canvas py-1 shadow-lg">
-                                    <button
-                                      type="button"
-                                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
-                                      onClick={() => openEdit(sub)}
-                                    >
-                                      <Pencil className="size-3.5" />
-                                      {t('actions.edit')}
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-mute"
-                                      disabled
-                                      title={t('actions.pauseSoon')}
-                                    >
-                                      <PauseCircle className="size-3.5" />
-                                      {t('actions.pause')}
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-negative hover:bg-negative/5"
-                                      onClick={() => {
-                                        setDeleteTarget(sub)
-                                        setDeleteError(null)
-                                        setMenuId(null)
-                                      }}
-                                    >
-                                      <Trash2 className="size-3.5" />
-                                      {t('actions.delete')}
-                                    </button>
-                                  </div>
-                                ) : null}
                               </td>
                             </tr>
                           )
@@ -759,7 +756,7 @@ export function SubscriptionsPage() {
                       <button
                         type="button"
                         className="w-full cursor-pointer rounded-2xl border border-dash-border bg-dash-surface/60 p-4 text-left"
-                        onClick={() => setSelectedId(sub.id)}
+                        onClick={() => router.push(`/admin/subscriptions/${sub.id}`)}
                       >
                         <div className="flex items-start justify-between gap-3">
                           {renderOrgCell(sub)}
@@ -785,8 +782,8 @@ export function SubscriptionsPage() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      disabled={page <= 1 || listLoading}
-                      onClick={() => setPage(page - 1)}
+                      disabled={listPage <= 1 || listLoading}
+                      onClick={() => setPage(listPage - 1)}
                     >
                       {t('prevPage')}
                     </Button>
@@ -794,8 +791,8 @@ export function SubscriptionsPage() {
                       type="button"
                       variant="outline"
                       size="sm"
-                      disabled={page >= lastPage || listLoading}
-                      onClick={() => setPage(page + 1)}
+                      disabled={listPage >= lastPage || listLoading}
+                      onClick={() => setPage(listPage + 1)}
                     >
                       {t('nextPage')}
                     </Button>
@@ -805,21 +802,6 @@ export function SubscriptionsPage() {
             </>
           )}
         </DashboardPanel>
-
-        {selected ? (
-          <SubscriptionDetailPanel
-            subscription={selected}
-            plans={plans}
-            organization={orgById.get(selected.organizationId)}
-            onClose={() => setSelectedId(null)}
-            onChangePlan={() => openEdit(selected)}
-            onCancelSubscription={() => {
-              setDeleteTarget(selected)
-              setDeleteError(null)
-            }}
-          />
-        ) : null}
-      </div>
 
       {editTarget && editForm ? (
         <div
@@ -913,6 +895,50 @@ export function SubscriptionsPage() {
           </div>
         </div>
       ) : null}
+
+      <AdminOverflowMenu
+        key={menuSubscription?.id ?? 'subscription-overflow-menu'}
+        open={Boolean(menuSubscription && menuAnchor)}
+        anchor={menuAnchor}
+        onClose={closeMenu}
+      >
+        {menuSubscription ? (
+          <>
+            <button
+              type="button"
+              role="menuitem"
+              className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm text-ink hover:bg-dash-surface"
+              onClick={() => openEdit(menuSubscription)}
+            >
+              <Pencil className="size-3.5 shrink-0" aria-hidden />
+              {t('actions.edit')}
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-mute disabled:opacity-50"
+              disabled
+              title={t('actions.pauseSoon')}
+            >
+              <PauseCircle className="size-3.5 shrink-0" aria-hidden />
+              {t('actions.pause')}
+            </button>
+            <button
+              type="button"
+              role="menuitem"
+              className="flex w-full cursor-pointer items-center gap-2 px-3 py-2 text-left text-sm text-negative hover:bg-negative/5"
+              onClick={() => {
+                setDeleteTarget(menuSubscription)
+                setDeleteError(null)
+                closeMenu()
+              }}
+            >
+              <Trash2 className="size-3.5 shrink-0" aria-hidden />
+              {t('actions.delete')}
+            </button>
+          </>
+        ) : null}
+      </AdminOverflowMenu>
     </div>
   )
 }

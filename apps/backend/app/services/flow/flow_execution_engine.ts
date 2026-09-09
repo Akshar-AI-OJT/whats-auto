@@ -982,12 +982,14 @@ export default class FlowExecutionEngine {
         text: answered.text,
         idempotencyKey: `flow:${session.id}:${node.id}:ai_rag`,
       })
-      if (answered.usage) {
+      if (answered.usage && !answered.usage.fromCache) {
         await this.ai.recordSuccessfulReply({
           organizationId: session.organizationId,
           conversationId: session.conversationId,
           messageId: payload.messageId,
           modelName: answered.usage.modelName,
+          provider: answered.usage.provider,
+          operationType: 'rag_query',
           promptTokens: answered.usage.promptTokens,
           completionTokens: answered.usage.completionTokens,
           totalTokens: answered.usage.totalTokens,
@@ -1013,6 +1015,18 @@ export default class FlowExecutionEngine {
         expiresAt,
         actionTaken: 'FOLLOW',
         node,
+      })
+    }
+
+    if (answered.kind === 'quota_exceeded' || answered.kind === 'rate_limited') {
+      await this.logs.insert({
+        organizationId: session.organizationId,
+        flowSessionId: session.id,
+        conversationId: session.conversationId,
+        nodeId: node.id,
+        nodeType: node.type,
+        actionTaken: 'AI_RAG_QUOTA_EXCEEDED',
+        inputPayload: { reason: answered.kind },
       })
     }
 

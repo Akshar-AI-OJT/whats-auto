@@ -1,6 +1,6 @@
 import app from '@adonisjs/core/services/app'
 import logger from '@adonisjs/core/services/logger'
-import { AiUsageDecision } from '#enums/ai_usage_decision'
+import { AiUsageDecision, type AiOperationType } from '#enums/ai_usage_decision'
 import { FlowNodeType } from '#enums/flow_node_type'
 import { asString, type FlowNode, type FlowTangentResumeMode } from '#lib/flow/flow_graph'
 import { AiUsageLogRepository } from '#repositories/ai_usage_log_repository'
@@ -10,6 +10,7 @@ import AiConversationSummaryService from '#services/ai/ai_conversation_summary_s
 import { composeRagSystemPrompt, ragPromptFingerprint } from '#services/ai/ai_prompt_defaults'
 import type { InboxAiSseEvent } from '#services/ai/contracts/inbox_ai_sse'
 import { ChatLlmProvider } from '#services/ai/contracts/llm_provider'
+import { ConversationAiRateLimitService } from '#services/ai/conversation_ai_rate_limit_service'
 import { handoverSseEvent } from '#services/ai/handover_sse_event'
 import KnowledgeRetrievalService, {
   type KnowledgeRetrievalResult,
@@ -19,6 +20,7 @@ import { matchHandoverKeyword } from '#services/ai/match_handover_keywords'
 import PlatformAiConfigService from '#services/ai/platform_ai_config_service'
 import { publishInboxAiEvent } from '#services/ai/publish_inbox_ai_sse'
 import { publishConversationAiModeUpdated } from '#services/ai/publish_conversation_ai_mode_sse'
+import { AiQuotaService } from '#services/billing/ai_quota_service'
 import FlowOutboundAdapter from '#services/flow/flow_outbound_adapter'
 import { runWithTenant } from '#services/tenant_context'
 
@@ -35,13 +37,14 @@ export type FlowAiKnowledgeUsage = {
   completionTokens: number
   totalTokens: number
   modelName: string
+  provider: string
   latencyMs: number
   retrievalScore: number | null
   fromCache: boolean
 }
 
 export type FlowAiKnowledgeResult = {
-  kind: 'answered' | 'low_confidence' | 'error'
+  kind: 'answered' | 'low_confidence' | 'error' | 'quota_exceeded' | 'rate_limited'
   text?: string
   maxScore?: number
   reason?: string
@@ -64,7 +67,9 @@ export default class FlowAiOrchestrator {
     private publishAi: (
       organizationId: string,
       event: InboxAiSseEvent
-    ) => void = publishInboxAiEvent
+    ) => void = publishInboxAiEvent,
+    private aiQuota: AiQuotaService = new AiQuotaService(),
+    private conversationRateLimit: ConversationAiRateLimitService = new ConversationAiRateLimitService()
   ) {}
 
   async handleUnexpectedInput(params: {
@@ -95,6 +100,8 @@ export default class FlowAiOrchestrator {
           decision: AiUsageDecision.HANDOVER_KEYWORD,
           messageId: params.messageId,
           modelName: config.chatModel,
+          provider: config.chatProvider,
+          operationType: 'rag_tangent',
         },
       })
       return { handled: true, action: 'HANDOVER', reason: keyword }
@@ -123,6 +130,8 @@ export default class FlowAiOrchestrator {
           decision: AiUsageDecision.HANDOVER_LOW_CONFIDENCE,
           messageId: params.messageId,
           modelName: config.chatModel,
+          provider: config.chatProvider,
+          operationType: 'rag_tangent',
           retrievalScore: retrieved.maxScore,
         },
       })
@@ -142,6 +151,11 @@ export default class FlowAiOrchestrator {
     })
 
     const generation = await this.#generateGroundedAnswer({
+      organizationId: params.organizationId,
+      conversationId: params.conversationId,
+      messageId: params.messageId,
+      operationType: 'rag_tangent',
+      provider: config.chatProvider,
       systemPrompt,
       chatModel: config.chatModel,
       temperature: config.temperature,
@@ -153,11 +167,29 @@ export default class FlowAiOrchestrator {
     if (!generation) {
       return { handled: false, action: 'NOT_HANDLED', reason: 'generation_failed' }
     }
+    if (generation.blocked) {
+      await this.triggerHandover({
+        organizationId: params.organizationId,
+        conversationId: params.conversationId,
+        reason: generation.blocked,
+        usage: {
+          decision:
+            generation.blocked === 'quota_exceeded'
+              ? AiUsageDecision.QUOTA_EXCEEDED
+              : AiUsageDecision.RATE_LIMITED,
+          messageId: params.messageId,
+          modelName: config.chatModel,
+          provider: config.chatProvider,
+          operationType: 'rag_tangent',
+        },
+      })
+      return { handled: true, action: 'HANDOVER', reason: generation.blocked }
+    }
 
     const immediate = params.tangentResume !== 'WAIT_FOR_NEXT'
     const text = immediate
       ? `${generation.text}\n\nTo continue: ${repromptTextFor(params.currentNode)}`
-      : generation.text
+      : generation.text!
 
     try {
       await this.outbound.sendAiText({
@@ -176,7 +208,9 @@ export default class FlowAiOrchestrator {
       organizationId: params.organizationId,
       conversationId: params.conversationId,
       messageId: params.messageId,
-      modelName: generation.modelName,
+      modelName: generation.modelName!,
+      provider: config.chatProvider,
+      operationType: 'rag_tangent',
       promptTokens: generation.promptTokens,
       completionTokens: generation.completionTokens,
       totalTokens: generation.totalTokens,
@@ -226,6 +260,7 @@ export default class FlowAiOrchestrator {
           completionTokens: 0,
           totalTokens: 0,
           modelName: config.chatModel,
+          provider: config.chatProvider,
           latencyMs: 0,
           retrievalScore: null,
           fromCache: true,
@@ -255,6 +290,7 @@ export default class FlowAiOrchestrator {
           completionTokens: 0,
           totalTokens: 0,
           modelName: config.chatModel,
+          provider: config.chatProvider,
           latencyMs: 0,
           retrievalScore: retrieved.maxScore,
           fromCache: false,
@@ -270,6 +306,10 @@ export default class FlowAiOrchestrator {
     )
 
     const generation = await this.#generateGroundedAnswer({
+      organizationId: params.organizationId,
+      conversationId: params.conversationId,
+      operationType: 'rag_query',
+      provider: config.chatProvider,
       systemPrompt,
       chatModel: config.chatModel,
       temperature: config.temperature,
@@ -279,19 +319,26 @@ export default class FlowAiOrchestrator {
       chunks: retrieved.chunks,
     })
     if (!generation) return { kind: 'error', reason: 'generation_failed' }
+    if (generation.blocked === 'quota_exceeded') {
+      return { kind: 'quota_exceeded', reason: 'quota_exceeded', maxScore: retrieved.maxScore }
+    }
+    if (generation.blocked === 'rate_limited') {
+      return { kind: 'rate_limited', reason: 'rate_limited', maxScore: retrieved.maxScore }
+    }
 
-    await this.answers.set(cacheLookup, generation.text)
+    await this.answers.set(cacheLookup, generation.text!)
 
     return {
       kind: 'answered',
       text: generation.text,
       maxScore: retrieved.maxScore,
       usage: {
-        promptTokens: generation.promptTokens,
-        completionTokens: generation.completionTokens,
-        totalTokens: generation.totalTokens,
-        modelName: generation.modelName,
-        latencyMs: generation.latencyMs,
+        promptTokens: generation.promptTokens!,
+        completionTokens: generation.completionTokens!,
+        totalTokens: generation.totalTokens!,
+        modelName: generation.modelName!,
+        provider: config.chatProvider,
+        latencyMs: generation.latencyMs!,
         retrievalScore: retrieved.maxScore,
         fromCache: false,
       },
@@ -306,6 +353,8 @@ export default class FlowAiOrchestrator {
       decision: AiUsageDecision
       messageId?: string | null
       modelName: string
+      provider?: string
+      operationType?: AiOperationType
       retrievalScore?: number | null
     }
   }): Promise<void> {
@@ -333,10 +382,13 @@ export default class FlowAiOrchestrator {
 
     if (!params.usage) return
     try {
+      const config = await this.platform.get()
       await this.usage.insert({
         organizationId: params.organizationId,
         conversationId: params.conversationId,
         messageId: params.usage.messageId ?? null,
+        provider: params.usage.provider ?? config.chatProvider,
+        operationType: params.usage.operationType ?? 'rag_query',
         modelName: params.usage.modelName,
         latencyMs: 0,
         decision: params.usage.decision,
@@ -354,14 +406,13 @@ export default class FlowAiOrchestrator {
     }
   }
 
-  /**
-   * After a successful AI WhatsApp send: usage log + optional summary schedule.
-   */
   async recordSuccessfulReply(params: {
     organizationId: string
     conversationId: string
     messageId?: string | null
     modelName: string
+    provider: string
+    operationType: AiOperationType
     promptTokens?: number
     completionTokens?: number
     totalTokens?: number
@@ -373,6 +424,8 @@ export default class FlowAiOrchestrator {
         organizationId: params.organizationId,
         conversationId: params.conversationId,
         messageId: params.messageId ?? null,
+        provider: params.provider,
+        operationType: params.operationType,
         promptTokens: params.promptTokens ?? 0,
         completionTokens: params.completionTokens ?? 0,
         totalTokens: params.totalTokens ?? 0,
@@ -381,6 +434,7 @@ export default class FlowAiOrchestrator {
         decision: AiUsageDecision.AUTO_REPLIED,
         retrievalScore: params.retrievalScore ?? null,
       })
+      await this.aiQuota.incrementOnSuccess(params.organizationId)
     } catch (error) {
       logger.warn(
         {
@@ -410,6 +464,11 @@ export default class FlowAiOrchestrator {
   }
 
   async #generateGroundedAnswer(params: {
+    organizationId: string
+    conversationId: string
+    messageId?: string | null
+    operationType: AiOperationType
+    provider: string
     systemPrompt: string
     chatModel: string
     temperature: number
@@ -418,13 +477,59 @@ export default class FlowAiOrchestrator {
     summary: string | null
     chunks: RetrievedKnowledgeChunk[]
   }): Promise<{
-    text: string
-    promptTokens: number
-    completionTokens: number
-    totalTokens: number
-    modelName: string
-    latencyMs: number
+    text?: string
+    promptTokens?: number
+    completionTokens?: number
+    totalTokens?: number
+    modelName?: string
+    latencyMs?: number
+    blocked?: 'quota_exceeded' | 'rate_limited'
   } | null> {
+    const quota = await this.aiQuota.peek(params.organizationId)
+    if (quota.nearLimit) {
+      await this.aiQuota.notifyNearCap(params.organizationId, quota)
+    }
+    if (!quota.allowed) {
+      await this.aiQuota.notifyExceeded(params.organizationId)
+      try {
+        await this.usage.insert({
+          organizationId: params.organizationId,
+          conversationId: params.conversationId,
+          messageId: params.messageId ?? null,
+          provider: params.provider,
+          operationType: params.operationType,
+          modelName: params.chatModel,
+          latencyMs: 0,
+          decision: AiUsageDecision.QUOTA_EXCEEDED,
+        })
+      } catch {
+        /* best-effort */
+      }
+      return { blocked: 'quota_exceeded' }
+    }
+
+    const rate = await this.conversationRateLimit.checkAndIncrement({
+      organizationId: params.organizationId,
+      conversationId: params.conversationId,
+    })
+    if (!rate.allowed) {
+      try {
+        await this.usage.insert({
+          organizationId: params.organizationId,
+          conversationId: params.conversationId,
+          messageId: params.messageId ?? null,
+          provider: params.provider,
+          operationType: params.operationType,
+          modelName: params.chatModel,
+          latencyMs: 0,
+          decision: AiUsageDecision.RATE_LIMITED,
+        })
+      } catch {
+        /* best-effort */
+      }
+      return { blocked: 'rate_limited' }
+    }
+
     try {
       const llm = this.llm ?? (await app.container.make(ChatLlmProvider))
       const completion = await llm.generateCompletion({

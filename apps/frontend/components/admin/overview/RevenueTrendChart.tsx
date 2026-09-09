@@ -7,20 +7,13 @@ import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
 import { queryKeys } from '@/lib/query-keys'
 import { cn } from '@/lib/utils'
-import { fetchMonthlyRevenueTrend } from '../analytics/super-admin-analytics'
+import { fetchMonthlyRevenueTrend, formatShortCurrency } from '../analytics/super-admin-analytics'
 
 const WIDTH = 560
 const HEIGHT = 220
 const PAD = { top: 16, right: 12, bottom: 32, left: 48 }
 const STALE_MS = 60_000
 const MONTHS = 6
-
-function formatShortCurrency(value: number) {
-  if (value >= 1000) {
-    return `$${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 1)}k`
-  }
-  return `$${value}`
-}
 
 export function RevenueTrendChart({ className }: { className?: string }) {
   const t = useTranslations('admin.home.charts.revenue')
@@ -86,7 +79,7 @@ export function RevenueTrendChart({ className }: { className?: string }) {
             viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
             className="h-auto w-full"
             role="img"
-            aria-label={t('ariaLabel', { max: formatShortCurrency(Math.round(max)) })}
+            aria-label={t('ariaLabel', { max: formatShortCurrency(Math.round(max), locale) })}
           >
             {yTicks.map((tick) => (
               <g key={tick.value}>
@@ -104,7 +97,7 @@ export function RevenueTrendChart({ className }: { className?: string }) {
                   textAnchor="end"
                   className="fill-mute text-[10px]"
                 >
-                  {formatShortCurrency(tick.value)}
+                  {formatShortCurrency(tick.value, locale)}
                 </text>
               </g>
             ))}

@@ -7,6 +7,7 @@ import { Link, usePathname } from '@/i18n/navigation'
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
 import { MobileMenu } from '@/components/layout/MobileMenu'
 import { MobileMenuTrigger } from '@/components/layout/MobileMenuTrigger'
+import { AppLogo } from '@/components/branding/AppLogo'
 import type { NavAnchorLink, NavData } from '@/components/layout/types'
 import { cn } from '@/lib/utils'
 
@@ -188,12 +189,7 @@ export function NavbarClient({ nav }: NavbarClientProps) {
             scrolled ? 'h-[68px]' : 'h-20'
           )}
         >
-          <Link
-            href="/"
-            className="font-display shrink-0 text-xl leading-none tracking-tight text-ink transition-opacity duration-300 hover:opacity-80 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
-          >
-            {nav.brand}
-          </Link>
+          <AppLogo href="/" size="lg" priority className="rounded-xl" />
 
           <div className="hidden flex-1 items-center gap-0.5 lg:flex">
             <div className="ml-6 flex items-center gap-0.5 xl:ml-8">

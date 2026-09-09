@@ -4,6 +4,7 @@ import {
   type IntegrationConnectionProvider,
   type IntegrationConnectionRow,
 } from '#repositories/integration_connection_repository'
+import { PlanEnforcementService } from '#services/billing/plan_enforcement_service'
 
 const MANAGED_PROVIDER: IntegrationConnectionProvider = 'shopenup'
 const SECRET_CONFIG_KEY = /secret|token|password|credential|api[_-]?key/i
@@ -42,6 +43,24 @@ export class IntegrationConnectionService {
     const provider = this.requireManagedProvider(params.provider)
     if (params.config) {
       this.assertConfigHasNoSecrets(params.config)
+    }
+
+    await new PlanEnforcementService().requireFeature(
+      params.organizationId,
+      'eCommerceIntegrations'
+    )
+
+    const existing = await this.connections.findByProviderForOrg({
+      organizationId: params.organizationId,
+      provider,
+    })
+    if (!existing) {
+      const connections = await this.connections.listForOrg(params.organizationId)
+      await new PlanEnforcementService().requireUnderLimit(
+        params.organizationId,
+        'maxStoreConnections',
+        connections.length
+      )
     }
 
     return this.connections.upsertForOrg({

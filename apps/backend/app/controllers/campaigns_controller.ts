@@ -6,7 +6,6 @@ import { CampaignExecutionService } from '#services/campaign_execution_service'
 import { CampaignService } from '#services/campaign_service'
 import {
   campaignIdParamValidator,
-  changeCampaignStatusValidator,
   createCampaignValidator,
   listCampaignsValidator,
   previewCampaignValidator,
@@ -21,13 +20,15 @@ export default class CampaignsController {
   /**
    * @index
    * @summary List campaigns
-   * @description Paginated campaigns for the active organization. Supports search, status filter, and sorting.
+   * @description Paginated campaigns for the active organization. Supports search, status, date range, and sorting. Date filters are applied before pagination.
    * @tag Campaigns
    * @security BearerAuth
    * @paramQuery page - Page number (default 1) - @type(number)
    * @paramQuery limit - Items per page (1-100, default 20); alias: perPage - @type(number)
    * @paramQuery search - Case-insensitive name search - @type(string)
    * @paramQuery status - Filter by status (draft, scheduled, sending, sent, failed) - @type(string)
+   * @paramQuery startDate - Inclusive start on createdAt (fallback scheduledAt); YYYY-MM-DD or YYYY-MM-DD HH:mm:ss - @type(string)
+   * @paramQuery endDate - Inclusive end on createdAt (fallback scheduledAt); YYYY-MM-DD or YYYY-MM-DD HH:mm:ss - @type(string)
    * @paramQuery sortBy - Sort field (default createdAt) - @type(string)
    * @paramQuery sortOrder - asc or desc (default desc) - @type(string)
    * @responseBody 200 - { "data": [{ "id": "uuid", "name": "July Product Launch", "status": "draft" }], "meta": { "total": 1, "perPage": 20, "currentPage": 1, "lastPage": 1 } }
@@ -118,8 +119,8 @@ export default class CampaignsController {
 
   /**
    * @send
-   * @summary Send a campaign
-   * @description Marks an eligible draft/scheduled campaign as sending and enqueues recipient fan-out. Soft-deleted campaigns return 404.
+   * @summary Send a campaign now
+   * @description Marks an eligible draft campaign as sending and enqueues recipient fan-out. Scheduled campaigns must be cancelled to draft first. Soft-deleted campaigns return 404.
    * @tag Campaigns
    * @security BearerAuth
    * @paramPath id - Campaign id - @type(string)
@@ -127,7 +128,7 @@ export default class CampaignsController {
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 403 - { "error": "Permission denied: campaigns:launch", "code": "PERMISSION_DENIED" }
    * @responseBody 404 - { "error": "Campaign not found", "code": "E_CAMPAIGN_NOT_FOUND" }
-   * @responseBody 422 - { "error": "Campaign with status \"sending\" is not eligible to send", "code": "E_CAMPAIGN_NOT_ELIGIBLE_TO_SEND" }
+   * @responseBody 422 - { "error": "Campaign with status \"scheduled\" is not eligible to send", "code": "E_CAMPAIGN_NOT_ELIGIBLE_TO_SEND" }
    * @responseBody 422 - { "error": "Message template is not approved for sending", "code": "E_CAMPAIGN_TEMPLATE_NOT_APPROVED" }
    */
   @inject()
@@ -154,11 +155,11 @@ export default class CampaignsController {
   /**
    * @schedule
    * @summary Schedule a campaign
-   * @description Sets scheduledAt to a future datetime, status to scheduled, and enqueues a delayed execute job. Naive datetimes use optional timeZone, otherwise the organization timezone. Soft-deleted campaigns return 404.
+   * @description Sets scheduledAt to a future UTC ISO-8601 instant ending in Z, status to scheduled, and enqueues a delayed execute job. Soft-deleted campaigns return 404.
    * @tag Campaigns
    * @security BearerAuth
    * @paramPath id - Campaign id - @type(string)
-   * @requestBody { "scheduledAt": "2026-08-07T10:00:00.000Z", "timeZone": "Asia/Kolkata" }
+   * @requestBody { "scheduledAt": "2026-08-07T10:00:00.000Z" }
    * @responseBody 200 - { "data": { "id": "uuid", "name": "July Product Launch", "status": "scheduled", "scheduledAt": "2026-08-07T10:00:00.000Z" } }
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 403 - { "error": "Permission denied: campaigns:edit", "code": "PERMISSION_DENIED" }
@@ -185,7 +186,6 @@ export default class CampaignsController {
       campaignId: id,
       organizationId: request.activeMember!.organizationId,
       scheduledAt: payload.scheduledAt,
-      timeZone: payload.timeZone,
     })
 
     return serialize(campaign)
@@ -327,53 +327,12 @@ export default class CampaignsController {
   }
 
   /**
-   * @changeStatus
-   * @summary Change campaign status
-   * @description Updates campaign status for draft↔scheduled only. Sending/sent/failed/cancelled use send, schedule, cancel, or finalize flows.
-   * @tag Campaigns
-   * @security BearerAuth
-   * @paramPath id - Campaign id - @type(string)
-   * @requestBody { "status": "scheduled" }
-   * @responseBody 200 - { "data": { "id": "uuid", "name": "July Product Launch", "status": "scheduled" } }
-   * @responseBody 401 - { "error": "Missing or invalid session" }
-   * @responseBody 403 - { "error": "Permission denied: campaigns:edit", "code": "PERMISSION_DENIED" }
-   * @responseBody 404 - { "error": "Campaign not found", "code": "E_CAMPAIGN_NOT_FOUND" }
-   * @responseBody 422 - { "error": "Cannot change campaign status from \"sent\" to \"draft\"", "code": "E_CAMPAIGN_INVALID_STATUS_TRANSITION" }
-   */
-  @inject()
-  async changeStatus(
-    { bouncer, request, params, serialize }: HttpContext,
-    campaigns: CampaignService
-  ) {
-    const { id } = await request.validateUsing(campaignIdParamValidator, {
-      data: params,
-    })
-
-    const existing = await campaigns.getCampaignById({
-      campaignId: id,
-      organizationId: request.activeMember!.organizationId,
-    })
-
-    await bouncer.with(CampaignPolicy).authorize('changeStatus', existing)
-
-    const payload = await request.validateUsing(changeCampaignStatusValidator)
-
-    const campaign = await campaigns.changeCampaignStatus({
-      campaignId: id,
-      organizationId: request.activeMember!.organizationId,
-      status: payload.status,
-    })
-
-    return serialize(campaign)
-  }
-
-  /**
    * @store
    * @summary Create a campaign
-   * @description Creates a draft or scheduled outbound campaign (broadcast) for the active organization.
+   * @description Creates a draft outbound campaign (broadcast) for the active organization. Use POST /schedule to schedule.
    * @tag Campaigns
    * @security BearerAuth
-   * @requestBody { "name": "July Product Launch", "messageTemplateId": "uuid", "whatsappConfigId": "uuid", "status": "draft" }
+   * @requestBody { "name": "July Product Launch", "messageTemplateId": "uuid", "whatsappConfigId": "uuid" }
    * @responseBody 200 - { "data": { "id": "uuid", "name": "July Product Launch", "status": "draft", "totalRecipients": 0 } }
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 403 - { "error": "Permission denied: campaigns:create", "code": "PERMISSION_DENIED" }
@@ -392,8 +351,6 @@ export default class CampaignsController {
       whatsappConfigId: payload.whatsappConfigId,
       messageTemplateId: payload.messageTemplateId,
       headerMediaAssetId: payload.headerMediaAssetId,
-      scheduledAt: payload.scheduledAt,
-      status: payload.status,
       variableMappings: payload.variableMappings as CampaignVariableMappings | undefined,
     })
 
@@ -403,16 +360,16 @@ export default class CampaignsController {
   /**
    * @update
    * @summary Update a campaign
-   * @description Partial update of editable fields for a campaign in the active organization. Counters, org, creator, and createdAt are immutable.
+   * @description Partial update of editable fields for a draft campaign. Scheduled campaigns must be cancelled to draft first. Counters, org, creator, and createdAt are immutable.
    * @tag Campaigns
    * @security BearerAuth
    * @paramPath id - Campaign id - @type(string)
-   * @requestBody { "name": "July Product Launch v2", "status": "scheduled", "scheduledAt": "2026-08-07T10:00:00.000Z" }
-   * @responseBody 200 - { "data": { "id": "uuid", "name": "July Product Launch v2", "status": "scheduled" } }
+   * @requestBody { "name": "July Product Launch v2" }
+   * @responseBody 200 - { "data": { "id": "uuid", "name": "July Product Launch v2", "status": "draft" } }
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 403 - { "error": "Permission denied: campaigns:edit", "code": "PERMISSION_DENIED" }
    * @responseBody 404 - { "error": "Campaign not found", "code": "E_CAMPAIGN_NOT_FOUND" }
-   * @responseBody 422 - { "error": "scheduledAt is required when status is scheduled", "code": "E_CAMPAIGN_SCHEDULED_AT_REQUIRED" }
+   * @responseBody 422 - { "error": "Campaign with status \"scheduled\" is not editable", "code": "E_CAMPAIGN_NOT_EDITABLE" }
    */
   @inject()
   async update({ bouncer, request, params, serialize }: HttpContext, campaigns: CampaignService) {

@@ -6,6 +6,8 @@ export const listOrganizationAdminUsersValidator = vine.create(
   vine.object({
     page: vine.number().withoutDecimals().min(1).optional(),
     perPage: vine.number().withoutDecimals().min(1).max(100).optional(),
+    search: vine.string().trim().maxLength(200).optional(),
+    role: vine.string().trim().minLength(1).maxLength(100).optional(),
   })
 )
 

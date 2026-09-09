@@ -1,6 +1,8 @@
 import db from '@adonisjs/lucid/services/db'
+import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import ContactException from '#exceptions/contact_exception'
 import { normalizeContactPhone } from '#lib/contact_phone'
+import { EntitlementService } from '#services/billing/entitlement_service'
 
 export { normalizeContactPhone }
 
@@ -64,7 +66,28 @@ const CONTACT_COLUMNS = [
   'updatedAt',
 ] as const
 
+/** Plan.limits key for max non-deleted contacts. Missing key = unlimited. */
+export const CONTACT_PLAN_LIMIT_KEY = 'maxContacts'
+
+/** Arbitrary int4 key so contact-limit locks do not collide with other advisory locks. */
+const CONTACT_LIMIT_LOCK_NS = 721049
+
+type DbClient = typeof db | TransactionClientContract
+
+export type ListContactsPaginatedParams = {
+  organizationId: string
+  page: number
+  perPage: number
+  search?: string
+}
+
+function escapeIlike(value: string): string {
+  return `%${value.replace(/[%_\\]/g, '\\$&')}%`
+}
+
 export class ContactService {
+  constructor(private entitlements: EntitlementService = new EntitlementService()) {}
+
   /**
    * List non-deleted contacts for one organization.
    * Filters by organizationId in app code (defense in depth) + RLS.
@@ -78,6 +101,56 @@ export class ContactService {
       .orderBy('createdAt', 'desc')
 
     return rows.map((r) => mapContactRow(r))
+  }
+
+  /**
+   * Paginated contacts for one organization.
+   * Optional case-insensitive search on name, phone, phoneNormalized, email,
+   * and company is applied before pagination so meta.total is the filtered count.
+   * Soft-deleted rows are omitted. Scoped by organizationId (defense in depth) + RLS.
+   */
+  async listContactsPaginated(params: ListContactsPaginatedParams) {
+    const { organizationId, page, perPage } = params
+    const query = db
+      .from('contacts')
+      .where('organizationId', organizationId)
+      .whereNull('deletedAt')
+      .select(...CONTACT_COLUMNS)
+
+    const search = params.search?.trim()
+    if (search) {
+      const pattern = escapeIlike(search)
+      query.where((builder) => {
+        builder
+          .whereILike('name', pattern)
+          .orWhereILike('phone', pattern)
+          .orWhereILike('phoneNormalized', pattern)
+          .orWhereILike('email', pattern)
+          .orWhereILike('company', pattern)
+      })
+    }
+
+    return query.orderBy('createdAt', 'desc').paginate(page, perPage)
+  }
+
+  /**
+   * One non-deleted contact in the active organization.
+   * Filters by organizationId in app code (defense in depth) + RLS.
+   */
+  async getContactById(params: { contactId: string; organizationId: string }) {
+    const row = await db
+      .from('contacts')
+      .where('id', params.contactId)
+      .where('organizationId', params.organizationId)
+      .whereNull('deletedAt')
+      .select(...CONTACT_COLUMNS)
+      .first()
+
+    if (!row) {
+      throw ContactException.notFound()
+    }
+
+    return mapContactRow(row)
   }
 
   /**
@@ -99,20 +172,146 @@ export class ContactService {
     const email = params.email?.trim().toLowerCase() || null
     const company = params.company?.trim() || null
 
-    try {
-      const [row] = await db
-        .table('contacts')
-        .insert({
+    const limit = await this.entitlements.getNumericLimit(organizationId, CONTACT_PLAN_LIMIT_KEY)
+    if (limit === null) {
+      return this.#insertContact({
+        organizationId,
+        actorUserId,
+        phoneNumber,
+        phoneNormalized,
+        name,
+        email,
+        company,
+      })
+    }
+
+    return db.transaction(async (trx) => {
+      await trx.rawQuery('SELECT pg_advisory_xact_lock(?, hashtext(?))', [
+        CONTACT_LIMIT_LOCK_NS,
+        organizationId,
+      ])
+
+      const countRow = await trx
+        .from('contacts')
+        .where('organizationId', organizationId)
+        .whereNull('deletedAt')
+        .count('* as total')
+        .first()
+      const used = Number(countRow?.total ?? 0)
+      if (used >= limit) {
+        throw ContactException.planLimitReached(limit)
+      }
+
+      return this.#insertContact(
+        {
           organizationId,
-          phone: phoneNumber.trim(),
+          actorUserId,
+          phoneNumber,
           phoneNormalized,
           name,
           email,
           company,
+        },
+        trx
+      )
+    })
+  }
+
+  async #insertContact(
+    params: {
+      organizationId: string
+      actorUserId: string
+      phoneNumber: string
+      phoneNormalized: string
+      name: string | null
+      email: string | null
+      company: string | null
+    },
+    client: DbClient = db
+  ) {
+    try {
+      const [row] = await client
+        .table('contacts')
+        .insert({
+          organizationId: params.organizationId,
+          phone: params.phoneNumber.trim(),
+          phoneNormalized: params.phoneNormalized,
+          name: params.name,
+          email: params.email,
+          company: params.company,
           customFields: {},
-          createdByUserId: actorUserId,
+          createdByUserId: params.actorUserId,
         })
         .returning([...CONTACT_COLUMNS])
+
+      return mapContactRow(row)
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw ContactException.duplicatePhone()
+      }
+      throw error
+    }
+  }
+
+  /**
+   * Partial update. Unique on (organizationId, phoneNormalized) where deletedAt IS NULL.
+   * Phone changes reuse `normalizeContactPhone`. Empty name/email/company clear the field.
+   */
+  async updateContact(params: {
+    contactId: string
+    organizationId: string
+    phoneNumber?: string
+    countryCode?: string
+    name?: string | null
+    email?: string | null
+    company?: string | null
+  }) {
+    const existing = await db
+      .from('contacts')
+      .where('id', params.contactId)
+      .where('organizationId', params.organizationId)
+      .whereNull('deletedAt')
+      .select(...CONTACT_COLUMNS)
+      .first()
+
+    if (!existing) {
+      throw ContactException.notFound()
+    }
+
+    const updates: Record<string, unknown> = {}
+
+    if (params.phoneNumber !== undefined) {
+      const phoneNormalized = normalizeContactPhone(params.phoneNumber, params.countryCode)
+      updates.phone = params.phoneNumber.trim()
+      updates.phoneNormalized = phoneNormalized
+    }
+
+    if (params.name !== undefined) {
+      updates.name = params.name?.trim() || null
+    }
+    if (params.email !== undefined) {
+      updates.email = params.email?.trim().toLowerCase() || null
+    }
+    if (params.company !== undefined) {
+      updates.company = params.company?.trim() || null
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return mapContactRow(existing)
+    }
+
+    try {
+      const [row] = await db
+        .from('contacts')
+        .where('id', params.contactId)
+        .where('organizationId', params.organizationId)
+        .whereNull('deletedAt')
+        .update(updates)
+        .returning([...CONTACT_COLUMNS])
+
+      if (!row) {
+        throw ContactException.notFound()
+      }
 
       return mapContactRow(row)
     } catch (error) {

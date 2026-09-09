@@ -1,9 +1,12 @@
+import { createHash } from 'node:crypto'
 import { betterAuth } from 'better-auth'
 import { createAuthMiddleware, APIError } from 'better-auth/api'
 import { jwt } from 'better-auth/plugins'
+import logger from '@adonisjs/core/services/logger'
 import env from '#start/env'
 import hash from '@adonisjs/core/services/hash'
 import { pool } from '#lib/db'
+import { deleteStaleJwks, selectDecryptableJwks } from '#lib/jwks_recovery'
 import accessTokenConfig from '#config/access_token'
 import { AccessTokenClaimsService } from '#services/access_token_claims_service'
 import mail from '@adonisjs/mail/services/main'
@@ -66,11 +69,92 @@ function getTrustedOrigins(): string[] {
   return [...origins]
 }
 
+type UserAccountState = {
+  isActive: boolean
+  isDeleted: boolean
+}
+
+const ACCOUNT_NOT_FOUND_MESSAGE =
+  'No account found with this email. Please contact your administrator for an invitation.'
+
+/** OAuth/sign-in rejections we surface to the client — not backend failures. */
+const EXPECTED_BETTER_AUTH_REJECTIONS = new Set([
+  'signup_disabled',
+  'sign_up_disabled',
+  'account_not_found',
+  'user_not_found',
+])
+
+function isExpectedBetterAuthRejection(message: string): boolean {
+  const normalized = message.toLowerCase().replace(/\s+/g, '_')
+  for (const code of EXPECTED_BETTER_AUTH_REJECTIONS) {
+    if (normalized.includes(code)) return true
+  }
+  return false
+}
+
+async function findUserAccountStateByEmail(email: string): Promise<UserAccountState | null> {
+  const normalized = email.toLowerCase().trim()
+  const { rows } = await pool.query<UserAccountState>(
+    `SELECT "isActive", "isDeleted" FROM "users" WHERE LOWER("email") = $1 LIMIT 1`,
+    [normalized]
+  )
+  return rows[0] ?? null
+}
+
+function assertUserCanAuthenticate(state: UserAccountState | null) {
+  if (!state) {
+    throw new APIError('FORBIDDEN', {
+      message: ACCOUNT_NOT_FOUND_MESSAGE,
+      code: 'ACCOUNT_NOT_FOUND',
+    })
+  }
+
+  if (state.isDeleted) {
+    throw new APIError('FORBIDDEN', {
+      message: 'Account no longer exists.',
+      code: 'ACCOUNT_DELETED',
+    })
+  }
+
+  if (!state.isActive) {
+    throw new APIError('FORBIDDEN', {
+      message: 'Account is suspended. Contact support.',
+      code: 'ACCOUNT_SUSPENDED',
+    })
+  }
+}
+
 export const auth = betterAuth({
   database: pool,
   baseURL: env.get('BETTER_AUTH_URL'),
   secret: env.get('BETTER_AUTH_SECRET').release(),
   trustedOrigins: getTrustedOrigins(),
+
+  logger: {
+    level: 'warn',
+    log(level, message, ...args) {
+      const text = String(message)
+      if (level === 'error' && isExpectedBetterAuthRejection(text)) {
+        return
+      }
+
+      switch (level) {
+        case 'error':
+          logger.error({ betterAuth: true }, text, ...args)
+          break
+        case 'warn':
+          logger.warn({ betterAuth: true }, text, ...args)
+          break
+        case 'info':
+          logger.info({ betterAuth: true }, text, ...args)
+          break
+        case 'debug':
+          logger.debug({ betterAuth: true }, text, ...args)
+          break
+      }
+    },
+  },
 
   // DB columns are Postgres `uuid`. better-auth's default nanoid IDs are not valid UUIDs.
   advanced: {
@@ -128,11 +212,14 @@ export const auth = betterAuth({
 
   account: {
     modelName: 'accounts',
-    // Option B: same email + Google → link to existing verified user and sign in
+    // Same email + Google → link to the existing user and sign in.
+    // requireLocalEmailVerified defaults to true, which blocks Google login for
+    // invited/unverified credential users even though Google is a trusted provider.
     accountLinking: {
       enabled: true,
       trustedProviders: ['google'],
       allowDifferentEmails: false,
+      requireLocalEmailVerified: false,
     },
   },
 
@@ -234,6 +321,14 @@ export const auth = betterAuth({
       })
     },
     resetPasswordTokenExpiresIn: 3600,
+    onPasswordReset: async ({ user }) => {
+      await pool.query(
+        `UPDATE "users"
+         SET "emailVerified" = true
+         WHERE "id" = $1 AND "emailVerified" = false`,
+        [user.id]
+      )
+    },
   },
 
   // Google OAuth (only when credentials are present)
@@ -243,6 +338,9 @@ export const auth = betterAuth({
           google: {
             clientId: googleClientId!,
             clientSecret: googleClientSecret!.release(),
+            // Both flags: callback reads options.disableSignUp; some paths use disableImplicitSignUp.
+            disableSignUp: true,
+            disableImplicitSignUp: true,
             mapProfileToUser: (profile: {
               given_name?: string
               family_name?: string
@@ -260,6 +358,33 @@ export const auth = betterAuth({
         },
       }
     : {}),
+
+  // Block Better Auth from inserting users during OAuth when the email is not pre-provisioned.
+  databaseHooks: {
+    user: {
+      create: {
+        before: async (user) => {
+          const email = user.email?.toLowerCase().trim()
+          if (!email) {
+            throw new APIError('BAD_REQUEST', { message: 'Invalid email.', code: 'INVALID_EMAIL' })
+          }
+
+          const state = await findUserAccountStateByEmail(email)
+          if (!state) {
+            throw new APIError('FORBIDDEN', {
+              message: ACCOUNT_NOT_FOUND_MESSAGE,
+              code: 'ACCOUNT_NOT_FOUND',
+            })
+          }
+
+          assertUserCanAuthenticate(state)
+
+          // User already exists (invite/admin/signup path). Abort duplicate insert.
+          return false
+        },
+      },
+    },
+  },
 
   // App-layer guard: block suspended / deleted users at sign-in
   hooks: {
@@ -298,30 +423,67 @@ export const auth = betterAuth({
         }
       }
 
+      if (ctx.path.startsWith('/callback/google') || ctx.path === '/sign-in/social') {
+        const email =
+          (ctx.query?.email as string | undefined) ||
+          (ctx.body as { email?: string } | undefined)?.email
+        if (email) {
+          assertUserCanAuthenticate(await findUserAccountStateByEmail(email))
+        }
+        return
+      }
+
       const signInPaths = ['/sign-in/email', '/sign-in/social']
       if (!signInPaths.includes(ctx.path)) return
 
       const { email } = ctx.body as { email?: string }
       if (!email) return
 
-      const { rows } = await pool.query<{ isActive: boolean; isDeleted: boolean }>(
-        `SELECT "isActive", "isDeleted" FROM "users" WHERE "email" = $1 LIMIT 1`,
-        [email]
+      assertUserCanAuthenticate(await findUserAccountStateByEmail(email))
+    }),
+    after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== '/reset-password') return
+
+      const body = ctx.body as { token?: string }
+      const query = ctx.query as { token?: string } | undefined
+      const token = body.token ?? query?.token
+      if (!token) return
+
+      const tokenHash = createHash('sha256').update(token).digest('hex')
+
+      await pool.query(
+        `UPDATE "organization_invitations"
+         SET "status" = 'accepted', "tokenHash" = NULL
+         WHERE "tokenHash" = $1 AND "status" = 'pending'`,
+        [tokenHash]
       )
-
-      if (!rows.length) return // unknown email — let better-auth handle it
-
-      if (rows[0].isDeleted) {
-        throw new APIError('FORBIDDEN', { message: 'Account no longer exists.' })
-      }
-      if (!rows[0].isActive) {
-        throw new APIError('FORBIDDEN', { message: 'Account is suspended. Contact support.' })
-      }
     }),
   },
 
   plugins: [
     jwt({
+      adapter: {
+        getJwks: async (ctx) => {
+          const { rows } = await pool.query<{
+            id: string
+            publicKey: string
+            privateKey: string
+            createdAt: Date
+            expiresAt: Date | null
+            alg: string | null
+            crv: string | null
+          }>(`SELECT id, "publicKey", "privateKey", "createdAt", "expiresAt", alg, crv FROM "jwks"`)
+          const { usable, staleIds } = await selectDecryptableJwks(ctx.context.secretConfig, rows)
+          await deleteStaleJwks(staleIds)
+          return usable.map((key) => ({
+            ...key,
+            expiresAt: key.expiresAt ?? undefined,
+            alg: (key.alg ?? undefined) as
+              'EdDSA' | 'ES256' | 'ES512' | 'PS256' | 'RS256' | undefined,
+            crv: (key.crv ?? undefined) as 'Ed25519' | 'P-256' | 'P-521' | undefined,
+          }))
+        },
+      },
       jwt: {
         issuer: accessTokenConfig.issuer,
         audience: accessTokenConfig.audience,

@@ -1,16 +1,19 @@
 import app from '@adonisjs/core/services/app'
 import logger from '@adonisjs/core/services/logger'
 import db from '@adonisjs/lucid/services/db'
+import { AiUsageDecision } from '#enums/ai_usage_decision'
 import { type LlmChatProvider } from '#enums/llm_chat_provider'
 import { AiKnowledgeDocumentStatus } from '#enums/ai_knowledge_document_status'
 import { AiKnowledgeChunkRepository } from '#repositories/ai_knowledge_chunk_repository'
 import { AiKnowledgeDocumentRepository } from '#repositories/ai_knowledge_document_repository'
+import { AiUsageLogRepository } from '#repositories/ai_usage_log_repository'
 import { MediaAssetRepository } from '#repositories/media_asset_repository'
 import { chunkKnowledgeText } from '#services/ai/chunk_knowledge_text'
 import { type EmbeddingLlmProvider } from '#services/ai/contracts/llm_provider'
 import { DEFAULT_EMBEDDING_SPACE_ID } from '#services/ai/embedding_space'
 import { extractKnowledgeText } from '#services/ai/extract_knowledge_text'
 import { sha256Hex } from '#services/ai/knowledge_hash'
+import { estimateTokensFromChars } from '#services/ai/llm_pricing'
 import LlmProviderFactory from '#services/ai/llm_provider_factory'
 import { planChunkSync } from '#services/ai/plan_chunk_sync'
 import PlatformAiConfigService from '#services/ai/platform_ai_config_service'
@@ -36,7 +39,8 @@ export default class KnowledgeIngestService {
     private mediaAssets: MediaAssetRepository = new MediaAssetRepository(),
     private storage?: ObjectStorage,
     private llm?: EmbeddingLlmProvider,
-    private platform?: PlatformAiConfigService
+    private platform?: PlatformAiConfigService,
+    private usage: AiUsageLogRepository = new AiUsageLogRepository()
   ) {}
 
   async process(params: {
@@ -113,7 +117,8 @@ export default class KnowledgeIngestService {
       const embeddings = await this.#embed(
         plan.toInsert.map((chunk) => chunk.content),
         dest.embeddingModel,
-        dest.embeddingProvider
+        dest.embeddingProvider,
+        { organizationId: params.organizationId, operationType: 'document_index' }
       )
 
       await runWithTenant(params.organizationId, () =>
@@ -207,14 +212,50 @@ export default class KnowledgeIngestService {
     return extractKnowledgeText(document.sourceType, bytes)
   }
 
-  async #embed(texts: string[], model: string, provider: LlmChatProvider): Promise<number[][]> {
+  async #embed(
+    texts: string[],
+    model: string,
+    provider: LlmChatProvider,
+    meta?: { organizationId: string; operationType: 'document_index' | 'document_reindex' }
+  ): Promise<number[][]> {
     if (texts.length === 0) return []
     const llm = await this.#llmProvider(provider)
     const vectors: number[][] = []
+    const started = Date.now()
+    let totalChars = 0
     for (let offset = 0; offset < texts.length; offset += EMBED_BATCH_SIZE) {
       const batch = texts.slice(offset, offset + EMBED_BATCH_SIZE)
+      for (const text of batch) totalChars += text.length
       const embedded = await llm.embedTexts(batch, model)
       vectors.push(...embedded)
+    }
+    if (meta) {
+      try {
+        const promptTokens = estimateTokensFromChars(totalChars)
+        await this.usage.insert({
+          organizationId: meta.organizationId,
+          conversationId: null,
+          provider,
+          operationType: meta.operationType,
+          promptTokens,
+          completionTokens: 0,
+          totalTokens: promptTokens,
+          modelName: model,
+          latencyMs: Date.now() - started,
+          decision:
+            meta.operationType === 'document_reindex'
+              ? AiUsageDecision.DOCUMENT_REINDEX
+              : AiUsageDecision.DOCUMENT_INDEX,
+        })
+      } catch (error) {
+        logger.warn(
+          {
+            organizationId: meta.organizationId,
+            err: error instanceof Error ? error.message : 'unknown',
+          },
+          'knowledge.embed.usage_log_failed'
+        )
+      }
     }
     return vectors
   }
@@ -343,7 +384,8 @@ export default class KnowledgeIngestService {
       const embeddings = await this.#embed(
         next.map((chunk) => chunk.content),
         params.embeddingModel,
-        params.embeddingProvider
+        params.embeddingProvider,
+        { organizationId: params.organizationId, operationType: 'document_reindex' }
       )
 
       await runWithTenant(params.organizationId, () =>

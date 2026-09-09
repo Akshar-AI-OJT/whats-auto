@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto'
 import app from '@adonisjs/core/services/app'
+import db from '@adonisjs/lucid/services/db'
 import logger from '@adonisjs/core/services/logger'
 import { AiKnowledgeDocumentStatus } from '#enums/ai_knowledge_document_status'
 import type { AiKnowledgeSourceType } from '#enums/ai_knowledge_source_type'
 import KnowledgeDocumentException from '#exceptions/knowledge_document_exception'
+import PlanRestrictionException from '#exceptions/plan_restriction_exception'
 import { StorageNamespace } from '#lib/media/storage_types'
 import { normalizeMimeType } from '#lib/meta_whatsapp/outbound_media'
 import { AiKnowledgeDocumentRepository } from '#repositories/ai_knowledge_document_repository'
@@ -12,6 +14,7 @@ import {
   KNOWLEDGE_CREATE_SOURCE_TYPES,
 } from '#services/ai/knowledge_source_mime'
 import { MediaAssetService } from '#services/media_asset_service'
+import { PlanEnforcementService } from '#services/billing/plan_enforcement_service'
 import JobQueueManager from '#services/job_queue/job_queue_manager'
 import { JOB_NAMES } from '#services/job_queue/job_names'
 import { runWithTenant } from '#services/tenant_context'
@@ -117,6 +120,36 @@ export default class KnowledgeDocumentService {
       throw KnowledgeDocumentException.invalidCreate(
         `mimeType must be ${expectedMime} for ${input.sourceType}`
       )
+    }
+
+    const enforcement = new PlanEnforcementService()
+    const docCountRow = await runWithTenant(input.organizationId, () =>
+      db
+        .from('ai_knowledge_documents')
+        .where('organizationId', input.organizationId)
+        .whereNull('deletedAt')
+        .count('* as total')
+        .first()
+    )
+    await enforcement.requireUnderLimit(
+      input.organizationId,
+      'maxKnowledgeDocs',
+      Number(docCountRow?.total ?? 0)
+    )
+
+    const maxSizeMb = await enforcement.getNumericLimit(
+      input.organizationId,
+      'maxKnowledgeDocSizeMb'
+    )
+    if (maxSizeMb !== null) {
+      const maxBytes = maxSizeMb * 1024 * 1024
+      if (input.fileSize > maxBytes) {
+        throw PlanRestrictionException.sizeLimitExceeded(
+          'maxKnowledgeDocSizeMb',
+          input.fileSize,
+          maxBytes
+        )
+      }
     }
 
     const initiated = await this.media.initiateUpload({

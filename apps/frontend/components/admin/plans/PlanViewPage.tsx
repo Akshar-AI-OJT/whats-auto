@@ -6,6 +6,10 @@ import { Archive, ArrowLeft, Check, FileEdit, Loader2, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { Link, useRouter } from '@/i18n/navigation'
 import { queryKeys } from '@/lib/query-keys'
+import {
+  ADMIN_PLAN_FEATURE_I18N_NS,
+  resolvePlanFeatureLabel,
+} from '@/lib/plan-feature-labels'
 import { Button } from '@/components/ui/button'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { PlanStatusBadge } from './PlanStatusBadge'
@@ -17,7 +21,7 @@ import {
   formatPlanDate,
   formatPlanPrice,
 } from './plan-utils'
-import { PLAN_FEATURE_CATALOG } from './mock-plans'
+import { PLAN_FEATURE_CATALOG } from './plan-feature-catalog'
 import type { PlanFeatureCategoryId, SubscriptionPlan } from './types'
 
 const CATEGORIES: PlanFeatureCategoryId[] = [
@@ -34,6 +38,7 @@ type PlanViewPageProps = {
 
 export function PlanViewPage({ planId }: PlanViewPageProps) {
   const t = useTranslations('admin.plans')
+  const tFeatures = useTranslations(ADMIN_PLAN_FEATURE_I18N_NS)
   const router = useRouter()
   const queryClient = useQueryClient()
   const [archiveOpen, setArchiveOpen] = useState(false)
@@ -259,7 +264,12 @@ export function PlanViewPage({ planId }: PlanViewPageProps) {
                         <X className="mt-0.5 size-4 shrink-0 text-mute" />
                       )}
                       <span className={feature.enabled ? 'text-ink' : 'text-mute'}>
-                        {t(`featureItems.${feature.key}`)}
+                        {resolvePlanFeatureLabel(
+                          tFeatures,
+                          feature.key,
+                          feature.name,
+                          ADMIN_PLAN_FEATURE_I18N_NS
+                        )}
                         {feature.description ? (
                           <span className="mt-0.5 block text-xs text-mute">
                             {feature.description}

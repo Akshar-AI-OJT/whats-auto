@@ -39,6 +39,7 @@ const SCHEMA_CLASS_TO_TABLE: Record<string, string> = {
   OrganizationInvitationSchema: 'organization_invitations',
   OrganizationMemberSchema: 'organization_members',
   OrganizationRolePermissionSchema: 'organization_role_permissions',
+  OrganizationSmtpConfigSchema: 'organization_smtp_configs',
   OrganizationStorageObjectSchema: 'organization_storage_objects',
   OrganizationStorageUsageSchema: 'organization_storage_usages',
   OrganizationSubscriptionSchema: 'organization_subscriptions',

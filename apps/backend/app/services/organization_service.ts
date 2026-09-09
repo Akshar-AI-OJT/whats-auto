@@ -5,7 +5,6 @@ import logger from '@adonisjs/core/services/logger'
 import { DateTime } from 'luxon'
 import { OrganizationStatus } from '#enums/organization_status'
 import type { OrganizationStatusValue } from '#enums/organization_status'
-import InvitationException from '#exceptions/invitation_exception'
 import OrganizationException from '#exceptions/organization_exception'
 import { getGlobalRoleIdByName, resolveAssignableRoleForOrg } from '#services/role_service'
 import { bumpAllOrgMembersPermissionVersion } from '#lib/permission_version_bumps'
@@ -37,7 +36,7 @@ export type CreateOrganizationInput = {
   industry?: string
   organizationType: OrganizationType
   address: string | OrganizationAddress
-  pan?: string
+  pan: string
   gstin?: string
   country: string
   timezone: string
@@ -161,41 +160,6 @@ export class OrganizationService {
   }
 
   /**
-   * A user who belongs to no organization yet must resolve a pending invitation first,
-   * otherwise invitees end up creating a second organization instead of joining the inviter's.
-   * Users who already belong to an organization stay free to create more.
-   */
-  protected async assertNoBlockingInvitation(userId: string) {
-    // Membership rows survive soft-delete, so a deleted org must not count as
-    // "already belongs somewhere" and skip the pending-invitation check.
-    const membership = await db
-      .from('organization_members as m')
-      .innerJoin('organizations as o', 'o.id', 'm.organizationId')
-      .where('m.userId', userId)
-      .whereNull('o.deletedAt')
-      .select('m.id')
-      .first()
-
-    if (membership) return
-
-    const user = await db.from('users').where('id', userId).select('email').firstOrFail()
-
-    const pending = await db
-      .from('organization_invitations as i')
-      .innerJoin('organizations as o', 'o.id', 'i.organizationId')
-      .whereRaw('LOWER(i.email) = ?', [(user.email as string).toLowerCase()])
-      .where('i.status', 'pending')
-      .where('i.expiresAt', '>', new Date())
-      .whereNull('o.deletedAt')
-      .select('i.id')
-      .first()
-
-    if (pending) {
-      throw InvitationException.pendingInvitationBlocksOrgCreation()
-    }
-  }
-
-  /**
    * Create an organization and make the caller the owner.
    * New orgs start as pending_setup. Session switches to the new org only when
    * the caller has no already-active organization (avoids stranding a paid owner).
@@ -207,8 +171,6 @@ export class OrganizationService {
     data: CreateOrganizationInput
   }) {
     const { userId, sessionId, data } = params
-
-    await this.assertNoBlockingInvitation(userId)
 
     const ownerRoleId = await getGlobalRoleIdByName('owner')
     const hasActiveOrganization = await this.#userHasActiveOrganization(userId)
@@ -251,7 +213,7 @@ export class OrganizationService {
             industry: data.industry ?? null,
             organizationType: data.organizationType,
             address,
-            pan: data.pan ? data.pan.replace(/\s+/g, '').toUpperCase() : null,
+            pan: data.pan.replace(/\s+/g, '').toUpperCase(),
             gstin: data.gstin ? data.gstin.replace(/\s+/g, '').toUpperCase() : null,
             country: data.country,
             timezone: data.timezone,
@@ -313,6 +275,7 @@ export class OrganizationService {
         throw OrganizationException.slugAlreadyExists(data.slug)
       }
       // Email collision with the caller's own pending org (race) — reuse it.
+      // Otherwise the email belongs to another org — surface a 409, not a 500.
       if (isPostgresUniqueViolation(error, 'organizations_email_unique')) {
         const pending = await this.#findOwnedPendingSetupOrg(userId)
         if (pending) {
@@ -326,6 +289,7 @@ export class OrganizationService {
             })
           )
         }
+        throw OrganizationException.emailAlreadyExists(data.email)
       }
       throw error
     }
@@ -344,6 +308,38 @@ export class OrganizationService {
       .update({ status: OrganizationStatus.ACTIVE })
 
     await query
+  }
+
+  /**
+   * After WhatsApp Embedded Signup succeeds with Meta-verified portfolio ([D70]).
+   * Only moves unpaid setup states → verified_setup (never touches active/suspended/false).
+   */
+  async promoteToVerifiedSetup(
+    organizationId: string,
+    trx?: TransactionClientContract
+  ): Promise<void> {
+    await (trx ?? db)
+      .from('organizations')
+      .where('id', organizationId)
+      .whereNull('deletedAt')
+      .whereIn('status', [OrganizationStatus.PENDING_SETUP, OrganizationStatus.VERIFIED_SETUP])
+      .update({ status: OrganizationStatus.VERIFIED_SETUP })
+  }
+
+  /**
+   * WhatsApp disconnect while unpaid: verified_setup → pending_setup ([D70] 2A).
+   * No-op for active / other statuses.
+   */
+  async demoteToPendingSetup(
+    organizationId: string,
+    trx?: TransactionClientContract
+  ): Promise<void> {
+    await (trx ?? db)
+      .from('organizations')
+      .where('id', organizationId)
+      .whereNull('deletedAt')
+      .where('status', OrganizationStatus.VERIFIED_SETUP)
+      .update({ status: OrganizationStatus.PENDING_SETUP })
   }
 
   async #userHasActiveOrganization(userId: string): Promise<boolean> {
@@ -419,7 +415,7 @@ export class OrganizationService {
           industry: data.industry ?? null,
           organizationType: data.organizationType,
           address,
-          pan: data.pan ? data.pan.replace(/\s+/g, '').toUpperCase() : null,
+          pan: data.pan.replace(/\s+/g, '').toUpperCase(),
           gstin: data.gstin ? data.gstin.replace(/\s+/g, '').toUpperCase() : null,
           country: data.country,
           timezone: data.timezone,
@@ -475,6 +471,7 @@ export class OrganizationService {
       .innerJoin('organizations as o', 'o.id', 'm.organizationId')
       .innerJoin('roles as r', 'r.id', 'm.roleId')
       .where('m.userId', userId)
+      .where('m.isDeleted', false)
       .whereNull('o.deletedAt')
       .select(
         'o.id',
@@ -523,6 +520,76 @@ export class OrganizationService {
   }
 
   /**
+   * Platform-scoped organization by id. Includes soft-deleted rows so Super Admin
+   * can open archived tenants that still appear in the paginated list.
+   */
+  async getOrganizationById(organizationId: string) {
+    const organization = await db.from('organizations').where('id', organizationId).first()
+
+    if (!organization) {
+      throw new Exception('Organization Not Found', {
+        status: 404,
+        code: 'E_ORGANIZATION_NOT_FOUND',
+      })
+    }
+
+    return organization
+  }
+
+  /**
+   * Super Admin suspend/activate. Updates organizations.status only.
+   * Does not set or clear deletedAt (archive/soft-delete stays on DELETE).
+   */
+  async setOrganizationLifecycleStatus(params: {
+    organizationId: string
+    actorUserId: string
+    status: typeof OrganizationStatus.SUSPENDED | typeof OrganizationStatus.ACTIVE
+  }) {
+    const { organizationId, actorUserId, status } = params
+    const organization = await this.getOrganizationById(organizationId)
+    const currentStatus = organization.status as OrganizationStatusValue
+    const deletedAt = organization.deletedAt as string | Date | null | undefined
+
+    if (deletedAt || currentStatus === OrganizationStatus.FALSE) {
+      throw OrganizationException.archivedLifecycle()
+    }
+
+    if (status === OrganizationStatus.ACTIVE && currentStatus !== OrganizationStatus.SUSPENDED) {
+      if (currentStatus === OrganizationStatus.ACTIVE) {
+        return organization
+      }
+      throw OrganizationException.invalidLifecycle(
+        'Only a suspended organization can be activated.'
+      )
+    }
+
+    if (status === OrganizationStatus.SUSPENDED && currentStatus === OrganizationStatus.SUSPENDED) {
+      return organization
+    }
+
+    const eventType =
+      status === OrganizationStatus.SUSPENDED ? 'organization.suspended' : 'organization.activated'
+
+    await db.transaction(async (trx) => {
+      await trx.table('authorization_audits').insert({
+        organizationId,
+        actorUserId,
+        targetType: 'organization',
+        targetId: organizationId,
+        eventType,
+        before: JSON.stringify({ status: currentStatus, deletedAt: deletedAt ?? null }),
+        after: JSON.stringify({ status, deletedAt: deletedAt ?? null }),
+      })
+
+      await trx.from('organizations').where('id', organizationId).update({
+        status,
+      })
+    })
+
+    return this.getOrganizationById(organizationId)
+  }
+
+  /**
    * Set the active organization on the caller's session.
    */
   async setActiveOrganization(params: {
@@ -537,6 +604,7 @@ export class OrganizationService {
       .innerJoin('organizations as o', 'o.id', 'm.organizationId')
       .where('m.userId', userId)
       .where('m.organizationId', organizationId)
+      .where('m.isDeleted', false)
       .whereNull('o.deletedAt')
       .select('m.id')
       .first()
@@ -585,8 +653,12 @@ export class OrganizationService {
     if (patch.address !== undefined) {
       updates.address = normalizeOrganizationAddress(patch.address)
     }
-    if (patch.pan !== undefined) updates.pan = patch.pan.replace(/\s+/g, '').toUpperCase()
-    if (patch.gstin !== undefined) updates.gstin = patch.gstin.replace(/\s+/g, '').toUpperCase()
+    if (patch.pan !== undefined) {
+      updates.pan = patch.pan.replace(/\s+/g, '').toUpperCase()
+    }
+    if (patch.gstin !== undefined) {
+      updates.gstin = patch.gstin.replace(/\s+/g, '').toUpperCase()
+    }
     if (patch.country !== undefined) updates.country = patch.country
     if (patch.timezone !== undefined) updates.timezone = patch.timezone
     if (patch.currency !== undefined) updates.currency = patch.currency

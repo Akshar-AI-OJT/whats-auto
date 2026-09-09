@@ -54,6 +54,7 @@ import {
   type RoleTemplateId,
 } from './role-editor-utils'
 import { RoleUpdatePreviewDialog } from './RoleUpdatePreviewDialog'
+import { RoleUnsavedChangesDialog } from './RoleUnsavedChangesDialog'
 
 function unwrapRolePreview(
   payload: { data?: RoleUpdatePreview } | RoleUpdatePreview | undefined
@@ -177,6 +178,7 @@ export function RoleEditorFullPage({
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewResult, setPreviewResult] = useState<RoleUpdatePreview | null>(null)
   const [previewError, setPreviewError] = useState<string | null>(null)
+  const [unsavedConfirmOpen, setUnsavedConfirmOpen] = useState(false)
 
   const grantable = useMemo(() => {
     const held = new Set(accessContext?.permissions ?? [])
@@ -342,9 +344,14 @@ export function RoleEditorFullPage({
   function requestCancel() {
     if (pending || previewMutation.isPending) return
     if (dirty) {
-      const confirmed = window.confirm(t('unsavedConfirm'))
-      if (!confirmed) return
+      setUnsavedConfirmOpen(true)
+      return
     }
+    onCancel?.()
+  }
+
+  function confirmDiscard() {
+    setUnsavedConfirmOpen(false)
     onCancel?.()
   }
 
@@ -415,6 +422,7 @@ export function RoleEditorFullPage({
     setPermSearch('')
     setOpenResource(null)
     setDescription('')
+    setUnsavedConfirmOpen(false)
     didInitCreate.current = false
 
     if (mode === 'create') {
@@ -596,6 +604,12 @@ export function RoleEditorFullPage({
           />
         </div>
       ) : null}
+
+      <RoleUnsavedChangesDialog
+        open={unsavedConfirmOpen}
+        onOpenChange={setUnsavedConfirmOpen}
+        onDiscard={confirmDiscard}
+      />
 
       {mode === 'edit' ? (
         <RoleUpdatePreviewDialog

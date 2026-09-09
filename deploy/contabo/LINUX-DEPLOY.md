@@ -405,61 +405,27 @@ wa logs --tail=80 whats-auto-backend
 **Forgot password / superadmin**  
 Mail (`MAIL_MAILER`) must work. Then use Forgot password for `SUPERADMIN_EMAIL`.
 
-**Superadmin lost platform access (user exists, wrong/missing role)**  
-Restore the global grant:
-
-```bash
-bash deploy/contabo/migrate.sh grant-superadmin
-```
-
-To **delete the SUPERADMIN_EMAIL user** (removes org agent membership too) and bootstrap a fresh platform admin:
-
-```bash
-bash deploy/contabo/migrate.sh reset-superadmin
-```
-
-Then use **Forgot password** on the login page (mail must work). Sign out of any old sessions first.
-
-Both commands run `node bin/*.js` inside the backend container (not Ace).
-
-Manual SQL (Postgres shell on the VPS) if you prefer:
-
-```sql
--- Replace with your SUPERADMIN_EMAIL
-SELECT u.id, u.email, ur."organizationId", r.name
-FROM users u
-LEFT JOIN user_roles ur ON ur."userId" = u.id
-LEFT JOIN roles r ON r.id = ur."roleId"
-WHERE LOWER(u.email) = LOWER('you@yourdomain.com') AND u."isDeleted" = false;
-
--- If no row with organizationId IS NULL and role superadmin, insert:
-INSERT INTO user_roles ("userId", "roleId", "organizationId", "permissionVersion")
-SELECT u.id, r.id, NULL, 1
-FROM users u
-CROSS JOIN roles r
-WHERE LOWER(u.email) = LOWER('you@yourdomain.com')
-  AND u."isDeleted" = false
-  AND r.name = 'superadmin'
-  AND r."organizationId" IS NULL
-  AND NOT EXISTS (
-    SELECT 1 FROM user_roles ur
-    WHERE ur."userId" = u.id AND ur."organizationId" IS NULL
-  );
-
--- If a global grant exists but role is not superadmin, update instead:
-UPDATE user_roles ur
-SET "roleId" = r_super.id,
-    "permissionVersion" = ur."permissionVersion" + 1
-FROM roles r_current, roles r_super, users u
-WHERE ur."userId" = u.id
-  AND ur."roleId" = r_current.id
-  AND ur."organizationId" IS NULL
-  AND r_super.name = 'superadmin'
-  AND r_super."organizationId" IS NULL
-  AND LOWER(u.email) = LOWER('you@yourdomain.com')
-  AND u."isDeleted" = false
-  AND r_current.name <> 'superadmin';
-```
-
 **`down -v`**  
 Deletes only this stack’s Docker volumes, not ServeOS.
+
+---
+
+## 14. Campaign scheduling readiness (UTC auto-launch)
+
+Before releasing campaign schedule changes, deploy **backend + worker + frontend** together and verify:
+
+1. **Worker container is running** (`whats-auto-worker`) and consuming jobs.
+2. **Redis is reachable** (`REDIS_URL`) and preferably AOF-enabled for durability.
+3. **BullMQ** accepts delayed jobs (`JOB_QUEUE_DRIVER=bullmq`).
+4. **Recovery cron** is registered: `campaigns.recovery` at `*/1 * * * *`.
+5. Logs show the worker consuming `campaigns.execute`.
+
+Smoke test:
+
+1. Confirm no `broadcasts` rows with `status = scheduled` (or drain them).
+2. Create a draft campaign with recipients + approved template.
+3. `POST /api/v1/campaigns/:id/schedule` with a UTC instant a few minutes ahead, e.g. `"scheduledAt": "2026-09-08T16:05:00.000Z"` (must end in `Z`).
+4. Do **not** call Send now. Wait until the UTC time (or force recovery after making `scheduledAt` due).
+5. Confirm status becomes `sending`/`sent` and structured logs include `campaign.wake_registered` / `campaign.transitioned_to_sending` (or `campaign.recovery_wake`).
+
+Alert guidance: a campaign still `scheduled` more than **two minutes** after its UTC `scheduledAt` indicates a lost wake or stalled worker.

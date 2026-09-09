@@ -1,4 +1,4 @@
-import type { Campaign, PaginationMeta } from '@/lib/api'
+import type { Campaign, PaginationMeta, WhatsappMessageTemplate } from '@/lib/api'
 import { formatCampaignScheduledAt } from '@/lib/org-datetime'
 
 export type CampaignViewMode = 'cards' | 'list'
@@ -6,15 +6,16 @@ export type CampaignViewMode = 'cards' | 'list'
 /** Matches `replaceCampaignRecipientsValidator` maxLength on the backend. */
 export const CAMPAIGN_RECIPIENT_MAX = 5000
 
-export const CAMPAIGN_STATUSES = [
-  'draft',
-  'scheduled',
-  'sending',
-  'sent',
-  'failed',
-] as const
+export const CAMPAIGN_STATUSES = ['draft', 'scheduled', 'sending', 'sent', 'failed'] as const
 
 export type CampaignStatusKey = (typeof CAMPAIGN_STATUSES)[number]
+
+export const campaignQueryKeys = {
+  all: ['campaigns'] as const,
+  list: (orgId: string | null | undefined, params: Record<string, unknown>) =>
+    [...campaignQueryKeys.all, 'list', orgId ?? 'none', params] as const,
+  detail: (id: string) => [...campaignQueryKeys.all, 'detail', id] as const,
+}
 
 export function unwrapCampaignList(data: unknown): {
   items: Campaign[]
@@ -51,49 +52,50 @@ export function unwrapCampaign(data: unknown): Campaign | null {
   return wrapped.data ?? null
 }
 
+export function unwrapTemplateItems(data: unknown): WhatsappMessageTemplate[] {
+  if (!data) return []
+  if (Array.isArray(data)) return data as WhatsappMessageTemplate[]
+
+  const root = data as {
+    data?: WhatsappMessageTemplate[] | { data?: WhatsappMessageTemplate[] }
+  }
+
+  if (Array.isArray(root.data)) return root.data
+  if (root.data && typeof root.data === 'object' && Array.isArray(root.data.data)) {
+    return root.data.data
+  }
+
+  return []
+}
+
 export function ratePercent(part: number, total: number): number {
   if (!total || total <= 0) return 0
   return Math.round((part / total) * 1000) / 10
 }
 
-export function formatCampaignDate(
-  value: string | null | undefined,
-  timeZone?: string | null
-): string {
+/** Format a campaign timestamp in UTC and label it. */
+export function formatCampaignDate(value: string | null | undefined): string {
   if (!value) return '—'
-  if (timeZone) {
-    return formatCampaignScheduledAt(value, timeZone) || '—'
-  }
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '—'
-  return date.toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  })
+  const formatted = formatCampaignScheduledAt(value)
+  return formatted ? `${formatted} UTC` : '—'
 }
 
+/** Content/audience edits are draft-only; scheduled campaigns must be cancelled first. */
 export function isEditableCampaignStatus(status: string): boolean {
-  return status === 'draft' || status === 'scheduled'
+  return status === 'draft'
 }
 
-/** PATCH /campaigns/:id/status only allows draft ↔ scheduled. */
-export const CAMPAIGN_CHANGE_STATUS_TARGETS = ['draft', 'scheduled'] as const
-
-export type CampaignChangeStatusTarget = (typeof CAMPAIGN_CHANGE_STATUS_TARGETS)[number]
-
-export function isStatusChangeableCampaignStatus(status: string): boolean {
-  return isEditableCampaignStatus(status)
-}
-
+/** Send now / Launch is draft-only; scheduled campaigns use Cancel + Reschedule. */
 export function isLaunchableCampaignStatus(status: string): boolean {
-  return status === 'draft' || status === 'scheduled'
+  return status === 'draft'
 }
 
 export function isCancellableCampaignStatus(status: string): boolean {
   return status === 'scheduled' || status === 'sending'
+}
+
+export function isReschedulableCampaignStatus(status: string): boolean {
+  return status === 'scheduled'
 }
 
 /** Client-side date range filter when API has no start/end params. */

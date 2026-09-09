@@ -2,6 +2,13 @@ import PlanException from '#exceptions/plan_exception'
 import { insertAuthorizationAudit } from '#lib/authorization_audit'
 import { PlanRepository } from '#repositories/plan_repository'
 import {
+  PLAN_ACTIVE_LOGICAL_IDENTITY_INDEX,
+  billingPeriodToInterval,
+  deduplicateActivePlanRows,
+  planLogicalIdentityFromValues,
+} from '#lib/billing/plan_logical_identity'
+import { isPostgresUniqueViolation } from '#lib/pg_unique_violation'
+import {
   buildPlanSummary,
   deriveBillingPeriod,
   derivePlanStatus,
@@ -12,18 +19,16 @@ import type {
   CreateSuperAdminPlanInput,
   PlanBillingPeriod,
   PlanFeature,
+  PlanLimits,
   PlanStatus,
   SuperAdminPlan,
   SuperAdminPlanSummary,
   TenantBillingPlan,
   UpdateSuperAdminPlanInput,
 } from '#types/plans'
+import { DEFAULT_ANTI_ABUSE_LIMITS as ANTI_ABUSE_DEFAULTS } from '#types/plans'
 
-type PersistedLimits = {
-  users: number | null
-  seats: number | null
-  messagesPerMonth: number | null
-}
+type PersistedLimits = PlanLimits
 
 type PlanMetadata = {
   status: PlanStatus
@@ -43,12 +48,6 @@ function slugifyCode(name: string): string {
   return slug || 'plan'
 }
 
-function billingIntervalFromPeriod(period: PlanBillingPeriod): string {
-  if (period === 'yearly') return 'year'
-  if (period === 'custom') return 'custom'
-  return 'month'
-}
-
 function toMajorPrice(value: string | number | null | undefined): number {
   if (value === null) return 0
   return typeof value === 'number' ? value : Number(value)
@@ -61,11 +60,33 @@ function readMetadata(row: { metadata: Record<string, unknown> }): Partial<PlanM
 }
 
 function buildLimits(input: CreateSuperAdminPlanInput['limits'] | undefined): PersistedLimits {
-  const users = input?.users ?? null
+  const users = input?.users ?? input?.seats ?? null
+  const seats = input?.seats ?? users
   return {
     users,
-    seats: users,
+    seats,
+    whatsappNumbers: input?.whatsappNumbers ?? null,
+    maxContacts: input?.maxContacts ?? null,
     messagesPerMonth: input?.messagesPerMonth ?? null,
+    campaignsPerMonth: input?.campaignsPerMonth ?? null,
+    maxBroadcastRecipients: input?.maxBroadcastRecipients ?? null,
+    storageBytes: input?.storageBytes ?? null,
+    maxFileUploadMb: input?.maxFileUploadMb ?? ANTI_ABUSE_DEFAULTS.maxFileUploadMb,
+    maxActiveFlows: input?.maxActiveFlows ?? null,
+    maxKnowledgeDocs: input?.maxKnowledgeDocs ?? null,
+    maxKnowledgeDocSizeMb: input?.maxKnowledgeDocSizeMb ?? null,
+    aiRepliesPerMonth: input?.aiRepliesPerMonth ?? null,
+    maxStoreConnections: input?.maxStoreConnections ?? null,
+    maxApiKeys: input?.maxApiKeys ?? null,
+    maxWebhookEndpoints: input?.maxWebhookEndpoints ?? null,
+    analyticsRetentionDays: input?.analyticsRetentionDays ?? null,
+    auditLogRetentionDays: input?.auditLogRetentionDays ?? null,
+    maxTemplates: input?.maxTemplates ?? null,
+    conversationInboxRetentionDays: input?.conversationInboxRetentionDays ?? null,
+    aiGenerationsPerConversationHour:
+      input?.aiGenerationsPerConversationHour ??
+      ANTI_ABUSE_DEFAULTS.aiGenerationsPerConversationHour,
+    dispatchRatePerSec: input?.dispatchRatePerSec ?? ANTI_ABUSE_DEFAULTS.dispatchRatePerSec,
   }
 }
 
@@ -114,12 +135,14 @@ export class PlanService {
    * Tenant billing catalog: active plans only, ordered like `listAll`
    * (sortOrder ASC, name ASC). Uses the same active semantics as super-admin
    * list filtering (`derivePlanStatus` via `filterRows`).
+   * Equivalent active SKUs (legacy duplicates) collapse to one canonical row.
    */
   async listTenantPlans(): Promise<{ items: TenantBillingPlan[] }> {
     const all = await this.plans.listAll()
-    const active = this.plans.filterRows(all, { status: 'active' })
+    const active = this.plans.filterRows(all, { status: 'active' }).filter((row) => row.isActive)
+    const unique = deduplicateActivePlanRows(active)
     return {
-      items: active.map(transformTenantBillingPlan),
+      items: unique.map(transformTenantBillingPlan),
     }
   }
 
@@ -137,41 +160,78 @@ export class PlanService {
     const customPricing = input.price === null || billingPeriod === 'custom'
     const price = customPricing ? 0 : Number(input.price)
     const status = input.status
+    const identity = planLogicalIdentityFromValues({
+      name: input.name,
+      billingInterval: billingPeriodToInterval(billingPeriod),
+      billingIntervalCount: 1,
+      price,
+      currency: input.currency,
+    })
+
+    const reusable = await this.#findReusableLogicalPlan(identity)
+    if (reusable) {
+      if (derivePlanStatus(reusable) === 'active') {
+        throw PlanException.duplicateActive()
+      }
+      return this.updatePlan(
+        reusable.id,
+        {
+          name: input.name.trim(),
+          description: input.description?.trim() || null,
+          code: input.code?.trim() || reusable.code,
+          price: input.price,
+          currency: input.currency,
+          billingPeriod,
+          status,
+          popular: input.popular,
+          trialDays: input.trialDays,
+          limits: input.limits,
+          features: input.features,
+          sortOrder: input.sortOrder,
+        },
+        actorUserId
+      )
+    }
+
     const code = await this.#allocateCode(input.code?.trim() || slugifyCode(input.name))
 
-    const row = await this.plans.create({
-      code,
-      name: input.name.trim(),
-      description: input.description?.trim() || null,
-      price,
-      currency: input.currency.toUpperCase(),
-      billingInterval: billingIntervalFromPeriod(billingPeriod),
-      billingIntervalCount: 1,
-      trialDays: input.trialDays ?? 0,
-      gateway: null,
-      gatewayPlanId: null,
-      limits: buildLimits(input.limits),
-      isActive: status === 'active',
-      sortOrder: input.sortOrder ?? 0,
-      metadata: buildMetadata({
-        status,
-        popular: Boolean(input.popular),
-        customPricing,
-        billingPeriod,
-        features: input.features ?? [],
-      }),
-    })
+    try {
+      const row = await this.plans.create({
+        code,
+        name: input.name.trim(),
+        description: input.description?.trim() || null,
+        price,
+        currency: input.currency.toUpperCase(),
+        billingInterval: billingPeriodToInterval(billingPeriod),
+        billingIntervalCount: 1,
+        trialDays: input.trialDays ?? 0,
+        gateway: null,
+        gatewayPlanId: null,
+        limits: buildLimits(input.limits),
+        isActive: status === 'active',
+        sortOrder: input.sortOrder ?? 0,
+        metadata: buildMetadata({
+          status,
+          popular: Boolean(input.popular),
+          customPricing,
+          billingPeriod,
+          features: input.features ?? [],
+        }),
+      })
 
-    const plan = transformPlan(row)
-    await insertAuthorizationAudit({
-      organizationId: null,
-      actorUserId: actorUserId ?? null,
-      targetType: 'plan',
-      targetId: plan.id,
-      eventType: 'plan.created',
-      after: { name: plan.name, status: plan.status, code: plan.code },
-    })
-    return plan
+      const plan = transformPlan(row)
+      await insertAuthorizationAudit({
+        organizationId: null,
+        actorUserId: actorUserId ?? null,
+        targetType: 'plan',
+        targetId: plan.id,
+        eventType: 'plan.created',
+        after: { name: plan.name, status: plan.status, code: plan.code },
+      })
+      return plan
+    } catch (error) {
+      return this.#rethrowDuplicateIdentity(error)
+    }
   }
 
   async updatePlan(
@@ -227,40 +287,55 @@ export class PlanService {
     const gateway = priceChanged ? null : existing.gateway
     const gatewayPlanId = priceChanged ? null : existing.gatewayPlanId
 
-    const updated = await this.plans.update(planId, {
-      code,
-      name,
-      description,
-      price,
-      currency,
-      billingInterval: billingIntervalFromPeriod(billingPeriod),
-      billingIntervalCount: existing.billingIntervalCount || 1,
-      trialDays,
-      gateway,
-      gatewayPlanId,
-      limits,
-      isActive: status === 'active',
-      sortOrder: patch.sortOrder ?? existing.sortOrder,
-      metadata: buildMetadata({
-        status,
-        popular,
-        customPricing: resolvedCustomPricing,
-        billingPeriod,
-        features,
-      }),
-    })
+    if (status === 'active') {
+      await this.#assertNoActiveLogicalDuplicate({
+        name,
+        billingInterval: billingPeriodToInterval(billingPeriod),
+        billingIntervalCount: existing.billingIntervalCount || 1,
+        price,
+        currency,
+        excludeId: planId,
+      })
+    }
 
-    if (!updated) throw PlanException.notFound()
-    const plan = transformPlan(updated)
-    await insertAuthorizationAudit({
-      organizationId: null,
-      actorUserId: actorUserId ?? null,
-      targetType: 'plan',
-      targetId: plan.id,
-      eventType: 'plan.updated',
-      after: { name: plan.name, status: plan.status, code: plan.code },
-    })
-    return plan
+    try {
+      const updated = await this.plans.update(planId, {
+        code,
+        name,
+        description,
+        price,
+        currency,
+        billingInterval: billingPeriodToInterval(billingPeriod),
+        billingIntervalCount: existing.billingIntervalCount || 1,
+        trialDays,
+        gateway,
+        gatewayPlanId,
+        limits,
+        isActive: status === 'active',
+        sortOrder: patch.sortOrder ?? existing.sortOrder,
+        metadata: buildMetadata({
+          status,
+          popular,
+          customPricing: resolvedCustomPricing,
+          billingPeriod,
+          features,
+        }),
+      })
+
+      if (!updated) throw PlanException.notFound()
+      const plan = transformPlan(updated)
+      await insertAuthorizationAudit({
+        organizationId: null,
+        actorUserId: actorUserId ?? null,
+        targetType: 'plan',
+        targetId: plan.id,
+        eventType: 'plan.updated',
+        after: { name: plan.name, status: plan.status, code: plan.code },
+      })
+      return plan
+    } catch (error) {
+      return this.#rethrowDuplicateIdentity(error)
+    }
   }
 
   async archivePlan(planId: string, actorUserId?: string | null): Promise<SuperAdminPlan> {
@@ -303,5 +378,45 @@ export class PlanService {
       if (!existing || existing.id === excludeId) return candidate
     }
     throw PlanException.codeTaken(base)
+  }
+
+  async #findReusableLogicalPlan(identity: {
+    name: string
+    billingInterval: string
+    billingIntervalCount: number
+    price: number
+    currency: string
+  }) {
+    const matches = await this.plans.findByLogicalIdentity(identity)
+    if (matches.length === 0) return null
+    const active = matches.filter((row) => derivePlanStatus(row) === 'active')
+    if (active.length > 0) return active[0]
+    const drafts = matches.filter((row) => derivePlanStatus(row) === 'draft')
+    if (drafts.length > 0) return drafts[0]
+    return matches[0]
+  }
+
+  async #assertNoActiveLogicalDuplicate(params: {
+    name: string
+    billingInterval: string
+    billingIntervalCount: number
+    price: number
+    currency: string
+    excludeId: string
+  }) {
+    const matches = await this.plans.findByLogicalIdentity(
+      planLogicalIdentityFromValues(params),
+      params.excludeId
+    )
+    if (matches.some((row) => derivePlanStatus(row) === 'active' && row.isActive)) {
+      throw PlanException.duplicateActive()
+    }
+  }
+
+  #rethrowDuplicateIdentity(error: unknown): never {
+    if (isPostgresUniqueViolation(error, PLAN_ACTIVE_LOGICAL_IDENTITY_INDEX)) {
+      throw PlanException.duplicateActive()
+    }
+    throw error
   }
 }

@@ -98,22 +98,11 @@ export function formatTenantPlanPrice(
   }
 }
 
-/**
- * Resolve a plan feature label without throwing when the API key is absent from i18n.
- * Prefer known `admin.subscriptions.features.*` keys; otherwise use API name/key.
- */
-export function resolvePlanFeatureLabel(
-  tFeatures: { has: (key: string) => boolean; (key: string): string },
-  featureKey: string,
-  fallbackName?: string | null
-): string {
-  if (featureKey && tFeatures.has(featureKey)) {
-    return tFeatures(featureKey)
-  }
-  const name = fallbackName?.trim()
-  if (name) return name
-  return featureKey
-}
+export {
+  ADMIN_PLAN_FEATURE_I18N_NS,
+  PLAN_FEATURE_I18N_NS,
+  resolvePlanFeatureLabel,
+} from '@/lib/plan-feature-labels'
 
 export function isSubscriptionNotFound(error: unknown): boolean {
   const apiError = error as ApiError | undefined

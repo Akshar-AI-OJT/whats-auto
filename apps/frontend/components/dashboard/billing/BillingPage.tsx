@@ -11,6 +11,9 @@ import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
 import { cn } from '@/lib/utils'
 import { BillingCheckoutDialog } from './BillingCheckoutDialog'
+import { LimitMeter } from '@/components/dashboard/ui/LimitMeter'
+import { useRouter } from '@/i18n/navigation'
+import { useEntitlements } from '@/hooks/use-entitlements'
 import { queryKeys } from '@/lib/query-keys'
 import {
   billingStatusTone,
@@ -20,6 +23,7 @@ import {
   isFreeActivatablePlan,
   isPlanSelfServe,
   isSubscriptionNotFound,
+  PLAN_FEATURE_I18N_NS,
   resolvePlanFeatureLabel,
   unwrapBillingPlans,
   unwrapBillingSubscription,
@@ -78,11 +82,14 @@ export function BillingPage() {
   const tCompare = useTranslations('pricingPage.comparison')
   const tCompareValues = useTranslations('pricingPage.comparison.values')
   const queryClient = useQueryClient()
+  const router = useRouter()
   const {
     tenantOrganizationId,
     canViewBilling,
     canManageBilling,
     isLoading: orgsLoading,
+    isSubscriptionPending,
+    refresh,
   } = useOrganizations()
 
   const [checkoutError, setCheckoutError] = useState<string | null>(null)
@@ -111,15 +118,23 @@ export function BillingPage() {
     },
   })
 
+  const { usage: entitlementsUsage, refetch: refetchEntitlements } = useEntitlements()
+
   const checkoutMutation = useMutation({
     mutationFn: async (planId: string) => completePlanCheckout(planId),
     onSuccess: async (completion) => {
+      const returnToDashboard = isSubscriptionPending
       setCheckoutError(null)
       setConfirmOpen(false)
       setCheckoutSuccess(
         completion.kind === 'free' ? t('checkout.freeSuccess') : t('checkout.success')
       )
       await queryClient.invalidateQueries({ queryKey: queryKeys.billing.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.organizations.all })
+      await refresh()
+      if (returnToDashboard) {
+        router.replace('/dashboard')
+      }
     },
     onError: (err) => {
       const apiError = err as unknown as ApiError
@@ -217,6 +232,7 @@ export function BillingPage() {
               onClick={() => {
                 void subscriptionQuery.refetch()
                 void plansQuery.refetch()
+                void refetchEntitlements()
               }}
             >
               <RefreshCw
@@ -346,6 +362,39 @@ export function BillingPage() {
                 />
                 <DetailRow label={t('fields.subscriptionId')} value={subscription.id} />
               </dl>
+
+              {entitlementsUsage ? (
+                <div className="space-y-4 rounded-2xl border border-dash-border bg-dash-surface/30 p-5">
+                  <p className="text-sm font-semibold text-ink">Usage this period</p>
+                  <LimitMeter
+                    label="Messages"
+                    used={entitlementsUsage.messages.used}
+                    limit={entitlementsUsage.messages.limit}
+                  />
+                  <LimitMeter
+                    label="Campaigns"
+                    used={entitlementsUsage.campaigns.used}
+                    limit={entitlementsUsage.campaigns.limit}
+                  />
+                  <LimitMeter
+                    label="AI replies"
+                    used={entitlementsUsage.aiCustomerLlmCalls.used}
+                    limit={entitlementsUsage.aiCustomerLlmCalls.limit}
+                  />
+                  <LimitMeter
+                    label="Storage (bytes)"
+                    used={entitlementsUsage.storageBytes.used}
+                    limit={entitlementsUsage.storageBytes.limit}
+                    formatValue={(n) =>
+                      n >= 1_000_000_000
+                        ? `${(n / 1_000_000_000).toFixed(1)} GB`
+                        : n >= 1_000_000
+                          ? `${(n / 1_000_000).toFixed(1)} MB`
+                          : `${n}`
+                    }
+                  />
+                </div>
+              ) : null}
 
               <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 {canManageBilling ? (
@@ -478,7 +527,9 @@ export function BillingPage() {
                       {priceLabel}
                     </span>
                     {plan.price != null ? (
-                      <span className="text-sm text-mute">{tSubs('perMonth')}</span>
+                      <span className="text-sm text-mute">
+                        {plan.billingPeriod === 'yearly' ? tSubs('perYear') : tSubs('perMonth')}
+                      </span>
                     ) : null}
                   </div>
 
@@ -515,7 +566,12 @@ export function BillingPage() {
                             ✓
                           </span>
                           <span>
-                            {resolvePlanFeatureLabel(tFeatures, feature.key, feature.name)}
+                            {resolvePlanFeatureLabel(
+                              tFeatures,
+                              feature.key,
+                              feature.name,
+                              PLAN_FEATURE_I18N_NS
+                            )}
                           </span>
                         </li>
                       ))}
@@ -623,7 +679,7 @@ export function BillingPage() {
                     className="contents"
                   >
                     <div className="pt-3 text-sm text-body">
-                      {resolvePlanFeatureLabel(tFeatures, featureKey)}
+                      {resolvePlanFeatureLabel(tFeatures, featureKey, undefined, PLAN_FEATURE_I18N_NS)}
                     </div>
                     {plans.map((plan) => {
                       const included = plan.features.some(

@@ -62,12 +62,18 @@ export default class MediaAssetsController {
    * @responseBody 200 - { "data": { "id": "uuid", "deliveryUrl": "https://…", "state": "ready" } }
    * @responseBody 200 - { "data": null }
    */
-  async organizationLogo({ bouncer, request, serialize }: HttpContext) {
+  async organizationLogo({ bouncer, request, response, serialize }: HttpContext) {
     await bouncer.with(MediaAssetPolicy).authorize('viewList')
 
     const logo = await new MediaAssetService().getOrganizationLogo({
       organizationId: request.activeMember!.organizationId,
     })
+
+    if (!logo) {
+      // ApiSerializer rejects null; keep the contracted { data: null } shape.
+      return response.ok({ data: null })
+    }
+
     return serialize(logo)
   }
 

@@ -1,6 +1,8 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import MemberPolicy from '#policies/member_policy'
+import InvitationPolicy from '#policies/invitation_policy'
 import { MemberService } from '#services/member_service'
+import { InvitationService } from '#services/invitation_service'
 import { mapRbacError } from '#lib/map_rbac_error'
 import { assignMemberRoleValidator } from '#validators/organization'
 import '#types/http'
@@ -100,6 +102,29 @@ export default class MembersController {
         actorUserId: request.authUser!.id,
       })
       return serialize({ ok: true })
+    } catch (error) {
+      return mapRbacError(error, response)
+    }
+  }
+
+  /**
+   * @resendInvite
+   * @summary Resend password setup email for an unverified teammate
+   * @tag Members
+   * @security BearerAuth
+   * @paramPath memberId - Organization member id - @type(string)
+   * @responseBody 200 - { "data": { "ok": true } }
+   */
+  async resendInvite({ bouncer, request, params, response, serialize }: HttpContext) {
+    await bouncer.with(InvitationPolicy).authorize('resend')
+
+    try {
+      const result = await new InvitationService().resendSetupEmail({
+        memberId: params.memberId,
+        organizationId: request.activeMember!.organizationId,
+        actorUserId: request.authUser!.id,
+      })
+      return serialize(result)
     } catch (error) {
       return mapRbacError(error, response)
     }

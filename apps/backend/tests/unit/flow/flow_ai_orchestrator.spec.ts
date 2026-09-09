@@ -17,6 +17,23 @@ import type FlowOutboundAdapter from '#services/flow/flow_outbound_adapter'
 const ORG = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const CONV = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
 
+const allowAiQuota = {
+  async peek() {
+    return { used: 0, limit: 100, percentUsed: 0, allowed: true, nearLimit: false }
+  },
+  async notifyNearCap() {},
+  async notifyExceeded() {},
+  async incrementOnSuccess() {
+    return { used: 1, limit: 100, percentUsed: 1, allowed: true, nearLimit: false }
+  },
+} as never
+
+const allowConversationRateLimit = {
+  async checkAndIncrement() {
+    return { allowed: true, used: 1, limit: 10 }
+  },
+} as never
+
 test.group('flow AI orchestrator helpers', () => {
   test('repromptTextFor uses node copy', ({ assert }) => {
     assert.equal(
@@ -172,7 +189,10 @@ test.group('FlowAiOrchestrator.answerFromKnowledge', () => {
             latencyMs: 40,
           }
         },
-      } as unknown as ChatLlmProvider
+      } as unknown as ChatLlmProvider,
+      () => undefined,
+      allowAiQuota,
+      allowConversationRateLimit
     )
 
     const result = await orchestrator.answerFromKnowledge({
@@ -240,7 +260,10 @@ test.group('FlowAiOrchestrator.answerFromKnowledge', () => {
             latencyMs: 1,
           }
         },
-      } as unknown as ChatLlmProvider
+      } as unknown as ChatLlmProvider,
+      () => undefined,
+      allowAiQuota,
+      allowConversationRateLimit
     )
 
     await orchestrator.answerFromKnowledge({
@@ -424,6 +447,14 @@ test.group('FlowAiOrchestrator.handleUnexpectedInput', () => {
         async stampHandover(params: unknown) {
           stamps.push(params)
         },
+        async findById() {
+          return {
+            id: CONV,
+            organizationId: ORG,
+            aiMode: 'HUMAN_ACTIVE',
+            aiHandoverReason: 'keyword',
+          }
+        },
       } as unknown as ConversationAiRepository,
       {} as FlowOutboundAdapter,
       {
@@ -456,12 +487,11 @@ test.group('FlowAiOrchestrator.handleUnexpectedInput', () => {
     assert.lengthOf(retrieved, 0)
     assert.lengthOf(stamps, 1)
     assert.lengthOf(usageRows, 1)
-    assert.deepEqual(sse, [
-      {
-        type: 'ai.handover.triggered',
-        data: { conversationId: CONV, reason: 'keyword_match', matchedKeyword: 'agent' },
-      },
-    ])
+    assert.deepEqual(sse[0], {
+      type: 'ai.handover.triggered',
+      data: { conversationId: CONV, reason: 'keyword_match', matchedKeyword: 'agent' },
+    })
+    assert.equal((sse[1] as { type: string }).type, 'conversation.ai_mode.updated')
   })
 
   test('ignores platform handover keywords when the flow list is empty', async ({ assert }) => {
@@ -516,7 +546,10 @@ test.group('FlowAiOrchestrator.handleUnexpectedInput', () => {
             latencyMs: 1,
           }
         },
-      } as unknown as ChatLlmProvider
+      } as unknown as ChatLlmProvider,
+      () => undefined,
+      allowAiQuota,
+      allowConversationRateLimit
     )
 
     const result = await orchestrator.handleUnexpectedInput({
@@ -540,6 +573,7 @@ test.group('FlowAiOrchestrator.recordSuccessfulReply', () => {
   test('writes AUTO_REPLIED usage and schedules summary', async ({ assert }) => {
     const usageRows: unknown[] = []
     const scheduled: unknown[] = []
+    let meterIncrements = 0
 
     const orchestrator = new FlowAiOrchestrator(
       {} as KnowledgeRetrievalService,
@@ -556,7 +590,15 @@ test.group('FlowAiOrchestrator.recordSuccessfulReply', () => {
         async scheduleAfterAutoReply(input: unknown) {
           scheduled.push(input)
         },
-      } as unknown as AiConversationSummaryService
+      } as unknown as AiConversationSummaryService,
+      undefined,
+      () => undefined,
+      {
+        async incrementOnSuccess() {
+          meterIncrements += 1
+          return { used: 1, limit: 100, percentUsed: 1, allowed: true, nearLimit: false }
+        },
+      } as never
     )
 
     await orchestrator.recordSuccessfulReply({
@@ -564,6 +606,8 @@ test.group('FlowAiOrchestrator.recordSuccessfulReply', () => {
       conversationId: CONV,
       messageId: 'msg-1',
       modelName: 'gpt-test',
+      provider: 'openai',
+      operationType: 'rag_query',
       promptTokens: 3,
       completionTokens: 5,
       totalTokens: 8,
@@ -573,6 +617,9 @@ test.group('FlowAiOrchestrator.recordSuccessfulReply', () => {
 
     assert.lengthOf(usageRows, 1)
     assert.equal((usageRows[0] as { decision: string }).decision, AiUsageDecision.AUTO_REPLIED)
+    assert.equal((usageRows[0] as { provider: string }).provider, 'openai')
+    assert.equal((usageRows[0] as { operationType: string }).operationType, 'rag_query')
+    assert.equal(meterIncrements, 1)
     assert.deepEqual(scheduled, [{ organizationId: ORG, conversationId: CONV }])
   })
 })

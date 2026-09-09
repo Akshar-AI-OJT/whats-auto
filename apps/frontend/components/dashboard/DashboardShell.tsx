@@ -1,14 +1,18 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
+import { getValidAccessToken, peekAccessTokenRole } from '@/lib/access-token'
 import { authClient } from '@/lib/auth-client'
+import { ORG_SETUP_PATH } from '@/lib/onboarding'
+import { SUPER_ADMIN_HOME_PATH } from '@/lib/post-auth-redirect'
 import { DashboardChromeProvider, useDashboardChrome } from './DashboardChromeContext'
 import { DashboardSidebar } from './DashboardSidebar'
 import { DashboardTopbar } from './DashboardTopbar'
-import { OrganizationsProvider } from './OrganizationsProvider'
+import { OrganizationsProvider, useOrganizations } from './OrganizationsProvider'
+import { ProductAccessRouteGate } from './ProductAccessRouteGate'
 import { cn } from '@/lib/utils'
 
 type DashboardShellProps = {
@@ -19,16 +23,64 @@ type DashboardShellProps = {
 function DashboardAuthGate({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const t = useTranslations('dashboard.accessDenied')
-  const { data: sessionData, isPending } = authClient.useSession()
+  const { data: sessionData, isPending, isRefetching } = authClient.useSession()
   const isSignedIn = Boolean(sessionData?.user)
 
   useEffect(() => {
-    if (!isPending && !isSignedIn) {
+    // Wait out in-flight session refetches (e.g. right after org create) before
+    // treating a missing user as signed-out.
+    if (!isPending && !isRefetching && !isSignedIn) {
       router.replace('/login')
     }
-  }, [isPending, isSignedIn, router])
+  }, [isPending, isRefetching, isSignedIn, router])
 
-  if (isPending || !isSignedIn) {
+  if (isPending || isRefetching || !isSignedIn) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-dash-bg">
+        <Loader2 className="size-6 animate-spin text-mute" aria-hidden />
+        <span className="sr-only">{t('loading')}</span>
+      </div>
+    )
+  }
+
+  return children
+}
+
+/**
+ * Belt-and-suspenders: signed-in users with zero live memberships must not
+ * remain on `/dashboard` (Google/deep-link bypass of post-auth routing).
+ */
+function DashboardMembershipGate({ children }: { children: React.ReactNode }) {
+  const router = useRouter()
+  const t = useTranslations('dashboard.accessDenied')
+  const { hasOrganizations, isLoading } = useOrganizations()
+  const [platformChecked, setPlatformChecked] = useState(false)
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        await getValidAccessToken()
+        if (!cancelled) setIsSuperAdmin(peekAccessTokenRole() === 'superadmin')
+      } catch {
+        if (!cancelled) setIsSuperAdmin(false)
+      } finally {
+        if (!cancelled) setPlatformChecked(true)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (isLoading || !platformChecked) return
+    if (hasOrganizations) return
+    router.replace(isSuperAdmin ? SUPER_ADMIN_HOME_PATH : ORG_SETUP_PATH)
+  }, [hasOrganizations, isLoading, isSuperAdmin, platformChecked, router])
+
+  if (isLoading || !platformChecked || !hasOrganizations) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-dash-bg">
         <Loader2 className="size-6 animate-spin text-mute" aria-hidden />
@@ -58,7 +110,7 @@ function DashboardShellFrame({ children, className }: DashboardShellProps) {
       >
         <DashboardTopbar />
         <main className="min-w-0 flex-1 overflow-x-clip px-4 py-5 sm:px-5 sm:py-6 md:px-6 lg:px-8 lg:py-7">
-          {children}
+          <ProductAccessRouteGate>{children}</ProductAccessRouteGate>
         </main>
       </div>
     </div>
@@ -69,9 +121,11 @@ export function DashboardShell({ children, className }: DashboardShellProps) {
   return (
     <DashboardAuthGate>
       <OrganizationsProvider>
-        <DashboardChromeProvider>
-          <DashboardShellFrame className={className}>{children}</DashboardShellFrame>
-        </DashboardChromeProvider>
+        <DashboardMembershipGate>
+          <DashboardChromeProvider>
+            <DashboardShellFrame className={className}>{children}</DashboardShellFrame>
+          </DashboardChromeProvider>
+        </DashboardMembershipGate>
       </OrganizationsProvider>
     </DashboardAuthGate>
   )

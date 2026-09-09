@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Activity, BarChart3, CheckCheck, MessageCircle, Phone, Send, Tags, Users, XCircle } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
+import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
 import { Button } from '@/components/ui/button'
@@ -13,23 +14,16 @@ import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSecti
 import { DashboardEmptyState } from '@/components/dashboard/overview/DashboardEmptyState'
 import { KPIStatCard } from '@/components/dashboard/overview/KPIStatCard'
 import { ActivityItem, type ActivityTone } from '@/components/dashboard/overview/ActivityItem'
-import type { TagRecord, WhatsappConfigSummary } from '@/lib/api'
+import type { WhatsappConfigSummary } from '@/lib/api'
 import { queryKeys } from '@/lib/query-keys'
 import {
-  buildBreakdown,
-  buildMonthlySeries,
-  buildTemplateUsage,
   fetchAnalyticsAudit,
-  fetchAnalyticsCampaigns,
   fetchAnalyticsConfigs,
-  fetchAnalyticsContacts,
-  fetchAnalyticsConversations,
-  fetchAnalyticsTags,
-  fetchAnalyticsTemplates,
+  fetchRecentCampaigns,
+  fetchTenantAnalyticsSummary,
   formatAnalyticsDate,
   normalizeLabel,
-  sumCampaignMetrics,
-  sumConversationMetrics,
+  withMonthLabels,
   type AnalyticsMonthPoint,
   type BreakdownItem,
 } from './tenant-analytics'
@@ -151,6 +145,7 @@ function SummaryPill({ label, value }: { label: string; value: string }) {
 export function OrganizationAnalyticsPage() {
   const t = useTranslations('dashboard.analytics')
   const locale = useLocale()
+  const { tenantOrganizationId, isResolvingAccess } = useOrganizations()
   const { hasPermission, hasAnyPermission } = usePermissions()
 
   const canViewContacts = hasPermission(PERMISSIONS.CONTACTS_VIEW)
@@ -159,95 +154,78 @@ export function OrganizationAnalyticsPage() {
   const canViewWhatsapp = hasPermission(PERMISSIONS.WHATSAPP_VIEW)
   const canViewTemplates = hasAnyPermission([PERMISSIONS.TEMPLATES_VIEW, PERMISSIONS.WHATSAPP_VIEW])
   const canViewAudit = hasPermission(PERMISSIONS.AUDIT_VIEW)
+  const analyticsReady = Boolean(tenantOrganizationId) && !isResolvingAccess
 
-  const contactsQuery = useQuery({
-    queryKey: queryKeys.analytics.contacts,
-    queryFn: fetchAnalyticsContacts,
-    enabled: canViewContacts,
+  const summaryQuery = useQuery({
+    queryKey: queryKeys.analytics.summary(tenantOrganizationId),
+    queryFn: fetchTenantAnalyticsSummary,
+    enabled: analyticsReady,
     staleTime: 60_000,
   })
 
   const campaignsQuery = useQuery({
-    queryKey: queryKeys.analytics.campaigns,
-    queryFn: fetchAnalyticsCampaigns,
-    enabled: canViewCampaigns,
+    queryKey: queryKeys.analytics.campaigns(tenantOrganizationId),
+    queryFn: () => fetchRecentCampaigns(10),
+    enabled: analyticsReady && canViewCampaigns,
     staleTime: 60_000,
   })
 
   const configsQuery = useQuery({
-    queryKey: queryKeys.analytics.configs,
+    queryKey: queryKeys.analytics.configs(tenantOrganizationId),
     queryFn: fetchAnalyticsConfigs,
-    enabled: canViewWhatsapp,
-    staleTime: 60_000,
-  })
-
-  const templatesQuery = useQuery({
-    queryKey: queryKeys.analytics.templates,
-    queryFn: fetchAnalyticsTemplates,
-    enabled: canViewTemplates,
-    staleTime: 60_000,
-  })
-
-  const conversationsQuery = useQuery({
-    queryKey: queryKeys.analytics.conversations,
-    queryFn: fetchAnalyticsConversations,
-    enabled: canViewInbox,
-    staleTime: 60_000,
-  })
-
-  const tagsQuery = useQuery({
-    queryKey: queryKeys.analytics.tags,
-    queryFn: fetchAnalyticsTags,
-    enabled: canViewContacts,
+    enabled: analyticsReady && canViewWhatsapp,
     staleTime: 60_000,
   })
 
   const auditQuery = useQuery({
-    queryKey: queryKeys.analytics.audit,
+    queryKey: queryKeys.analytics.audit(tenantOrganizationId),
     queryFn: fetchAnalyticsAudit,
-    enabled: canViewAudit,
+    enabled: analyticsReady && canViewAudit,
     staleTime: 60_000,
   })
 
-  const contacts = useMemo(() => contactsQuery.data ?? [], [contactsQuery.data])
+  const summary = summaryQuery.data
   const campaigns = useMemo(() => campaignsQuery.data ?? [], [campaignsQuery.data])
   const configs = useMemo(() => configsQuery.data ?? [], [configsQuery.data])
-  const templates = useMemo(() => templatesQuery.data ?? [], [templatesQuery.data])
-  const conversations = useMemo(() => conversationsQuery.data ?? [], [conversationsQuery.data])
-  const tags = useMemo(() => tagsQuery.data ?? [], [tagsQuery.data])
   const audits = useMemo(() => auditQuery.data ?? [], [auditQuery.data])
 
-  const contactGrowth = useMemo(() => buildMonthlySeries(contacts, locale, 6), [contacts, locale])
-  const campaignMetrics = useMemo(() => sumCampaignMetrics(campaigns), [campaigns])
-  const conversationMetrics = useMemo(() => sumConversationMetrics(conversations), [conversations])
-  const configStatusBreakdown = useMemo(
-    () => buildBreakdown(configs.map((config) => String(config.status))),
-    [configs]
+  const contactGrowth = useMemo(
+    () => withMonthLabels(summary?.contactGrowth ?? [], locale),
+    [locale, summary?.contactGrowth]
   )
-  const templateStatusBreakdown = useMemo(
-    () => buildBreakdown(templates.map((template) => String(template.status))),
-    [templates]
+  const campaignMetrics = useMemo(
+    () => ({
+      totalCampaigns: summary?.totalCampaigns ?? 0,
+      totalRecipients: summary?.totalRecipients ?? 0,
+      sentCount: summary?.sentCount ?? 0,
+      deliveredCount: summary?.deliveredCount ?? 0,
+      readCount: summary?.readCount ?? 0,
+      repliedCount: summary?.repliedCount ?? 0,
+      failedCount: summary?.failedCount ?? 0,
+      deliveryRate: summary?.deliveryRate ?? 0,
+      statusBreakdown: summary?.campaignStatusBreakdown ?? [],
+    }),
+    [summary]
   )
-  const templateCategoryBreakdown = useMemo(
-    () => buildBreakdown(templates.map((template) => String(template.category))),
-    [templates]
+  const conversationMetrics = useMemo(
+    () => ({
+      total: summary?.totalConversations ?? 0,
+      unread: summary?.unreadMessages ?? 0,
+      statusBreakdown: summary?.conversationStatusBreakdown ?? [],
+    }),
+    [summary]
   )
-  const templateUsage = useMemo(() => buildTemplateUsage(campaigns, templates).slice(0, 5), [campaigns, templates])
-  const topGroups = useMemo(
-    () => [...tags].sort((a, b) => Number(b.contactCount ?? 0) - Number(a.contactCount ?? 0)).slice(0, 5),
-    [tags]
-  )
-  const campaignRows = useMemo(
-    () =>
-      [...campaigns]
-        .sort((a, b) => new Date(b.createdAt ?? 0).getTime() - new Date(a.createdAt ?? 0).getTime())
-        .slice(0, 10),
-    [campaigns]
-  )
-  const connectedCount = useMemo(
-    () => configs.filter((config) => String(config.status).toLowerCase() === 'connected').length,
-    [configs]
-  )
+  const configStatusBreakdown = summary?.whatsappStatusBreakdown ?? []
+  const templateStatusBreakdown = summary?.templateStatusBreakdown ?? []
+  const templateCategoryBreakdown = summary?.templateCategoryBreakdown ?? []
+  const templateUsage = summary?.templateUsage ?? []
+  const topGroups = summary?.topGroups ?? []
+  const campaignRows = campaigns
+  const connectedCount = summary?.connectedWhatsappNumbers ?? 0
+  const totalContacts = summary?.totalContacts ?? 0
+  const totalTemplates = summary?.totalTemplates ?? 0
+  const totalGroups = summary?.totalGroups ?? 0
+  const summaryLoading = !analyticsReady || summaryQuery.isLoading
 
   function translationForBreakdown(
     group: 'campaignStatus' | 'conversationStatus' | 'whatsappStatus' | 'templateStatus' | 'templateCategory',
@@ -332,10 +310,10 @@ export function OrganizationAnalyticsPage() {
       <div className="grid auto-rows-fr grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 xl:gap-5">
         <KPIStatCard
           label={t('kpis.totalContacts')}
-          value={canViewContacts ? contacts.length : t('unavailable')}
+          value={canViewContacts ? totalContacts : t('unavailable')}
           format={canViewContacts ? 'number' : 'plain'}
           icon={Users}
-          loading={canViewContacts && contactsQuery.isLoading}
+          loading={canViewContacts && summaryLoading}
           className="h-full"
         />
         <KPIStatCard
@@ -343,7 +321,7 @@ export function OrganizationAnalyticsPage() {
           value={canViewCampaigns ? campaignMetrics.totalCampaigns : t('unavailable')}
           format={canViewCampaigns ? 'number' : 'plain'}
           icon={BarChart3}
-          loading={canViewCampaigns && campaignsQuery.isLoading}
+          loading={canViewCampaigns && summaryLoading}
           className="h-full"
         />
         <KPIStatCard
@@ -351,7 +329,7 @@ export function OrganizationAnalyticsPage() {
           value={canViewCampaigns ? campaignMetrics.sentCount : t('unavailable')}
           format={canViewCampaigns ? 'number' : 'plain'}
           icon={Send}
-          loading={canViewCampaigns && campaignsQuery.isLoading}
+          loading={canViewCampaigns && summaryLoading}
           className="h-full"
         />
         <KPIStatCard
@@ -359,7 +337,7 @@ export function OrganizationAnalyticsPage() {
           value={canViewCampaigns ? campaignMetrics.deliveredCount : t('unavailable')}
           format={canViewCampaigns ? 'number' : 'plain'}
           icon={CheckCheck}
-          loading={canViewCampaigns && campaignsQuery.isLoading}
+          loading={canViewCampaigns && summaryLoading}
           className="h-full"
         />
         <KPIStatCard
@@ -367,7 +345,7 @@ export function OrganizationAnalyticsPage() {
           value={canViewCampaigns ? campaignMetrics.failedCount : t('unavailable')}
           format={canViewCampaigns ? 'number' : 'plain'}
           icon={XCircle}
-          loading={canViewCampaigns && campaignsQuery.isLoading}
+          loading={canViewCampaigns && summaryLoading}
           className="h-full"
         />
         <KPIStatCard
@@ -376,7 +354,7 @@ export function OrganizationAnalyticsPage() {
           format={canViewCampaigns ? 'percent' : 'plain'}
           suffix={canViewCampaigns ? '%' : undefined}
           icon={Send}
-          loading={canViewCampaigns && campaignsQuery.isLoading}
+          loading={canViewCampaigns && summaryLoading}
           className="h-full"
         />
         <KPIStatCard
@@ -384,7 +362,7 @@ export function OrganizationAnalyticsPage() {
           value={canViewInbox ? conversationMetrics.total : t('unavailable')}
           format={canViewInbox ? 'number' : 'plain'}
           icon={MessageCircle}
-          loading={canViewInbox && conversationsQuery.isLoading}
+          loading={canViewInbox && summaryLoading}
           className="h-full"
         />
         <KPIStatCard
@@ -392,7 +370,7 @@ export function OrganizationAnalyticsPage() {
           value={canViewWhatsapp ? connectedCount : t('unavailable')}
           format={canViewWhatsapp ? 'number' : 'plain'}
           icon={Phone}
-          loading={canViewWhatsapp && configsQuery.isLoading}
+          loading={canViewWhatsapp && summaryLoading}
           className="h-full"
         />
       </div>
@@ -405,16 +383,16 @@ export function OrganizationAnalyticsPage() {
           />
           {!canViewContacts ? (
             <PanelUnavailable label={t('unavailable')} />
-          ) : contactsQuery.isLoading ? (
+          ) : summaryLoading ? (
             <PanelLoading label={t('loading.contacts')} />
-          ) : contactsQuery.isError ? (
-            <PanelError label={t('errors.contacts')} retryLabel={t('retry')} retry={() => void contactsQuery.refetch()} />
-          ) : contacts.length === 0 ? (
+          ) : summaryQuery.isError ? (
+            <PanelError label={t('errors.contacts')} retryLabel={t('retry')} retry={() => void summaryQuery.refetch()} />
+          ) : totalContacts === 0 ? (
             <DashboardEmptyState title={t('contacts.emptyTitle')} description={t('contacts.emptyDescription')} icon={<Users className="size-5" aria-hidden />} />
           ) : (
             <>
               <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <SummaryPill label={t('contacts.totalContacts')} value={contacts.length.toLocaleString()} />
+                <SummaryPill label={t('contacts.totalContacts')} value={totalContacts.toLocaleString()} />
                 <SummaryPill label={t('contacts.monthsTracked')} value={String(contactGrowth.length)} />
               </div>
               <MonthlyBarChart points={contactGrowth} emptyLabel={t('contacts.emptyChart')} />
@@ -429,11 +407,11 @@ export function OrganizationAnalyticsPage() {
           />
           {!canViewCampaigns ? (
             <PanelUnavailable label={t('unavailable')} />
-          ) : campaignsQuery.isLoading ? (
+          ) : summaryLoading ? (
             <PanelLoading label={t('loading.campaigns')} />
-          ) : campaignsQuery.isError ? (
-            <PanelError label={t('errors.campaigns')} retryLabel={t('retry')} retry={() => void campaignsQuery.refetch()} />
-          ) : campaigns.length === 0 ? (
+          ) : summaryQuery.isError ? (
+            <PanelError label={t('errors.campaigns')} retryLabel={t('retry')} retry={() => void summaryQuery.refetch()} />
+          ) : campaignMetrics.totalCampaigns === 0 ? (
             <DashboardEmptyState title={t('campaignStatus.emptyTitle')} description={t('campaignStatus.emptyDescription')} icon={<BarChart3 className="size-5" aria-hidden />} />
           ) : (
             <>
@@ -459,10 +437,10 @@ export function OrganizationAnalyticsPage() {
           />
           {!canViewCampaigns ? (
             <PanelUnavailable label={t('unavailable')} />
-          ) : campaignsQuery.isLoading ? (
+          ) : summaryLoading ? (
             <PanelLoading label={t('loading.campaigns')} />
-          ) : campaignsQuery.isError ? (
-            <PanelError label={t('errors.campaigns')} retryLabel={t('retry')} retry={() => void campaignsQuery.refetch()} />
+          ) : summaryQuery.isError ? (
+            <PanelError label={t('errors.campaigns')} retryLabel={t('retry')} retry={() => void summaryQuery.refetch()} />
           ) : campaignMetrics.sentCount === 0 && campaignMetrics.deliveredCount === 0 && campaignMetrics.readCount === 0 && campaignMetrics.failedCount === 0 ? (
             <DashboardEmptyState title={t('messagePerformance.emptyTitle')} description={t('messagePerformance.emptyDescription')} icon={<Send className="size-5" aria-hidden />} />
           ) : (
@@ -486,11 +464,11 @@ export function OrganizationAnalyticsPage() {
           />
           {!canViewInbox ? (
             <PanelUnavailable label={t('unavailable')} />
-          ) : conversationsQuery.isLoading ? (
+          ) : summaryLoading ? (
             <PanelLoading label={t('loading.conversations')} />
-          ) : conversationsQuery.isError ? (
-            <PanelError label={t('errors.conversations')} retryLabel={t('retry')} retry={() => void conversationsQuery.refetch()} />
-          ) : conversations.length === 0 ? (
+          ) : summaryQuery.isError ? (
+            <PanelError label={t('errors.conversations')} retryLabel={t('retry')} retry={() => void summaryQuery.refetch()} />
+          ) : conversationMetrics.total === 0 ? (
             <DashboardEmptyState title={t('conversations.emptyTitle')} description={t('conversations.emptyDescription')} icon={<MessageCircle className="size-5" aria-hidden />} />
           ) : (
             <>
@@ -515,7 +493,7 @@ export function OrganizationAnalyticsPage() {
         />
         {!canViewCampaigns ? (
           <PanelUnavailable label={t('unavailable')} />
-        ) : campaignsQuery.isLoading ? (
+        ) : (!analyticsReady || campaignsQuery.isLoading) ? (
           <PanelLoading label={t('loading.campaigns')} />
         ) : campaignsQuery.isError ? (
           <PanelError label={t('errors.campaigns')} retryLabel={t('retry')} retry={() => void campaignsQuery.refetch()} />
@@ -572,7 +550,7 @@ export function OrganizationAnalyticsPage() {
           <DashboardSectionHeader title={t('whatsapp.title')} description={t('whatsapp.description')} />
           {!canViewWhatsapp ? (
             <PanelUnavailable label={t('unavailable')} />
-          ) : configsQuery.isLoading ? (
+          ) : (!analyticsReady || configsQuery.isLoading) ? (
             <PanelLoading label={t('loading.whatsapp')} />
           ) : configsQuery.isError ? (
             <PanelError label={t('errors.whatsapp')} retryLabel={t('retry')} retry={() => void configsQuery.refetch()} />
@@ -608,16 +586,16 @@ export function OrganizationAnalyticsPage() {
           <DashboardSectionHeader title={t('templates.title')} description={t('templates.description')} />
           {!canViewTemplates ? (
             <PanelUnavailable label={t('unavailable')} />
-          ) : templatesQuery.isLoading ? (
+          ) : summaryLoading ? (
             <PanelLoading label={t('loading.templates')} />
-          ) : templatesQuery.isError ? (
-            <PanelError label={t('errors.templates')} retryLabel={t('retry')} retry={() => void templatesQuery.refetch()} />
-          ) : templates.length === 0 ? (
+          ) : summaryQuery.isError ? (
+            <PanelError label={t('errors.templates')} retryLabel={t('retry')} retry={() => void summaryQuery.refetch()} />
+          ) : totalTemplates === 0 ? (
             <DashboardEmptyState title={t('templates.emptyTitle')} description={t('templates.emptyDescription')} icon={<Send className="size-5" aria-hidden />} />
           ) : (
             <>
               <div className="mt-5 grid grid-cols-1 gap-3">
-                <SummaryPill label={t('templates.totalTemplates')} value={templates.length.toLocaleString()} />
+                <SummaryPill label={t('templates.totalTemplates')} value={totalTemplates.toLocaleString()} />
               </div>
               <div className="mt-5">
                 <p className="text-sm font-semibold text-ink">{t('templates.statusDistribution')}</p>
@@ -656,19 +634,19 @@ export function OrganizationAnalyticsPage() {
           <DashboardSectionHeader title={t('groups.title')} description={t('groups.description')} />
           {!canViewContacts ? (
             <PanelUnavailable label={t('unavailable')} />
-          ) : tagsQuery.isLoading ? (
+          ) : summaryLoading ? (
             <PanelLoading label={t('loading.groups')} />
-          ) : tagsQuery.isError ? (
-            <PanelError label={t('errors.groups')} retryLabel={t('retry')} retry={() => void tagsQuery.refetch()} />
-          ) : tags.length === 0 ? (
+          ) : summaryQuery.isError ? (
+            <PanelError label={t('errors.groups')} retryLabel={t('retry')} retry={() => void summaryQuery.refetch()} />
+          ) : totalGroups === 0 ? (
             <DashboardEmptyState title={t('groups.emptyTitle')} description={t('groups.emptyDescription')} icon={<Tags className="size-5" aria-hidden />} />
           ) : (
             <>
               <div className="mt-5 grid grid-cols-1 gap-3">
-                <SummaryPill label={t('groups.totalGroups')} value={tags.length.toLocaleString()} />
+                <SummaryPill label={t('groups.totalGroups')} value={totalGroups.toLocaleString()} />
               </div>
               <ul className="mt-5 flex flex-col gap-2">
-                {topGroups.map((group: TagRecord) => (
+                {topGroups.map((group) => (
                   <li key={group.id} className="flex items-center justify-between gap-3 rounded-xl border border-dash-border bg-dash-surface/40 px-3 py-2 text-sm">
                     <span className="truncate text-ink">{group.name}</span>
                     <span className="shrink-0 tabular-nums text-mute">
@@ -686,7 +664,7 @@ export function OrganizationAnalyticsPage() {
         <DashboardSectionHeader title={t('audit.title')} description={t('audit.description')} />
         {!canViewAudit ? (
           <PanelUnavailable label={t('unavailable')} />
-        ) : auditQuery.isLoading ? (
+        ) : (!analyticsReady || auditQuery.isLoading) ? (
           <PanelLoading label={t('loading.audit')} />
         ) : auditQuery.isError ? (
           <PanelError label={t('errors.audit')} retryLabel={t('retry')} retry={() => void auditQuery.refetch()} />

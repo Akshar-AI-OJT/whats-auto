@@ -3,6 +3,7 @@ import logger from '@adonisjs/core/services/logger'
 import ConversationException from '#exceptions/conversation_exception'
 import { FlowSessionRepository } from '#repositories/flow_session_repository'
 import { deriveAutomationVisibility } from '#services/ai/automation_visibility'
+import { PlanRetentionService } from '#services/billing/plan_retention_service'
 import { NotificationService } from '#services/notification_service'
 
 export type ConversationStatus = 'open' | 'pending' | 'closed'
@@ -118,7 +119,10 @@ function isUniqueViolation(error: unknown): boolean {
 }
 
 export class ConversationService {
-  constructor(private sessions: FlowSessionRepository = new FlowSessionRepository()) {}
+  constructor(
+    private sessions: FlowSessionRepository = new FlowSessionRepository(),
+    private retention: PlanRetentionService = new PlanRetentionService()
+  ) {}
 
   /**
    * Paginated inbox conversation list with optional filters and contact search.
@@ -139,6 +143,18 @@ export class ConversationService {
       .innerJoin('contacts as ct', 'ct.id', 'c.contactId')
       .where('c.organizationId', params.organizationId)
       .whereNull('ct.deletedAt')
+
+    const cutoff = await this.retention.cutoffDate(
+      params.organizationId,
+      'conversationInboxRetentionDays'
+    )
+    if (cutoff) {
+      query = query.where((q) => {
+        q.where('c.lastMessageAt', '>=', cutoff).orWhere((inner) => {
+          inner.whereNull('c.lastMessageAt').where('c.createdAt', '>=', cutoff)
+        })
+      })
+    }
 
     if (params.status) {
       query = query.where('c.status', params.status)

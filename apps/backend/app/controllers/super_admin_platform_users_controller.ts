@@ -2,7 +2,6 @@ import type { HttpContext } from '@adonisjs/core/http'
 import { accessPlatform } from '#abilities/main'
 import SuperAdminPolicy from '#policies/super_admin_policy'
 import { SuperAdminPlatformUsersService } from '#services/super_admin_platform_users_service'
-import PlatformUserTransformer from '#transformers/platform_user_transformer'
 import { listSuperAdminPlatformUsersValidator } from '#validators/super_admin_platform_users'
 import '#types/http'
 
@@ -40,6 +39,9 @@ export default class SuperAdminPlatformUsersController {
       role: query.role,
     })
 
-    return serialize(PlatformUserTransformer.paginate(data, meta))
+    // Service already returns DTO rows with memberships attached. Serialize the
+    // envelope directly so meta is preserved (Transformer.paginate can reshape
+    // the paginated payload in ways the frontend list cannot unwrap reliably).
+    return serialize({ data, meta })
   }
 }

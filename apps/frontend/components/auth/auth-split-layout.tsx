@@ -1,15 +1,13 @@
-import { Link } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
 
 /**
  * Shared premium auth chrome used by Login + Register.
- * Logo above card; 40% branding / 60% form (wider form optional for plan selection).
+ * 40% branding / 60% form (wider form optional for plan selection).
  */
 export function AuthSplitLayout({
   branding,
   children,
   className,
-  showBrandLink = true,
   compact = false,
   contentClassName,
   wideForm = false,
@@ -17,8 +15,6 @@ export function AuthSplitLayout({
   branding: React.ReactNode
   children: React.ReactNode
   className?: string
-  /** When false, hides the Whats-Auto home link above the card (e.g. register). */
-  showBrandLink?: boolean
   /** Tighter padding for tall forms (register) so primary CTAs fit without scroll. */
   compact?: boolean
   /** Optional override for the form column inner max-width (e.g. wider plan picker). */
@@ -55,15 +51,6 @@ export function AuthSplitLayout({
           compact ? 'gap-3 sm:gap-4' : 'gap-5 sm:gap-6'
         )}
       >
-        {showBrandLink ? (
-          <Link
-            href="/"
-            className="w-fit font-display text-xl leading-none text-ink transition-opacity hover:opacity-80 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-[#F8FAFC] sm:text-[1.35rem]"
-          >
-            Whats-Auto
-          </Link>
-        ) : null}
-
         <div
           className={cn(
             'flex w-full flex-col overflow-hidden',

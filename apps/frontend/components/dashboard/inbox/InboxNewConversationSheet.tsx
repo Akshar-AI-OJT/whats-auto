@@ -26,6 +26,7 @@ import {
 } from '@/components/dashboard/ui/use-dashboard-toast'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { unwrapPaginated, unwrapSingle } from './inbox-utils'
+import { listAllOrganizationContacts } from '@/components/dashboard/contacts/contact-list'
 
 function unwrapList<T>(payload: { data?: T[] } | T[] | null | undefined): T[] {
   if (!payload) return []
@@ -190,15 +191,14 @@ export function InboxNewConversationSheet({
     setConfigsLoading(true)
 
     try {
-      const [{ data: contactsData }, { data: configsData }] = await Promise.all([
-        api.contacts.list(),
+      const [contactsRows, { data: configsData }] = await Promise.all([
+        listAllOrganizationContacts(),
         api.whatsapp.listConfigs(),
       ])
 
       if (!mountedRef.current) return
 
-      const normalizedContacts = unwrapList<ContactSummary>(contactsData)
-      const rows = normalizedContacts.filter((c) => c.organizationId === tenantOrganizationId)
+      const rows = contactsRows.filter((c) => c.organizationId === tenantOrganizationId)
       setContacts(rows)
 
       const normalizedConfigs = unwrapList<WhatsappConfigSummary>(configsData)
