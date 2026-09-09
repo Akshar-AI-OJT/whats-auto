@@ -112,7 +112,7 @@ export function AddContactSheet({
     },
     enabled: open && isEdit && Boolean(contact?.id),
     retry: (failureCount, err) => {
-      const status = (err as ApiError)?.status
+      const status = (err as unknown as ApiError)?.status
       return status !== 404 && status !== 403 && failureCount < 1
     },
   })
@@ -190,7 +190,7 @@ export function AddContactSheet({
   }
 
   const queryError =
-    open && isEdit && liveQuery.isError ? mapSaveError(liveQuery.error as ApiError) : null
+    open && isEdit && liveQuery.isError ? mapSaveError(liveQuery.error as unknown as ApiError) : null
   const displayError = error ?? queryError
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -233,7 +233,7 @@ export function AddContactSheet({
         onOpenChange(false)
       }, 700)
     } catch (err) {
-      setError(mapSaveError(err as ApiError))
+      setError(mapSaveError(err as unknown as ApiError))
     } finally {
       setPending(false)
     }
