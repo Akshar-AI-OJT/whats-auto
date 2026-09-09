@@ -7,12 +7,13 @@ import { ArrowRight } from 'lucide-react'
 import { Link } from '@/i18n/navigation'
 import { api, type MediaAsset } from '@/lib/api'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
-import { ONBOARDING_PLAN_PATH } from '@/lib/onboarding'
+import { useProductAccess } from '@/hooks/useProductAccess'
 import {
   calculateOrganizationProfileCompletion,
-  ORG_PROFILE_PATH,
+  organizationProfilePath,
   organizationToProfileFormValues,
 } from '@/lib/organization-profile'
+import { ONBOARDING_PLAN_PATH } from '@/lib/onboarding'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { cn } from '@/lib/utils'
 
@@ -33,9 +34,9 @@ export function ProfileCompletionReminder() {
     isLoading,
     tenantOrganizationId,
     isSetupComplete,
-    isSubscriptionPending,
     hasFullProductAccess,
   } = useOrganizations()
+  const { organizationStatus } = useProductAccess()
 
   const logoQuery = useQuery({
     queryKey: ['organization-logo', tenantOrganizationId],
@@ -59,20 +60,35 @@ export function ProfileCompletionReminder() {
   if (isLoading || !isOwner || !activeOrganization) return null
   if (hasFullProductAccess && (!completion || completion.percent >= 100)) return null
 
-  const needsSetup = !isSetupComplete
-  const needsPlan = isSetupComplete && isSubscriptionPending
-  const href = needsSetup ? ORG_PROFILE_PATH : needsPlan ? ONBOARDING_PLAN_PATH : ORG_PROFILE_PATH
-  const title = needsSetup
-    ? t('incompleteTitle')
+  const needsWhatsapp = organizationStatus === 'pending_setup'
+  const needsPlan = organizationStatus === 'verified_setup'
+  const needsSetup = organizationStatus === 'active' && !isSetupComplete
+  const href = needsWhatsapp
+    ? '/dashboard/whatsapp'
+    : needsPlan
+      ? ONBOARDING_PLAN_PATH
+      : organizationProfilePath(activeOrganization?.id)
+  const title = needsWhatsapp
+    ? t('whatsappTitle')
     : needsPlan
       ? t('subscribeTitle')
-      : t('title', { percent: completion?.percent ?? 0 })
-  const subtitle = needsSetup
-    ? t('incompleteSubtitle')
+      : needsSetup
+        ? t('incompleteTitle')
+        : t('title', { percent: completion?.percent ?? 0 })
+  const subtitle = needsWhatsapp
+    ? t('whatsappSubtitle')
     : needsPlan
       ? t('subscribeSubtitle')
-      : t('subtitle')
-  const cta = needsSetup ? t('incompleteCta') : needsPlan ? t('subscribeCta') : t('cta')
+      : needsSetup
+        ? t('incompleteSubtitle')
+        : t('subtitle')
+  const cta = needsWhatsapp
+    ? t('whatsappCta')
+    : needsPlan
+      ? t('subscribeCta')
+      : needsSetup
+        ? t('incompleteCta')
+        : t('cta')
 
   return (
     <DashboardPanel
@@ -89,7 +105,7 @@ export function ProfileCompletionReminder() {
             {title}
           </p>
           <p className="mt-1 text-sm text-body">{subtitle}</p>
-          {completion && !needsSetup && !needsPlan ? (
+          {completion && !needsWhatsapp && !needsPlan && !needsSetup ? (
             <div className="mt-3 h-1.5 max-w-xs overflow-hidden rounded-full bg-dash-border">
               <div
                 className="h-full rounded-full bg-primary transition-[width] duration-300"

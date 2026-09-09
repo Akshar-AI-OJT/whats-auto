@@ -8,8 +8,10 @@
 #   bash deploy/contabo/migrate.sh              # Run pending migrations + RBAC + superadmin bootstrap
 #   bash deploy/contabo/migrate.sh status       # View migration status
 #   bash deploy/contabo/migrate.sh rollback     # Rollback the last migration batch
-#   bash deploy/contabo/migrate.sh seed         # Run RBAC + superadmin seed only
-#   bash deploy/contabo/migrate.sh fresh        # [DANGER] Drop all tables & re-run all migrations
+#   bash deploy/contabo/migrate.sh seed              # Run RBAC + superadmin seed only
+#   bash deploy/contabo/migrate.sh grant-superadmin  # Restore superadmin for SUPERADMIN_EMAIL
+#   bash deploy/contabo/migrate.sh reset-superadmin  # Delete SUPERADMIN_EMAIL user and recreate
+#   bash deploy/contabo/migrate.sh fresh             # [DANGER] Drop all tables & re-run all migrations
 # ==============================================================================
 set -euo pipefail
 
@@ -37,6 +39,14 @@ require_api() {
 
 ace() {
   compose exec -T whats-auto-backend node ace "$@"
+}
+
+run_grant_superadmin() {
+  compose exec -T whats-auto-backend node bin/grant_superadmin.js "$@"
+}
+
+run_reset_superadmin() {
+  compose exec -T whats-auto-backend node bin/reset_superadmin.js "$@"
 }
 
 cmd="${1:-run}"
@@ -81,6 +91,32 @@ case "$cmd" in
     ace db:seed --files=database/seeders/superadmin_seeder.ts
     ;;
 
+  grant-superadmin)
+    require_api
+    shift
+    echo "==> Ensuring RBAC catalog is present..."
+    ace db:seed --files=database/seeders/rbac_seeder.ts
+    echo "==> Restoring global superadmin grant for SUPERADMIN_EMAIL..."
+    run_grant_superadmin "$@"
+    ;;
+
+  reset-superadmin)
+    require_api
+    shift
+    if [ "${CONFIRM_RESET_SUPERADMIN:-}" != "1" ]; then
+      read -p "WARNING: Deletes the SUPERADMIN_EMAIL user and recreates platform superadmin. Continue? (y/N): " -n 1 -r
+      echo
+      if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Operation cancelled."
+        exit 0
+      fi
+    fi
+    echo "==> Ensuring RBAC catalog is present..."
+    ace db:seed --files=database/seeders/rbac_seeder.ts
+    echo "==> Resetting platform superadmin for SUPERADMIN_EMAIL..."
+    run_reset_superadmin "$@"
+    ;;
+
   fresh)
     require_api
     if [ "${CONFIRM_FRESH:-}" != "1" ]; then
@@ -101,7 +137,7 @@ case "$cmd" in
     ;;
 
   *)
-    echo "Usage: $0 [status|run|rollback|seed|fresh]"
+    echo "Usage: $0 [status|run|rollback|seed|grant-superadmin|reset-superadmin|fresh]"
     exit 1
     ;;
 esac

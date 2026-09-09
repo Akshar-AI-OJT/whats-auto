@@ -20,13 +20,13 @@ import {
   isValidWebsiteUrl,
   markOnboardingChecklistVisible,
   readPendingOnboardingContact,
+  saveCreatedOrganizationId,
   savePendingOnboardingOrganizationId,
   ORG_SETUP_PATH,
 } from '@/lib/onboarding'
 import {
   normalizeAppPath,
   resolvePostAuthPath,
-  SUPER_ADMIN_HOME_PATH,
 } from '@/lib/post-auth-redirect'
 import { Button } from '@/components/ui/button'
 import { Field, FieldGroup } from '@/components/ui/field'
@@ -92,6 +92,7 @@ async function alignSessionAfterOrganizationCreate(created: CreatedOrganization)
   await ensureAccessTokenForOrganization(created.id)
 }
 
+
 /**
  * Create Organization page — existing Basics UI.
  * After create, go to the dashboard. Company / preferences / plan are completed later.
@@ -121,7 +122,8 @@ export function OrganizationRegistrationForm({
         })
         if (cancelled) return
         const normalized = normalizeAppPath(nextPath)
-        if (normalized === SUPER_ADMIN_HOME_PATH || normalized.startsWith('/admin')) {
+        // Already provisioned (or superadmin) — leave create-org.
+        if (normalized !== ORG_SETUP_PATH) {
           router.replace(nextPath)
           return
         }
@@ -198,6 +200,7 @@ export function OrganizationRegistrationForm({
     }
 
     savePendingOnboardingOrganizationId(created.id)
+    saveCreatedOrganizationId(created.id)
     try {
       await alignSessionAfterOrganizationCreate(created)
     } catch {

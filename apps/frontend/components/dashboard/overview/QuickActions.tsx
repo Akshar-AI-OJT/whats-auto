@@ -46,7 +46,8 @@ const ACTION_ICONS: Record<(typeof QUICK_ACTIONS)[number]['titleKey'], LucideIco
 export function QuickActions() {
   const t = useTranslations('dashboard.home.quickActions')
   const { canViewInbox, isLoading: orgsLoading } = useOrganizations()
-  const { hasFullProductAccess, isSetupComplete } = useProductAccess()
+  const { hasFullProductAccess, isSetupComplete, organizationId, organizationStatus } =
+    useProductAccess()
 
   return (
     <DashboardPanel as="section" className="flex h-full flex-col p-4 sm:p-5 md:p-6">
@@ -61,7 +62,12 @@ export function QuickActions() {
           return (
             <QuickActionCard
               key={action.id}
-              href={resolveDashboardHref(action.href, { hasFullProductAccess, isSetupComplete })}
+              href={resolveDashboardHref(action.href, {
+                hasFullProductAccess,
+                isSetupComplete,
+                organizationId,
+                organizationStatus,
+              })}
               title={t(action.titleKey)}
               description={t(action.descriptionKey)}
               icon={Icon}

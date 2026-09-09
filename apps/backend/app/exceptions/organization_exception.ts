@@ -36,6 +36,37 @@ export default class OrganizationException extends Exception {
     })
   }
 
+  static whatsappRequired() {
+    return new this(
+      'Connect a verified Meta WhatsApp Business account before using the product or starting checkout.',
+      {
+        status: 403,
+        code: 'E_ORG_WHATSAPP_REQUIRED',
+      }
+    )
+  }
+
+  static profileIncomplete() {
+    return new this('Complete the organization profile before accessing this functionality.', {
+      status: 403,
+      code: 'E_ORGANIZATION_PROFILE_INCOMPLETE',
+    })
+  }
+
+  static archivedLifecycle() {
+    return new this('Archived organizations cannot be suspended or activated.', {
+      status: 409,
+      code: 'E_ORGANIZATION_ARCHIVED',
+    })
+  }
+
+  static invalidLifecycle(message: string) {
+    return new this(message, {
+      status: 409,
+      code: 'E_ORGANIZATION_LIFECYCLE_INVALID',
+    })
+  }
+
   handle(error: this, { response }: HttpContext) {
     const field =
       error.code === 'E_ORG_SLUG_ALREADY_EXISTS'

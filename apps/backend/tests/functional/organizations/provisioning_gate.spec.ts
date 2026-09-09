@@ -5,6 +5,8 @@ import { DEMO_PASSWORD, DEMO_USERS } from '#database/demo/credentials'
 import { FIXTURE_IDS } from '#database/demo/fixture_ids'
 import DemoSeeder from '#database/seeders/demo_seeder'
 import { OrganizationStatus } from '#enums/organization_status'
+import OrganizationException from '#exceptions/organization_exception'
+import { encryptWhatsappAccessToken } from '#lib/meta_whatsapp/access_token_crypto'
 import { auth } from '#lib/auth'
 import { AccessTokenClaimsService } from '#services/access_token_claims_service'
 import { BillingOrderApplyService } from '#services/billing/billing_order_apply_service'
@@ -15,6 +17,7 @@ import { RazorpayOrderService } from '#services/billing/razorpay_order_service'
 import { PlanRepository } from '#repositories/plan_repository'
 import { OrganizationSubscriptionRepository } from '#repositories/organization_subscription_repository'
 import { BillingOrderRepository } from '#repositories/billing_order_repository'
+import { WhatsappConfigService } from '#services/whatsapp_config_service'
 import { runWithTenant } from '#services/tenant_context'
 import { DateTime } from 'luxon'
 
@@ -105,6 +108,21 @@ async function createPendingOrgOwnedBy(userId: string) {
   return organizationId
 }
 
+async function seedConnectedWhatsapp(organizationId: string) {
+  await runWithTenant(organizationId, async () => {
+    await db.table('whatsapp_configs').insert({
+      organizationId,
+      phoneNumberId: `pn_${organizationId.slice(0, 8)}`,
+      wabaId: `waba_${organizationId.slice(0, 8)}`,
+      businessId: `biz_${organizationId.slice(0, 8)}`,
+      metaVerificationStatus: 'verified',
+      accessToken: encryptWhatsappAccessToken('plain-token-d70'),
+      status: 'connected',
+      connectedAt: new Date(),
+    })
+  })
+}
+
 test.group('Org provisioning gate', (group) => {
   const orgIds: string[] = []
 
@@ -124,7 +142,7 @@ test.group('Org provisioning gate', (group) => {
     }
   })
 
-  test('product route returns 402 E_ORG_PAYMENT_REQUIRED for pending_setup', async ({
+  test('product route returns 403 E_ORG_WHATSAPP_REQUIRED for pending_setup', async ({
     client,
     assert,
   }) => {
@@ -139,8 +157,52 @@ test.group('Org provisioning gate', (group) => {
     const token = await mintTokenForOrg(DEMO_USERS.northstarOwner, organizationId)
     const response = await client.get('/api/v1/contacts').header('Authorization', `Bearer ${token}`)
 
+    response.assertStatus(403)
+    assert.equal(errorBody(response).code, 'E_ORG_WHATSAPP_REQUIRED')
+  })
+
+  test('product route returns 402 E_ORG_PAYMENT_REQUIRED for verified_setup', async ({
+    client,
+    assert,
+  }) => {
+    const owner = await db
+      .from('users')
+      .where('email', DEMO_USERS.northstarOwner)
+      .select('id')
+      .firstOrFail()
+    const organizationId = await createPendingOrgOwnedBy(owner.id as string)
+    orgIds.push(organizationId)
+    await db
+      .from('organizations')
+      .where('id', organizationId)
+      .update({ status: OrganizationStatus.VERIFIED_SETUP })
+
+    const token = await mintTokenForOrg(DEMO_USERS.northstarOwner, organizationId)
+    const response = await client.get('/api/v1/contacts').header('Authorization', `Bearer ${token}`)
+
     response.assertStatus(402)
     assert.equal(errorBody(response).code, 'E_ORG_PAYMENT_REQUIRED')
+  })
+
+  test('whatsapp embedded-signup session reachable for pending_setup', async ({
+    client,
+    assert,
+  }) => {
+    const owner = await db
+      .from('users')
+      .where('email', DEMO_USERS.northstarOwner)
+      .select('id')
+      .firstOrFail()
+    const organizationId = await createPendingOrgOwnedBy(owner.id as string)
+    orgIds.push(organizationId)
+
+    const token = await mintTokenForOrg(DEMO_USERS.northstarOwner, organizationId)
+    const response = await client
+      .get('/api/v1/whatsapp/embedded-signup/session')
+      .header('Authorization', `Bearer ${token}`)
+
+    response.assertStatus(200)
+    assert.isDefined(response.body())
   })
 
   test('billing opt-out still reachable for pending_setup', async ({ client, assert }) => {
@@ -238,8 +300,8 @@ test.group('Org provisioning gate', (group) => {
         fileSize: 1024,
       })
 
-    libraryResponse.assertStatus(402)
-    assert.equal(errorBody(libraryResponse).code, 'E_ORG_PAYMENT_REQUIRED')
+    libraryResponse.assertStatus(403)
+    assert.equal(errorBody(libraryResponse).code, 'E_ORG_WHATSAPP_REQUIRED')
 
     const getLogo = await client
       .get('/api/v1/media/organization-logo')
@@ -264,13 +326,13 @@ test.group('Org provisioning gate', (group) => {
       country: 'IN',
       timezone: 'UTC',
       currency: 'INR',
-      status: OrganizationStatus.PENDING_SETUP,
+      status: OrganizationStatus.VERIFIED_SETUP,
     })
 
     await db.table('plans').insert({
       id: planId,
       code: `growth_${organizationId.slice(0, 8)}`,
-      name: 'Growth Prov',
+      name: `Growth Prov ${organizationId.slice(0, 8)}`,
       price: 2499,
       currency: 'INR',
       billingInterval: 'month',
@@ -301,7 +363,7 @@ test.group('Org provisioning gate', (group) => {
         periodEnd: now.plus({ months: 1 }).toJSDate(),
         planSnapshot: {
           code: `growth_${organizationId.slice(0, 8)}`,
-          name: 'Growth Prov',
+          name: `Growth Prov ${organizationId.slice(0, 8)}`,
           price: 2499,
           currency: 'INR',
           interval: 'month',
@@ -438,10 +500,11 @@ test.group('Org provisioning gate', (group) => {
     assert.equal(sessionStillA.activeOrganizationId, orgAId)
 
     const planId = randomUUID()
+    const uniquePlanName = `Free Onboard ${planId.slice(0, 8)}`
     await db.table('plans').insert({
       id: planId,
       code: `free_onboard_${planId.slice(0, 8)}`,
-      name: 'Free Onboard Test',
+      name: uniquePlanName,
       price: 0,
       currency: 'INR',
       billingInterval: 'month',
@@ -469,6 +532,13 @@ test.group('Org provisioning gate', (group) => {
         .select('activeOrganizationId')
         .firstOrFail()
       assert.equal(sessionAfter.activeOrganizationId, created.id)
+
+      // D70: checkout requires verified WhatsApp before payment.
+      await seedConnectedWhatsapp(created.id)
+      await db
+        .from('organizations')
+        .where('id', created.id)
+        .update({ status: OrganizationStatus.VERIFIED_SETUP })
 
       const checkout = new BillingCheckoutService(
         new PlanRepository(),
@@ -517,9 +587,106 @@ test.group('Org provisioning gate', (group) => {
       await runWithTenant(created.id, async () => {
         await db.from('billing_orders').where('organizationId', created.id).delete()
         await db.from('organization_subscriptions').where('organizationId', created.id).delete()
+        await db.from('whatsapp_configs').where('organizationId', created.id).delete()
       })
       await db.from('plans').where('id', planId).delete()
     }
+  })
+
+  test('checkout rejects pending_setup without verified WhatsApp', async ({ assert }) => {
+    const owner = await db
+      .from('users')
+      .where('email', DEMO_USERS.northstarOwner)
+      .select('id')
+      .firstOrFail()
+    const organizationId = await createPendingOrgOwnedBy(owner.id as string)
+    orgIds.push(organizationId)
+
+    const planId = randomUUID()
+    await db.table('plans').insert({
+      id: planId,
+      code: `free_block_${planId.slice(0, 8)}`,
+      name: `Free Block ${planId.slice(0, 8)}`,
+      price: 0,
+      currency: 'INR',
+      billingInterval: 'month',
+      billingIntervalCount: 1,
+      trialDays: 0,
+      gateway: null,
+      gatewayPlanId: null,
+      limits: { seats: 5 },
+      isActive: true,
+      sortOrder: 5,
+      metadata: { status: 'active' },
+    })
+
+    try {
+      const checkout = new BillingCheckoutService(
+        new PlanRepository(),
+        new BillingOrderApplyService(),
+        new RazorpayOrderService(
+          new PlanRepository(),
+          new OrganizationSubscriptionRepository(),
+          new BillingOrderRepository(),
+          {
+            createCustomer: async () => ({ id: 'cust_test', email: 'a@b.com', name: 'Org' }),
+            createOrder: async () => {
+              throw new Error('Razorpay should not run')
+            },
+            fetchOrder: async (orderId) => ({
+              id: orderId,
+              amount: 0,
+              currency: 'INR',
+              status: 'created',
+            }),
+          }
+        )
+      )
+
+      try {
+        await checkout.checkout({
+          organizationId,
+          planId,
+          actorUserId: owner.id as string,
+        })
+        assert.fail('expected checkout to reject pending_setup')
+      } catch (error) {
+        assert.instanceOf(error, OrganizationException)
+        assert.equal((error as OrganizationException).code, 'E_ORG_WHATSAPP_REQUIRED')
+      }
+    } finally {
+      await db.from('plans').where('id', planId).delete()
+    }
+  })
+
+  test('disconnect demotes unpaid verified_setup to pending_setup', async ({ assert }) => {
+    const owner = await db
+      .from('users')
+      .where('email', DEMO_USERS.northstarOwner)
+      .select('id')
+      .firstOrFail()
+    const organizationId = await createPendingOrgOwnedBy(owner.id as string)
+    orgIds.push(organizationId)
+    await seedConnectedWhatsapp(organizationId)
+    await db
+      .from('organizations')
+      .where('id', organizationId)
+      .update({ status: OrganizationStatus.VERIFIED_SETUP })
+
+    const config = await runWithTenant(organizationId, async () =>
+      db.from('whatsapp_configs').where('organizationId', organizationId).select('id').firstOrFail()
+    )
+
+    await runWithTenant(organizationId, async () => {
+      await new WhatsappConfigService().disconnect(config.id as string, organizationId)
+    })
+
+    const org = await db
+      .from('organizations')
+      .where('id', organizationId)
+      .select('status')
+      .firstOrFail()
+    assert.equal(org.status, OrganizationStatus.PENDING_SETUP)
   })
 
   test('cleanup purges aged pending_setup org and cascades child rows under RLS', async ({
@@ -568,5 +735,33 @@ test.group('Org provisioning gate', (group) => {
 
     const contactsAfter = await db.from('contacts').where('organizationId', organizationId)
     assert.lengthOf(contactsAfter, 0)
+  })
+
+  test('cleanup purges aged verified_setup org without paid evidence', async ({ assert }) => {
+    const organizationId = randomUUID()
+    const slug = `purge-vs-${organizationId.slice(0, 8)}`
+    const createdAt = new Date(Date.now() - 40 * 24 * 60 * 60 * 1000)
+
+    await db.table('organizations').insert({
+      id: organizationId,
+      name: `Purge VS ${slug}`,
+      slug,
+      email: `${slug}@example.com`,
+      phone: '+919876543210',
+      country: 'IN',
+      timezone: 'UTC',
+      currency: 'INR',
+      status: OrganizationStatus.VERIFIED_SETUP,
+      createdAt,
+    })
+
+    const result = await new OnboardingCleanupService().run({
+      now: new Date(),
+      pendingOrgMaxAgeDays: 30,
+    })
+
+    assert.isAtLeast(result.purgedOrganizations, 1)
+    const orgAfter = await db.from('organizations').where('id', organizationId).first()
+    assert.isNull(orgAfter)
   })
 })

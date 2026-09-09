@@ -28,7 +28,8 @@ export function RecentConversations() {
     refetchConversations,
     orgsLoading,
   } = useDashboardOverview()
-  const { hasFullProductAccess, isSetupComplete } = useProductAccess()
+  const { hasFullProductAccess, isSetupComplete, organizationId, organizationStatus } =
+    useProductAccess()
 
   const loading = conversationsLoading || orgsLoading
 
@@ -39,7 +40,12 @@ export function RecentConversations() {
         description={t('conversations.description')}
         action={
           <Link
-            href={resolveDashboardHref('/dashboard/inbox', { hasFullProductAccess, isSetupComplete })}
+            href={resolveDashboardHref('/dashboard/inbox', {
+              hasFullProductAccess,
+              isSetupComplete,
+              organizationId,
+              organizationStatus,
+            })}
             className={cn(
               'inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-sm font-semibold text-positive-deep',
               'transition-[background-color,color] duration-200 hover:bg-primary-pale'

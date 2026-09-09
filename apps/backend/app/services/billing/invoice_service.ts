@@ -1,10 +1,12 @@
 import InvoiceException from '#exceptions/invoice_exception'
 import { insertAuthorizationAudit } from '#lib/authorization_audit'
+import { buildInvoicePdfBuffer, invoicePdfFilename } from '#lib/invoice_pdf'
 import {
   InvoiceRepository,
   type InsertInvoiceLineItemParams,
   type ListInvoicesFilter,
 } from '#repositories/invoice_repository'
+import { sendInvoiceEmail } from '#services/billing/invoice_mail'
 import { runWithTenant } from '#services/tenant_context'
 import {
   buildInvoiceSummary,
@@ -361,12 +363,50 @@ export class InvoiceService {
     })
   }
 
-  sendInvoiceUnavailable() {
-    throw InvoiceException.actionUnavailable('Invoice email delivery is not available yet')
+  async sendInvoice(
+    invoiceId: string,
+    actorUserId?: string | null
+  ): Promise<{ ok: true; invoiceNumber: string }> {
+    const invoice = await this.getInvoiceById(invoiceId)
+    const to = invoice.organization.email?.trim()
+    if (!to) {
+      throw InvoiceException.missingRecipient()
+    }
+
+    const pdf = buildInvoicePdfBuffer(invoice)
+    const filename = invoicePdfFilename(invoice.invoiceNumber)
+
+    try {
+      await sendInvoiceEmail({ to, invoice, pdf, filename })
+    } catch {
+      throw InvoiceException.sendFailed()
+    }
+
+    await runWithTenant(invoice.organizationId, async () => {
+      await insertAuthorizationAudit({
+        organizationId: invoice.organizationId,
+        actorUserId: actorUserId ?? null,
+        targetType: 'invoice',
+        targetId: invoice.id,
+        eventType: 'invoice.sent',
+        after: { invoiceNumber: invoice.invoiceNumber, to },
+      })
+    })
+
+    return { ok: true, invoiceNumber: invoice.invoiceNumber }
   }
 
-  downloadInvoiceUnavailable() {
-    throw InvoiceException.actionUnavailable('Invoice PDF download is not available yet')
+  async downloadInvoicePdf(invoiceId: string): Promise<{
+    buffer: Buffer
+    filename: string
+    contentType: 'application/pdf'
+  }> {
+    const invoice = await this.getInvoiceById(invoiceId)
+    return {
+      buffer: buildInvoicePdfBuffer(invoice),
+      filename: invoicePdfFilename(invoice.invoiceNumber),
+      contentType: 'application/pdf',
+    }
   }
 
   async #nextInvoiceNumber(year: number) {

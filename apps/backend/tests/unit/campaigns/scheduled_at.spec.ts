@@ -1,90 +1,65 @@
 import { test } from '@japa/runner'
 import { DateTime } from 'luxon'
-import { parseScheduledAt, toUtcIso, isValidIanaTimeZone } from '#lib/scheduled_at'
+import {
+  parseUtcScheduledAt,
+  toUtcIso,
+  isScheduledAtInput,
+  isValidIanaTimeZone,
+  InvalidScheduledAtError,
+} from '#lib/scheduled_at'
 
-test.group('parseScheduledAt', () => {
-  test('interprets naive 10:55 PM as organization-local, not UTC', ({ assert }) => {
-    const instant = parseScheduledAt('2099-08-19 22:55:00', 'Asia/Kolkata')
-    assert.equal(instant.toISOString(), '2099-08-19T17:25:00.000Z')
-
-    const local = DateTime.fromJSDate(instant, { zone: 'Asia/Kolkata' })
-    assert.equal(local.toFormat('hh:mm a'), '10:55 PM')
-    assert.equal(local.toISODate(), '2099-08-19')
+test.group('parseUtcScheduledAt', () => {
+  test('accepts a UTC Z instant and returns the same instant', ({ assert }) => {
+    const instant = parseUtcScheduledAt('2026-09-08T16:00:00.000Z')
+    assert.equal(instant.toISOString(), '2026-09-08T16:00:00.000Z')
   })
 
-  test('accepts datetime-local naive values without converting twice', ({ assert }) => {
-    const instant = parseScheduledAt('2099-08-19T22:55', 'Asia/Kolkata')
-    assert.equal(instant.toISOString(), '2099-08-19T17:25:00.000Z')
+  test('accepts Z without milliseconds', ({ assert }) => {
+    const instant = parseUtcScheduledAt('2026-09-08T16:00:00Z')
+    assert.equal(instant.toISOString(), '2026-09-08T16:00:00.000Z')
   })
 
-  test('keeps timezone-aware ISO instants without converting again', ({ assert }) => {
-    const instant = parseScheduledAt('2099-08-19T17:25:00.000Z', 'Asia/Kolkata')
-    assert.equal(instant.toISOString(), '2099-08-19T17:25:00.000Z')
+  test('rejects naive local wall-clock strings', ({ assert }) => {
+    assert.throws(() => parseUtcScheduledAt('2026-09-08 16:00:00'), InvalidScheduledAtError)
+    assert.throws(() => parseUtcScheduledAt('2026-09-08T16:00'), InvalidScheduledAtError)
   })
 
-  test('keeps numeric-offset ISO instants', ({ assert }) => {
-    const instant = parseScheduledAt('2099-08-19T22:55:00+05:30', 'UTC')
-    assert.equal(instant.toISOString(), '2099-08-19T17:25:00.000Z')
-  })
-
-  test('preserves a morning wall-clock time in a non-UTC organization timezone', ({ assert }) => {
-    const instant = parseScheduledAt('2099-08-19 08:30:00', 'Asia/Kolkata')
-    assert.equal(instant.toISOString(), '2099-08-19T03:00:00.000Z')
-
-    const local = DateTime.fromJSDate(instant, { zone: 'Asia/Kolkata' })
-    assert.equal(local.toFormat('hh:mm a'), '08:30 AM')
-  })
-
-  test('does not shift the local calendar date across midnight', ({ assert }) => {
-    const instant = parseScheduledAt('2099-08-20 00:30:00', 'Asia/Kolkata')
-    assert.equal(instant.toISOString(), '2099-08-19T19:00:00.000Z')
-
-    const local = DateTime.fromJSDate(instant, { zone: 'Asia/Kolkata' })
-    assert.equal(local.toISODate(), '2099-08-20')
-    assert.equal(local.toFormat('HH:mm'), '00:30')
-  })
-
-  test('interprets naive time in America/New_York during EDT', ({ assert }) => {
-    const instant = parseScheduledAt('2099-08-19 22:55:00', 'America/New_York')
-    assert.equal(instant.toISOString(), '2099-08-20T02:55:00.000Z')
-
-    const local = DateTime.fromJSDate(instant, { zone: 'America/New_York' })
-    assert.equal(local.toFormat('hh:mm a'), '10:55 PM')
-    assert.equal(local.toISODate(), '2099-08-19')
+  test('rejects numeric offsets including +00:00', ({ assert }) => {
+    assert.throws(() => parseUtcScheduledAt('2026-09-08T16:00:00+00:00'), InvalidScheduledAtError)
+    assert.throws(() => parseUtcScheduledAt('2026-09-08T21:30:00+05:30'), InvalidScheduledAtError)
   })
 
   test('treats Date and DateTime inputs as absolute instants', ({ assert }) => {
-    const date = new Date('2099-08-19T17:25:00.000Z')
-    assert.equal(parseScheduledAt(date, 'Asia/Kolkata').toISOString(), '2099-08-19T17:25:00.000Z')
+    const date = new Date('2026-09-08T16:00:00.000Z')
+    assert.equal(parseUtcScheduledAt(date).toISOString(), '2026-09-08T16:00:00.000Z')
 
-    const dt = DateTime.fromISO('2099-08-19T17:25:00.000Z', { zone: 'utc' })
-    assert.equal(parseScheduledAt(dt, 'Asia/Kolkata').toISOString(), '2099-08-19T17:25:00.000Z')
+    const dt = DateTime.fromISO('2026-09-08T16:00:00.000Z', { zone: 'utc' })
+    assert.equal(parseUtcScheduledAt(dt).toISOString(), '2026-09-08T16:00:00.000Z')
   })
 
-  test('UTC organization timezone keeps naive wall clock as UTC', ({ assert }) => {
-    const instant = parseScheduledAt('2099-08-19 22:55:00', 'UTC')
-    assert.equal(instant.toISOString(), '2099-08-19T22:55:00.000Z')
+  test('isScheduledAtInput mirrors parseUtcScheduledAt acceptance', ({ assert }) => {
+    assert.isTrue(isScheduledAtInput('2026-09-08T16:00:00.000Z'))
+    assert.isFalse(isScheduledAtInput('2026-09-08T16:00:00+05:30'))
+    assert.isFalse(isScheduledAtInput('2026-09-08 16:00:00'))
   })
 
-  test('isValidIanaTimeZone accepts IANA names and rejects junk', ({ assert }) => {
+  test('isValidIanaTimeZone still validates IANA names for non-campaign features', ({ assert }) => {
     assert.isTrue(isValidIanaTimeZone('Asia/Kolkata'))
     assert.isTrue(isValidIanaTimeZone('UTC'))
     assert.isFalse(isValidIanaTimeZone('Not/AZone'))
-    assert.isFalse(isValidIanaTimeZone(''))
-    assert.isFalse(isValidIanaTimeZone(null))
   })
 })
 
 test.group('toUtcIso', () => {
   test('serializes Date instants as UTC ISO', ({ assert }) => {
-    assert.equal(toUtcIso(new Date('2099-08-19T17:25:00.000Z')), '2099-08-19T17:25:00.000Z')
+    assert.equal(toUtcIso(new Date('2026-09-08T16:00:00.000Z')), '2026-09-08T16:00:00.000Z')
   })
 
-  test('treats naive timestamptz text as UTC wall clock, not process local', ({ assert }) => {
-    assert.equal(toUtcIso('2099-08-19 17:25:00'), '2099-08-19T17:25:00.000Z')
+  test('serializes Z strings via parseUtcScheduledAt', ({ assert }) => {
+    assert.equal(toUtcIso('2026-09-08T16:00:00.000Z'), '2026-09-08T16:00:00.000Z')
   })
 
-  test('keeps timezone-aware ISO strings', ({ assert }) => {
-    assert.equal(toUtcIso('2099-08-19T22:55:00+05:30'), '2099-08-19T17:25:00.000Z')
+  test('treats naive timestamptz text as UTC wall clock for DB serialization', ({ assert }) => {
+    assert.equal(toUtcIso('2026-09-08 16:00:00'), '2026-09-08T16:00:00.000Z')
   })
 })

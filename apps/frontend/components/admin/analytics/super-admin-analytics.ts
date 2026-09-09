@@ -4,6 +4,7 @@ import {
   api,
   type AuthorizationAuditEvent,
   type PaginationMeta,
+  type PlatformAnalyticsSummary,
   type SuperAdminInvoiceSummary,
   type SuperAdminOrganization,
   type SuperAdminPlan,
@@ -50,6 +51,23 @@ function unwrapList<T>(payload: unknown): T[] {
   if (Array.isArray(payload)) return payload as T[]
   const root = payload as { data?: T[] }
   return Array.isArray(root.data) ? root.data : []
+}
+
+function unwrapObject<T extends object>(payload: unknown, marker: keyof T): T | null {
+  if (!payload || typeof payload !== 'object') return null
+  const root = payload as { data?: T } & T
+  if (root.data && typeof root.data === 'object' && marker in root.data) return root.data
+  if (marker in root) return root as T
+  return null
+}
+
+export async function fetchPlatformAnalyticsSummary(): Promise<PlatformAnalyticsSummary> {
+  const { data } = await api.superAdmin.analytics.summary()
+  const summary = unwrapObject<PlatformAnalyticsSummary>(data, 'totalOrganizations')
+  if (!summary) {
+    throw new Error('Platform analytics summary was empty')
+  }
+  return summary
 }
 
 export async function fetchAllOrganizations(): Promise<{

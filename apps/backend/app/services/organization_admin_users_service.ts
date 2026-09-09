@@ -25,6 +25,18 @@ export type UpdateOrganizationAdminUserInput = {
   isActive?: boolean
 }
 
+export type ListOrganizationAdminUsersParams = {
+  organizationId: string
+  page: number
+  perPage: number
+  search?: string
+  role?: string
+}
+
+function escapeIlike(value: string): string {
+  return `%${value.replace(/[%_\\]/g, '\\$&')}%`
+}
+
 export class OrganizationAdminUsersService {
   /**
    * Base query: live members of one org (excludes soft-deleted memberships).
@@ -41,14 +53,32 @@ export class OrganizationAdminUsersService {
   /**
    * Paginated users for a single organization (Organization Admin).
    * Scoped via organization_members; excludes soft-deleted memberships.
+   * Search and role filters are applied before pagination so meta.total
+   * reflects the filtered set.
    */
-  async listUsersPaginated(params: { organizationId: string; page: number; perPage: number }) {
+  async listUsersPaginated(params: ListOrganizationAdminUsersParams) {
     const { organizationId, page, perPage } = params
+    const query = this.organizationUsersQuery(organizationId).select(...ORGANIZATION_USER_SELECT)
 
-    return this.organizationUsersQuery(organizationId)
-      .select(...ORGANIZATION_USER_SELECT)
-      .orderBy('u.createdAt', 'desc')
-      .paginate(page, perPage)
+    const search = params.search?.trim()
+    if (search) {
+      const pattern = escapeIlike(search)
+      query.where((builder) => {
+        builder
+          .whereILike('u.name', pattern)
+          .orWhereILike('u.firstname', pattern)
+          .orWhereILike('u.lastname', pattern)
+          .orWhereILike('u.email', pattern)
+          .orWhereILike('r.name', pattern)
+      })
+    }
+
+    const role = params.role?.trim()
+    if (role) {
+      query.where('r.name', role)
+    }
+
+    return query.orderBy('u.createdAt', 'desc').paginate(page, perPage)
   }
 
   /**
@@ -193,6 +223,12 @@ export class OrganizationAdminUsersService {
         organizationId,
         userId,
       })
+
+      await trx
+        .from('sessions')
+        .where('userId', userId)
+        .where('activeOrganizationId', organizationId)
+        .update({ activeOrganizationId: null })
 
       await trx.table('authorization_audits').insert({
         organizationId,

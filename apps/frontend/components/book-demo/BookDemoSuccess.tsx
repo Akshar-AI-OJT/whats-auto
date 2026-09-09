@@ -1,6 +1,6 @@
 'use client'
 
-import { Check, Home, RotateCcw } from 'lucide-react'
+import { Check, Home, RotateCcw, Video } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { Link } from '@/i18n/navigation'
 import { buttonVariants } from '@/components/ui/button'
@@ -15,19 +15,27 @@ const NEXT_KEYS = ['email', 'meet', 'reminder', 'contact'] as const
 type BookDemoSuccessProps = {
   dateLabel: string
   timeLabel: string
+  timeZoneLabel?: string | null
+  meetingUrl?: string | null
   onBookAnother: () => void
 }
 
 export function BookDemoSuccess({
   dateLabel,
   timeLabel,
+  timeZoneLabel,
+  meetingUrl,
   onBookAnother,
 }: BookDemoSuccessProps) {
   const t = useTranslations('bookDemoPage.booking.success')
 
   const summaryItems = [
     { emoji: '📅', label: t('summary.date'), value: dateLabel },
-    { emoji: '🕑', label: t('summary.time'), value: timeLabel },
+    {
+      emoji: '🕑',
+      label: t('summary.time'),
+      value: timeZoneLabel ? `${timeLabel} (${timeZoneLabel})` : timeLabel,
+    },
     { emoji: '⌛', label: t('summary.duration'), value: t('summary.durationValue') },
     { emoji: '📍', label: t('summary.platform'), value: t('summary.platformValue') },
   ] as const
@@ -83,6 +91,24 @@ export function BookDemoSuccess({
           </div>
         ))}
       </div>
+
+      {meetingUrl ? (
+        <a
+          href={meetingUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={cn(
+            'mt-4 flex items-center justify-center gap-2 rounded-2xl border border-primary/30 bg-primary-pale px-4 py-3.5',
+            'text-sm font-semibold text-positive-deep',
+            'transition-[transform,box-shadow,border-color] duration-200',
+            'hover:-translate-y-0.5 hover:border-primary/50',
+            'hover:shadow-[0_8px_20px_rgb(15_23_42/0.06),0_0_0_3px_rgb(37_99_235/0.12)]'
+          )}
+        >
+          <Video className="size-4 shrink-0" aria-hidden />
+          <span className="truncate">{t('joinMeet')}</span>
+        </a>
+      ) : null}
 
       <div className="mt-10 text-left">
         <h3 className="text-center text-sm font-semibold tracking-wide text-ink uppercase">

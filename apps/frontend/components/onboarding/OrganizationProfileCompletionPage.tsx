@@ -65,6 +65,7 @@ import {
 } from '@/components/onboarding/onboarding-field-styles'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import {
+  clearCreatedOrganizationId,
   clearPendingOrganizationPreferences,
   clearPendingOnboardingOrganizationId,
   isValidEmail,
@@ -76,6 +77,7 @@ import {
   ONBOARDING_PLAN_PATH,
   readPendingOrganizationPreferences,
   readPendingOnboardingOrganizationId,
+  readProfileCompletionOrganizationId,
   savePendingOrganizationPreferences,
 } from '@/lib/onboarding'
 import {
@@ -103,6 +105,12 @@ type FieldErrors = Partial<Record<keyof OrganizationProfileFormValues | 'logo' |
 function selectClassName(invalid?: boolean) {
   return cn(invalid && 'border-negative')
 }
+
+/** Identity fields captured at registration — confirm only, not re-entered here. */
+const registrationLockedInputClassName = cn(
+  onboardingInputWithIconClassName,
+  'cursor-default bg-primary-pale/50 text-body'
+)
 
 function buildInitialProfileValues(
   org: Parameters<typeof organizationToProfileFormValues>[0]
@@ -198,38 +206,64 @@ export function OrganizationProfileCompletionPage() {
     isOwner,
     accessContext,
     selectOrganization,
+    tenantOrganizationId,
   } = useOrganizations()
 
-  const pendingOnboardingOrgId = readPendingOnboardingOrganizationId()
-  const org =
-    (pendingOnboardingOrgId
-      ? organizations.find((item) => item.id === pendingOnboardingOrgId)
-      : null) ??
-    activeOrganization ??
-    organizations[0] ??
-    null
+  const [targetOrganizationId] = useState(
+    () => readProfileCompletionOrganizationId() ?? readPendingOnboardingOrganizationId()
+  )
+  const switchStartedRef = useRef(false)
+
+  const org = targetOrganizationId
+    ? (organizations.find((item) => item.id === targetOrganizationId) ?? null)
+    : (activeOrganization ?? null)
   const orgId = org?.id ?? null
+  const tenantMatchesOrg = Boolean(orgId && tenantOrganizationId === orgId)
+  const targetMissingAfterLoad =
+    Boolean(targetOrganizationId) &&
+    !orgsLoading &&
+    !organizations.some((item) => item.id === targetOrganizationId)
 
   useEffect(() => {
-    if (orgsLoading || isResolvingAccess) return
-    if (!pendingOnboardingOrgId || pendingOnboardingOrgId === activeOrganization?.id) return
-    if (!organizations.some((item) => item.id === pendingOnboardingOrgId)) return
-    void selectOrganization(pendingOnboardingOrgId).catch(() => undefined)
+    if (!targetOrganizationId || orgsLoading) return
+    if (!organizations.some((item) => item.id === targetOrganizationId)) return
+    if (activeOrganization?.id === targetOrganizationId) return
+    if (switchStartedRef.current) return
+    switchStartedRef.current = true
+    void selectOrganization(targetOrganizationId).finally(() => {
+      switchStartedRef.current = false
+    })
   }, [
     activeOrganization?.id,
-    isResolvingAccess,
     organizations,
     orgsLoading,
-    pendingOnboardingOrgId,
     selectOrganization,
+    targetOrganizationId,
   ])
 
   useEffect(() => {
-    if (orgsLoading || isResolvingAccess || !accessContext) return
+    if (orgsLoading || isResolvingAccess) return
+    if (targetOrganizationId) {
+      if (targetMissingAfterLoad) return
+      if (org && org.role !== 'owner') {
+        router.replace('/dashboard')
+      }
+      return
+    }
+    if (!accessContext) return
     if (!isOwner) {
       router.replace('/dashboard')
     }
-  }, [accessContext, isOwner, isResolvingAccess, orgsLoading, router])
+  }, [
+    accessContext,
+    isOwner,
+    isResolvingAccess,
+    org,
+    orgsLoading,
+    router,
+    targetMissingAfterLoad,
+    targetOrganizationId,
+  ])
 
   const [hydratedOrgId, setHydratedOrgId] = useState<string | null>(null)
   const [step, setStep] = useState<ProfileStep>(1)
@@ -245,7 +279,7 @@ export function OrganizationProfileCompletionPage() {
 
   const formErrorId = useId()
 
-  if (org && orgId !== hydratedOrgId) {
+  if (org && tenantMatchesOrg && orgId !== hydratedOrgId) {
     setHydratedOrgId(orgId)
     setValues(buildInitialProfileValues(org))
     setStep(1)
@@ -261,7 +295,7 @@ export function OrganizationProfileCompletionPage() {
   }, [logoPreviewUrl])
 
   useEffect(() => {
-    if (!orgId) return
+    if (!orgId || tenantOrganizationId !== orgId) return
     let cancelled = false
     void (async () => {
       try {
@@ -278,7 +312,7 @@ export function OrganizationProfileCompletionPage() {
     return () => {
       cancelled = true
     }
-  }, [orgId])
+  }, [orgId, tenantOrganizationId])
 
   const completion = useMemo(
     () => (values ? calculateOrganizationProfileCompletion(values) : null),
@@ -356,7 +390,7 @@ export function OrganizationProfileCompletionPage() {
   }
 
   async function handleLogoFile(file: File | null) {
-    if (!file || !org?.id || !values) return
+    if (!file || !org?.id || !values || !tenantMatchesOrg) return
     setFormError(null)
 
     if (!LOGO_ACCEPT.split(',').includes(file.type)) {
@@ -419,7 +453,18 @@ export function OrganizationProfileCompletionPage() {
   }
 
   async function persistProfile(): Promise<boolean> {
-    if (!org?.id || !values || submitLockRef.current) return false
+    const patchOrganizationId = targetOrganizationId ?? org?.id ?? null
+    if (
+      !patchOrganizationId ||
+      !org ||
+      !tenantMatchesOrg ||
+      tenantOrganizationId !== patchOrganizationId ||
+      (targetOrganizationId && patchOrganizationId !== targetOrganizationId) ||
+      !values ||
+      submitLockRef.current
+    ) {
+      return false
+    }
     submitLockRef.current = true
     setSaving(true)
     setFormError(null)
@@ -428,7 +473,7 @@ export function OrganizationProfileCompletionPage() {
         await selectOrganization(org.id)
       }
       const body = buildOrganizationProfileUpdateBody(values)
-      await api.organizations.update(org.id, body)
+      await api.organizations.update(patchOrganizationId, body)
       savePendingOrganizationPreferences({
         companySize: values.businessSize,
         logoFileName: '',
@@ -462,6 +507,7 @@ export function OrganizationProfileCompletionPage() {
     if (ok) {
       clearPendingOrganizationPreferences()
       clearPendingOnboardingOrganizationId()
+      clearCreatedOrganizationId()
       setSuccess(true)
     }
   }
@@ -483,7 +529,12 @@ export function OrganizationProfileCompletionPage() {
   ]
   const continueToPlan = isSubscriptionPending(accessContext?.status)
 
-  if (orgsLoading || !values) {
+  if (
+    orgsLoading ||
+    isResolvingAccess ||
+    (Boolean(org) && !tenantMatchesOrg) ||
+    (Boolean(org) && tenantMatchesOrg && !values)
+  ) {
     return (
       <div className="flex min-h-svh items-center justify-center bg-[#F8FAFC] text-sm text-body">
         <Loader2 className="mr-2 size-4 animate-spin" aria-hidden />
@@ -492,7 +543,7 @@ export function OrganizationProfileCompletionPage() {
     )
   }
 
-  if (!org) {
+  if (!org || !values) {
     return (
       <div className="flex min-h-svh flex-col items-center justify-center gap-3 bg-[#F8FAFC] px-4 text-center">
         <p className="text-sm text-body">{t('errors.noOrganization')}</p>
@@ -736,13 +787,13 @@ function StepOrganizationDetails({
             <Input
               value={values.name}
               autoComplete="organization"
-              className={cn(
-                onboardingInputWithIconClassName,
-                errors.name && 'border-negative'
-              )}
-              onChange={(e) => onChange({ name: e.target.value })}
+              readOnly
+              className={cn(registrationLockedInputClassName, errors.name && 'border-negative')}
             />
           </div>
+          <FieldDescription className="text-xs leading-4 text-mute">
+            {t('fields.fromRegistration')}
+          </FieldDescription>
           {errors.name ? (
             <FieldError className="text-xs leading-4 text-negative">{errors.name}</FieldError>
           ) : null}
@@ -762,13 +813,12 @@ function StepOrganizationDetails({
               type="email"
               value={values.email}
               readOnly
-              className={cn(
-                onboardingInputWithIconClassName,
-                'cursor-default bg-primary-pale/50 text-body',
-                errors.email && 'border-negative'
-              )}
+              className={cn(registrationLockedInputClassName, errors.email && 'border-negative')}
             />
           </div>
+          <FieldDescription className="text-xs leading-4 text-mute">
+            {t('fields.fromRegistration')}
+          </FieldDescription>
           {errors.email ? (
             <FieldError className="text-xs leading-4 text-negative">{errors.email}</FieldError>
           ) : null}
@@ -776,8 +826,8 @@ function StepOrganizationDetails({
 
         <Field data-invalid={errors.phone ? true : undefined} className="gap-2">
           <FieldLabel className="text-sm font-medium leading-5 text-ink">
-            {t('fields.phone')}{' '}
-            <span className="font-normal text-mute">({t('optional')})</span>
+            {t('fields.phone')}
+            <RequiredAsterisk />
           </FieldLabel>
           <div className="relative">
             <Phone
@@ -787,16 +837,12 @@ function StepOrganizationDetails({
             <Input
               type="tel"
               value={values.phone}
-              placeholder={tOrg('phonePlaceholder')}
-              className={cn(
-                onboardingInputWithIconClassName,
-                errors.phone && 'border-negative'
-              )}
-              onChange={(e) => onChange({ phone: e.target.value })}
+              readOnly
+              className={cn(registrationLockedInputClassName, errors.phone && 'border-negative')}
             />
           </div>
           <FieldDescription className="text-xs leading-4 text-mute">
-            {t('fields.phoneHint')}
+            {t('fields.fromRegistration')}
           </FieldDescription>
           {errors.phone ? (
             <FieldError className="text-xs leading-4 text-negative">{errors.phone}</FieldError>
@@ -844,14 +890,13 @@ function StepOrganizationDetails({
             <Input
               type="url"
               value={values.website}
-              placeholder={tOrg('websitePlaceholder')}
-              className={cn(
-                onboardingInputWithIconClassName,
-                errors.website && 'border-negative'
-              )}
-              onChange={(e) => onChange({ website: e.target.value })}
+              readOnly
+              className={cn(registrationLockedInputClassName, errors.website && 'border-negative')}
             />
           </div>
+          <FieldDescription className="text-xs leading-4 text-mute">
+            {t('fields.fromRegistration')}
+          </FieldDescription>
           {errors.website ? (
             <FieldError className="text-xs leading-4 text-negative">{errors.website}</FieldError>
           ) : null}

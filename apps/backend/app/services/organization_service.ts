@@ -310,6 +310,38 @@ export class OrganizationService {
     await query
   }
 
+  /**
+   * After WhatsApp Embedded Signup succeeds with Meta-verified portfolio ([D70]).
+   * Only moves unpaid setup states → verified_setup (never touches active/suspended/false).
+   */
+  async promoteToVerifiedSetup(
+    organizationId: string,
+    trx?: TransactionClientContract
+  ): Promise<void> {
+    await (trx ?? db)
+      .from('organizations')
+      .where('id', organizationId)
+      .whereNull('deletedAt')
+      .whereIn('status', [OrganizationStatus.PENDING_SETUP, OrganizationStatus.VERIFIED_SETUP])
+      .update({ status: OrganizationStatus.VERIFIED_SETUP })
+  }
+
+  /**
+   * WhatsApp disconnect while unpaid: verified_setup → pending_setup ([D70] 2A).
+   * No-op for active / other statuses.
+   */
+  async demoteToPendingSetup(
+    organizationId: string,
+    trx?: TransactionClientContract
+  ): Promise<void> {
+    await (trx ?? db)
+      .from('organizations')
+      .where('id', organizationId)
+      .whereNull('deletedAt')
+      .where('status', OrganizationStatus.VERIFIED_SETUP)
+      .update({ status: OrganizationStatus.PENDING_SETUP })
+  }
+
   async #userHasActiveOrganization(userId: string): Promise<boolean> {
     const row = await db
       .from('organization_members as m')
@@ -439,6 +471,7 @@ export class OrganizationService {
       .innerJoin('organizations as o', 'o.id', 'm.organizationId')
       .innerJoin('roles as r', 'r.id', 'm.roleId')
       .where('m.userId', userId)
+      .where('m.isDeleted', false)
       .whereNull('o.deletedAt')
       .select(
         'o.id',
@@ -487,6 +520,76 @@ export class OrganizationService {
   }
 
   /**
+   * Platform-scoped organization by id. Includes soft-deleted rows so Super Admin
+   * can open archived tenants that still appear in the paginated list.
+   */
+  async getOrganizationById(organizationId: string) {
+    const organization = await db.from('organizations').where('id', organizationId).first()
+
+    if (!organization) {
+      throw new Exception('Organization Not Found', {
+        status: 404,
+        code: 'E_ORGANIZATION_NOT_FOUND',
+      })
+    }
+
+    return organization
+  }
+
+  /**
+   * Super Admin suspend/activate. Updates organizations.status only.
+   * Does not set or clear deletedAt (archive/soft-delete stays on DELETE).
+   */
+  async setOrganizationLifecycleStatus(params: {
+    organizationId: string
+    actorUserId: string
+    status: typeof OrganizationStatus.SUSPENDED | typeof OrganizationStatus.ACTIVE
+  }) {
+    const { organizationId, actorUserId, status } = params
+    const organization = await this.getOrganizationById(organizationId)
+    const currentStatus = organization.status as OrganizationStatusValue
+    const deletedAt = organization.deletedAt as string | Date | null | undefined
+
+    if (deletedAt || currentStatus === OrganizationStatus.FALSE) {
+      throw OrganizationException.archivedLifecycle()
+    }
+
+    if (status === OrganizationStatus.ACTIVE && currentStatus !== OrganizationStatus.SUSPENDED) {
+      if (currentStatus === OrganizationStatus.ACTIVE) {
+        return organization
+      }
+      throw OrganizationException.invalidLifecycle(
+        'Only a suspended organization can be activated.'
+      )
+    }
+
+    if (status === OrganizationStatus.SUSPENDED && currentStatus === OrganizationStatus.SUSPENDED) {
+      return organization
+    }
+
+    const eventType =
+      status === OrganizationStatus.SUSPENDED ? 'organization.suspended' : 'organization.activated'
+
+    await db.transaction(async (trx) => {
+      await trx.table('authorization_audits').insert({
+        organizationId,
+        actorUserId,
+        targetType: 'organization',
+        targetId: organizationId,
+        eventType,
+        before: JSON.stringify({ status: currentStatus, deletedAt: deletedAt ?? null }),
+        after: JSON.stringify({ status, deletedAt: deletedAt ?? null }),
+      })
+
+      await trx.from('organizations').where('id', organizationId).update({
+        status,
+      })
+    })
+
+    return this.getOrganizationById(organizationId)
+  }
+
+  /**
    * Set the active organization on the caller's session.
    */
   async setActiveOrganization(params: {
@@ -501,6 +604,7 @@ export class OrganizationService {
       .innerJoin('organizations as o', 'o.id', 'm.organizationId')
       .where('m.userId', userId)
       .where('m.organizationId', organizationId)
+      .where('m.isDeleted', false)
       .whereNull('o.deletedAt')
       .select('m.id')
       .first()

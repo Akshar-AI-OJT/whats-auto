@@ -13,11 +13,15 @@ import '#types/http'
 export default class SuperAdminSubscriptionsController {
   /**
    * @summary List all subscriptions (Super Admin)
-   * @description Platform-wide paginated subscription list. Requires Super Admin role and platform:tenants_billing permission.
+   * @description Platform-wide paginated subscription list. Optional search/status/plan/billing filters are applied before pagination. Requires Super Admin role and platform:tenants_billing permission.
    * @tag Super Admin
    * @security BearerAuth
    * @paramQuery page - Page number (default 1) - @type(number)
    * @paramQuery perPage - Items per page (1-100, default 20) - @type(number)
+   * @paramQuery search - Match organization name/website, plan name/code, status, or organization id - @type(string)
+   * @paramQuery status - trialing | active | past_due | cancelled | all - @type(string)
+   * @paramQuery plan - Plan id (uuid) - @type(string)
+   * @paramQuery billing - monthly | custom | all - @type(string)
    * @responseBody 200 - { "data": [{ "id": "uuid", "organizationId": "uuid", "planId": "uuid", "status": "active" }], "meta": { "total": 1, "perPage": 20, "currentPage": 1, "lastPage": 1 } }
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 403 - { "error": "Permission denied: platform:tenants_billing", "code": "PERMISSION_DENIED" }
@@ -26,13 +30,20 @@ export default class SuperAdminSubscriptionsController {
   async index({ bouncer, request, serialize }: HttpContext, subscriptions: SubscriptionService) {
     await bouncer.with(SuperAdminPolicy).authorize('manageBilling')
 
-    const { page, perPage } = await request.validateUsing(listSuperAdminSubscriptionsValidator, {
-      data: request.qs(),
-    })
+    const { page, perPage, search, status, plan, billing } = await request.validateUsing(
+      listSuperAdminSubscriptionsValidator,
+      {
+        data: request.qs(),
+      }
+    )
 
     const result = await subscriptions.listSubscriptionsPaginated({
       page: page ?? 1,
       perPage: perPage ?? 20,
+      search,
+      status,
+      plan,
+      billing,
     })
 
     return serialize(result)

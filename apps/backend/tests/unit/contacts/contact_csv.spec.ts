@@ -1,6 +1,11 @@
 import { test } from '@japa/runner'
 import type ContactException from '#exceptions/contact_exception'
-import { mappedCell, parseContactCsv, resolvePhoneHeader, iterateContactCsvRows } from '#lib/contact_csv'
+import {
+  mappedCell,
+  parseContactCsv,
+  resolvePhoneHeader,
+  iterateContactCsvRows,
+} from '#lib/contact_csv'
 
 test.group('parseContactCsv', () => {
   test('parses international numbers and quoted commas', ({ assert }) => {

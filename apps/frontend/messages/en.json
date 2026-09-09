@@ -409,13 +409,22 @@
       },
       "privacyAgree": "I agree to the <privacy>Privacy Policy</privacy>.",
       "cta": "Book Demo",
+      "ctaBooking": "Booking…",
+      "slotsLoading": "Loading available times…",
+      "slotsEmpty": "No time slots are available on this date. Please pick another day.",
+      "slotsPickDate": "Select a date to see available times.",
       "meetNote": "Google Meet details will be shared after confirmation.",
       "errors": {
         "nameRequired": "Full name is required.",
         "emailInvalid": "Enter a valid work email.",
         "privacyRequired": "Please agree to the Privacy Policy.",
         "dateRequired": "Please select a date.",
-        "slotRequired": "Please select a time slot."
+        "slotRequired": "Please select a time slot.",
+        "availabilityFailed": "Could not load available times. Please try again.",
+        "bookingFailed": "Could not book this demo. Please try again.",
+        "slotUnavailable": "This time slot is no longer available. Please pick another time.",
+        "slotInvalid": "The selected time slot is not valid. Please pick another time.",
+        "tooManyRequests": "Too many booking attempts. Please wait a moment and try again."
       },
       "summary": {
         "title": "Demo Summary",
@@ -440,6 +449,7 @@
         "whatsNext": "What's Next",
         "backHome": "Back to Home",
         "bookAnother": "Book Another Demo",
+        "joinMeet": "Join Google Meet",
         "summary": {
           "date": "Date",
           "time": "Time",
@@ -448,6 +458,7 @@
           "durationValue": "30 Minutes",
           "platformValue": "Google Meet"
         },
+        "meetLinkLabel": "Join with Google Meet:",
         "next": {
           "email": "Confirmation email will be sent",
           "meet": "Google Meet invitation will be shared",
@@ -1134,6 +1145,13 @@
         "passwordRequired": "Password is required."
       }
     },
+    "continue": {
+      "loading": "Signing you in…",
+      "backToLogin": "Back to login",
+      "errors": {
+        "generic": "We couldn’t finish signing you in. Please try again."
+      }
+    },
     "register": {
       "title": "Create your account",
       "subtitle": "Start automating customer conversations in just a few minutes.",
@@ -1304,7 +1322,8 @@
       "creating": "Creating organization…",
       "step1": {
         "title": "Create your organization",
-        "subtitle": "This organization is where your WhatsApp team will collaborate."
+        "subtitle": "This organization is where your WhatsApp team will collaborate.",
+        "inviteHint": "Waiting for an invite? Ask your admin to add you again."
       },
       "step2": {
         "title": "Tell us about your company",
@@ -1525,6 +1544,7 @@
         "email": "Business Email",
         "phone": "Phone Number",
         "phoneHint": "Include country code when possible.",
+        "fromRegistration": "Set during organization registration. Change later in organization settings.",
         "alternatePhone": "Alternate Phone",
         "website": "Website",
         "industry": "Industry",
@@ -1640,6 +1660,7 @@
       "comingSoon": "Coming soon",
       "lockedSetup": "Complete organization setup to unlock",
       "lockedSubscribe": "Choose a plan to unlock",
+      "lockedConnectWhatsapp": "Connect WhatsApp to continue",
       "dashboard": "Dashboard",
       "team": "Team Management",
       "teamMembers": "Team Members",
@@ -2118,6 +2139,8 @@
           "alreadyPending": "An invitation is already pending for that email. Cancel it first or wait for a response.",
           "roleInvalid": "That role isn’t available for this organization.",
           "emailFailed": "Could not send the setup email. Check email delivery settings and try again.",
+          "createdButEmailFailed": "Teammate was added, but the setup email could not be sent. You can resend it from the team list.",
+          "emailStatusUnknown": "Teammate was added, but we could not confirm whether the setup email was sent. Check the team list and resend if needed.",
           "generic": "Could not add this teammate. Please try again.",
           "firstnameRequired": "First name is required.",
           "superadminNotInvitable": "Platform superadmin accounts cannot be invited to organizations.",
@@ -2319,6 +2342,10 @@
       "emptyDescription": "Add your first contact to start conversations and campaigns.",
       "noMatches": "No contacts match your search.",
       "addedAt": "Added {date}",
+      "paginationSummary": "Page {page} of {lastPage} · {total} total",
+      "prevPage": "Previous",
+      "nextPage": "Next",
+      "editAria": "Edit {name}",
       "deleteAria": "Delete {name}",
       "deleteConfirmTitle": "Delete this contact?",
       "deleteConfirmBody": "“{name}” will be removed from this organization. You can add the same phone number again later.",
@@ -2358,7 +2385,21 @@
           "phoneExists": "A contact with this phone number already exists.",
           "sessionExpired": "Your session expired. Please sign in again.",
           "permissionDenied": "You don’t have permission to add contacts.",
+          "notFound": "This contact was not found.",
           "generic": "Couldn’t save this contact. Please try again."
+        }
+      },
+      "edit": {
+        "title": "Edit Contact",
+        "subtitle": "Update this contact’s phone number and profile details.",
+        "loading": "Loading contact…",
+        "submit": "Save changes",
+        "submitting": "Saving…",
+        "success": "Contact updated.",
+        "errors": {
+          "permissionDenied": "You don’t have permission to edit contacts.",
+          "notFound": "This contact was not found.",
+          "generic": "Couldn’t update this contact. Please try again."
         }
       },
       "import": {
@@ -2807,10 +2848,15 @@
       "title": "WhatsApp Connection",
       "subtitle": "Connect WhatsApp Business numbers to receive and send customer conversations from Inbox.",
       "locked": {
-        "title": "WhatsApp is locked",
-        "description": "Complete organization setup and subscribe before connecting WhatsApp.",
-        "ctaSetup": "Complete Setup",
+        "title": "WhatsApp is unavailable",
+        "description": "This organization cannot connect WhatsApp right now. Contact support if you need help.",
+        "ctaSetup": "Go to dashboard",
         "ctaSubscribe": "Choose a plan"
+      },
+      "verified": {
+        "title": "WhatsApp verified — continue to payment",
+        "description": "Your Meta Business Portfolio is verified. Choose a plan to activate the workspace.",
+        "cta": "Continue to plan"
       },
       "connectCta": "Connect WhatsApp",
       "refresh": "Refresh",
@@ -2842,9 +2888,13 @@
         "permissionDenied": "You don’t have permission to manage WhatsApp in this organization.",
         "sessionMissing": "WhatsApp signup session is not configured. Check Meta app settings.",
         "signupCancelled": "WhatsApp connection was cancelled.",
-        "sessionInfoMissing": "Couldn’t read WhatsApp account details from Meta. Please try again.",
+        "sessionInfoMissing": "Couldn’t read WhatsApp account details from Meta. Complete Embedded Signup with a phone number and try again.",
         "phoneOwned": "This WhatsApp phone number is already connected to another organization.",
         "notConnected": "This WhatsApp number is not connected.",
+        "phoneRequired": "A WhatsApp business phone number is required. Finish Embedded Signup with a phone number (WABA-only is not enough).",
+        "metaAccountUnusable": "No valid Meta Business Portfolio / WhatsApp account was linked. Create or select a portfolio in Embedded Signup and try again.",
+        "metaPortfolioUnverified": "Your Meta Business Portfolio is not verified. Complete Meta Business Verification, then try again.",
+        "metaPortfolioUnverifiedWithHelp": "Your Meta Business Portfolio is not verified. Complete verification at {url}, then try again.",
         "metaGraph": "Meta Graph API error. Please try again.",
         "testToRequired": "Enter a recipient phone number to send a test."
       }
@@ -3442,8 +3492,6 @@
       "searchLabel": "Search organization",
       "searchPlaceholder": "Find contacts, conversations, campaigns, or templates…",
       "searchPlaceholderShort": "Search organization…",
-      "searchUnavailablePlaceholder": "Global search requires a backend API…",
-      "searchUnavailableHint": "Global search is not available yet. A backend search endpoint is required before this field can query your organization.",
       "searchShortcutLabel": "Focus search ({shortcut})",
       "notifications": "Notifications",
       "profile": "Profile",
@@ -3511,11 +3559,14 @@
       },
       "connectWhatsapp": {
         "title": "Connect WhatsApp",
-        "description": "Connect your WhatsApp Business account to start receiving customer conversations and manage them from the Inbox.",
+        "description": "Connect your WhatsApp Business account to prove Meta verification before you subscribe.",
         "cta": "Connect WhatsApp",
-        "secondary": "You can connect multiple WhatsApp Business numbers later.",
-        "lockedDescription": "Finish organization setup and subscribe to unlock WhatsApp connection.",
-        "lockedCtaSetup": "Complete Setup",
+        "secondary": "You need a Meta-verified Business Portfolio and a WhatsApp phone number.",
+        "verifiedTitle": "WhatsApp verified",
+        "verifiedDescription": "Your Meta Business Portfolio is verified. Choose a plan to activate the workspace.",
+        "verifiedCta": "Continue to plan",
+        "lockedDescription": "This organization cannot connect WhatsApp right now.",
+        "lockedCtaSetup": "Go to dashboard",
         "lockedCtaSubscribe": "Choose a plan"
       },
       "kpis": {
@@ -3609,11 +3660,14 @@
         "title": "Profile {percent}% complete",
         "subtitle": "Add the remaining optional details to finish your organization profile.",
         "cta": "Complete Profile",
-        "incompleteTitle": "Complete your organization setup",
-        "incompleteSubtitle": "Add more details, set preferences and choose a plan to unlock all features.",
-        "incompleteCta": "Complete Organization Setup",
+        "incompleteTitle": "Complete your organization profile",
+        "incompleteSubtitle": "Add required organization details to unlock the full workspace.",
+        "incompleteCta": "Complete Profile",
+        "whatsappTitle": "Connect WhatsApp to continue",
+        "whatsappSubtitle": "Link a Meta-verified Business Portfolio and WhatsApp number before you subscribe.",
+        "whatsappCta": "Connect WhatsApp",
         "subscribeTitle": "Choose a subscription plan",
-        "subscribeSubtitle": "Your organization details are saved. Subscribe to unlock WhatsApp and the rest of the workspace.",
+        "subscribeSubtitle": "WhatsApp is verified. Subscribe to activate the workspace.",
         "subscribeCta": "Continue to Plan"
       }
     },
@@ -3838,7 +3892,7 @@
         "menuAria": "Campaign actions",
         "view": "View Details",
         "edit": "Edit Campaign",
-        "changeStatus": "Change status",
+        "reschedule": "Reschedule",
         "duplicate": "Duplicate Campaign",
         "pause": "Pause Campaign",
         "cancel": "Cancel campaign",
@@ -3860,15 +3914,16 @@
         "confirm": "Cancel campaign",
         "cancelling": "Cancelling…"
       },
-      "changeStatus": {
-        "title": "Change campaign status?",
-        "body": "Update the status of “{name}”. Only draft and scheduled are allowed here.",
-        "hint": "This updates the status field only. Use Launch to send, Save & schedule to queue a send time, or Cancel to stop a scheduled/sending campaign.",
-        "label": "New status",
+      "reschedule": {
+        "title": "Reschedule this campaign?",
+        "body": "Choose a new UTC launch time for “{name}”. The previous schedule is replaced.",
+        "scheduledAt": "Date and time (UTC)",
+        "utcLabel": "UTC",
+        "hint": "Enter the wall-clock time in UTC. The campaign launches automatically at this instant.",
         "dismiss": "Keep current",
-        "confirm": "Update status",
-        "saving": "Updating…",
-        "success": "Campaign status updated."
+        "confirm": "Reschedule",
+        "saving": "Rescheduling…",
+        "success": "Campaign rescheduled."
       },
       "preview": {
         "title": "Message preview",
@@ -3911,11 +3966,10 @@
         "schedule": "Schedule",
         "sendNow": "Send Now",
         "scheduleLater": "Schedule for Later",
-        "scheduledAt": "Date and time",
-        "timezone": "Timezone",
-        "orgTimezone": "organization default",
-        "scheduleHint": "Send Now launches immediately after recipients are saved. Schedule for Later queues a future send.",
-        "scheduleLaterHint": "The campaign launches automatically at this time in {timezone}. Messages are not sent until then.",
+        "scheduledAt": "Date and time (UTC)",
+        "utcLabel": "UTC",
+        "scheduleHint": "Send Now launches immediately after recipients are saved. Schedule for Later queues a future send in UTC.",
+        "scheduleLaterHint": "The campaign launches automatically at this UTC time. Messages are not sent until then.",
         "cancel": "Cancel",
         "reviewConfirm": "Save draft",
         "confirmSend": "Save & send",
@@ -3999,14 +4053,13 @@
         "deleteFailed": "Could not delete this campaign.",
         "saveFailed": "Could not save this campaign.",
         "cancelFailed": "Could not cancel this campaign.",
-        "changeStatusFailed": "Could not update this campaign’s status.",
-        "statusTransitionFailed": "That status change is not allowed for this campaign.",
+        "rescheduleFailed": "Could not reschedule this campaign.",
         "launchFailed": "Could not launch this campaign.",
         "templateNotApproved": "The linked message template is not approved. Approve it in Meta before launching.",
         "whatsappNotConnected": "WhatsApp is not connected. Reconnect your WhatsApp account before launching.",
         "duplicateFailed": "Could not duplicate this campaign.",
         "previewFailed": "Could not preview this campaign.",
-        "notEditable": "Only draft or scheduled campaigns can be edited."
+        "notEditable": "Only draft campaigns can be edited. Cancel a scheduled campaign to edit content or audience."
       }
     },
     "organizationSwitcher": {
@@ -4051,7 +4104,11 @@
       "openMenu": "Open admin navigation",
       "title": "Platform console",
       "subtitle": "Manage organizations, subscriptions, and platform users",
-      "logout": "Logout"
+      "logout": "Logout",
+      "searchLabel": "Search platform",
+      "searchPlaceholder": "Find organizations, users, plans, or subscriptions…",
+      "searchPlaceholderShort": "Search platform…",
+      "searchShortcutLabel": "Focus search ({shortcut})"
     },
     "checkingAccess": "Checking access…",
     "home": {
@@ -4176,7 +4233,9 @@
       },
       "toast": {
         "updated": "Updated “{name}”.",
-        "deleted": "Archived “{name}”."
+        "deleted": "Archived “{name}”.",
+        "suspended": "Suspended “{name}”.",
+        "activated": "Activated “{name}”."
       },
       "kpis": {
         "total": {
@@ -4232,16 +4291,23 @@
         "menuLabel": "Actions for {name}",
         "view": "View",
         "edit": "Edit",
-        "suspend": "Change status",
-        "activate": "Change status",
+        "suspend": "Suspend",
+        "activate": "Activate",
         "delete": "Archive"
       },
       "statusDialog": {
         "title": "Change status",
-        "body": "Activate and suspend are not available on the organization API. You can archive “{name}” with a soft-delete.",
-        "archivedBody": "“{name}” is already archived. Restore is not available from the API.",
+        "suspendTitle": "Suspend organization",
+        "activateTitle": "Activate organization",
+        "archivedTitle": "Archived organization",
+        "suspendBody": "Suspend “{name}”? Members will not be able to use this organization until it is activated again. This does not archive the organization.",
+        "activateBody": "Activate “{name}”? The organization will be set back to active.",
+        "archivedBody": "“{name}” is already archived. Restore is not available from this action.",
         "cancel": "Cancel",
-        "archive": "Archive organization"
+        "confirmSuspend": "Suspend",
+        "confirmActivate": "Activate",
+        "suspending": "Suspending…",
+        "activating": "Activating…"
       },
       "drawer": {
         "tabs": {
@@ -4295,6 +4361,8 @@
         "loadFailed": "Couldn’t load organizations. Please try again.",
         "updateFailed": "Couldn’t update this organization.",
         "deleteFailed": "Couldn’t archive this organization.",
+        "suspendFailed": "Couldn’t suspend this organization.",
+        "activateFailed": "Couldn’t activate this organization.",
         "nameRequired": "Name must be at least 2 characters.",
         "actionUnavailable": "This action isn’t available from the API yet."
       },
@@ -4323,6 +4391,9 @@
           "title": "Subscription",
           "description": "Current plan, billing, and renewal details.",
           "unavailable": "Subscription details aren’t available from the API yet.",
+          "loading": "Loading subscription…",
+          "failed": "Couldn’t load subscription for this organization.",
+          "empty": "This organization has no subscription in the platform billing list.",
           "fields": {
             "plan": "Plan",
             "billingCycle": "Billing cycle",
@@ -4335,6 +4406,7 @@
           "billingCycle": {
             "monthly": "Monthly",
             "annual": "Annual",
+            "custom": "Custom",
             "short": {
               "monthly": "mo",
               "annual": "yr"
@@ -4375,6 +4447,9 @@
           "title": "Organization Members",
           "description": "{count, plural, one {Showing # member} other {Showing # members}}",
           "unavailable": "Member roster isn’t available from the API yet.",
+          "loading": "Loading members…",
+          "failed": "Couldn’t load members for this organization.",
+          "empty": "No members found for this organization.",
           "columns": {
             "member": "Member",
             "role": "Role",
@@ -4389,7 +4464,10 @@
         "activity": {
           "title": "Recent Activity",
           "description": "Latest events inside this organization.",
-          "unavailable": "Activity isn’t available from the API yet."
+          "unavailable": "Activity isn’t available from the API yet.",
+          "loading": "Loading activity…",
+          "failed": "Couldn’t load activity for this organization.",
+          "empty": "No audit events for this organization."
         }
       }
     },
@@ -4873,6 +4951,7 @@
         "createFailed": "Failed to generate invoice.",
         "notFound": "Invoice not found.",
         "cannotMarkCancelledPaid": "Cancelled invoices cannot be marked as paid.",
+        "missingRecipient": "This invoice has no billing email address.",
         "sendFailed": "Failed to send invoice. Please try again.",
         "downloadFailed": "Failed to download invoice. Please try again.",
         "organizationRequired": "Select an organization.",
@@ -4929,6 +5008,13 @@
       "statuses": {
         "active": "Active",
         "inactive": "Inactive"
+      },
+      "organizationStatuses": {
+        "active": "Active",
+        "suspended": "Suspended",
+        "pending_setup": "Pending setup",
+        "verified_setup": "Verified setup",
+        "false": "Archived"
       },
       "errors": {
         "loadFailed": "Couldn't load platform users. Please try again."
@@ -5001,6 +5087,13 @@
       "eyebrow": "Administration",
       "title": "Platform Settings",
       "subtitle": "Manage core platform controls for branding, auth, integrations, and environment defaults.",
+      "loading": "Loading platform settings…",
+      "retry": "Retry",
+      "emptySection": "No platform settings are exposed for this section yet. Editable controls live on their dedicated admin pages.",
+      "errors": {
+        "loadFailed": "Couldn’t load platform settings.",
+        "loadFailedHint": "GET /api/v1/super-admin/platform-settings requires Super Admin platform config access."
+      },
       "sections": {
         "platformBranding": {
           "title": "Platform Branding",
@@ -5212,6 +5305,25 @@
         "emptyDescription": "Audit events appear after permissioned actions are performed.",
         "noDetails": "No additional details"
       }
+    }
+  },
+  "globalSearch": {
+    "loading": "Searching…",
+    "noResults": "No results",
+    "error": "Couldn’t search. Try again.",
+    "resultsLabel": "Search results",
+    "types": {
+      "contact": "Contacts",
+      "conversation": "Conversations",
+      "campaign": "Campaigns",
+      "template": "Templates",
+      "flow": "Flows",
+      "customer_group": "Customer groups",
+      "organization": "Organizations",
+      "user": "Users",
+      "plan": "Plans",
+      "subscription": "Subscriptions",
+      "invoice": "Invoices"
     }
   }
 }

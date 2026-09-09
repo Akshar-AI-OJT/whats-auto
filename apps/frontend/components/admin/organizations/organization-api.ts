@@ -37,7 +37,7 @@ function unwrapPaginated(
 
 export function mapOrganizationUiStatus(org: SuperAdminOrganization): AdminOrganizationUiStatus {
   if (org.deletedAt || org.status === 'false') return 'archived'
-  if (org.status === 'pending_setup') return 'pending'
+  if (org.status === 'pending_setup' || org.status === 'verified_setup') return 'pending'
   if (org.status === 'suspended') return 'suspended'
   return 'active'
 }
@@ -85,37 +85,49 @@ export async function updateSuperAdminOrganization(
   body: UpdateSuperAdminOrganizationBody
 ): Promise<AdminOrganizationListItem> {
   const { data } = await api.superAdmin.organizations.update(organizationId, body)
-  const org =
-    data && typeof data === 'object' && 'data' in data && data.data
-      ? data.data
-      : (data as SuperAdminOrganization)
-  return toAdminOrganizationListItem(org)
+  return toAdminOrganizationListItem(unwrapOrganization(data))
+}
+
+export async function suspendSuperAdminOrganization(
+  organizationId: string
+): Promise<AdminOrganizationListItem> {
+  const { data } = await api.superAdmin.organizations.suspend(organizationId)
+  return toAdminOrganizationListItem(unwrapOrganization(data))
+}
+
+export async function activateSuperAdminOrganization(
+  organizationId: string
+): Promise<AdminOrganizationListItem> {
+  const { data } = await api.superAdmin.organizations.activate(organizationId)
+  return toAdminOrganizationListItem(unwrapOrganization(data))
 }
 
 export async function deleteSuperAdminOrganization(organizationId: string): Promise<void> {
   await api.superAdmin.organizations.destroy(organizationId)
 }
 
-/**
- * No get-by-id endpoint — locate the org in a single page fetch (demo-scale).
- * Walks a few pages if needed.
- */
-export async function findSuperAdminOrganization(
+function unwrapOrganization(data: unknown): SuperAdminOrganization {
+  if (!data || typeof data !== 'object') {
+    throw new Error('Organization payload missing')
+  }
+
+  const root = data as { data?: SuperAdminOrganization } & SuperAdminOrganization
+  const org =
+    root.data && typeof root.data === 'object' && typeof root.data.id === 'string' ? root.data : root
+
+  if (typeof org.id !== 'string' || !org.id) {
+    throw new Error('Organization payload missing id')
+  }
+
+  return org
+}
+
+/** Dedicated Super Admin GET-by-id. Throws ApiError on 404 / auth failures. */
+export async function getSuperAdminOrganization(
   organizationId: string
-): Promise<AdminOrganizationListItem | null> {
-  const perPage = 100
-  let page = 1
-  let lastPage = 1
-
-  do {
-    const { items, meta } = await listSuperAdminOrganizations({ page, perPage })
-    const found = items.find((org) => org.id === organizationId)
-    if (found) return found
-    lastPage = meta?.lastPage ?? page
-    page += 1
-  } while (page <= lastPage && page <= 10)
-
-  return null
+): Promise<AdminOrganizationListItem> {
+  const { data } = await api.superAdmin.organizations.get(organizationId)
+  return toAdminOrganizationListItem(unwrapOrganization(data))
 }
 
 export function mapOrgApiError(error: unknown, fallback: string): string {
@@ -123,5 +135,11 @@ export function mapOrgApiError(error: unknown, fallback: string): string {
   if (apiError.status === 401) return 'Your session expired. Please sign in again.'
   if (apiError.status === 403) return 'You do not have permission for this action.'
   if (apiError.code === 'E_ORGANIZATION_NOT_FOUND') return 'Organization not found.'
+  if (apiError.code === 'E_ORGANIZATION_ARCHIVED') {
+    return 'Archived organizations cannot be suspended or activated.'
+  }
+  if (apiError.code === 'E_ORGANIZATION_LIFECYCLE_INVALID') {
+    return apiError.message || 'This organization cannot change to that status.'
+  }
   return apiError.message || fallback
 }

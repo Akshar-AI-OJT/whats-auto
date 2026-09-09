@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { Loader2 } from 'lucide-react'
@@ -18,9 +18,9 @@ import {
 import { useRouter } from '@/i18n/navigation'
 import {
   clearOnboardingCheckoutSession,
-  readOnboardingCheckoutSession,
-  readPendingOrganizationPlan,
-  type OnboardingCheckoutSession,
+  ONBOARDING_PLAN_PATH,
+  persistOnboardingCheckoutSession,
+  resolveOnboardingCheckoutSession,
 } from '@/lib/onboarding'
 import { OnboardingPaymentView, type OnboardingPaymentViewState } from './OnboardingPaymentView'
 
@@ -32,34 +32,45 @@ function viewFromSubscription(
   return 'pending'
 }
 
-function readCheckoutSession(): OnboardingCheckoutSession | null {
-  const stored = readOnboardingCheckoutSession()
-  if (stored) return stored
-  const pendingPlan = readPendingOrganizationPlan()
-  if (!pendingPlan) return null
-  return {
-    planId: pendingPlan,
-    checkoutPlanId: pendingPlan,
-  }
+function subscribeNowhere() {
+  return () => {}
 }
 
+/** Primitive snapshot — safe for useSyncExternalStore (Object.is on strings). */
+function getPaymentLocationKey(): string {
+  return window.location.href
+}
+
+/**
+ * Payment page for first-activation checkout.
+ *
+ * Important: do NOT pass `resolveOnboardingCheckoutSession` directly to
+ * useSyncExternalStore — it returns a new object every call and React will
+ * infinite-re-render until the route error boundary (“This page couldn’t load”).
+ */
 export function OnboardingPaymentPage() {
   const t = useTranslations('onboarding.organization')
   const router = useRouter()
-  // null until after mount so SSR + first client paint match (sessionStorage is client-only).
-  const [session, setSession] = useState<OnboardingCheckoutSession | null | undefined>(undefined)
+  const locationKey = useSyncExternalStore(
+    subscribeNowhere,
+    getPaymentLocationKey,
+    () => ''
+  )
+  const session = useMemo(() => {
+    if (!locationKey) return null
+    return resolveOnboardingCheckoutSession()
+  }, [locationKey])
   const [paying, setPaying] = useState(false)
   const [payError, setPayError] = useState<string | null>(null)
 
   useEffect(() => {
-    setSession(readCheckoutSession())
-  }, [])
-
-  useEffect(() => {
-    if (session === null) {
-      router.replace('/dashboard')
+    if (!locationKey) return
+    if (!session) {
+      router.replace(ONBOARDING_PLAN_PATH)
+      return
     }
-  }, [session, router])
+    persistOnboardingCheckoutSession(session)
+  }, [locationKey, session, router])
 
   const subscriptionQuery = useQuery({
     queryKey: queryKeys.onboarding.billingSubscription,
@@ -99,7 +110,7 @@ export function OnboardingPaymentPage() {
     router.push('/dashboard')
   }
 
-  if (session == null) {
+  if (!locationKey || session == null) {
     return (
       <AuthLayout branding={<AuthBranding variant="organization" />}>
         <div className="flex items-center justify-center gap-2 py-16 text-sm text-body">

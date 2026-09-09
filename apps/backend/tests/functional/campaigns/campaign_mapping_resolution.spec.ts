@@ -145,7 +145,6 @@ test.group('Campaign variableMappings recipient resolution', (group) => {
         actorUserId: userId,
         name: 'Contact field map',
         messageTemplateId: templateId,
-        status: 'draft',
         variableMappings: {
           customer_name: { source: 'contact_field', field: 'name' },
         },
@@ -190,7 +189,6 @@ test.group('Campaign variableMappings recipient resolution', (group) => {
         actorUserId: userId,
         name: 'Custom field map',
         messageTemplateId: templateId,
-        status: 'draft',
         variableMappings: {
           order_id: { source: 'custom_field', field: 'order_id' },
         },
@@ -233,7 +231,6 @@ test.group('Campaign variableMappings recipient resolution', (group) => {
         actorUserId: userId,
         name: 'Static map',
         messageTemplateId: templateId,
-        status: 'draft',
         variableMappings: {
           promo_code: { source: 'static', value: 'SUMMER26' },
         },
@@ -286,7 +283,6 @@ test.group('Campaign variableMappings recipient resolution', (group) => {
         actorUserId: userId,
         name: 'Combined maps',
         messageTemplateId: templateId,
-        status: 'draft',
         variableMappings: mappings,
       })
     )
@@ -332,7 +328,6 @@ test.group('Campaign variableMappings recipient resolution', (group) => {
         actorUserId: userId,
         name: 'No mappings auto',
         messageTemplateId: templateId,
-        status: 'draft',
       })
     )
 
@@ -374,7 +369,6 @@ test.group('Campaign variableMappings recipient resolution', (group) => {
         actorUserId: userId,
         name: 'Request override',
         messageTemplateId: templateId,
-        status: 'draft',
         variableMappings: {
           customer_name: { source: 'contact_field', field: 'name' },
         },
@@ -422,7 +416,6 @@ test.group('Campaign variableMappings recipient resolution', (group) => {
         actorUserId: userId,
         name: 'Missing mapped',
         messageTemplateId: templateId,
-        status: 'draft',
         variableMappings: {
           order_id: { source: 'custom_field', field: 'order_id' },
         },
@@ -473,7 +466,6 @@ test.group('Campaign variableMappings recipient resolution', (group) => {
         actorUserId: userId,
         name: 'Per recipient maps',
         messageTemplateId: templateId,
-        status: 'draft',
         variableMappings: {
           customer_name: { source: 'contact_field', field: 'name' },
           promo_code: { source: 'static', value: 'SUMMER26' },
@@ -522,7 +514,6 @@ test.group('Campaign variableMappings recipient resolution', (group) => {
         actorUserId: userId,
         name: 'Tag mapped',
         messageTemplateId: templateId,
-        status: 'draft',
         variableMappings: {
           customer_name: { source: 'contact_field', field: 'name' },
           promo_code: { source: 'static', value: 'SUMMER26' },
@@ -578,7 +569,6 @@ test.group('Campaign variableMappings recipient resolution', (group) => {
         actorUserId: userId,
         name: 'Rematerialize',
         messageTemplateId: templateId,
-        status: 'draft',
         variableMappings: {
           customer_name: { source: 'contact_field', field: 'name' },
         },
@@ -638,7 +628,6 @@ test.group('Campaign variableMappings recipient resolution', (group) => {
         actorUserId: userId,
         name: 'Empty name fallback',
         messageTemplateId: templateId,
-        status: 'draft',
         variableMappings: {
           customer_name: { source: 'contact_field', field: 'name' },
         },
@@ -677,7 +666,6 @@ test.group('Campaign variableMappings recipient resolution', (group) => {
         name: 'Send empty name fallback',
         messageTemplateId: templateId,
         whatsappConfigId,
-        status: 'draft',
         variableMappings: {
           customer_name: { source: 'contact_field', field: 'name' },
         },

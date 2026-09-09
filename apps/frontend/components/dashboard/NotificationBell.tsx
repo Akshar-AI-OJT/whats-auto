@@ -43,7 +43,8 @@ export function NotificationBell({
     markAllAsRead,
     markAsRead,
   } = useNotifications({ enabled: true })
-  const { hasFullProductAccess, isSetupComplete } = useProductAccess()
+  const { hasFullProductAccess, isSetupComplete, organizationId, organizationStatus } =
+    useProductAccess()
 
   useEffect(() => {
     if (open) refresh()
@@ -178,6 +179,8 @@ export function NotificationBell({
               href={resolveDashboardHref('/dashboard/notifications', {
                 hasFullProductAccess,
                 isSetupComplete,
+                organizationId,
+                organizationStatus,
               })}
               onClick={() => setOpen(false)}
               className={cn(

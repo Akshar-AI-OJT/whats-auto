@@ -10,7 +10,8 @@ import { KPIStatCard } from './KPIStatCard'
 export function KpiGrid() {
   const t = useTranslations('dashboard.home.kpis')
   const { kpis, kpisLoading, orgsLoading } = useDashboardOverview()
-  const { hasFullProductAccess, isSetupComplete } = useProductAccess()
+  const { hasFullProductAccess, isSetupComplete, organizationId, organizationStatus } =
+    useProductAccess()
 
   const loading = kpisLoading || orgsLoading
 
@@ -57,7 +58,12 @@ export function KpiGrid() {
           suffix={'suffix' in item ? item.suffix : undefined}
           hint={t(`${item.key}.hint`)}
           icon={item.icon}
-          href={resolveDashboardHref(item.href, { hasFullProductAccess, isSetupComplete })}
+          href={resolveDashboardHref(item.href, {
+            hasFullProductAccess,
+            isSetupComplete,
+            organizationId,
+            organizationStatus,
+          })}
           loading={loading}
           className="h-full"
         />

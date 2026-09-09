@@ -7,8 +7,22 @@ import OrganizationException from '#exceptions/organization_exception'
 import { AuthorizationService } from '#services/authorization_service'
 import { permissionsFromClaims } from '#lib/access_token_permissions'
 import { checkTenantPermissionVersion } from '#lib/permission_version'
+import {
+  assertOrganizationProfileComplete,
+  organizationProfileSourceFromOrgRow,
+} from '#middleware/organization_profile_completion_middleware'
 import { runWithTenant } from '#services/tenant_context'
 import '#types/http'
+
+const ORGANIZATION_PROFILE_SELECT = [
+  'o.name as orgName',
+  'o.email as orgEmail',
+  'o.industry',
+  'o.businessSize',
+  'o.pan',
+  'o.country',
+  'o.address',
+] as const
 
 export type TenantMiddlewareOptions = {
   /**
@@ -16,11 +30,17 @@ export type TenantMiddlewareOptions = {
    * Default is fail-closed: only `active` orgs proceed.
    */
   skipActiveGate?: boolean
+  /**
+   * Opt out of the organization profile-completion gate (profile update, billing,
+   * access-context, onboarding logo upload). Default is fail-closed.
+   */
+  skipProfileCompletionGate?: boolean
 }
 
 function asOrganizationStatus(value: unknown): OrganizationStatusValue {
   if (
     value === OrganizationStatus.PENDING_SETUP ||
+    value === OrganizationStatus.VERIFIED_SETUP ||
     value === OrganizationStatus.ACTIVE ||
     value === OrganizationStatus.SUSPENDED ||
     value === OrganizationStatus.FALSE
@@ -31,13 +51,16 @@ function asOrganizationStatus(value: unknown): OrganizationStatusValue {
   return OrganizationStatus.ACTIVE
 }
 
-/** Fail-closed product gate: only status === 'active' proceeds (402, not 403). */
-function assertOrganizationActive(
-  status: string | undefined
-): asserts status is typeof OrganizationStatus.ACTIVE {
-  if (status !== OrganizationStatus.ACTIVE) {
+/** Fail-closed product gate ([D70]): active only; unpaid statuses get distinct codes. */
+function assertOrganizationProvisioned(status: string | undefined): void {
+  if (status === OrganizationStatus.ACTIVE) return
+  if (status === OrganizationStatus.PENDING_SETUP) {
+    throw OrganizationException.whatsappRequired()
+  }
+  if (status === OrganizationStatus.VERIFIED_SETUP) {
     throw OrganizationException.paymentRequired()
   }
+  throw OrganizationException.paymentRequired()
 }
 
 export default class TenantMiddleware {
@@ -65,7 +88,14 @@ export default class TenantMiddleware {
         .where('m.id', claims.member_id)
         .where('m.isDeleted', false)
         .whereNull('o.deletedAt')
-        .select('m.id', 'm.userId', 'm.organizationId', 'm.permissionVersion', 'o.status')
+        .select(
+          'm.id',
+          'm.userId',
+          'm.organizationId',
+          'm.permissionVersion',
+          'o.status',
+          ...ORGANIZATION_PROFILE_SELECT
+        )
         .first()
 
       const versionCheck = checkTenantPermissionVersion({
@@ -108,7 +138,11 @@ export default class TenantMiddleware {
       }
 
       if (!options.skipActiveGate) {
-        assertOrganizationActive(request.organizationStatus)
+        assertOrganizationProvisioned(request.organizationStatus)
+      }
+
+      if (!options.skipProfileCompletionGate) {
+        assertOrganizationProfileComplete(organizationProfileSourceFromOrgRow(memberRow))
       }
 
       return runWithTenant(claims.org_id, () => next())
@@ -132,7 +166,15 @@ export default class TenantMiddleware {
       .where('m.userId', request.authUser!.id)
       .where('m.isDeleted', false)
       .whereNull('o.deletedAt')
-      .select('m.id', 'm.organizationId', 'm.userId', 'm.roleId', 'r.name as role', 'o.status')
+      .select(
+        'm.id',
+        'm.organizationId',
+        'm.userId',
+        'm.roleId',
+        'r.name as role',
+        'o.status',
+        ...ORGANIZATION_PROFILE_SELECT
+      )
       .first()
 
     if (!member) {
@@ -155,7 +197,11 @@ export default class TenantMiddleware {
     request.memberPermissions = await authz.resolvePermissions(orgId, member.roleId as string)
 
     if (!options.skipActiveGate) {
-      assertOrganizationActive(request.organizationStatus)
+      assertOrganizationProvisioned(request.organizationStatus)
+    }
+
+    if (!options.skipProfileCompletionGate) {
+      assertOrganizationProfileComplete(organizationProfileSourceFromOrgRow(member))
     }
 
     // Bind org to ALS for the rest of the request. TenantRlsProvider stamps

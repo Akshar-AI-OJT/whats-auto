@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { Loader2, RefreshCw, Search, Users } from 'lucide-react'
-import type { SuperAdminPlatformUser } from '@/lib/api'
+import type { SuperAdminPlatformUser, SuperAdminPlatformUserOrganization } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -14,6 +14,7 @@ import { queryKeys } from '@/lib/query-keys'
 import {
   listSuperAdminPlatformUsers,
   mapPlatformUsersApiError,
+  PLATFORM_ORGANIZATION_STATUSES,
 } from './platform-users-api'
 
 const PER_PAGE = 20
@@ -31,6 +32,14 @@ const selectClassName = cn(
 const STATUS_STYLES: Record<'active' | 'inactive', string> = {
   active: 'bg-primary-pale text-positive-deep ring-1 ring-primary/30',
   inactive: 'bg-dash-surface text-mute ring-1 ring-dash-border',
+}
+
+const ORG_STATUS_STYLES: Record<(typeof PLATFORM_ORGANIZATION_STATUSES)[number], string> = {
+  active: 'bg-primary-pale text-positive-deep ring-1 ring-primary/30',
+  suspended: 'bg-dash-warn-soft text-warning-content ring-1 ring-warning/35',
+  pending_setup: 'bg-dash-surface text-body ring-1 ring-dash-border',
+  verified_setup: 'bg-dash-surface text-body ring-1 ring-dash-border',
+  false: 'bg-mute/15 text-mute ring-1 ring-dash-border',
 }
 
 function formatCreatedDate(value: string | null | undefined) {
@@ -78,17 +87,80 @@ function platformRoleLabel(
   return orgRoles.map((role) => formatRoleLabel(role)).join(', ')
 }
 
-function organizationsLabel(
-  user: SuperAdminPlatformUser,
-  empty: string,
+function isPlatformOrganizationStatus(
+  status: string
+): status is (typeof PLATFORM_ORGANIZATION_STATUSES)[number] {
+  return (PLATFORM_ORGANIZATION_STATUSES as readonly string[]).includes(status)
+}
+
+function organizationStatusLabel(
+  status: string,
+  t: (key: string) => string
+): string | null {
+  if (!status) return null
+  switch (status) {
+    case 'active':
+      return t('organizationStatuses.active')
+    case 'suspended':
+      return t('organizationStatuses.suspended')
+    case 'pending_setup':
+      return t('organizationStatuses.pending_setup')
+    case 'verified_setup':
+      return t('organizationStatuses.verified_setup')
+    case 'false':
+      return t('organizationStatuses.false')
+    default:
+      return status
+  }
+}
+
+function OrganizationsList({
+  organizations,
+  empty,
+  moreLabel,
+  t,
+}: {
+  organizations: SuperAdminPlatformUserOrganization[]
+  empty: string
   moreLabel: (count: number) => string
-) {
-  const organizations = user.organizations ?? []
-  if (organizations.length === 0) return empty
-  const names = organizations.map((org) => org.organizationName).filter(Boolean)
-  if (names.length === 0) return empty
-  if (names.length <= 2) return names.join(', ')
-  return `${names.slice(0, 2).join(', ')} ${moreLabel(names.length - 2)}`
+  t: (key: string) => string
+}) {
+  if (organizations.length === 0) {
+    return <span className="text-sm text-body">{empty}</span>
+  }
+
+  const visible = organizations.slice(0, 2)
+  const remaining = organizations.length - visible.length
+
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5">
+      {visible.map((org) => {
+        const statusLabel = organizationStatusLabel(org.organizationStatus, t)
+        return (
+          <div key={org.memberId} className="flex min-w-0 flex-wrap items-center gap-1.5">
+            <span className="truncate text-sm text-body">
+              {org.organizationName || empty}
+            </span>
+            {statusLabel ? (
+              <span
+                className={cn(
+                  'inline-flex shrink-0 rounded-lg px-2 py-0.5 text-[11px] font-semibold',
+                  isPlatformOrganizationStatus(org.organizationStatus)
+                    ? ORG_STATUS_STYLES[org.organizationStatus]
+                    : 'bg-dash-surface text-mute ring-1 ring-dash-border'
+                )}
+              >
+                {statusLabel}
+              </span>
+            ) : null}
+          </div>
+        )
+      })}
+      {remaining > 0 ? (
+        <span className="text-xs text-mute">{moreLabel(remaining)}</span>
+      ) : null}
+    </div>
+  )
 }
 
 function StatusBadge({ status, label }: { status: 'active' | 'inactive'; label: string }) {
@@ -321,12 +393,13 @@ export function PlatformUsersPage() {
                             {platformRoleLabel(user, t)}
                           </span>
                         </td>
-                        <td className="max-w-[16rem] truncate px-4 py-3.5 text-sm text-body">
-                          {organizationsLabel(
-                            user,
-                            t('emptyValue'),
-                            (count) => t('moreOrganizations', { count })
-                          )}
+                        <td className="max-w-[18rem] px-4 py-3.5">
+                          <OrganizationsList
+                            organizations={user.organizations ?? []}
+                            empty={t('emptyValue')}
+                            moreLabel={(count) => t('moreOrganizations', { count })}
+                            t={t}
+                          />
                         </td>
                         <td className="px-4 py-3.5">
                           <StatusBadge
@@ -378,14 +451,15 @@ export function PlatformUsersPage() {
                           {t('columns.created')}: {formatCreatedDate(user.createdAt)}
                         </span>
                       </div>
-                      <p className="mt-2 text-xs text-body">
-                        {t('columns.organizations')}:{' '}
-                        {organizationsLabel(
-                          user,
-                          t('emptyValue'),
-                          (count) => t('moreOrganizations', { count })
-                        )}
-                      </p>
+                      <div className="mt-2 text-xs text-body">
+                        <p className="mb-1 text-mute">{t('columns.organizations')}</p>
+                        <OrganizationsList
+                          organizations={user.organizations ?? []}
+                          empty={t('emptyValue')}
+                          moreLabel={(count) => t('moreOrganizations', { count })}
+                          t={t}
+                        />
+                      </div>
                     </div>
                   </div>
                 </li>

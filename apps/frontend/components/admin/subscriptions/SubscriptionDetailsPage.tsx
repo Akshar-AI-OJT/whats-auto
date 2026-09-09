@@ -10,7 +10,7 @@ import { queryKeys } from '@/lib/query-keys'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
-import { findSuperAdminOrganization } from '@/components/admin/organizations/organization-api'
+import { getSuperAdminOrganization } from '@/components/admin/organizations/organization-api'
 import type {
   SuperAdminPlan,
   SuperAdminSubscription,
@@ -171,7 +171,7 @@ export function SubscriptionDetailsPage({ subscriptionId }: SubscriptionDetailsP
     queryKey: ['admin', 'organizations', 'lookup', subscription?.organizationId ?? null],
     queryFn: async () => {
       if (!subscription?.organizationId) return null
-      return findSuperAdminOrganization(subscription.organizationId)
+      return getSuperAdminOrganization(subscription.organizationId)
     },
     enabled: Boolean(subscription?.organizationId),
     staleTime: 5 * 60_000,

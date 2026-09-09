@@ -13,11 +13,13 @@ export default class OrganizationAdminUsersController {
   /**
    * @index
    * @summary List users in the active organization (Organization Admin)
-   * @description Returns paginated users belonging to the authenticated Organization Admin's organization. Soft-deleted memberships are excluded. Requires admin or owner role.
+   * @description Returns paginated users belonging to the authenticated Organization Admin's organization. Soft-deleted memberships are excluded. Optional search and role filters are applied before pagination. Requires admin or owner role.
    * @tag Organization-Admin
    * @security BearerAuth
    * @paramQuery page - Page number (default 1) - @type(number)
    * @paramQuery perPage - Items per page (1-100, default 20) - @type(number)
+   * @paramQuery search - Case-insensitive match on name, email, or role (applied before pagination) - @type(string)
+   * @paramQuery role - Exact role name filter, e.g. owner|admin|agent|viewer (applied before pagination) - @type(string)
    * @responseBody 200 - { "data": [{ "id": "uuid", "name": "Ada Agent", "firstname": "Ada", "lastname": "Agent", "email": "agent@example.com", "isActive": true, "memberId": "uuid", "role": "agent" }], "meta": { "total": 1, "perPage": 20, "currentPage": 1, "lastPage": 1 } }
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 403 - { "error": "Access denied" }
@@ -25,14 +27,19 @@ export default class OrganizationAdminUsersController {
   async index({ bouncer, request, serialize }: HttpContext) {
     await bouncer.authorize(accessOrgAdmin)
 
-    const { page, perPage } = await request.validateUsing(listOrganizationAdminUsersValidator, {
-      data: request.qs(),
-    })
+    const { page, perPage, search, role } = await request.validateUsing(
+      listOrganizationAdminUsersValidator,
+      {
+        data: request.qs(),
+      }
+    )
 
     const users = await new OrganizationAdminUsersService().listUsersPaginated({
       organizationId: request.activeMember!.organizationId,
       page: page ?? 1,
       perPage: perPage ?? 20,
+      search,
+      role,
     })
 
     return serialize(users)

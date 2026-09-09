@@ -3,13 +3,7 @@ import db from '@adonisjs/lucid/services/db'
 import logger from '@adonisjs/core/services/logger'
 import CampaignException from '#exceptions/campaign_exception'
 import { MediaAssetReferenceRepository } from '#repositories/media_asset_reference_repository'
-import {
-  InvalidScheduledAtError,
-  isValidIanaTimeZone,
-  parseScheduledAt,
-  resolveIanaTimeZone,
-  toUtcIso,
-} from '#lib/scheduled_at'
+import { InvalidScheduledAtError, parseUtcScheduledAt, toUtcIso } from '#lib/scheduled_at'
 import {
   pickRequiredParameterValues,
   resolveParameterSchema,
@@ -22,9 +16,9 @@ import {
   assertReadyMediaAsset,
 } from '#services/campaign_preflight'
 import { enqueueCampaignWake, removeCampaignWake } from '#services/campaign_queue'
+import { PlanEnforcementService } from '#services/billing/plan_enforcement_service'
 import { PlanRetentionService } from '#services/billing/plan_retention_service'
 import { NotificationService } from '#services/notification_service'
-import type { CAMPAIGN_STATUSES } from '#validators/campaign'
 import {
   CAMPAIGN_CANCELLABLE_STATUSES,
   CAMPAIGN_SORT_FIELDS,
@@ -42,8 +36,6 @@ import type { DateTime } from 'luxon'
 const SENDABLE_STATUS_SET = new Set<string>(CAMPAIGN_SENDABLE_STATUSES)
 const SCHEDULABLE_STATUS_SET = new Set<string>(CAMPAIGN_SCHEDULABLE_STATUSES)
 const CANCELLABLE_STATUS_SET = new Set<string>(CAMPAIGN_CANCELLABLE_STATUSES)
-
-export type CampaignLifecycleStatus = (typeof CAMPAIGN_STATUSES)[number]
 
 /** Matches named (`{{customer_name}}`) and numbered (`{{1}}`) WhatsApp placeholders. */
 const TEMPLATE_PLACEHOLDER = /\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*|\d+)\s*\}\}/g
@@ -95,8 +87,6 @@ export type CreateCampaignInput = {
   whatsappConfigId?: string
   messageTemplateId?: string
   headerMediaAssetId?: string
-  scheduledAt?: DateTime | Date | string
-  status?: 'draft' | 'scheduled'
   variableMappings?: CampaignVariableMappings
 }
 
@@ -107,8 +97,73 @@ export type ListCampaignsInput = {
   perPage?: number
   search?: string
   status?: string
+  /** Vine `vine.date()` yields Luxon DateTime; tests and callers may pass Date or YYYY-MM-DD. */
+  startDate?: DateTime | Date | string
+  endDate?: DateTime | Date | string
   sortBy?: string
   sortOrder?: 'asc' | 'desc'
+}
+
+function isLuxonDateTime(value: DateTime | Date | string): value is DateTime {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    !(value instanceof Date) &&
+    typeof value.toJSDate === 'function'
+  )
+}
+
+function toJsDate(value: DateTime | Date | string): Date {
+  if (value instanceof Date) return value
+  if (typeof value === 'string') return new Date(value)
+  return value.toJSDate()
+}
+
+function isUtcMidnight(date: Date): boolean {
+  return (
+    date.getUTCHours() === 0 &&
+    date.getUTCMinutes() === 0 &&
+    date.getUTCSeconds() === 0 &&
+    date.getUTCMilliseconds() === 0
+  )
+}
+
+function isDateOnlyString(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value.trim())
+}
+
+function isStartOfCalendarDay(value: DateTime | Date | string, date: Date): boolean {
+  if (typeof value === 'string' && isDateOnlyString(value)) return true
+  if (isLuxonDateTime(value)) {
+    return value.hour === 0 && value.minute === 0 && value.second === 0 && value.millisecond === 0
+  }
+  return isUtcMidnight(date)
+}
+
+/** Inclusive start bound. Date-only values stay at the start of that calendar day. */
+function toInclusiveStart(value: DateTime | Date | string): Date {
+  if (typeof value === 'string' && isDateOnlyString(value)) {
+    return new Date(`${value.trim()}T00:00:00.000Z`)
+  }
+  return toJsDate(value)
+}
+
+/**
+ * Inclusive end bound. Date-only / start-of-day values expand to the last millisecond
+ * of that calendar day (Luxon zone for DateTime, UTC for YYYY-MM-DD strings).
+ */
+function toInclusiveEnd(value: DateTime | Date | string): Date {
+  if (typeof value === 'string' && isDateOnlyString(value)) {
+    return new Date(`${value.trim()}T23:59:59.999Z`)
+  }
+  if (isLuxonDateTime(value) && isStartOfCalendarDay(value, value.toJSDate())) {
+    return value.endOf('day').toJSDate()
+  }
+  const date = toJsDate(value)
+  if (Number.isNaN(date.getTime()) || !isUtcMidnight(date)) return date
+  const end = new Date(date)
+  end.setUTCHours(23, 59, 59, 999)
+  return end
 }
 
 export type UpdateCampaignInput = {
@@ -118,8 +173,6 @@ export type UpdateCampaignInput = {
   whatsappConfigId?: string | null
   messageTemplateId?: string | null
   headerMediaAssetId?: string | null
-  scheduledAt?: DateTime | Date | string | null
-  status?: 'draft' | 'scheduled'
   variableMappings?: CampaignVariableMappings | null
 }
 
@@ -450,51 +503,15 @@ export class CampaignService {
     return row
   }
 
-  protected async getOrganizationTimezone(organizationId: string): Promise<string> {
-    const row = await db
-      .from('organizations')
-      .where('id', organizationId)
-      .select('timezone')
-      .first()
-    return resolveIanaTimeZone(typeof row?.timezone === 'string' ? row.timezone : null)
-  }
-
-  /**
-   * Date/DateTime values are already absolute instants.
-   * Strings are parsed once: offset/Z as instants, naive as `timeZone` (or org TZ).
-   */
-  protected async resolveScheduledAt(
-    organizationId: string,
-    value: DateTime | Date | string,
-    timeZone?: string | null
-  ): Promise<Date> {
+  protected resolveScheduledAt(value: DateTime | Date | string): Date {
     try {
-      if (typeof value !== 'string') {
-        return parseScheduledAt(value, 'UTC')
-      }
-      const zone = this.resolveScheduleTimeZone(
-        timeZone,
-        await this.getOrganizationTimezone(organizationId)
-      )
-      return parseScheduledAt(value, zone)
+      return parseUtcScheduledAt(value)
     } catch (error) {
       if (error instanceof InvalidScheduledAtError) {
         throw CampaignException.invalidScheduledAt()
       }
       throw error
     }
-  }
-
-  protected resolveScheduleTimeZone(
-    timeZone: string | null | undefined,
-    organizationTimeZone: string
-  ): string {
-    const candidate = timeZone?.trim()
-    if (!candidate) return organizationTimeZone
-    if (!isValidIanaTimeZone(candidate)) {
-      throw CampaignException.invalidTimeZone()
-    }
-    return candidate
   }
 
   protected async assertWhatsappConfigInOrg(organizationId: string, whatsappConfigId: string) {
@@ -700,7 +717,8 @@ export class CampaignService {
   }
 
   /**
-   * Replace the recipient snapshot for a draft or scheduled campaign.
+   * Replace the recipient snapshot for a draft campaign.
+   * Scheduled campaigns must be cancelled to draft before audience changes.
    * `tagId` resolves live tagged contacts; `contactIds` follows All Contacts rules.
    */
   async replaceRecipients(params: {
@@ -715,7 +733,7 @@ export class CampaignService {
       organizationId: params.organizationId,
     })
     const status = campaign.status as string
-    if (status !== CAMPAIGN_DRAFT_STATUS && status !== CAMPAIGN_SCHEDULED_STATUS) {
+    if (status !== CAMPAIGN_DRAFT_STATUS) {
       throw CampaignException.notEditable(status)
     }
 
@@ -818,50 +836,6 @@ export class CampaignService {
   }
 
   /**
-   * Update only the campaign status field to an active lifecycle value.
-   * Soft-deleted campaigns are treated as not found (404).
-   * Lifecycle kickoff (sending / cancel / finalize) uses dedicated endpoints.
-   * This PATCH only allows draft↔scheduled transitions.
-   * updatedAt is maintained by the DB trigger `trg_set_updated_at`.
-   */
-  async changeCampaignStatus(params: {
-    campaignId: string
-    organizationId: string
-    status: CampaignLifecycleStatus
-  }): Promise<CampaignDto> {
-    const existing = await this.findCampaignRowOrFail({
-      campaignId: params.campaignId,
-      organizationId: params.organizationId,
-    })
-    const from = existing.status as string
-    const to = params.status
-
-    const allowed =
-      (from === 'draft' && (to === 'draft' || to === 'scheduled')) ||
-      (from === 'scheduled' && (to === 'draft' || to === 'scheduled'))
-
-    if (!allowed) {
-      throw CampaignException.invalidStatusTransition(from, to)
-    }
-
-    // Knex (not Lucid .save) — DB columns are camelCase; Lucid emits snake_case.
-    // Do not write updatedAt; trg_set_updated_at handles it.
-    const [row] = await db
-      .from('broadcasts')
-      .where('id', params.campaignId)
-      .where('organizationId', params.organizationId)
-      .whereNot('status', CAMPAIGN_SOFT_DELETED_STATUS)
-      .update({ status: params.status })
-      .returning([...BROADCAST_COLUMNS])
-
-    if (!row) {
-      throw CampaignException.notFound()
-    }
-
-    return mapCampaignRow(row)
-  }
-
-  /**
    * Soft-delete a campaign without removing the row.
    * Uses status = deleted (`broadcasts` has no deletedAt column — same approach as subscriptions).
    */
@@ -890,7 +864,8 @@ export class CampaignService {
   }
 
   /**
-   * Partial update of editable campaign fields.
+   * Partial update of editable campaign fields (draft only).
+   * Scheduled campaigns must be cancelled to draft before content changes.
    * Immutable: id, organizationId, createdByUserId, delivery counters, createdAt.
    * updatedAt is maintained by the DB trigger `trg_set_updated_at`.
    */
@@ -901,7 +876,7 @@ export class CampaignService {
     })
 
     const existingStatus = existing.status as string
-    if (existingStatus !== 'draft' && existingStatus !== 'scheduled') {
+    if (existingStatus !== CAMPAIGN_DRAFT_STATUS) {
       throw CampaignException.notEditable(existingStatus)
     }
 
@@ -942,30 +917,8 @@ export class CampaignService {
       updates.headerMediaAssetId = input.headerMediaAssetId
     }
 
-    if (input.scheduledAt !== undefined) {
-      updates.scheduledAt = input.scheduledAt
-        ? await this.resolveScheduledAt(input.organizationId, input.scheduledAt)
-        : null
-    }
-
-    if (input.status !== undefined) {
-      updates.status = input.status
-    }
-
     if (input.variableMappings !== undefined) {
       updates.variableMappings = input.variableMappings
-    }
-
-    const nextStatus = (updates.status as string | undefined) ?? (existing.status as string)
-    const nextScheduledAt =
-      input.scheduledAt !== undefined
-        ? ((updates.scheduledAt as Date | null | undefined) ?? null)
-        : existing.scheduledAt
-          ? new Date(existing.scheduledAt as string | Date)
-          : null
-
-    if (nextStatus === 'scheduled' && !nextScheduledAt) {
-      throw CampaignException.scheduledAtRequired()
     }
 
     if (Object.keys(updates).length === 0) {
@@ -1030,6 +983,18 @@ export class CampaignService {
       query = query.whereILike('name', term)
     }
 
+    if (input.startDate) {
+      query = query.whereRaw('coalesce("createdAt", "scheduledAt") >= ?', [
+        toInclusiveStart(input.startDate),
+      ])
+    }
+
+    if (input.endDate) {
+      query = query.whereRaw('coalesce("createdAt", "scheduledAt") <= ?', [
+        toInclusiveEnd(input.endDate),
+      ])
+    }
+
     const countResult = await query.clone().count('* as total').first()
     const total = Number(countResult?.total ?? 0)
 
@@ -1054,18 +1019,11 @@ export class CampaignService {
   }
 
   /**
-   * Create a draft or scheduled campaign (broadcasts row) for the active organization.
+   * Create a draft campaign (broadcasts row) for the active organization.
+   * Scheduling uses POST /campaigns/:id/schedule only.
    */
   async createCampaign(input: CreateCampaignInput): Promise<CampaignDto> {
     const name = input.name.trim()
-    const scheduledAt = input.scheduledAt
-      ? await this.resolveScheduledAt(input.organizationId, input.scheduledAt)
-      : null
-    const status = input.status ?? (scheduledAt ? 'scheduled' : 'draft')
-
-    if (status === 'scheduled' && !scheduledAt) {
-      throw CampaignException.scheduledAtRequired()
-    }
 
     let whatsappConfigId = input.whatsappConfigId ?? null
 
@@ -1099,8 +1057,8 @@ export class CampaignService {
           messageTemplateId: input.messageTemplateId ?? null,
           headerMediaAssetId: input.headerMediaAssetId ?? null,
           variableMappings: input.variableMappings ?? null,
-          scheduledAt,
-          status,
+          scheduledAt: null,
+          status: CAMPAIGN_DRAFT_STATUS,
           totalRecipients: 0,
           sentCount: 0,
           deliveredCount: 0,
@@ -1194,8 +1152,8 @@ export class CampaignService {
   }
 
   /**
-   * Schedule (or reschedule) a campaign for a future `scheduledAt`.
-   * Persists existing `scheduledAt` + `status = scheduled` fields only — no schema change.
+   * Schedule (or reschedule) a campaign for a future UTC `scheduledAt`.
+   * Persists `scheduledAt` + `status = scheduled` and registers a delayed execute wake.
    * Soft-deleted campaigns are treated as not found (404).
    * Requires an approved template and a connected WhatsApp configuration.
    */
@@ -1203,7 +1161,6 @@ export class CampaignService {
     campaignId: string
     organizationId: string
     scheduledAt: DateTime | Date | string
-    timeZone?: string | null
   }): Promise<CampaignDto> {
     const existing = await this.findCampaignRowOrFail({
       campaignId: params.campaignId,
@@ -1230,6 +1187,20 @@ export class CampaignService {
       throw CampaignException.whatsappConfigNotConfigured()
     }
 
+    const enforcement = new PlanEnforcementService()
+    await enforcement.requireFeature(params.organizationId, 'scheduledCampaigns')
+
+    const totalRecipients = Number(existing.totalRecipients)
+    if (totalRecipients > 0) {
+      await enforcement.requireUnderLimit(
+        params.organizationId,
+        'maxBroadcastRecipients',
+        totalRecipients - 1
+      )
+    }
+
+    await enforcement.requireMeter(params.organizationId, 'campaigns', 'campaignsPerMonth')
+
     await assertApprovedTemplate(params.organizationId, existing.messageTemplateId as string)
     await assertConnectedWhatsappConfig(params.organizationId, existing.whatsappConfigId as string)
 
@@ -1237,11 +1208,7 @@ export class CampaignService {
       await assertReadyMediaAsset(params.organizationId, existing.headerMediaAssetId as string)
     }
 
-    const scheduledAt = await this.resolveScheduledAt(
-      params.organizationId,
-      params.scheduledAt,
-      params.timeZone
-    )
+    const scheduledAt = this.resolveScheduledAt(params.scheduledAt)
     if (scheduledAt.getTime() <= Date.now()) {
       throw CampaignException.scheduledAtMustBeFuture()
     }
@@ -1287,6 +1254,16 @@ export class CampaignService {
       throw CampaignException.notEligibleToSchedule(latest.status as string)
     }
 
+    logger.info(
+      {
+        event: 'campaign.schedule_persisted',
+        campaignId: params.campaignId,
+        organizationId: params.organizationId,
+        scheduledAt: scheduledAt.toISOString(),
+      },
+      'campaign.schedule_persisted'
+    )
+
     try {
       await this.registerCampaignSchedule({
         organizationId: params.organizationId,
@@ -1305,8 +1282,10 @@ export class CampaignService {
         })
       logger.error(
         {
+          event: 'campaign.queue_failure',
           campaignId: params.campaignId,
           organizationId: params.organizationId,
+          scheduledAt: scheduledAt.toISOString(),
           err: error instanceof Error ? error.message : 'unknown',
         },
         'campaigns.enqueue_failed'
@@ -1325,7 +1304,7 @@ export class CampaignService {
       createdByUserId: (row.createdByUserId as string | null) ?? null,
       type: 'campaign_scheduled',
       title: 'Campaign scheduled',
-      body: `“${row.name as string}” is scheduled for ${scheduledAt.toISOString()}.`,
+      body: `“${row.name as string}” is scheduled for ${scheduledAt.toISOString()} UTC.`,
       campaignId: params.campaignId,
     })
 
@@ -1350,6 +1329,16 @@ export class CampaignService {
       campaignId: params.campaignId,
       runAt: params.scheduledAt,
     })
+    logger.info(
+      {
+        event: 'campaign.wake_registered',
+        campaignId: params.campaignId,
+        organizationId: params.organizationId,
+        scheduledAt: params.scheduledAt.toISOString(),
+        jobId: params.campaignId,
+      },
+      'campaign.wake_registered'
+    )
   }
 
   /**
