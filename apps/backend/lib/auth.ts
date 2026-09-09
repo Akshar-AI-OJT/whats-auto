@@ -75,7 +75,7 @@ type UserAccountState = {
 }
 
 const ACCOUNT_NOT_FOUND_MESSAGE =
-  'No account found with this email. Please contact your administrator for an invitation.'
+  'User is not registered in system. Create your account to proceed for organization creation otherwise Please contact your administrator for an invitation.'
 
 /** OAuth/sign-in rejections we surface to the client — not backend failures. */
 const EXPECTED_BETTER_AUTH_REJECTIONS = new Set([

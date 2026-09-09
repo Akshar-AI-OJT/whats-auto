@@ -328,12 +328,16 @@ html.light-locked {
   }
   html {
     @apply font-sans;
-    overflow-x: clip;
+    /*
+      Do NOT set overflow-x/y on html+body together, and never lock the document
+      with height:100% + overflow:hidden for the dashboard. That clips module
+      bottoms on iPhone/Pixel when an inner scrollport fails to activate.
+      Horizontal bleed is clipped on body only; vertical scroll is the viewport.
+    */
   }
   body {
     @apply bg-background text-foreground antialiased;
     font-feature-settings: 'calt';
-    overflow-x: clip;
   }
 
   /* Interactive affordance — Tenant + Super Admin (and shared chrome).
