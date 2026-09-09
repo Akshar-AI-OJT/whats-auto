@@ -152,7 +152,6 @@ async function seedSubscription(params: {
       organizationId,
       planId,
       gateway: 'razorpay',
-      gatewaySubscriptionId: `sub_${params.slug}`,
       status: params.status,
       currentPeriodStart: periodStart,
       currentPeriodEnd: periodEnd,
