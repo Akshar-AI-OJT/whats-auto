@@ -2107,7 +2107,8 @@
         "inviteNotPending": "This invitation is no longer pending.",
         "inviteNotFound": "This invitation was not found.",
         "actionFailed": "Couldn’t update this member. Please try again.",
-        "resendInviteError": "Could not resend the setup email. Please try again."
+        "resendInviteError": "Could not resend the setup email. Please try again.",
+        "smtpRequired": "Configure organization email delivery in Settings before inviting teammates."
       },
       "invite": {
         "title": "Invite Member",
@@ -2139,6 +2140,7 @@
           "alreadyPending": "An invitation is already pending for that email. Cancel it first or wait for a response.",
           "roleInvalid": "That role isn’t available for this organization.",
           "emailFailed": "Could not send the setup email. Check email delivery settings and try again.",
+          "smtpRequired": "Configure organization email delivery in Settings before inviting teammates.",
           "createdButEmailFailed": "Teammate was added, but the setup email could not be sent. You can resend it from the team list.",
           "emailStatusUnknown": "Teammate was added, but we could not confirm whether the setup email was sent. Check the team list and resend if needed.",
           "generic": "Could not add this teammate. Please try again.",

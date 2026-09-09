@@ -5,9 +5,12 @@ import { DEMO_PASSWORD, DEMO_USERS } from '#database/demo/credentials'
 import { FIXTURE_IDS } from '#database/demo/fixture_ids'
 import { ensureDemoFixtures } from '#tests/helpers/ensure_demo_fixtures'
 import { auth } from '#lib/auth'
+import { encryptIntegrationSecret } from '#lib/integrations/secret_crypto'
 import { AccessTokenClaimsService } from '#services/access_token_claims_service'
 import { InvitationService } from '#services/invitation_service'
+import { OrganizationSmtpService } from '#services/organization_smtp_service'
 import InvitationException from '#exceptions/invitation_exception'
+import OrganizationSmtpException from '#exceptions/organization_smtp_exception'
 import PlanRestrictionException from '#exceptions/plan_restriction_exception'
 
 function parsePlanLimits(value: unknown): Record<string, unknown> {
@@ -24,6 +27,34 @@ async function ensureNorthstarSeatHeadroom(minSeats = 50) {
       .where('id', FIXTURE_IDS.plans.growth)
       .update({ limits: { ...limits, seats: minSeats } })
   }
+}
+
+/** Superuser test DB bypasses RLS — insert a verified org mail profile for invite flows. */
+async function ensureOrgSmtpConfig(organizationId: string) {
+  const existing = await db
+    .from('organization_smtp_configs')
+    .where('organizationId', organizationId)
+    .first()
+  if (existing) return
+
+  await db.table('organization_smtp_configs').insert({
+    organizationId,
+    transport: 'smtp',
+    providerPreset: 'custom',
+    senderName: 'Test Org',
+    senderEmail: 'notify@example.com',
+    host: '127.0.0.1',
+    port: 2525,
+    secure: false,
+    username: 'user',
+    passwordEncrypted: encryptIntegrationSecret('test-smtp-pass'),
+    apiKeyEncrypted: null,
+    status: 'verified',
+    lastTestedAt: new Date(),
+    lastErrorMessage: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+  })
 }
 
 async function mintTokenForOrg(email: string, organizationId: string): Promise<string> {
@@ -63,9 +94,47 @@ async function mintTokenForOrg(email: string, organizationId: string): Promise<s
 }
 
 test.group('Provision teammate', (group) => {
+  let sendOrgEmailOriginal: OrganizationSmtpService['sendOrgEmail']
+
   group.setup(async () => {
     await ensureDemoFixtures()
     await ensureNorthstarSeatHeadroom()
+    await ensureOrgSmtpConfig(FIXTURE_IDS.orgs.northstar)
+    await ensureOrgSmtpConfig(FIXTURE_IDS.orgs.harbor)
+
+    sendOrgEmailOriginal = OrganizationSmtpService.prototype.sendOrgEmail
+    OrganizationSmtpService.prototype.sendOrgEmail = async () => ({ deferred: false })
+  })
+
+  group.teardown(() => {
+    OrganizationSmtpService.prototype.sendOrgEmail = sendOrgEmailOriginal
+  })
+
+  test('provisionTeammate rejects when organization SMTP is not configured', async ({ assert }) => {
+    const orgId = FIXTURE_IDS.orgs.northstar
+    const owner = await db
+      .from('users')
+      .where('email', DEMO_USERS.northstarOwner)
+      .select('id')
+      .firstOrFail()
+
+    await db.from('organization_smtp_configs').where('organizationId', orgId).delete()
+
+    try {
+      await new InvitationService().provisionTeammate({
+        organizationId: orgId,
+        inviterId: owner.id as string,
+        email: `no-smtp-${randomUUID().slice(0, 8)}@example.com`,
+        firstname: 'NoSmtp',
+        role: 'agent',
+      })
+      assert.fail('expected E_ORG_SMTP_REQUIRED')
+    } catch (error) {
+      assert.instanceOf(error, OrganizationSmtpException)
+      assert.equal((error as OrganizationSmtpException).code, 'E_ORG_SMTP_REQUIRED')
+    } finally {
+      await ensureOrgSmtpConfig(orgId)
+    }
   })
 
   test('provisionTeammate creates user, membership, invitation, and verification row', async ({

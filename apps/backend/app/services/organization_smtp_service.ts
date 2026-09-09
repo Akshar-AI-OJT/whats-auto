@@ -1,6 +1,5 @@
 import app from '@adonisjs/core/services/app'
 import logger from '@adonisjs/core/services/logger'
-import mail from '@adonisjs/mail/services/main'
 import db from '@adonisjs/lucid/services/db'
 import type { OrganizationSmtpProviderPreset } from '#enums/organization_smtp_provider_preset'
 import { SMTP_ONLY_PROVIDER_PRESETS } from '#enums/organization_smtp_provider_preset'
@@ -52,6 +51,14 @@ export class OrganizationSmtpService {
 
   async getConfig(organizationId: string): Promise<OrganizationSmtpConfigRow | null> {
     return this.configs.findByOrgId(organizationId)
+  }
+
+  async assertConfigured(organizationId: string): Promise<OrganizationSmtpConfigRow> {
+    const configRow = await this.configs.findByOrgId(organizationId)
+    if (!configRow) {
+      throw OrganizationSmtpException.required()
+    }
+    return configRow
   }
 
   async upsertConfig(params: {
@@ -175,17 +182,7 @@ export class OrganizationSmtpService {
   }
 
   async sendOrgEmail(params: SendOrgEmailParams): Promise<SendOrgEmailResult> {
-    const configRow = await this.configs.findByOrgId(params.organizationId)
-
-    if (!configRow) {
-      await mail.send((message) => {
-        message.to(params.to).subject(params.subject).html(params.html)
-        if (params.text) {
-          message.text(params.text)
-        }
-      })
-      return { deferred: false }
-    }
+    const configRow = await this.assertConfigured(params.organizationId)
 
     const input = this.rowToInput(configRow)
     const transportConfig = this.toTransportConfig(input)
