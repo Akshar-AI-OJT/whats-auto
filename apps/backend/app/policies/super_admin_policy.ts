@@ -16,6 +16,10 @@ export default class SuperAdminPolicy extends BasePolicy {
     return user.memberPermissions?.has('platform:tenants_view') ?? false
   }
 
+  suspendTenants(user: AuthzPrincipal): boolean {
+    return user.memberPermissions?.has('platform:tenants_suspend') ?? false
+  }
+
   viewPlatformUsers(user: AuthzPrincipal): boolean {
     return user.memberPermissions?.has('platform:tenants_view') ?? false
   }

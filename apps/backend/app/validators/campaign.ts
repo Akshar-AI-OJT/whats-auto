@@ -137,6 +137,8 @@ export const listCampaignsValidator = vine.create(
     perPage: vine.number().withoutDecimals().min(1).max(100).optional(),
     search: vine.string().trim().minLength(1).maxLength(200).optional(),
     status: vine.enum(CAMPAIGN_STATUSES).optional(),
+    startDate: vine.date().optional(),
+    endDate: vine.date().optional(),
     sortBy: vine.enum(CAMPAIGN_SORT_FIELDS).optional(),
     sortOrder: vine.enum(['asc', 'desc'] as const).optional(),
   })

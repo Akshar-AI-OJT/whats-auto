@@ -68,10 +68,17 @@ export default class InvoiceException extends Exception {
     })
   }
 
-  static actionUnavailable(message = 'This invoice action is not available yet') {
-    return new this(message, {
-      status: 501,
-      code: 'E_INVOICE_ACTION_UNAVAILABLE',
+  static missingRecipient() {
+    return new this('Invoice has no billing email address', {
+      status: 422,
+      code: 'E_INVOICE_RECIPIENT_MISSING',
+    })
+  }
+
+  static sendFailed() {
+    return new this('Invoice email could not be sent', {
+      status: 502,
+      code: 'E_INVOICE_SEND_FAILED',
     })
   }
 

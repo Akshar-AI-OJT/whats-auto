@@ -21,8 +21,10 @@ export const queryKeys = {
   },
   contacts: {
     all: (orgId?: string | null) => ['contacts', orgId ?? 'none'] as const,
-    list: (orgId?: string | null, query?: string) =>
-      [...queryKeys.contacts.all(orgId), 'list', { query: query ?? '' }] as const,
+    list: (orgId?: string | null, params?: Record<string, unknown>) =>
+      [...queryKeys.contacts.all(orgId), 'list', params ?? {}] as const,
+    detail: (orgId?: string | null, contactId?: string | null) =>
+      [...queryKeys.contacts.all(orgId), 'detail', contactId ?? 'none'] as const,
   },
   team: {
     all: (orgId?: string | null) => ['team', orgId ?? 'none'] as const,
@@ -134,13 +136,14 @@ export const queryKeys = {
   },
   analytics: {
     all: ['tenant-analytics'] as const,
-    contacts: ['tenant-analytics', 'contacts'] as const,
-    campaigns: ['tenant-analytics', 'campaigns'] as const,
-    templates: ['tenant-analytics', 'templates'] as const,
-    configs: ['tenant-analytics', 'configs'] as const,
-    conversations: ['tenant-analytics', 'conversations'] as const,
-    tags: ['tenant-analytics', 'tags'] as const,
-    audit: ['tenant-analytics', 'audit'] as const,
+    summary: (orgId?: string | null) =>
+      [...queryKeys.analytics.all, 'summary', orgId ?? 'none'] as const,
+    campaigns: (orgId?: string | null) =>
+      [...queryKeys.analytics.all, 'campaigns', orgId ?? 'none'] as const,
+    configs: (orgId?: string | null) =>
+      [...queryKeys.analytics.all, 'configs', orgId ?? 'none'] as const,
+    audit: (orgId?: string | null) =>
+      [...queryKeys.analytics.all, 'audit', orgId ?? 'none'] as const,
   },
   overview: {
     all: ['dashboard-overview'] as const,
@@ -154,8 +157,8 @@ export const queryKeys = {
       ['dashboard-overview', 'audit', organizationId ?? null] as const,
   },
   audit: {
-    org: (orgId?: string | null, limit?: number) =>
-      ['org-audit-logs', orgId ?? null, limit ?? 50] as const,
+    org: (orgId?: string | null, params?: Record<string, unknown>) =>
+      ['org-audit-logs', orgId ?? null, params ?? {}] as const,
   },
   onboarding: {
     plans: ['onboarding', 'plans'] as const,
@@ -171,6 +174,12 @@ export const queryKeys = {
   admin: {
     organizations: (params?: Record<string, unknown>) =>
       ['admin', 'organizations', params ?? {}] as const,
+    organizationDetail: (organizationId: string) =>
+      ['admin', 'organizations', 'detail', organizationId] as const,
+    organizationMembers: (organizationId: string) =>
+      ['admin', 'organizations', 'members', organizationId] as const,
+    organizationSubscription: (organizationId: string) =>
+      ['admin', 'organizations', 'subscription', organizationId] as const,
     organizationActivity: (organizationId?: string | null) =>
       ['admin-org-activity', organizationId ?? null] as const,
     /** Prefix for invalidating all plan list/detail queries. */
@@ -188,8 +197,8 @@ export const queryKeys = {
       ['admin', 'invoices', 'summary', params ?? {}] as const,
     platformUsers: (params?: Record<string, unknown>) =>
       ['admin', 'platform-users', params ?? {}] as const,
-    auditLogs: (limit?: number, organizationId?: string | null) =>
-      ['admin-audit-logs', limit ?? 50, organizationId ?? null] as const,
+    auditLogs: (params?: Record<string, unknown>) =>
+      ['admin-audit-logs', params ?? {}] as const,
     auditLogOrganizations: ['admin-audit-log-organizations'] as const,
     analytics: {
       all: ['super-admin-analytics'] as const,
@@ -197,6 +206,7 @@ export const queryKeys = {
       subscriptions: ['super-admin-analytics', 'subscriptions'] as const,
       plans: ['super-admin-analytics', 'plans'] as const,
       invoiceSummary: ['super-admin-analytics', 'invoice-summary'] as const,
+      summary: ['super-admin-analytics', 'summary'] as const,
       currentMonthPaidRevenue: ['super-admin-analytics', 'current-month-paid-revenue'] as const,
       platformUsersTotal: ['super-admin-analytics', 'platform-users-total'] as const,
       platformUsers: ['super-admin-analytics', 'platform-users'] as const,
@@ -205,5 +215,35 @@ export const queryKeys = {
         ['super-admin-analytics', 'monthly-revenue', locale, months] as const,
     },
     aiConfig: ['admin', 'ai-config'] as const,
+    platformSettings: ['admin', 'platform-settings'] as const,
   },
 } as const
+
+/** Root keys for organization-scoped React Query caches (not orgs list / access-context). */
+const TENANT_QUERY_ROOTS = new Set<string>([
+  'contacts',
+  'team',
+  'roles',
+  'notifications',
+  'billing',
+  'whatsapp-configs',
+  'whatsapp-templates',
+  'media-library',
+  'knowledge-documents',
+  'flows',
+  'customer-groups',
+  'campaigns',
+  'inbox',
+  'integrations',
+  'tenant-analytics',
+  'dashboard-overview',
+  'org-audit-logs',
+  'global-search',
+  'organization-logo',
+])
+
+/** True when a query cache belongs to the active tenant (drop/refetch on org switch). */
+export function isTenantScopedQueryKey(queryKey: readonly unknown[]): boolean {
+  const root = queryKey[0]
+  return typeof root === 'string' && TENANT_QUERY_ROOTS.has(root)
+}

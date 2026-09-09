@@ -266,46 +266,6 @@ export type LoginBody = {
   password: string
 }
 
-export type DemoAvailabilitySlot = {
-  id: string
-  startTime: string
-  endTime: string
-  label: string
-  available: boolean
-}
-
-export type DemoAvailability = {
-  date: string
-  timeZone: string
-  today: string
-  durationMinutes: number
-  slots: DemoAvailabilitySlot[]
-}
-
-export type CreateDemoBookingBody = {
-  name: string
-  email: string
-  slotId: string
-  timeZone: string
-  company?: string
-  phone?: string
-  companySize?: string
-  purpose?: string
-}
-
-export type DemoBooking = {
-  id: string
-  fullName: string
-  email: string
-  startsAt: string
-  endsAt: string
-  timeZone: string
-  demoTimeZone: string
-  status: string
-  meetingUrl: string | null
-  createdAt: string
-}
-
 export type ProfileUser = {
   id: string
   name: string
@@ -495,6 +455,12 @@ export type ContactSummary = {
   updatedAt?: string | null
 }
 
+export type ListContactsParams = {
+  page?: number
+  perPage?: number
+  search?: string
+}
+
 export type CustomerGroupSummary = {
   id: string
   name: string
@@ -509,6 +475,14 @@ export type CreateContactBody = {
   name?: string
   email?: string
   company?: string
+}
+
+export type UpdateContactBody = {
+  phoneNumber?: string
+  countryCode?: string
+  name?: string | null
+  email?: string | null
+  company?: string | null
 }
 
 export type ContactCsvColumnMapping = {
@@ -550,8 +524,8 @@ export type ImportContactsBody = {
 
 /**
  * UI model for Customer Groups. Backed by `/api/v1/tags` — see `api.tags`
- * and `customer-group-service.ts`. Fields the Tags API does not persist
- * (description, status, type, campaign usage) stay as UI defaults.
+ * and `customer-group-service.ts`. `type` is always static in this UI.
+ * Campaign usage is not mapped into the Customer Group list.
  */
 export type CustomerGroupStatus = 'active' | 'inactive'
 
@@ -600,6 +574,8 @@ export type TagRecord = {
   createdByUserId: string | null
   name: string
   color: string | null
+  description?: string | null
+  status?: CustomerGroupStatus
   createdAt: string
   contactCount: number
 }
@@ -614,11 +590,14 @@ export type TagAssignmentRecord = {
 export type CreateTagBody = {
   name: string
   color?: string | null
+  description?: string | null
 }
 
 export type UpdateTagBody = {
   name?: string
   color?: string | null
+  description?: string | null
+  status?: CustomerGroupStatus
 }
 
 export type AssignTagContactBody = {
@@ -993,6 +972,7 @@ export type ListWhatsappTemplatesParams = {
   status?: string
   category?: string
   search?: string
+  language?: string
 }
 
 export type CreateWhatsappTemplateBody = {
@@ -1055,6 +1035,8 @@ export type ListCampaignsParams = {
   perPage?: number
   search?: string
   status?: string
+  startDate?: string
+  endDate?: string
   sortBy?: string
   sortOrder?: 'asc' | 'desc'
 }
@@ -1153,6 +1135,8 @@ export type Paginated<T> = {
 export type ListOrganizationAdminUsersParams = {
   page?: number
   perPage?: number
+  search?: string
+  role?: string
 }
 
 /** PATCH /api/v1/organization-admin/users/:id */
@@ -1187,7 +1171,86 @@ export type ListAuditParams = {
   limit?: number
   /** Super Admin platform list only — omit for platform-wide events. */
   organizationId?: string
+  search?: string
+  eventType?: string
+  actorUserId?: string
+  targetType?: string
+  dateFrom?: string
+  dateTo?: string
+  /** Audit log pages only — not used by overview/analytics recent lists. */
+  includeFacets?: boolean
 }
+
+export type AuditActorFacet = {
+  id: string
+  name: string | null
+  email: string | null
+}
+
+export type AuditListPayload =
+  | AuthorizationAuditEvent[]
+  | { data?: AuthorizationAuditEvent[]; eventTypes?: string[]; actors?: AuditActorFacet[]; targetTypes?: string[] }
+
+export type AnalyticsBreakdownItem = {
+  key: string
+  label: string
+  value: number
+}
+
+export type TenantAnalyticsSummary = {
+  totalContacts: number
+  contactGrowth: Array<{ key: string; value: number }>
+  totalCampaigns: number
+  totalRecipients: number
+  sentCount: number
+  deliveredCount: number
+  readCount: number
+  repliedCount: number
+  failedCount: number
+  deliveryRate: number
+  campaignStatusBreakdown: AnalyticsBreakdownItem[]
+  totalConversations: number
+  unreadMessages: number
+  conversationStatusBreakdown: AnalyticsBreakdownItem[]
+  connectedWhatsappNumbers: number
+  whatsappStatusBreakdown: AnalyticsBreakdownItem[]
+  totalTemplates: number
+  templateStatusBreakdown: AnalyticsBreakdownItem[]
+  templateCategoryBreakdown: AnalyticsBreakdownItem[]
+  templateUsage: AnalyticsBreakdownItem[]
+  totalGroups: number
+  topGroups: Array<{ id: string; name: string; contactCount: number }>
+}
+
+export type PlatformAnalyticsSummary = {
+  totalOrganizations: number
+  activeOrganizations: number
+  inactiveOrganizations: number
+  trialOrganizations: number
+  organizationGrowth: Array<{ key: string; created: number; cumulative: number }>
+  activeInactive: AnalyticsBreakdownItem[]
+  planDistribution: AnalyticsBreakdownItem[]
+}
+
+export type PendingInvitation = {
+  id: string
+  email: string
+  role: string
+  inviterName: string
+  createdAt: string
+  expiresAt: string
+}
+
+/** Row from GET /api/v1/onboarding/state pendingInvitations. */
+export type OnboardingPendingInvitation = {
+  id: string
+  organizationId?: string
+  organizationName: string
+  role: string
+  inviterName: string
+  expiresAt: string
+}
+
 
 export type OnboardingNextStep =
   'create_organization' | 'select_organization' | 'complete_payment' | 'ready'
@@ -1232,13 +1295,22 @@ export type RoleUpdatePreview = {
   affectedMembers: Array<{ id: string; userId: string }>
 }
 
+/** Organization usability / provisioning status returned by the API. */
+export type OrganizationStatusValue =
+  | 'pending_setup'
+  | 'verified_setup'
+  | 'active'
+  | 'suspended'
+  | 'false'
+
 /** Nested org membership from GET /api/v1/super-admin/platform-users */
 export type SuperAdminPlatformUserOrganization = {
   memberId: string
   organizationId: string
   organizationName: string
   organizationSlug: string
-  organizationStatus: string
+  /** Exact backend status string — never coerced with Boolean(). */
+  organizationStatus: OrganizationStatusValue | string
   role: string
   roleId: string
 }
@@ -1306,6 +1378,24 @@ export type UpdateSuperAdminOrganizationBody = {
 
 export type SuperAdminSubscriptionStatus = 'trialing' | 'active' | 'past_due' | 'cancelled'
 
+export type SuperAdminSubscriptionBillingFilter = 'monthly' | 'custom' | 'all'
+
+export type ListSuperAdminSubscriptionsParams = {
+  page?: number
+  perPage?: number
+  search?: string
+  status?: SuperAdminSubscriptionStatus | 'all'
+  plan?: string
+  billing?: SuperAdminSubscriptionBillingFilter
+}
+
+export type SuperAdminSubscriptionListSummary = {
+  active: number
+  trialing: number
+  past_due: number
+  cancelled: number
+}
+
 /** Row from GET /api/v1/super-admin/subscriptions */
 export type SuperAdminSubscription = {
   id: string
@@ -1326,6 +1416,25 @@ export type CreateSuperAdminSubscriptionBody = {
   currentPeriodStart: string
   currentPeriodEnd: string
   cancelAt?: string
+}
+
+/** Row item from GET /api/v1/super-admin/platform-settings */
+export type PlatformSettingState = 'enabled' | 'disabled' | 'scheduled'
+
+export type PlatformSettingItem = {
+  id: string
+  key: string
+  value: string
+  state: PlatformSettingState
+}
+
+export type PlatformSettingsSnapshot = {
+  branding: PlatformSettingItem[]
+  authentication: PlatformSettingItem[]
+  smtp: PlatformSettingItem[]
+  oauth: PlatformSettingItem[]
+  maintenanceMode: PlatformSettingItem[]
+  configuration: PlatformSettingItem[]
 }
 
 /** Row from GET /api/v1/super-admin/ai-config (no API keys). */
@@ -1895,6 +2004,68 @@ export type GlobalSearchResponse = {
   results: GlobalSearchResult[]
 }
 
+/** GET /api/v1/demo/availability */
+export type DemoAvailabilitySlot = {
+  id: string
+  startTime: string
+  endTime: string
+  label: string
+  available: boolean
+}
+
+export type DemoAvailability = {
+  date: string
+  timeZone: string
+  today: string
+  durationMinutes: number
+  slots: DemoAvailabilitySlot[]
+}
+
+/** POST /api/v1/demo/bookings */
+export type CreateDemoBookingBody = {
+  name: string
+  email: string
+  slotId: string
+  timeZone: string
+  company?: string
+  phone?: string
+  companySize?: string
+  purpose?: string
+}
+
+export type DemoBooking = {
+  id: string
+  fullName: string
+  email: string
+  company: string | null
+  phone: string | null
+  companySize: string | null
+  purpose: string | null
+  startsAt: string
+  endsAt: string
+  timeZone: string
+  demoTimeZone: string
+  status: string
+  meetingUrl: string | null
+  calendarEventId: string | null
+  createdAt: string
+}
+
+function auditListQueryString(params: ListAuditParams) {
+  const qs = new URLSearchParams()
+  if (params.limit != null) qs.set('limit', String(params.limit))
+  if (params.organizationId) qs.set('organizationId', params.organizationId)
+  const search = params.search?.trim()
+  if (search) qs.set('search', search)
+  if (params.eventType) qs.set('eventType', params.eventType)
+  if (params.actorUserId) qs.set('actorUserId', params.actorUserId)
+  if (params.targetType) qs.set('targetType', params.targetType)
+  if (params.dateFrom) qs.set('dateFrom', params.dateFrom)
+  if (params.dateTo) qs.set('dateTo', params.dateTo)
+  if (params.includeFacets) qs.set('includeFacets', 'true')
+  return qs.toString()
+}
+
 export const api = {
   auth: {
     signup: (body: SignupBody) =>
@@ -2083,16 +2254,42 @@ export const api = {
   },
 
   contacts: {
-    list: () =>
-      protectedRequest<{ data?: ContactSummary[] } | ContactSummary[]>('/api/v1/contacts', {
+    list: (params: ListContactsParams = {}) => {
+      const qs = new URLSearchParams()
+      if (params.page != null) qs.set('page', String(params.page))
+      if (params.perPage != null) qs.set('perPage', String(params.perPage))
+      const search = params.search?.trim()
+      if (search) qs.set('search', search)
+      const query = qs.toString()
+      return protectedRequest<
+        | Paginated<ContactSummary>
+        | { data?: ContactSummary[]; meta?: PaginationMeta }
+        | ContactSummary[]
+      >(`/api/v1/contacts${query ? `?${query}` : ''}`, {
         method: 'GET',
-      }),
+      })
+    },
 
     create: (body: CreateContactBody) =>
       protectedRequest<{ data?: ContactSummary } & ContactSummary>('/api/v1/contacts', {
         method: 'POST',
         body: JSON.stringify(body),
       }),
+
+    get: (contactId: string) =>
+      protectedRequest<{ data?: ContactSummary } & ContactSummary>(
+        `/api/v1/contacts/${contactId}`,
+        { method: 'GET' }
+      ),
+
+    update: (contactId: string, body: UpdateContactBody) =>
+      protectedRequest<{ data?: ContactSummary } & ContactSummary>(
+        `/api/v1/contacts/${contactId}`,
+        {
+          method: 'PATCH',
+          body: JSON.stringify(body),
+        }
+      ),
 
     delete: (contactId: string) =>
       protectedRequest<{ data?: { ok: boolean } } & { ok: boolean }>(
@@ -2365,6 +2562,7 @@ export const api = {
       if (params.status) qs.set('status', params.status)
       if (params.category) qs.set('category', params.category)
       if (params.search?.trim()) qs.set('search', params.search.trim())
+      if (params.language?.trim()) qs.set('language', params.language.trim())
       const query = qs.toString()
       return protectedRequest<
         | Paginated<WhatsappMessageTemplate>
@@ -2664,6 +2862,8 @@ export const api = {
       if (params.perPage != null) qs.set('perPage', String(params.perPage))
       if (params.search?.trim()) qs.set('search', params.search.trim())
       if (params.status) qs.set('status', params.status)
+      if (params.startDate?.trim()) qs.set('startDate', params.startDate.trim())
+      if (params.endDate?.trim()) qs.set('endDate', params.endDate.trim())
       if (params.sortBy) qs.set('sortBy', params.sortBy)
       if (params.sortOrder) qs.set('sortOrder', params.sortOrder)
       const query = qs.toString()
@@ -2786,16 +2986,19 @@ export const api = {
      * Active-organization scoped. Requires audit:view.
      */
     list: (params: ListAuditParams = {}) => {
-      const qs = new URLSearchParams()
-      if (params.limit != null) qs.set('limit', String(params.limit))
-      const query = qs.toString()
-      return protectedRequest<{ data?: AuthorizationAuditEvent[] } | AuthorizationAuditEvent[]>(
-        `/api/v1/audit${query ? `?${query}` : ''}`,
-        {
-          method: 'GET',
-        }
-      )
+      const query = auditListQueryString(params)
+      return protectedRequest<AuditListPayload>(`/api/v1/audit${query ? `?${query}` : ''}`, {
+        method: 'GET',
+      })
     },
+  },
+
+  analytics: {
+    summary: () =>
+      protectedRequest<{ data?: TenantAnalyticsSummary } & TenantAnalyticsSummary>(
+        '/api/v1/analytics/summary',
+        { method: 'GET' }
+      ),
   },
 
   organizationAdmin: {
@@ -2807,6 +3010,10 @@ export const api = {
       const qs = new URLSearchParams()
       if (params.page != null) qs.set('page', String(params.page))
       if (params.perPage != null) qs.set('perPage', String(params.perPage))
+      const search = params.search?.trim()
+      if (search) qs.set('search', search)
+      const role = params.role?.trim()
+      if (role) qs.set('role', role)
       const query = qs.toString()
       return protectedRequest<
         Paginated<OrganizationAdminUser> | { data?: OrganizationAdminUser[]; meta?: PaginationMeta }
@@ -2928,6 +3135,12 @@ export const api = {
         })
       },
 
+      get: (organizationId: string) =>
+        protectedRequest<{ data?: SuperAdminOrganization } & SuperAdminOrganization>(
+          `/api/v1/super-admin/organizations/${organizationId}`,
+          { method: 'GET' }
+        ),
+
       update: (organizationId: string, body: UpdateSuperAdminOrganizationBody) =>
         protectedRequest<{ data?: SuperAdminOrganization } & SuperAdminOrganization>(
           `/api/v1/super-admin/organizations/${organizationId}`,
@@ -2935,6 +3148,18 @@ export const api = {
             method: 'PATCH',
             body: JSON.stringify(body),
           }
+        ),
+
+      suspend: (organizationId: string) =>
+        protectedRequest<{ data?: SuperAdminOrganization } & SuperAdminOrganization>(
+          `/api/v1/super-admin/organizations/${organizationId}/suspend`,
+          { method: 'POST' }
+        ),
+
+      activate: (organizationId: string) =>
+        protectedRequest<{ data?: SuperAdminOrganization } & SuperAdminOrganization>(
+          `/api/v1/super-admin/organizations/${organizationId}/activate`,
+          { method: 'POST' }
         ),
 
       destroy: (organizationId: string) =>
@@ -2945,14 +3170,24 @@ export const api = {
     },
 
     subscriptions: {
-      list: (params: { page?: number; perPage?: number } = {}) => {
+      list: (params: ListSuperAdminSubscriptionsParams = {}) => {
         const qs = new URLSearchParams()
         if (params.page != null) qs.set('page', String(params.page))
         if (params.perPage != null) qs.set('perPage', String(params.perPage))
+        const search = params.search?.trim()
+        if (search) qs.set('search', search)
+        if (params.status && params.status !== 'all') qs.set('status', params.status)
+        const plan = params.plan?.trim()
+        if (plan) qs.set('plan', plan)
+        if (params.billing && params.billing !== 'all') qs.set('billing', params.billing)
         const query = qs.toString()
         return protectedRequest<
           | Paginated<SuperAdminSubscription>
-          | { data?: SuperAdminSubscription[]; meta?: PaginationMeta }
+          | {
+              data?: SuperAdminSubscription[]
+              meta?: PaginationMeta
+              summary?: SuperAdminSubscriptionListSummary
+            }
         >(`/api/v1/super-admin/subscriptions${query ? `?${query}` : ''}`, {
           method: 'GET',
         })
@@ -3133,19 +3368,32 @@ export const api = {
         ),
     },
 
+    platformSettings: {
+      get: () =>
+        protectedRequest<{ data?: PlatformSettingsSnapshot } & PlatformSettingsSnapshot>(
+          '/api/v1/super-admin/platform-settings',
+          { method: 'GET' }
+        ),
+    },
+
     auditLogs: {
       list: (params: ListAuditParams = {}) => {
-        const qs = new URLSearchParams()
-        if (params.limit != null) qs.set('limit', String(params.limit))
-        if (params.organizationId) qs.set('organizationId', params.organizationId)
-        const query = qs.toString()
-        return protectedRequest<{ data?: AuthorizationAuditEvent[] } | AuthorizationAuditEvent[]>(
+        const query = auditListQueryString(params)
+        return protectedRequest<AuditListPayload>(
           `/api/v1/super-admin/audit-logs${query ? `?${query}` : ''}`,
           {
             method: 'GET',
           }
         )
       },
+    },
+
+    analytics: {
+      summary: () =>
+        protectedRequest<{ data?: PlatformAnalyticsSummary } & PlatformAnalyticsSummary>(
+          '/api/v1/super-admin/analytics/summary',
+          { method: 'GET' }
+        ),
     },
 
     platformUsers: {

@@ -97,8 +97,73 @@ export type ListCampaignsInput = {
   perPage?: number
   search?: string
   status?: string
+  /** Vine `vine.date()` yields Luxon DateTime; tests and callers may pass Date or YYYY-MM-DD. */
+  startDate?: DateTime | Date | string
+  endDate?: DateTime | Date | string
   sortBy?: string
   sortOrder?: 'asc' | 'desc'
+}
+
+function isLuxonDateTime(value: DateTime | Date | string): value is DateTime {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    !(value instanceof Date) &&
+    typeof value.toJSDate === 'function'
+  )
+}
+
+function toJsDate(value: DateTime | Date | string): Date {
+  if (value instanceof Date) return value
+  if (typeof value === 'string') return new Date(value)
+  return value.toJSDate()
+}
+
+function isUtcMidnight(date: Date): boolean {
+  return (
+    date.getUTCHours() === 0 &&
+    date.getUTCMinutes() === 0 &&
+    date.getUTCSeconds() === 0 &&
+    date.getUTCMilliseconds() === 0
+  )
+}
+
+function isDateOnlyString(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value.trim())
+}
+
+function isStartOfCalendarDay(value: DateTime | Date | string, date: Date): boolean {
+  if (typeof value === 'string' && isDateOnlyString(value)) return true
+  if (isLuxonDateTime(value)) {
+    return value.hour === 0 && value.minute === 0 && value.second === 0 && value.millisecond === 0
+  }
+  return isUtcMidnight(date)
+}
+
+/** Inclusive start bound. Date-only values stay at the start of that calendar day. */
+function toInclusiveStart(value: DateTime | Date | string): Date {
+  if (typeof value === 'string' && isDateOnlyString(value)) {
+    return new Date(`${value.trim()}T00:00:00.000Z`)
+  }
+  return toJsDate(value)
+}
+
+/**
+ * Inclusive end bound. Date-only / start-of-day values expand to the last millisecond
+ * of that calendar day (Luxon zone for DateTime, UTC for YYYY-MM-DD strings).
+ */
+function toInclusiveEnd(value: DateTime | Date | string): Date {
+  if (typeof value === 'string' && isDateOnlyString(value)) {
+    return new Date(`${value.trim()}T23:59:59.999Z`)
+  }
+  if (isLuxonDateTime(value) && isStartOfCalendarDay(value, value.toJSDate())) {
+    return value.endOf('day').toJSDate()
+  }
+  const date = toJsDate(value)
+  if (Number.isNaN(date.getTime()) || !isUtcMidnight(date)) return date
+  const end = new Date(date)
+  end.setUTCHours(23, 59, 59, 999)
+  return end
 }
 
 export type UpdateCampaignInput = {
@@ -916,6 +981,18 @@ export class CampaignService {
     if (input.search) {
       const term = `%${input.search}%`
       query = query.whereILike('name', term)
+    }
+
+    if (input.startDate) {
+      query = query.whereRaw('coalesce("createdAt", "scheduledAt") >= ?', [
+        toInclusiveStart(input.startDate),
+      ])
+    }
+
+    if (input.endDate) {
+      query = query.whereRaw('coalesce("createdAt", "scheduledAt") <= ?', [
+        toInclusiveEnd(input.endDate),
+      ])
     }
 
     const countResult = await query.clone().count('* as total').first()

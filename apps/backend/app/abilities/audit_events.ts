@@ -1,6 +1,8 @@
 export const PLATFORM_AUDIT_EVENT_TYPES = [
   'organization.created',
   'organization.updated',
+  'organization.suspended',
+  'organization.activated',
   'organization.soft_deleted',
   'ownership.transferred',
   'subscription.created',
@@ -8,6 +10,7 @@ export const PLATFORM_AUDIT_EVENT_TYPES = [
   'subscription.cancelled',
   'invoice.created',
   'invoice.marked_paid',
+  'invoice.sent',
   'plan.created',
   'plan.updated',
   'ai_config.updated',
