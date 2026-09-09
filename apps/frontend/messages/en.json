@@ -3327,6 +3327,29 @@
           "secureOn": "ON",
           "secureOff": "OFF"
         },
+        "placeholders": {
+          "senderName": "Acme Support",
+          "senderEmail": "noreply@yourcompany.com",
+          "host": {
+            "gmail": "smtp.gmail.com",
+            "ses": "email-smtp.us-east-1.amazonaws.com",
+            "custom": "smtp.yourdomain.com"
+          },
+          "port": "587",
+          "username": {
+            "gmail": "you@gmail.com",
+            "ses": "AKIA… SMTP username",
+            "custom": "smtp-username"
+          },
+          "password": "Your SMTP password",
+          "appPassword": "xxxx xxxx xxxx xxxx",
+          "apiKey": {
+            "sendgrid": "SG.xxxxxxxx",
+            "resend": "re_xxxxxxxx",
+            "brevo": "xkeysib-xxxxxxxx",
+            "default": "Paste your API key"
+          }
+        },
         "actions": {
           "save": "Save configuration",
           "test": "Test connection",

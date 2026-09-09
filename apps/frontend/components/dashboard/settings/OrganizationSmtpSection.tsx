@@ -418,6 +418,32 @@ export function OrganizationSmtpSection() {
   const authPasswordLabel =
     form.providerPreset === 'gmail' ? t('fields.appPassword') : t('fields.password')
 
+  const hostPlaceholder =
+    form.providerPreset === 'gmail' || form.providerPreset === 'ses'
+      ? t(`placeholders.host.${form.providerPreset}`)
+      : t('placeholders.host.custom')
+
+  const usernamePlaceholder =
+    form.providerPreset === 'gmail' || form.providerPreset === 'ses'
+      ? t(`placeholders.username.${form.providerPreset}`)
+      : t('placeholders.username.custom')
+
+  const passwordInputPlaceholder =
+    hasSavedConfig && config?.hasPassword
+      ? t('fields.passwordPlaceholder')
+      : form.providerPreset === 'gmail'
+        ? t('placeholders.appPassword')
+        : t('placeholders.password')
+
+  const apiKeyInputPlaceholder =
+    hasSavedConfig && config?.hasApiKey
+      ? t('fields.apiKeyPlaceholder')
+      : form.providerPreset === 'sendgrid' ||
+          form.providerPreset === 'resend' ||
+          form.providerPreset === 'brevo'
+        ? t(`placeholders.apiKey.${form.providerPreset}`)
+        : t('placeholders.apiKey.default')
+
   const pending = saveMutation.isPending || testMutation.isPending || deleteMutation.isPending
   const isSmtp = form.transport === 'smtp'
   const isApi = form.transport === 'api'
@@ -641,6 +667,7 @@ export function OrganizationSmtpSection() {
                       id="smtp-sender-name"
                       className={authInputClassName}
                       autoComplete="organization"
+                      placeholder={t('placeholders.senderName')}
                       value={form.senderName}
                       disabled={pending}
                       onChange={(event) =>
@@ -658,6 +685,7 @@ export function OrganizationSmtpSection() {
                       className={authInputClassName}
                       type="email"
                       autoComplete="email"
+                      placeholder={t('placeholders.senderEmail')}
                       value={form.senderEmail}
                       disabled={pending}
                       onChange={(event) =>
@@ -688,6 +716,8 @@ export function OrganizationSmtpSection() {
                     form={form}
                     pending={pending}
                     patchForm={patchForm}
+                    hostPlaceholder={hostPlaceholder}
+                    portPlaceholder={t('placeholders.port')}
                     t={t}
                   />
                 </section>
@@ -726,6 +756,8 @@ export function OrganizationSmtpSection() {
                         form={form}
                         pending={pending}
                         patchForm={patchForm}
+                        hostPlaceholder={hostPlaceholder}
+                        portPlaceholder={t('placeholders.port')}
                         t={t}
                       />
                     </div>
@@ -754,6 +786,7 @@ export function OrganizationSmtpSection() {
                         id="smtp-username"
                         className={authInputClassName}
                         autoComplete="username"
+                        placeholder={usernamePlaceholder}
                         value={form.username}
                         disabled={pending}
                         onChange={(event) =>
@@ -771,11 +804,7 @@ export function OrganizationSmtpSection() {
                         className={authInputClassName}
                         type="password"
                         autoComplete="new-password"
-                        placeholder={
-                          hasSavedConfig && config?.hasPassword
-                            ? t('fields.passwordPlaceholder')
-                            : undefined
-                        }
+                        placeholder={passwordInputPlaceholder}
                         value={form.password}
                         disabled={pending}
                         onChange={(event) =>
@@ -797,11 +826,7 @@ export function OrganizationSmtpSection() {
                       className={authInputClassName}
                       type="password"
                       autoComplete="new-password"
-                      placeholder={
-                        hasSavedConfig && config?.hasApiKey
-                          ? t('fields.apiKeyPlaceholder')
-                          : undefined
-                      }
+                      placeholder={apiKeyInputPlaceholder}
                       value={form.apiKey}
                       disabled={pending}
                       onChange={(event) =>
@@ -1003,11 +1028,15 @@ function SmtpConnectionFields({
   form,
   pending,
   patchForm,
+  hostPlaceholder,
+  portPlaceholder,
   t,
 }: {
   form: FormState
   pending: boolean
   patchForm: (updater: (prev: FormState) => FormState) => void
+  hostPlaceholder: string
+  portPlaceholder: string
   t: ReturnType<typeof useTranslations>
 }) {
   return (
@@ -1018,6 +1047,7 @@ function SmtpConnectionFields({
           id="smtp-host"
           className={authInputClassName}
           autoComplete="off"
+          placeholder={hostPlaceholder}
           value={form.host}
           disabled={pending}
           onChange={(event) =>
@@ -1032,6 +1062,7 @@ function SmtpConnectionFields({
           className={authInputClassName}
           inputMode="numeric"
           autoComplete="off"
+          placeholder={portPlaceholder}
           value={form.port}
           disabled={pending}
           onChange={(event) =>
