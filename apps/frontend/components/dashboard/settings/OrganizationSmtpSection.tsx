@@ -1,16 +1,10 @@
 'use client'
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
-import {
-  Check,
-  ChevronDown,
-  Cloud,
-  Loader2,
-  MoreHorizontal,
-  Server,
-} from 'lucide-react'
+import { Check, ChevronDown, Cloud, Loader2, MoreHorizontal, Server } from 'lucide-react'
 import { FaAws } from 'react-icons/fa'
 import { SiBrevo, SiGmail, SiResend } from 'react-icons/si'
 import {
@@ -225,13 +219,7 @@ function SendGridMark({ className }: { className?: string }) {
   )
 }
 
-function StatusDot({
-  status,
-  className,
-}: {
-  status: ConnectionUiStatus
-  className?: string
-}) {
+function StatusDot({ status, className }: { status: ConnectionUiStatus; className?: string }) {
   return (
     <span
       className={cn(
@@ -250,6 +238,7 @@ function StatusDot({
 export function OrganizationSmtpSection() {
   const t = useTranslations('dashboard.settings.smtp')
   const queryClient = useQueryClient()
+  const searchParams = useSearchParams()
   const { canManageSettings, tenantOrganizationId } = useOrganizations()
   const [draft, setDraft] = useState<FormState | null>(null)
   const [providerChosen, setProviderChosen] = useState(false)
@@ -260,6 +249,13 @@ export function OrganizationSmtpSection() {
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const menuId = useId()
+
+  useEffect(() => {
+    if (searchParams.get('section') !== 'smtp') return
+    const el = document.getElementById('organization-smtp')
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [searchParams])
 
   const smtpQuery = useQuery({
     queryKey: queryKeys.organizations.smtp(tenantOrganizationId),
@@ -326,7 +322,8 @@ export function OrganizationSmtpSection() {
         username: form.transport === 'smtp' ? form.username.trim() : null,
         password:
           form.transport === 'smtp' ? (normalizeMailSecret(form.password) ?? undefined) : undefined,
-        apiKey: form.transport === 'api' ? (normalizeMailSecret(form.apiKey) ?? undefined) : undefined,
+        apiKey:
+          form.transport === 'api' ? (normalizeMailSecret(form.apiKey) ?? undefined) : undefined,
       }
       return api.organizations.updateSmtp(tenantOrganizationId!, body)
     },
@@ -447,15 +444,14 @@ export function OrganizationSmtpSection() {
   const pending = saveMutation.isPending || testMutation.isPending || deleteMutation.isPending
   const isSmtp = form.transport === 'smtp'
   const isApi = form.transport === 'api'
-  const useAdvancedConnection =
-    isSmtp && ADVANCED_CONNECTION_PRESETS.has(form.providerPreset)
+  const useAdvancedConnection = isSmtp && ADVANCED_CONNECTION_PRESETS.has(form.providerPreset)
 
   if (!tenantOrganizationId || !canManageSettings) {
     return null
   }
 
   return (
-    <DashboardPanel as="section" className="p-4 sm:p-5 md:p-6">
+    <DashboardPanel as="section" id="organization-smtp" className="scroll-mt-24 p-4 sm:p-5 md:p-6">
       <DashboardSectionHeader
         title={t('title')}
         description={t('description')}
@@ -468,8 +464,7 @@ export function OrganizationSmtpSection() {
               connectionStatus === 'failed' && 'border-negative/30 bg-negative/5 text-negative',
               connectionStatus === 'testing' &&
                 'border-warning/35 bg-dash-warn-soft text-warning-content',
-              connectionStatus === 'notConfigured' &&
-                'border-dash-border bg-dash-surface text-body'
+              connectionStatus === 'notConfigured' && 'border-dash-border bg-dash-surface text-body'
             )}
             role="status"
             aria-live="polite"
@@ -492,9 +487,7 @@ export function OrganizationSmtpSection() {
           <div className="flex items-start gap-3">
             <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl border border-dash-border bg-canvas">
               <ProviderIcon
-                preset={
-                  isProviderPreset(config.providerPreset) ? config.providerPreset : 'custom'
-                }
+                preset={isProviderPreset(config.providerPreset) ? config.providerPreset : 'custom'}
               />
             </span>
             <div className="min-w-0 flex-1">
@@ -588,8 +581,7 @@ export function OrganizationSmtpSection() {
               {PRESET_OPTIONS.map((preset) => {
                 const selected = showFormFields && form.providerPreset === preset
                 const isSavedProvider = config?.providerPreset === preset
-                const savedConnected =
-                  isSavedProvider && config?.status === 'verified'
+                const savedConnected = isSavedProvider && config?.status === 'verified'
                 const savedFailed = isSavedProvider && config?.status === 'failed'
 
                 return (
@@ -601,7 +593,7 @@ export function OrganizationSmtpSection() {
                     disabled={pending}
                     onClick={() => selectProvider(preset)}
                     className={cn(
-                      'group relative flex min-h-[5.5rem] flex-col items-start gap-2 rounded-2xl border p-3.5 text-left transition-[border-color,background-color,box-shadow]',
+                      'group relative flex min-h-22 flex-col items-start gap-2 rounded-2xl border p-3.5 text-left transition-[border-color,background-color,box-shadow]',
                       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/20 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas',
                       selected
                         ? 'border-primary bg-primary-pale/40 ring-1 ring-primary/25'
@@ -876,7 +868,7 @@ export function OrganizationSmtpSection() {
                           }))
                         }
                         className={cn(
-                          'relative inline-flex h-7 w-[3.25rem] shrink-0 items-center rounded-full border transition-colors',
+                          'relative inline-flex h-7 w-13 shrink-0 items-center rounded-full border transition-colors',
                           'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/20 focus-visible:ring-offset-2 focus-visible:ring-offset-canvas',
                           form.secure
                             ? 'border-primary bg-primary'
@@ -899,9 +891,7 @@ export function OrganizationSmtpSection() {
           ) : null}
         </FieldGroup>
 
-        {error ? (
-          <FieldError role="alert">{error}</FieldError>
-        ) : null}
+        {error ? <FieldError role="alert">{error}</FieldError> : null}
         {success ? (
           <p role="status" className="text-sm text-positive-deep">
             {success}
@@ -930,7 +920,7 @@ export function OrganizationSmtpSection() {
                     id={menuId}
                     role="menu"
                     className={cn(
-                      'absolute bottom-[calc(100%+0.35rem)] right-0 z-20 min-w-[11rem] overflow-hidden rounded-xl border border-dash-border bg-canvas py-1',
+                      'absolute bottom-[calc(100%+0.35rem)] right-0 z-20 min-w-44 overflow-hidden rounded-xl border border-dash-border bg-canvas py-1',
                       'shadow-[0_12px_32px_rgb(15_23_42/0.1),0_2px_6px_rgb(15_23_42/0.04)]'
                     )}
                   >
@@ -1050,9 +1040,7 @@ function SmtpConnectionFields({
           placeholder={hostPlaceholder}
           value={form.host}
           disabled={pending}
-          onChange={(event) =>
-            patchForm((current) => ({ ...current, host: event.target.value }))
-          }
+          onChange={(event) => patchForm((current) => ({ ...current, host: event.target.value }))}
         />
       </Field>
       <Field>
@@ -1065,9 +1053,7 @@ function SmtpConnectionFields({
           placeholder={portPlaceholder}
           value={form.port}
           disabled={pending}
-          onChange={(event) =>
-            patchForm((current) => ({ ...current, port: event.target.value }))
-          }
+          onChange={(event) => patchForm((current) => ({ ...current, port: event.target.value }))}
         />
       </Field>
     </div>

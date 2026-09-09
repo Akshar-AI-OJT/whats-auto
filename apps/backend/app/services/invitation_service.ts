@@ -6,6 +6,7 @@ import { DateTime } from 'luxon'
 import env from '#start/env'
 import InvitationException from '#exceptions/invitation_exception'
 import OrganizationException from '#exceptions/organization_exception'
+import OrganizationSmtpException from '#exceptions/organization_smtp_exception'
 import { OrganizationStatus } from '#enums/organization_status'
 import { PlanEnforcementService } from '#services/billing/plan_enforcement_service'
 import { resolveAssignableRoleForOrg } from '#services/role_service'
@@ -73,6 +74,8 @@ export class InvitationService {
     if (org.status !== OrganizationStatus.ACTIVE) {
       throw InvitationException.organizationNotProvisioned()
     }
+
+    await new OrganizationSmtpService().assertConfigured(organizationId)
 
     const preCheckUser = await db
       .from('users')
@@ -344,6 +347,9 @@ export class InvitationService {
       }
       emailSent = true
     } catch (error) {
+      if (error instanceof OrganizationSmtpException) {
+        throw error
+      }
       const errorMessage = error instanceof Error ? error.message : String(error)
       logger.error(
         { email: normalizedEmail, userId, invitationId, err: errorMessage },
@@ -372,6 +378,8 @@ export class InvitationService {
     actorUserId: string
   }) {
     const { memberId, organizationId, actorUserId } = params
+
+    await new OrganizationSmtpService().assertConfigured(organizationId)
 
     const member = await db
       .from('organization_members as m')
@@ -473,6 +481,9 @@ export class InvitationService {
         resetLink,
       })
     } catch (error) {
+      if (error instanceof OrganizationSmtpException) {
+        throw error
+      }
       const errorMessage = error instanceof Error ? error.message : String(error)
       logger.error(
         { email: member.email, userId, invitationId, err: errorMessage },

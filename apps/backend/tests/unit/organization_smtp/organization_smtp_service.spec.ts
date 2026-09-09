@@ -103,6 +103,36 @@ test.group('OrganizationSmtpService', () => {
     assert.isTrue(enqueued)
   })
 
+  test('sendOrgEmail throws when org SMTP is not configured', async ({ assert }) => {
+    const smtpTransport: OrgMailTransport = {
+      async verify() {},
+      async send() {},
+    }
+
+    const configs = {
+      findByOrgId: async () => null,
+      upsertForOrg: async () => makeRow(),
+      deleteForOrg: async () => true,
+      updateStatus: async () => makeRow(),
+    } as unknown as OrganizationSmtpConfigRepository
+
+    const service = new OrganizationSmtpService(configs, smtpTransport, smtpTransport)
+
+    try {
+      await service.sendOrgEmail({
+        organizationId: 'org-1',
+        to: 'invitee@example.com',
+        subject: 'Invite',
+        html: '<p>Hi</p>',
+        emailKind: 'invitation',
+      })
+      assert.fail('expected E_ORG_SMTP_REQUIRED')
+    } catch (error) {
+      assert.instanceOf(error, OrganizationSmtpException)
+      assert.equal((error as OrganizationSmtpException).code, 'E_ORG_SMTP_REQUIRED')
+    }
+  })
+
   test('SMTP-only preset set includes gmail and ses', ({ assert }) => {
     assert.isTrue(SMTP_ONLY_PROVIDER_PRESETS.has(OrganizationSmtpProviderPreset.GMAIL))
     assert.isTrue(SMTP_ONLY_PROVIDER_PRESETS.has(OrganizationSmtpProviderPreset.SES))
