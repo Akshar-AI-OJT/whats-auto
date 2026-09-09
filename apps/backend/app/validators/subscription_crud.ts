@@ -9,6 +9,10 @@ export const listSuperAdminSubscriptionsValidator = vine.create(
   vine.object({
     page: vine.number().withoutDecimals().min(1).optional(),
     perPage: vine.number().withoutDecimals().min(1).max(100).optional(),
+    search: vine.string().trim().maxLength(200).optional(),
+    status: vine.enum([...SUBSCRIPTION_STATUSES, 'all']).optional(),
+    plan: vine.string().trim().uuid().optional(),
+    billing: vine.enum(['monthly', 'custom', 'all']).optional(),
   })
 )
 

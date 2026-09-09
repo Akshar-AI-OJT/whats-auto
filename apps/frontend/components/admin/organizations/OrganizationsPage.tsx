@@ -24,9 +24,11 @@ import { KPIStatCard } from '@/components/dashboard/overview/KPIStatCard'
 import { useRouter } from '@/i18n/navigation'
 import type { SuperAdminPlan, SuperAdminSubscription } from '@/lib/api'
 import {
+  activateSuperAdminOrganization,
   deleteSuperAdminOrganization,
   listAllSuperAdminOrganizations,
   mapOrgApiError,
+  suspendSuperAdminOrganization,
   updateSuperAdminOrganization,
   type AdminOrganizationListItem,
   type AdminOrganizationUiStatus,
@@ -47,6 +49,13 @@ import { OrganizationDetailDrawer, type OrganizationRow } from './OrganizationDe
 type StatusFilter = 'all' | AdminOrganizationUiStatus
 /** Filter by live plan UUID (`all` = any / no subscription). */
 type PlanFilter = 'all' | string
+
+type StatusDialogAction = 'suspend' | 'activate' | 'archived'
+
+type StatusDialogTarget = {
+  organization: AdminOrganizationListItem
+  action: StatusDialogAction
+}
 
 const PER_PAGE = 20
 const selectClassName = cn(
@@ -196,7 +205,9 @@ export function OrganizationsPage() {
   const [deleteTarget, setDeleteTarget] = useState<AdminOrganizationListItem | null>(null)
   const [deletePending, setDeletePending] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
-  const [statusTarget, setStatusTarget] = useState<AdminOrganizationListItem | null>(null)
+  const [statusTarget, setStatusTarget] = useState<StatusDialogTarget | null>(null)
+  const [statusPending, setStatusPending] = useState(false)
+  const [statusError, setStatusError] = useState<string | null>(null)
 
   const [editTarget, setEditTarget] = useState<AdminOrganizationListItem | null>(null)
   const [editForm, setEditForm] = useState<EditFormState | null>(null)
@@ -299,7 +310,8 @@ export function OrganizationsPage() {
       }
 
       if (action === 'suspend' || action === 'activate') {
-        setStatusTarget(organization)
+        setStatusTarget({ organization, action })
+        setStatusError(null)
         return
       }
 
@@ -332,6 +344,36 @@ export function OrganizationsPage() {
       setDeleteError(mapOrgApiError(err, t('errors.deleteFailed')))
     } finally {
       setDeletePending(false)
+    }
+  }
+
+  async function handleStatusConfirm() {
+    if (!statusTarget || statusTarget.action === 'archived') return
+    const { organization, action } = statusTarget
+    setStatusPending(true)
+    setStatusError(null)
+    try {
+      const updated =
+        action === 'suspend'
+          ? await suspendSuperAdminOrganization(organization.id)
+          : await activateSuperAdminOrganization(organization.id)
+      patchOrganizations((prev) => prev.map((org) => (org.id === updated.id ? updated : org)))
+      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.organizationDetail(updated.id) })
+      setActionMessage(
+        action === 'suspend'
+          ? t('toast.suspended', { name: organization.name })
+          : t('toast.activated', { name: organization.name })
+      )
+      setStatusTarget(null)
+    } catch (err) {
+      setStatusError(
+        mapOrgApiError(
+          err,
+          statusTarget.action === 'suspend' ? t('errors.suspendFailed') : t('errors.activateFailed')
+        )
+      )
+    } finally {
+      setStatusPending(false)
     }
   }
 
@@ -743,14 +785,25 @@ export function OrganizationsPage() {
           setSelectedId(null)
           router.push(`/admin/organizations/${org.id}`)
         }}
-        onChangeStatus={(org) => setStatusTarget(org)}
+        onChangeStatus={(org) => {
+          const action: StatusDialogAction =
+            org.uiStatus === 'archived'
+              ? 'archived'
+              : org.uiStatus === 'suspended'
+                ? 'activate'
+                : 'suspend'
+          setStatusTarget({ organization: org, action })
+          setStatusError(null)
+        }}
       />
 
       {statusTarget ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 backdrop-blur-[2px]"
           role="presentation"
-          onClick={() => setStatusTarget(null)}
+          onClick={() => {
+            if (!statusPending) setStatusTarget(null)
+          }}
         >
           <div
             role="dialog"
@@ -760,28 +813,52 @@ export function OrganizationsPage() {
             onClick={(e) => e.stopPropagation()}
           >
             <h2 id={statusTitleId} className="font-display text-lg tracking-tight text-ink">
-              {t('statusDialog.title')}
+              {statusTarget.action === 'activate'
+                ? t('statusDialog.activateTitle')
+                : statusTarget.action === 'suspend'
+                  ? t('statusDialog.suspendTitle')
+                  : t('statusDialog.archivedTitle')}
             </h2>
             <p className="mt-2 text-sm leading-6 text-body">
-              {statusTarget.uiStatus === 'archived'
-                ? t('statusDialog.archivedBody', { name: statusTarget.name })
-                : t('statusDialog.body', { name: statusTarget.name })}
+              {statusTarget.action === 'activate'
+                ? t('statusDialog.activateBody', { name: statusTarget.organization.name })
+                : statusTarget.action === 'suspend'
+                  ? t('statusDialog.suspendBody', { name: statusTarget.organization.name })
+                  : t('statusDialog.archivedBody', { name: statusTarget.organization.name })}
             </p>
+            {statusError ? (
+              <p role="alert" className="mt-3 text-sm text-negative">
+                {statusError}
+              </p>
+            ) : null}
             <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <Button type="button" variant="outline" onClick={() => setStatusTarget(null)}>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={statusPending}
+                onClick={() => setStatusTarget(null)}
+              >
                 {t('statusDialog.cancel')}
               </Button>
-              {statusTarget.uiStatus === 'archived' ? null : (
+              {statusTarget.action === 'archived' ? null : (
                 <Button
                   type="button"
-                  variant="destructive"
-                  onClick={() => {
-                    setDeleteTarget(statusTarget)
-                    setDeleteError(null)
-                    setStatusTarget(null)
-                  }}
+                  disabled={statusPending}
+                  className="gap-2"
+                  onClick={() => void handleStatusConfirm()}
                 >
-                  {t('statusDialog.archive')}
+                  {statusPending ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                      {statusTarget.action === 'suspend'
+                        ? t('statusDialog.suspending')
+                        : t('statusDialog.activating')}
+                    </>
+                  ) : statusTarget.action === 'suspend' ? (
+                    t('statusDialog.confirmSuspend')
+                  ) : (
+                    t('statusDialog.confirmActivate')
+                  )}
                 </Button>
               )}
             </div>

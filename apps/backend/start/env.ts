@@ -40,6 +40,17 @@ export default await Env.create(new URL('../', import.meta.url), {
   GOOGLE_CLIENT_ID: Env.schema.string(),
   GOOGLE_CLIENT_SECRET: Env.schema.secret(),
 
+  // Public Book Demo schedule (optional — code defaults apply when unset)
+  DEMO_TIMEZONE: Env.schema.string.optional(),
+  DEMO_SLOT_TIMES: Env.schema.string.optional(),
+  DEMO_WEEKDAYS: Env.schema.string.optional(),
+  DEMO_DURATION_MINUTES: Env.schema.number.optional(),
+  DEMO_BOOKING_HORIZON_DAYS: Env.schema.number.optional(),
+
+  // Google Calendar + Meet for demo bookings (optional; booking still succeeds without Meet)
+  GOOGLE_CALENDAR_ID: Env.schema.string.optional(),
+  GOOGLE_CALENDAR_REFRESH_TOKEN: Env.schema.secret.optional(),
+
   // Postgres
   PG_HOST: Env.schema.string(),
   PG_PORT: Env.schema.number(),
@@ -113,19 +124,4 @@ export default await Env.create(new URL('../', import.meta.url), {
   SMTP_PORT: Env.schema.number.optional(),
   SMTP_USERNAME: Env.schema.string.optional(),
   SMTP_PASSWORD: Env.schema.secret.optional(),
-
-  /*
-  |----------------------------------------------------------
-  | Public Book Demo (landing page)
-  | Offered slot times are business hours, not mock availability.
-  | Google Meet requires a Calendar API refresh token (optional).
-  |----------------------------------------------------------
-  */
-  DEMO_TIMEZONE: Env.schema.string.optional(),
-  DEMO_SLOT_TIMES: Env.schema.string.optional(),
-  DEMO_WEEKDAYS: Env.schema.string.optional(),
-  DEMO_DURATION_MINUTES: Env.schema.number.optional(),
-  DEMO_BOOKING_HORIZON_DAYS: Env.schema.number.optional(),
-  GOOGLE_CALENDAR_REFRESH_TOKEN: Env.schema.secret.optional(),
-  GOOGLE_CALENDAR_ID: Env.schema.string.optional(),
 })

@@ -1,4 +1,5 @@
 import vine from '@vinejs/vine'
+import { PLATFORM_AUDIT_EVENT_TYPES, TENANT_AUDIT_EVENT_TYPES } from '#abilities/audit_events'
 import { PRODUCT_PERMISSIONS } from '#abilities/permissions'
 import { SYSTEM_ROLE_NAMES, UNASSIGNABLE_ROLE_NAMES } from '#services/role_service'
 
@@ -62,9 +63,20 @@ export const previewRoleUpdateValidator = vine.create(
   })
 )
 
+const auditListFilterFields = {
+  search: vine.string().trim().maxLength(200).optional(),
+  actorUserId: vine.string().trim().uuid().optional(),
+  targetType: vine.string().trim().minLength(1).maxLength(100).optional(),
+  dateFrom: vine.date().optional(),
+  dateTo: vine.date().optional(),
+  limit: vine.number().withoutDecimals().min(1).max(100).optional(),
+  includeFacets: vine.boolean().optional(),
+}
+
 export const listTenantAuditValidator = vine.create(
   vine.object({
-    limit: vine.number().withoutDecimals().min(1).max(100).optional(),
+    ...auditListFilterFields,
+    eventType: vine.enum(TENANT_AUDIT_EVENT_TYPES).optional(),
   })
 )
 
@@ -73,7 +85,8 @@ export const listAuditValidator = listTenantAuditValidator
 
 export const listPlatformAuditValidator = vine.create(
   vine.object({
-    limit: vine.number().withoutDecimals().min(1).max(100).optional(),
+    ...auditListFilterFields,
+    eventType: vine.enum(PLATFORM_AUDIT_EVENT_TYPES).optional(),
     organizationId: vine.string().trim().uuid().optional(),
   })
 )

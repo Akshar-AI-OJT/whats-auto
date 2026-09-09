@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useLocale, useTranslations } from 'next-intl'
 import { ArrowLeft, Loader2, Plus, Search, Trash2, UserMinus } from 'lucide-react'
-import { api, type ContactSummary, type CustomerGroupStatus } from '@/lib/api'
+import { type ContactSummary, type CustomerGroupStatus } from '@/lib/api'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PERMISSIONS } from '@/lib/rbac'
@@ -34,8 +34,8 @@ import {
   customerGroupErrorMessage,
   formatGroupDate,
   initialsFromContact,
-  unwrapContacts,
 } from './customer-group-utils'
+import { listAllOrganizationContacts } from '@/components/dashboard/contacts/contact-list'
 
 type CustomerGroupDetailPageProps = {
   groupId: string
@@ -78,10 +78,7 @@ export function CustomerGroupDetailPage({ groupId }: CustomerGroupDetailPageProp
   const contactsQuery = useQuery({
     queryKey: queryKeys.customerGroups.contacts(tenantOrganizationId),
     enabled: Boolean(tenantOrganizationId) && canViewContacts && !orgsLoading && formOpen,
-    queryFn: async () => {
-      const { data } = await api.contacts.list()
-      return unwrapContacts(data)
-    },
+    queryFn: () => listAllOrganizationContacts(),
   })
 
   const group = groupQuery.data ?? null

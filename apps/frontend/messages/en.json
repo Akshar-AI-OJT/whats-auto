@@ -408,21 +408,24 @@
         "other": "Other"
       },
       "privacyAgree": "I agree to the <privacy>Privacy Policy</privacy>.",
-        "cta": "Book Demo",
-        "ctaSubmitting": "Booking…",
-        "slotsLoading": "Loading available slots…",
-        "noSlots": "No available slots for this date.",
-        "pickDateHint": "Select a date to see available time slots.",
-        "meetNote": "Google Meet details will be shared after confirmation.",
-        "errors": {
-          "nameRequired": "Full name is required.",
-          "emailInvalid": "Enter a valid work email.",
-          "privacyRequired": "Please agree to the Privacy Policy.",
-          "dateRequired": "Please select a date.",
-          "slotRequired": "Please select a time slot.",
-          "submitFailed": "We could not book that demo. Please try again.",
-          "slotUnavailable": "That time slot is no longer available. Please pick another."
-        },
+      "cta": "Book Demo",
+      "ctaBooking": "Booking…",
+      "slotsLoading": "Loading available times…",
+      "slotsEmpty": "No time slots are available on this date. Please pick another day.",
+      "slotsPickDate": "Select a date to see available times.",
+      "meetNote": "Google Meet details will be shared after confirmation.",
+      "errors": {
+        "nameRequired": "Full name is required.",
+        "emailInvalid": "Enter a valid work email.",
+        "privacyRequired": "Please agree to the Privacy Policy.",
+        "dateRequired": "Please select a date.",
+        "slotRequired": "Please select a time slot.",
+        "availabilityFailed": "Could not load available times. Please try again.",
+        "bookingFailed": "Could not book this demo. Please try again.",
+        "slotUnavailable": "This time slot is no longer available. Please pick another time.",
+        "slotInvalid": "The selected time slot is not valid. Please pick another time.",
+        "tooManyRequests": "Too many booking attempts. Please wait a moment and try again."
+      },
       "summary": {
         "title": "Demo Summary",
         "date": "Date",
@@ -446,6 +449,7 @@
         "whatsNext": "What's Next",
         "backHome": "Back to Home",
         "bookAnother": "Book Another Demo",
+        "joinMeet": "Join Google Meet",
         "summary": {
           "date": "Date",
           "time": "Time",
@@ -2338,6 +2342,10 @@
       "emptyDescription": "Add your first contact to start conversations and campaigns.",
       "noMatches": "No contacts match your search.",
       "addedAt": "Added {date}",
+      "paginationSummary": "Page {page} of {lastPage} · {total} total",
+      "prevPage": "Previous",
+      "nextPage": "Next",
+      "editAria": "Edit {name}",
       "deleteAria": "Delete {name}",
       "deleteConfirmTitle": "Delete this contact?",
       "deleteConfirmBody": "“{name}” will be removed from this organization. You can add the same phone number again later.",
@@ -2377,7 +2385,21 @@
           "phoneExists": "A contact with this phone number already exists.",
           "sessionExpired": "Your session expired. Please sign in again.",
           "permissionDenied": "You don’t have permission to add contacts.",
+          "notFound": "This contact was not found.",
           "generic": "Couldn’t save this contact. Please try again."
+        }
+      },
+      "edit": {
+        "title": "Edit Contact",
+        "subtitle": "Update this contact’s phone number and profile details.",
+        "loading": "Loading contact…",
+        "submit": "Save changes",
+        "submitting": "Saving…",
+        "success": "Contact updated.",
+        "errors": {
+          "permissionDenied": "You don’t have permission to edit contacts.",
+          "notFound": "This contact was not found.",
+          "generic": "Couldn’t update this contact. Please try again."
         }
       },
       "import": {
@@ -4212,7 +4234,9 @@
       },
       "toast": {
         "updated": "Updated “{name}”.",
-        "deleted": "Archived “{name}”."
+        "deleted": "Archived “{name}”.",
+        "suspended": "Suspended “{name}”.",
+        "activated": "Activated “{name}”."
       },
       "kpis": {
         "total": {
@@ -4268,16 +4292,23 @@
         "menuLabel": "Actions for {name}",
         "view": "View",
         "edit": "Edit",
-        "suspend": "Change status",
-        "activate": "Change status",
+        "suspend": "Suspend",
+        "activate": "Activate",
         "delete": "Archive"
       },
       "statusDialog": {
         "title": "Change status",
-        "body": "Activate and suspend are not available on the organization API. You can archive “{name}” with a soft-delete.",
-        "archivedBody": "“{name}” is already archived. Restore is not available from the API.",
+        "suspendTitle": "Suspend organization",
+        "activateTitle": "Activate organization",
+        "archivedTitle": "Archived organization",
+        "suspendBody": "Suspend “{name}”? Members will not be able to use this organization until it is activated again. This does not archive the organization.",
+        "activateBody": "Activate “{name}”? The organization will be set back to active.",
+        "archivedBody": "“{name}” is already archived. Restore is not available from this action.",
         "cancel": "Cancel",
-        "archive": "Archive organization"
+        "confirmSuspend": "Suspend",
+        "confirmActivate": "Activate",
+        "suspending": "Suspending…",
+        "activating": "Activating…"
       },
       "drawer": {
         "tabs": {
@@ -4331,6 +4362,8 @@
         "loadFailed": "Couldn’t load organizations. Please try again.",
         "updateFailed": "Couldn’t update this organization.",
         "deleteFailed": "Couldn’t archive this organization.",
+        "suspendFailed": "Couldn’t suspend this organization.",
+        "activateFailed": "Couldn’t activate this organization.",
         "nameRequired": "Name must be at least 2 characters.",
         "actionUnavailable": "This action isn’t available from the API yet."
       },
@@ -4359,6 +4392,9 @@
           "title": "Subscription",
           "description": "Current plan, billing, and renewal details.",
           "unavailable": "Subscription details aren’t available from the API yet.",
+          "loading": "Loading subscription…",
+          "failed": "Couldn’t load subscription for this organization.",
+          "empty": "This organization has no subscription in the platform billing list.",
           "fields": {
             "plan": "Plan",
             "billingCycle": "Billing cycle",
@@ -4371,6 +4407,7 @@
           "billingCycle": {
             "monthly": "Monthly",
             "annual": "Annual",
+            "custom": "Custom",
             "short": {
               "monthly": "mo",
               "annual": "yr"
@@ -4411,6 +4448,9 @@
           "title": "Organization Members",
           "description": "{count, plural, one {Showing # member} other {Showing # members}}",
           "unavailable": "Member roster isn’t available from the API yet.",
+          "loading": "Loading members…",
+          "failed": "Couldn’t load members for this organization.",
+          "empty": "No members found for this organization.",
           "columns": {
             "member": "Member",
             "role": "Role",
@@ -4425,7 +4465,10 @@
         "activity": {
           "title": "Recent Activity",
           "description": "Latest events inside this organization.",
-          "unavailable": "Activity isn’t available from the API yet."
+          "unavailable": "Activity isn’t available from the API yet.",
+          "loading": "Loading activity…",
+          "failed": "Couldn’t load activity for this organization.",
+          "empty": "No audit events for this organization."
         }
       }
     },
@@ -4909,6 +4952,7 @@
         "createFailed": "Failed to generate invoice.",
         "notFound": "Invoice not found.",
         "cannotMarkCancelledPaid": "Cancelled invoices cannot be marked as paid.",
+        "missingRecipient": "This invoice has no billing email address.",
         "sendFailed": "Failed to send invoice. Please try again.",
         "downloadFailed": "Failed to download invoice. Please try again.",
         "organizationRequired": "Select an organization.",
