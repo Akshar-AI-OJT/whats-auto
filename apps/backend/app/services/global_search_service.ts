@@ -1,5 +1,6 @@
 import db from '@adonisjs/lucid/services/db'
 import { PERMISSIONS, type Permission } from '#abilities/permissions'
+import { FlowStatus } from '#enums/flow_status'
 import { CAMPAIGN_SOFT_DELETED_STATUS } from '#validators/campaign'
 import { SUBSCRIPTION_SOFT_DELETED_STATUS } from '#validators/subscription_crud'
 
@@ -263,6 +264,8 @@ export class GlobalSearchService {
     const rows = await db
       .from('flows')
       .where('organizationId', organizationId)
+      // Match flow list default: omit archived unless explicitly requested.
+      .whereNot('status', FlowStatus.ARCHIVED)
       .where((builder) => {
         builder.whereILike('name', pattern).orWhereILike('description', pattern)
       })
@@ -284,6 +287,7 @@ export class GlobalSearchService {
     const rows = await db
       .from('tags')
       .where('organizationId', organizationId)
+      .where('status', 'active')
       .where((builder) => {
         builder.whereILike('name', pattern).orWhereILike('description', pattern)
       })
@@ -341,6 +345,8 @@ export class GlobalSearchService {
   private async searchPlans(pattern: string, limit: number): Promise<GlobalSearchResult[]> {
     const rows = await db
       .from('plans')
+      // Same active gate as tenant/admin plan catalogs (isActive=false for draft/archived).
+      .where('isActive', true)
       .where((builder) => {
         builder
           .whereILike('name', pattern)

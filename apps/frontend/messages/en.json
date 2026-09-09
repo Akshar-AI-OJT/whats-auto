@@ -2135,6 +2135,8 @@
           "alreadyPending": "An invitation is already pending for that email. Cancel it first or wait for a response.",
           "roleInvalid": "That role isn’t available for this organization.",
           "emailFailed": "Could not send the setup email. Check email delivery settings and try again.",
+          "createdButEmailFailed": "Teammate was added, but the setup email could not be sent. You can resend it from the team list.",
+          "emailStatusUnknown": "Teammate was added, but we could not confirm whether the setup email was sent. Check the team list and resend if needed.",
           "generic": "Could not add this teammate. Please try again.",
           "firstnameRequired": "First name is required.",
           "superadminNotInvitable": "Platform superadmin accounts cannot be invited to organizations.",
@@ -4964,6 +4966,13 @@
         "active": "Active",
         "inactive": "Inactive"
       },
+      "organizationStatuses": {
+        "active": "Active",
+        "suspended": "Suspended",
+        "pending_setup": "Pending setup",
+        "verified_setup": "Verified setup",
+        "false": "Archived"
+      },
       "errors": {
         "loadFailed": "Couldn't load platform users. Please try again."
       }
@@ -5035,6 +5044,13 @@
       "eyebrow": "Administration",
       "title": "Platform Settings",
       "subtitle": "Manage core platform controls for branding, auth, integrations, and environment defaults.",
+      "loading": "Loading platform settings…",
+      "retry": "Retry",
+      "emptySection": "No platform settings are exposed for this section yet. Editable controls live on their dedicated admin pages.",
+      "errors": {
+        "loadFailed": "Couldn’t load platform settings.",
+        "loadFailedHint": "GET /api/v1/super-admin/platform-settings requires Super Admin platform config access."
+      },
       "sections": {
         "platformBranding": {
           "title": "Platform Branding",
