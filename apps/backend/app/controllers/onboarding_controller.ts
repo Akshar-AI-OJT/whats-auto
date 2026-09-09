@@ -9,7 +9,7 @@ export default class OnboardingController {
    * @description Call after login or signup verification to decide the next screen. No active organization required.
    * @tag Onboarding
    * @security BearerAuth
-   * @responseBody 200 - { "data": { "activeOrganizationId": "uuid", "organizations": [{ "id": "uuid", "name": "Acme", "role": "owner" }], "nextStep": "ready" } }
+   * @responseBody 200 - { "data": { "activeOrganizationId": "uuid", "organizations": [{ "id": "uuid", "name": "Acme", "role": "owner" }], "isPlatformAdmin": false, "nextStep": "ready" } }
    * @responseBody 401 - { "error": "Missing or invalid session" }
    */
   async show({ request, serialize }: HttpContext) {

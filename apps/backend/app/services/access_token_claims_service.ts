@@ -51,6 +51,7 @@ export class AccessTokenClaimsService {
         .innerJoin('roles as r', 'r.id', 'm.roleId')
         .where('m.organizationId', orgId)
         .where('m.userId', user.id)
+        .where('m.isDeleted', false)
         .select('m.id', 'm.roleId', 'm.permissionVersion', 'r.name as role')
         .first()
 

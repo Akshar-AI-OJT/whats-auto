@@ -24,6 +24,8 @@ export type OnboardingState = {
   activeOrganizationId: string | null
   organizations: Array<{ id: string; name: string; role?: string }>
   nextStep: OnboardingNextStep
+  /** Global superadmin — route to platform console, not org setup ([D72]). */
+  isPlatformAdmin?: boolean
 }
 
 /** Strip locale prefix so path checks work with /en/... or bare /... */
@@ -41,11 +43,16 @@ function unwrapOnboardingState(data: unknown): OnboardingState | null {
     activeOrganizationId: state.activeOrganizationId ?? null,
     organizations: Array.isArray(state.organizations) ? state.organizations : [],
     nextStep: state.nextStep as OnboardingNextStep,
+    isPlatformAdmin: Boolean(state.isPlatformAdmin),
   }
 }
 
+function isPlatformAdminUser(state: OnboardingState): boolean {
+  return Boolean(state.isPlatformAdmin) || peekAccessTokenRole() === 'superadmin'
+}
+
 /**
- * Single post-login / post-signup router ([D70]).
+ * Single post-login / post-signup router ([D70] / [D72]).
  * Prefer backend onboarding state; fall back to callbackURL.
  */
 export async function resolvePostAuthPath(options: {
@@ -60,7 +67,7 @@ export async function resolvePostAuthPath(options: {
     const state = unwrapOnboardingState(data)
     if (state) {
       if (state.nextStep === 'create_organization') {
-        if (peekAccessTokenRole() === 'superadmin') {
+        if (isPlatformAdminUser(state)) {
           if (preferred?.startsWith('/admin')) return preferred
           return SUPER_ADMIN_HOME_PATH
         }
@@ -79,7 +86,7 @@ export async function resolvePostAuthPath(options: {
         return organizationProfilePath(state.activeOrganizationId)
       }
 
-      if (peekAccessTokenRole() === 'superadmin' && state.organizations.length === 0) {
+      if (isPlatformAdminUser(state) && state.organizations.length === 0) {
         if (preferred?.startsWith('/admin')) return preferred
         return SUPER_ADMIN_HOME_PATH
       }

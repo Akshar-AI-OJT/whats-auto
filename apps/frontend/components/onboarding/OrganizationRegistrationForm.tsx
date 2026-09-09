@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { ArrowRight, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { api, type ApiError, type CreatedOrganization } from '@/lib/api'
-import { ensureAccessTokenForOrganization } from '@/lib/access-token'
+import { ensureAccessTokenForOrganization, getValidAccessToken } from '@/lib/access-token'
 import { queryKeys } from '@/lib/query-keys'
 import { useQueryClient } from '@tanstack/react-query'
 import {
@@ -116,6 +116,7 @@ export function OrganizationRegistrationForm({
     let cancelled = false
     ;(async () => {
       try {
+        await getValidAccessToken()
         const nextPath = await resolvePostAuthPath({
           preferredCallback: null,
           fallback: ORG_SETUP_PATH,
