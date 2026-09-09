@@ -276,8 +276,15 @@ export function RoleEditorFullPage({
   }
 
   function applyTemplate(template: RoleTemplateId) {
-    if (template === 'custom') return
+    // Custom = blank slate so permissions can be chosen manually.
+    // Early-return used to no-op, which left Admin/Manager/Agent stuck selected.
+    if (template === 'custom') {
+      setSelected(new Set())
+      setPermsError(null)
+      return
+    }
     setSelected(new Set(grantablePreset(template, grantable)))
+    setPermsError(null)
   }
 
   function mapError(apiError: ApiError): string {
