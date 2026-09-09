@@ -27,8 +27,6 @@ function DashboardAuthGate({ children }: { children: React.ReactNode }) {
   const isSignedIn = Boolean(sessionData?.user)
 
   useEffect(() => {
-    // Wait out in-flight session refetches (e.g. right after org create) before
-    // treating a missing user as signed-out.
     if (!isPending && !isRefetching && !isSignedIn) {
       router.replace('/login')
     }
@@ -77,8 +75,34 @@ function DashboardMembershipGate({ children }: { children: React.ReactNode }) {
 function DashboardShellFrame({ children, className }: DashboardShellProps) {
   const { sidebarWidthPx, collapsed } = useDashboardChrome()
 
+  // Clear any leftover locks from earlier experiments. Do NOT set
+  // body/html overflow:hidden — that blocks touch scrolling into nested
+  // overflow containers on iOS / Chrome device mode.
+  useEffect(() => {
+    const root = document.documentElement
+    root.classList.remove('app-shell-active')
+    root.style.removeProperty('overflow')
+    root.style.removeProperty('height')
+    document.body.style.removeProperty('overflow')
+    document.body.style.removeProperty('height')
+    document.body.style.removeProperty('overscroll-behavior')
+  }, [])
+
   return (
-    <div className={cn('app-shell flex min-h-dvh bg-dash-bg', className)}>
+    // Fixed to the visual viewport. Scroll happens on #app-scroll-root only
+    // (absolute fill) — avoids flex/grid min-size traps that clip module bottoms.
+    <div
+      className={cn('bg-dash-bg', className)}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        width: '100%',
+        height: '100%',
+        overflow: 'hidden',
+      }}
+    >
       <div
         className="fixed inset-y-0 left-0 z-40 hidden transition-[width] duration-300 ease-out lg:block"
         style={{ width: sidebarWidthPx }}
@@ -87,13 +111,44 @@ function DashboardShellFrame({ children, className }: DashboardShellProps) {
       </div>
 
       <div
-        className="flex min-h-dvh min-w-0 flex-1 flex-col transition-[padding] duration-300 ease-out lg:[padding-left:var(--sidebar-w)]"
-        style={{ ['--sidebar-w' as string]: `${sidebarWidthPx}px` }}
+        className="transition-[padding] duration-300 ease-out lg:[padding-left:var(--sidebar-w)]"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          flex: '1 1 auto',
+          minHeight: 0,
+          width: '100%',
+          ['--sidebar-w' as string]: `${sidebarWidthPx}px`,
+        }}
       >
-        <DashboardTopbar />
-        <main className="min-w-0 flex-1 overflow-x-clip px-4 py-5 sm:px-5 sm:py-6 md:px-6 lg:px-8 lg:py-7">
-          <ProductAccessRouteGate>{children}</ProductAccessRouteGate>
-        </main>
+        <div style={{ flexShrink: 0 }}>
+          <DashboardTopbar />
+        </div>
+
+        <div style={{ position: 'relative', flex: '1 1 auto', minHeight: 0 }}>
+          <div
+            id="app-scroll-root"
+            className={cn(
+              'px-4 pt-5',
+              'sm:px-5 sm:pt-6 md:px-6 lg:px-8 lg:pt-7'
+            )}
+            style={{
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              bottom: 0,
+              left: 0,
+              overflowX: 'hidden',
+              overflowY: 'auto',
+              WebkitOverflowScrolling: 'touch',
+              overscrollBehaviorY: 'contain',
+              // Extra bottom space so the last list row (phone/actions) clears the fold.
+              paddingBottom: 'max(6rem, calc(2rem + env(safe-area-inset-bottom, 0px)))',
+            }}
+          >
+            <ProductAccessRouteGate>{children}</ProductAccessRouteGate>
+          </div>
+        </div>
       </div>
     </div>
   )

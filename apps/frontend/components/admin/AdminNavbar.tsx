@@ -36,7 +36,7 @@ export function AdminNavbar({ className }: AdminNavbarProps) {
   return (
     <header
       className={cn(
-        'sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b border-dash-border bg-canvas/90 px-3 backdrop-blur-md sm:gap-4 sm:px-5',
+        'z-30 flex h-16 shrink-0 items-center gap-3 border-b border-dash-border bg-canvas/90 px-3 backdrop-blur-md sm:gap-4 sm:px-5',
         'dash-soft-shadow',
         className
       )}
