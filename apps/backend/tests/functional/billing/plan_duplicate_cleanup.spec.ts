@@ -3,7 +3,10 @@ import { randomUUID } from 'node:crypto'
 import db from '@adonisjs/lucid/services/db'
 import { PlanRepository } from '#repositories/plan_repository'
 import { PlanService } from '#services/billing/plan_service'
-import { cleanupDuplicateActivePlans, previewDuplicateActivePlanGroups } from '#services/billing/plan_duplicate_cleanup'
+import {
+  cleanupDuplicateActivePlans,
+  previewDuplicateActivePlanGroups,
+} from '#services/billing/plan_duplicate_cleanup'
 import { EntitlementService } from '#services/billing/entitlement_service'
 import { runWithTenant } from '#services/tenant_context'
 import { derivePlanStatus } from '#transformers/plan_transformer'
@@ -140,9 +143,9 @@ test.group('Duplicate active plan cleanup', (group) => {
         assert.include(previewGroup!.archivedIds, duplicateId)
 
         const result = await cleanupDuplicateActivePlans()
-        const group = result.groups.find((item) => item.canonicalId === canonicalId)
-        assert.exists(group)
-        assert.include(group!.archivedIds, duplicateId)
+        const cleanedGroup = result.groups.find((item) => item.canonicalId === canonicalId)
+        assert.exists(cleanedGroup)
+        assert.include(cleanedGroup!.archivedIds, duplicateId)
 
         const subscription = await runWithTenant(organizationId, async () => {
           return db.from('organization_subscriptions').where('id', subscriptionId).first()
@@ -261,9 +264,9 @@ test.group('Duplicate active plan cleanup', (group) => {
         })
 
         const result = await cleanupDuplicateActivePlans()
-        const group = result.groups.find((item) => item.canonicalId === referencedNewerId)
-        assert.exists(group)
-        assert.include(group!.archivedIds, unusedOlderId)
+        const cleanedGroup = result.groups.find((item) => item.canonicalId === referencedNewerId)
+        assert.exists(cleanedGroup)
+        assert.include(cleanedGroup!.archivedIds, unusedOlderId)
 
         const subscription = await runWithTenant(organizationId, async () => {
           return db.from('organization_subscriptions').where('id', subscriptionId).first()

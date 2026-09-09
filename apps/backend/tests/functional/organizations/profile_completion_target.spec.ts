@@ -110,16 +110,7 @@ async function snapshotOrganization(organizationId: string): Promise<ProfileSnap
     .from('organizations')
     .where('id', organizationId)
     .whereNull('deletedAt')
-    .select(
-      'id',
-      'name',
-      'email',
-      'industry',
-      'businessSize',
-      'country',
-      'address',
-      'description'
-    )
+    .select('id', 'name', 'email', 'industry', 'businessSize', 'country', 'address', 'description')
     .firstOrFail()
 }
 
@@ -330,7 +321,8 @@ test.group('Organization profile completion targets the created organization', (
       .json(ORG_B_PROFILE_PATCH)
     saved.assertStatus(200)
 
-    assert.equal((await snapshotOrganization(organizationBId)).name, ORG_B_PROFILE_PATCH.name)
+    const updatedB = await snapshotOrganization(organizationBId)
+    assert.equal(updatedB.name, ORG_B_PROFILE_PATCH.name)
     assert.deepEqual(await snapshotOrganization(organizationAId), originalA)
   })
 
@@ -365,7 +357,8 @@ test.group('Organization profile completion targets the created organization', (
       .json(ORG_B_PROFILE_PATCH)
     saved.assertStatus(200)
 
-    assert.equal((await snapshotOrganization(organizationBId)).name, ORG_B_PROFILE_PATCH.name)
+    const refreshedB = await snapshotOrganization(organizationBId)
+    assert.equal(refreshedB.name, ORG_B_PROFILE_PATCH.name)
     assert.deepEqual(await snapshotOrganization(organizationAId), originalA)
   })
 
