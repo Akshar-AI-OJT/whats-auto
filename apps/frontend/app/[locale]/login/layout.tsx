@@ -3,5 +3,6 @@ export default function AuthRouteLayout({
 }: {
   children: React.ReactNode
 }) {
-  return <div className="light-locked auth-palette min-h-svh bg-[#F8FAFC]">{children}</div>
+  // Height / background come from AuthSplitLayout so mobile stays full-bleed white.
+  return <div className="light-locked auth-palette w-full">{children}</div>
 }

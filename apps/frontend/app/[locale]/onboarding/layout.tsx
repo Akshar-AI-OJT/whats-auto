@@ -1,7 +1,7 @@
-export default function OnboardingLayout({
+export default function AuthRouteLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  return <div className="light-locked auth-palette min-h-svh bg-[#F8FAFC]">{children}</div>
+  return <div className="light-locked auth-palette w-full">{children}</div>
 }
