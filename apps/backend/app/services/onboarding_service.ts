@@ -3,6 +3,7 @@ import {
   isOrganizationRequiredProfileComplete,
   type OrganizationProfileCompletionSource,
 } from '#lib/organization_profile_completion'
+import { AuthorizationService } from '#services/authorization_service'
 import { OrganizationService } from '#services/organization_service'
 
 export type OnboardingStep =
@@ -48,6 +49,8 @@ export function resolveNextStep(params: {
 }
 
 export class OnboardingService {
+  constructor(private authz = new AuthorizationService()) {}
+
   /**
    * Single source of truth for post-auth routing.
    */
@@ -69,9 +72,12 @@ export class OnboardingService {
         ? isOrganizationRequiredProfileComplete(activeOrg as OrganizationProfileCompletionSource)
         : null
 
+    const platformGrant = await this.authz.resolvePlatformGrantForUser(params.userId)
+
     return {
       activeOrganizationId,
       organizations,
+      isPlatformAdmin: Boolean(platformGrant),
       nextStep: resolveNextStep({
         organizationCount: organizations.length,
         activeOrganizationId,
