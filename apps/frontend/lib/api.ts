@@ -1259,6 +1259,8 @@ export type OnboardingState = {
   activeOrganizationId: string | null
   organizations: Array<{ id: string; name: string; role?: string }>
   nextStep: OnboardingNextStep
+  /** Global superadmin — no tenant org required ([D72]). */
+  isPlatformAdmin?: boolean
 }
 
 export type OrganizationRole = {

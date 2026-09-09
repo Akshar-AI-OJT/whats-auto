@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
-import { peekAccessTokenRole } from '@/lib/access-token'
+import { getValidAccessToken, peekAccessTokenRole } from '@/lib/access-token'
 import { authClient } from '@/lib/auth-client'
 import { ORG_SETUP_PATH } from '@/lib/onboarding'
 import { SUPER_ADMIN_HOME_PATH } from '@/lib/post-auth-redirect'
@@ -54,15 +54,33 @@ function DashboardMembershipGate({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const t = useTranslations('dashboard.accessDenied')
   const { hasOrganizations, isLoading } = useOrganizations()
-  const isSuperAdmin = peekAccessTokenRole() === 'superadmin'
+  const [platformChecked, setPlatformChecked] = useState(false)
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false)
 
   useEffect(() => {
-    if (isLoading) return
+    let cancelled = false
+    void (async () => {
+      try {
+        await getValidAccessToken()
+        if (!cancelled) setIsSuperAdmin(peekAccessTokenRole() === 'superadmin')
+      } catch {
+        if (!cancelled) setIsSuperAdmin(false)
+      } finally {
+        if (!cancelled) setPlatformChecked(true)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  useEffect(() => {
+    if (isLoading || !platformChecked) return
     if (hasOrganizations) return
     router.replace(isSuperAdmin ? SUPER_ADMIN_HOME_PATH : ORG_SETUP_PATH)
-  }, [hasOrganizations, isLoading, isSuperAdmin, router])
+  }, [hasOrganizations, isLoading, isSuperAdmin, platformChecked, router])
 
-  if (isLoading || !hasOrganizations) {
+  if (isLoading || !platformChecked || !hasOrganizations) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-dash-bg">
         <Loader2 className="size-6 animate-spin text-mute" aria-hidden />
