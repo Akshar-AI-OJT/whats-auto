@@ -40,7 +40,7 @@ export default async function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: suppressExtensionNoiseScript }} />
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body className="flex min-h-dvh flex-col overflow-x-clip bg-canvas-soft text-ink">
+      <body className="min-h-dvh bg-canvas-soft text-ink">
         {children}
       </body>
     </html>

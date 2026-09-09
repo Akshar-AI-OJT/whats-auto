@@ -191,9 +191,9 @@ export function TemplatesListPage() {
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-5 sm:gap-6">
-      <DashboardPanel as="section" className="px-4 py-5 sm:px-6 sm:py-6 md:px-7 md:py-7">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
+      <DashboardPanel as="section" className="overflow-visible px-4 py-5 sm:px-6 sm:py-6 md:px-7 md:py-7">
+        <div className="flex min-w-0 flex-col gap-4">
+          <div className="min-w-0">
             <p className="text-sm font-semibold tracking-wide text-positive-deep uppercase">
               {t('eyebrow')}
             </p>
@@ -204,12 +204,17 @@ export function TemplatesListPage() {
               {t('subtitle')}
             </p>
           </div>
-          <div className="flex shrink-0 flex-nowrap items-center gap-2 overflow-x-auto">
+
+          {/*
+            Mobile: full-width stacked CTAs so labels never clip.
+            sm+: compact row that wraps instead of nowrap + overflow-x.
+          */}
+          <div className="grid w-full min-w-0 grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex sm:flex-wrap sm:justify-start md:justify-end">
             {canSyncTemplates ? (
               <Button
                 type="button"
                 variant="outline"
-                className="shrink-0 gap-2"
+                className="w-full justify-center gap-2 sm:w-auto"
                 disabled={syncMutation.isPending || !whatsappConnected}
                 title={!whatsappConnected ? t('whatsappRequired.syncHint') : undefined}
                 onClick={() => {
@@ -217,27 +222,27 @@ export function TemplatesListPage() {
                   syncMutation.mutate()
                 }}
               >
-                <RefreshCw className="size-4" aria-hidden />
-                {t('syncCta')}
+                <RefreshCw className="size-4 shrink-0" aria-hidden />
+                <span className="truncate">{t('syncCta')}</span>
               </Button>
             ) : null}
             <Button
               type="button"
               variant="outline"
-              className="shrink-0 gap-2"
+              className="w-full justify-center gap-2 sm:w-auto"
               onClick={() => setBrowseComingSoonOpen(true)}
             >
-              <LayoutGrid className="size-4" aria-hidden />
-              {t('browseCta')}
+              <LayoutGrid className="size-4 shrink-0" aria-hidden />
+              <span className="truncate">{t('browseCta')}</span>
             </Button>
             {canCreateTemplates ? (
               <Button
                 type="button"
-                className="shrink-0 gap-2"
+                className="w-full justify-center gap-2 min-[420px]:col-span-2 sm:col-span-1 sm:w-auto"
                 onClick={() => router.push('/dashboard/templates/create')}
               >
-                <Plus className="size-4" aria-hidden />
-                {t('createCta')}
+                <Plus className="size-4 shrink-0" aria-hidden />
+                <span className="truncate">{t('createCta')}</span>
               </Button>
             ) : null}
           </div>
@@ -254,7 +259,7 @@ export function TemplatesListPage() {
               type="button"
               variant="outline"
               size="sm"
-              className="mt-3"
+              className="mt-3 w-full sm:w-auto"
               onClick={() => router.push('/dashboard/whatsapp')}
             >
               {t('whatsappRequired.cta')}
