@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
-import { ArrowLeft, Copy, Eye, Loader2, PauseCircle, Pencil, RefreshCw, Rocket } from 'lucide-react'
+import { ArrowLeft, CalendarClock, Copy, Eye, Loader2, PauseCircle, Pencil, Rocket } from 'lucide-react'
 import { api, type ApiError, type CampaignPreview, type WhatsappMessageTemplate } from '@/lib/api'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { Link, useRouter } from '@/i18n/navigation'
@@ -13,22 +13,22 @@ import { DashboardToast, useDashboardToast } from '@/components/dashboard/ui/use
 import { CampaignActionsMenu } from './CampaignCards'
 import {
   CampaignCancelDialog,
-  CampaignChangeStatusDialog,
   CampaignDeleteDialog,
   CampaignPreviewDialog,
+  CampaignRescheduleDialog,
 } from './CampaignDialogs'
 import { CampaignStatusBadge } from './CampaignStatusBadge'
 import {
-  type CampaignChangeStatusTarget,
   formatCampaignDate,
   isCancellableCampaignStatus,
   isEditableCampaignStatus,
   isLaunchableCampaignStatus,
-  isStatusChangeableCampaignStatus,
+  isReschedulableCampaignStatus,
   ratePercent,
   unwrapCampaign,
   unwrapTemplateItems,
 } from './campaign-utils'
+import { toCampaignScheduledAtPayload } from '@/lib/org-datetime'
 import { queryKeys } from '@/lib/query-keys'
 
 type CampaignDetailsPageProps = {
@@ -49,16 +49,14 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
     canLaunchCampaigns,
     canPauseCampaigns,
     isLoading: orgsLoading,
-    activeOrganization,
   } = useOrganizations()
 
-  const orgTimeZone = activeOrganization?.timezone
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [cancelOpen, setCancelOpen] = useState(false)
   const [cancelError, setCancelError] = useState<string | null>(null)
-  const [statusOpen, setStatusOpen] = useState(false)
-  const [statusError, setStatusError] = useState<string | null>(null)
+  const [rescheduleOpen, setRescheduleOpen] = useState(false)
+  const [rescheduleError, setRescheduleError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [preview, setPreview] = useState<CampaignPreview | null>(null)
@@ -110,15 +108,16 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
     },
   })
 
-  const changeStatusMutation = useMutation({
-    mutationFn: async (status: CampaignChangeStatusTarget) => {
-      const { data } = await api.campaigns.changeStatus(campaignId, { status })
+  const rescheduleMutation = useMutation({
+    mutationFn: async (scheduledAtLocal: string) => {
+      const scheduledAt = toCampaignScheduledAtPayload(scheduledAtLocal)
+      const { data } = await api.campaigns.schedule(campaignId, { scheduledAt })
       return unwrapCampaign(data)
     },
     onSuccess: async () => {
-      setStatusOpen(false)
-      setStatusError(null)
-      showToast(t('changeStatus.success'), 'success')
+      setRescheduleOpen(false)
+      setRescheduleError(null)
+      showToast(t('reschedule.success'), 'success')
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.all }),
         queryClient.invalidateQueries({
@@ -128,15 +127,11 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
     },
     onError: (err) => {
       const apiErr = err as unknown as ApiError
-      if (apiErr.code === 'E_CAMPAIGN_INVALID_STATUS_TRANSITION') {
-        setStatusError(t('errors.statusTransitionFailed'))
-        return
-      }
       if (apiErr.status === 403 || apiErr.code === 'PERMISSION_DENIED') {
-        setStatusError(t('errors.permissionDenied'))
+        setRescheduleError(t('errors.permissionDenied'))
         return
       }
-      setStatusError(apiErr.message || t('errors.changeStatusFailed'))
+      setRescheduleError(apiErr.message || t('errors.rescheduleFailed'))
     },
   })
 
@@ -263,8 +258,8 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
     Boolean(campaign.messageTemplateId) &&
     templateApproved
   const canCancel = canPauseCampaigns && isCancellableCampaignStatus(campaign.status)
-  const canChangeStatus =
-    canEditCampaigns && isStatusChangeableCampaignStatus(campaign.status)
+  const canReschedule =
+    canLaunchCampaigns && isReschedulableCampaignStatus(campaign.status)
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-5">
@@ -294,7 +289,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
           </div>
           <p className="mt-2 text-sm text-body">
             {t('details.createdMeta', {
-              date: formatCampaignDate(campaign.createdAt, orgTimeZone),
+              date: formatCampaignDate(campaign.createdAt),
               template: templateName ?? t('noTemplate'),
             })}
           </p>
@@ -350,19 +345,19 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
               {t('actions.cancel')}
             </Button>
           ) : null}
-          {canChangeStatus ? (
+          {canReschedule ? (
             <Button
               type="button"
               variant="outline"
               className="gap-2"
-              disabled={changeStatusMutation.isPending}
+              disabled={rescheduleMutation.isPending}
               onClick={() => {
-                setStatusError(null)
-                setStatusOpen(true)
+                setRescheduleError(null)
+                setRescheduleOpen(true)
               }}
             >
-              <RefreshCw className="size-4" aria-hidden />
-              {t('actions.changeStatus')}
+              <CalendarClock className="size-4" aria-hidden />
+              {t('actions.reschedule')}
             </Button>
           ) : null}
           {canEditCampaigns && isEditableCampaignStatus(campaign.status) ? (
@@ -401,10 +396,6 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
             onView={() => undefined}
             onEdit={() => router.push(`/dashboard/campaigns/${campaign.id}/edit`)}
             onDuplicate={() => duplicateMutation.mutate()}
-            onChangeStatus={() => {
-              setStatusError(null)
-              setStatusOpen(true)
-            }}
             onPause={() => {
               setCancelError(null)
               setCancelOpen(true)
@@ -452,18 +443,12 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
           <ol className="mt-5 space-y-4">
             <TimelineStep
               label={t('timeline.created')}
-              detail={formatCampaignDate(campaign.createdAt, orgTimeZone)}
+              detail={formatCampaignDate(campaign.createdAt)}
               active
             />
             <TimelineStep
               label={t('timeline.scheduled')}
-              detail={
-                campaign.scheduledAt
-                  ? `${formatCampaignDate(campaign.scheduledAt, orgTimeZone)}${
-                      orgTimeZone ? ` (${orgTimeZone})` : ''
-                    }`
-                  : '—'
-              }
+              detail={campaign.scheduledAt ? formatCampaignDate(campaign.scheduledAt) : '—'}
               active={Boolean(campaign.scheduledAt) || ['scheduled', 'sending', 'sent', 'failed'].includes(campaign.status)}
             />
             <TimelineStep
@@ -473,7 +458,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
             />
             <TimelineStep
               label={t('timeline.completed')}
-              detail={campaign.status === 'sent' ? formatCampaignDate(campaign.updatedAt, orgTimeZone) : '—'}
+              detail={campaign.status === 'sent' ? formatCampaignDate(campaign.updatedAt) : '—'}
               active={campaign.status === 'sent'}
             />
           </ol>
@@ -529,15 +514,15 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
         }}
         onConfirm={() => cancelMutation.mutate()}
       />
-      <CampaignChangeStatusDialog
-        open={statusOpen}
+      <CampaignRescheduleDialog
+        open={rescheduleOpen}
         campaign={campaign}
-        pending={changeStatusMutation.isPending}
-        error={statusError}
+        pending={rescheduleMutation.isPending}
+        error={rescheduleError}
         onOpenChange={(open) => {
-          if (!open && !changeStatusMutation.isPending) setStatusOpen(false)
+          if (!open && !rescheduleMutation.isPending) setRescheduleOpen(false)
         }}
-        onConfirm={(status) => changeStatusMutation.mutate(status)}
+        onConfirm={(scheduledAtLocal) => rescheduleMutation.mutate(scheduledAtLocal)}
       />
       <CampaignPreviewDialog
         open={previewOpen}

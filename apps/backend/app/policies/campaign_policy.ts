@@ -108,16 +108,6 @@ export default class CampaignPolicy extends BasePolicy {
     return true
   }
 
-  changeStatus(user: AuthzPrincipal, campaign?: CampaignResource): boolean | AuthorizationResponse {
-    if (!user.memberPermissions?.has('campaigns:edit')) {
-      return AuthorizationResponse.deny('Permission denied: campaigns:edit', 403)
-    }
-    if (campaign && campaign.organizationId !== user.activeMember?.organizationId) {
-      return AuthorizationResponse.deny('Campaign not found', 404)
-    }
-    return true
-  }
-
   update(user: AuthzPrincipal, campaign?: CampaignResource): boolean | AuthorizationResponse {
     if (!user.memberPermissions?.has('campaigns:edit')) {
       return AuthorizationResponse.deny('Permission denied: campaigns:edit', 403)
@@ -125,7 +115,7 @@ export default class CampaignPolicy extends BasePolicy {
     if (campaign && campaign.organizationId !== user.activeMember?.organizationId) {
       return AuthorizationResponse.deny('Campaign not found', 404)
     }
-    if (campaign?.status && !['draft', 'scheduled'].includes(campaign.status)) {
+    if (campaign?.status && campaign.status !== 'draft') {
       return AuthorizationResponse.deny(
         `Campaign with status "${campaign.status}" is not editable`,
         422

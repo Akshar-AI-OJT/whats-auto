@@ -73,42 +73,47 @@ export function ratePercent(part: number, total: number): number {
   return Math.round((part / total) * 1000) / 10
 }
 
-export function formatCampaignDate(
-  value: string | null | undefined,
-  timeZone?: string | null
-): string {
+/** Format a campaign timestamp in UTC and label it. */
+export function formatCampaignDate(value: string | null | undefined): string {
   if (!value) return '—'
-  if (timeZone) {
-    return formatCampaignScheduledAt(value, timeZone) || '—'
-  }
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return '—'
-  return date.toLocaleString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  })
+  const formatted = formatCampaignScheduledAt(value)
+  return formatted ? `${formatted} UTC` : '—'
 }
 
+/** Content/audience edits are draft-only; scheduled campaigns must be cancelled first. */
 export function isEditableCampaignStatus(status: string): boolean {
-  return status === 'draft' || status === 'scheduled'
+  return status === 'draft'
 }
 
-/** PATCH /campaigns/:id/status only allows draft ↔ scheduled. */
-export const CAMPAIGN_CHANGE_STATUS_TARGETS = ['draft', 'scheduled'] as const
-
-export type CampaignChangeStatusTarget = (typeof CAMPAIGN_CHANGE_STATUS_TARGETS)[number]
-
-export function isStatusChangeableCampaignStatus(status: string): boolean {
-  return isEditableCampaignStatus(status)
-}
-
+/** Send now / Launch is draft-only; scheduled campaigns use Cancel + Reschedule. */
 export function isLaunchableCampaignStatus(status: string): boolean {
-  return status === 'draft' || status === 'scheduled'
+  return status === 'draft'
 }
 
 export function isCancellableCampaignStatus(status: string): boolean {
   return status === 'scheduled' || status === 'sending'
+}
+
+export function isReschedulableCampaignStatus(status: string): boolean {
+  return status === 'scheduled'
+}
+
+/** Client-side date range filter when API has no start/end params. */
+export function filterCampaignsByDateRange(
+  items: Campaign[],
+  startDate: string,
+  endDate: string
+): Campaign[] {
+  if (!startDate && !endDate) return items
+  const start = startDate ? new Date(`${startDate}T00:00:00`) : null
+  const end = endDate ? new Date(`${endDate}T23:59:59.999`) : null
+  return items.filter((item) => {
+    const raw = item.createdAt ?? item.scheduledAt
+    if (!raw) return false
+    const created = new Date(raw)
+    if (Number.isNaN(created.getTime())) return false
+    if (start && created < start) return false
+    if (end && created > end) return false
+    return true
+  })
 }

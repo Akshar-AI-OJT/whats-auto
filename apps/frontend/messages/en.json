@@ -3892,7 +3892,7 @@
         "menuAria": "Campaign actions",
         "view": "View Details",
         "edit": "Edit Campaign",
-        "changeStatus": "Change status",
+        "reschedule": "Reschedule",
         "duplicate": "Duplicate Campaign",
         "pause": "Pause Campaign",
         "cancel": "Cancel campaign",
@@ -3914,15 +3914,16 @@
         "confirm": "Cancel campaign",
         "cancelling": "Cancelling…"
       },
-      "changeStatus": {
-        "title": "Change campaign status?",
-        "body": "Update the status of “{name}”. Only draft and scheduled are allowed here.",
-        "hint": "This updates the status field only. Use Launch to send, Save & schedule to queue a send time, or Cancel to stop a scheduled/sending campaign.",
-        "label": "New status",
+      "reschedule": {
+        "title": "Reschedule this campaign?",
+        "body": "Choose a new UTC launch time for “{name}”. The previous schedule is replaced.",
+        "scheduledAt": "Date and time (UTC)",
+        "utcLabel": "UTC",
+        "hint": "Enter the wall-clock time in UTC. The campaign launches automatically at this instant.",
         "dismiss": "Keep current",
-        "confirm": "Update status",
-        "saving": "Updating…",
-        "success": "Campaign status updated."
+        "confirm": "Reschedule",
+        "saving": "Rescheduling…",
+        "success": "Campaign rescheduled."
       },
       "preview": {
         "title": "Message preview",
@@ -3965,11 +3966,10 @@
         "schedule": "Schedule",
         "sendNow": "Send Now",
         "scheduleLater": "Schedule for Later",
-        "scheduledAt": "Date and time",
-        "timezone": "Timezone",
-        "orgTimezone": "organization default",
-        "scheduleHint": "Send Now launches immediately after recipients are saved. Schedule for Later queues a future send.",
-        "scheduleLaterHint": "The campaign launches automatically at this time in {timezone}. Messages are not sent until then.",
+        "scheduledAt": "Date and time (UTC)",
+        "utcLabel": "UTC",
+        "scheduleHint": "Send Now launches immediately after recipients are saved. Schedule for Later queues a future send in UTC.",
+        "scheduleLaterHint": "The campaign launches automatically at this UTC time. Messages are not sent until then.",
         "cancel": "Cancel",
         "reviewConfirm": "Save draft",
         "confirmSend": "Save & send",
@@ -4053,14 +4053,13 @@
         "deleteFailed": "Could not delete this campaign.",
         "saveFailed": "Could not save this campaign.",
         "cancelFailed": "Could not cancel this campaign.",
-        "changeStatusFailed": "Could not update this campaign’s status.",
-        "statusTransitionFailed": "That status change is not allowed for this campaign.",
+        "rescheduleFailed": "Could not reschedule this campaign.",
         "launchFailed": "Could not launch this campaign.",
         "templateNotApproved": "The linked message template is not approved. Approve it in Meta before launching.",
         "whatsappNotConnected": "WhatsApp is not connected. Reconnect your WhatsApp account before launching.",
         "duplicateFailed": "Could not duplicate this campaign.",
         "previewFailed": "Could not preview this campaign.",
-        "notEditable": "Only draft or scheduled campaigns can be edited."
+        "notEditable": "Only draft campaigns can be edited. Cancel a scheduled campaign to edit content or audience."
       }
     },
     "organizationSwitcher": {

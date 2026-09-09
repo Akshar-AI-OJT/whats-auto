@@ -363,8 +363,9 @@ test.group('PlanService uniqueness', (group) => {
     const growth = catalog.items.filter((item) => item.name === 'Growth')
     assert.lengthOf(growth, 4)
     assert.equal(
-      growth.filter((item) => item.billingPeriod === 'monthly' && item.price === 2499 && item.currency === 'INR')
-        .length,
+      growth.filter(
+        (item) => item.billingPeriod === 'monthly' && item.price === 2499 && item.currency === 'INR'
+      ).length,
       1
     )
     assert.equal(growth.find((item) => item.price === 2499 && item.currency === 'INR')?.id, olderId)
@@ -445,7 +446,9 @@ test.group('PlanService uniqueness', (group) => {
     ])
 
     const createdIds = results
-      .filter((result): result is PromiseFulfilledResult<{ id: string }> => result.status === 'fulfilled')
+      .filter(
+        (result): result is PromiseFulfilledResult<{ id: string }> => result.status === 'fulfilled'
+      )
       .map((result) => result.value.id)
     const rejected = results.filter((result) => result.status === 'rejected')
 
@@ -464,4 +467,3 @@ test.group('PlanService uniqueness', (group) => {
     }
   })
 })
-

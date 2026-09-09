@@ -12,13 +12,11 @@ import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { CampaignCards } from './CampaignCards'
 import {
   CampaignCancelDialog,
-  CampaignChangeStatusDialog,
   CampaignDeleteDialog,
 } from './CampaignDialogs'
 import { CampaignFilters } from './CampaignFilters'
 import { CampaignTable } from './CampaignTable'
 import {
-  type CampaignChangeStatusTarget,
   type CampaignViewMode,
   unwrapCampaign,
   unwrapCampaignList,
@@ -31,7 +29,7 @@ export function CampaignsListPage() {
   const t = useTranslations('dashboard.campaigns')
   const router = useRouter()
   const queryClient = useQueryClient()
-  const { toast, showToast, clearToast } = useDashboardToast()
+  const { toast, clearToast } = useDashboardToast()
   const {
     tenantOrganizationId,
     canViewCampaigns,
@@ -40,10 +38,8 @@ export function CampaignsListPage() {
     canDeleteCampaigns,
     canPauseCampaigns,
     isLoading: orgsLoading,
-    activeOrganization,
   } = useOrganizations()
 
-  const orgTimeZone = activeOrganization?.timezone
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [startDateInput, setStartDateInput] = useState('')
@@ -56,8 +52,6 @@ export function CampaignsListPage() {
   const [deleteError, setDeleteError] = useState<string | null>(null)
   const [cancelTarget, setCancelTarget] = useState<Campaign | null>(null)
   const [cancelError, setCancelError] = useState<string | null>(null)
-  const [statusTarget, setStatusTarget] = useState<Campaign | null>(null)
-  const [statusError, setStatusError] = useState<string | null>(null)
   const [listActionError, setListActionError] = useState<string | null>(null)
 
   const listParams = useMemo(
@@ -123,42 +117,6 @@ export function CampaignsListPage() {
     },
     onError: (err) => {
       setCancelError((err as unknown as ApiError).message || t('errors.cancelFailed'))
-    },
-  })
-
-  const changeStatusMutation = useMutation({
-    mutationFn: async ({
-      campaignId,
-      status,
-    }: {
-      campaignId: string
-      status: CampaignChangeStatusTarget
-    }) => {
-      const { data } = await api.campaigns.changeStatus(campaignId, { status })
-      return unwrapCampaign(data)
-    },
-    onSuccess: async () => {
-      setStatusTarget(null)
-      setStatusError(null)
-      showToast(t('changeStatus.success'), 'success')
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: queryKeys.campaigns.all }),
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.overview.campaigns(tenantOrganizationId),
-        }),
-      ])
-    },
-    onError: (err) => {
-      const apiErr = err as unknown as ApiError
-      if (apiErr.code === 'E_CAMPAIGN_INVALID_STATUS_TRANSITION') {
-        setStatusError(t('errors.statusTransitionFailed'))
-        return
-      }
-      if (apiErr.status === 403 || apiErr.code === 'PERMISSION_DENIED') {
-        setStatusError(t('errors.permissionDenied'))
-        return
-      }
-      setStatusError(apiErr.message || t('errors.changeStatusFailed'))
     },
   })
 
@@ -319,7 +277,6 @@ export function CampaignsListPage() {
               <CampaignCards
                 campaigns={items}
                 templateNames={templateNames}
-                timeZone={orgTimeZone}
                 canEdit={canEditCampaigns}
                 canCreate={canCreateCampaigns}
                 canDelete={canDeleteCampaigns}
@@ -329,10 +286,6 @@ export function CampaignsListPage() {
                   router.push(`/dashboard/campaigns/${campaign.id}/edit`)
                 }
                 onDuplicate={(campaign) => duplicateMutation.mutate(campaign.id)}
-                onChangeStatus={(campaign) => {
-                  setStatusError(null)
-                  setStatusTarget(campaign)
-                }}
                 onPause={(campaign) => {
                   setCancelError(null)
                   setCancelTarget(campaign)
@@ -346,7 +299,6 @@ export function CampaignsListPage() {
               <CampaignTable
                 campaigns={items}
                 templateNames={templateNames}
-                timeZone={orgTimeZone}
                 canEdit={canEditCampaigns}
                 canCreate={canCreateCampaigns}
                 canDelete={canDeleteCampaigns}
@@ -356,10 +308,6 @@ export function CampaignsListPage() {
                   router.push(`/dashboard/campaigns/${campaign.id}/edit`)
                 }
                 onDuplicate={(campaign) => duplicateMutation.mutate(campaign.id)}
-                onChangeStatus={(campaign) => {
-                  setStatusError(null)
-                  setStatusTarget(campaign)
-                }}
                 onPause={(campaign) => {
                   setCancelError(null)
                   setCancelTarget(campaign)
@@ -429,20 +377,6 @@ export function CampaignsListPage() {
         onConfirm={() => {
           if (!cancelTarget) return
           cancelMutation.mutate(cancelTarget.id)
-        }}
-      />
-
-      <CampaignChangeStatusDialog
-        open={Boolean(statusTarget)}
-        campaign={statusTarget}
-        pending={changeStatusMutation.isPending}
-        error={statusError}
-        onOpenChange={(open) => {
-          if (!open && !changeStatusMutation.isPending) setStatusTarget(null)
-        }}
-        onConfirm={(status) => {
-          if (!statusTarget) return
-          changeStatusMutation.mutate({ campaignId: statusTarget.id, status })
         }}
       />
     </div>

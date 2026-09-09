@@ -3,14 +3,14 @@ import vine from '@vinejs/vine'
 /** Soft-deleted campaigns use status = deleted (`broadcasts` has no deletedAt column). */
 export const CAMPAIGN_SOFT_DELETED_STATUS = 'deleted' as const
 
-/** Statuses allowed when creating a campaign (matches broadcasts.status comment). */
-export const CAMPAIGN_CREATE_STATUSES = ['draft', 'scheduled'] as const
+/** Statuses allowed when creating a campaign — draft only; schedule via POST /schedule. */
+export const CAMPAIGN_CREATE_STATUSES = ['draft'] as const
 
 /**
  * Statuses eligible for POST /campaigns/:id/send.
- * `sending` is the in-progress / "running" status on `broadcasts`.
+ * Scheduled campaigns cannot Send now — cancel to draft first.
  */
-export const CAMPAIGN_SENDABLE_STATUSES = ['draft', 'scheduled'] as const
+export const CAMPAIGN_SENDABLE_STATUSES = ['draft'] as const
 
 /** In-progress status after a successful send kickoff (product "Running"). */
 export const CAMPAIGN_SENDING_STATUS = 'sending' as const
@@ -109,12 +109,14 @@ const campaignVariableMappingSchema = vine.union([
 const campaignVariableMappingsSchema = vine.record(campaignVariableMappingSchema)
 
 /**
- * Keep scheduledAt as a string so timezone intent is not lost.
- * vine.date() parses naive `YYYY-MM-DD HH:mm:ss` in the Node process timezone
- * (TZ=UTC), which would store 10:55 PM local as 10:55 PM UTC.
- * CampaignService converts naive values in the selected or organization timezone once.
+ * UTC-only scheduledAt: ISO-8601 instant ending in `Z`.
+ * Rejects naive strings, numeric offsets, and non-Z forms.
+ * Full calendar/validity is checked again in CampaignService via parseUtcScheduledAt.
  */
-const scheduledAtString = vine.string().trim().minLength(1)
+const utcScheduledAtString = vine
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?Z$/i)
 
 export const createCampaignValidator = vine.create(
   vine.object({
@@ -122,8 +124,6 @@ export const createCampaignValidator = vine.create(
     whatsappConfigId: vine.string().trim().uuid().optional(),
     messageTemplateId: vine.string().trim().uuid().optional(),
     headerMediaAssetId: vine.string().trim().uuid().optional(),
-    scheduledAt: scheduledAtString.optional(),
-    status: vine.enum(CAMPAIGN_CREATE_STATUSES).optional(),
     variableMappings: campaignVariableMappingsSchema.optional(),
   })
 )
@@ -160,19 +160,10 @@ export const previewCampaignValidator = vine.create(
   })
 )
 
-/** Required future schedule datetime for POST /campaigns/:id/schedule. */
+/** Required future UTC schedule datetime for POST /campaigns/:id/schedule. */
 export const scheduleCampaignValidator = vine.create(
   vine.object({
-    scheduledAt: scheduledAtString,
-    /** IANA zone for naive `scheduledAt`. Offset/Z strings ignore this. */
-    timeZone: vine.string().trim().minLength(1).maxLength(100).optional(),
-  })
-)
-
-/** Required status for PATCH /campaigns/:id/status — active lifecycle values only (excludes soft-delete). */
-export const changeCampaignStatusValidator = vine.create(
-  vine.object({
-    status: vine.enum(CAMPAIGN_STATUSES),
+    scheduledAt: utcScheduledAtString,
   })
 )
 
@@ -191,8 +182,6 @@ export const updateCampaignValidator = vine.create(
     whatsappConfigId: vine.string().trim().uuid().nullable().optional(),
     messageTemplateId: vine.string().trim().uuid().nullable().optional(),
     headerMediaAssetId: vine.string().trim().uuid().nullable().optional(),
-    scheduledAt: scheduledAtString.nullable().optional(),
-    status: vine.enum(CAMPAIGN_CREATE_STATUSES).optional(),
     variableMappings: campaignVariableMappingsSchema.nullable().optional(),
   })
 )

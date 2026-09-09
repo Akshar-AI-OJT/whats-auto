@@ -1,28 +1,21 @@
 import { DateTime } from 'luxon'
 
 /**
- * Campaign scheduledAt parsing.
+ * Campaign scheduledAt parsing (UTC-only input contract).
  *
- * Canonical strategy:
  * - Persist PostgreSQL timestamptz as an absolute instant (UTC).
- * - Timezone-aware ISO (Z or numeric offset) is already an instant — do not convert again.
- * - Naive datetimes are wall-clock times in the organization's IANA timezone and are
- *   converted to UTC exactly once.
+ * - Campaign scheduling accepts only an explicit UTC ISO-8601 instant ending in `Z`.
+ * - Naive strings, numeric offsets (including `+00:00`), and `timeZone` are rejected on input.
+ * - `toUtcIso` still serializes Date values and Postgres timestamptz text for responses.
  */
+
+/** Strict UTC instant: must end with `Z` (milliseconds optional). */
+const UTC_Z_INSTANT = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?Z$/i
 
 const HAS_EXPLICIT_OFFSET = /(?:Z|[+-]\d{2}(?::?\d{2})?)$/i
 
-const NAIVE_FORMATS = [
-  'yyyy-MM-dd HH:mm:ss',
-  'yyyy-MM-dd HH:mm',
-  "yyyy-MM-dd'T'HH:mm:ss.SSS",
-  "yyyy-MM-dd'T'HH:mm:ss",
-  "yyyy-MM-dd'T'HH:mm",
-  'yyyy-MM-dd',
-] as const
-
 export class InvalidScheduledAtError extends Error {
-  constructor(message = 'scheduledAt is not a valid datetime') {
+  constructor(message = 'scheduledAt is not a valid UTC datetime ending in Z') {
     super(message)
     this.name = 'InvalidScheduledAtError'
   }
@@ -49,12 +42,11 @@ function requireValid(dt: DateTime): DateTime {
 }
 
 /**
- * Parse a scheduledAt value into an absolute UTC instant.
+ * Parse a campaign scheduledAt into an absolute UTC instant.
  *
- * Date / DateTime inputs are already instants and are not re-zoned.
- * Strings with Z/offset are instants. Naive strings use `timeZone`.
+ * Strings must be ISO-8601 ending in `Z`. Date / DateTime inputs are already instants.
  */
-export function parseScheduledAt(value: string | Date | DateTime, timeZone: string): Date {
+export function parseUtcScheduledAt(value: string | Date | DateTime): Date {
   if (value instanceof Date) {
     if (Number.isNaN(value.getTime())) {
       throw new InvalidScheduledAtError()
@@ -67,50 +59,36 @@ export function parseScheduledAt(value: string | Date | DateTime, timeZone: stri
   }
 
   const raw = value.trim()
-  if (!raw) {
+  if (!raw || !UTC_Z_INSTANT.test(raw)) {
     throw new InvalidScheduledAtError()
   }
 
-  const zone = resolveIanaTimeZone(timeZone)
-
-  if (HAS_EXPLICIT_OFFSET.test(raw)) {
-    const isoish = raw.includes(' ') ? raw.replace(' ', 'T') : raw
-    const parsed = DateTime.fromISO(isoish, { setZone: true })
-    if (parsed.isValid) {
-      return parsed.toUTC().toJSDate()
-    }
-    const date = new Date(isoish)
-    if (!Number.isNaN(date.getTime())) {
-      return date
-    }
+  const parsed = DateTime.fromISO(raw, { zone: 'utc' })
+  if (!parsed.isValid) {
+    throw new InvalidScheduledAtError()
   }
+  return parsed.toUTC().toJSDate()
+}
 
-  if (raw.includes('T')) {
-    const iso = DateTime.fromISO(raw, { zone })
-    if (iso.isValid) {
-      return iso.toUTC().toJSDate()
-    }
-  }
-
-  for (const format of NAIVE_FORMATS) {
-    const parsed = DateTime.fromFormat(raw, format, { zone })
-    if (parsed.isValid) {
-      return parsed.toUTC().toJSDate()
-    }
-  }
-
-  throw new InvalidScheduledAtError()
+/** @deprecated Use parseUtcScheduledAt — campaigns are UTC-only. */
+export function parseScheduledAt(value: string | Date | DateTime, _timeZone?: string): Date {
+  return parseUtcScheduledAt(value)
 }
 
 export function isScheduledAtInput(value: string): boolean {
   try {
-    parseScheduledAt(value, 'UTC')
+    parseUtcScheduledAt(value)
     return true
   } catch {
     return false
   }
 }
 
+/**
+ * Serialize an absolute instant to UTC ISO.
+ * Accepts Date/DateTime and common DB timestamptz text (naive UTC wall clock).
+ * Do not use for campaign schedule request validation — use parseUtcScheduledAt.
+ */
 export function toUtcIso(value: DateTime | Date | string): string {
   if (value instanceof Date) {
     if (Number.isNaN(value.getTime())) {
@@ -131,8 +109,11 @@ export function toUtcIso(value: DateTime | Date | string): string {
     throw new InvalidScheduledAtError()
   }
 
-  // Offset/Z (and ISO with T) are absolute instants. Naive `YYYY-MM-DD HH:mm:ss`
-  // from pg timestamptz is UTC wall clock — do not parse in the process timezone.
+  if (UTC_Z_INSTANT.test(raw)) {
+    return parseUtcScheduledAt(raw).toISOString()
+  }
+
+  // Offset/Z (non-strict) and ISO with T are absolute instants.
   if (HAS_EXPLICIT_OFFSET.test(raw) || raw.includes('T')) {
     const normalized = raw.includes(' ') ? raw.replace(' ', 'T') : raw
     const date = new Date(normalized)
@@ -141,5 +122,11 @@ export function toUtcIso(value: DateTime | Date | string): string {
     }
   }
 
-  return parseScheduledAt(raw, 'UTC').toISOString()
+  // Naive `YYYY-MM-DD HH:mm:ss` from pg timestamptz is UTC wall clock.
+  const naive = DateTime.fromSQL(raw, { zone: 'utc' })
+  if (naive.isValid) {
+    return naive.toUTC().toISO()!
+  }
+
+  throw new InvalidScheduledAtError()
 }
