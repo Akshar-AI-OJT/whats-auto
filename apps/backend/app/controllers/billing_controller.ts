@@ -131,7 +131,6 @@ export default class BillingController {
       planId: subscription.planId,
       status: subscription.status,
       gateway: subscription.gateway,
-      gatewaySubscriptionId: subscription.gatewaySubscriptionId,
       currentPeriodStart: subscription.currentPeriodStart,
       currentPeriodEnd: subscription.currentPeriodEnd,
       trialEndsAt: subscription.trialEndsAt,

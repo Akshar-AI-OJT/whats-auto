@@ -3400,7 +3400,6 @@
         "currentPeriodEnd": "Current period end",
         "trialEndsAt": "Trial ends",
         "gateway": "Gateway",
-        "gatewaySubscriptionId": "Gateway subscription ID",
         "lastPaymentStatus": "Last payment status",
         "lastPaymentAt": "Last payment at",
         "subscriptionId": "Subscription ID"

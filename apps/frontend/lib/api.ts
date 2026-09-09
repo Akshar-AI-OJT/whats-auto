@@ -1858,8 +1858,6 @@ export type BillingSubscription = {
   planId: string
   status: string
   gateway?: string | null
-  gatewaySubscriptionId?: string | null
-  checkoutUrl?: string | null
   currentPeriodStart?: string | null
   currentPeriodEnd?: string | null
   trialEndsAt?: string | null

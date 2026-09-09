@@ -6,8 +6,6 @@ export type OrganizationSubscriptionRow = {
   organizationId: string
   planId: string
   gateway: string | null
-  gatewaySubscriptionId: string | null
-  checkoutUrl: string | null
   status: string
   currentPeriodStart: Date | string
   currentPeriodEnd: Date | string
@@ -29,8 +27,6 @@ export type InsertOrganizationSubscriptionParams = {
   organizationId: string
   planId: string
   gateway: string
-  gatewaySubscriptionId?: string | null
-  checkoutUrl?: string | null
   status: string
   currentPeriodStart: Date
   currentPeriodEnd: Date
@@ -55,18 +51,6 @@ export class OrganizationSubscriptionRepository {
       .from('organization_subscriptions')
       .where('id', params.subscriptionId)
       .where('organizationId', params.organizationId)
-      .first()
-    return (row as OrganizationSubscriptionRow | undefined) ?? null
-  }
-
-  async findByGatewaySubscriptionId(
-    params: { gateway: string; gatewaySubscriptionId: string },
-    client: Db = db
-  ): Promise<OrganizationSubscriptionRow | null> {
-    const row = await client
-      .from('organization_subscriptions')
-      .where('gateway', params.gateway)
-      .where('gatewaySubscriptionId', params.gatewaySubscriptionId)
       .first()
     return (row as OrganizationSubscriptionRow | undefined) ?? null
   }
@@ -103,22 +87,6 @@ export class OrganizationSubscriptionRepository {
     return (row as OrganizationSubscriptionRow | undefined) ?? null
   }
 
-  async findOpenCheckoutForOrg(
-    organizationId: string,
-    client: Db = db
-  ): Promise<OrganizationSubscriptionRow | null> {
-    const row = await client
-      .from('organization_subscriptions')
-      .where('organizationId', organizationId)
-      .where('gateway', 'razorpay')
-      .whereNotNull('gatewaySubscriptionId')
-      .whereNull('activatedAt')
-      .whereIn('status', ['trialing'])
-      .orderBy('createdAt', 'desc')
-      .first()
-    return (row as OrganizationSubscriptionRow | undefined) ?? null
-  }
-
   async insert(
     params: InsertOrganizationSubscriptionParams,
     client: Db = db
@@ -129,8 +97,6 @@ export class OrganizationSubscriptionRepository {
         organizationId: params.organizationId,
         planId: params.planId,
         gateway: params.gateway,
-        gatewaySubscriptionId: params.gatewaySubscriptionId ?? null,
-        checkoutUrl: params.checkoutUrl ?? null,
         status: params.status,
         currentPeriodStart: params.currentPeriodStart,
         currentPeriodEnd: params.currentPeriodEnd,

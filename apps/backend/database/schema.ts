@@ -1754,13 +1754,11 @@ export class OrganizationSubscriptionSchema extends BaseModel {
     'cancelAt',
     'cancelAtPeriodEnd',
     'cancelledAt',
-    'checkoutUrl',
     'createdAt',
     'currentPeriodEnd',
     'currentPeriodStart',
     'endedAt',
     'gateway',
-    'gatewaySubscriptionId',
     'graceEndsAt',
     'id',
     'lastPaymentAt',
@@ -1781,8 +1779,6 @@ export class OrganizationSubscriptionSchema extends BaseModel {
   declare cancelAtPeriodEnd: boolean
   @column.dateTime()
   declare cancelledAt: DateTime | null
-  @column()
-  declare checkoutUrl: string | null
   @column.dateTime()
   declare createdAt: DateTime
   @column.dateTime()
@@ -1793,8 +1789,6 @@ export class OrganizationSubscriptionSchema extends BaseModel {
   declare endedAt: DateTime | null
   @column()
   declare gateway: string | null
-  @column()
-  declare gatewaySubscriptionId: string | null
   @column.dateTime()
   declare graceEndsAt: DateTime | null
   @column({ isPrimary: true })
