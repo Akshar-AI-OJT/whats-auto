@@ -2225,7 +2225,37 @@ export class PlatformAiConfigSchema extends BaseModel {
 }
 
 export class PlatformSettingSchema extends BaseModel {
-  static $columns = ['allowlistedIps', 'apiRateLimitPerMinute', 'billingAddress', 'billingBrandName', 'billingEmail', 'billingGstin', 'billingLegalName', 'billingPhone', 'billingTagline', 'billingWebsite', 'createdAt', 'dataRetentionDays', 'defaultTimezone', 'googleSignInEnabled', 'id', 'maintenanceEnabled', 'mfaEnforcement', 'microsoftSignInEnabled', 'nextMaintenanceWindow', 'oauthRedirectUrl', 'passwordMinLength', 'platformName', 'primaryDomain', 'sessionTimeoutHours', 'singletonKey', 'smtpDailyLimit', 'supportEmail', 'updatedAt', 'updatedByUserId'] as const
+  static $columns = [
+    'allowlistedIps',
+    'apiRateLimitPerMinute',
+    'billingAddress',
+    'billingBrandName',
+    'billingEmail',
+    'billingGstin',
+    'billingLegalName',
+    'billingPhone',
+    'billingTagline',
+    'billingWebsite',
+    'createdAt',
+    'dataRetentionDays',
+    'defaultTimezone',
+    'googleSignInEnabled',
+    'id',
+    'maintenanceEnabled',
+    'mfaEnforcement',
+    'microsoftSignInEnabled',
+    'nextMaintenanceWindow',
+    'oauthRedirectUrl',
+    'passwordMinLength',
+    'platformName',
+    'primaryDomain',
+    'sessionTimeoutHours',
+    'singletonKey',
+    'smtpDailyLimit',
+    'supportEmail',
+    'updatedAt',
+    'updatedByUserId',
+  ] as const
   $columns = PlatformSettingSchema.$columns
   @column()
   declare allowlistedIps: any
