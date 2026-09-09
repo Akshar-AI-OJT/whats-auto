@@ -130,8 +130,8 @@ export default class SuperAdminSubscriptionsController {
   }
 
   /**
-   * @summary Soft-delete a subscription (Super Admin)
-   * @description Marks the subscription as cancelled without removing the row. Requires Super Admin role and platform:tenants_billing permission.
+   * @summary Cancel a subscription (Super Admin)
+   * @description Sets status to cancelled without removing the row. Cancelled subscriptions remain in the list and summary. Requires Super Admin role and platform:tenants_billing permission.
    * @tag Super Admin
    * @security BearerAuth
    * @paramPath id - Subscription id - @type(string)

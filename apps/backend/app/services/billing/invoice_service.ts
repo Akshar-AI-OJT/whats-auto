@@ -2,11 +2,16 @@ import InvoiceException from '#exceptions/invoice_exception'
 import { insertAuthorizationAudit } from '#lib/authorization_audit'
 import { buildInvoicePdfBuffer, invoicePdfFilename } from '#lib/invoice_pdf'
 import {
+  mapPlatformSettingsToBillingProfile,
+  type PlatformBillingProfile,
+} from '#lib/platform_billing_profile'
+import {
   InvoiceRepository,
   type InsertInvoiceLineItemParams,
   type ListInvoicesFilter,
 } from '#repositories/invoice_repository'
 import { sendInvoiceEmail } from '#services/billing/invoice_mail'
+import PlatformSettingsService from '#services/platform_settings_service'
 import { runWithTenant } from '#services/tenant_context'
 import {
   buildInvoiceSummary,
@@ -373,11 +378,12 @@ export class InvoiceService {
       throw InvoiceException.missingRecipient()
     }
 
-    const pdf = buildInvoicePdfBuffer(invoice)
+    const platform = await this.getBillingProfile()
+    const pdf = buildInvoicePdfBuffer(invoice, platform)
     const filename = invoicePdfFilename(invoice.invoiceNumber)
 
     try {
-      await sendInvoiceEmail({ to, invoice, pdf, filename })
+      await sendInvoiceEmail({ to, invoice, pdf, filename, platform })
     } catch {
       throw InvoiceException.sendFailed()
     }
@@ -402,11 +408,17 @@ export class InvoiceService {
     contentType: 'application/pdf'
   }> {
     const invoice = await this.getInvoiceById(invoiceId)
+    const platform = await this.getBillingProfile()
     return {
-      buffer: buildInvoicePdfBuffer(invoice),
+      buffer: buildInvoicePdfBuffer(invoice, platform),
       filename: invoicePdfFilename(invoice.invoiceNumber),
       contentType: 'application/pdf',
     }
+  }
+
+  async getBillingProfile(): Promise<PlatformBillingProfile> {
+    const settings = await new PlatformSettingsService().get()
+    return mapPlatformSettingsToBillingProfile(settings)
   }
 
   async #nextInvoiceNumber(year: number) {

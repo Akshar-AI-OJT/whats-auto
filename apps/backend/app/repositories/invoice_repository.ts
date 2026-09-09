@@ -101,6 +101,12 @@ export type ListInvoicesFilter = {
 
 type Db = typeof db | TransactionClientContract
 
+/**
+ * UTC calendar date, matching resolveEffectiveInvoiceStatus / utcCalendarDate.
+ * invoices.dueDate is DATE (not timestamptz).
+ */
+const UTC_TODAY_SQL = `(timezone('utc', now()))::date`
+
 function applyInvoiceFilters(query: ReturnType<typeof db.from>, filters: ListInvoicesFilter) {
   const search = filters.search?.trim()
   if (search) {
@@ -116,7 +122,9 @@ function applyInvoiceFilters(query: ReturnType<typeof db.from>, filters: ListInv
 
   if (filters.status && filters.status !== 'all') {
     if (filters.status === 'overdue') {
-      query.where('status', 'pending').where('dueDate', '<', db.raw('CURRENT_DATE'))
+      query.where('status', 'pending').where('dueDate', '<', db.raw(UTC_TODAY_SQL))
+    } else if (filters.status === 'pending') {
+      query.where('status', 'pending').where('dueDate', '>=', db.raw(UTC_TODAY_SQL))
     } else {
       query.where('status', filters.status)
     }

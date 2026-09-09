@@ -1,6 +1,9 @@
 import { test } from '@japa/runner'
 import type { InvoiceRow } from '#repositories/invoice_repository'
-import { buildInvoiceSummary } from '#transformers/invoice_transformer'
+import {
+  buildInvoiceSummary,
+  resolveEffectiveInvoiceStatus,
+} from '#transformers/invoice_transformer'
 
 function invoice(overrides: Partial<InvoiceRow>): InvoiceRow {
   return {
@@ -121,5 +124,57 @@ test.group('buildInvoiceSummary', () => {
     assert.equal(summary.currency, 'INR')
     assert.equal(summary.thisMonthAmount, 0)
     assert.equal(summary.totalCount, 0)
+  })
+
+  test('counts pending due today as pending, not overdue', ({ assert }) => {
+    const now = new Date('2026-09-15T12:00:00.000Z')
+    const summary = buildInvoiceSummary(
+      [
+        invoice({
+          id: 'due-today',
+          status: 'pending',
+          total: 100,
+          issueDate: '2026-09-01',
+          dueDate: '2026-09-15',
+          paidAt: null,
+        }),
+      ],
+      now
+    )
+
+    assert.equal(summary.pendingCount, 1)
+    assert.equal(summary.overdueCount, 0)
+  })
+})
+
+test.group('resolveEffectiveInvoiceStatus', () => {
+  const now = new Date('2026-09-09T12:00:00.000Z')
+
+  test('pending with future dueDate stays pending', ({ assert }) => {
+    assert.equal(
+      resolveEffectiveInvoiceStatus({ status: 'pending', dueDate: '2026-09-10' }, now),
+      'pending'
+    )
+  })
+
+  test('pending with dueDate today stays pending', ({ assert }) => {
+    assert.equal(
+      resolveEffectiveInvoiceStatus({ status: 'pending', dueDate: '2026-09-09' }, now),
+      'pending'
+    )
+  })
+
+  test('pending with past dueDate becomes overdue', ({ assert }) => {
+    assert.equal(
+      resolveEffectiveInvoiceStatus({ status: 'pending', dueDate: '2026-09-08' }, now),
+      'overdue'
+    )
+  })
+
+  test('paid with past dueDate stays paid', ({ assert }) => {
+    assert.equal(
+      resolveEffectiveInvoiceStatus({ status: 'paid', dueDate: '2026-09-01' }, now),
+      'paid'
+    )
   })
 })

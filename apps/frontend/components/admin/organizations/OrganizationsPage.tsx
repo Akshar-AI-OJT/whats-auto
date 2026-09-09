@@ -17,6 +17,7 @@ import {
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { queryKeys } from '@/lib/query-keys'
+import { invalidateAnalyticsAfterOrganizationMutation } from '@/lib/super-admin-analytics-cache'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
@@ -336,6 +337,7 @@ export function OrganizationsPage() {
             : org
         )
       )
+      await invalidateAnalyticsAfterOrganizationMutation(queryClient)
       setActionMessage(t('toast.deleted', { name: deleteTarget.name }))
       if (selectedId === deleteTarget.id) setSelectedId(null)
       setDeleteTarget(null)
@@ -358,7 +360,10 @@ export function OrganizationsPage() {
           ? await suspendSuperAdminOrganization(organization.id)
           : await activateSuperAdminOrganization(organization.id)
       patchOrganizations((prev) => prev.map((org) => (org.id === updated.id ? updated : org)))
-      void queryClient.invalidateQueries({ queryKey: queryKeys.admin.organizationDetail(updated.id) })
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.admin.organizationDetail(updated.id) }),
+        invalidateAnalyticsAfterOrganizationMutation(queryClient),
+      ])
       setActionMessage(
         action === 'suspend'
           ? t('toast.suspended', { name: organization.name })

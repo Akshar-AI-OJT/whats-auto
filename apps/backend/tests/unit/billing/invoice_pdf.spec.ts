@@ -1,5 +1,10 @@
 import { test } from '@japa/runner'
 import { buildInvoicePdfBuffer, invoicePdfFilename } from '#lib/invoice_pdf'
+import {
+  BILLING_PROFILE_NOT_CONFIGURED,
+  RETIRED_MOCK_SELLER_GSTIN,
+  mapPlatformSettingsToBillingProfile,
+} from '#lib/platform_billing_profile'
 import type { SuperAdminInvoice } from '#types/invoices'
 
 function sampleInvoice(overrides: Partial<SuperAdminInvoice> = {}): SuperAdminInvoice {
@@ -63,6 +68,33 @@ test.group('invoice PDF generator', () => {
     assert.include(text, invoice.invoiceNumber)
     assert.include(text, 'billing@acme.test')
     assert.include(text, 'Growth Plan')
+    assert.include(text, 'INR 2948.82')
     assert.equal(invoicePdfFilename(invoice.invoiceNumber), 'invoice-INV-2026-000512.pdf')
+    assert.notInclude(text, RETIRED_MOCK_SELLER_GSTIN)
+    assert.include(text, BILLING_PROFILE_NOT_CONFIGURED)
+  })
+
+  test('configured seller identity is printed and mock GSTIN is absent', ({ assert }) => {
+    const invoice = sampleInvoice()
+    const platform = mapPlatformSettingsToBillingProfile({
+      billingBrandName: 'Live Brand',
+      billingLegalName: 'Live Brand Pvt Ltd',
+      billingAddress: 'FC Road, Pune',
+      billingGstin: '27AABCU9603R1ZM',
+      billingEmail: 'invoices@live-brand.test',
+      billingPhone: '+91 20 0000 0000',
+    })
+    const pdf = buildInvoicePdfBuffer(invoice, platform)
+    const text = pdf.toString('latin1')
+
+    assert.include(text, 'Live Brand Pvt Ltd')
+    assert.include(text, '27AABCU9603R1ZM')
+    assert.include(text, 'invoices@live-brand.test')
+    assert.include(text, 'Growth Plan')
+    assert.include(text, 'INR 2499.00')
+    assert.include(text, 'INR 2948.82')
+    assert.notInclude(text, RETIRED_MOCK_SELLER_GSTIN)
+    assert.notInclude(text, 'Whats-Auto Technologies Pvt. Ltd.')
+    assert.notInclude(text, 'billing@whatsauto.com')
   })
 })

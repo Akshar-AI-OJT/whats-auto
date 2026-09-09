@@ -1,5 +1,8 @@
 import mail from '@adonisjs/mail/services/main'
-import { PLATFORM_BILLING_PROFILE } from '#lib/platform_billing_profile'
+import {
+  EMPTY_PLATFORM_BILLING_PROFILE,
+  type PlatformBillingProfile,
+} from '#lib/platform_billing_profile'
 import type { SuperAdminInvoice } from '#types/invoices'
 
 function escapeHtml(value: string) {
@@ -14,15 +17,20 @@ function formatMoney(currency: string, amount: number): string {
   return `${currency} ${amount.toFixed(2)}`
 }
 
-export function buildInvoiceEmail(invoice: SuperAdminInvoice): {
+export function buildInvoiceEmail(
+  invoice: SuperAdminInvoice,
+  platform: PlatformBillingProfile = EMPTY_PLATFORM_BILLING_PROFILE
+): {
   subject: string
   text: string
   html: string
 } {
-  const platform = PLATFORM_BILLING_PROFILE
   const subject = `Invoice ${invoice.invoiceNumber} from ${platform.brandName}`
   const total = formatMoney(invoice.currency, invoice.total)
   const orgName = invoice.organization.name
+  const queryLine = platform.email
+    ? `For billing queries, contact ${platform.email}.`
+    : 'For billing queries, contact the platform operator.'
 
   const text = [
     `Hello ${orgName},`,
@@ -33,7 +41,7 @@ export function buildInvoiceEmail(invoice: SuperAdminInvoice): {
     `Due date: ${invoice.dueDate}`,
     `Status: ${invoice.status}`,
     '',
-    `For billing queries, contact ${platform.email}.`,
+    queryLine,
     '',
     `— ${platform.brandName}`,
   ].join('\n')
@@ -59,7 +67,7 @@ export function buildInvoiceEmail(invoice: SuperAdminInvoice): {
               <strong>Due date:</strong> ${escapeHtml(invoice.dueDate)}
             </p>
             <p style="margin:0; font-size:13px; line-height:20px; color:#6b7280;">
-              For billing queries, contact ${escapeHtml(platform.email)}.
+              ${escapeHtml(queryLine)}
             </p>
           </div>
           <div style="padding:20px 32px; background:#f9fafb; border-top:1px solid #e5e7eb;">
@@ -79,8 +87,12 @@ export async function sendInvoiceEmail(params: {
   invoice: SuperAdminInvoice
   pdf: Buffer
   filename: string
+  platform?: PlatformBillingProfile
 }) {
-  const { subject, text, html } = buildInvoiceEmail(params.invoice)
+  const { subject, text, html } = buildInvoiceEmail(
+    params.invoice,
+    params.platform ?? EMPTY_PLATFORM_BILLING_PROFILE
+  )
   await mail.send((message) => {
     message.to(params.to).subject(subject).text(text).html(html)
     message.attachData(params.pdf, {

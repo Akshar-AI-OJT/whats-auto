@@ -182,13 +182,18 @@ export const queryKeys = {
     plansRoot: ['admin', 'plans'] as const,
     plans: (params?: Record<string, unknown>) => ['admin', 'plans', params ?? {}] as const,
     planDetail: (planId?: string | null) => ['admin', 'plans', 'detail', planId ?? 'none'] as const,
+    /** Prefix for invalidating all subscription list/summary queries. */
+    subscriptionsRoot: ['admin', 'subscriptions'] as const,
     subscriptions: (params?: Record<string, unknown>) =>
       ['admin', 'subscriptions', params ?? {}] as const,
+    subscriptionDetail: (subscriptionId: string) =>
+      ['admin', 'subscriptions', 'detail', subscriptionId] as const,
     /** Prefix for invalidating all invoice list/summary queries. */
     invoicesRoot: ['admin', 'invoices'] as const,
     invoices: (params?: Record<string, unknown>) => ['admin', 'invoices', params ?? {}] as const,
     invoiceSummary: (params?: Record<string, unknown>) =>
       ['admin', 'invoices', 'summary', params ?? {}] as const,
+    invoiceBillingProfile: ['admin', 'invoices', 'billing-profile'] as const,
     auditLogs: (params?: Record<string, unknown>) =>
       ['admin-audit-logs', params ?? {}] as const,
     auditLogOrganizations: ['admin-audit-log-organizations'] as const,
@@ -205,6 +210,7 @@ export const queryKeys = {
         ['super-admin-analytics', 'monthly-revenue', locale, months] as const,
     },
     aiConfig: ['admin', 'ai-config'] as const,
+    platformSettings: ['admin', 'platform-settings'] as const,
   },
 } as const
 

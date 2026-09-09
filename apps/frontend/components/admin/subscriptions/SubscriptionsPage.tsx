@@ -16,6 +16,7 @@ import {
 import { useTranslations } from 'next-intl'
 import { cn } from '@/lib/utils'
 import { queryKeys } from '@/lib/query-keys'
+import { invalidateAnalyticsAfterSubscriptionMutation } from '@/lib/super-admin-analytics-cache'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
@@ -254,15 +255,6 @@ export function SubscriptionsPage() {
     ? mapSubscriptionApiError(subsQuery.error, t('errors.loadFailed'))
     : null
 
-  function patchSubscriptions(
-    updater: (prev: SuperAdminSubscription[]) => SuperAdminSubscription[]
-  ) {
-    queryClient.setQueryData<typeof subsQuery.data>(subsQueryKey, (old) => {
-      if (!old) return old
-      return { ...old, items: updater(old.items) }
-    })
-  }
-
   const orgById = useMemo(() => {
     const map = new Map<string, AdminOrganizationListItem>()
     for (const org of organizations) map.set(org.id, org)
@@ -311,6 +303,13 @@ export function SubscriptionsPage() {
     return null
   }
 
+  async function refreshSubscriptionQueries() {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.subscriptionsRoot }),
+      invalidateAnalyticsAfterSubscriptionMutation(queryClient),
+    ])
+  }
+
   async function handleEditSave() {
     if (!editTarget || !editForm) return
     const validation = validateForm(editForm)
@@ -327,9 +326,10 @@ export function SubscriptionsPage() {
         currentPeriodStart: dateInputToIso(editForm.startDate),
         currentPeriodEnd: dateInputToIso(editForm.endDate, true),
       })
-      patchSubscriptions((prev) =>
-        prev.map((row) => (row.id === updated.id ? { ...row, ...updated } : row))
-      )
+      if (statusFilter !== 'all' && updated.status !== statusFilter && selectedId === updated.id) {
+        setSelectedId(null)
+      }
+      await refreshSubscriptionQueries()
       setActionMessage(t('toast.updated'))
       setActionError(null)
       setEditTarget(null)
@@ -347,12 +347,9 @@ export function SubscriptionsPage() {
     setDeleteError(null)
     try {
       await deleteSuperAdminSubscription(deleteTarget.id)
-      patchSubscriptions((prev) => prev.filter((row) => row.id !== deleteTarget.id))
-      queryClient.setQueryData<typeof subsQuery.data>(subsQueryKey, (old) => {
-        if (!old) return old
-        return { ...old, total: Math.max(0, old.total - 1) }
-      })
-      if (selectedId === deleteTarget.id) setSelectedId(null)
+      const staysOnPage = statusFilter === 'all' || statusFilter === 'cancelled'
+      if (selectedId === deleteTarget.id && !staysOnPage) setSelectedId(null)
+      await refreshSubscriptionQueries()
       setActionMessage(t('toast.deleted'))
       setActionError(null)
       setDeleteTarget(null)
@@ -742,18 +739,20 @@ export function SubscriptionsPage() {
                                       <PauseCircle className="size-3.5" />
                                       {t('actions.pause')}
                                     </button>
-                                    <button
-                                      type="button"
-                                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-negative hover:bg-negative/5"
-                                      onClick={() => {
-                                        setDeleteTarget(sub)
-                                        setDeleteError(null)
-                                        setMenuId(null)
-                                      }}
-                                    >
-                                      <Trash2 className="size-3.5" />
-                                      {t('actions.delete')}
-                                    </button>
+                                    {sub.status !== 'cancelled' ? (
+                                      <button
+                                        type="button"
+                                        className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-negative hover:bg-negative/5"
+                                        onClick={() => {
+                                          setDeleteTarget(sub)
+                                          setDeleteError(null)
+                                          setMenuId(null)
+                                        }}
+                                      >
+                                        <Trash2 className="size-3.5" />
+                                        {t('actions.delete')}
+                                      </button>
+                                    ) : null}
                                   </div>
                                 ) : null}
                               </td>

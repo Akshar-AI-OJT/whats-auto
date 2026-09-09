@@ -233,15 +233,17 @@ export function SubscriptionDetailPanel({
               <Pause className="size-4" aria-hidden />
               {t('actions.pause')}
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full justify-center gap-2 border-negative/40 text-negative hover:bg-negative/5"
-              onClick={onCancelSubscription}
-            >
-              <Trash2 className="size-4" aria-hidden />
-              {t('actions.delete')}
-            </Button>
+            {subscription.status !== 'cancelled' ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full justify-center gap-2 border-negative/40 text-negative hover:bg-negative/5"
+                onClick={onCancelSubscription}
+              >
+                <Trash2 className="size-4" aria-hidden />
+                {t('actions.delete')}
+              </Button>
+            ) : null}
           </div>
         </div>
 

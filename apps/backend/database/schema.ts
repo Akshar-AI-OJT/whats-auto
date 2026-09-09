@@ -522,6 +522,43 @@ export class ConversationSchema extends BaseModel {
   declare whatsappConfigId: string
 }
 
+export class DemoBookingSchema extends BaseModel {
+  static $columns = ['calendarEventId', 'company', 'companySize', 'createdAt', 'demoTimeZone', 'email', 'endsAt', 'fullName', 'id', 'meetingUrl', 'phone', 'purpose', 'startsAt', 'status', 'timeZone', 'updatedAt'] as const
+  $columns = DemoBookingSchema.$columns
+  @column()
+  declare calendarEventId: string | null
+  @column()
+  declare company: string | null
+  @column()
+  declare companySize: string | null
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare demoTimeZone: string
+  @column()
+  declare email: string
+  @column.dateTime()
+  declare endsAt: DateTime
+  @column()
+  declare fullName: string
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare meetingUrl: string | null
+  @column()
+  declare phone: string | null
+  @column()
+  declare purpose: string | null
+  @column.dateTime()
+  declare startsAt: DateTime
+  @column()
+  declare status: string
+  @column()
+  declare timeZone: string
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+}
+
 export class FlowExecutionLogSchema extends BaseModel {
   static $columns = ['actionTaken', 'conversationId', 'createdAt', 'errorMessage', 'flowSessionId', 'id', 'inputPayload', 'nodeId', 'nodeType', 'organizationId', 'outputPayload'] as const
   $columns = FlowExecutionLogSchema.$columns
@@ -1496,6 +1533,69 @@ export class PlatformAiConfigSchema extends BaseModel {
   declare updatedByUserId: string | null
   @column()
   declare workingSetSize: number
+}
+
+export class PlatformSettingSchema extends BaseModel {
+  static $columns = ['allowlistedIps', 'apiRateLimitPerMinute', 'billingAddress', 'billingBrandName', 'billingEmail', 'billingGstin', 'billingLegalName', 'billingPhone', 'billingTagline', 'billingWebsite', 'createdAt', 'dataRetentionDays', 'defaultTimezone', 'googleSignInEnabled', 'id', 'maintenanceEnabled', 'mfaEnforcement', 'microsoftSignInEnabled', 'nextMaintenanceWindow', 'oauthRedirectUrl', 'passwordMinLength', 'platformName', 'primaryDomain', 'sessionTimeoutHours', 'singletonKey', 'smtpDailyLimit', 'supportEmail', 'updatedAt', 'updatedByUserId'] as const
+  $columns = PlatformSettingSchema.$columns
+  @column()
+  declare allowlistedIps: any
+  @column()
+  declare apiRateLimitPerMinute: number
+  @column()
+  declare billingAddress: string
+  @column()
+  declare billingBrandName: string
+  @column()
+  declare billingEmail: string
+  @column()
+  declare billingGstin: string
+  @column()
+  declare billingLegalName: string
+  @column()
+  declare billingPhone: string
+  @column()
+  declare billingTagline: string
+  @column()
+  declare billingWebsite: string
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare dataRetentionDays: number
+  @column()
+  declare defaultTimezone: string
+  @column()
+  declare googleSignInEnabled: boolean
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare maintenanceEnabled: boolean
+  @column()
+  declare mfaEnforcement: string
+  @column()
+  declare microsoftSignInEnabled: boolean
+  @column.dateTime()
+  declare nextMaintenanceWindow: DateTime | null
+  @column()
+  declare oauthRedirectUrl: string
+  @column()
+  declare passwordMinLength: number
+  @column()
+  declare platformName: string
+  @column()
+  declare primaryDomain: string
+  @column()
+  declare sessionTimeoutHours: number
+  @column()
+  declare singletonKey: string
+  @column()
+  declare smtpDailyLimit: number
+  @column()
+  declare supportEmail: string
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+  @column()
+  declare updatedByUserId: string | null
 }
 
 export class RolePermissionSchema extends BaseModel {
