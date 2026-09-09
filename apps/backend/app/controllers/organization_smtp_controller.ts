@@ -17,14 +17,15 @@ export default class OrganizationSmtpController {
    * @responseBody 200 - { "data": { "transport": "smtp", "hasPassword": true } }
    * @responseBody 404 - { "error": "No custom SMTP configuration found for this organization", "code": "E_SMTP_CONFIG_NOT_FOUND" }
    */
-  async show({ bouncer, params, serialize }: HttpContext) {
+  async show({ bouncer, params, response, serialize }: HttpContext) {
     await bouncer.with(OrganizationPolicy).authorize('update', params.id)
 
     const row = await new OrganizationSmtpService().getConfig(params.id)
     if (!row) {
-      return serialize({ data: null })
+      // ApiSerializer rejects null; keep the contracted { data: null } shape.
+      return response.ok({ data: null })
     }
-    return serialize({ data: transformOrganizationSmtp(row) })
+    return serialize(transformOrganizationSmtp(row))
   }
 
   /**
@@ -44,7 +45,7 @@ export default class OrganizationSmtpController {
       actorUserId: request.authUser!.id,
       data: payload,
     })
-    return serialize({ data: transformOrganizationSmtp(row) })
+    return serialize(transformOrganizationSmtp(row))
   }
 
   /**

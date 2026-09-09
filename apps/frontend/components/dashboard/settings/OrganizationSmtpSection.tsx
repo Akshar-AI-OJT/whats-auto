@@ -46,6 +46,42 @@ const PRESET_OPTIONS: OrganizationSmtpProviderPreset[] = [
   'custom',
 ]
 
+const PRESET_SET = new Set<string>(PRESET_OPTIONS)
+
+function isProviderPreset(value: unknown): value is OrganizationSmtpProviderPreset {
+  return typeof value === 'string' && PRESET_SET.has(value)
+}
+
+/** Normalize GET/PUT payloads — tolerate a legacy double-wrapped `{ data: config }` shape. */
+function normalizeSmtpConfig(
+  payload: OrganizationSmtpConfig | { data: OrganizationSmtpConfig } | null | undefined
+): OrganizationSmtpConfig | null {
+  if (!payload || typeof payload !== 'object') return null
+  const candidate =
+    'providerPreset' in payload || 'senderEmail' in payload || 'transport' in payload
+      ? (payload as OrganizationSmtpConfig)
+      : 'data' in payload && payload.data && typeof payload.data === 'object'
+        ? payload.data
+        : null
+  if (!candidate) return null
+  if (!('id' in candidate) || !candidate.id) return null
+
+  return {
+    ...candidate,
+    providerPreset: isProviderPreset(candidate.providerPreset)
+      ? candidate.providerPreset
+      : 'custom',
+  }
+}
+
+function providerLabel(
+  t: ReturnType<typeof useTranslations>,
+  preset: OrganizationSmtpProviderPreset | null | undefined
+): string {
+  const safe = isProviderPreset(preset) ? preset : 'custom'
+  return t(`provider.${safe}`)
+}
+
 const PRESET_DEFAULTS: Record<
   OrganizationSmtpProviderPreset,
   Partial<UpsertOrganizationSmtpBody>
@@ -108,7 +144,7 @@ function formFromConfig(config: OrganizationSmtpConfig | null | undefined): Form
   if (!config) return emptyForm()
   return {
     transport: config.transport,
-    providerPreset: config.providerPreset,
+    providerPreset: isProviderPreset(config.providerPreset) ? config.providerPreset : 'custom',
     senderName: config.senderName,
     senderEmail: config.senderEmail,
     host: config.host ?? '',
@@ -230,7 +266,7 @@ export function OrganizationSmtpSection() {
     enabled: Boolean(tenantOrganizationId) && canManageSettings,
     queryFn: async (): Promise<OrganizationSmtpConfig | null> => {
       const { data } = await api.organizations.getSmtp(tenantOrganizationId!)
-      return data.data
+      return normalizeSmtpConfig(data.data)
     },
   })
 
@@ -294,7 +330,11 @@ export function OrganizationSmtpSection() {
       }
       return api.organizations.updateSmtp(tenantOrganizationId!, body)
     },
-    onSuccess: async () => {
+    onSuccess: async (result) => {
+      const saved = normalizeSmtpConfig(result.data)
+      if (saved) {
+        queryClient.setQueryData(queryKeys.organizations.smtp(tenantOrganizationId), saved)
+      }
       setDraft(null)
       setProviderChosen(false)
       setSuccess(t('toast.saveSuccess'))
@@ -354,7 +394,7 @@ export function OrganizationSmtpSection() {
   })
 
   const connectionStatus = resolveConnectionStatus(config, testMutation.isPending)
-  const savedProviderLabel = config ? t(`provider.${config.providerPreset}`) : null
+  const savedProviderLabel = config ? providerLabel(t, config.providerPreset) : null
 
   const headerStatusLabel = useMemo(() => {
     if (connectionStatus === 'testing') return t('status.testing')
@@ -425,12 +465,16 @@ export function OrganizationSmtpSection() {
         >
           <div className="flex items-start gap-3">
             <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-xl border border-dash-border bg-canvas">
-              <ProviderIcon preset={config.providerPreset} />
+              <ProviderIcon
+                preset={
+                  isProviderPreset(config.providerPreset) ? config.providerPreset : 'custom'
+                }
+              />
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                 <p className="font-display text-sm font-semibold text-ink">
-                  {t(`provider.${config.providerPreset}`)}
+                  {providerLabel(t, config.providerPreset)}
                 </p>
                 <span
                   className={cn(
@@ -462,7 +506,7 @@ export function OrganizationSmtpSection() {
                 <span aria-hidden>·</span>
                 <span>
                   {t('currentConfig.summary', {
-                    provider: t(`provider.${config.providerPreset}`),
+                    provider: providerLabel(t, config.providerPreset),
                     email: config.senderEmail,
                   })}
                 </span>
