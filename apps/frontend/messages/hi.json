@@ -23,12 +23,7 @@
     "ctaSecondary": "डेमो बुक करें",
     "ctaSecondaryBadge": "Soon",
     "ctaSecondaryTooltip": "डेमो बुकिंग जल्द उपलब्ध होगी।",
-    "chips": [
-      "आधिकारिक WhatsApp API",
-      "AI चैट असिस्टेंट",
-      "शेयर टीम इनबॉक्स",
-      "ब्रॉडकास्ट कैंपेन"
-    ],
+    "chips": ["आधिकारिक WhatsApp API", "AI चैट असिस्टेंट", "शेयर टीम इनबॉक्स", "ब्रॉडकास्ट कैंपेन"],
     "visualLabel": "WhatsApp AI बातचीत पूर्वावलोकन",
     "mock": {
       "businessName": "Whats-Auto Store",
@@ -212,11 +207,7 @@
           "name": "Starter",
           "price": "₹499/mo",
           "cta": "Get Started",
-          "features": [
-            "AI Assistant",
-            "Shared Inbox",
-            "Broadcast Campaigns"
-          ]
+          "features": ["AI Assistant", "Shared Inbox", "Broadcast Campaigns"]
         },
         "growth": {
           "name": "Growth",
@@ -234,11 +225,7 @@
           "name": "Enterprise",
           "price": "Custom",
           "cta": "Contact Sales",
-          "features": [
-            "Dedicated Support",
-            "Custom Integrations",
-            "Enterprise Security"
-          ]
+          "features": ["Dedicated Support", "Custom Integrations", "Enterprise Security"]
         }
       }
     },
@@ -276,11 +263,7 @@
       "secondary": "डेमो बुक करें",
       "secondaryBadge": "Coming Soon",
       "secondaryTooltip": "डेमो बुकिंग जल्द उपलब्ध होगी।",
-      "perks": [
-        "क्रेडिट कार्ड की ज़रूरत नहीं",
-        "मिनटों में सेटअप",
-        "सुरक्षित ऑथेंटिकेशन"
-      ]
+      "perks": ["क्रेडिट कार्ड की ज़रूरत नहीं", "मिनटों में सेटअप", "सुरक्षित ऑथेंटिकेशन"]
     }
   },
   "footer": {
@@ -772,67 +755,35 @@
       "items": {
         "ai": {
           "title": "AI Assistant",
-          "bullets": [
-            "AI-generated replies",
-            "Context-aware suggestions",
-            "Smart automation"
-          ]
+          "bullets": ["AI-generated replies", "Context-aware suggestions", "Smart automation"]
         },
         "broadcast": {
           "title": "Broadcast Campaigns",
-          "bullets": [
-            "Create campaigns",
-            "Schedule broadcasts",
-            "Delivery tracking"
-          ]
+          "bullets": ["Create campaigns", "Schedule broadcasts", "Delivery tracking"]
         },
         "inbox": {
           "title": "Shared Team Inbox",
-          "bullets": [
-            "Assign conversations",
-            "Collaborate",
-            "Notes & mentions"
-          ]
+          "bullets": ["Assign conversations", "Collaborate", "Notes & mentions"]
         },
         "analytics": {
           "title": "Analytics",
-          "bullets": [
-            "Conversation metrics",
-            "Response time",
-            "Campaign performance"
-          ]
+          "bullets": ["Conversation metrics", "Response time", "Campaign performance"]
         },
         "multiTenant": {
           "title": "Multi-Tenant",
-          "bullets": [
-            "Separate organizations",
-            "Organization isolation",
-            "Role management"
-          ]
+          "bullets": ["Separate organizations", "Organization isolation", "Role management"]
         },
         "auth": {
           "title": "Secure Authentication",
-          "bullets": [
-            "Google OAuth",
-            "OTP verification",
-            "Password recovery & JWT"
-          ]
+          "bullets": ["Google OAuth", "OTP verification", "Password recovery & JWT"]
         },
         "workflow": {
           "title": "Workflow Automation",
-          "bullets": [
-            "Automated flows",
-            "Message triggers",
-            "Conditional actions"
-          ]
+          "bullets": ["Automated flows", "Message triggers", "Conditional actions"]
         },
         "templates": {
           "title": "Templates",
-          "bullets": [
-            "Saved responses",
-            "Reusable campaigns",
-            "Quick deployment"
-          ]
+          "bullets": ["Saved responses", "Reusable campaigns", "Quick deployment"]
         }
       }
     },
@@ -844,42 +795,25 @@
           "title": "AI Assistant",
           "description": "मानवीय जैसे AI जवाब से तुरंत जवाब दें, ज़रूरत पड़ने पर टीम को हैंडऑफ़ करें।",
           "visualLabel": "AI असिस्टेंट बातचीत",
-          "points": [
-            "AI replies",
-            "Human handoff",
-            "Smart suggestions",
-            "Instant responses"
-          ]
+          "points": ["AI replies", "Human handoff", "Smart suggestions", "Instant responses"]
         },
         "broadcast": {
           "title": "Broadcast Campaigns",
           "description": "शेड्यूल्ड कैंपेन से ऑप्ट-इन ऑडियंस तक पहुँचें और डिलीवरी साफ़ देखें।",
           "visualLabel": "ब्रॉडकास्ट कैंपेन मॉकअप",
-          "points": [
-            "Schedule",
-            "Segment contacts",
-            "Delivery insights"
-          ]
+          "points": ["Schedule", "Segment contacts", "Delivery insights"]
         },
         "inbox": {
           "title": "Team Collaboration",
           "description": "असाइनमेंट और इंटरनल कॉन्टेक्स्ट के साथ एक शेयर WhatsApp संगठन से सपोर्ट चलाएँ।",
           "visualLabel": "शेयर इनबॉक्स इलस्ट्रेशन",
-          "points": [
-            "Assign chats",
-            "Internal notes",
-            "Multi-agent support"
-          ]
+          "points": ["Assign chats", "Internal notes", "Multi-agent support"]
         },
         "analytics": {
           "title": "Analytics & Reports",
           "description": "संगठन छोड़े बिना एंगेजमेंट और कैंपेन परफ़ॉर्मेंस समझें।",
           "visualLabel": "एनालिटिक्स इलस्ट्रेशन",
-          "points": [
-            "Campaign metrics",
-            "Reply rates",
-            "Team performance"
-          ]
+          "points": ["Campaign metrics", "Reply rates", "Team performance"]
         }
       }
     },
@@ -1142,7 +1076,7 @@
         "emailRequired": "ईमेल आवश्यक है।",
         "emailInvalid": "सही ईमेल पता दर्ज करें।",
         "passwordRequired": "पासवर्ड आवश्यक है।",
-        "accountNotFound": "इस ईमेल से कोई खाता नहीं मिला। कृपया निमंत्रण के लिए अपने व्यवस्थापक से संपर्क करें।"
+        "accountNotFound": "आपका खाता अभी सिस्टम में नहीं है। संगठन बनाने के लिए पहले अपना खाता बनाएँ। अगर आपके पास खाता है, तो आमंत्रण के लिए अपने एडमिन से संपर्क करें।"
       }
     },
     "continue": {
