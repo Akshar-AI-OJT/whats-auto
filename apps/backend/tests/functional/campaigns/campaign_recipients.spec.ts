@@ -96,7 +96,6 @@ test.group('CampaignService.replaceRecipients', (group) => {
         organizationId,
         actorUserId: userId,
         name: 'Tag audience',
-        status: 'draft',
       })
     )
 
@@ -144,7 +143,6 @@ test.group('CampaignService.replaceRecipients', (group) => {
         organizationId,
         actorUserId: userId,
         name: 'Missing tag',
-        status: 'draft',
       })
     )
 
@@ -202,7 +200,6 @@ test.group('CampaignService.replaceRecipients', (group) => {
         organizationId,
         actorUserId: userId,
         name: 'All contacts path',
-        status: 'draft',
       })
     )
 
@@ -240,7 +237,6 @@ test.group('CampaignService.replaceRecipients', (group) => {
         organizationId,
         actorUserId: userId,
         name: 'Opt-out ids',
-        status: 'draft',
       })
     )
 
@@ -276,7 +272,6 @@ test.group('CampaignService.replaceRecipients', (group) => {
         organizationId,
         actorUserId: userId,
         name: 'Group persist',
-        status: 'draft',
       })
     )
 
@@ -325,7 +320,6 @@ test.group('CampaignService.replaceRecipients', (group) => {
         organizationId,
         actorUserId: userId,
         name: 'Relaunch group',
-        status: 'draft',
       })
     )
 

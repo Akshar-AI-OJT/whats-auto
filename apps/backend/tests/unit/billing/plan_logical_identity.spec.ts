@@ -82,10 +82,13 @@ test.group('plan logical identity', () => {
       id: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
       createdAt: '2026-06-01T00:00:00.000Z',
     })
-    const canonical = pickCanonicalPlanRow([unused, used], new Map([
-      [unused.id, { subscriptionCount: 0, orderCount: 0, invoiceCount: 0 }],
-      [used.id, { subscriptionCount: 3, orderCount: 1, invoiceCount: 2 }],
-    ]))
+    const canonical = pickCanonicalPlanRow(
+      [unused, used],
+      new Map([
+        [unused.id, { subscriptionCount: 0, orderCount: 0, invoiceCount: 0 }],
+        [used.id, { subscriptionCount: 3, orderCount: 1, invoiceCount: 2 }],
+      ])
+    )
     assert.equal(canonical.id, used.id)
   })
 
@@ -105,8 +108,9 @@ test.group('plan logical identity', () => {
     assert.lengthOf(cards, 2)
     assert.equal(new Set(cards.map((card) => card.id)).size, 2)
     assert.equal(
-      new Set(cards.map((card) => `${card.name}|${card.billingInterval}|${card.price}|${card.currency}`))
-        .size,
+      new Set(
+        cards.map((card) => `${card.name}|${card.billingInterval}|${card.price}|${card.currency}`)
+      ).size,
       2
     )
   })

@@ -17,10 +17,8 @@ type CampaignTableProps = {
   onView: (campaign: Campaign) => void
   onEdit: (campaign: Campaign) => void
   onDuplicate: (campaign: Campaign) => void
-  onChangeStatus?: (campaign: Campaign) => void
   onPause: (campaign: Campaign) => void
   onDelete: (campaign: Campaign) => void
-  timeZone?: string | null
 }
 
 export function CampaignTable({
@@ -33,10 +31,8 @@ export function CampaignTable({
   onView,
   onEdit,
   onDuplicate,
-  onChangeStatus,
   onPause,
   onDelete,
-  timeZone,
 }: CampaignTableProps) {
   const t = useTranslations('dashboard.campaigns')
 
@@ -102,7 +98,7 @@ export function CampaignTable({
                   <span className="text-mute"> ({read}%)</span>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-body">
-                  {formatCampaignDate(campaign.createdAt, timeZone)}
+                  {formatCampaignDate(campaign.createdAt)}
                 </td>
                 <td className="px-4 py-3 text-right">
                   <CampaignActionsMenu
@@ -114,9 +110,6 @@ export function CampaignTable({
                     onView={() => onView(campaign)}
                     onEdit={() => onEdit(campaign)}
                     onDuplicate={() => onDuplicate(campaign)}
-                    onChangeStatus={
-                      onChangeStatus ? () => onChangeStatus(campaign) : undefined
-                    }
                     onPause={() => onPause(campaign)}
                     onDelete={() => onDelete(campaign)}
                   />

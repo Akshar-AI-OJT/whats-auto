@@ -2908,7 +2908,7 @@ export const api = {
         }
       ),
 
-    schedule: (campaignId: string, body: { scheduledAt: string; timeZone?: string }) =>
+    schedule: (campaignId: string, body: { scheduledAt: string }) =>
       protectedRequest<{ data?: Campaign } & Campaign>(`/api/v1/campaigns/${campaignId}/schedule`, {
         method: 'POST',
         body: JSON.stringify(body),
@@ -2938,12 +2938,6 @@ export const api = {
         `/api/v1/campaigns/${campaignId}/duplicate`,
         { method: 'POST' }
       ),
-
-    changeStatus: (campaignId: string, body: { status: CampaignStatus }) =>
-      protectedRequest<{ data?: Campaign } & Campaign>(`/api/v1/campaigns/${campaignId}/status`, {
-        method: 'PATCH',
-        body: JSON.stringify(body),
-      }),
   },
 
   members: {

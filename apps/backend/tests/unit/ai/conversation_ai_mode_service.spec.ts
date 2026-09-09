@@ -1,5 +1,6 @@
 import { test } from '@japa/runner'
 import { ConversationAiMode } from '#enums/conversation_ai_mode'
+import { FlowSessionStatus } from '#enums/flow_session_status'
 import { type ConversationAiRepository } from '#repositories/conversation_ai_repository'
 import { type FlowSessionRepository } from '#repositories/flow_session_repository'
 import ConversationAiModeService from '#services/ai/conversation_ai_mode_service'
@@ -10,13 +11,14 @@ import { JOB_NAMES } from '#services/job_queue/job_names'
 const ORG = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 const CONV = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
 
-function createService(aiMode: string) {
+function createService(aiMode: string, options: { openSessionStatus?: string | null } = {}) {
   let mode = aiMode
   let reason: string | null = aiMode === ConversationAiMode.HANDOVER ? 'low_confidence' : null
   const paused: string[] = []
   const terminated: string[] = []
   const cancelledBuffers: string[] = []
   const removedJobs: Array<{ name: string; key: string }> = []
+  const openSessionStatus = options.openSessionStatus ?? null
 
   const conversations = {
     async findById() {
@@ -45,7 +47,11 @@ function createService(aiMode: string) {
       return 1
     },
     async findOpenForConversation() {
-      return null
+      if (!openSessionStatus) return null
+      return {
+        id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+        status: openSessionStatus,
+      }
     },
   } as unknown as FlowSessionRepository
 
@@ -127,12 +133,31 @@ test.group('ConversationAiModeService', () => {
     assert.deepEqual(auto.cancelledBuffers, [CONV])
   })
 
-  test('agent reply flips AI_AUTO to HUMAN_ACTIVE', async ({ assert }) => {
-    const auto = createService(ConversationAiMode.AI_AUTO)
-    await auto.service.onAgentReply({ organizationId: ORG, conversationId: CONV })
-    assert.equal(auto.getMode(), ConversationAiMode.HUMAN_ACTIVE)
-    assert.deepEqual(auto.paused, [CONV])
-    assert.deepEqual(auto.cancelledBuffers, [CONV])
+  test('agent reply claims HUMAN_ACTIVE only when a live flow session is open', async ({
+    assert,
+  }) => {
+    const midFlow = createService(ConversationAiMode.AI_AUTO, {
+      openSessionStatus: FlowSessionStatus.WAITING_FOR_INPUT,
+    })
+    await midFlow.service.onAgentReply({ organizationId: ORG, conversationId: CONV })
+    assert.equal(midFlow.getMode(), ConversationAiMode.HUMAN_ACTIVE)
+    assert.deepEqual(midFlow.paused, [CONV])
+    assert.deepEqual(midFlow.cancelledBuffers, [CONV])
+
+    const idle = createService(ConversationAiMode.AI_AUTO)
+    await idle.service.onAgentReply({ organizationId: ORG, conversationId: CONV })
+    assert.equal(idle.getMode(), ConversationAiMode.AI_AUTO)
+    assert.deepEqual(idle.paused, [])
+    assert.deepEqual(idle.cancelledBuffers, [CONV])
+  })
+
+  test('agent reply after HANDOVER still claims HUMAN_ACTIVE', async ({ assert }) => {
+    const handover = createService(ConversationAiMode.HANDOVER, {
+      openSessionStatus: FlowSessionStatus.PAUSED_FOR_HUMAN,
+    })
+    await handover.service.onAgentReply({ organizationId: ORG, conversationId: CONV })
+    assert.equal(handover.getMode(), ConversationAiMode.HUMAN_ACTIVE)
+    assert.deepEqual(handover.paused, [CONV])
   })
 
   test('missing conversation throws not found', async ({ assert }) => {
