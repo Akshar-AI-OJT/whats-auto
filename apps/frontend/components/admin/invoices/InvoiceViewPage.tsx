@@ -8,7 +8,8 @@ import { useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { InvoiceDocument } from './InvoiceDocument'
-import { downloadInvoice, getInvoice, getPlatformBillingProfile } from './invoice-service'
+import { downloadInvoice, getInvoice } from './invoice-service'
+import { usePlatformBillingProfile } from './use-platform-billing-profile'
 import type { Invoice } from './types'
 
 type InvoiceViewPageProps = {
@@ -19,7 +20,7 @@ export function InvoiceViewPage({ invoiceId }: InvoiceViewPageProps) {
   const t = useTranslations('admin.invoices')
   const router = useRouter()
   const searchParams = useSearchParams()
-  const platform = getPlatformBillingProfile()
+  const { platform } = usePlatformBillingProfile()
 
   const [invoice, setInvoice] = useState<Invoice | null>(null)
   const [loading, setLoading] = useState(true)

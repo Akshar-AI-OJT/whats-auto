@@ -1,25 +1,8 @@
-import type { Invoice, InvoiceOrganization, PlatformBillingProfile } from './types'
+import type { Invoice, InvoiceOrganization } from './types'
 
 /**
- * Centralized mock invoice seed data.
- * Replace with API responses via `invoice-service.ts` — do not scatter invoice objects in UI.
+ * Unused local fixtures. Live invoice list/generate uses Super Admin APIs.
  */
-
-export const PLATFORM_BILLING_PROFILE: PlatformBillingProfile = {
-  brandName: 'Whats-Auto',
-  legalName: 'Whats-Auto Technologies Pvt. Ltd.',
-  tagline: 'WhatsApp Automation Platform',
-  addressLines: [
-    'Plot 12, Sector 62, Noida',
-    'Uttar Pradesh 201309, India',
-  ],
-  gstin: '09AABCW1234D1Z5',
-  email: 'billing@whatsauto.com',
-  phone: '+91 120 456 7890',
-  website: 'www.whatsauto.com',
-}
-
-/** Organizations available in Generate Invoice (mock catalog). */
 export const MOCK_INVOICE_ORGANIZATIONS: InvoiceOrganization[] = [
   {
     id: 'org_8f3a7d2c',

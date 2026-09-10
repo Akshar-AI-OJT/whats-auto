@@ -456,7 +456,6 @@ export class BillingOrderApplyService {
       lastPaymentStatus: options.lastPaymentStatus,
       lastPaymentAt: options.lastPaymentStatus ? activatedAt : null,
       activatedAt: current?.activatedAt ?? activatedAt,
-      checkoutUrl: null,
       graceEndsAt: null,
       endedAt: null,
       cancelledAt: null,

@@ -90,10 +90,10 @@ export function InvoiceDocument({
               </p>
             ))}
             <p className="mt-2 text-sm text-[#374151]">
-              {t('document.gstin')}: {platform.gstin}
+              {t('document.gstin')}: {platform.gstin.trim() || '—'}
             </p>
-            <p className="text-sm text-[#374151]">{platform.email}</p>
-            <p className="text-sm text-[#374151]">{platform.phone}</p>
+            {platform.email ? <p className="text-sm text-[#374151]">{platform.email}</p> : null}
+            {platform.phone ? <p className="text-sm text-[#374151]">{platform.phone}</p> : null}
           </div>
           <div className="sm:border-l sm:border-[#E5E7EB] sm:pl-8">
             <p className="text-xs font-semibold tracking-wide text-[#6B7280] uppercase">
@@ -273,9 +273,9 @@ export function InvoiceDocument({
       </div>
 
       <footer className="flex flex-col gap-2 border-t border-[#E5E7EB] bg-[#F9FAFB] px-6 py-3 text-xs text-[#6B7280] sm:flex-row sm:items-center sm:justify-between sm:px-8">
-        <span>{platform.website}</span>
+        <span>{platform.website.trim() || '—'}</span>
         <span className="sm:text-center">{t('document.pageOf', { page: 1, total: 1 })}</span>
-        <span className="sm:text-right">{platform.email}</span>
+        <span className="sm:text-right">{platform.email.trim() || '—'}</span>
       </footer>
     </article>
   )

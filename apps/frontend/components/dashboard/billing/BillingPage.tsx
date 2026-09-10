@@ -349,10 +349,6 @@ export function BillingPage() {
                 />
                 <DetailRow label={t('fields.gateway')} value={subscription.gateway} />
                 <DetailRow
-                  label={t('fields.gatewaySubscriptionId')}
-                  value={subscription.gatewaySubscriptionId}
-                />
-                <DetailRow
                   label={t('fields.lastPaymentStatus')}
                   value={subscription.lastPaymentStatus}
                 />
@@ -447,10 +443,6 @@ export function BillingPage() {
                   value={formatBillingDate(subscription.lastPaymentAt)}
                 />
                 <DetailRow label={t('fields.gateway')} value={subscription.gateway} />
-                <DetailRow
-                  label={t('fields.gatewaySubscriptionId')}
-                  value={subscription.gatewaySubscriptionId}
-                />
               </dl>
             </div>
           )}

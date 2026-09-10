@@ -285,7 +285,7 @@ export class AnalyticsService {
 
   /**
    * Super Admin Analytics KPIs from SQL aggregates.
-   * Total organizations matches the unfiltered platform org list (includes soft-deleted).
+   * Total organizations is live tenants only (`deletedAt IS NULL`), matching Dashboard.
    */
   async getPlatformSummary(): Promise<PlatformAnalyticsSummary> {
     const keys = monthKeys(6)
@@ -295,7 +295,7 @@ export class AnalyticsService {
       db
         .from('organizations')
         .select(
-          db.raw('COUNT(*)::int as total'),
+          db.raw('COUNT(*) FILTER (WHERE "deletedAt" IS NULL)::int as total'),
           db.raw(
             `COUNT(*) FILTER (WHERE "deletedAt" IS NULL AND status = '${OrganizationStatus.ACTIVE}')::int as active`
           ),

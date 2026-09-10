@@ -2,7 +2,7 @@
 
 import { cn } from '@/lib/utils'
 import { InvoiceDocument } from './InvoiceDocument'
-import { getPlatformBillingProfile } from './invoice-service'
+import { usePlatformBillingProfile } from './use-platform-billing-profile'
 import type { Invoice } from './types'
 
 type InvoicePreviewPanelProps = {
@@ -22,7 +22,7 @@ export function InvoicePreviewPanel({
   hint,
   className,
 }: InvoicePreviewPanelProps) {
-  const platform = getPlatformBillingProfile()
+  const { platform } = usePlatformBillingProfile()
 
   return (
     <aside
