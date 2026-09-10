@@ -205,15 +205,15 @@ test.group('Organization profile completion gate', (group) => {
     orgIds.push(organizationId)
 
     const token = await mintTokenForOrg(DEMO_USERS.northstarOwner, organizationId)
-    const auth = { Authorization: `Bearer ${token}` }
+    const authHeaders = { Authorization: `Bearer ${token}` }
 
-    const accessContext = await client.get('/api/v1/access-context').headers(auth)
+    const accessContext = await client.get('/api/v1/access-context').headers(authHeaders)
     accessContext.assertStatus(200)
 
-    const orgs = await client.get('/api/v1/organizations').headers(auth)
+    const orgs = await client.get('/api/v1/organizations').headers(authHeaders)
     orgs.assertStatus(200)
 
-    const billing = await client.get('/api/v1/billing/plans').headers(auth)
+    const billing = await client.get('/api/v1/billing/plans').headers(authHeaders)
     billing.assertStatus(200)
   })
 

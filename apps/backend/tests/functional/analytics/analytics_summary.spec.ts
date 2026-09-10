@@ -389,7 +389,11 @@ test.group('BUG-012 analytics summary aggregates full dataset', (group) => {
     const summary = unwrapData<PlatformSummary>(summaryResponse.body(), 'totalOrganizations')
     assert.isNotNull(summary)
     const listed = unwrapList(listResponse.body())
-    const orgTotalRow = await db.from('organizations').count('* as total').first()
+    const orgTotalRow = await db
+      .from('organizations')
+      .whereNull('deletedAt')
+      .count('* as total')
+      .first()
     const dbCount = asCount(orgTotalRow)
 
     assert.equal(summary!.totalOrganizations, dbCount)

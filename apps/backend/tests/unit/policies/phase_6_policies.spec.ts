@@ -77,6 +77,12 @@ test.group('Phase 6 Policies - SuperAdminPolicy', () => {
     assert.isTrue(policy.manageAiConfig(admin))
     assert.isFalse(policy.manageAiConfig(unprivileged))
 
+    assert.isTrue(policy.viewPlatformSettings(admin))
+    assert.isFalse(policy.viewPlatformSettings(unprivileged))
+
+    assert.isTrue(policy.managePlatformSettings(admin))
+    assert.isFalse(policy.managePlatformSettings(unprivileged))
+
     assert.isTrue(policy.viewAuditLogs(admin))
     assert.isFalse(policy.viewAuditLogs(unprivileged))
   })

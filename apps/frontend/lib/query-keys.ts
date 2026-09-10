@@ -186,6 +186,8 @@ export const queryKeys = {
     plansRoot: ['admin', 'plans'] as const,
     plans: (params?: Record<string, unknown>) => ['admin', 'plans', params ?? {}] as const,
     planDetail: (planId?: string | null) => ['admin', 'plans', 'detail', planId ?? 'none'] as const,
+    /** Prefix for invalidating all subscription list/summary queries. */
+    subscriptionsRoot: ['admin', 'subscriptions'] as const,
     subscriptions: (params?: Record<string, unknown>) =>
       ['admin', 'subscriptions', params ?? {}] as const,
     subscriptionDetail: (subscriptionId?: string | null) =>
@@ -195,6 +197,7 @@ export const queryKeys = {
     invoices: (params?: Record<string, unknown>) => ['admin', 'invoices', params ?? {}] as const,
     invoiceSummary: (params?: Record<string, unknown>) =>
       ['admin', 'invoices', 'summary', params ?? {}] as const,
+    invoiceBillingProfile: ['admin', 'invoices', 'billing-profile'] as const,
     platformUsers: (params?: Record<string, unknown>) =>
       ['admin', 'platform-users', params ?? {}] as const,
     auditLogs: (params?: Record<string, unknown>) =>

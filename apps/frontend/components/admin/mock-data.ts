@@ -662,5 +662,3 @@ export const MOCK_AUDIT_LOGS: MockAuditLog[] = [
     status: 'failed',
   },
 ]
-
-

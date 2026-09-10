@@ -1,12 +1,13 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, ArrowRight, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { Link, useRouter } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
 import { queryKeys } from '@/lib/query-keys'
+import { invalidateAnalyticsAfterInvoiceMutation } from '@/lib/super-admin-analytics-cache'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
@@ -79,6 +80,7 @@ function StepIndicator({ step }: { step: Step }) {
 export function GenerateInvoicePage() {
   const t = useTranslations('admin.invoices')
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [step, setStep] = useState<Step>(1)
   const [form, setForm] = useState<InvoiceDraftForm>(() => emptyDraftForm())
   const [pending, setPending] = useState(false)
@@ -248,6 +250,10 @@ export function GenerateInvoicePage() {
     setError(null)
     try {
       const created = await createInvoice(draftFormToCreateInput(form, selectedOrg))
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.admin.invoicesRoot }),
+        invalidateAnalyticsAfterInvoiceMutation(queryClient),
+      ])
       router.push(`/admin/invoices/${created.id}?created=1`)
     } catch {
       setError(t('errors.createFailed'))

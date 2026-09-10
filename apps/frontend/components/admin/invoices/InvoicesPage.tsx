@@ -22,6 +22,7 @@ import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
 import { queryKeys } from '@/lib/query-keys'
+import { invalidateAnalyticsAfterInvoiceMutation } from '@/lib/super-admin-analytics-cache'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
@@ -124,7 +125,10 @@ export function InvoicesPage() {
   const listError = listQuery.error || summaryQuery.error ? t('errors.loadFailed') : null
 
   async function refreshInvoices() {
-    await Promise.all([queryClient.invalidateQueries({ queryKey: queryKeys.admin.invoicesRoot })])
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: queryKeys.admin.invoicesRoot }),
+      invalidateAnalyticsAfterInvoiceMutation(queryClient),
+    ])
   }
 
   const closeMenu = useCallback(() => {
