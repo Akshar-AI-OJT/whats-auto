@@ -6,6 +6,9 @@ import { PERMISSIONS, type Permission } from './permissions.ts'
  * `organization_role_permissions` overrides (admin/agent/viewer) or by creating
  * org-scoped custom roles that own their own `role_permissions` rows.
  *
+ * Owner/superadmin catalogs are seeded separately as full PRODUCT/PLATFORM sets
+ * and are immutable except via rbac_seeder (DB GUC + triggers).
+ *
  * Intentionally withheld from Admin template (owner-only until product says otherwise):
  * - billing:manage
  * - whatsapp:connect

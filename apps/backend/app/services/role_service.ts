@@ -400,6 +400,14 @@ export class RoleService {
     actorUserId: string
   }) {
     const { organizationId, role, desired, reason, actorUserId } = params
+    // Defense in depth: never rewrite role_permissions for immutable global roles
+    // (DB triggers also reject owner/superadmin mutations without the seeder GUC).
+    if (role.organizationId === null) {
+      throw RoleException.protectedRole(role.name)
+    }
+    if ((UNASSIGNABLE_ROLE_NAMES as readonly string[]).includes(role.name)) {
+      throw RoleException.protectedRole(role.name)
+    }
     const permissionIds = await this.resolvePermissionIds([...desired])
 
     const existing = await db
