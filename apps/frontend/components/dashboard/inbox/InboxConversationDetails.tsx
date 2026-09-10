@@ -33,9 +33,9 @@ function unwrapMembers(data: unknown): OrganizationMember[] {
 function DetailRow({ label, value }: { label: string; value: ReactNode }) {
   if (value == null || value === '') return null
   return (
-    <div className="flex flex-col gap-0.5 sm:flex-row sm:items-start sm:justify-between sm:gap-3">
-      <dt className="text-xs text-mute">{label}</dt>
-      <dd className="text-sm font-medium break-all text-ink sm:text-right">{value}</dd>
+    <div className="flex items-baseline justify-between gap-3 border-b border-dash-border/70 py-2 last:border-b-0">
+      <dt className="shrink-0 text-xs text-mute">{label}</dt>
+      <dd className="min-w-0 text-right text-sm font-medium break-all text-ink">{value}</dd>
     </div>
   )
 }
@@ -166,13 +166,13 @@ export function InboxConversationDetails({
   return (
     <aside
       className={cn(
-        'flex h-full min-h-0 w-full flex-col overflow-hidden',
-        'border border-dash-border bg-canvas/95 shadow-[0_1px_3px_rgb(15_23_42/0.06)]',
+        'flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden',
+        'border border-dash-border bg-canvas/95',
         'rounded-[18px]',
         className
       )}
     >
-      <div className="flex items-start justify-between gap-2 border-b border-dash-border px-4 py-3">
+      <div className="flex items-start justify-between gap-2 border-b border-dash-border px-3.5 py-2.5">
         <div className="min-w-0">
           <h2 className="font-display text-sm font-semibold tracking-tight text-ink">
             {tDetails('title')}
@@ -254,12 +254,12 @@ export function InboxConversationDetails({
           <p className="text-sm text-mute">{tDetails('empty')}</p>
         </div>
       ) : (
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
-          <section className="space-y-3">
-            <h3 className="text-xs font-semibold tracking-wide text-mute uppercase">
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden px-3.5 py-3">
+          <section>
+            <h3 className="text-[11px] font-semibold tracking-wide text-mute uppercase">
               {tDetails('contactTitle')}
             </h3>
-            <dl className="space-y-2.5 rounded-2xl border border-dash-border bg-dash-surface/40 p-3.5">
+            <dl className="mt-1">
               <DetailRow
                 label={tDetails('fields.name')}
                 value={conversation.contact?.name?.trim() || null}
@@ -279,11 +279,11 @@ export function InboxConversationDetails({
             </dl>
           </section>
 
-          <section className="mt-5 space-y-3">
-            <h3 className="text-xs font-semibold tracking-wide text-mute uppercase">
+          <section className="mt-4">
+            <h3 className="text-[11px] font-semibold tracking-wide text-mute uppercase">
               {tDetails('conversationTitle')}
             </h3>
-            <dl className="space-y-2.5 rounded-2xl border border-dash-border bg-dash-surface/40 p-3.5">
+            <dl className="mt-1">
               <DetailRow label={tDetails('fields.status')} value={statusLabel} />
               <DetailRow
                 label={tDetails('fields.aiMode')}
@@ -321,24 +321,6 @@ export function InboxConversationDetails({
           </section>
         </div>
       )}
-    </aside>
-  )
-}
-
-export function InboxDetailsEmpty({ className }: { className?: string }) {
-  const t = useTranslations('dashboard.inbox.details')
-
-  return (
-    <aside
-      className={cn(
-        'flex h-full min-h-0 w-full flex-col items-center justify-center gap-2',
-        'rounded-[18px] border border-dash-border bg-canvas/95 px-4 py-10 text-center',
-        'shadow-[0_1px_3px_rgb(15_23_42/0.06)]',
-        className
-      )}
-    >
-      <p className="text-sm font-semibold text-ink">{t('emptyTitle')}</p>
-      <p className="max-w-[14rem] text-xs leading-5 text-mute">{t('emptyDescription')}</p>
     </aside>
   )
 }

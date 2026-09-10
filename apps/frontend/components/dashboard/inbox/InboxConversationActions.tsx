@@ -1,25 +1,31 @@
 'use client'
 
-import { useCallback, useId, useState } from 'react'
+import { useCallback, useId, useState, useSyncExternalStore } from 'react'
 import { useTranslations } from 'next-intl'
-import { Bot, Loader2, RotateCcw, UserRound } from 'lucide-react'
-import {
-  api,
-  type ApiError,
-  type InboxConversation,
-  type InboxConversationStatus,
-  type OrganizationMember,
-} from '@/lib/api'
+import { Bot, Loader2, PanelRight, RotateCcw, UserRound, X } from 'lucide-react'
+import { api, type ApiError, type InboxConversation, type OrganizationMember } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { hasPermission, PERMISSIONS } from '@/lib/rbac'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { Button } from '@/components/ui/button'
-import {
-  DashboardToast,
-  useDashboardToast,
-} from '@/components/dashboard/ui/use-dashboard-toast'
+import { DashboardToast, useDashboardToast } from '@/components/dashboard/ui/use-dashboard-toast'
+import { useInboxOrganization } from './InboxOrganizationContext'
 import { unwrapSingle } from './inbox-utils'
 import { conversationAiMode } from './inbox-ai-mode'
+
+const XL_MQ = '(min-width: 1280px)'
+
+function subscribeXl(onStoreChange: () => void) {
+  if (typeof window === 'undefined') return () => {}
+  const media = window.matchMedia(XL_MQ)
+  media.addEventListener('change', onStoreChange)
+  return () => media.removeEventListener('change', onStoreChange)
+}
+
+function getIsXl() {
+  if (typeof window === 'undefined') return false
+  return window.matchMedia(XL_MQ).matches
+}
 
 type InboxConversationActionsProps = {
   conversation: InboxConversation
@@ -39,12 +45,14 @@ function mapActionError(apiError: ApiError, t: (key: string) => string): string 
 }
 
 const selectClassName = cn(
-  'h-9 w-full cursor-pointer appearance-none rounded-lg border border-dash-border bg-canvas pl-8 pr-8 text-xs font-medium text-ink outline-none',
+  'h-8 w-36 max-w-full cursor-pointer appearance-none rounded-lg border border-dash-border bg-canvas pl-8 pr-7 text-xs font-medium text-ink outline-none',
   'transition-[border-color,box-shadow]',
   'hover:border-dash-border-strong',
   'focus-visible:border-primary/55 focus-visible:ring-2 focus-visible:ring-primary/30',
   'disabled:cursor-not-allowed disabled:opacity-60'
 )
+
+const iconActionClassName = 'size-8 shrink-0 justify-center px-0'
 
 export function InboxConversationActions({
   conversation,
@@ -52,19 +60,19 @@ export function InboxConversationActions({
   onUpdated,
 }: InboxConversationActionsProps) {
   const t = useTranslations('dashboard.inbox.thread.actions')
-  const tStatus = useTranslations('dashboard.inbox.filters.status')
+  const tDetails = useTranslations('dashboard.inbox.details')
   const { permissions, isLoading: orgsLoading } = useOrganizations()
+  const { detailsOpen, setDetailsOpen } = useInboxOrganization()
+  const isXl = useSyncExternalStore(subscribeXl, getIsXl, () => false)
   const assignId = useId()
-  const statusId = useId()
   const { toast, showToast, clearToast } = useDashboardToast()
 
   const [pendingAction, setPendingAction] = useState<
-    'assign' | 'status' | 'close' | 'reopen' | 'takeover' | 'resume' | null
+    'assign' | 'close' | 'reopen' | 'takeover' | 'resume' | null
   >(null)
 
   const canAssign = hasPermission(permissions, PERMISSIONS.INBOX_ASSIGN)
   const canClose = hasPermission(permissions, PERMISSIONS.INBOX_CLOSE)
-  const canUpdateStatus = hasPermission(permissions, PERMISSIONS.INBOX_VIEW)
   const canReply = hasPermission(permissions, PERMISSIONS.INBOX_REPLY)
   const isClosed = conversation.status === 'closed'
   const busy = pendingAction !== null || orgsLoading
@@ -74,10 +82,7 @@ export function InboxConversationActions({
     (conversation.automationBlocked === true ||
       conversation.openFlowSessionStatus === 'PAUSED_FOR_HUMAN')
   const showTakeover = canReply && (aiMode === 'AI_AUTO' || aiMode === 'HANDOVER') && !orphanPause
-  const showResume =
-    canReply && (aiMode === 'HANDOVER' || aiMode === 'HUMAN_ACTIVE' || orphanPause)
-  const activeStatus: 'open' | 'pending' =
-    conversation.status === 'pending' ? 'pending' : 'open'
+  const showResume = canReply && (aiMode === 'HANDOVER' || aiMode === 'HUMAN_ACTIVE' || orphanPause)
 
   const applyPatch = useCallback(
     (payload: unknown) => {
@@ -118,35 +123,6 @@ export function InboxConversationActions({
     ]
   )
 
-  const handleStatusChange = useCallback(
-    async (status: Extract<InboxConversationStatus, 'open' | 'pending'>) => {
-      if (!canUpdateStatus || isClosed || busy) return
-      if (status === conversation.status) return
-
-      setPendingAction('status')
-      clearToast()
-      try {
-        const res = await api.inbox.updateConversation(conversation.id, { status })
-        applyPatch(res.data)
-      } catch (err) {
-        showToast(mapActionError(err as ApiError, t), 'error')
-      } finally {
-        setPendingAction(null)
-      }
-    },
-    [
-      applyPatch,
-      busy,
-      canUpdateStatus,
-      clearToast,
-      conversation.id,
-      conversation.status,
-      isClosed,
-      showToast,
-      t,
-    ]
-  )
-
   const handleClose = useCallback(async () => {
     if (!canClose || isClosed || busy) return
     if (!window.confirm(t('closeConfirm'))) return
@@ -161,16 +137,7 @@ export function InboxConversationActions({
     } finally {
       setPendingAction(null)
     }
-  }, [
-    applyPatch,
-    busy,
-    canClose,
-    clearToast,
-    conversation.id,
-    isClosed,
-    showToast,
-    t,
-  ])
+  }, [applyPatch, busy, canClose, clearToast, conversation.id, isClosed, showToast, t])
 
   const handleReopen = useCallback(async () => {
     if (!canClose || !isClosed || busy) return
@@ -185,16 +152,7 @@ export function InboxConversationActions({
     } finally {
       setPendingAction(null)
     }
-  }, [
-    applyPatch,
-    busy,
-    canClose,
-    clearToast,
-    conversation.id,
-    isClosed,
-    showToast,
-    t,
-  ])
+  }, [applyPatch, busy, canClose, clearToast, conversation.id, isClosed, showToast, t])
 
   const handleTakeover = useCallback(async () => {
     if (!showTakeover || busy) return
@@ -226,162 +184,169 @@ export function InboxConversationActions({
     }
   }, [applyPatch, busy, clearToast, conversation.id, showResume, showToast, t])
 
-  if (!canAssign && !canClose && !canUpdateStatus && !canReply) return null
+  if (!canAssign && !canClose && !canReply) return null
+
+  // Docked details (xl+) shrinks the chat column — compact the header then.
+  const dockedDetails = detailsOpen && isXl
+  const showAssign = canAssign && !dockedDetails
+  const showActionLabels = !dockedDetails
 
   return (
-    <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
+    <div className="relative flex shrink-0 items-center gap-1.5 bg-canvas/95 pl-1">
       {toast ? (
         <DashboardToast
           message={toast.message}
           variant={toast.variant}
-          className="w-full sm:max-w-xs"
+          className="absolute top-full right-0 z-20 mt-2 w-[min(18rem,calc(100vw-2rem))]"
           onDismiss={clearToast}
         />
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-        {canUpdateStatus && !isClosed ? (
-          <div className="relative min-w-[7.5rem] flex-1 sm:flex-none">
-            <label htmlFor={statusId} className="sr-only">
-              {t('statusLabel')}
-            </label>
-            <select
-              id={statusId}
-              disabled={busy}
-              value={activeStatus}
-              onChange={(event) => {
-                const value = event.target.value as 'open' | 'pending'
-                void handleStatusChange(value)
-              }}
-              className={cn(selectClassName, 'pl-3')}
-            >
-              <option value="open">{tStatus('open')}</option>
-              <option value="pending">{tStatus('pending')}</option>
-            </select>
-            {pendingAction === 'status' ? (
-              <Loader2
-                className="pointer-events-none absolute top-1/2 right-2 size-3.5 -translate-y-1/2 animate-spin text-mute"
-                aria-hidden
-              />
-            ) : null}
-          </div>
-        ) : null}
-
-        {canAssign ? (
-          <div className="relative min-w-[10.5rem] flex-1 sm:flex-none">
-            <label htmlFor={assignId} className="sr-only">
-              {t('assignLabel')}
-            </label>
-            <UserRound
-              className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-mute"
+      {showAssign ? (
+        <div className="relative hidden min-w-0 lg:block">
+          <label htmlFor={assignId} className="sr-only">
+            {t('assignLabel')}
+          </label>
+          <UserRound
+            className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-mute"
+            aria-hidden
+          />
+          <select
+            id={assignId}
+            disabled={busy || members.length === 0}
+            value={conversation.assignedAgentId ?? ''}
+            onChange={(event) => {
+              const value = event.target.value
+              if (!value) return
+              void handleAssign(value)
+            }}
+            className={selectClassName}
+          >
+            <option value="" disabled>
+              {members.length === 0 ? t('noAgents') : t('assignPlaceholder')}
+            </option>
+            {members.map((member) => (
+              <option key={member.userId} value={member.userId}>
+                {member.name?.trim() || member.email}
+              </option>
+            ))}
+          </select>
+          {pendingAction === 'assign' ? (
+            <Loader2
+              className="pointer-events-none absolute top-1/2 right-2 size-3.5 -translate-y-1/2 animate-spin text-mute"
               aria-hidden
             />
-            <select
-              id={assignId}
-              disabled={busy || members.length === 0}
-              value={conversation.assignedAgentId ?? ''}
-              onChange={(event) => {
-                const value = event.target.value
-                if (!value) return
-                void handleAssign(value)
-              }}
-              className={selectClassName}
-            >
-              <option value="" disabled>
-                {members.length === 0 ? t('noAgents') : t('assignPlaceholder')}
-              </option>
-              {members.map((member) => (
-                <option key={member.userId} value={member.userId}>
-                  {member.name?.trim() || member.email}
-                </option>
-              ))}
-            </select>
-            {pendingAction === 'assign' ? (
-              <Loader2
-                className="pointer-events-none absolute top-1/2 right-2 size-3.5 -translate-y-1/2 animate-spin text-mute"
-                aria-hidden
-              />
-            ) : null}
-          </div>
-        ) : null}
+          ) : null}
+        </div>
+      ) : null}
 
-        {canClose && !isClosed ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="xs"
-            disabled={busy}
-            onClick={() => {
-              void handleClose()
-            }}
-          >
-            {pendingAction === 'close' ? (
-              <Loader2 className="size-3.5 animate-spin" aria-hidden />
-            ) : null}
-            {t('close')}
-          </Button>
-        ) : null}
+      <Button
+        type="button"
+        variant="outline"
+        size="icon-sm"
+        className="size-8 shrink-0"
+        aria-label={detailsOpen ? tDetails('closePanel') : tDetails('openPanel')}
+        aria-pressed={detailsOpen}
+        onClick={() => setDetailsOpen(!detailsOpen)}
+      >
+        <PanelRight className="size-3.5" aria-hidden />
+      </Button>
 
-        {canClose && isClosed ? (
-          <Button
-            type="button"
-            variant="secondary"
-            size="xs"
-            className="gap-1.5"
-            disabled={busy}
-            onClick={() => {
-              void handleReopen()
-            }}
-          >
-            {pendingAction === 'reopen' ? (
-              <Loader2 className="size-3.5 animate-spin" aria-hidden />
-            ) : (
-              <RotateCcw className="size-3.5" aria-hidden />
-            )}
-            {t('reopen')}
-          </Button>
-        ) : null}
+      {canClose && !isClosed ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="xs"
+          className={cn(
+            iconActionClassName,
+            showActionLabels && '2xl:h-8 2xl:w-auto 2xl:gap-1.5 2xl:px-3'
+          )}
+          disabled={busy}
+          aria-label={t('close')}
+          onClick={() => {
+            void handleClose()
+          }}
+        >
+          {pendingAction === 'close' ? (
+            <Loader2 className="size-3.5 animate-spin" aria-hidden />
+          ) : (
+            <X className="size-3.5" aria-hidden />
+          )}
+          {showActionLabels ? <span className="hidden 2xl:inline">{t('close')}</span> : null}
+        </Button>
+      ) : null}
 
-        {showTakeover ? (
-          <Button
-            type="button"
-            variant="outline"
-            size="xs"
-            className="gap-1.5"
-            disabled={busy}
-            onClick={() => {
-              void handleTakeover()
-            }}
-          >
-            {pendingAction === 'takeover' ? (
-              <Loader2 className="size-3.5 animate-spin" aria-hidden />
-            ) : (
-              <UserRound className="size-3.5" aria-hidden />
-            )}
-            {t('takeover')}
-          </Button>
-        ) : null}
+      {canClose && isClosed ? (
+        <Button
+          type="button"
+          variant="secondary"
+          size="xs"
+          className={cn(
+            iconActionClassName,
+            showActionLabels && '2xl:h-8 2xl:w-auto 2xl:gap-1.5 2xl:px-3'
+          )}
+          disabled={busy}
+          aria-label={t('reopen')}
+          onClick={() => {
+            void handleReopen()
+          }}
+        >
+          {pendingAction === 'reopen' ? (
+            <Loader2 className="size-3.5 animate-spin" aria-hidden />
+          ) : (
+            <RotateCcw className="size-3.5" aria-hidden />
+          )}
+          {showActionLabels ? <span className="hidden 2xl:inline">{t('reopen')}</span> : null}
+        </Button>
+      ) : null}
 
-        {showResume ? (
-          <Button
-            type="button"
-            variant="secondary"
-            size="xs"
-            className="gap-1.5"
-            disabled={busy}
-            onClick={() => {
-              void handleResume()
-            }}
-          >
-            {pendingAction === 'resume' ? (
-              <Loader2 className="size-3.5 animate-spin" aria-hidden />
-            ) : (
-              <Bot className="size-3.5" aria-hidden />
-            )}
-            {t('resume')}
-          </Button>
-        ) : null}
-      </div>
+      {showTakeover ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="xs"
+          className={cn(
+            iconActionClassName,
+            showActionLabels && '2xl:h-8 2xl:w-auto 2xl:gap-1.5 2xl:px-3'
+          )}
+          disabled={busy}
+          aria-label={t('takeover')}
+          onClick={() => {
+            void handleTakeover()
+          }}
+        >
+          {pendingAction === 'takeover' ? (
+            <Loader2 className="size-3.5 animate-spin" aria-hidden />
+          ) : (
+            <UserRound className="size-3.5" aria-hidden />
+          )}
+          {showActionLabels ? <span className="hidden 2xl:inline">{t('takeover')}</span> : null}
+        </Button>
+      ) : null}
+
+      {showResume ? (
+        <Button
+          type="button"
+          variant="secondary"
+          size="xs"
+          className={cn(
+            iconActionClassName,
+            showActionLabels && '2xl:h-8 2xl:w-auto 2xl:gap-1.5 2xl:px-3'
+          )}
+          disabled={busy}
+          aria-label={t('resume')}
+          onClick={() => {
+            void handleResume()
+          }}
+        >
+          {pendingAction === 'resume' ? (
+            <Loader2 className="size-3.5 animate-spin" aria-hidden />
+          ) : (
+            <Bot className="size-3.5" aria-hidden />
+          )}
+          {showActionLabels ? <span className="hidden 2xl:inline">{t('resume')}</span> : null}
+        </Button>
+      ) : null}
     </div>
   )
 }

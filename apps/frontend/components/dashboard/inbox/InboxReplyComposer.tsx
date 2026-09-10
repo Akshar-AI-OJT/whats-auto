@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useId, useState } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { FileImage, FileText, Loader2, Paperclip, Send, X } from 'lucide-react'
 import { api, type ApiError, type InboxMessage, type MediaAsset } from '@/lib/api'
@@ -8,10 +8,7 @@ import { cn } from '@/lib/utils'
 import { hasPermission, PERMISSIONS } from '@/lib/rbac'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { Button } from '@/components/ui/button'
-import {
-  DashboardToast,
-  useDashboardToast,
-} from '@/components/dashboard/ui/use-dashboard-toast'
+import { DashboardToast, useDashboardToast } from '@/components/dashboard/ui/use-dashboard-toast'
 import { MediaPicker } from '@/components/dashboard/templates/MediaPicker'
 import { unwrapSingle } from './inbox-utils'
 
@@ -26,7 +23,10 @@ function mapSendError(apiError: ApiError, t: (key: string) => string): string {
   if (apiError.status === 403 || apiError.code === 'PERMISSION_DENIED') {
     return t('errors.permissionDenied')
   }
-  if (apiError.code === 'E_CONVERSATION_CLOSED' || apiError.code === 'E_OUTBOUND_CONVERSATION_CLOSED') {
+  if (
+    apiError.code === 'E_CONVERSATION_CLOSED' ||
+    apiError.code === 'E_OUTBOUND_CONVERSATION_CLOSED'
+  ) {
     return t('errors.conversationClosed')
   }
   if (apiError.code === 'E_CONVERSATION_NOT_FOUND') return t('errors.notFound')
@@ -42,6 +42,7 @@ export function InboxReplyComposer({
   const t = useTranslations('dashboard.inbox.thread.composer')
   const { permissions, isLoading: orgsLoading } = useOrganizations()
   const textareaId = useId()
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const { toast, showToast, clearToast } = useDashboardToast()
 
   const [draft, setDraft] = useState('')
@@ -49,16 +50,19 @@ export function InboxReplyComposer({
   const [pickerOpen, setPickerOpen] = useState(false)
   const [sending, setSending] = useState(false)
 
+  useEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(el.scrollHeight, 112)}px`
+  }, [draft])
+
   const canReply = hasPermission(permissions, PERMISSIONS.INBOX_REPLY)
   const canAttach = hasPermission(permissions, PERMISSIONS.MEDIA_VIEW)
   const isClosed = conversationStatus === 'closed'
   const trimmed = draft.trim()
   const canSend =
-    canReply &&
-    !isClosed &&
-    !sending &&
-    !orgsLoading &&
-    (trimmed.length > 0 || Boolean(attachment))
+    canReply && !isClosed && !sending && !orgsLoading && (trimmed.length > 0 || Boolean(attachment))
 
   const handleSend = useCallback(async () => {
     if (!canSend) return
@@ -109,7 +113,7 @@ export function InboxReplyComposer({
 
   if (!canReply) {
     return (
-      <div className="shrink-0 border-t border-dash-border bg-dash-surface/40 px-4 py-3 sm:px-5">
+      <div className="shrink-0 border-t border-dash-border bg-dash-surface/40 px-3 py-2.5 sm:px-4">
         <p className="text-center text-sm text-mute">{t('readOnly')}</p>
       </div>
     )
@@ -117,25 +121,25 @@ export function InboxReplyComposer({
 
   if (isClosed) {
     return (
-      <div className="shrink-0 border-t border-dash-border bg-dash-surface/40 px-4 py-3 sm:px-5">
+      <div className="shrink-0 border-t border-dash-border bg-dash-surface/40 px-3 py-2.5 sm:px-4">
         <p className="text-center text-sm text-mute">{t('closedHint')}</p>
       </div>
     )
   }
 
   return (
-    <div className="shrink-0 border-t border-dash-border bg-canvas px-4 py-3 sm:px-5">
+    <div className="min-w-0 shrink-0 border-t border-dash-border bg-canvas px-3 py-2.5 sm:px-4">
       {toast ? (
         <DashboardToast
           message={toast.message}
           variant={toast.variant}
-          className="mb-2.5"
+          className="mb-2"
           onDismiss={clearToast}
         />
       ) : null}
 
       {attachment ? (
-        <div className="mb-2 flex items-center gap-2 rounded-lg border border-dash-border bg-dash-surface/60 px-3 py-2 text-sm">
+        <div className="mb-2 flex items-center gap-2 rounded-lg border border-dash-border bg-dash-surface/60 px-2.5 py-1.5 text-sm">
           <span className="flex size-7 items-center justify-center rounded-md bg-dash-surface text-mute">
             {attachment.kind === 'image' ? (
               <FileImage className="size-3.5" />
@@ -148,7 +152,7 @@ export function InboxReplyComposer({
             type="button"
             size="icon"
             variant="ghost"
-            className="size-7"
+            className="size-8"
             aria-label={t('clearAttachment')}
             disabled={sending}
             onClick={() => setAttachment(null)}
@@ -164,7 +168,7 @@ export function InboxReplyComposer({
             type="button"
             size="icon"
             variant="outline"
-            className="size-10 shrink-0 rounded-xl"
+            className="size-10 shrink-0 self-end rounded-xl"
             aria-label={t('attach')}
             disabled={sending}
             onClick={() => setPickerOpen(true)}
@@ -173,20 +177,22 @@ export function InboxReplyComposer({
           </Button>
         ) : null}
 
-        <div className="min-w-0 flex-1">
+        <div className="flex min-h-10 min-w-0 flex-1 items-end">
           <label htmlFor={textareaId} className="sr-only">
             {t('label')}
           </label>
           <textarea
             id={textareaId}
-            rows={2}
+            ref={textareaRef}
+            rows={1}
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={attachment ? t('captionPlaceholder') : t('placeholder')}
             disabled={sending}
             className={cn(
-              'max-h-32 min-h-[4.5rem] w-full resize-none rounded-xl border border-dash-border bg-dash-surface/80 px-3 py-2.5',
+              'max-h-28 min-h-10 w-full resize-none rounded-xl border border-dash-border bg-dash-surface/80 px-3 py-2',
+              'overflow-y-auto scrollbar-none',
               'text-sm leading-5 text-ink outline-none transition-[border-color,box-shadow]',
               'placeholder:text-mute',
               'hover:border-dash-border-strong',
@@ -194,13 +200,12 @@ export function InboxReplyComposer({
               'disabled:cursor-not-allowed disabled:opacity-60'
             )}
           />
-          <p className="mt-1.5 text-[11px] text-mute">{t('hint')}</p>
         </div>
 
         <Button
           type="button"
           size="icon"
-          className="size-10 shrink-0 rounded-xl"
+          className="size-10 shrink-0 self-end rounded-xl"
           disabled={!canSend}
           aria-label={t('send')}
           onClick={() => {

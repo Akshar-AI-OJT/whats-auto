@@ -8,19 +8,32 @@ import { formatMessageTime, isCustomerMessage, messageBodyText } from './inbox-u
 
 type InboxMessageBubbleProps = {
   message: InboxMessage
-  contactName: string
+  isGroupStart?: boolean
+  isGroupEnd?: boolean
 }
 
-export function InboxMessageBubble({ message, contactName }: InboxMessageBubbleProps) {
+export function InboxMessageBubble({
+  message,
+  isGroupStart = true,
+  isGroupEnd = true,
+}: InboxMessageBubbleProps) {
   const t = useTranslations('dashboard.inbox.thread')
   const isCustomer = isCustomerMessage(message)
   const body = messageBodyText(message)
   const contentType = message.contentType?.toLowerCase() ?? 'text'
   const mediaUrl = message.mediaUrl?.trim() || null
 
-  const senderName = isCustomer
-    ? message.sender.name?.trim() || contactName
-    : message.sender.name?.trim() || t('agentSender')
+  const radius = isCustomer
+    ? cn(
+        'rounded-2xl',
+        isGroupStart ? 'rounded-tl-md' : 'rounded-tl-sm',
+        isGroupEnd ? 'rounded-bl-2xl' : 'rounded-bl-sm'
+      )
+    : cn(
+        'rounded-2xl',
+        isGroupStart ? 'rounded-tr-md' : 'rounded-tr-sm',
+        isGroupEnd ? 'rounded-br-2xl' : 'rounded-br-sm'
+      )
 
   return (
     <div
@@ -29,27 +42,19 @@ export function InboxMessageBubble({ message, contactName }: InboxMessageBubbleP
     >
       <div
         className={cn(
-          'max-w-[min(85%,28rem)] rounded-2xl px-3.5 py-2.5 shadow-[0_1px_2px_rgb(15_23_42/0.04)]',
+          'max-w-[min(85%,28rem)] px-3.5 py-2 shadow-[0_1px_2px_rgb(15_23_42/0.04)]',
+          radius,
           isCustomer
-            ? 'rounded-tl-md border border-dash-border bg-dash-surface text-ink'
-            : 'rounded-tr-md bg-primary text-on-primary'
+            ? 'border border-dash-border bg-dash-surface text-ink'
+            : 'bg-primary text-on-primary'
         )}
       >
-        <p
-          className={cn(
-            'text-[11px] font-semibold tracking-wide uppercase',
-            isCustomer ? 'text-mute' : 'text-on-primary/80'
-          )}
-        >
-          {senderName}
-        </p>
-
         {contentType === 'image' && mediaUrl ? (
           <a
             href={mediaUrl}
             target="_blank"
             rel="noreferrer"
-            className="mt-2 block overflow-hidden rounded-xl"
+            className="block overflow-hidden rounded-xl"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -66,7 +71,7 @@ export function InboxMessageBubble({ message, contactName }: InboxMessageBubbleP
             target="_blank"
             rel="noreferrer"
             className={cn(
-              'mt-2 inline-flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium',
+              'inline-flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm font-medium',
               isCustomer
                 ? 'bg-canvas text-ink ring-1 ring-dash-border'
                 : 'bg-on-primary/15 text-on-primary'
@@ -79,13 +84,19 @@ export function InboxMessageBubble({ message, contactName }: InboxMessageBubbleP
         ) : null}
 
         {body && !(contentType === 'document' && mediaUrl) ? (
-          <p className="mt-1 text-sm leading-5 break-words whitespace-pre-wrap">
+          <p
+            className={cn(
+              'text-sm leading-5 break-words whitespace-pre-wrap',
+              (contentType === 'image' && mediaUrl) ||
+                ((contentType === 'document' || contentType === 'file') && mediaUrl)
+                ? 'mt-1.5'
+                : null
+            )}
+          >
             {body}
           </p>
         ) : !mediaUrl ? (
-          <p className="mt-1 text-sm leading-5 break-words whitespace-pre-wrap">
-            {t('noContent')}
-          </p>
+          <p className="text-sm leading-5 break-words whitespace-pre-wrap">{t('noContent')}</p>
         ) : null}
 
         {message.errorMessage ? (
@@ -101,7 +112,7 @@ export function InboxMessageBubble({ message, contactName }: InboxMessageBubbleP
 
         <p
           className={cn(
-            'mt-1.5 text-[11px] tabular-nums',
+            'mt-1 text-[11px] tabular-nums',
             isCustomer ? 'text-mute' : 'text-on-primary/75'
           )}
         >
