@@ -1,5 +1,5 @@
 import db from '@adonisjs/lucid/services/db'
-import { PLATFORM_PERMISSIONS, PRODUCT_PERMISSIONS, type Permission } from '#abilities/permissions'
+import type { Permission } from '#abilities/permissions'
 
 export type ActiveMember = {
   id: string
@@ -17,16 +17,14 @@ export type PlatformGrant = {
 
 export class AuthorizationService {
   /**
-   * Resolve the complete set of permissions for a member.
-   * owner → PRODUCT_PERMISSIONS (short-circuit)
-   * superadmin → PLATFORM_PERMISSIONS (short-circuit)
-   * others → role_permissions ± organization_role_permissions overrides
+   * Resolve the complete set of permissions for a role.
+   * All roles (including owner / superadmin) come from `role_permissions`
+   * ± `organization_role_permissions` overrides.
+   * Owner/superadmin overrides are blocked at the DB; missing seed → empty set (fail closed).
    */
   async resolvePermissions(organizationId: string, roleId: string): Promise<Set<Permission>> {
     const role = await db.from('roles').where('id', roleId).select('name').first()
     if (!role) return new Set()
-    if (role.name === 'owner') return new Set(PRODUCT_PERMISSIONS)
-    if (role.name === 'superadmin') return new Set(PLATFORM_PERMISSIONS)
 
     const base = await db
       .from('role_permissions as rp')
@@ -34,12 +32,14 @@ export class AuthorizationService {
       .where('rp.roleId', roleId)
       .select('p.name')
 
-    const overrides = await db
-      .from('organization_role_permissions as orp')
-      .innerJoin('permissions as p', 'p.id', 'orp.permissionId')
-      .where('orp.organizationId', organizationId)
-      .where('orp.roleId', roleId)
-      .select('p.name', 'orp.granted')
+    const overrides = organizationId
+      ? await db
+          .from('organization_role_permissions as orp')
+          .innerJoin('permissions as p', 'p.id', 'orp.permissionId')
+          .where('orp.organizationId', organizationId)
+          .where('orp.roleId', roleId)
+          .select('p.name', 'orp.granted')
+      : []
 
     const permissions = new Set(base.map((r) => r.name as Permission))
     for (const o of overrides) {
