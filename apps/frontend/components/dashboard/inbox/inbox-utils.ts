@@ -119,3 +119,26 @@ export function messageBodyText(message: InboxMessage) {
 export function isCustomerMessage(message: InboxMessage) {
   return message.direction === 'inbound' || message.senderType === 'contact'
 }
+
+/** Stable key for consecutive same-direction / same-sender grouping. */
+export function messageGroupKey(message: InboxMessage): string {
+  const senderId = message.senderId ?? message.sender.id ?? message.sender.name ?? ''
+  return `${message.direction}:${message.senderType}:${senderId}`
+}
+
+export type MessageGroupPosition = {
+  isGroupStart: boolean
+  isGroupEnd: boolean
+}
+
+export function getMessageGroupPositions(messages: InboxMessage[]): MessageGroupPosition[] {
+  return messages.map((message, index) => {
+    const key = messageGroupKey(message)
+    const prevKey = index > 0 ? messageGroupKey(messages[index - 1]!) : null
+    const nextKey = index < messages.length - 1 ? messageGroupKey(messages[index + 1]!) : null
+    return {
+      isGroupStart: key !== prevKey,
+      isGroupEnd: key !== nextKey,
+    }
+  })
+}

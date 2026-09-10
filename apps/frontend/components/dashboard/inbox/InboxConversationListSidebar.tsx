@@ -21,7 +21,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { OrganizationAvatar } from '@/components/dashboard/OrganizationSwitcher'
 import { InboxNewConversationSheet } from './InboxNewConversationSheet'
-import { InboxAiModePill } from './InboxAiModePill'
 import { useInboxOrganization } from './InboxOrganizationContext'
 import {
   applyInboxSseToList,
@@ -127,8 +126,7 @@ export function InboxConversationListSidebar({
 
   const listKey = queryKeys.inbox.list(tenantOrganizationId, listFilters)
 
-  const listEnabled =
-    !orgsLoading && Boolean(tenantOrganizationId) && canViewInbox
+  const listEnabled = !orgsLoading && Boolean(tenantOrganizationId) && canViewInbox
 
   const listQuery = useQuery({
     queryKey: listKey,
@@ -157,10 +155,7 @@ export function InboxConversationListSidebar({
     staleTime: 60_000,
   })
 
-  const conversations = useMemo(
-    () => listQuery.data?.items ?? [],
-    [listQuery.data?.items]
-  )
+  const conversations = useMemo(() => listQuery.data?.items ?? [], [listQuery.data?.items])
   const meta = listQuery.data?.meta ?? null
   const members = useMemo(() => membersQuery.data ?? [], [membersQuery.data])
   const loading = listQuery.isFetching
@@ -242,7 +237,14 @@ export function InboxConversationListSidebar({
         void fetchAndUpsertConversation(fetchConversationId)
       }
     })
-  }, [canViewInbox, fetchAndUpsertConversation, listFilters, listKey, queryClient, subscribeInboxEvents])
+  }, [
+    canViewInbox,
+    fetchAndUpsertConversation,
+    listFilters,
+    listKey,
+    queryClient,
+    subscribeInboxEvents,
+  ])
 
   function showLatestConversations() {
     setHasDeferredNewActivity(false)
@@ -255,14 +257,6 @@ export function InboxConversationListSidebar({
       queryKey: queryKeys.inbox.lists(tenantOrganizationId),
     })
   }
-  const agentNameByUserId = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const member of members) {
-      map.set(member.userId, member.name || member.email)
-    }
-    return map
-  }, [members])
-
   const lastPage = meta?.lastPage ?? 1
   const visibleConversations = useMemo(() => {
     const base = tenantOrganizationId ? conversations : []
@@ -425,9 +419,6 @@ export function InboxConversationListSidebar({
               const isSelected = conversation.id === selectedConversationId
               const updated =
                 conversation.lastMessageAt || conversation.updatedAt || conversation.createdAt
-              const agentLabel = conversation.assignedAgentId
-                ? (agentNameByUserId.get(conversation.assignedAgentId) ?? t('unassigned'))
-                : t('unassigned')
               const statusLabel = ['open', 'pending', 'closed'].includes(conversation.status)
                 ? t(`filters.status.${conversation.status as InboxConversationStatus}`)
                 : conversation.status
@@ -463,8 +454,6 @@ export function InboxConversationListSidebar({
                       </p>
                       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                         <StatusBadge status={conversation.status} label={statusLabel} />
-                        <InboxAiModePill conversation={conversation} size="sm" />
-                        <span className="truncate text-[11px] text-body">{agentLabel}</span>
                       </div>
                     </div>
                     {conversation.unreadCount > 0 ? (

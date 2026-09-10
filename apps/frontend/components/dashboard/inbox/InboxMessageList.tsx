@@ -1,22 +1,24 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { Mail } from 'lucide-react'
 import type { InboxMessage } from '@/lib/api'
+import { cn } from '@/lib/utils'
 import { InboxMessageBubble } from './InboxMessageBubble'
 import { InboxThreadMessagesSkeleton } from './InboxThreadSkeleton'
+import { getMessageGroupPositions } from './inbox-utils'
 
 type InboxMessageListProps = {
   messages: InboxMessage[]
-  contactName: string
   loading?: boolean
 }
 
-export function InboxMessageList({ messages, contactName, loading }: InboxMessageListProps) {
+export function InboxMessageList({ messages, loading }: InboxMessageListProps) {
   const t = useTranslations('dashboard.inbox.thread')
   const bottomRef = useRef<HTMLDivElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const groupPositions = useMemo(() => getMessageGroupPositions(messages), [messages])
 
   useEffect(() => {
     if (loading || messages.length === 0) return
@@ -42,11 +44,23 @@ export function InboxMessageList({ messages, contactName, loading }: InboxMessag
   return (
     <div
       ref={containerRef}
-      className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5"
+      className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden px-4 py-4 sm:px-5 sm:py-5"
     >
-      {messages.map((message) => (
-        <InboxMessageBubble key={message.id} message={message} contactName={contactName} />
-      ))}
+      {messages.map((message, index) => {
+        const position = groupPositions[index]!
+        return (
+          <div
+            key={message.id}
+            className={cn(index === 0 ? null : position.isGroupStart ? 'mt-3' : 'mt-0.5')}
+          >
+            <InboxMessageBubble
+              message={message}
+              isGroupStart={position.isGroupStart}
+              isGroupEnd={position.isGroupEnd}
+            />
+          </div>
+        )
+      })}
       <div ref={bottomRef} aria-hidden className="h-px shrink-0" />
     </div>
   )
