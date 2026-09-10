@@ -122,7 +122,7 @@ export type InvoiceActionResult =
   | { ok: true; invoice?: Invoice; messageKey?: string }
   | { ok: false; reason: 'not_found' | 'unavailable' | 'invalid'; messageKey: string }
 
-/** Static platform “From” block for invoice documents (mock until billing settings API exists). */
+/** Display-ready platform “From” block for invoice documents. */
 export type PlatformBillingProfile = {
   brandName: string
   legalName: string
@@ -132,4 +132,15 @@ export type PlatformBillingProfile = {
   email: string
   phone: string
   website: string
+}
+
+export const EMPTY_PLATFORM_BILLING_PROFILE: PlatformBillingProfile = {
+  brandName: 'Not configured',
+  legalName: 'Not configured',
+  tagline: '',
+  addressLines: [],
+  gstin: '',
+  email: '',
+  phone: '',
+  website: '',
 }

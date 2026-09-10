@@ -66,15 +66,18 @@ const PLAN_CUSTOM_BILLING_SQL = `(
 
 export class SubscriptionService {
   /**
-   * Base query for platform-wide subscription reads.
-   * Excludes soft-deleted rows (status = cancelled).
+   * Base query for platform-wide Super Admin subscription reads.
+   * Includes cancelled rows — that status is a real lifecycle value (create/update
+   * and billing webhooks). Super Admin delete also sets status=cancelled because
+   * this table has no deletedAt; cancelled subscriptions stay queryable.
    */
   protected subscriptionsQuery() {
-    return OrganizationSubscription.query().whereNot('status', SUBSCRIPTION_SOFT_DELETED_STATUS)
+    return OrganizationSubscription.query()
   }
 
   /**
-   * Load an active subscription or throw not found.
+   * Load a subscription or throw not found. Cancelled (lifecycle / Super Admin
+   * delete) rows remain readable so they can be listed, viewed, and updated.
    */
   protected async findSubscriptionOrFail(subscriptionId: string) {
     const subscription = await this.subscriptionsQuery().where('id', subscriptionId).first()
@@ -101,14 +104,14 @@ export class SubscriptionService {
 
   /**
    * Platform-wide filtered query for Super Admin list/summary.
-   * Excludes soft-deleted rows (status = cancelled). Joins org/plan for search and billing.
+   * Includes cancelled lifecycle rows. Search/status/plan/billing apply before pagination.
+   * Joins org/plan for search and billing.
    */
   protected filteredSubscriptionsQuery(params: Omit<ListSubscriptionsParams, 'page' | 'perPage'>) {
     const query = db
       .from('organization_subscriptions as s')
       .innerJoin('organizations as o', 'o.id', 's.organizationId')
       .leftJoin('plans as p', 'p.id', 's.planId')
-      .whereNot('s.status', SUBSCRIPTION_SOFT_DELETED_STATUS)
 
     const search = params.search?.trim()
     if (search) {
@@ -194,19 +197,16 @@ export class SubscriptionService {
   /**
    * Fetch one subscription by id for Super Admin.
    * Uses Knex (not Lucid) so the JSON shape matches {@link listSubscriptionsPaginated}.
+   * Returns a plain row (including cancelled).
    */
   async getSubscriptionById(subscriptionId: string) {
-    const subscription = await db
-      .from('organization_subscriptions')
-      .where('id', subscriptionId)
-      .whereNot('status', SUBSCRIPTION_SOFT_DELETED_STATUS)
-      .first()
+    const row = await db.from('organization_subscriptions').where('id', subscriptionId).first()
 
-    if (!subscription) {
+    if (!row) {
       throw SubscriptionException.notFound()
     }
 
-    return subscription
+    return row
   }
 
   /**
@@ -344,8 +344,9 @@ export class SubscriptionService {
   }
 
   /**
-   * Soft-delete a subscription without removing the row.
-   * Uses status = cancelled and sets cancelAt (this table has no deletedAt column).
+   * Cancel a subscription without removing the row.
+   * Sets status = cancelled and cancelAt (this table has no deletedAt column).
+   * The row stays in Super Admin list/summary under status=cancelled.
    */
   async softDeleteSubscription(subscriptionId: string, actorUserId?: string | null) {
     const subscription = await this.findSubscriptionIncludingDeleted(subscriptionId)

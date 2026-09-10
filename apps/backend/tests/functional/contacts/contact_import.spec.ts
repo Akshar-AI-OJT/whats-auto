@@ -1068,11 +1068,10 @@ test.group('ContactImportService', (group) => {
       })
     )
 
-    const pathA = (
-      await runWithTenant(orgA, () =>
-        db.from('contact_imports').where('id', queuedA.id).select('filePath').first()
-      )
-    ).filePath as string
+    const importA = await runWithTenant(orgA, () =>
+      db.from('contact_imports').where('id', queuedA.id).select('filePath').first()
+    )
+    const pathA = importA.filePath as string
 
     await runWithTenant(orgB, () =>
       db

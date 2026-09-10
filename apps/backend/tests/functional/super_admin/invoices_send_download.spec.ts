@@ -222,7 +222,10 @@ test.group('BUG-016 Super Admin invoice send and download', (group) => {
 
     const pdf = asPdfBuffer(response)
     assert.isTrue(pdf.subarray(0, 5).equals(Buffer.from('%PDF-')))
-    assert.include(pdf.toString('latin1'), created.invoiceNumber)
+    const text = pdf.toString('latin1')
+    assert.include(text, created.invoiceNumber)
+    assert.notInclude(text, '09AABCW1234D1Z5')
+    assert.notInclude(text, 'billing@whatsauto.com')
   })
 
   test('mail transport failure does not return a successful send', async ({ client, assert }) => {

@@ -14,6 +14,7 @@ export const PLATFORM_AUDIT_EVENT_TYPES = [
   'plan.created',
   'plan.updated',
   'ai_config.updated',
+  'platform_settings.updated',
 ] as const
 
 export const TENANT_AUDIT_EVENT_TYPES = [

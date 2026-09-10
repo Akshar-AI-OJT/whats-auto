@@ -8,8 +8,8 @@ import {
   type ApiError,
   type PaginationMeta,
   type SuperAdminInvoice,
+  type SuperAdminInvoiceBillingProfile,
 } from '@/lib/api'
-import { PLATFORM_BILLING_PROFILE } from './mock-invoices'
 import type {
   CreateInvoiceInput,
   Invoice,
@@ -22,6 +22,7 @@ import type {
   ListInvoicesParams,
   PlatformBillingProfile,
 } from './types'
+import { EMPTY_PLATFORM_BILLING_PROFILE } from './types'
 
 function isApiError(error: unknown): error is ApiError {
   return (
@@ -163,8 +164,37 @@ function mapActionError(error: unknown): InvoiceActionResult {
   throw error
 }
 
-export function getPlatformBillingProfile(): PlatformBillingProfile {
-  return PLATFORM_BILLING_PROFILE
+export async function getPlatformBillingProfile(): Promise<PlatformBillingProfile> {
+  try {
+    const { data } = await api.superAdmin.invoices.billingProfile()
+    return mapBillingProfile(data)
+  } catch {
+    return { ...EMPTY_PLATFORM_BILLING_PROFILE }
+  }
+}
+
+function mapBillingProfile(payload: unknown): PlatformBillingProfile {
+  const root = payload as { data?: SuperAdminInvoiceBillingProfile } & SuperAdminInvoiceBillingProfile
+  const candidate =
+    root.data && typeof root.data === 'object' ? root.data : (root as SuperAdminInvoiceBillingProfile)
+  if (!candidate || typeof candidate !== 'object') {
+    return { ...EMPTY_PLATFORM_BILLING_PROFILE }
+  }
+
+  const addressLines = Array.isArray(candidate.addressLines)
+    ? candidate.addressLines.filter((line): line is string => typeof line === 'string' && line.trim().length > 0)
+    : []
+
+  return {
+    brandName: candidate.brandName?.trim() || EMPTY_PLATFORM_BILLING_PROFILE.brandName,
+    legalName: candidate.legalName?.trim() || EMPTY_PLATFORM_BILLING_PROFILE.legalName,
+    tagline: typeof candidate.tagline === 'string' ? candidate.tagline : '',
+    addressLines,
+    gstin: typeof candidate.gstin === 'string' ? candidate.gstin.trim() : '',
+    email: typeof candidate.email === 'string' ? candidate.email.trim() : '',
+    phone: typeof candidate.phone === 'string' ? candidate.phone.trim() : '',
+    website: typeof candidate.website === 'string' ? candidate.website.trim() : '',
+  }
 }
 
 /** Organizations for the generate-invoice selector (platform org list API). */

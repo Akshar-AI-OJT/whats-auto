@@ -1487,6 +1487,79 @@ export type UpdatePlatformAiConfigBody = {
   confirmReindex?: boolean
 }
 
+export type PlatformMfaEnforcement =
+  | 'none'
+  | 'super_admin'
+  | 'super_admin_and_platform_admin'
+  | 'all'
+
+/** Row from GET /api/v1/super-admin/platform-settings (no SMTP/OAuth secrets). */
+export type PlatformSettings = {
+  id: string
+  platformName: string
+  primaryDomain: string
+  supportEmail: string
+  sessionTimeoutHours: number
+  mfaEnforcement: PlatformMfaEnforcement | string
+  passwordMinLength: number
+  smtpMailer: string
+  smtpFromName: string
+  smtpFromAddress: string
+  smtpDailyLimit: number
+  smtpHostConfigured: boolean
+  smtpPasswordConfigured: boolean
+  brevoApiKeyConfigured: boolean
+  googleSignInEnabled: boolean
+  googleSignInConfigured: boolean
+  microsoftSignInEnabled: boolean
+  microsoftSignInConfigured: boolean
+  oauthRedirectUrl: string
+  maintenanceEnabled: boolean
+  allowlistedIps: string[]
+  nextMaintenanceWindow: string | null
+  defaultTimezone: string
+  dataRetentionDays: number
+  apiRateLimitPerMinute: number
+  billingBrandName: string
+  billingLegalName: string
+  billingTagline: string
+  billingAddress: string
+  billingGstin: string
+  billingEmail: string
+  billingPhone: string
+  billingWebsite: string
+  updatedByUserId: string | null
+  createdAt: string
+  updatedAt: string | null
+}
+
+export type UpdatePlatformSettingsBody = {
+  platformName?: string
+  primaryDomain?: string
+  supportEmail?: string
+  sessionTimeoutHours?: number
+  mfaEnforcement?: PlatformMfaEnforcement
+  passwordMinLength?: number
+  smtpDailyLimit?: number
+  googleSignInEnabled?: boolean
+  microsoftSignInEnabled?: boolean
+  oauthRedirectUrl?: string
+  maintenanceEnabled?: boolean
+  allowlistedIps?: string[]
+  nextMaintenanceWindow?: string | null
+  defaultTimezone?: string
+  dataRetentionDays?: number
+  apiRateLimitPerMinute?: number
+  billingBrandName?: string
+  billingLegalName?: string
+  billingTagline?: string
+  billingAddress?: string
+  billingGstin?: string
+  billingEmail?: string
+  billingPhone?: string
+  billingWebsite?: string
+}
+
 export type KnowledgeDocumentStatus = 'PENDING' | 'PROCESSING' | 'INDEXED' | 'FAILED'
 
 export type KnowledgeDocumentSourceType = 'FILE_PDF' | 'FILE_DOCX' | 'FILE_TXT'
@@ -1670,6 +1743,18 @@ export type SuperAdminInvoiceOrganization = {
   phone?: string | null
   address?: string | null
   gstin?: string | null
+}
+
+/** Display-ready seller “From” block from GET /api/v1/super-admin/invoices/billing-profile */
+export type SuperAdminInvoiceBillingProfile = {
+  brandName: string
+  legalName: string
+  tagline: string
+  addressLines: string[]
+  gstin: string
+  email: string
+  phone: string
+  website: string
 }
 
 /** Row from GET /api/v1/super-admin/invoices/:id */
@@ -3303,6 +3388,13 @@ export const api = {
         )
       },
 
+      billingProfile: () =>
+        protectedRequest<
+          { data?: SuperAdminInvoiceBillingProfile } & SuperAdminInvoiceBillingProfile
+        >('/api/v1/super-admin/invoices/billing-profile', {
+          method: 'GET',
+        }),
+
       get: (invoiceId: string) =>
         protectedRequest<{ data?: SuperAdminInvoice } & SuperAdminInvoice>(
           `/api/v1/super-admin/invoices/${invoiceId}`,
@@ -3370,9 +3462,18 @@ export const api = {
 
     platformSettings: {
       get: () =>
-        protectedRequest<{ data?: PlatformSettingsSnapshot } & PlatformSettingsSnapshot>(
+        protectedRequest<{ data?: PlatformSettings } & PlatformSettings>(
           '/api/v1/super-admin/platform-settings',
           { method: 'GET' }
+        ),
+
+      update: (body: UpdatePlatformSettingsBody) =>
+        protectedRequest<{ data?: PlatformSettings } & PlatformSettings>(
+          '/api/v1/super-admin/platform-settings',
+          {
+            method: 'PATCH',
+            body: JSON.stringify(body),
+          }
         ),
     },
 
