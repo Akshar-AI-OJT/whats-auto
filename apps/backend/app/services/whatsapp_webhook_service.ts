@@ -82,11 +82,6 @@ export class WhatsappWebhookService {
    * Unknown/malformed values are logged and skipped; DB errors propagate for Meta retry.
    */
   protected async processPayload(payload: MetaWebhookPayload): Promise<void> {
-    const entryCount = payload.entry?.length ?? 0
-    const fields =
-      payload.entry?.flatMap((entry) => entry.changes?.map((c) => c.field).filter(Boolean) ?? []) ??
-      []
-
     for (const entry of payload.entry ?? []) {
       for (const change of entry.changes ?? []) {
         await this.ingestion.processChangeValue({
