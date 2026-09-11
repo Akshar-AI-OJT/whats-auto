@@ -37,7 +37,7 @@ export default class KnowledgeDocumentsController {
       lifecycle: params.lifecycle,
     })
 
-    return serialize(result)
+    return serialize.withoutWrapping(result)
   }
 
   /**

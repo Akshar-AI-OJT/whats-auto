@@ -24,16 +24,12 @@ import { InboxThreadHeaderSkeleton, InboxThreadMessagesSkeleton } from './InboxT
 import { useInboxOrganization } from './InboxOrganizationContext'
 import { applyInboxSseToConversation, applyInboxSseToMessages } from './apply-inbox-sse'
 import { unwrapPaginated, unwrapSingle, mergeConversationUpdate } from './inbox-utils'
+import { unwrapList } from '@/lib/api-unwrap'
 
 const MESSAGE_PAGE_LIMIT = 100
 
 function unwrapMembers(data: unknown): OrganizationMember[] {
-  if (!data) return []
-  if (Array.isArray(data)) return data
-  if (typeof data === 'object' && Array.isArray((data as { data?: unknown }).data)) {
-    return (data as { data: OrganizationMember[] }).data
-  }
-  return []
+  return unwrapList<OrganizationMember>(data)
 }
 
 async function fetchAllMessages(conversationId: string): Promise<InboxMessage[]> {

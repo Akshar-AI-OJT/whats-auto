@@ -37,7 +37,7 @@ export default class MediaAssetsController {
       search: params.search,
     })
 
-    return serialize(result)
+    return serialize.withoutWrapping(result)
   }
 
   /**

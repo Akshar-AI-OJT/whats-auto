@@ -1,4 +1,5 @@
 import type { PaginationMeta, WhatsappMessageTemplate, WhatsappTemplateButton } from '@/lib/api'
+import { unwrapPage, unwrapSingle } from '@/lib/api-unwrap'
 
 export const TEMPLATE_CATEGORIES = ['MARKETING', 'UTILITY', 'AUTHENTICATION'] as const
 /** Matches backend create validator — VIDEO is not accepted. */
@@ -19,35 +20,11 @@ export function unwrapTemplateList(data: unknown): {
   items: WhatsappMessageTemplate[]
   meta: PaginationMeta | null
 } {
-  if (!data) return { items: [], meta: null }
-  if (Array.isArray(data)) return { items: data as WhatsappMessageTemplate[], meta: null }
-
-  const root = data as {
-    data?: WhatsappMessageTemplate[] | { data?: WhatsappMessageTemplate[]; meta?: PaginationMeta }
-    meta?: PaginationMeta
-  }
-
-  if (Array.isArray(root.data)) {
-    return { items: root.data, meta: root.meta ?? null }
-  }
-
-  if (root.data && typeof root.data === 'object' && Array.isArray(root.data.data)) {
-    return {
-      items: root.data.data,
-      meta: root.data.meta ?? root.meta ?? null,
-    }
-  }
-
-  return { items: [], meta: null }
+  return unwrapPage<WhatsappMessageTemplate>(data)
 }
 
 export function unwrapTemplate(data: unknown): WhatsappMessageTemplate | null {
-  if (!data) return null
-  if (typeof data === 'object' && data !== null && 'id' in data && 'name' in data) {
-    return data as WhatsappMessageTemplate
-  }
-  const wrapped = data as { data?: WhatsappMessageTemplate }
-  return wrapped.data ?? null
+  return unwrapSingle<WhatsappMessageTemplate>(data)
 }
 
 export function isNumericTemplateVariable(key: string): boolean {

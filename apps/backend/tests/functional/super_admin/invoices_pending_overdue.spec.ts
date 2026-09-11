@@ -9,6 +9,7 @@ import { auth } from '#lib/auth'
 import { InvoiceService } from '#services/billing/invoice_service'
 import { AccessTokenClaimsService } from '#services/access_token_claims_service'
 import { runWithTenant } from '#services/tenant_context'
+import { assertListEnvelope, unwrapListEnvelope } from '#tests/helpers/list_envelope'
 
 type InvoiceListItem = {
   id: string
@@ -26,22 +27,7 @@ type PaginationMeta = {
 }
 
 function unwrapList(body: unknown): { items: InvoiceListItem[]; meta: PaginationMeta | null } {
-  if (!body || typeof body !== 'object') return { items: [], meta: null }
-
-  const root = body as {
-    data?: InvoiceListItem[] | { data?: InvoiceListItem[]; meta?: PaginationMeta }
-    meta?: PaginationMeta
-  }
-
-  if (Array.isArray(root.data)) {
-    return { items: root.data, meta: root.meta ?? null }
-  }
-
-  if (root.data && typeof root.data === 'object' && Array.isArray(root.data.data)) {
-    return { items: root.data.data, meta: root.data.meta ?? root.meta ?? null }
-  }
-
-  return { items: [], meta: null }
+  return unwrapListEnvelope<InvoiceListItem>(body)
 }
 
 async function mintToken(email: string, activeOrgId?: string): Promise<string> {
@@ -191,6 +177,7 @@ test.group('BUG-018 Super Admin pending vs overdue invoices', (group) => {
       .qs({ search: `${needle} Future`, status: 'pending', perPage: 20 })
 
     pending.assertStatus(200)
+    assertListEnvelope(assert, pending.body(), { paginated: true })
     const pendingList = unwrapList(pending.body())
     assert.equal(pendingList.meta!.total, 1)
     assert.equal(pendingList.items.length, 1)

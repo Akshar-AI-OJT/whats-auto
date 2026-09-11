@@ -21,7 +21,7 @@ export default class FlowsController {
    * @paramQuery perPage - Page size - @type(number)
    * @paramQuery status - Filter by status - @type(string)
    * @paramQuery search - Case-insensitive name search - @type(string)
-   * @responseBody 200 - { "data": { "data": [{ "id": "uuid", "name": "Welcome", "status": "DRAFT" }], "meta": { "total": 1, "perPage": 20, "currentPage": 1, "lastPage": 1 } } }
+   * @responseBody 200 - { "data": [{ "id": "uuid", "name": "Welcome", "status": "DRAFT" }], "meta": { "total": 1, "perPage": 20, "currentPage": 1, "lastPage": 1 } }
    * @responseBody 403 - { "error": "Permission denied: automations:view", "code": "PERMISSION_DENIED" }
    */
   async index({ bouncer, request, serialize }: HttpContext) {
@@ -39,7 +39,7 @@ export default class FlowsController {
       search: params.search,
     })
 
-    return serialize(result)
+    return serialize.withoutWrapping(result)
   }
 
   /**

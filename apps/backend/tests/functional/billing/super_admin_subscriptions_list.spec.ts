@@ -7,6 +7,7 @@ import DemoSeeder from '#database/seeders/demo_seeder'
 import { auth } from '#lib/auth'
 import { AccessTokenClaimsService } from '#services/access_token_claims_service'
 import { runWithTenant } from '#services/tenant_context'
+import { assertListEnvelope, unwrapListEnvelope } from '#tests/helpers/list_envelope'
 
 type SubscriptionRow = {
   id: string
@@ -34,28 +35,12 @@ function unwrapList(body: unknown): {
   meta: PaginationMeta | null
   summary: ListSummary | null
 } {
-  if (!body || typeof body !== 'object') return { items: [], meta: null, summary: null }
-
-  const root = body as {
-    data?:
-      SubscriptionRow[] | { data?: SubscriptionRow[]; meta?: PaginationMeta; summary?: ListSummary }
-    meta?: PaginationMeta
-    summary?: ListSummary
-  }
-
-  if (Array.isArray(root.data)) {
-    return { items: root.data, meta: root.meta ?? null, summary: root.summary ?? null }
-  }
-
-  if (root.data && typeof root.data === 'object' && Array.isArray(root.data.data)) {
-    return {
-      items: root.data.data,
-      meta: root.data.meta ?? root.meta ?? null,
-      summary: root.data.summary ?? root.summary ?? null,
-    }
-  }
-
-  return { items: [], meta: null, summary: null }
+  const page = unwrapListEnvelope<SubscriptionRow>(body)
+  const summary =
+    body && typeof body === 'object' && !Array.isArray(body)
+      ? ((body as { summary?: ListSummary }).summary ?? null)
+      : null
+  return { ...page, summary }
 }
 
 async function cleanupBugOrgs(slugPrefix: string) {
@@ -249,6 +234,7 @@ test.group('Super Admin subscriptions list filters', (group) => {
       .header('Authorization', `Bearer ${token}`)
 
     response.assertStatus(200)
+    assertListEnvelope(assert, response.body(), { paginated: true })
     const { items, meta, summary } = unwrapList(response.body())
     assert.equal(items.length, 2)
     assert.isObject(meta)

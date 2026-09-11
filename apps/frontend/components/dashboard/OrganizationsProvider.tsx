@@ -3,11 +3,9 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type AccessContext, type OrganizationSummary } from '@/lib/api'
+import { unwrapList, unwrapSingle } from '@/lib/api-unwrap'
 import { authClient } from '@/lib/auth-client'
-import {
-  ensureAccessTokenForOrganization,
-  peekAccessTokenOrgId,
-} from '@/lib/access-token'
+import { ensureAccessTokenForOrganization, peekAccessTokenOrgId } from '@/lib/access-token'
 import {
   hasFullProductAccess as computeFullProductAccess,
   isOrganizationRequiredProfileComplete,
@@ -86,20 +84,8 @@ type OrganizationsContextValue = {
 
 const OrganizationsContext = createContext<OrganizationsContextValue | null>(null)
 
-function unwrapList(
-  data: { data?: OrganizationSummary[] } | OrganizationSummary[] | undefined
-): OrganizationSummary[] {
-  if (!data) return []
-  if (Array.isArray(data)) return data
-  if (Array.isArray(data.data)) return data.data
-  return []
-}
-
-function unwrapContext(
-  data: ({ data?: AccessContext } & AccessContext) | undefined
-): AccessContext | null {
-  if (!data) return null
-  return data.data ?? (data.organizationId ? data : null)
+function unwrapContext(data: unknown): AccessContext | null {
+  return unwrapSingle<AccessContext>(data)
 }
 
 function errorMessage(err: unknown, fallback: string): string {
@@ -139,7 +125,7 @@ async function fetchAccessContext(): Promise<AccessContext | null> {
 
 async function fetchOrganizationList(): Promise<OrganizationSummary[]> {
   const { data } = await api.organizations.list()
-  return unwrapList(data)
+  return unwrapList<OrganizationSummary>(data)
 }
 
 async function refreshSharedSession(): Promise<string | null> {
@@ -339,7 +325,9 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
       })
     } catch (err) {
       setSwitchError(errorMessage(err, 'Failed to switch organization'))
-      throw err instanceof Error ? err : new Error(errorMessage(err, 'Failed to switch organization'))
+      throw err instanceof Error
+        ? err
+        : new Error(errorMessage(err, 'Failed to switch organization'))
     } finally {
       setPendingActiveId(null)
     }

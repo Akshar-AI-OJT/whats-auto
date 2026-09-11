@@ -25,6 +25,7 @@ import {
   type UpdateCustomerGroupBody,
   type UpdateTagBody,
 } from '@/lib/api'
+import { unwrapList } from '@/lib/api-unwrap'
 import { remapTagErrorMessage, unwrapContacts } from './customer-group-utils'
 
 export class CustomerGroupServiceError extends Error {
@@ -63,11 +64,11 @@ function uniqueIds(ids: string[]) {
 function isApiError(error: unknown): error is ApiError {
   return Boolean(
     error &&
-      typeof error === 'object' &&
-      'message' in error &&
-      typeof (error as ApiError).message === 'string' &&
-      'status' in error &&
-      typeof (error as ApiError).status === 'number'
+    typeof error === 'object' &&
+    'message' in error &&
+    typeof (error as ApiError).message === 'string' &&
+    'status' in error &&
+    typeof (error as ApiError).status === 'number'
   )
 }
 
@@ -106,11 +107,7 @@ function unwrapTag(payload: unknown): TagRecord {
 }
 
 function unwrapTagList(payload: unknown): TagRecord[] {
-  if (Array.isArray(payload)) return payload
-  if (payload && typeof payload === 'object' && Array.isArray((payload as { data?: TagRecord[] }).data)) {
-    return (payload as { data: TagRecord[] }).data
-  }
-  return []
+  return unwrapList<TagRecord>(payload)
 }
 
 function mapTagDescription(value: string | null | undefined): string {
@@ -265,12 +262,13 @@ export async function createCustomerGroup(
   const contactIds = uniqueIds(body.contactIds ?? [])
   const failedAssignments =
     contactIds.length > 0 ? await assignContactsOneByOne(tag.id, contactIds) : 0
-  const members = contactIds.length
-    ? await listCustomerGroupContacts(organizationId, tag.id)
-    : []
+  const members = contactIds.length ? await listCustomerGroupContacts(organizationId, tag.id) : []
 
   return {
-    group: mapTagToCustomerGroup(tag, members.map((contact) => contact.id)),
+    group: mapTagToCustomerGroup(
+      tag,
+      members.map((contact) => contact.id)
+    ),
     failedAssignments,
     attemptedAssignments: contactIds.length,
   }

@@ -8,6 +8,7 @@ import DemoSeeder from '#database/seeders/demo_seeder'
 import { auth } from '#lib/auth'
 import { AccessTokenClaimsService } from '#services/access_token_claims_service'
 import { runWithTenant } from '#services/tenant_context'
+import { assertListEnvelope, unwrapListEnvelope } from '#tests/helpers/list_envelope'
 
 const PAGE_LIMIT = 100
 const OVER_LIMIT = 120
@@ -80,19 +81,7 @@ function asCount(row: { total?: unknown } | null | undefined): number {
 }
 
 function unwrapList(body: unknown): unknown[] {
-  if (!body) return []
-  if (Array.isArray(body)) return body
-
-  if (typeof body !== 'object') return []
-  const root = body as {
-    data?: unknown[] | { data?: unknown[] }
-  }
-
-  if (Array.isArray(root.data)) return root.data
-  if (root.data && typeof root.data === 'object' && Array.isArray(root.data.data)) {
-    return root.data.data
-  }
-  return []
+  return unwrapListEnvelope(body).items
 }
 
 test.group('BUG-012 analytics summary aggregates full dataset', (group) => {
@@ -241,6 +230,7 @@ test.group('BUG-012 analytics summary aggregates full dataset', (group) => {
 
     response.assertStatus(200)
     listResponse.assertStatus(200)
+    assertListEnvelope(assert, listResponse.body(), { paginated: true })
     const summary = unwrapData<TenantSummary>(response.body(), 'totalCampaigns')
     assert.isNotNull(summary)
     const listed = unwrapList(listResponse.body())

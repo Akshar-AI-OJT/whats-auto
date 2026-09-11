@@ -1187,9 +1187,12 @@ export type AuditActorFacet = {
   email: string | null
 }
 
-export type AuditListPayload =
-  | AuthorizationAuditEvent[]
-  | { data?: AuthorizationAuditEvent[]; eventTypes?: string[]; actors?: AuditActorFacet[]; targetTypes?: string[] }
+export type AuditListPayload = {
+  data: AuthorizationAuditEvent[]
+  eventTypes?: string[]
+  actors?: AuditActorFacet[]
+  targetTypes?: string[]
+}
 
 export type AnalyticsBreakdownItem = {
   key: string
@@ -1251,7 +1254,6 @@ export type OnboardingPendingInvitation = {
   expiresAt: string
 }
 
-
 export type OnboardingNextStep =
   'create_organization' | 'select_organization' | 'complete_payment' | 'ready'
 
@@ -1299,11 +1301,7 @@ export type RoleUpdatePreview = {
 
 /** Organization usability / provisioning status returned by the API. */
 export type OrganizationStatusValue =
-  | 'pending_setup'
-  | 'verified_setup'
-  | 'active'
-  | 'suspended'
-  | 'false'
+  'pending_setup' | 'verified_setup' | 'active' | 'suspended' | 'false'
 
 /** Nested org membership from GET /api/v1/super-admin/platform-users */
 export type SuperAdminPlatformUserOrganization = {
@@ -1488,10 +1486,7 @@ export type UpdatePlatformAiConfigBody = {
 }
 
 export type PlatformMfaEnforcement =
-  | 'none'
-  | 'super_admin'
-  | 'super_admin_and_platform_admin'
-  | 'all'
+  'none' | 'super_admin' | 'super_admin_and_platform_admin' | 'all'
 
 /** Row from GET /api/v1/super-admin/platform-settings (no SMTP/OAuth secrets). */
 export type PlatformSettings = {
@@ -2271,12 +2266,9 @@ export const api = {
       ),
 
     list: () =>
-      protectedRequest<{ data?: OrganizationSummary[] } | OrganizationSummary[]>(
-        '/api/v1/organizations',
-        {
-          method: 'GET',
-        }
-      ),
+      protectedRequest<{ data: OrganizationSummary[] }>('/api/v1/organizations', {
+        method: 'GET',
+      }),
 
     setActive: (organizationId: string) =>
       protectedRequest<{ data?: { organizationId: string } } & { organizationId: string }>(
@@ -2346,13 +2338,12 @@ export const api = {
       const search = params.search?.trim()
       if (search) qs.set('search', search)
       const query = qs.toString()
-      return protectedRequest<
-        | Paginated<ContactSummary>
-        | { data?: ContactSummary[]; meta?: PaginationMeta }
-        | ContactSummary[]
-      >(`/api/v1/contacts${query ? `?${query}` : ''}`, {
-        method: 'GET',
-      })
+      return protectedRequest<Paginated<ContactSummary>>(
+        `/api/v1/contacts${query ? `?${query}` : ''}`,
+        {
+          method: 'GET',
+        }
+      )
     },
 
     create: (body: CreateContactBody) =>
@@ -2406,7 +2397,7 @@ export const api = {
 
   tags: {
     list: () =>
-      protectedRequest<{ data?: TagRecord[] } | TagRecord[]>('/api/v1/tags', {
+      protectedRequest<{ data: TagRecord[] }>('/api/v1/tags', {
         method: 'GET',
       }),
 
@@ -2434,10 +2425,9 @@ export const api = {
 
     contacts: {
       list: (tagId: string) =>
-        protectedRequest<{ data?: ContactSummary[] } | ContactSummary[]>(
-          `/api/v1/tags/${tagId}/contacts`,
-          { method: 'GET' }
-        ),
+        protectedRequest<{ data: ContactSummary[] }>(`/api/v1/tags/${tagId}/contacts`, {
+          method: 'GET',
+        }),
 
       add: (tagId: string, body: AssignTagContactBody) =>
         protectedRequest<{ data?: TagAssignmentRecord } & TagAssignmentRecord>(
@@ -2465,11 +2455,12 @@ export const api = {
       if (params.page != null) qs.set('page', String(params.page))
       if (params.limit != null) qs.set('limit', String(params.limit))
       const query = qs.toString()
-      return protectedRequest<
-        Paginated<InboxConversation> | { data?: InboxConversation[]; meta?: PaginationMeta }
-      >(`/api/v1/inbox/conversations${query ? `?${query}` : ''}`, {
-        method: 'GET',
-      })
+      return protectedRequest<Paginated<InboxConversation>>(
+        `/api/v1/inbox/conversations${query ? `?${query}` : ''}`,
+        {
+          method: 'GET',
+        }
+      )
     },
 
     createConversation: (body: CreateInboxConversationBody) =>
@@ -2492,11 +2483,12 @@ export const api = {
       if (params.page != null) qs.set('page', String(params.page))
       if (params.limit != null) qs.set('limit', String(params.limit))
       const query = qs.toString()
-      return protectedRequest<
-        Paginated<InboxMessage> | { data?: InboxMessage[]; meta?: PaginationMeta }
-      >(`/api/v1/inbox/conversations/${conversationId}/messages${query ? `?${query}` : ''}`, {
-        method: 'GET',
-      })
+      return protectedRequest<Paginated<InboxMessage>>(
+        `/api/v1/inbox/conversations/${conversationId}/messages${query ? `?${query}` : ''}`,
+        {
+          method: 'GET',
+        }
+      )
     },
 
     sendMessage: (conversationId: string, body: SendInboxMessageBody, idempotencyKey: string) =>
@@ -2542,7 +2534,7 @@ export const api = {
       ),
 
     listNotes: (conversationId: string) =>
-      protectedRequest<{ data?: InboxConversationNote[] } | InboxConversationNote[]>(
+      protectedRequest<{ data: InboxConversationNote[] }>(
         `/api/v1/inbox/conversations/${conversationId}/notes`,
         { method: 'GET' }
       ),
@@ -2575,13 +2567,12 @@ export const api = {
       if (params.page != null) qs.set('page', String(params.page))
       if (params.limit != null) qs.set('limit', String(params.limit))
       const query = qs.toString()
-      return protectedRequest<
-        | Paginated<Notification>
-        | { data?: Notification[]; meta?: PaginationMeta }
-        | { data?: { data?: Notification[]; meta?: PaginationMeta } }
-      >(`/api/v1/notifications${query ? `?${query}` : ''}`, {
-        method: 'GET',
-      })
+      return protectedRequest<Paginated<Notification>>(
+        `/api/v1/notifications${query ? `?${query}` : ''}`,
+        {
+          method: 'GET',
+        }
+      )
     },
 
     markAsRead: (notificationId: string) =>
@@ -2599,10 +2590,9 @@ export const api = {
 
   whatsapp: {
     listConfigs: () =>
-      protectedRequest<{ data?: WhatsappConfigSummary[] } | WhatsappConfigSummary[]>(
-        '/api/v1/whatsapp/configs',
-        { method: 'GET' }
-      ),
+      protectedRequest<{ data: WhatsappConfigSummary[] }>('/api/v1/whatsapp/configs', {
+        method: 'GET',
+      }),
 
     getConfig: (configId: string) =>
       protectedRequest<{ data?: WhatsappConfigSummary } & WhatsappConfigSummary>(
@@ -2649,13 +2639,12 @@ export const api = {
       if (params.search?.trim()) qs.set('search', params.search.trim())
       if (params.language?.trim()) qs.set('language', params.language.trim())
       const query = qs.toString()
-      return protectedRequest<
-        | Paginated<WhatsappMessageTemplate>
-        | { data?: WhatsappMessageTemplate[]; meta?: PaginationMeta }
-        | { data?: { data?: WhatsappMessageTemplate[]; meta?: PaginationMeta } }
-      >(`/api/v1/whatsapp/templates${query ? `?${query}` : ''}`, {
-        method: 'GET',
-      })
+      return protectedRequest<Paginated<WhatsappMessageTemplate>>(
+        `/api/v1/whatsapp/templates${query ? `?${query}` : ''}`,
+        {
+          method: 'GET',
+        }
+      )
     },
 
     getTemplate: (templateId: string) =>
@@ -2688,10 +2677,9 @@ export const api = {
 
   integrations: {
     list: () =>
-      protectedRequest<{ data?: IntegrationConnection[] } | IntegrationConnection[]>(
-        '/api/v1/integrations',
-        { method: 'GET' }
-      ),
+      protectedRequest<{ data: IntegrationConnection[] }>('/api/v1/integrations', {
+        method: 'GET',
+      }),
 
     upsert: (provider: string, body: UpsertIntegrationConnectionBody) =>
       protectedRequest<{ data?: IntegrationConnection } & IntegrationConnection>(
@@ -2711,7 +2699,7 @@ export const api = {
 
   apiKeys: {
     list: () =>
-      protectedRequest<{ data?: IntegrationApiKey[] } | IntegrationApiKey[]>('/api/v1/api-keys', {
+      protectedRequest<{ data: IntegrationApiKey[] }>('/api/v1/api-keys', {
         method: 'GET',
       }),
 
@@ -2736,11 +2724,10 @@ export const api = {
       if (params.status) qs.set('status', params.status)
       if (params.lifecycle) qs.set('lifecycle', params.lifecycle)
       const query = qs.toString()
-      return protectedRequest<
-        | Paginated<KnowledgeDocument>
-        | { data?: KnowledgeDocument[]; meta?: PaginationMeta }
-        | { data?: { data?: KnowledgeDocument[]; meta?: PaginationMeta } }
-      >(`/api/v1/ai/knowledge-documents${query ? `?${query}` : ''}`, { method: 'GET' })
+      return protectedRequest<Paginated<KnowledgeDocument>>(
+        `/api/v1/ai/knowledge-documents${query ? `?${query}` : ''}`,
+        { method: 'GET' }
+      )
     },
 
     get: (documentId: string) =>
@@ -2791,11 +2778,10 @@ export const api = {
       if (params.status) qs.set('status', params.status)
       if (params.search?.trim()) qs.set('search', params.search.trim())
       const query = qs.toString()
-      return protectedRequest<
-        | Paginated<ConversationFlow>
-        | { data?: ConversationFlow[]; meta?: PaginationMeta }
-        | { data?: { data?: ConversationFlow[]; meta?: PaginationMeta } }
-      >(`/api/v1/flows${query ? `?${query}` : ''}`, { method: 'GET' })
+      return protectedRequest<Paginated<ConversationFlow>>(
+        `/api/v1/flows${query ? `?${query}` : ''}`,
+        { method: 'GET' }
+      )
     },
 
     get: (flowId: string) =>
@@ -2845,11 +2831,9 @@ export const api = {
       if (params.state) qs.set('state', params.state)
       if (params.search?.trim()) qs.set('search', params.search.trim())
       const query = qs.toString()
-      return protectedRequest<
-        | Paginated<MediaAsset>
-        | { data?: MediaAsset[]; meta?: PaginationMeta }
-        | { data?: { data?: MediaAsset[]; meta?: PaginationMeta } }
-      >(`/api/v1/media${query ? `?${query}` : ''}`, { method: 'GET' })
+      return protectedRequest<Paginated<MediaAsset>>(`/api/v1/media${query ? `?${query}` : ''}`, {
+        method: 'GET',
+      })
     },
 
     quota: () =>
@@ -2952,11 +2936,7 @@ export const api = {
       if (params.sortBy) qs.set('sortBy', params.sortBy)
       if (params.sortOrder) qs.set('sortOrder', params.sortOrder)
       const query = qs.toString()
-      return protectedRequest<
-        | Paginated<Campaign>
-        | { data?: Campaign[]; meta?: PaginationMeta }
-        | { data?: { data?: Campaign[]; meta?: PaginationMeta } }
-      >(`/api/v1/campaigns${query ? `?${query}` : ''}`, {
+      return protectedRequest<Paginated<Campaign>>(`/api/v1/campaigns${query ? `?${query}` : ''}`, {
         method: 'GET',
       })
     },
@@ -3027,7 +3007,7 @@ export const api = {
 
   members: {
     list: () =>
-      protectedRequest<{ data?: OrganizationMember[] } | OrganizationMember[]>('/api/v1/members', {
+      protectedRequest<{ data: OrganizationMember[] }>('/api/v1/members', {
         method: 'GET',
       }),
 
@@ -3100,11 +3080,12 @@ export const api = {
       const role = params.role?.trim()
       if (role) qs.set('role', role)
       const query = qs.toString()
-      return protectedRequest<
-        Paginated<OrganizationAdminUser> | { data?: OrganizationAdminUser[]; meta?: PaginationMeta }
-      >(`/api/v1/organization-admin/users${query ? `?${query}` : ''}`, {
-        method: 'GET',
-      })
+      return protectedRequest<Paginated<OrganizationAdminUser>>(
+        `/api/v1/organization-admin/users${query ? `?${query}` : ''}`,
+        {
+          method: 'GET',
+        }
+      )
     },
 
     /** GET /api/v1/organization-admin/users/:userId — Owner/Admin only. */
@@ -3148,7 +3129,7 @@ export const api = {
 
   roles: {
     list: () =>
-      protectedRequest<{ data?: OrganizationRole[] } | OrganizationRole[]>('/api/v1/roles', {
+      protectedRequest<{ data: OrganizationRole[] }>('/api/v1/roles', {
         method: 'GET',
       }),
 
@@ -3212,12 +3193,12 @@ export const api = {
         if (params.page != null) qs.set('page', String(params.page))
         if (params.perPage != null) qs.set('perPage', String(params.perPage))
         const query = qs.toString()
-        return protectedRequest<
-          | Paginated<SuperAdminOrganization>
-          | { data?: SuperAdminOrganization[]; meta?: PaginationMeta }
-        >(`/api/v1/super-admin/organizations${query ? `?${query}` : ''}`, {
-          method: 'GET',
-        })
+        return protectedRequest<Paginated<SuperAdminOrganization>>(
+          `/api/v1/super-admin/organizations${query ? `?${query}` : ''}`,
+          {
+            method: 'GET',
+          }
+        )
       },
 
       get: (organizationId: string) =>
@@ -3267,12 +3248,7 @@ export const api = {
         if (params.billing && params.billing !== 'all') qs.set('billing', params.billing)
         const query = qs.toString()
         return protectedRequest<
-          | Paginated<SuperAdminSubscription>
-          | {
-              data?: SuperAdminSubscription[]
-              meta?: PaginationMeta
-              summary?: SuperAdminSubscriptionListSummary
-            }
+          Paginated<SuperAdminSubscription> & { summary?: SuperAdminSubscriptionListSummary }
         >(`/api/v1/super-admin/subscriptions${query ? `?${query}` : ''}`, {
           method: 'GET',
         })
@@ -3363,11 +3339,12 @@ export const api = {
           qs.set('billingPeriod', params.billingPeriod)
         }
         const query = qs.toString()
-        return protectedRequest<
-          Paginated<SuperAdminInvoice> | { data?: SuperAdminInvoice[]; meta?: PaginationMeta }
-        >(`/api/v1/super-admin/invoices${query ? `?${query}` : ''}`, {
-          method: 'GET',
-        })
+        return protectedRequest<Paginated<SuperAdminInvoice>>(
+          `/api/v1/super-admin/invoices${query ? `?${query}` : ''}`,
+          {
+            method: 'GET',
+          }
+        )
       },
 
       summary: (params: Omit<ListSuperAdminInvoicesParams, 'page' | 'perPage'> = {}) => {
@@ -3507,12 +3484,12 @@ export const api = {
         if (params.organizationId) qs.set('organizationId', params.organizationId)
         if (params.role?.trim()) qs.set('role', params.role.trim())
         const query = qs.toString()
-        return protectedRequest<
-          | Paginated<SuperAdminPlatformUser>
-          | { data?: SuperAdminPlatformUser[]; meta?: PaginationMeta }
-        >(`/api/v1/super-admin/platform-users${query ? `?${query}` : ''}`, {
-          method: 'GET',
-        })
+        return protectedRequest<Paginated<SuperAdminPlatformUser>>(
+          `/api/v1/super-admin/platform-users${query ? `?${query}` : ''}`,
+          {
+            method: 'GET',
+          }
+        )
       },
     },
   },

@@ -22,7 +22,7 @@ export default class MembersController {
     await bouncer.with(MemberPolicy).authorize('viewList')
 
     const members = await new MemberService().listMembers(request.activeMember!.organizationId)
-    return serialize(members)
+    return serialize.withoutWrapping({ data: members })
   }
 
   /**

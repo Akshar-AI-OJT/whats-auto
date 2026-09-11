@@ -5,6 +5,7 @@ import { FIXTURE_IDS } from '#database/demo/fixture_ids'
 import DemoSeeder from '#database/seeders/demo_seeder'
 import { auth } from '#lib/auth'
 import { AccessTokenClaimsService } from '#services/access_token_claims_service'
+import { unwrapListEnvelope } from '#tests/helpers/list_envelope'
 
 type OrgAdminUser = {
   id: string
@@ -22,25 +23,7 @@ type PaginationMeta = {
 }
 
 function unwrapList(body: unknown): { items: OrgAdminUser[]; meta: PaginationMeta | null } {
-  if (!body || typeof body !== 'object') return { items: [], meta: null }
-
-  const root = body as {
-    data?: OrgAdminUser[] | { data?: OrgAdminUser[]; meta?: PaginationMeta }
-    meta?: PaginationMeta
-    metadata?: PaginationMeta
-  }
-
-  const meta = root.meta ?? root.metadata ?? null
-
-  if (Array.isArray(root.data)) {
-    return { items: root.data, meta }
-  }
-
-  if (root.data && typeof root.data === 'object' && Array.isArray(root.data.data)) {
-    return { items: root.data.data, meta: root.data.meta ?? meta }
-  }
-
-  return { items: [], meta: null }
+  return unwrapListEnvelope<OrgAdminUser>(body)
 }
 
 async function mintToken(email: string, activeOrgId?: string): Promise<string> {

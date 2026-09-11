@@ -22,6 +22,7 @@ import {
   type OrganizationMember,
   type PaginationMeta,
 } from '@/lib/api'
+import { unwrapList, unwrapPage } from '@/lib/api-unwrap'
 import { queryKeys } from '@/lib/query-keys'
 import { ASSIGNABLE_ROLES, type AssignableRole } from '@/lib/onboarding'
 import { cn } from '@/lib/utils'
@@ -48,44 +49,12 @@ type TeamMemberRow = {
   emailVerified?: boolean
 }
 
-function unwrapList<T>(data: { data?: T[] } | T[] | undefined): T[] {
-  if (!data) return []
-  if (Array.isArray(data)) return data
-  if (Array.isArray(data.data)) return data.data
-  return []
-}
-
 function unwrapPaginatedUsers(payload: unknown): {
   users: OrganizationAdminUser[]
   meta: PaginationMeta | null
 } {
-  if (!payload || typeof payload !== 'object') {
-    return { users: [], meta: null }
-  }
-
-  const root = payload as {
-    data?: unknown
-    meta?: PaginationMeta
-  }
-
-  // serialize(paginate) → { data: [...], meta }
-  if (Array.isArray(root.data) && root.meta) {
-    return { users: root.data as OrganizationAdminUser[], meta: root.meta }
-  }
-
-  // Nested wrap edge case: { data: { data: [...], meta } }
-  if (root.data && typeof root.data === 'object' && !Array.isArray(root.data)) {
-    const nested = root.data as { data?: OrganizationAdminUser[]; meta?: PaginationMeta }
-    if (Array.isArray(nested.data)) {
-      return { users: nested.data, meta: nested.meta ?? root.meta ?? null }
-    }
-  }
-
-  if (Array.isArray(root.data)) {
-    return { users: root.data as OrganizationAdminUser[], meta: root.meta ?? null }
-  }
-
-  return { users: [], meta: null }
+  const page = unwrapPage<OrganizationAdminUser>(payload)
+  return { users: page.items, meta: page.meta }
 }
 
 function fromAdminUser(user: OrganizationAdminUser): TeamMemberRow {
@@ -260,7 +229,7 @@ export function TeamMembersPage() {
         }
         const membersResult = await api.members.list()
         return {
-          members: unwrapList(membersResult.data).map(fromMember),
+          members: unwrapList<OrganizationMember>(membersResult.data).map(fromMember),
           meta: null,
           paginatedSource: false as const,
         }

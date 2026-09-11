@@ -36,6 +36,7 @@ import {
   planBillingKind,
   planLabel,
 } from '@/components/admin/subscriptions/subscription-api'
+import { unwrapList } from '@/lib/api-unwrap'
 import {
   getSuperAdminOrganization,
   mapOrgApiError,
@@ -83,15 +84,6 @@ function isOrgNotFound(error: unknown): boolean {
   return apiError?.status === 404 || apiError?.code === 'E_ORGANIZATION_NOT_FOUND'
 }
 
-function unwrapAuditEvents(data: unknown): AuthorizationAuditEvent[] {
-  if (!data) return []
-  if (Array.isArray(data)) return data as AuthorizationAuditEvent[]
-  if (typeof data === 'object' && data !== null && 'data' in data) {
-    const wrapped = data as { data?: AuthorizationAuditEvent[] }
-    if (Array.isArray(wrapped.data)) return wrapped.data
-  }
-  return []
-}
 
 function pickSubscription(
   subscriptions: SuperAdminSubscription[],
@@ -534,7 +526,7 @@ export function OrganizationDetailsPage({ orgId }: { orgId: string }) {
     queryKey: queryKeys.admin.organizationActivity(orgId),
     queryFn: async () => {
       const { data } = await api.superAdmin.auditLogs.list({ limit: 50, organizationId: orgId })
-      return unwrapAuditEvents(data)
+      return unwrapList<AuthorizationAuditEvent>(data)
     },
     enabled: orgQuery.isSuccess,
   })
