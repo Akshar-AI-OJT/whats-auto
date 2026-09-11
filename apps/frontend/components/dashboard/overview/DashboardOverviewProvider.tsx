@@ -9,8 +9,8 @@ import {
   buildAuditActivityItems,
   fetchOverviewAudit,
   fetchOverviewCampaigns,
-  fetchOverviewContacts,
   fetchOverviewConversations,
+  fetchOverviewKpis,
   type DashboardAuditActivityItem,
   type DashboardOverviewKpis,
 } from './dashboard-overview-data'
@@ -40,6 +40,13 @@ type DashboardOverviewContextValue = {
 
 const DashboardOverviewContext = createContext<DashboardOverviewContextValue | null>(null)
 
+const EMPTY_KPIS: DashboardOverviewKpis = {
+  contactsCount: 0,
+  conversationsCount: 0,
+  campaignsCount: 0,
+  deliveryRate: 0,
+}
+
 export function DashboardOverviewProvider({
   children,
   noDetailsLabel,
@@ -53,13 +60,14 @@ export function DashboardOverviewProvider({
     hasFullProductAccess,
     isResolvingAccess,
   } = useOrganizations()
-  const enabled =
-    Boolean(tenantOrganizationId) && !orgsLoading && !isResolvingAccess && hasFullProductAccess
 
-  const contactsQuery = useQuery({
+  const gateLoading = orgsLoading || isResolvingAccess || !tenantOrganizationId
+  const enabled = Boolean(tenantOrganizationId) && hasFullProductAccess && !isResolvingAccess
+
+  const kpisQuery = useQuery({
     queryKey: queryKeys.overview.contacts(tenantOrganizationId),
     enabled,
-    queryFn: () => fetchOverviewContacts(tenantOrganizationId!),
+    queryFn: fetchOverviewKpis,
   })
 
   const conversationsQuery = useQuery({
@@ -80,37 +88,23 @@ export function DashboardOverviewProvider({
     queryFn: fetchOverviewAudit,
   })
 
-  const kpis = useMemo<DashboardOverviewKpis>(
-    () => ({
-      contactsCount: contactsQuery.data ?? 0,
-      conversationsCount: conversationsQuery.data?.total ?? 0,
-      campaignsCount: campaignsQuery.data?.kpis.campaignsCount ?? 0,
-      deliveryRate: campaignsQuery.data?.kpis.deliveryRate ?? 0,
-    }),
-    [contactsQuery.data, conversationsQuery.data?.total, campaignsQuery.data?.kpis]
-  )
+  const kpis = kpisQuery.data ?? EMPTY_KPIS
 
   const auditItems = useMemo(
     () => buildAuditActivityItems(auditQuery.data ?? [], noDetailsLabel),
     [auditQuery.data, noDetailsLabel]
   )
 
-  const kpisLoading =
-    orgsLoading ||
-    isResolvingAccess ||
-    !tenantOrganizationId ||
-    contactsQuery.isPending ||
-    conversationsQuery.isPending ||
-    campaignsQuery.isPending
-
-  const kpisError =
-    contactsQuery.isError || conversationsQuery.isError || campaignsQuery.isError
+  // Use isLoading (pending && fetching), not isPending — disabled queries stay
+  // isPending forever and were causing endless "Loading…" after the shell rendered.
+  const kpisLoading = gateLoading || (enabled && kpisQuery.isLoading)
+  const conversationsLoading = gateLoading || (enabled && conversationsQuery.isLoading)
+  const campaignsLoading = gateLoading || (enabled && campaignsQuery.isLoading)
+  const auditLoading = gateLoading || (enabled && auditQuery.isLoading)
 
   const refetchKpis = useCallback(() => {
-    void contactsQuery.refetch()
-    void conversationsQuery.refetch()
-    void campaignsQuery.refetch()
-  }, [contactsQuery, conversationsQuery, campaignsQuery])
+    void kpisQuery.refetch()
+  }, [kpisQuery])
 
   const refetchConversations = useCallback(() => {
     void conversationsQuery.refetch()
@@ -130,43 +124,43 @@ export function DashboardOverviewProvider({
       orgsLoading,
       kpis,
       kpisLoading,
-      kpisError,
+      kpisError: kpisQuery.isError,
       refetchKpis,
       conversations: conversationsQuery.data?.items ?? [],
-      conversationsTotal: conversationsQuery.data?.total ?? 0,
-      conversationsLoading: orgsLoading || isResolvingAccess || !tenantOrganizationId || conversationsQuery.isPending,
+      conversationsTotal:
+        conversationsQuery.data?.total ?? kpis.conversationsCount,
+      conversationsLoading,
       conversationsError: conversationsQuery.isError,
       refetchConversations,
-      campaigns: campaignsQuery.data?.recent ?? [],
-      campaignsLoading: orgsLoading || isResolvingAccess || !tenantOrganizationId || campaignsQuery.isPending,
+      campaigns: campaignsQuery.data ?? [],
+      campaignsLoading,
       campaignsError: campaignsQuery.isError,
       refetchCampaigns,
       auditEvents: auditQuery.data ?? [],
       auditItems,
-      auditLoading: orgsLoading || isResolvingAccess || !tenantOrganizationId || auditQuery.isPending,
+      auditLoading,
       auditError: auditQuery.isError,
       refetchAudit,
     }),
     [
       tenantOrganizationId,
       orgsLoading,
-      isResolvingAccess,
       kpis,
       kpisLoading,
-      kpisError,
+      kpisQuery.isError,
       refetchKpis,
       conversationsQuery.data?.items,
       conversationsQuery.data?.total,
-      conversationsQuery.isPending,
+      conversationsLoading,
       conversationsQuery.isError,
       refetchConversations,
-      campaignsQuery.data?.recent,
-      campaignsQuery.isPending,
+      campaignsQuery.data,
+      campaignsLoading,
       campaignsQuery.isError,
       refetchCampaigns,
       auditQuery.data,
       auditItems,
-      auditQuery.isPending,
+      auditLoading,
       auditQuery.isError,
       refetchAudit,
     ]

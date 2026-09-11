@@ -23,16 +23,20 @@ type DashboardShellProps = {
 function DashboardAuthGate({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const t = useTranslations('dashboard.accessDenied')
-  const { data: sessionData, isPending, isRefetching } = authClient.useSession()
+  // Better Auth defaults refetchOnWindowFocus=true → isRefetching on tab return.
+  // Never treat refetch as a cold start: that unmounts OrganizationsProvider + shell.
+  const { data: sessionData, isPending } = authClient.useSession()
   const isSignedIn = Boolean(sessionData?.user)
 
   useEffect(() => {
-    if (!isPending && !isRefetching && !isSignedIn) {
+    if (!isPending && !isSignedIn) {
       router.replace('/login')
     }
-  }, [isPending, isRefetching, isSignedIn, router])
+  }, [isPending, isSignedIn, router])
 
-  if (isPending || isRefetching || !isSignedIn) {
+  // Full-screen only when there is no authenticated session yet (initial pending
+  // or redirecting to login). Background session refetches keep children mounted.
+  if (!isSignedIn) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-dash-bg">
         <Loader2 className="size-6 animate-spin text-mute" aria-hidden />
@@ -51,7 +55,9 @@ function DashboardAuthGate({ children }: { children: React.ReactNode }) {
 function DashboardMembershipGate({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const t = useTranslations('dashboard.accessDenied')
-  const { hasOrganizations, isLoading } = useOrganizations()
+  // Wait for membership list only — not org bootstrap / JWT remint (those keep
+  // tenantOrganizationId null so overview uses skeletons, not full-screen spin).
+  const { hasOrganizations, isMembershipLoading } = useOrganizations()
   const [platformChecked, setPlatformChecked] = useState(false)
   const [isSuperAdmin, setIsSuperAdmin] = useState(false)
 
@@ -73,12 +79,13 @@ function DashboardMembershipGate({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
-    if (isLoading || !platformChecked) return
+    if (isMembershipLoading || !platformChecked) return
     if (hasOrganizations) return
     router.replace(isSuperAdmin ? SUPER_ADMIN_HOME_PATH : ORG_SETUP_PATH)
-  }, [hasOrganizations, isLoading, isSuperAdmin, platformChecked, router])
+  }, [hasOrganizations, isMembershipLoading, isSuperAdmin, platformChecked, router])
 
-  if (isLoading || !platformChecked || !hasOrganizations) {
+  // Org membership list still resolving — keep the gate spinner.
+  if (isMembershipLoading) {
     return (
       <div className="flex min-h-dvh items-center justify-center bg-dash-bg">
         <Loader2 className="size-6 animate-spin text-mute" aria-hidden />
@@ -87,7 +94,28 @@ function DashboardMembershipGate({ children }: { children: React.ReactNode }) {
     )
   }
 
-  return children
+  // Happy path: memberships known — do not block the shell on JWT remint /
+  // superadmin probe (that check only decides where zero-org users go).
+  if (hasOrganizations) {
+    return children
+  }
+
+  // Zero orgs: wait for platform role before redirecting.
+  if (!platformChecked) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-dash-bg">
+        <Loader2 className="size-6 animate-spin text-mute" aria-hidden />
+        <span className="sr-only">{t('loading')}</span>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex min-h-dvh items-center justify-center bg-dash-bg">
+      <Loader2 className="size-6 animate-spin text-mute" aria-hidden />
+      <span className="sr-only">{t('loading')}</span>
+    </div>
+  )
 }
 
 function DashboardShellFrame({ children, className }: DashboardShellProps) {

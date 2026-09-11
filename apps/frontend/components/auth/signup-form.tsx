@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useId, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useLocale, useTranslations } from 'next-intl'
 import { ArrowLeft, Clock3, Loader2, Lock, Mail, Phone, User } from 'lucide-react'
 import { FcGoogle } from 'react-icons/fc'
@@ -15,6 +16,7 @@ import {
   ORG_SETUP_PATH,
   savePendingOnboardingContact,
 } from '@/lib/onboarding'
+import { prefetchDashboardOrganizationQueries } from '@/lib/organization-queries'
 import {
   authContinuePath,
   authHandoffHref,
@@ -127,6 +129,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
   const t = useTranslations('auth.register')
   const locale = useLocale()
   const router = useRouter()
+  const queryClient = useQueryClient()
 
   const formErrorId = useId()
   const firstnameId = useId()
@@ -324,9 +327,13 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
       await api.auth.verifyOtp({ email, otp, password })
 
       // Custom OTP route sets the session cookie; bootstrap shared session + JWT next.
-      await authClient.getSession({ query: { disableCookieCache: true } })
+      const sessionResult = await authClient.getSession({ query: { disableCookieCache: true } })
       await getValidAccessToken()
 
+      const userId = sessionResult.data?.user?.id ?? null
+      await prefetchDashboardOrganizationQueries(queryClient, userId, {
+        sessionOrganizationId: sessionResult.data?.session?.activeOrganizationId ?? null,
+      })
       const nextPath = await resolvePostAuthPath({
         preferredCallback: callbackPath,
         fallback: ORG_SETUP_PATH,
