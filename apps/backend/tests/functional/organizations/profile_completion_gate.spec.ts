@@ -7,6 +7,7 @@ import DemoSeeder from '#database/seeders/demo_seeder'
 import { OrganizationStatus } from '#enums/organization_status'
 import { auth } from '#lib/auth'
 import { AccessTokenClaimsService } from '#services/access_token_claims_service'
+import { assertListEnvelope } from '#tests/helpers/list_envelope'
 import { runWithTenant } from '#services/tenant_context'
 
 function errorBody(response: { body: () => unknown }): { code?: string; error?: string } {
@@ -195,6 +196,7 @@ test.group('Organization profile completion gate', (group) => {
 
   test('access-context, org list, and billing remain reachable before completion', async ({
     client,
+    assert,
   }) => {
     const owner = await db
       .from('users')
@@ -212,6 +214,7 @@ test.group('Organization profile completion gate', (group) => {
 
     const orgs = await client.get('/api/v1/organizations').headers(authHeaders)
     orgs.assertStatus(200)
+    assertListEnvelope(assert, orgs.body())
 
     const billing = await client.get('/api/v1/billing/plans').headers(authHeaders)
     billing.assertStatus(200)

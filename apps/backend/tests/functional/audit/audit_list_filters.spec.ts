@@ -7,6 +7,7 @@ import { FIXTURE_IDS } from '#database/demo/fixture_ids'
 import DemoSeeder from '#database/seeders/demo_seeder'
 import { auth } from '#lib/auth'
 import { AccessTokenClaimsService } from '#services/access_token_claims_service'
+import { assertListEnvelope, unwrapListEnvelope } from '#tests/helpers/list_envelope'
 
 type AuditEvent = {
   id: string
@@ -62,10 +63,7 @@ async function mintToken(email: string, activeOrgId?: string): Promise<string> {
 }
 
 function eventsFrom(body: unknown): AuditEvent[] {
-  if (!body || typeof body !== 'object') return []
-  const root = body as { data?: AuditEvent[] } & AuditEvent[]
-  if (Array.isArray(root)) return root
-  return Array.isArray(root.data) ? root.data : []
+  return unwrapListEnvelope<AuditEvent>(body).items
 }
 
 async function insertAudit(row: {
@@ -223,6 +221,7 @@ test.group('BUG-011 audit list filters apply before limit', (group) => {
       .header('Authorization', `Bearer ${token}`)
 
     response.assertStatus(200)
+    assertListEnvelope(assert, response.body())
     const events = eventsFrom(response.body())
     assert.equal(events.length, WINDOW_LIMIT)
     assert.isFalse(events.some((event) => event.id === tenantNeedleId))

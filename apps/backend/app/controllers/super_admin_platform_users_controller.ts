@@ -39,9 +39,8 @@ export default class SuperAdminPlatformUsersController {
       role: query.role,
     })
 
-    // Service already returns DTO rows with memberships attached. Serialize the
-    // envelope directly so meta is preserved (Transformer.paginate can reshape
-    // the paginated payload in ways the frontend list cannot unwrap reliably).
-    return serialize({ data, meta })
+    // Service already returns DTO rows with memberships attached. Do not wrap
+    // again — serialize({ data, meta }) would nest as { data: { data, meta } }.
+    return serialize.withoutWrapping({ data, meta })
   }
 }

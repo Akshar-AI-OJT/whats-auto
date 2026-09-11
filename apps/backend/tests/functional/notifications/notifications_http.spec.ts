@@ -7,6 +7,7 @@ import DemoSeeder from '#database/seeders/demo_seeder'
 import { auth } from '#lib/auth'
 import { AccessTokenClaimsService } from '#services/access_token_claims_service'
 import { NotificationService, type NotificationRecord } from '#services/notification_service'
+import { assertListEnvelope, unwrapListEnvelope } from '#tests/helpers/list_envelope'
 
 const ACTIVE_ORG_BY_EMAIL: Record<string, string> = {
   [DEMO_USERS.northstarOwner]: FIXTURE_IDS.orgs.northstar,
@@ -27,22 +28,7 @@ function errorBody(response: { body: () => unknown }): { code?: string; error?: 
 }
 
 function unwrapList(body: unknown): { items: NotificationRecord[]; meta: PaginationMeta | null } {
-  if (!body || typeof body !== 'object') return { items: [], meta: null }
-
-  const root = body as {
-    data?: NotificationRecord[] | { data?: NotificationRecord[]; meta?: PaginationMeta }
-    meta?: PaginationMeta
-  }
-
-  if (Array.isArray(root.data)) {
-    return { items: root.data, meta: root.meta ?? null }
-  }
-
-  if (root.data && typeof root.data === 'object' && Array.isArray(root.data.data)) {
-    return { items: root.data.data, meta: root.data.meta ?? root.meta ?? null }
-  }
-
-  return { items: [], meta: null }
+  return unwrapListEnvelope<NotificationRecord>(body)
 }
 
 function unwrapNotification(body: unknown): NotificationRecord | null {
@@ -170,6 +156,7 @@ test.group('Notifications HTTP', (group) => {
       .header('Authorization', `Bearer ${token}`)
 
     response.assertStatus(200)
+    assertListEnvelope(assert, response.body(), { paginated: true })
     const { items, meta } = unwrapList(response.body())
     assert.isArray(items)
     assert.lengthOf(items, 0)

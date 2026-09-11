@@ -1,5 +1,5 @@
 import type { AuditActorFacet, AuthorizationAuditEvent } from '@/lib/api'
-import { unwrapList } from '@/components/dashboard/inbox/inbox-utils'
+import { unwrapList } from '@/lib/api-unwrap'
 
 export type UnwrappedAuditList = {
   events: AuthorizationAuditEvent[]
@@ -10,7 +10,7 @@ export type UnwrappedAuditList = {
 
 export function unwrapAuditList(payload: unknown): UnwrappedAuditList {
   const events = unwrapList<AuthorizationAuditEvent>(payload)
-  if (!payload || typeof payload !== 'object') {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
     return { events, eventTypes: [], actors: [], targetTypes: [] }
   }
 
@@ -18,18 +18,13 @@ export function unwrapAuditList(payload: unknown): UnwrappedAuditList {
     eventTypes?: string[]
     actors?: AuditActorFacet[]
     targetTypes?: string[]
-    data?: { eventTypes?: string[]; actors?: AuditActorFacet[]; targetTypes?: string[] }
   }
-
-  const eventTypes = root.eventTypes ?? root.data?.eventTypes
-  const actors = root.actors ?? root.data?.actors
-  const targetTypes = root.targetTypes ?? root.data?.targetTypes
 
   return {
     events,
-    eventTypes: Array.isArray(eventTypes) ? eventTypes : [],
-    actors: Array.isArray(actors) ? actors : [],
-    targetTypes: Array.isArray(targetTypes) ? targetTypes : [],
+    eventTypes: Array.isArray(root.eventTypes) ? root.eventTypes : [],
+    actors: Array.isArray(root.actors) ? root.actors : [],
+    targetTypes: Array.isArray(root.targetTypes) ? root.targetTypes : [],
   }
 }
 

@@ -199,9 +199,15 @@ importers:
       '@tuyau/core':
         specifier: ^1.2.2
         version: 1.2.2(@adonisjs/assembler@8.4.0(typescript@5.9.3))(@adonisjs/core@7.3.5(@adonisjs/assembler@8.4.0(typescript@5.9.3))(@vinejs/vine@4.4.0)(pino-pretty@13.1.3)(supports-color@10.2.2)(youch@4.1.1))
+      '@vinejs/vine':
+        specifier: ^4.4.0
+        version: 4.4.0
       '@xyflow/react':
         specifier: ^12.11.3
         version: 12.11.3(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      backend:
+        specifier: workspace:*
+        version: link:../backend
       better-auth:
         specifier: ^1.6.23
         version: 1.6.23(better-sqlite3@12.11.1)(next@16.3.3(@babel/core@7.29.7(supports-color@10.2.2))(@playwright/test@1.62.1)(@types/node@20.19.43)(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(pg@8.22.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)

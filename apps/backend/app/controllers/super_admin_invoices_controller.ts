@@ -45,7 +45,7 @@ export default class SuperAdminInvoicesController {
       },
     })
 
-    return serialize(result)
+    return serialize.withoutWrapping(result)
   }
 
   /**

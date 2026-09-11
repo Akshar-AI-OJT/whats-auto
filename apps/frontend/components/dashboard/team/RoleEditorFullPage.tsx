@@ -23,6 +23,7 @@ import {
   type OrganizationRole,
   type RoleUpdatePreview,
 } from '@/lib/api'
+import { unwrapList } from '@/lib/api-unwrap'
 import {
   groupProductPermissions,
   PRODUCT_PERMISSIONS,
@@ -97,13 +98,6 @@ const TEMPLATE_ICONS: Record<RoleTemplateId, typeof Shield> = {
   manager: Users,
   agent: Headset,
   custom: Settings2,
-}
-
-function unwrapList<T>(data: { data?: T[] } | T[] | undefined): T[] {
-  if (!data) return []
-  if (Array.isArray(data)) return data
-  if (Array.isArray(data.data)) return data.data
-  return []
 }
 
 export type RoleEditorFullPageProps = {
@@ -445,7 +439,7 @@ export function RoleEditorFullPage({
     void api.roles
       .list()
       .then((result) => {
-        const roles = unwrapList<OrganizationRole>((result as { data?: OrganizationRole[] }).data)
+        const roles = unwrapList<OrganizationRole>(result.data)
         const found = roles.find((r) => r.role === roleKey) ?? null
         setRole(found)
         if (!found) return

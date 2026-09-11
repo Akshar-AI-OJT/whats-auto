@@ -26,7 +26,7 @@ export default class RolesController {
     await bouncer.with(RolePolicy).authorize('viewList')
 
     const roles = await new RoleService().listRoles(request.activeMember!.organizationId)
-    return serialize(roles)
+    return serialize.withoutWrapping({ data: roles })
   }
 
   /**

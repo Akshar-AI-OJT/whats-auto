@@ -30,7 +30,7 @@ export default class NotificationsController {
       limit: qs.limit,
     })
 
-    return serialize(result)
+    return serialize.withoutWrapping(result)
   }
 
   /**

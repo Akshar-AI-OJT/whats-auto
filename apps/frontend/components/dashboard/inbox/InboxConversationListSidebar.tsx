@@ -35,6 +35,7 @@ import {
   unwrapSingle,
   mergeConversationUpdate,
 } from './inbox-utils'
+import { unwrapList } from '@/lib/api-unwrap'
 
 const PER_PAGE = 20
 const SEARCH_DEBOUNCE_MS = 350
@@ -54,12 +55,7 @@ const selectClassName = cn(
 )
 
 function unwrapMembers(data: unknown): OrganizationMember[] {
-  if (!data) return []
-  if (Array.isArray(data)) return data
-  if (typeof data === 'object' && Array.isArray((data as { data?: unknown }).data)) {
-    return (data as { data: OrganizationMember[] }).data
-  }
-  return []
+  return unwrapList<OrganizationMember>(data)
 }
 
 function StatusBadge({ status, label }: { status: string; label: string }) {

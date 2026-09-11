@@ -3,11 +3,9 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type AccessContext, type OrganizationSummary } from '@/lib/api'
+import { unwrapList, unwrapSingle } from '@/lib/api-unwrap'
 import { authClient } from '@/lib/auth-client'
-import {
-  ensureAccessTokenForOrganization,
-  peekAccessTokenOrgId,
-} from '@/lib/access-token'
+import { ensureAccessTokenForOrganization, peekAccessTokenOrgId } from '@/lib/access-token'
 import {
   hasFullProductAccess as computeFullProductAccess,
   isOrganizationRequiredProfileComplete,
@@ -314,7 +312,9 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
       })
     } catch (err) {
       setSwitchError(errorMessage(err, 'Failed to switch organization'))
-      throw err instanceof Error ? err : new Error(errorMessage(err, 'Failed to switch organization'))
+      throw err instanceof Error
+        ? err
+        : new Error(errorMessage(err, 'Failed to switch organization'))
     } finally {
       setPendingActiveId(null)
     }

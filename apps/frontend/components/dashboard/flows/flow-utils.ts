@@ -5,6 +5,7 @@ import type {
   ConversationFlowValidationError,
   PaginationMeta,
 } from '@/lib/api'
+import { unwrapPage, unwrapSingle } from '@/lib/api-unwrap'
 
 export type FlowStatusFilter = 'all' | ConversationFlowStatus
 
@@ -12,36 +13,11 @@ export function unwrapFlowList(data: unknown): {
   items: ConversationFlow[]
   meta: PaginationMeta | null
 } {
-  if (!data) return { items: [], meta: null }
-  if (Array.isArray(data)) return { items: data as ConversationFlow[], meta: null }
-
-  const root = data as {
-    data?: ConversationFlow[] | { data?: ConversationFlow[]; meta?: PaginationMeta }
-    meta?: PaginationMeta
-  }
-
-  if (Array.isArray(root.data)) {
-    return { items: root.data, meta: root.meta ?? null }
-  }
-
-  if (root.data && typeof root.data === 'object' && Array.isArray(root.data.data)) {
-    return {
-      items: root.data.data,
-      meta: root.data.meta ?? root.meta ?? null,
-    }
-  }
-
-  return { items: [], meta: null }
+  return unwrapPage<ConversationFlow>(data)
 }
 
 export function unwrapFlow(data: unknown): ConversationFlow | null {
-  if (!data || typeof data !== 'object') return null
-  const root = data as { data?: ConversationFlow } & Partial<ConversationFlow>
-  if (root.data && typeof root.data === 'object' && typeof root.data.id === 'string') {
-    return root.data
-  }
-  if (typeof root.id === 'string') return root as ConversationFlow
-  return null
+  return unwrapSingle<ConversationFlow>(data)
 }
 
 export function unwrapFlowValidate(data: unknown): ConversationFlowValidateResult {
@@ -89,10 +65,15 @@ export function flowStatusBadgeClass(status: string): string {
 
 export type FlowValidationState = 'unknown' | 'valid' | 'invalid'
 
-export function validationStateFromVersion(version: {
-  validationStatus?: string
-  validationErrors?: ConversationFlowValidationError[] | unknown
-} | null | undefined): {
+export function validationStateFromVersion(
+  version:
+    | {
+        validationStatus?: string
+        validationErrors?: ConversationFlowValidationError[] | unknown
+      }
+    | null
+    | undefined
+): {
   state: FlowValidationState
   errors: ConversationFlowValidationError[]
 } {

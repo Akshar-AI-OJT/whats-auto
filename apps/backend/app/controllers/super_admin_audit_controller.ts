@@ -7,7 +7,7 @@ import '#types/http'
 export default class SuperAdminAuditController {
   /**
    * @summary List platform audit events (Super Admin)
-   * @description Org-lifecycle, billing, plan, and AI config events. Requires platform:audit_view. Filters apply before limit. Optional organizationId filters to one tenant without exposing tenant RBAC events.
+   * @description Org-lifecycle, billing, plan, and AI config events. Requires platform:audit_view. Filters apply before limit. Optional organizationId filters to one tenant without exposing tenant RBAC events. With includeFacets, eventTypes/actors/targetTypes sit next to data.
    * @tag Super Admin
    * @security BearerAuth
    * @paramQuery search - Case-insensitive match on event, reason, target, actor, and organization - @type(string)
@@ -50,6 +50,6 @@ export default class SuperAdminAuditController {
       })
     }
 
-    return serialize(result.events)
+    return serialize.withoutWrapping({ data: result.events })
   }
 }

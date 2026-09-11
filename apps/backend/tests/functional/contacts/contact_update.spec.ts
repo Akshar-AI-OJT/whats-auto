@@ -7,6 +7,7 @@ import DemoSeeder from '#database/seeders/demo_seeder'
 import { auth } from '#lib/auth'
 import { AccessTokenClaimsService } from '#services/access_token_claims_service'
 import { runWithTenant } from '#services/tenant_context'
+import { unwrapListEnvelope } from '#tests/helpers/list_envelope'
 
 const ACTIVE_ORG_BY_EMAIL: Record<string, string> = {
   [DEMO_USERS.northstarOwner]: FIXTURE_IDS.orgs.northstar,
@@ -86,11 +87,7 @@ function uniqueInNational(): string {
 }
 
 function unwrapList(body: unknown): ContactRow[] {
-  if (Array.isArray(body)) return body as ContactRow[]
-  if (body && typeof body === 'object' && Array.isArray((body as { data?: ContactRow[] }).data)) {
-    return (body as { data: ContactRow[] }).data
-  }
-  return []
+  return unwrapListEnvelope<ContactRow>(body).items
 }
 
 test.group('Contacts GET-by-id and PATCH', (group) => {

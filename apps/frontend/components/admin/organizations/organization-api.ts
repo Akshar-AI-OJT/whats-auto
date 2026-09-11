@@ -5,6 +5,7 @@ import {
   type SuperAdminOrganization,
   type UpdateSuperAdminOrganizationBody,
 } from '@/lib/api'
+import { unwrapPage } from '@/lib/api-unwrap'
 
 /** Platform UI statuses derived from API `status` + `deletedAt`. */
 export type AdminOrganizationUiStatus = 'active' | 'suspended' | 'pending' | 'archived'
@@ -16,23 +17,7 @@ export type AdminOrganizationListItem = SuperAdminOrganization & {
 function unwrapPaginated(
   data: unknown
 ): { items: SuperAdminOrganization[]; meta: PaginationMeta | null } {
-  if (!data) return { items: [], meta: null }
-  if (Array.isArray(data)) return { items: data, meta: null }
-
-  const root = data as {
-    data?: SuperAdminOrganization[] | { data?: SuperAdminOrganization[]; meta?: PaginationMeta }
-    meta?: PaginationMeta
-  }
-
-  if (Array.isArray(root.data)) {
-    return { items: root.data, meta: root.meta ?? null }
-  }
-
-  if (root.data && typeof root.data === 'object' && Array.isArray(root.data.data)) {
-    return { items: root.data.data, meta: root.data.meta ?? root.meta ?? null }
-  }
-
-  return { items: [], meta: null }
+  return unwrapPage<SuperAdminOrganization>(data)
 }
 
 export function mapOrganizationUiStatus(org: SuperAdminOrganization): AdminOrganizationUiStatus {

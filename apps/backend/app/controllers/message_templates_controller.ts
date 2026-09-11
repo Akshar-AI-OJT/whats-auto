@@ -36,7 +36,7 @@ export default class MessageTemplatesController {
       ...params,
       organizationId: request.activeMember?.organizationId ?? request.activeOrganizationId!,
     })
-    return serialize(templates)
+    return serialize.withoutWrapping(templates)
   }
 
   /**

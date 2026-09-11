@@ -53,7 +53,7 @@ export default class OrganizationsController {
    */
   async index({ request, serialize }: HttpContext) {
     const orgs = await new OrganizationService().listMyOrganizations(request.authUser!.id)
-    return serialize(orgs)
+    return serialize.withoutWrapping({ data: orgs })
   }
 
   /**

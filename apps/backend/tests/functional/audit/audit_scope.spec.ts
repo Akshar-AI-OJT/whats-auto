@@ -6,6 +6,7 @@ import { FIXTURE_IDS } from '#database/demo/fixture_ids'
 import { ensureDemoFixtures } from '#tests/helpers/ensure_demo_fixtures'
 import { auth } from '#lib/auth'
 import { AccessTokenClaimsService } from '#services/access_token_claims_service'
+import { unwrapListEnvelope } from '#tests/helpers/list_envelope'
 
 type AuditEvent = { eventType: string; organizationId: string | null }
 
@@ -49,12 +50,8 @@ async function mintToken(email: string, activeOrgId?: string): Promise<string> {
   return token
 }
 
-function eventsFrom(response: {
-  body: () => { data?: AuditEvent[] } | AuditEvent[]
-}): AuditEvent[] {
-  const body = response.body()
-  const data = Array.isArray(body) ? body : body.data
-  return Array.isArray(data) ? data : []
+function eventsFrom(response: { body: () => unknown }): AuditEvent[] {
+  return unwrapListEnvelope<AuditEvent>(response.body()).items
 }
 
 test.group('Audit scope isolation', (group) => {

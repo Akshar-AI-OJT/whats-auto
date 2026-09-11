@@ -4,14 +4,14 @@ import type {
   KnowledgeDocumentStatus,
   PaginationMeta,
 } from '@/lib/api'
+import { unwrapPage } from '@/lib/api-unwrap'
 
 export const KNOWLEDGE_UPLOAD_ACCEPT =
   'application/pdf,.pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.docx,text/plain,.txt'
 
 export const KNOWLEDGE_MAX_FILE_BYTES = 100 * 1024 * 1024
 
-const DOCX_MIME =
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
 const EXT_TO_SOURCE: Record<
   string,
@@ -50,26 +50,7 @@ export function unwrapKnowledgeList(data: unknown): {
   items: KnowledgeDocument[]
   meta: PaginationMeta | null
 } {
-  if (!data) return { items: [], meta: null }
-  if (Array.isArray(data)) return { items: data as KnowledgeDocument[], meta: null }
-
-  const root = data as {
-    data?: KnowledgeDocument[] | { data?: KnowledgeDocument[]; meta?: PaginationMeta }
-    meta?: PaginationMeta
-  }
-
-  if (Array.isArray(root.data)) {
-    return { items: root.data, meta: root.meta ?? null }
-  }
-
-  if (root.data && typeof root.data === 'object' && Array.isArray(root.data.data)) {
-    return {
-      items: root.data.data,
-      meta: root.data.meta ?? root.meta ?? null,
-    }
-  }
-
-  return { items: [], meta: null }
+  return unwrapPage<KnowledgeDocument>(data)
 }
 
 export function unwrapKnowledgeCreate(data: unknown): {

@@ -19,7 +19,7 @@ export default class WhatsappConfigsController {
     const configs = await new WhatsappConfigService().listConfigs(
       request.activeMember!.organizationId
     )
-    return serialize(configs)
+    return serialize.withoutWrapping({ data: configs })
   }
 
   /**
