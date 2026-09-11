@@ -55,10 +55,13 @@ export function useAuth(): AuthState {
     try {
       await authClient.signOut()
     } finally {
-      // Session cookie is gone; in-memory JWT would otherwise stay valid until exp.
-      // Clear React Query so the next account does not reuse orgs/permissions/UI cache.
+      // Drop JWT immediately so no protected call races with navigation.
       clearAccessToken()
-      queryClient.clear()
+      // Defer React Query wipe until after the current turn so callers can
+      // router.replace('/login') without thrashing the dashboard tree first.
+      queueMicrotask(() => {
+        queryClient.clear()
+      })
     }
   }, [queryClient])
 

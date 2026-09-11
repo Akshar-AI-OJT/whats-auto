@@ -1,12 +1,14 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useSearchParams } from 'next/navigation'
 import { Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { getValidAccessToken } from '@/lib/access-token'
 import { authClient } from '@/lib/auth-client'
 import { ORG_SETUP_PATH } from '@/lib/onboarding'
+import { prefetchDashboardOrganizationQueries } from '@/lib/organization-queries'
 import { resolvePostAuthPath, safeCallbackPath } from '@/lib/post-auth-redirect'
 import { useRouter } from '@/i18n/navigation'
 
@@ -17,6 +19,7 @@ import { useRouter } from '@/i18n/navigation'
 export function AuthContinue() {
   const t = useTranslations('auth.continue')
   const router = useRouter()
+  const queryClient = useQueryClient()
   const searchParams = useSearchParams()
   const preferredCallback = safeCallbackPath(searchParams.get('callbackURL'))
   const started = useRef(false)
@@ -28,9 +31,12 @@ export function AuthContinue() {
 
     void (async () => {
       try {
-        await authClient.getSession({ query: { disableCookieCache: true } })
+        const sessionResult = await authClient.getSession({ query: { disableCookieCache: true } })
         await getValidAccessToken()
-
+        const userId = sessionResult.data?.user?.id ?? null
+        await prefetchDashboardOrganizationQueries(queryClient, userId, {
+          sessionOrganizationId: sessionResult.data?.session?.activeOrganizationId ?? null,
+        })
         const nextPath = await resolvePostAuthPath({
           preferredCallback,
           fallback: ORG_SETUP_PATH,
@@ -41,7 +47,7 @@ export function AuthContinue() {
         setError(t('errors.generic'))
       }
     })()
-  }, [preferredCallback, router, t])
+  }, [preferredCallback, queryClient, router, t])
 
   if (error) {
     return (

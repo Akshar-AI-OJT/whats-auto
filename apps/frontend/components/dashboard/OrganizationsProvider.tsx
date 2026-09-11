@@ -13,6 +13,10 @@ import {
   isOrganizationRequiredProfileComplete,
   isSubscriptionPending,
 } from '@/lib/organization-profile'
+import {
+  fetchAccessContext,
+  fetchOrganizationList,
+} from '@/lib/organization-queries'
 import { hasPermission, PERMISSIONS } from '@/lib/rbac'
 import { isTenantScopedQueryKey, queryKeys } from '@/lib/query-keys'
 
@@ -72,6 +76,11 @@ type OrganizationsContextValue = {
   hasFullProductAccess: boolean
   isLoading: boolean
   /**
+   * Session + org membership list only (not bootstrap / access remint).
+   * Used by DashboardMembershipGate so the shell can render while set-active runs.
+   */
+  isMembershipLoading: boolean
+  /**
    * True until session/orgs/access-context are ready for permission checks.
    * Includes in-flight organization activate/switch (when accessContext is cleared).
    */
@@ -85,22 +94,6 @@ type OrganizationsContextValue = {
 }
 
 const OrganizationsContext = createContext<OrganizationsContextValue | null>(null)
-
-function unwrapList(
-  data: { data?: OrganizationSummary[] } | OrganizationSummary[] | undefined
-): OrganizationSummary[] {
-  if (!data) return []
-  if (Array.isArray(data)) return data
-  if (Array.isArray(data.data)) return data.data
-  return []
-}
-
-function unwrapContext(
-  data: ({ data?: AccessContext } & AccessContext) | undefined
-): AccessContext | null {
-  if (!data) return null
-  return data.data ?? (data.organizationId ? data : null)
-}
 
 function errorMessage(err: unknown, fallback: string): string {
   if (err && typeof err === 'object' && 'message' in err) {
@@ -122,24 +115,6 @@ function orgInList(
 ): string | null {
   if (!organizationId) return null
   return organizations.some((org) => org.id === organizationId) ? organizationId : null
-}
-
-/**
- * Access context returns 403 until the session has an active organization,
- * which is a normal state right after signup — not an error.
- */
-async function fetchAccessContext(): Promise<AccessContext | null> {
-  try {
-    const { data } = await api.access.context()
-    return unwrapContext(data)
-  } catch {
-    return null
-  }
-}
-
-async function fetchOrganizationList(): Promise<OrganizationSummary[]> {
-  const { data } = await api.organizations.list()
-  return unwrapList(data)
 }
 
 async function refreshSharedSession(): Promise<string | null> {
@@ -352,23 +327,24 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
   const setupComplete = activeOrganization
     ? isOrganizationRequiredProfileComplete(activeOrganization)
     : false
-  const subscriptionPending = isSubscriptionPending(accessContext?.status)
+  const subscriptionPending = isSubscriptionPending(
+    accessContext?.status ?? activeOrganization?.status
+  )
+  // Prefer access-context status; fall back to org-list status so overview can
+  // unlock without waiting on a slow access-context round-trip.
   const fullProductAccess = computeFullProductAccess({
-    status: accessContext?.status,
+    status: accessContext?.status ?? activeOrganization?.status,
     organization: activeOrganization,
   })
 
   const sessionOrgFromContext = accessContext?.organizationId ?? null
   const activeOrgId = activeOrganization?.id ?? null
-  const orgAligned = Boolean(isSignedIn && activeOrgId && sessionOrgFromContext === activeOrgId)
-  // Derive readiness when JWT already matches — avoids sync setState in an effect.
-  const jwtAlreadyReady = orgAligned && peekAccessTokenOrgId() === activeOrgId
 
-  // Remint/align JWT before exposing tenantOrganizationId so first tenant calls
-  // (e.g. /members) do not race with a stale or missing Bearer token.
+  // Remint as soon as the selected org is known — do not wait for access-context
+  // (that was serializing JWT mint behind access and delaying all tenant queries).
   const [remintedForOrgId, setRemintedForOrgId] = useState<string | null>(null)
   useEffect(() => {
-    if (!orgAligned || !activeOrgId) return
+    if (!isSignedIn || !activeOrgId) return
     if (peekAccessTokenOrgId() === activeOrgId) return
 
     let cancelled = false
@@ -383,16 +359,22 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
     return () => {
       cancelled = true
     }
-  }, [orgAligned, activeOrgId])
+  }, [isSignedIn, activeOrgId])
 
-  const tokenReadyOrgId = jwtAlreadyReady || remintedForOrgId === activeOrgId ? activeOrgId : null
+  const jwtMatchesActive =
+    Boolean(activeOrgId) && peekAccessTokenOrgId() === activeOrgId
+  const tokenReadyOrgId =
+    jwtMatchesActive || remintedForOrgId === activeOrgId ? activeOrgId : null
+
+  // Session or access-context may confirm the active org; JWT must match to avoid
+  // cross-tenant reads. Do not require access-context when session already agrees.
+  const sessionConfirmsActive =
+    Boolean(activeOrgId) &&
+    (sessionOrgFromContext === activeOrgId || sessionOrgId === activeOrgId)
 
   const tenantOrganizationId =
-    sessionOrgFromContext &&
-    activeOrgId &&
-    sessionOrgFromContext === activeOrgId &&
-    tokenReadyOrgId === activeOrgId
-      ? sessionOrgFromContext
+    activeOrgId && tokenReadyOrgId === activeOrgId && sessionConfirmsActive
+      ? activeOrgId
       : null
 
   // After A → (null) → B, drop idle leftover caches and refetch mounted tenant queries
@@ -471,19 +453,18 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
     hasFullProductAccess: fullProductAccess,
     // Shell / list loading — avoid treating access refetch alone as full-shell load.
     isLoading: sessionPending || orgsQuery.isLoading || liveBootstrapping,
-    // Permission gates must wait for access-context (and activate/switch) or hard
-    // refresh stays on empty permissions / “Checking permissions…”.
+    // Membership gate only — do not block the dashboard chrome on set-active bootstrap.
+    isMembershipLoading: sessionPending || orgsQuery.isLoading,
+    // Permission gates: wait for org list / activate / JWT. Access-context may still
+    // load in parallel — do not block tenant reads once JWT+session agree.
     isResolvingAccess:
       sessionPending ||
       orgsQuery.isLoading ||
       liveBootstrapping ||
       Boolean(livePendingActiveId) ||
-      (isSignedIn && accessQuery.isLoading) ||
-      (isSignedIn &&
-        Boolean(activeOrgId) &&
-        sessionOrgFromContext === activeOrgId &&
-        tokenReadyOrgId !== activeOrgId) ||
-      (isSignedIn && Boolean(activeOrgId) && !tenantOrganizationId),
+      (isSignedIn && Boolean(activeOrgId) && tokenReadyOrgId !== activeOrgId) ||
+      (isSignedIn && Boolean(activeOrgId) && !tenantOrganizationId) ||
+      (isSignedIn && !activeOrgId && accessQuery.isLoading),
     error: liveSwitchError ?? listError,
     refresh,
     selectOrganization,
