@@ -22,7 +22,11 @@
     "paths": {
       "@/*": ["./*"],
       "#controllers/*": ["./types/tuyau-module-stub.ts"],
-      "#validators/*": ["./types/tuyau-module-stub.ts"]
+      "#validators/*": ["./types/tuyau-module-stub.ts"],
+      "@vinejs/vine/build/src/symbols.js": [
+        "./node_modules/@vinejs/vine/build/src/symbols.d.ts",
+        "../backend/node_modules/@vinejs/vine/build/src/symbols.d.ts"
+      ]
     }
   },
   "include": [

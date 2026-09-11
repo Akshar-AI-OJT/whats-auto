@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev --webpack",
     "dev:clean": "node -e \"require('fs').rmSync('.next',{recursive:true,force:true})\" && next dev --webpack",
-    "build": "next build",
+    "build": "node ./scripts/prepare-tuyau-types.mjs && next build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "node ./scripts/prepare-tuyau-types.mjs && tsc --noEmit"
@@ -15,6 +15,7 @@
     "backend": "workspace:*",
     "@tanstack/react-query": "^5.101.4",
     "@tuyau/core": "^1.2.2",
+    "@vinejs/vine": "^4.4.0",
     "@xyflow/react": "^12.11.3",
     "better-auth": "^1.6.23",
     "class-variance-authority": "^0.7.1",
