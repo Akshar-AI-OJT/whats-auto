@@ -10,6 +10,7 @@ import {
   type SuperAdminInvoice,
   type SuperAdminInvoiceBillingProfile,
 } from '@/lib/api'
+import { unwrapPage, unwrapSingle } from '@/lib/api-unwrap'
 import type {
   CreateInvoiceInput,
   Invoice,
@@ -34,54 +35,26 @@ function isApiError(error: unknown): error is ApiError {
 }
 
 function unwrapInvoice(data: unknown): SuperAdminInvoice {
-  if (!data || typeof data !== 'object') {
+  const invoice = unwrapSingle<SuperAdminInvoice>(data)
+  if (!invoice || !('id' in invoice)) {
     throw new Error('Invalid invoice response')
   }
-  const root = data as { data?: SuperAdminInvoice } & SuperAdminInvoice
-  if (root.data && typeof root.data === 'object' && 'id' in root.data) {
-    return root.data
-  }
-  if ('id' in root && 'invoiceNumber' in root) {
-    return root as SuperAdminInvoice
-  }
-  throw new Error('Invalid invoice response')
+  return invoice
 }
 
 function unwrapSummary(data: unknown): InvoiceSummary {
-  if (!data || typeof data !== 'object') {
+  const summary = unwrapSingle<InvoiceSummary>(data)
+  if (!summary || !('totalCount' in summary)) {
     throw new Error('Invalid invoice summary response')
   }
-  const root = data as { data?: InvoiceSummary } & InvoiceSummary
-  if (root.data && typeof root.data === 'object' && 'totalCount' in root.data) {
-    return root.data
-  }
-  if ('totalCount' in root) {
-    return root as InvoiceSummary
-  }
-  throw new Error('Invalid invoice summary response')
+  return summary
 }
 
 function unwrapPaginated(data: unknown): {
   items: SuperAdminInvoice[]
   meta: PaginationMeta | null
 } {
-  if (!data) return { items: [], meta: null }
-  if (Array.isArray(data)) return { items: data, meta: null }
-
-  const root = data as {
-    data?: SuperAdminInvoice[] | { data?: SuperAdminInvoice[]; meta?: PaginationMeta }
-    meta?: PaginationMeta
-  }
-
-  if (Array.isArray(root.data)) {
-    return { items: root.data, meta: root.meta ?? null }
-  }
-
-  if (root.data && typeof root.data === 'object' && Array.isArray(root.data.data)) {
-    return { items: root.data.data, meta: root.data.meta ?? root.meta ?? null }
-  }
-
-  return { items: [], meta: null }
+  return unwrapPage<SuperAdminInvoice>(data)
 }
 
 function toNumber(value: unknown): number {

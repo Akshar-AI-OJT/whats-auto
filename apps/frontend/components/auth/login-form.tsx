@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useId, useState, startTransition } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useLocale, useTranslations } from 'next-intl'
 import { useSearchParams } from 'next/navigation'
 import { Loader2, Lock, Mail } from 'lucide-react'
@@ -10,6 +11,7 @@ import type { ApiError } from '@/lib/api'
 import { authClient, flushAuthCookies, formatBetterAuthError } from '@/lib/auth-client'
 import { buildLocalizedAppUrl } from '@/lib/app-origin'
 import { getValidAccessToken } from '@/lib/access-token'
+import { prefetchDashboardOrganizationQueries } from '@/lib/organization-queries'
 import { Button } from '@/components/ui/button'
 import {
   Field,
@@ -46,6 +48,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
   const t = useTranslations('auth.login')
   const locale = useLocale()
   const router = useRouter()
+  const queryClient = useQueryClient()
   const searchParams = useSearchParams()
   const callbackPath = safeCallbackPath(searchParams.get('callbackURL'))
   const oauthErrorParam = searchParams.get('error')
@@ -183,9 +186,15 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
       if (authErr) throw formatBetterAuthError(authErr)
 
       // JWT plugin seeds on get-session; mint before first protected call.
-      await authClient.getSession({ query: { disableCookieCache: true } })
+      const sessionResult = await authClient.getSession({ query: { disableCookieCache: true } })
       await getValidAccessToken()
 
+      const userId = sessionResult.data?.user?.id ?? null
+      // Activate/warm org state before onboarding routing so nextStep sees an
+      // active organization (fresh sign-in leaves session org null).
+      await prefetchDashboardOrganizationQueries(queryClient, userId, {
+        sessionOrganizationId: sessionResult.data?.session?.activeOrganizationId ?? null,
+      })
       const nextPath = await resolvePostAuthPath({
         preferredCallback: callbackPath,
         fallback: ORG_SETUP_PATH,

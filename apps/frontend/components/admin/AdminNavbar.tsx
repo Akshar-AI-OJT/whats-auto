@@ -30,7 +30,6 @@ export function AdminNavbar({ className }: AdminNavbarProps) {
   async function handleLogout() {
     await signOut()
     router.replace('/login')
-    router.refresh()
   }
 
   return (

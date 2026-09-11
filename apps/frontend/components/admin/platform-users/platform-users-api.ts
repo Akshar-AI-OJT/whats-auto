@@ -7,6 +7,7 @@ import {
   type SuperAdminPlatformUser,
   type SuperAdminPlatformUserOrganization,
 } from '@/lib/api'
+import { unwrapPage } from '@/lib/api-unwrap'
 
 export const PLATFORM_ORGANIZATION_STATUSES = [
   'pending_setup',
@@ -63,31 +64,11 @@ function normalizePaginationMeta(meta: unknown): PaginationMeta | null {
 function unwrapPaginated(
   data: unknown
 ): { items: SuperAdminPlatformUser[]; meta: PaginationMeta | null } {
-  if (!data) return { items: [], meta: null }
-  if (Array.isArray(data)) {
-    return { items: data.map(normalizePlatformUser), meta: null }
+  const page = unwrapPage<SuperAdminPlatformUser>(data)
+  return {
+    items: page.items.map(normalizePlatformUser),
+    meta: page.meta ? normalizePaginationMeta(page.meta) ?? page.meta : null,
   }
-
-  const root = data as {
-    data?: SuperAdminPlatformUser[] | { data?: SuperAdminPlatformUser[]; meta?: unknown }
-    meta?: unknown
-    metadata?: unknown
-  }
-
-  const rootMeta = normalizePaginationMeta(root.meta ?? root.metadata)
-
-  if (Array.isArray(root.data)) {
-    return { items: root.data.map(normalizePlatformUser), meta: rootMeta }
-  }
-
-  if (root.data && typeof root.data === 'object' && Array.isArray(root.data.data)) {
-    return {
-      items: root.data.data.map(normalizePlatformUser),
-      meta: normalizePaginationMeta(root.data.meta) ?? rootMeta,
-    }
-  }
-
-  return { items: [], meta: rootMeta }
 }
 
 function normalizePlatformUser(user: SuperAdminPlatformUser): SuperAdminPlatformUser {

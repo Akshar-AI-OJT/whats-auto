@@ -2,14 +2,13 @@ import {
   api,
   type AuthorizationAuditEvent,
   type Campaign,
-  type ContactSummary,
   type InboxConversation,
 } from '@/lib/api'
 import { ratePercent } from '@/components/dashboard/campaigns/campaign-utils'
 import { unwrapPaginated, unwrapList } from '@/components/dashboard/inbox/inbox-utils'
 import {
-  fetchAnalyticsCampaigns,
-  sumCampaignMetrics,
+  fetchRecentCampaigns,
+  fetchTenantAnalyticsSummary,
 } from '@/components/dashboard/analytics/tenant-analytics'
 import type { ActivityTone } from './ActivityItem'
 import type { CampaignStatus } from './CampaignCard'
@@ -24,11 +23,6 @@ export type DashboardOverviewKpis = {
   conversationsCount: number
   campaignsCount: number
   deliveryRate: number
-}
-
-export type DashboardOverviewCampaignsResult = {
-  kpis: Pick<DashboardOverviewKpis, 'campaignsCount' | 'deliveryRate'>
-  recent: Campaign[]
 }
 
 export type DashboardAuditActivityItem = {
@@ -92,10 +86,14 @@ export function buildAuditActivityItems(
   })
 }
 
-export async function fetchOverviewContacts(_organizationId: string): Promise<number> {
-  const { data } = await api.contacts.list({ page: 1, perPage: 1 })
-  const { items, meta } = unwrapPaginated<ContactSummary>(data)
-  return meta?.total ?? items.length
+export async function fetchOverviewKpis(): Promise<DashboardOverviewKpis> {
+  const summary = await fetchTenantAnalyticsSummary()
+  return {
+    contactsCount: summary.totalContacts,
+    conversationsCount: summary.totalConversations,
+    campaignsCount: summary.totalCampaigns,
+    deliveryRate: summary.deliveryRate,
+  }
 }
 
 export async function fetchOverviewConversations(): Promise<{
@@ -113,24 +111,9 @@ export async function fetchOverviewConversations(): Promise<{
   }
 }
 
-export async function fetchOverviewCampaigns(): Promise<DashboardOverviewCampaignsResult> {
-  const campaigns = await fetchAnalyticsCampaigns()
-  const metrics = sumCampaignMetrics(campaigns)
-  const recent = [...campaigns]
-    .sort((a, b) => {
-      const aTime = new Date(a.createdAt ?? 0).getTime()
-      const bTime = new Date(b.createdAt ?? 0).getTime()
-      return bTime - aTime
-    })
-    .slice(0, RECENT_CAMPAIGNS_LIMIT)
-
-  return {
-    kpis: {
-      campaignsCount: metrics.totalCampaigns,
-      deliveryRate: metrics.deliveryRate,
-    },
-    recent,
-  }
+/** Recent campaigns list only — KPIs come from fetchOverviewKpis (analytics summary). */
+export async function fetchOverviewCampaigns(): Promise<Campaign[]> {
+  return fetchRecentCampaigns(RECENT_CAMPAIGNS_LIMIT)
 }
 
 export async function fetchOverviewAudit(): Promise<AuthorizationAuditEvent[]> {

@@ -11,6 +11,7 @@ import {
   type ListSuperAdminSubscriptionsParams,
   type UpdateSuperAdminSubscriptionBody,
 } from '@/lib/api'
+import { unwrapPage, unwrapSingle } from '@/lib/api-unwrap'
 
 export const SUBSCRIPTION_STATUSES: SuperAdminSubscriptionStatus[] = [
   'trialing',
@@ -209,56 +210,23 @@ function unwrapPaginated(
   meta: PaginationMeta | null
   summary: SuperAdminSubscriptionListSummary | null
 } {
-  if (!data) return { items: [], meta: null, summary: null }
-  if (Array.isArray(data)) {
-    return {
-      items: data
-        .map((item) => normalizeSuperAdminSubscription(item))
-        .filter((item): item is SuperAdminSubscription => item !== null),
-      meta: null,
-      summary: null,
-    }
+  const page = unwrapPage<SuperAdminSubscription>(data)
+  const summary =
+    data && typeof data === 'object' && !Array.isArray(data)
+      ? ((data as { summary?: SuperAdminSubscriptionListSummary }).summary ?? null)
+      : null
+
+  return {
+    items: page.items
+      .map((item) => normalizeSuperAdminSubscription(item))
+      .filter((item): item is SuperAdminSubscription => item !== null),
+    meta: page.meta,
+    summary,
   }
-
-  const root = data as {
-    data?:
-      | SuperAdminSubscription[]
-      | {
-          data?: SuperAdminSubscription[]
-          meta?: PaginationMeta
-          summary?: SuperAdminSubscriptionListSummary
-        }
-    meta?: PaginationMeta
-    summary?: SuperAdminSubscriptionListSummary
-  }
-
-  const summary = root.summary ?? null
-
-  if (Array.isArray(root.data)) {
-    return {
-      items: root.data
-        .map((item) => normalizeSuperAdminSubscription(item))
-        .filter((item): item is SuperAdminSubscription => item !== null),
-      meta: root.meta ?? null,
-      summary,
-    }
-  }
-
-  if (root.data && typeof root.data === 'object' && Array.isArray(root.data.data)) {
-    return {
-      items: root.data.data
-        .map((item) => normalizeSuperAdminSubscription(item))
-        .filter((item): item is SuperAdminSubscription => item !== null),
-      meta: root.data.meta ?? root.meta ?? null,
-      summary: root.data.summary ?? summary,
-    }
-  }
-
-  return { items: [], meta: null, summary }
 }
 
 function unwrapSubscription(data: unknown): SuperAdminSubscription {
-  const subscription = normalizeSuperAdminSubscription(data)
+  const subscription = normalizeSuperAdminSubscription(unwrapSingle(data) ?? data)
   if (!subscription) {
     throw new Error('Invalid subscription response')
   }

@@ -4,11 +4,8 @@ import { useId, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { Loader2, Plus, RefreshCw, Shield, Trash2 } from 'lucide-react'
-import {
-  api,
-  type ApiError,
-  type OrganizationRole,
-} from '@/lib/api'
+import { api, type ApiError, type OrganizationRole } from '@/lib/api'
+import { unwrapList } from '@/lib/api-unwrap'
 import { queryKeys } from '@/lib/query-keys'
 import { PRODUCT_PERMISSIONS } from '@/lib/product-permissions'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
@@ -16,17 +13,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
-import {
-  PermissionBadges,
-} from '@/components/dashboard/team/RoleEditorSheet'
+import { PermissionBadges } from '@/components/dashboard/team/RoleEditorSheet'
 import { useRouter } from '@/i18n/navigation'
-
-function unwrapList<T>(data: { data?: T[] } | T[] | undefined): T[] {
-  if (!data) return []
-  if (Array.isArray(data)) return data
-  if (Array.isArray(data.data)) return data.data
-  return []
-}
 
 export function RolesPage() {
   const t = useTranslations('dashboard.roles')
@@ -68,7 +56,8 @@ export function RolesPage() {
   })
 
   const roles = rolesQuery.data ?? []
-  const listLoading = rolesQuery.isPending || orgsLoading || isResolvingAccess || !tenantOrganizationId
+  const listLoading =
+    rolesQuery.isPending || orgsLoading || isResolvingAccess || !tenantOrganizationId
   const listError = rolesQuery.error
     ? (rolesQuery.error as unknown as ApiError).message || t('errors.loadFailed')
     : null
@@ -143,9 +132,7 @@ export function RolesPage() {
     }
   }
 
-  const replacementOptions = roles
-    .filter((r) => r.role !== deleteTarget?.role)
-    .map((r) => r.role)
+  const replacementOptions = roles.filter((r) => r.role !== deleteTarget?.role).map((r) => r.role)
 
   if (!orgsLoading && !isResolvingAccess && !canViewRoles) {
     return (
@@ -234,10 +221,7 @@ export function RolesPage() {
         ) : (
           <ul className="mt-6 divide-y divide-dash-border overflow-hidden rounded-2xl border border-dash-border">
             {roles.map((role) => (
-              <li
-                key={role.role}
-                className="flex flex-col gap-3 bg-canvas px-4 py-4 sm:px-5"
-              >
+              <li key={role.role} className="flex flex-col gap-3 bg-canvas px-4 py-4 sm:px-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
@@ -270,9 +254,7 @@ export function RolesPage() {
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() =>
-                          router.push(`/dashboard/team/roles/edit/${role.role}`)
-                        }
+                        onClick={() => router.push(`/dashboard/team/roles/edit/${role.role}`)}
                       >
                         {t('editCta')}
                       </Button>

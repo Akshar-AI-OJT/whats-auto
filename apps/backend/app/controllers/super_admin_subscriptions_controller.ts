@@ -22,7 +22,7 @@ export default class SuperAdminSubscriptionsController {
    * @paramQuery status - trialing | active | past_due | cancelled | all - @type(string)
    * @paramQuery plan - Plan id (uuid) - @type(string)
    * @paramQuery billing - monthly | custom | all - @type(string)
-   * @responseBody 200 - { "data": [{ "id": "uuid", "organizationId": "uuid", "planId": "uuid", "status": "active" }], "meta": { "total": 1, "perPage": 20, "currentPage": 1, "lastPage": 1 } }
+   * @responseBody 200 - { "data": [{ "id": "uuid", "organizationId": "uuid", "planId": "uuid", "status": "active" }], "meta": { "total": 1, "perPage": 20, "currentPage": 1, "lastPage": 1 }, "summary": { "trialing": 0, "active": 1, "past_due": 0, "cancelled": 0 } }
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 403 - { "error": "Permission denied: platform:tenants_billing", "code": "PERMISSION_DENIED" }
    */
@@ -46,7 +46,7 @@ export default class SuperAdminSubscriptionsController {
       billing,
     })
 
-    return serialize(result)
+    return serialize.withoutWrapping(result)
   }
 
   /**

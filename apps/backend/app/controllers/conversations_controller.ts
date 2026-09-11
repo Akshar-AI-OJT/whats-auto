@@ -41,7 +41,7 @@ export default class ConversationsController {
       limit: qs.limit,
     })
 
-    return serialize(result)
+    return serialize.withoutWrapping(result)
   }
 
   /**

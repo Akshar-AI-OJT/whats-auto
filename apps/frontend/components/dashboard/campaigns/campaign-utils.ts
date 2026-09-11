@@ -1,4 +1,5 @@
 import type { Campaign, PaginationMeta, WhatsappMessageTemplate } from '@/lib/api'
+import { unwrapList, unwrapPage, unwrapSingle } from '@/lib/api-unwrap'
 import { formatCampaignScheduledAt } from '@/lib/org-datetime'
 
 export type CampaignViewMode = 'cards' | 'list'
@@ -21,51 +22,15 @@ export function unwrapCampaignList(data: unknown): {
   items: Campaign[]
   meta: PaginationMeta | null
 } {
-  if (!data) return { items: [], meta: null }
-  if (Array.isArray(data)) return { items: data as Campaign[], meta: null }
-
-  const root = data as {
-    data?: Campaign[] | { data?: Campaign[]; meta?: PaginationMeta }
-    meta?: PaginationMeta
-  }
-
-  if (Array.isArray(root.data)) {
-    return { items: root.data, meta: root.meta ?? null }
-  }
-
-  if (root.data && typeof root.data === 'object' && Array.isArray(root.data.data)) {
-    return {
-      items: root.data.data,
-      meta: root.data.meta ?? root.meta ?? null,
-    }
-  }
-
-  return { items: [], meta: null }
+  return unwrapPage<Campaign>(data)
 }
 
 export function unwrapCampaign(data: unknown): Campaign | null {
-  if (!data) return null
-  if (typeof data === 'object' && data !== null && 'id' in data && 'name' in data) {
-    return data as Campaign
-  }
-  const wrapped = data as { data?: Campaign }
-  return wrapped.data ?? null
+  return unwrapSingle<Campaign>(data)
 }
 
 export function unwrapTemplateItems(data: unknown): WhatsappMessageTemplate[] {
-  if (!data) return []
-  if (Array.isArray(data)) return data as WhatsappMessageTemplate[]
-
-  const root = data as {
-    data?: WhatsappMessageTemplate[] | { data?: WhatsappMessageTemplate[] }
-  }
-
-  if (Array.isArray(root.data)) return root.data
-  if (root.data && typeof root.data === 'object' && Array.isArray(root.data.data)) {
-    return root.data.data
-  }
-
-  return []
+  return unwrapList<WhatsappMessageTemplate>(data)
 }
 
 export function ratePercent(part: number, total: number): number {

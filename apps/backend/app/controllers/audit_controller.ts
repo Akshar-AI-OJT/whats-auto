@@ -8,7 +8,7 @@ export default class AuditController {
   /**
    * @index
    * @summary List tenant authorization audit events
-   * @description Active-organization scoped. Requires audit:view. Newest first. Filters apply before limit. Client organizationId is ignored.
+   * @description Active-organization scoped. Requires audit:view. Newest first. Filters apply before limit. Client organizationId is ignored. With includeFacets, eventTypes/actors/targetTypes sit next to data.
    * @tag Audit
    * @security BearerAuth
    * @paramQuery search - Case-insensitive match on event, reason, target, and actor - @type(string)
@@ -52,6 +52,6 @@ export default class AuditController {
       })
     }
 
-    return serialize(result.events)
+    return serialize.withoutWrapping({ data: result.events })
   }
 }

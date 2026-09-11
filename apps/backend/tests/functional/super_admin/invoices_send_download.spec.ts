@@ -10,6 +10,7 @@ import { auth } from '#lib/auth'
 import { InvoiceService } from '#services/billing/invoice_service'
 import { AccessTokenClaimsService } from '#services/access_token_claims_service'
 import { runWithTenant } from '#services/tenant_context'
+import { unwrapListEnvelope } from '#tests/helpers/list_envelope'
 
 type InvoiceRow = {
   id: string
@@ -19,13 +20,7 @@ type InvoiceRow = {
 }
 
 function unwrapList(body: unknown): InvoiceRow[] {
-  if (!body || typeof body !== 'object') return []
-  const root = body as { data?: InvoiceRow[] | { data?: InvoiceRow[] } }
-  if (Array.isArray(root.data)) return root.data
-  if (root.data && typeof root.data === 'object' && Array.isArray(root.data.data)) {
-    return root.data.data
-  }
-  return []
+  return unwrapListEnvelope<InvoiceRow>(body).items
 }
 
 function errorBody(response: { body: () => unknown }): { code?: string; error?: string } {
