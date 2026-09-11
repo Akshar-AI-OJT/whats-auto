@@ -23,16 +23,27 @@ type DashboardShellProps = {
 function DashboardAuthGate({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const t = useTranslations('dashboard.accessDenied')
-  // Better Auth defaults refetchOnWindowFocus=true → isRefetching on tab return.
-  // Never treat refetch as a cold start: that unmounts OrganizationsProvider + shell.
-  const { data: sessionData, isPending } = authClient.useSession()
-  const isSignedIn = Boolean(sessionData?.user)
+  // Better Auth may clear `data` briefly during focus/broadcast refetch.
+  // Never treat that as logout: unmounting OrganizationsProvider looks like a full reload.
+  const { data: sessionData, isPending, isRefetching } = authClient.useSession()
+  const sessionUserId = sessionData?.user?.id ?? null
+  const [stickySignedIn, setStickySignedIn] = useState(Boolean(sessionUserId))
+
+  // Adjust sticky flag during render (React-supported) so refetch clears do not
+  // flash the auth gate spinner. Compare by user id, not object identity.
+  if (sessionUserId && !stickySignedIn) {
+    setStickySignedIn(true)
+  } else if (!isPending && !isRefetching && !sessionUserId && stickySignedIn) {
+    setStickySignedIn(false)
+  }
+
+  const isSignedIn = Boolean(sessionUserId) || stickySignedIn
 
   useEffect(() => {
-    if (!isPending && !isSignedIn) {
+    if (!isPending && !isRefetching && !sessionUserId) {
       router.replace('/login')
     }
-  }, [isPending, isSignedIn, router])
+  }, [isPending, isRefetching, sessionUserId, router])
 
   // Full-screen only when there is no authenticated session yet (initial pending
   // or redirecting to login). Background session refetches keep children mounted.

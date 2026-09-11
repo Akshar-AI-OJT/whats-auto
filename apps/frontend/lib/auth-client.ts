@@ -25,6 +25,11 @@ export const authClient = createAuthClient({
       },
     }),
   ],
+  // Tab focus refetch remounted dashboard chrome when session `data` briefly cleared.
+  // Session is still refreshed on navigation / explicit getSession / broadcast.
+  sessionOptions: {
+    refetchOnWindowFocus: false,
+  },
   fetchOptions: {
     credentials: 'include',
     onSuccess: (ctx) => {

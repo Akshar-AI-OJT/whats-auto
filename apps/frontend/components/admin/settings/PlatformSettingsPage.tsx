@@ -12,6 +12,7 @@ import {
   type UpdatePlatformSettingsBody,
 } from '@/lib/api'
 import { queryKeys } from '@/lib/query-keys'
+import { unwrapEntityData } from '@/lib/unwrap-api-entity'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
@@ -107,13 +108,12 @@ function parseBoundedInteger(raw: string, min: number, max: number): number | nu
 }
 
 function unwrapSettings(payload: unknown): PlatformSettings | null {
-  if (!payload || typeof payload !== 'object') return null
-  const root = payload as { data?: PlatformSettings } & Partial<PlatformSettings>
-  const candidate = root.data && typeof root.data === 'object' ? root.data : root
-  if (typeof candidate.platformName === 'string' && typeof candidate.supportEmail === 'string') {
-    return candidate as PlatformSettings
-  }
-  return null
+  // Must receive api result `.data` (wire body), never `{ data, response }`.
+  return unwrapEntityData<PlatformSettings>(
+    payload,
+    (value) =>
+      typeof value.platformName === 'string' && typeof value.supportEmail === 'string'
+  )
 }
 
 function formFromSettings(settings: PlatformSettings): FormState {
@@ -227,8 +227,8 @@ export function PlatformSettingsPage() {
   const settingsQuery = useQuery({
     queryKey: queryKeys.admin.platformSettings,
     queryFn: async (): Promise<PlatformSettings> => {
-      const response = await api.superAdmin.platformSettings.get()
-      const settings = unwrapSettings(response)
+      const { data } = await api.superAdmin.platformSettings.get()
+      const settings = unwrapSettings(data)
       if (!settings) {
         throw Object.assign(new Error('Platform settings missing'), {
           code: 'E_PLATFORM_SETTINGS_NOT_FOUND',
@@ -240,8 +240,8 @@ export function PlatformSettingsPage() {
 
   const updateMutation = useMutation({
     mutationFn: async (payload: UpdatePlatformSettingsBody): Promise<PlatformSettings> => {
-      const response = await api.superAdmin.platformSettings.update(payload)
-      const settings = unwrapSettings(response)
+      const { data } = await api.superAdmin.platformSettings.update(payload)
+      const settings = unwrapSettings(data)
       if (!settings) {
         throw Object.assign(new Error('Platform settings missing'), {
           code: 'E_PLATFORM_SETTINGS_NOT_FOUND',

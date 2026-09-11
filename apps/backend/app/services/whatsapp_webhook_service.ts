@@ -54,17 +54,6 @@ export class WhatsappWebhookService {
     signatureHeader: string | undefined
     payload: MetaWebhookPayload
   }): Promise<void> {
-    logger.info(
-      {
-        hasRawBody: params.rawBody !== null,
-        rawBodyLength: params.rawBody?.length ?? 0,
-        hasSignature: Boolean(params.signatureHeader),
-        object: params.payload?.object ?? null,
-        entryCount: params.payload?.entry?.length ?? 0,
-      },
-      'whatsapp.webhook.hit'
-    )
-
     if (params.rawBody === null || params.rawBody === undefined) {
       logger.warn({ outcome: 'missing_raw_body' }, 'whatsapp.webhook.rejected')
       throw WhatsappWebhookException.missingRawBody()
@@ -93,20 +82,6 @@ export class WhatsappWebhookService {
    * Unknown/malformed values are logged and skipped; DB errors propagate for Meta retry.
    */
   protected async processPayload(payload: MetaWebhookPayload): Promise<void> {
-    const entryCount = payload.entry?.length ?? 0
-    const fields =
-      payload.entry?.flatMap((entry) => entry.changes?.map((c) => c.field).filter(Boolean) ?? []) ??
-      []
-
-    logger.info(
-      {
-        object: payload.object,
-        entryCount,
-        fields,
-      },
-      'whatsapp.webhook.received'
-    )
-
     for (const entry of payload.entry ?? []) {
       for (const change of entry.changes ?? []) {
         await this.ingestion.processChangeValue({

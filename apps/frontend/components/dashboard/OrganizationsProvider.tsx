@@ -3,7 +3,6 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type AccessContext, type OrganizationSummary } from '@/lib/api'
-import { unwrapList, unwrapSingle } from '@/lib/api-unwrap'
 import { authClient } from '@/lib/auth-client'
 import { ensureAccessTokenForOrganization, peekAccessTokenOrgId } from '@/lib/access-token'
 import {
@@ -11,6 +10,10 @@ import {
   isOrganizationRequiredProfileComplete,
   isSubscriptionPending,
 } from '@/lib/organization-profile'
+import {
+  resolveIsResolvingAccess,
+  resolveTenantOrganizationId,
+} from '@/lib/organization-access-gate'
 import {
   fetchAccessContext,
   fetchOrganizationList,
@@ -345,6 +348,7 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
   const [remintedForOrgId, setRemintedForOrgId] = useState<string | null>(null)
   useEffect(() => {
     if (!isSignedIn || !activeOrgId) return
+    // Login prefetch often already minted for this org — jwtMatchesActive covers it.
     if (peekAccessTokenOrgId() === activeOrgId) return
 
     let cancelled = false
@@ -366,16 +370,27 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
   const tokenReadyOrgId =
     jwtMatchesActive || remintedForOrgId === activeOrgId ? activeOrgId : null
 
-  // Session or access-context may confirm the active org; JWT must match to avoid
-  // cross-tenant reads. Do not require access-context when session already agrees.
-  const sessionConfirmsActive =
-    Boolean(activeOrgId) &&
-    (sessionOrgFromContext === activeOrgId || sessionOrgId === activeOrgId)
-
-  const tenantOrganizationId =
-    activeOrgId && tokenReadyOrgId === activeOrgId && sessionConfirmsActive
-      ? activeOrgId
+  // Prefetch (login) remints JWT before the provider mounts. Treat JWT-aligned org
+  // as activated so tenant gates do not wait on a stale useSession org id.
+  const prefetchAlignedOrgId =
+    !liveActivatedOrganizationId && isSignedIn
+      ? (() => {
+          const orgId = accessOrgId ?? orgInList(organizations, sessionOrgId)
+          return orgId && peekAccessTokenOrgId() === orgId ? orgId : null
+        })()
       : null
+  const effectiveActivatedOrganizationId =
+    liveActivatedOrganizationId ?? prefetchAlignedOrgId
+
+  // Prefer access-context / session; also accept activatedOrganizationId so post-login
+  // works when Better Auth useSession still omits activeOrganizationId.
+  const tenantOrganizationId = resolveTenantOrganizationId({
+    activeOrgId,
+    tokenReadyOrgId,
+    accessContextOrgId: sessionOrgFromContext,
+    sessionOrgId,
+    activatedOrganizationId: effectiveActivatedOrganizationId,
+  })
 
   // After A → (null) → B, drop idle leftover caches and refetch mounted tenant queries
   // with the aligned JWT. removeQueries on observed queries was cancelling that refetch.
@@ -455,16 +470,25 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
     isLoading: sessionPending || orgsQuery.isLoading || liveBootstrapping,
     // Membership gate only — do not block the dashboard chrome on set-active bootstrap.
     isMembershipLoading: sessionPending || orgsQuery.isLoading,
-    // Permission gates: wait for org list / activate / JWT. Access-context may still
-    // load in parallel — do not block tenant reads once JWT+session agree.
-    isResolvingAccess:
-      sessionPending ||
-      orgsQuery.isLoading ||
-      liveBootstrapping ||
-      Boolean(livePendingActiveId) ||
-      (isSignedIn && Boolean(activeOrgId) && tokenReadyOrgId !== activeOrgId) ||
-      (isSignedIn && Boolean(activeOrgId) && !tenantOrganizationId) ||
-      (isSignedIn && !activeOrgId && accessQuery.isLoading),
+    // Wait for JWT + tenant id + access-context settle so permissions are not [].
+    isResolvingAccess: resolveIsResolvingAccess(
+      {
+        activeOrgId,
+        accessContextOrgId: sessionOrgFromContext,
+        sessionOrgId,
+        activatedOrganizationId: effectiveActivatedOrganizationId,
+        tokenReadyOrgId,
+        pendingActiveId: livePendingActiveId,
+        accessQueryLoading: accessQuery.isLoading,
+        sessionPending,
+        orgsLoading: orgsQuery.isLoading,
+        bootstrapping: liveBootstrapping,
+        isSignedIn,
+        accessQueryFetched: accessQuery.isFetched,
+        hasAccessContext: Boolean(accessContext),
+      },
+      tenantOrganizationId
+    ),
     error: liveSwitchError ?? listError,
     refresh,
     selectOrganization,
