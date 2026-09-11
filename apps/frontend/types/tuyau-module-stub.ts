@@ -8,6 +8,7 @@
  */
 import type { ITYPE } from '@vinejs/vine/build/src/symbols.js'
 
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-empty-object-type */
 type AnyMethod = (...args: any[]) => any
 interface EmptyInput {}
 type LooseValidator = { [ITYPE]: EmptyInput }
