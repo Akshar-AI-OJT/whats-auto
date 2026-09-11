@@ -1,6 +1,9 @@
 packages:
   - 'apps/*'
 
+overrides:
+  '@adonisjs/ace': 14.1.1
+
 allowBuilds:
   '@parcel/watcher': false
   '@swc/core': true
