@@ -9,6 +9,7 @@ import {
   type ApiError,
   type OrganizationMember,
 } from '@/lib/api'
+import { unwrapList } from '@/lib/api-unwrap'
 import { ASSIGNABLE_ROLES, type AssignableRole } from '@/lib/onboarding'
 import { cn } from '@/lib/utils'
 import { queryKeys } from '@/lib/query-keys'
@@ -26,13 +27,7 @@ import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSecti
 import { authInputClassName } from '@/components/auth/auth-field-styles'
 
 function unwrapMembers(data: unknown): OrganizationMember[] {
-  if (!data) return []
-  if (Array.isArray(data)) return data as OrganizationMember[]
-  if (typeof data === 'object' && data !== null && 'data' in data) {
-    const wrapped = data as { data?: OrganizationMember[] }
-    if (Array.isArray(wrapped.data)) return wrapped.data
-  }
-  return []
+  return unwrapList<OrganizationMember>(data)
 }
 
 const selectClassName = cn(

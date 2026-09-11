@@ -1,52 +1,11 @@
 import type {
   InboxConversation,
   InboxMessage,
-  PaginationMeta,
 } from '@/lib/api'
+import { unwrapList, unwrapPage, unwrapSingle } from '@/lib/api-unwrap'
 
-export function unwrapPaginated<T>(payload: unknown): {
-  items: T[]
-  meta: PaginationMeta | null
-} {
-  if (!payload) return { items: [], meta: null }
-  if (Array.isArray(payload)) return { items: payload, meta: null }
-
-  const root = payload as {
-    data?: T[] | { data?: T[]; meta?: PaginationMeta }
-    meta?: PaginationMeta
-  }
-
-  if (Array.isArray(root.data)) {
-    return { items: root.data, meta: root.meta ?? null }
-  }
-
-  if (root.data && typeof root.data === 'object' && Array.isArray(root.data.data)) {
-    return { items: root.data.data, meta: root.data.meta ?? root.meta ?? null }
-  }
-
-  return { items: [], meta: null }
-}
-
-export function unwrapList<T>(payload: unknown): T[] {
-  if (!payload) return []
-  if (Array.isArray(payload)) return payload
-  if (typeof payload === 'object' && payload !== null && 'data' in payload) {
-    const wrapped = payload as { data?: T[] }
-    if (Array.isArray(wrapped.data)) return wrapped.data
-  }
-  return []
-}
-
-export function unwrapSingle<T>(payload: unknown): T | null {
-  if (!payload) return null
-  if (typeof payload === 'object' && payload !== null && 'data' in payload) {
-    const wrapped = payload as { data?: T }
-    if (wrapped.data && typeof wrapped.data === 'object') {
-      return wrapped.data
-    }
-  }
-  return payload as T
-}
+export { unwrapList, unwrapSingle }
+export const unwrapPaginated = unwrapPage
 
 /** Merge lifecycle API responses that omit nested `contact`. */
 export function mergeConversationUpdate(

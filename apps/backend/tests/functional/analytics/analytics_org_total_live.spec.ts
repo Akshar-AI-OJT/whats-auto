@@ -9,6 +9,7 @@ import DemoSeeder from '#database/seeders/demo_seeder'
 import { OrganizationStatus } from '#enums/organization_status'
 import { auth } from '#lib/auth'
 import { AccessTokenClaimsService } from '#services/access_token_claims_service'
+import { unwrapListEnvelope } from '#tests/helpers/list_envelope'
 
 type PlatformSummary = {
   totalOrganizations: number
@@ -79,22 +80,7 @@ function unwrapData<T extends object>(body: unknown, marker: keyof T): T | null 
 }
 
 function unwrapList(body: unknown): { items: OrganizationListItem[]; meta: PaginationMeta | null } {
-  if (!body || typeof body !== 'object') return { items: [], meta: null }
-
-  const root = body as {
-    data?: OrganizationListItem[] | { data?: OrganizationListItem[]; meta?: PaginationMeta }
-    meta?: PaginationMeta
-  }
-
-  if (Array.isArray(root.data)) {
-    return { items: root.data, meta: root.meta ?? null }
-  }
-
-  if (root.data && typeof root.data === 'object' && Array.isArray(root.data.data)) {
-    return { items: root.data.data, meta: root.data.meta ?? root.meta ?? null }
-  }
-
-  return { items: [], meta: null }
+  return unwrapListEnvelope<OrganizationListItem>(body)
 }
 
 function asCount(row: { total?: unknown } | null | undefined): number {

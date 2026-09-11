@@ -48,7 +48,7 @@ export default class CampaignsController {
       ...params,
     })
 
-    return serialize(result)
+    return serialize.withoutWrapping(result)
   }
 
   /**

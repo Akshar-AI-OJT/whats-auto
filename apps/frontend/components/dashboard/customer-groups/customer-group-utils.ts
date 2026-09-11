@@ -1,4 +1,5 @@
 import type { ApiError, ContactSummary } from '@/lib/api'
+import { unwrapList } from '@/lib/api-unwrap'
 
 const TAG_ERROR_CODE_KEYS: Record<string, string> = {
   E_TAG_NOT_FOUND: 'errors.notFound',
@@ -52,9 +53,7 @@ export function customerGroupErrorMessage(
 export const CUSTOMER_GROUPS_PAGE_SIZE = 8
 
 export function unwrapContacts(data: unknown): ContactSummary[] {
-  if (Array.isArray(data)) return data as ContactSummary[]
-  const wrapped = data as { data?: ContactSummary[] }
-  return Array.isArray(wrapped.data) ? wrapped.data : []
+  return unwrapList<ContactSummary>(data)
 }
 
 export function contactDisplayName(contact: ContactSummary, unnamed: string) {

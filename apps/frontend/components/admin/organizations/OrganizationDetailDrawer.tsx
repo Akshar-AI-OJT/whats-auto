@@ -4,7 +4,13 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { Building2, CreditCard, ExternalLink, Loader2, ScrollText, Users } from 'lucide-react'
-import { api, type AuthorizationAuditEvent, type SuperAdminPlan, type SuperAdminSubscription } from '@/lib/api'
+import {
+  api,
+  type AuthorizationAuditEvent,
+  type SuperAdminPlan,
+  type SuperAdminSubscription,
+} from '@/lib/api'
+import { unwrapList } from '@/lib/api-unwrap'
 import { cn } from '@/lib/utils'
 import { queryKeys } from '@/lib/query-keys'
 import { Link } from '@/i18n/navigation'
@@ -81,16 +87,6 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
       <dd className="min-w-0 text-sm font-medium break-all text-ink sm:text-right">{value}</dd>
     </div>
   )
-}
-
-function unwrapAuditEvents(data: unknown): AuthorizationAuditEvent[] {
-  if (!data) return []
-  if (Array.isArray(data)) return data as AuthorizationAuditEvent[]
-  if (typeof data === 'object' && data !== null && 'data' in data) {
-    const wrapped = data as { data?: AuthorizationAuditEvent[] }
-    if (Array.isArray(wrapped.data)) return wrapped.data
-  }
-  return []
 }
 
 export function OrganizationDetailDrawer({
@@ -435,7 +431,7 @@ function ActivityTab({ organizationId, empty }: { organizationId: string; empty:
     queryKey: queryKeys.admin.organizationActivity(organizationId),
     queryFn: async () => {
       const { data } = await api.superAdmin.auditLogs.list({ limit: 50, organizationId })
-      return unwrapAuditEvents(data)
+      return unwrapList<AuthorizationAuditEvent>(data)
     },
   })
 

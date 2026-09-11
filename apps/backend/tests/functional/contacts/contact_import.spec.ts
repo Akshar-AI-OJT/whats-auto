@@ -101,10 +101,11 @@ async function enqueueAndProcess(params: {
 
 async function seedPlanWithContactLimit(organizationId: string, contacts: number) {
   const planId = randomUUID()
+  const uniqueKey = planId.slice(0, 8)
   await db.table('plans').insert({
     id: planId,
-    code: `contacts_${organizationId.slice(0, 8)}`,
-    name: 'Contact Limit Plan',
+    code: `contacts_${uniqueKey}`,
+    name: `Contact Limit Plan ${uniqueKey}`,
     price: 0,
     currency: 'INR',
     billingInterval: 'month',
@@ -323,6 +324,82 @@ test.group('ContactImportService', (group) => {
     assert.equal(normalized.John, '14155552671')
     assert.equal(normalized.David, '447911123456')
     assert.notEqual(normalized.John, '914155552671')
+  })
+
+  test('parses digits-only Meta-style phones as international even with defaultCountryCode IN', async ({
+    assert,
+  }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const userId = await seedUser()
+    userIds.push(userId)
+
+    const result = await runWithTenant(organizationId, () =>
+      enqueueAndProcess({
+        organizationId,
+        actorUserId: userId,
+        fileName: 'meta-digits.csv',
+        defaultCountryCode: 'IN',
+        csvContent: [
+          'name,phone',
+          'Rahul,919876543210',
+          'Priya,9876543210',
+          'John,14155552671',
+          'Alex,+14155552671',
+        ].join('\n'),
+      })
+    )
+
+    assert.equal(result.status, 'completed')
+    assert.equal(result.successCount, 2)
+    assert.equal(result.rows[0]?.action, 'inserted')
+    assert.equal(result.rows[1]?.status, 'skipped')
+    assert.equal(result.rows[2]?.action, 'inserted')
+    assert.equal(result.rows[3]?.status, 'skipped')
+
+    const contacts = await runWithTenant(organizationId, () =>
+      db
+        .from('contacts')
+        .where('organizationId', organizationId)
+        .whereNull('deletedAt')
+        .select('name', 'phoneNormalized')
+    )
+    const normalized = Object.fromEntries(contacts.map((row) => [row.name, row.phoneNormalized]))
+    assert.equal(normalized.Rahul, '919876543210')
+    assert.equal(normalized.Priya, undefined)
+    assert.equal(normalized.John, '14155552671')
+    assert.notEqual(normalized.John, '9114155552671')
+    assert.isUndefined(normalized.Alex)
+  })
+
+  test('imports digits-only Meta-style US numbers without a default country', async ({
+    assert,
+  }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const userId = await seedUser()
+    userIds.push(userId)
+
+    const result = await runWithTenant(organizationId, () =>
+      enqueueAndProcess({
+        organizationId,
+        actorUserId: userId,
+        fileName: 'meta-no-country.csv',
+        csvContent: 'name,phone\nJohn,14155552671\n',
+      })
+    )
+
+    assert.equal(result.status, 'completed')
+    assert.equal(result.successCount, 1)
+    assert.equal(result.rows[0]?.action, 'inserted')
+
+    const contact = await runWithTenant(organizationId, () =>
+      db
+        .from('contacts')
+        .where('id', result.rows[0]?.contactId as string)
+        .first()
+    )
+    assert.equal(contact.phoneNormalized, '14155552671')
   })
 
   test('maps CSV headers onto contact fields', async ({ assert }) => {

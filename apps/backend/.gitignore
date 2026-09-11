@@ -26,4 +26,9 @@ yarn-error.log
 
 # Platform specific
 .DS_Store
-.AdonisJS
+
+# Adonis generated indexes. Commit Tuyau's client registry so the frontend
+# package export `backend/registry` resolves on Vercel / CI (not only locally).
+.adonisjs/*
+!.adonisjs/client/
+!.adonisjs/client/**

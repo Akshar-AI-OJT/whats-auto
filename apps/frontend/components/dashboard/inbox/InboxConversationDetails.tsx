@@ -20,14 +20,10 @@ import { InboxThreadNotes } from './InboxThreadNotes'
 import { InboxAiModePill } from './InboxAiModePill'
 import { useInboxOrganization } from './InboxOrganizationContext'
 import { formatMessageTime, unwrapSingle } from './inbox-utils'
+import { unwrapList } from '@/lib/api-unwrap'
 
 function unwrapMembers(data: unknown): OrganizationMember[] {
-  if (!data) return []
-  if (Array.isArray(data)) return data
-  if (typeof data === 'object' && Array.isArray((data as { data?: unknown }).data)) {
-    return (data as { data: OrganizationMember[] }).data
-  }
-  return []
+  return unwrapList<OrganizationMember>(data)
 }
 
 function DetailRow({ label, value }: { label: string; value: ReactNode }) {

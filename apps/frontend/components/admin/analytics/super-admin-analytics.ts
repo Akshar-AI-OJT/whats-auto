@@ -11,6 +11,7 @@ import {
   type SuperAdminPlatformUser,
   type SuperAdminSubscription,
 } from '@/lib/api'
+import { unwrapList, unwrapPage } from '@/lib/api-unwrap'
 import { mapOrganizationUiStatus } from '../organizations/organization-api'
 
 export type BreakdownItem = {
@@ -27,30 +28,7 @@ export type GrowthPoint = {
 }
 
 function unwrapPaginated<T>(payload: unknown): { items: T[]; meta: PaginationMeta | null } {
-  if (!payload) return { items: [], meta: null }
-  if (Array.isArray(payload)) return { items: payload, meta: null }
-
-  const root = payload as {
-    data?: T[] | { data?: T[]; meta?: PaginationMeta }
-    meta?: PaginationMeta
-  }
-
-  if (Array.isArray(root.data)) {
-    return { items: root.data, meta: root.meta ?? null }
-  }
-
-  if (root.data && typeof root.data === 'object' && Array.isArray(root.data.data)) {
-    return { items: root.data.data, meta: root.data.meta ?? root.meta ?? null }
-  }
-
-  return { items: [], meta: null }
-}
-
-function unwrapList<T>(payload: unknown): T[] {
-  if (!payload) return []
-  if (Array.isArray(payload)) return payload as T[]
-  const root = payload as { data?: T[] }
-  return Array.isArray(root.data) ? root.data : []
+  return unwrapPage<T>(payload)
 }
 
 function unwrapObject<T extends object>(payload: unknown, marker: keyof T): T | null {

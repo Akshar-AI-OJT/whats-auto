@@ -43,7 +43,7 @@ export default class MessagesController {
       after: qs.after,
     })
 
-    return serialize(result)
+    return serialize.withoutWrapping(result)
   }
 
   /**

@@ -32,7 +32,7 @@ export default class ConversationNotesController {
       conversationId: id,
     })
 
-    return serialize(notes)
+    return serialize.withoutWrapping({ data: notes })
   }
 
   /**

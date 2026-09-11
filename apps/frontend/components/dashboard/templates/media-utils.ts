@@ -1,4 +1,5 @@
 import type { MediaAsset, MediaQuota, PaginationMeta } from '@/lib/api'
+import { unwrapPage } from '@/lib/api-unwrap'
 
 /** MIME types accepted by Media Library upload (matches backend outbound allowlist). */
 export const MEDIA_UPLOAD_ACCEPT =
@@ -40,26 +41,7 @@ export function unwrapMediaList(data: unknown): {
   items: MediaAsset[]
   meta: PaginationMeta | null
 } {
-  if (!data) return { items: [], meta: null }
-  if (Array.isArray(data)) return { items: data as MediaAsset[], meta: null }
-
-  const root = data as {
-    data?: MediaAsset[] | { data?: MediaAsset[]; meta?: PaginationMeta }
-    meta?: PaginationMeta
-  }
-
-  if (Array.isArray(root.data)) {
-    return { items: root.data, meta: root.meta ?? null }
-  }
-
-  if (root.data && typeof root.data === 'object' && Array.isArray(root.data.data)) {
-    return {
-      items: root.data.data,
-      meta: root.data.meta ?? root.meta ?? null,
-    }
-  }
-
-  return { items: [], meta: null }
+  return unwrapPage<MediaAsset>(data)
 }
 
 /** API returns `{ data: MediaQuota }`; protectedRequest keeps the outer JSON. */
@@ -69,9 +51,7 @@ export function unwrapMediaQuota(data: unknown): MediaQuota | null {
   const root = data as { data?: MediaQuota } & Partial<MediaQuota>
   const nested = root.data
   const quota =
-    nested &&
-    typeof nested === 'object' &&
-    (nested.usedBytes != null || nested.limitBytes != null)
+    nested && typeof nested === 'object' && (nested.usedBytes != null || nested.limitBytes != null)
       ? nested
       : root
 

@@ -25,15 +25,9 @@ import {
   useDashboardToast,
 } from '@/components/dashboard/ui/use-dashboard-toast'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
-import { unwrapPaginated, unwrapSingle } from './inbox-utils'
+import { unwrapSingle } from './inbox-utils'
+import { unwrapList } from '@/lib/api-unwrap'
 import { listAllOrganizationContacts } from '@/components/dashboard/contacts/contact-list'
-
-function unwrapList<T>(payload: { data?: T[] } | T[] | null | undefined): T[] {
-  if (!payload) return []
-  if (Array.isArray(payload)) return payload
-  if (Array.isArray(payload.data)) return payload.data
-  return unwrapPaginated<T>(payload).items
-}
 
 function contactDisplayLabel(contact: ContactSummary) {
   return contact.name?.trim() || contact.phone || contact.id
