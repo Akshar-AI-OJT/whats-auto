@@ -386,6 +386,9 @@ wa down            # keeps DB volume
 
 ## 13. Troubleshooting
 
+**`Invalid command exported from "grant_superadmin.js" file. Invalid URL`**  
+Any `node ace …` command fails while Ace boots, including `whatsapp:seed-config` and `migrate.sh`. Ace 14.1.0's command metadata schema has no `$id`, so jsonschema 1.5 throws `Invalid URL` on Linux (the first scanned file is `grant_superadmin.js`). Pull the Ace 14.1.1 pin, rebuild `whats-auto-backend` / `whats-auto-worker`, then rerun the ace command.
+
 **`docker compose config` still shows `api` / `postgres`**  
 The VPS compose file is old. `git pull` and confirm `whats-auto-backend` is in `deploy/contabo/docker-compose.yml`.
 
