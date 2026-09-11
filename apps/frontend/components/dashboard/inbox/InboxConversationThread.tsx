@@ -23,7 +23,7 @@ import { InboxReplyComposer } from './InboxReplyComposer'
 import { InboxThreadHeaderSkeleton, InboxThreadMessagesSkeleton } from './InboxThreadSkeleton'
 import { useInboxOrganization } from './InboxOrganizationContext'
 import { applyInboxSseToConversation, applyInboxSseToMessages } from './apply-inbox-sse'
-import { contactLabel, unwrapPaginated, unwrapSingle, mergeConversationUpdate } from './inbox-utils'
+import { unwrapPaginated, unwrapSingle, mergeConversationUpdate } from './inbox-utils'
 
 const MESSAGE_PAGE_LIMIT = 100
 
@@ -138,26 +138,6 @@ export function InboxConversationThread({
   if (membersQuery.isSuccess && inbox.members !== members) {
     setInboxMembers(members)
   }
-
-  const agentNameByUserId = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const member of members) {
-      map.set(member.userId, member.name || member.email)
-    }
-    return map
-  }, [members])
-
-  const agentLabel = useMemo(() => {
-    if (!conversation?.assignedAgentId) {
-      return tInbox('unassigned')
-    }
-    return (
-      agentNameByUserId.get(conversation.assignedAgentId) ??
-      conversation.assignedAgentId.slice(0, 8)
-    )
-  }, [agentNameByUserId, conversation, tInbox])
-
-  const contactName = conversation ? contactLabel(conversation) : ''
 
   const refreshMessages = useCallback(async () => {
     if (!tenantOrganizationId || !canViewInbox) return
@@ -283,7 +263,7 @@ export function InboxConversationThread({
     <DashboardPanel
       as="section"
       className={cn(
-        'flex h-full min-h-[24rem] flex-col overflow-hidden rounded-[18px]',
+        'flex h-full min-h-0 flex-col overflow-hidden rounded-[18px]',
         'border border-dash-border shadow-[0_1px_3px_rgb(15_23_42/0.06)]',
         'lg:rounded-l-none'
       )}
@@ -324,16 +304,11 @@ export function InboxConversationThread({
         <>
           <InboxConversationHeader
             conversation={conversation}
-            agentLabel={agentLabel}
             members={members}
             onConversationUpdated={handleConversationUpdated}
           />
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <InboxMessageList
-              messages={messages}
-              contactName={contactName}
-              loading={messagesLoading}
-            />
+            <InboxMessageList messages={messages} loading={messagesLoading} />
             <InboxReplyComposer
               conversationId={conversationId}
               conversationStatus={conversation.status}

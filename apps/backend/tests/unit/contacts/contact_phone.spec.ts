@@ -36,8 +36,8 @@ test.group('normalizeContactPhone', () => {
     assert.equal(normalizeContactPhone('+14165552671'), '14165552671')
     assert.equal(normalizeContactPhone('501234567', 'AE'), '971501234567')
     assert.equal(normalizeContactPhone('+971501234567'), '971501234567')
-    assert.equal(normalizeContactPhone('15123456789', 'DE'), '4915123456789')
-    assert.equal(normalizeContactPhone('+4915123456789'), '4915123456789')
+    assert.equal(normalizeContactPhone('17612345678', 'DE'), '4917612345678')
+    assert.equal(normalizeContactPhone('+4917612345678'), '4917612345678')
     assert.equal(normalizeContactPhone('412345678', 'AU'), '61412345678')
     assert.equal(normalizeContactPhone('+61412345678'), '61412345678')
     assert.equal(normalizeContactPhone('81234567', 'SG'), '6581234567')
@@ -57,6 +57,17 @@ test.group('normalizeContactPhone', () => {
     assert.equal(normalizeContactPhone('+919876543210'), '919876543210')
     assert.equal(normalizeContactPhone('+14155552671'), '14155552671')
     assert.equal(normalizeContactPhone('+447911123456'), '447911123456')
+  })
+
+  test('parses digits-only Meta / WhatsApp numbers as international before default country', ({
+    assert,
+  }) => {
+    assert.equal(normalizeContactPhone('919876543210', 'IN'), '919876543210')
+    assert.equal(normalizeContactPhone('14155552671', 'IN'), '14155552671')
+    assert.notEqual(normalizeContactPhone('14155552671', 'IN'), '9114155552671')
+    assert.equal(normalizeContactPhone('14155552671'), '14155552671')
+    assert.equal(normalizeContactPhone('9876543210', 'IN'), '919876543210')
+    assert.equal(normalizeContactPhone('+14155552671'), '14155552671')
   })
 
   test('does not treat a 10-digit US number as Indian', ({ assert }) => {

@@ -14,11 +14,24 @@ test.group('access_token_permissions', () => {
     assert.equal(set.size, 2)
   })
 
-  test('permissionsFromClaims expands owner catalog', ({ assert }) => {
-    const set = permissionsFromClaims({ role: 'owner', scope: '' })
+  test('permissionsFromClaims uses minted scope for owner (no role-name expand)', ({ assert }) => {
+    const empty = permissionsFromClaims({ role: 'owner', scope: '' })
+    assert.equal(empty.size, 0)
+
+    const scope = formatScope(PRODUCT_PERMISSIONS)
+    const set = permissionsFromClaims({ role: 'owner', scope })
     assert.equal(set.size, PRODUCT_PERMISSIONS.length)
     assert.isTrue(set.has('org:delete'))
     assert.isFalse(set.has('platform:tenants_view'))
+  })
+
+  test('permissionsFromClaims uses minted scope for superadmin', ({ assert }) => {
+    const set = permissionsFromClaims({
+      role: 'superadmin',
+      scope: 'platform:tenants_view platform:audit_view',
+    })
+    assert.equal(set.size, 2)
+    assert.isTrue(set.has('platform:tenants_view'))
   })
 
   test('formatScope is sorted and stable', ({ assert }) => {

@@ -1,7 +1,7 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
 import db from '@adonisjs/lucid/services/db'
-import { PLATFORM_PERMISSIONS, type Permission } from '#abilities/permissions'
+import type { Permission } from '#abilities/permissions'
 import { AuthorizationService } from '#services/authorization_service'
 import { permissionsFromClaims } from '#lib/access_token_permissions'
 import { checkPlatformPermissionVersion } from '#lib/permission_version'
@@ -60,11 +60,8 @@ export default class PlatformMiddleware {
         })
       }
 
-      // Only platform scopes authorize this middleware.
-      const platformPerms =
-        claims.role === 'superadmin'
-          ? new Set(PLATFORM_PERMISSIONS)
-          : new Set([...permissions].filter((p) => p.startsWith('platform:')))
+      // Only platform scopes authorize this middleware (minted from DB role_permissions).
+      const platformPerms = new Set([...permissions].filter((p) => p.startsWith('platform:')))
 
       if (platformPerms.size === 0) {
         return response.forbidden({

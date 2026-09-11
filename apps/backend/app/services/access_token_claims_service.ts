@@ -17,6 +17,7 @@ type SessionRow = {
 /**
  * Builds JWT claim payloads for the Better Auth jwt plugin definePayload hook.
  * Claims are always derived server-side from membership + AuthorizationService.
+ * All roles (including owner/superadmin) mint a full sorted `scope` from DB resolve.
  */
 export class AccessTokenClaimsService {
   constructor(private authz = new AuthorizationService()) {}
@@ -60,16 +61,13 @@ export class AccessTokenClaimsService {
         const roleId = member.roleId as string
         const permissions = await this.authz.resolvePermissions(orgId, roleId)
 
-        // owner/superadmin: omit full catalog from the token; middleware expands.
-        const scope = role === 'owner' || role === 'superadmin' ? '' : formatScope(permissions)
-
         return {
           ...base,
           org_id: orgId,
           member_id: member.id as string,
           role_id: roleId,
           role,
-          scope,
+          scope: formatScope(permissions),
           pv: Number(member.permissionVersion),
         }
       }
@@ -81,7 +79,7 @@ export class AccessTokenClaimsService {
       return {
         ...base,
         role: 'superadmin',
-        scope: '',
+        scope: formatScope(platform.permissions),
         pv: platform.permissionVersion,
       }
     }
