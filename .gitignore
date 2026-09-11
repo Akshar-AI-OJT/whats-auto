@@ -55,3 +55,4 @@ skills-lock.json
 .code-review-graph/
 .mcp.json
 *.dump
+.fallowrc.json

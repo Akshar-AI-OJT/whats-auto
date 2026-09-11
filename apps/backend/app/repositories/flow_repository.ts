@@ -26,6 +26,7 @@ export type FlowRow = {
   triggerType: string
   triggerConfig: FlowTriggerConfig
   settings: FlowSettings
+  catalogFlowId: string | null
   createdByUserId: string | null
   createdAt: Date | string
   updatedAt: Date | string | null
@@ -54,6 +55,7 @@ export type InsertFlowParams = {
   triggerType: string
   triggerConfig: FlowTriggerConfig
   settings: FlowSettings
+  catalogFlowId?: string | null
   createdByUserId?: string | null
 }
 
@@ -97,6 +99,7 @@ export class FlowRepository {
         triggerType: params.triggerType,
         triggerConfig: jsonValue(params.triggerConfig),
         settings: jsonValue(params.settings),
+        catalogFlowId: params.catalogFlowId ?? null,
         createdByUserId: params.createdByUserId ?? null,
       })
       .returning('*')
@@ -131,6 +134,18 @@ export class FlowRepository {
       .from('flows')
       .where('id', params.id)
       .where('organizationId', params.organizationId)
+      .first()
+    return row ? mapFlowRow(row as Record<string, unknown>) : null
+  }
+
+  async findByCatalogFlowId(
+    params: { organizationId: string; catalogFlowId: string },
+    client: Db = db
+  ): Promise<FlowRow | null> {
+    const row = await client
+      .from('flows')
+      .where('organizationId', params.organizationId)
+      .where('catalogFlowId', params.catalogFlowId)
       .first()
     return row ? mapFlowRow(row as Record<string, unknown>) : null
   }
@@ -309,6 +324,7 @@ function mapFlowRow(row: Record<string, unknown>): FlowRow {
     triggerType: String(row.triggerType),
     triggerConfig: parseObject(row.triggerConfig),
     settings: parseObject(row.settings) as FlowSettings,
+    catalogFlowId: (row.catalogFlowId as string | null) ?? null,
     createdByUserId: (row.createdByUserId as string | null) ?? null,
     createdAt: row.createdAt as Date | string,
     updatedAt: (row.updatedAt as Date | string | null) ?? null,

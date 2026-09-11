@@ -9,6 +9,7 @@ import {
   Settings,
   Layers,
   FileText,
+  Workflow,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -31,6 +32,8 @@ export const ADMIN_NAV_KEYS = [
   'analytics',
   'auditLogs',
   'aiSettings',
+  'templateCatalog',
+  'flowCatalog',
   'settings',
 ] as const
 
@@ -50,7 +53,15 @@ export const ADMIN_NAV_SECTIONS: readonly AdminNavSection[] = [
   { id: 'subscriptionBilling', items: ['plans', 'subscriptions', 'invoices'] },
   {
     id: 'platform',
-    items: ['platformUsers', 'analytics', 'auditLogs', 'aiSettings', 'settings'],
+    items: [
+      'platformUsers',
+      'analytics',
+      'auditLogs',
+      'aiSettings',
+      'templateCatalog',
+      'flowCatalog',
+      'settings',
+    ],
   },
 ]
 
@@ -64,6 +75,8 @@ export const ADMIN_NAV_ICONS: Record<AdminNavKey, LucideIcon> = {
   analytics: BarChart3,
   auditLogs: ScrollText,
   aiSettings: Bot,
+  templateCatalog: FileText,
+  flowCatalog: Workflow,
   settings: Settings,
 }
 
@@ -78,5 +91,7 @@ export const ADMIN_NAV_HREFS: Partial<Record<AdminNavKey, string>> = {
   analytics: '/admin/analytics',
   auditLogs: '/admin/audit-logs',
   aiSettings: '/admin/ai-settings',
+  templateCatalog: '/admin/template-catalog',
+  flowCatalog: '/admin/flow-catalog',
   settings: '/admin/settings',
 }

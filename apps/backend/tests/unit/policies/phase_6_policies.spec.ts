@@ -83,6 +83,15 @@ test.group('Phase 6 Policies - SuperAdminPolicy', () => {
     assert.isTrue(policy.managePlatformSettings(admin))
     assert.isFalse(policy.managePlatformSettings(unprivileged))
 
+    assert.isTrue(policy.viewTemplateCatalog(admin))
+    assert.isFalse(policy.viewTemplateCatalog(unprivileged))
+    assert.isTrue(policy.manageTemplateCatalog(admin))
+    assert.isFalse(policy.manageTemplateCatalog(unprivileged))
+    assert.isTrue(policy.viewFlowCatalog(admin))
+    assert.isFalse(policy.viewFlowCatalog(unprivileged))
+    assert.isTrue(policy.manageFlowCatalog(admin))
+    assert.isFalse(policy.manageFlowCatalog(unprivileged))
+
     assert.isTrue(policy.viewAuditLogs(admin))
     assert.isFalse(policy.viewAuditLogs(unprivileged))
   })

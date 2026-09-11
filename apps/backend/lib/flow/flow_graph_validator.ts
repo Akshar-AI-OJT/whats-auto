@@ -31,6 +31,9 @@ const CONDITION_OPERATORS = [
 export type ValidateFlowGraphOptions = {
   flowId?: string
   publishedSubflows?: Map<string, string[]>
+  /** TEMPLATE / SUBFLOW ids refer to platform catalog rows, not tenant tables. */
+  catalogMode?: boolean
+  publishedCatalogTemplateIds?: Set<string>
 }
 
 export function validateFlowTrigger(
@@ -178,10 +181,7 @@ function validateNode(
     case FlowNodeType.MESSAGE:
       return validateMessageNode(node, edges)
     case FlowNodeType.TEMPLATE:
-      return [
-        ...requireString(node, 'messageTemplateId', 'TEMPLATE nodes require messageTemplateId'),
-        ...validateUnlabeledOutgoing(node, edges, { min: 1, max: 1 }),
-      ]
+      return validateTemplateNode(node, edges, options)
     case FlowNodeType.INTERACTIVE_BUTTON:
       return validateInteractiveButtonNode(node, edges)
     case FlowNodeType.INTERACTIVE_LIST:
@@ -202,6 +202,31 @@ function validateNode(
     default:
       return []
   }
+}
+
+function validateTemplateNode(
+  node: FlowNode,
+  edges: FlowEdge[],
+  options: ValidateFlowGraphOptions
+): FlowGraphValidationError[] {
+  const errors = [
+    ...requireString(node, 'messageTemplateId', 'TEMPLATE nodes require messageTemplateId'),
+  ]
+  const templateId = asString(node.data.messageTemplateId)?.trim()
+  if (
+    templateId &&
+    options.catalogMode &&
+    options.publishedCatalogTemplateIds &&
+    !options.publishedCatalogTemplateIds.has(templateId)
+  ) {
+    errors.push({
+      code: 'TEMPLATE_NOT_IN_CATALOG',
+      message: `Template ${templateId} is not a published catalog template`,
+      nodeId: node.id,
+    })
+  }
+  errors.push(...validateUnlabeledOutgoing(node, edges, { min: 1, max: 1 }))
+  return errors
 }
 
 function validateMessageNode(node: FlowNode, edges: FlowEdge[]): FlowGraphValidationError[] {
@@ -525,7 +550,9 @@ function validateSubflowNode(
   } else if (options.publishedSubflows && !options.publishedSubflows.has(subflowId)) {
     errors.push({
       code: 'SUBFLOW_NOT_PUBLISHED',
-      message: `Subflow ${subflowId} is not a published flow in this organization`,
+      message: options.catalogMode
+        ? `Subflow ${subflowId} is not a published catalog flow`
+        : `Subflow ${subflowId} is not a published flow in this organization`,
       nodeId: node.id,
     })
   }

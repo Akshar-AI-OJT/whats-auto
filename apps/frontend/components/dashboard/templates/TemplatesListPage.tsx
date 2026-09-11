@@ -14,16 +14,9 @@ import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { unwrapList } from '@/components/dashboard/inbox/inbox-utils'
 import { useRouter } from '@/i18n/navigation'
 import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
+import { TemplateCatalogBrowseDialog } from './TemplateCatalogBrowseDialog'
 import { TemplateCards } from './TemplateCards'
 import { TemplateFilters } from './TemplateFilters'
 import { TemplateTable } from './TemplateTable'
@@ -66,7 +59,7 @@ export function TemplatesListPage() {
   const [syncError, setSyncError] = useState<string | null>(null)
   const [syncedCount, setSyncedCount] = useState<number | null>(null)
   const [syncPending, setSyncPending] = useState(false)
-  const [browseComingSoonOpen, setBrowseComingSoonOpen] = useState(false)
+  const [browseOpen, setBrowseOpen] = useState(false)
   const { progress, complete: completeProgress } = useSyncProgress(syncPending)
 
   const listParams = useMemo(
@@ -230,7 +223,7 @@ export function TemplatesListPage() {
               type="button"
               variant="outline"
               className="w-full justify-center gap-2 sm:w-auto"
-              onClick={() => setBrowseComingSoonOpen(true)}
+              onClick={() => setBrowseOpen(true)}
             >
               <LayoutGrid className="size-4 shrink-0" aria-hidden />
               <span className="truncate">{t('browseCta')}</span>
@@ -414,21 +407,11 @@ export function TemplatesListPage() {
         onRetry={() => syncMutation.mutate()}
       />
 
-      <Dialog open={browseComingSoonOpen} onOpenChange={setBrowseComingSoonOpen}>
-        <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md" showCloseButton>
-          <DialogHeader className="border-b border-dash-border px-5 py-4 text-left sm:px-6">
-            <DialogTitle>{t('browseComingSoon.title')}</DialogTitle>
-            <DialogDescription>{t('browseComingSoon.body')}</DialogDescription>
-          </DialogHeader>
-          <div className="px-5 py-4 sm:px-6">
-            <DialogFooter className="border-0 bg-transparent p-0 sm:justify-end">
-              <Button type="button" onClick={() => setBrowseComingSoonOpen(false)}>
-                {t('browseComingSoon.dismiss')}
-              </Button>
-            </DialogFooter>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <TemplateCatalogBrowseDialog
+        open={browseOpen}
+        organizationId={tenantOrganizationId}
+        onOpenChange={setBrowseOpen}
+      />
     </div>
   )
 }

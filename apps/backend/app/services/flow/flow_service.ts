@@ -1,7 +1,6 @@
 import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { FlowStatus } from '#enums/flow_status'
-import { FlowNodeType } from '#enums/flow_node_type'
 import { FlowTriggerType } from '#enums/flow_trigger_type'
 import { FlowValidationStatus } from '#enums/flow_validation_status'
 import FlowException from '#exceptions/flow_exception'
@@ -16,6 +15,7 @@ import {
   type FlowSettings,
   type FlowTriggerConfig,
 } from '#lib/flow/flow_graph'
+import { deriveRequiredFeatureKeys } from '#lib/flow/flow_required_features'
 import { validateFlowGraph, validateFlowTrigger } from '#lib/flow/flow_graph_validator'
 import { FlowRepository } from '#repositories/flow_repository'
 import { PlanEnforcementService } from '#services/billing/plan_enforcement_service'
@@ -334,16 +334,8 @@ export default class FlowService {
           viewport: version.viewport,
         })
 
-        const nodeTypes = new Set(graph.nodes.map((node) => node.type))
-        if (
-          [FlowNodeType.CONDITION, FlowNodeType.AI_RAG, FlowNodeType.SUBFLOW].some((type) =>
-            nodeTypes.has(type)
-          )
-        ) {
-          await enforcement.requireFeature(params.organizationId, 'flowAdvancedNodes')
-        }
-        if (nodeTypes.has(FlowNodeType.AI_RAG)) {
-          await enforcement.requireFeature(params.organizationId, 'aiAutonomous')
+        for (const featureKey of deriveRequiredFeatureKeys(graph)) {
+          await enforcement.requireFeature(params.organizationId, featureKey)
         }
 
         if (flow.status !== FlowStatus.PUBLISHED) {

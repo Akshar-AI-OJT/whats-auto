@@ -12,6 +12,8 @@ import type InvoiceTransformer from '#transformers/invoice_transformer'
 import type KnowledgeDocumentTransformer from '#transformers/knowledge_document_transformer'
 import type OrganizationSmtpTransformer from '#transformers/organization_smtp_transformer'
 import type PlanTransformer from '#transformers/plan_transformer'
+import type PlatformFlowCatalogTransformer from '#transformers/platform_flow_catalog_transformer'
+import type PlatformTemplateCatalogTransformer from '#transformers/platform_template_catalog_transformer'
 import type PlatformUserTransformer from '#transformers/platform_user_transformer'
 import type UserTransformer from '#transformers/user_transformer'
 
@@ -43,6 +45,14 @@ export namespace Data {
   export type Plan = InferData<PlanTransformer>
   export namespace Plan {
     export type Variants = InferVariants<PlanTransformer>
+  }
+  export type PlatformFlowCatalog = InferData<PlatformFlowCatalogTransformer>
+  export namespace PlatformFlowCatalog {
+    export type Variants = InferVariants<PlatformFlowCatalogTransformer>
+  }
+  export type PlatformTemplateCatalog = InferData<PlatformTemplateCatalogTransformer>
+  export namespace PlatformTemplateCatalog {
+    export type Variants = InferVariants<PlatformTemplateCatalogTransformer>
   }
   export type PlatformUser = InferData<PlatformUserTransformer>
   export namespace PlatformUser {

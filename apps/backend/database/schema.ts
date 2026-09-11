@@ -651,8 +651,10 @@ export class FlowVersionSchema extends BaseModel {
 }
 
 export class FlowSchema extends BaseModel {
-  static $columns = ['createdAt', 'createdByUserId', 'description', 'id', 'isDefault', 'name', 'organizationId', 'publishedVersionId', 'settings', 'status', 'triggerConfig', 'triggerType', 'updatedAt'] as const
+  static $columns = ['catalogFlowId', 'createdAt', 'createdByUserId', 'description', 'id', 'isDefault', 'name', 'organizationId', 'publishedVersionId', 'settings', 'status', 'triggerConfig', 'triggerType', 'updatedAt'] as const
   $columns = FlowSchema.$columns
+  @column()
+  declare catalogFlowId: string | null
   @column.dateTime()
   declare createdAt: DateTime
   @column()
@@ -913,12 +915,14 @@ export class MediaAssetSchema extends BaseModel {
 }
 
 export class MessageTemplateSchema extends BaseModel {
-  static $columns = ['bodyText', 'buttons', 'category', 'createdAt', 'createdByUserId', 'footerText', 'headerContent', 'headerMediaUrl', 'headerType', 'id', 'language', 'lastSubmittedAt', 'metaTemplateId', 'name', 'organizationId', 'parameterSchema', 'qualityScore', 'rejectionReason', 'sampleValues', 'status', 'submissionError', 'updatedAt', 'whatsappConfigId'] as const
+  static $columns = ['bodyText', 'buttons', 'catalogTemplateId', 'category', 'createdAt', 'createdByUserId', 'footerText', 'headerContent', 'headerMediaUrl', 'headerType', 'id', 'language', 'lastSubmittedAt', 'metaTemplateId', 'name', 'organizationId', 'parameterSchema', 'qualityScore', 'rejectionReason', 'sampleValues', 'status', 'submissionError', 'updatedAt', 'whatsappConfigId'] as const
   $columns = MessageTemplateSchema.$columns
   @column()
   declare bodyText: string
   @column()
   declare buttons: any | null
+  @column()
+  declare catalogTemplateId: string | null
   @column()
   declare category: string
   @column.dateTime()
@@ -1539,6 +1543,68 @@ export class PlatformAiConfigSchema extends BaseModel {
   declare workingSetSize: number
 }
 
+export class PlatformFlowCatalogSchema extends BaseModel {
+  static $columns = ['createdAt', 'createdByUserId', 'description', 'extraRequiredFeatureKeys', 'id', 'name', 'publishedVersionId', 'requiredFeatureKeys', 'settings', 'slug', 'sortOrder', 'status', 'triggerConfig', 'triggerType', 'updatedAt', 'updatedByUserId'] as const
+  $columns = PlatformFlowCatalogSchema.$columns
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare createdByUserId: string | null
+  @column()
+  declare description: string | null
+  @column()
+  declare extraRequiredFeatureKeys: any
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare name: string
+  @column()
+  declare publishedVersionId: string | null
+  @column()
+  declare requiredFeatureKeys: any
+  @column()
+  declare settings: any
+  @column()
+  declare slug: string
+  @column()
+  declare sortOrder: number
+  @column()
+  declare status: string
+  @column()
+  declare triggerConfig: any
+  @column()
+  declare triggerType: string
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+  @column()
+  declare updatedByUserId: string | null
+}
+
+export class PlatformFlowCatalogVersionSchema extends BaseModel {
+  static $columns = ['createdAt', 'createdByUserId', 'edges', 'flowCatalogId', 'id', 'nodes', 'validationErrors', 'validationStatus', 'versionNumber', 'viewport'] as const
+  $columns = PlatformFlowCatalogVersionSchema.$columns
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare createdByUserId: string | null
+  @column()
+  declare edges: any
+  @column()
+  declare flowCatalogId: string
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare nodes: any
+  @column()
+  declare validationErrors: any | null
+  @column()
+  declare validationStatus: string
+  @column()
+  declare versionNumber: number
+  @column()
+  declare viewport: any | null
+}
+
 export class PlatformSettingSchema extends BaseModel {
   static $columns = ['allowlistedIps', 'apiRateLimitPerMinute', 'billingAddress', 'billingBrandName', 'billingEmail', 'billingGstin', 'billingLegalName', 'billingPhone', 'billingTagline', 'billingWebsite', 'createdAt', 'dataRetentionDays', 'defaultTimezone', 'googleSignInEnabled', 'id', 'maintenanceEnabled', 'mfaEnforcement', 'microsoftSignInEnabled', 'nextMaintenanceWindow', 'oauthRedirectUrl', 'passwordMinLength', 'platformName', 'primaryDomain', 'sessionTimeoutHours', 'singletonKey', 'smtpDailyLimit', 'supportEmail', 'updatedAt', 'updatedByUserId'] as const
   $columns = PlatformSettingSchema.$columns
@@ -1596,6 +1662,57 @@ export class PlatformSettingSchema extends BaseModel {
   declare smtpDailyLimit: number
   @column()
   declare supportEmail: string
+  @column.dateTime()
+  declare updatedAt: DateTime | null
+  @column()
+  declare updatedByUserId: string | null
+}
+
+export class PlatformTemplateCatalogSchema extends BaseModel {
+  static $columns = ['bodyText', 'buttons', 'category', 'createdAt', 'createdByUserId', 'footerText', 'headerContent', 'headerType', 'id', 'language', 'libraryIndustry', 'libraryTemplateName', 'libraryTopic', 'libraryUsecase', 'name', 'parameterSchema', 'sampleValues', 'slug', 'sortOrder', 'source', 'status', 'updatedAt', 'updatedByUserId'] as const
+  $columns = PlatformTemplateCatalogSchema.$columns
+  @column()
+  declare bodyText: string
+  @column()
+  declare buttons: any | null
+  @column()
+  declare category: string
+  @column.dateTime()
+  declare createdAt: DateTime
+  @column()
+  declare createdByUserId: string | null
+  @column()
+  declare footerText: string | null
+  @column()
+  declare headerContent: string | null
+  @column()
+  declare headerType: string | null
+  @column({ isPrimary: true })
+  declare id: string
+  @column()
+  declare language: string
+  @column()
+  declare libraryIndustry: string | null
+  @column()
+  declare libraryTemplateName: string | null
+  @column()
+  declare libraryTopic: string | null
+  @column()
+  declare libraryUsecase: string | null
+  @column()
+  declare name: string
+  @column()
+  declare parameterSchema: any | null
+  @column()
+  declare sampleValues: any | null
+  @column()
+  declare slug: string
+  @column()
+  declare sortOrder: number
+  @column()
+  declare source: string
+  @column()
+  declare status: string
   @column.dateTime()
   declare updatedAt: DateTime | null
   @column()

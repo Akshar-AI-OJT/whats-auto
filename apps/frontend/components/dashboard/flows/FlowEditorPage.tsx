@@ -19,6 +19,8 @@ import {
   type ConversationFlowSettings,
   type ConversationFlowTriggerType,
   type ConversationFlowValidationError,
+  type PlatformFlowCatalogItem,
+  type PlatformTemplateCatalogItem,
   type UpdateConversationFlowBody,
   type WhatsappMessageTemplate,
 } from '@/lib/api'
@@ -27,6 +29,7 @@ import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { Button } from '@/components/ui/button'
 import { queryKeys } from '@/lib/query-keys'
 import { unwrapTemplateList } from '@/components/dashboard/templates/template-utils'
+import { unwrapPage } from '@/lib/api-unwrap'
 import { FlowCanvas } from './FlowCanvas'
 import { FlowNodeInspector } from './FlowNodeInspector'
 import { FlowSettingsPanel } from './FlowSettingsPanel'
@@ -54,15 +57,23 @@ import {
   type FlowValidationState,
 } from './flow-utils'
 
-export function FlowEditorPage({ flowId }: { flowId: string }) {
+export function FlowEditorPage({
+  flowId,
+  mode = 'tenant',
+}: {
+  flowId: string
+  mode?: 'tenant' | 'catalog'
+}) {
   const t = useTranslations('dashboard.flows')
   const queryClient = useQueryClient()
   const { tenantOrganizationId, permissions, isLoading: orgsLoading } = useOrganizations()
+  const catalogMode = mode === 'catalog'
 
-  const canView = hasPermission(permissions, PERMISSIONS.AUTOMATIONS_VIEW)
-  const canEdit = hasPermission(permissions, PERMISSIONS.AUTOMATIONS_EDIT)
-  const canPublish = hasPermission(permissions, PERMISSIONS.AUTOMATIONS_TOGGLE)
-  const canViewTemplates = hasPermission(permissions, PERMISSIONS.TEMPLATES_VIEW)
+  const canView = catalogMode || hasPermission(permissions, PERMISSIONS.AUTOMATIONS_VIEW)
+  const canEdit = catalogMode || hasPermission(permissions, PERMISSIONS.AUTOMATIONS_EDIT)
+  const canPublish = catalogMode || hasPermission(permissions, PERMISSIONS.AUTOMATIONS_TOGGLE)
+  const canViewTemplates =
+    catalogMode || hasPermission(permissions, PERMISSIONS.TEMPLATES_VIEW)
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -86,27 +97,69 @@ export function FlowEditorPage({ flowId }: { flowId: string }) {
   const editEpochRef = useRef(0)
 
   const detailQuery = useQuery({
-    queryKey: queryKeys.flows.detail(tenantOrganizationId, flowId),
-    enabled: Boolean(tenantOrganizationId) && canView && !orgsLoading,
+    queryKey: catalogMode
+      ? queryKeys.admin.flowCatalogDetail(flowId)
+      : queryKeys.flows.detail(tenantOrganizationId, flowId),
+    enabled: catalogMode
+      ? canView
+      : Boolean(tenantOrganizationId) && canView && !orgsLoading,
     queryFn: async () => {
+      if (catalogMode) {
+        const { data } = await api.superAdmin.flowCatalog.get(flowId)
+        return unwrapFlow(data)
+      }
       const { data } = await api.flows.get(flowId)
       return unwrapFlow(data)
     },
   })
 
   const templatesQuery = useQuery({
-    queryKey: [...queryKeys.templates.all, 'flow-editor', tenantOrganizationId],
-    enabled: Boolean(tenantOrganizationId) && canViewTemplates && !orgsLoading,
+    queryKey: catalogMode
+      ? queryKeys.admin.templateCatalog({ perPage: 100, status: 'PUBLISHED' })
+      : [...queryKeys.templates.all, 'flow-editor', tenantOrganizationId],
+    enabled: catalogMode
+      ? canView
+      : Boolean(tenantOrganizationId) && canViewTemplates && !orgsLoading,
     queryFn: async () => {
+      if (catalogMode) {
+        const { data } = await api.superAdmin.templateCatalog.list({
+          perPage: 100,
+          status: 'PUBLISHED',
+        })
+        return unwrapPage<PlatformTemplateCatalogItem>(data).items.map(
+          (item) =>
+            ({
+              id: item.id,
+              name: item.name,
+              category: item.category,
+              language: item.language,
+              bodyText: item.bodyText,
+              status: 'approved',
+              headerType: item.headerType,
+              headerContent: item.headerContent,
+              footerText: item.footerText,
+              buttons: item.buttons,
+            }) as WhatsappMessageTemplate
+        )
+      }
       const { data } = await api.whatsapp.listTemplates({ perPage: 100, status: 'approved' })
       return unwrapTemplateList(data).items
     },
   })
 
   const publishedFlowsQuery = useQuery({
-    queryKey: queryKeys.flows.list(tenantOrganizationId, { status: 'PUBLISHED', perPage: 100 }),
-    enabled: Boolean(tenantOrganizationId) && canView && !orgsLoading,
+    queryKey: catalogMode
+      ? queryKeys.admin.flowCatalog({ status: 'PUBLISHED', perPage: 100 })
+      : queryKeys.flows.list(tenantOrganizationId, { status: 'PUBLISHED', perPage: 100 }),
+    enabled: catalogMode ? canView : Boolean(tenantOrganizationId) && canView && !orgsLoading,
     queryFn: async () => {
+      if (catalogMode) {
+        const { data } = await api.superAdmin.flowCatalog.list({
+          status: 'PUBLISHED',
+          perPage: 100,
+        })
+        return unwrapPage<PlatformFlowCatalogItem>(data).items.filter((flow) => flow.id !== flowId)
+      }
       const { data } = await api.flows.list({ status: 'PUBLISHED', perPage: 100 })
       return unwrapFlowList(data).items.filter((flow) => flow.id !== flowId)
     },
@@ -348,7 +401,9 @@ export function FlowEditorPage({ flowId }: { flowId: string }) {
   const saveMutation = useMutation({
     mutationFn: async () => {
       const epoch = editEpochRef.current
-      const { data } = await api.flows.update(flowId, buildBody())
+      const { data } = catalogMode
+        ? await api.superAdmin.flowCatalog.update(flowId, buildBody())
+        : await api.flows.update(flowId, buildBody())
       return { flow: unwrapFlow(data), epoch }
     },
     onSuccess: async ({ flow, epoch }) => {
@@ -364,11 +419,18 @@ export function FlowEditorPage({ flowId }: { flowId: string }) {
         setActionError(hydrated.state === 'invalid' ? t('errors.publishInvalid') : null)
         const nextKey = `${flow.updatedAt}:${flow.version?.id ?? 'none'}`
         setHydratedKey(nextKey)
-        queryClient.setQueryData(queryKeys.flows.detail(tenantOrganizationId, flowId), flow)
+        queryClient.setQueryData(
+          catalogMode
+            ? queryKeys.admin.flowCatalogDetail(flowId)
+            : queryKeys.flows.detail(tenantOrganizationId, flowId),
+          flow
+        )
       } else {
         setActionError(null)
       }
-      await queryClient.invalidateQueries({ queryKey: queryKeys.flows.all })
+      await queryClient.invalidateQueries({
+        queryKey: catalogMode ? ['admin', 'flow-catalog'] : queryKeys.flows.all,
+      })
     },
     onError: (err) => {
       setActionError((err as unknown as ApiError).message || t('editor.errors.saveFailed'))
@@ -377,7 +439,9 @@ export function FlowEditorPage({ flowId }: { flowId: string }) {
 
   const validateMutation = useMutation({
     mutationFn: async () => {
-      const { data } = await api.flows.validate(flowId, buildBody())
+      const { data } = catalogMode
+        ? await api.superAdmin.flowCatalog.validate(flowId, buildBody())
+        : await api.flows.validate(flowId, buildBody())
       return unwrapFlowValidate(data)
     },
     onSuccess: (result) => {
@@ -392,13 +456,17 @@ export function FlowEditorPage({ flowId }: { flowId: string }) {
     mutationFn: async () => {
       const epoch = editEpochRef.current
       if (dirty) {
-        const { data } = await api.flows.update(flowId, buildBody())
+        const { data } = catalogMode
+          ? await api.superAdmin.flowCatalog.update(flowId, buildBody())
+          : await api.flows.update(flowId, buildBody())
         unwrapFlow(data)
       }
       if (epoch !== editEpochRef.current) {
         throw new Error(t('editor.errors.saveFailed'))
       }
-      const { data: validateData } = await api.flows.validate(flowId)
+      const { data: validateData } = catalogMode
+        ? await api.superAdmin.flowCatalog.validate(flowId)
+        : await api.flows.validate(flowId)
       const result = unwrapFlowValidate(validateData)
       if (!result.valid) {
         const error = new Error(t('errors.publishInvalid')) as Error & {
@@ -407,7 +475,9 @@ export function FlowEditorPage({ flowId }: { flowId: string }) {
         error.validationErrors = result.errors
         throw error
       }
-      const { data } = await api.flows.publish(flowId)
+      const { data } = catalogMode
+        ? await api.superAdmin.flowCatalog.publish(flowId)
+        : await api.flows.publish(flowId)
       return { flow: unwrapFlow(data), epoch }
     },
     onSuccess: async ({ flow, epoch }) => {
@@ -421,9 +491,16 @@ export function FlowEditorPage({ flowId }: { flowId: string }) {
         setStatus(flow.status)
         const nextKey = `${flow.updatedAt}:${flow.version?.id ?? 'none'}`
         setHydratedKey(nextKey)
-        queryClient.setQueryData(queryKeys.flows.detail(tenantOrganizationId, flowId), flow)
+        queryClient.setQueryData(
+          catalogMode
+            ? queryKeys.admin.flowCatalogDetail(flowId)
+            : queryKeys.flows.detail(tenantOrganizationId, flowId),
+          flow
+        )
       }
-      await queryClient.invalidateQueries({ queryKey: queryKeys.flows.all })
+      await queryClient.invalidateQueries({
+        queryKey: catalogMode ? ['admin', 'flow-catalog'] : queryKeys.flows.all,
+      })
     },
     onError: (err) => {
       const withErrors = err as { validationErrors?: ConversationFlowValidationError[] }
@@ -467,7 +544,7 @@ export function FlowEditorPage({ flowId }: { flowId: string }) {
     markDirty()
   }
 
-  if (orgsLoading || detailQuery.isLoading) {
+  if ((!catalogMode && orgsLoading) || detailQuery.isLoading) {
     return (
       <div className="flex items-center justify-center gap-2 p-16 text-mute">
         <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -510,6 +587,7 @@ export function FlowEditorPage({ flowId }: { flowId: string }) {
         validating={validateMutation.isPending}
         publishing={publishMutation.isPending}
         settingsOpen={settingsOpen}
+        backHref={catalogMode ? '/admin/flow-catalog' : '/dashboard/flows'}
         onNameChange={(value) => {
           setName(value)
           markDirty()

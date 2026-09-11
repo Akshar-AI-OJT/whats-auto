@@ -362,6 +362,65 @@ export async function protectedBlobRequest(
   return { blob: await response.blob(), response }
 }
 
+async function protectedJsonOnce<T>(path: string, init: RequestInit): Promise<{ data: T; response: Response }> {
+  const headers = new Headers(init.headers)
+  const token = await getValidAccessToken()
+  headers.set('Authorization', `Bearer ${token}`)
+  if (init.body && !headers.has('Content-Type') && !(init.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json')
+  }
+  if (!headers.has('Accept')) headers.set('Accept', 'application/json')
+
+  const response = await fetch(`${tuyauBaseUrl().replace(/\/$/, '')}${path}`, {
+    ...init,
+    headers,
+    credentials: 'include',
+  })
+
+  applyAuthTokenHeaders(response)
+
+  if (!response.ok) {
+    throw await parseResponseError(response)
+  }
+
+  if (response.status === 204) {
+    return { data: undefined as T, response }
+  }
+
+  const text = await response.text()
+  const data = (text ? (tryParseJson(text) ?? text) : undefined) as T
+  return { data, response }
+}
+
+/**
+ * JSON + Bearer for routes not yet in the Tuyau registry.
+ * Retries once on stale/missing access tokens, same as the Tuyau client.
+ */
+export async function protectedJsonRequest<T>(
+  path: string,
+  init: RequestInit = {}
+): Promise<{ data: T; response: Response }> {
+  try {
+    return await protectedJsonOnce<T>(path, init)
+  } catch (error) {
+    const apiError = error as ApiError
+    if (isTokenAuthError(apiError)) {
+      try {
+        clearAccessToken()
+        await forceRemintAccessToken()
+        return await protectedJsonOnce<T>(path, init)
+      } catch {
+        clearAccessToken()
+        await refreshSessionCookieBootstrap()
+        throw apiError
+      }
+    }
+    if (isOrgPaymentRequired(apiError)) redirectToOnboardingPlan()
+    if (isOrgWhatsappRequired(apiError)) redirectToWhatsappConnect()
+    throw error
+  }
+}
+
 /** Drop unset query keys the old URLSearchParams builders omitted. */
 export function definedQuery<T extends Record<string, unknown>>(query: T): Partial<T> {
   const next: Record<string, unknown> = {}

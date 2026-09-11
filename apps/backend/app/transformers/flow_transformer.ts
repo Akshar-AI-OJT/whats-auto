@@ -15,6 +15,7 @@ export type FlowSummaryResponse = {
   isDefault: boolean
   triggerType: string
   publishedVersionId: string | null
+  catalogFlowId: string | null
   createdAt: string
   updatedAt: string | null
 }
@@ -47,6 +48,7 @@ export function transformFlowSummary(row: FlowRow): FlowSummaryResponse {
     isDefault: row.isDefault,
     triggerType: row.triggerType,
     publishedVersionId: row.publishedVersionId,
+    catalogFlowId: row.catalogFlowId,
     createdAt: toIso(row.createdAt),
     updatedAt: row.updatedAt ? toIso(row.updatedAt) : null,
   }

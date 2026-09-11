@@ -209,4 +209,41 @@ test.group('flow graph validator', () => {
     assert.include(codes(errors), 'MISSING_REQUIRED_FIELD')
     assert.isTrue(errors.some((error) => error.message?.includes('section requires a title')))
   })
+
+  test('catalog mode requires published catalog template ids', ({ assert }) => {
+    const templateId = randomUUID()
+    const graph: FlowGraph = {
+      nodes: [
+        { id: 'trigger', type: 'TRIGGER', data: { label: 'Start' } },
+        {
+          id: 'tpl',
+          type: 'TEMPLATE',
+          data: { messageTemplateId: templateId },
+        },
+        { id: 'exit', type: 'EXIT', data: { label: 'Done' } },
+      ],
+      edges: [
+        { id: 'e1', source: 'trigger', target: 'tpl' },
+        { id: 'e2', source: 'tpl', target: 'exit' },
+      ],
+    }
+    assert.include(
+      codes(
+        validateFlowGraph(graph, {
+          catalogMode: true,
+          publishedCatalogTemplateIds: new Set(),
+        })
+      ),
+      'TEMPLATE_NOT_IN_CATALOG'
+    )
+    assert.notInclude(
+      codes(
+        validateFlowGraph(graph, {
+          catalogMode: true,
+          publishedCatalogTemplateIds: new Set([templateId]),
+        })
+      ),
+      'TEMPLATE_NOT_IN_CATALOG'
+    )
+  })
 })

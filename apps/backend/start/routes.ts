@@ -38,6 +38,12 @@ const SuperAdminPlatformUsersController = () =>
   import('#controllers/super_admin_platform_users_controller')
 const SuperAdminSearchController = () => import('#controllers/super_admin_search_controller')
 const SuperAdminAnalyticsController = () => import('#controllers/super_admin_analytics_controller')
+const SuperAdminTemplateCatalogController = () =>
+  import('#controllers/super_admin_template_catalog_controller')
+const SuperAdminFlowCatalogController = () =>
+  import('#controllers/super_admin_flow_catalog_controller')
+const TemplateCatalogController = () => import('#controllers/template_catalog_controller')
+const FlowCatalogController = () => import('#controllers/flow_catalog_controller')
 const AnalyticsController = () => import('#controllers/analytics_controller')
 const GlobalSearchController = () => import('#controllers/global_search_controller')
 const OrganizationAdminUsersController = () =>
@@ -253,6 +259,80 @@ const requestBodySchemas: Record<string, JsonSchema> = {
     defaultTimezone: { type: 'string', example: 'Asia/Kolkata' },
     dataRetentionDays: { type: 'integer', example: 180 },
     apiRateLimitPerMinute: { type: 'integer', example: 1000 },
+  }),
+  'post /api/v1/super-admin/template-catalog': bodySchema(
+    {
+      name: { type: 'string', example: 'order_update' },
+      category: { type: 'string', example: 'UTILITY' },
+      language: { type: 'string', example: 'en_US' },
+      headerType: { type: 'string', example: 'NONE' },
+      headerContent: { type: 'string', example: 'Order update' },
+      bodyText: { type: 'string', example: 'Your order {{1}} is confirmed.' },
+      footerText: { type: 'string', example: 'Thank you' },
+      slug: { type: 'string', example: 'order_update_en' },
+    },
+    ['name', 'category', 'language', 'bodyText']
+  ),
+  'post /api/v1/super-admin/template-catalog/import': bodySchema(
+    {
+      items: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            name: { type: 'string', example: 'order_management_1' },
+            language: { type: 'string', example: 'en_US' },
+            category: { type: 'string', example: 'UTILITY' },
+            body: { type: 'string', example: 'Your order {{1}} is confirmed.' },
+            industry: { type: 'string', example: 'E_COMMERCE' },
+            topic: { type: 'string', example: 'ORDER_MANAGEMENT' },
+          },
+        },
+      },
+    },
+    ['items']
+  ),
+  'patch /api/v1/super-admin/template-catalog/{id}': bodySchema({
+    name: { type: 'string', example: 'order_update' },
+    category: { type: 'string', example: 'UTILITY' },
+    language: { type: 'string', example: 'en_US' },
+    bodyText: { type: 'string', example: 'Your order {{1}} is confirmed.' },
+    sortOrder: { type: 'integer', example: 0 },
+  }),
+  'post /api/v1/super-admin/flow-catalog': bodySchema(
+    {
+      name: { type: 'string', example: 'Welcome catalog flow' },
+      description: { type: 'string', example: 'Keyword welcome menu', nullable: true },
+      triggerType: {
+        type: 'string',
+        example: 'KEYWORD',
+        enum: ['KEYWORD', 'INBOUND_ANY', 'CAMPAIGN_REPLY', 'SUBFLOW_ENTRY'],
+      },
+      triggerConfig: {
+        type: 'object',
+        example: { keywords: ['hi', 'hello'], matchType: 'exact' },
+      },
+      extraRequiredFeatureKeys: {
+        type: 'array',
+        items: { type: 'string', example: 'flowAdvancedNodes' },
+      },
+    },
+    ['name']
+  ),
+  'patch /api/v1/super-admin/flow-catalog/{id}': bodySchema({
+    name: { type: 'string', example: 'Welcome catalog flow v2' },
+    description: { type: 'string', example: 'Updated welcome menu', nullable: true },
+    triggerType: { type: 'string', example: 'KEYWORD' },
+    extraRequiredFeatureKeys: {
+      type: 'array',
+      items: { type: 'string' },
+    },
+    nodes: { type: 'array', items: { type: 'object' } },
+    edges: { type: 'array', items: { type: 'object' } },
+  }),
+  'post /api/v1/super-admin/flow-catalog/{id}/validate': bodySchema({
+    nodes: { type: 'array', items: { type: 'object' } },
+    edges: { type: 'array', items: { type: 'object' } },
   }),
   'patch /api/v1/super-admin/ai-config': bodySchema({
     isEnabled: { type: 'boolean', example: true },
@@ -783,6 +863,22 @@ router
 
 router
   .group(() => {
+    router.get('/', [TemplateCatalogController, 'index'])
+    router.post('/:id/install', [TemplateCatalogController, 'install'])
+  })
+  .prefix('/api/v1/template-catalog')
+  .use([middleware.jwtAuth(), middleware.tenant()])
+
+router
+  .group(() => {
+    router.get('/', [FlowCatalogController, 'index'])
+    router.post('/:id/install', [FlowCatalogController, 'install'])
+  })
+  .prefix('/api/v1/flow-catalog')
+  .use([middleware.jwtAuth(), middleware.tenant()])
+
+router
+  .group(() => {
     router
       .post('pre-signup', [PreSignupController, 'handle'])
       .use(middleware.rateLimit({ max: 5, windowMs: 15 * 60 * 1000, name: 'pre-signup' }))
@@ -836,6 +932,23 @@ router
 
     router.get('/platform-settings', [SuperAdminPlatformSettingsController, 'show'])
     router.patch('/platform-settings', [SuperAdminPlatformSettingsController, 'update'])
+
+    router.get('/template-library', [SuperAdminTemplateCatalogController, 'indexLibrary'])
+    router.get('/template-catalog', [SuperAdminTemplateCatalogController, 'index'])
+    router.post('/template-catalog/import', [SuperAdminTemplateCatalogController, 'importItems'])
+    router.post('/template-catalog', [SuperAdminTemplateCatalogController, 'store'])
+    router.get('/template-catalog/:id', [SuperAdminTemplateCatalogController, 'show'])
+    router.patch('/template-catalog/:id', [SuperAdminTemplateCatalogController, 'update'])
+    router.post('/template-catalog/:id/publish', [SuperAdminTemplateCatalogController, 'publish'])
+    router.delete('/template-catalog/:id', [SuperAdminTemplateCatalogController, 'destroy'])
+
+    router.get('/flow-catalog', [SuperAdminFlowCatalogController, 'index'])
+    router.post('/flow-catalog', [SuperAdminFlowCatalogController, 'store'])
+    router.get('/flow-catalog/:id', [SuperAdminFlowCatalogController, 'show'])
+    router.patch('/flow-catalog/:id', [SuperAdminFlowCatalogController, 'update'])
+    router.post('/flow-catalog/:id/validate', [SuperAdminFlowCatalogController, 'validate'])
+    router.post('/flow-catalog/:id/publish', [SuperAdminFlowCatalogController, 'publish'])
+    router.delete('/flow-catalog/:id', [SuperAdminFlowCatalogController, 'destroy'])
     router.get('/ai-config', [SuperAdminAiConfigController, 'show'])
     router.patch('/ai-config', [SuperAdminAiConfigController, 'update'])
     router.get('/audit-logs', [SuperAdminAuditController, 'index'])

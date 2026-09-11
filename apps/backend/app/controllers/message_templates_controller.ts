@@ -55,12 +55,13 @@ export default class MessageTemplatesController {
       data: params,
     })
 
+    const organizationId = request.activeMember?.organizationId ?? request.activeOrganizationId!
     await bouncer.with(MessageTemplatePolicy).authorize('view', {
-      organizationId: request.activeMember?.organizationId ?? request.activeOrganizationId!,
+      organizationId,
       id,
     })
 
-    const template = await new MessageTemplateService().getTemplateById(id)
+    const template = await new MessageTemplateService().getTemplateById(id, organizationId)
     return serialize(template)
   }
 
