@@ -16,6 +16,7 @@ const nextConfig: NextConfig = {
   /** Self-contained Node server for Docker / Contabo (disabled on Vercel     
   serverless). */
   output: process.env.VERCEL ? undefined : 'standalone',
+  transpilePackages: ['backend'],
   async rewrites() {
     return [
       {

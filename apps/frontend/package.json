@@ -8,10 +8,11 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "node ./scripts/prepare-tuyau-types.mjs && tsc --noEmit"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",
+    "backend": "workspace:*",
     "@tanstack/react-query": "^5.101.4",
     "@tuyau/core": "^1.2.2",
     "@xyflow/react": "^12.11.3",
