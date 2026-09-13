@@ -43,6 +43,7 @@ export function mapConversationStatus(status: string): ConversationStatus {
 export function mapCampaignCardStatus(status: string): CampaignStatus {
   const normalized = status.toLowerCase()
   if (normalized === 'scheduled') return 'scheduled'
+  if (normalized === 'sending') return 'sending'
   if (normalized === 'draft') return 'draft'
   return 'sent'
 }

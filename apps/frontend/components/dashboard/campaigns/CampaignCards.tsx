@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import { Megaphone, MoreVertical } from 'lucide-react'
 import type { Campaign } from '@/lib/api'
 import { CampaignStatusBadge } from './CampaignStatusBadge'
+import { useOrgTimeZone } from '@/hooks/use-org-timezone'
 import { formatCampaignDate, ratePercent } from './campaign-utils'
 
 export {
@@ -180,6 +181,7 @@ export function CampaignCards({
   onDelete,
 }: CampaignCardsProps) {
   const t = useTranslations('dashboard.campaigns')
+  const timeZone = useOrgTimeZone()
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -264,7 +266,7 @@ export function CampaignCards({
             <div className="mt-4 flex items-center justify-between gap-2 border-t border-dash-border pt-3">
               <CampaignStatusBadge status={campaign.status} />
               <p className="text-xs text-mute">
-                {formatCampaignDate(campaign.scheduledAt ?? campaign.createdAt)}
+                {formatCampaignDate(campaign.scheduledAt ?? campaign.createdAt, timeZone)}
               </p>
             </div>
           </article>

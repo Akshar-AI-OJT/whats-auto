@@ -1,10 +1,6 @@
 import { test } from '@japa/runner'
 import db from '@adonisjs/lucid/services/db'
-import {
-  PLATFORM_PERMISSIONS,
-  PRODUCT_PERMISSIONS,
-  type Permission,
-} from '#abilities/permissions'
+import { PLATFORM_PERMISSIONS, PRODUCT_PERMISSIONS, type Permission } from '#abilities/permissions'
 import { DEMO_PASSWORD, DEMO_USERS } from '#database/demo/credentials'
 import { FIXTURE_IDS } from '#database/demo/fixture_ids'
 import DemoSeeder from '#database/seeders/demo_seeder'
@@ -15,7 +11,12 @@ import { AccessTokenClaimsService } from '#services/access_token_claims_service'
 import { AuthorizationService } from '#services/authorization_service'
 
 async function globalRoleId(name: string): Promise<string> {
-  const row = await db.from('roles').whereNull('organizationId').where('name', name).select('id').first()
+  const row = await db
+    .from('roles')
+    .whereNull('organizationId')
+    .where('name', name)
+    .select('id')
+    .first()
   if (!row?.id) throw new Error(`Missing global role ${name}`)
   return row.id as string
 }
@@ -64,7 +65,9 @@ test.group('immutable owner/superadmin RBAC', (group) => {
     }, /immutable role/)
   })
 
-  test('DB rejects role_permissions delete for superadmin without seeder GUC', async ({ assert }) => {
+  test('DB rejects role_permissions delete for superadmin without seeder GUC', async ({
+    assert,
+  }) => {
     const superadminRoleId = await globalRoleId('superadmin')
     const existing = await db
       .from('role_permissions')

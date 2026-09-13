@@ -60,6 +60,22 @@ export default class SuperAdminPolicy extends BasePolicy {
     return user.memberPermissions?.has('platform:config_manage') ?? false
   }
 
+  viewTemplateCatalog(user: AuthzPrincipal): boolean {
+    return this.viewPlatformSettings(user)
+  }
+
+  manageTemplateCatalog(user: AuthzPrincipal): boolean {
+    return this.managePlatformSettings(user)
+  }
+
+  viewFlowCatalog(user: AuthzPrincipal): boolean {
+    return this.viewPlatformSettings(user)
+  }
+
+  manageFlowCatalog(user: AuthzPrincipal): boolean {
+    return this.managePlatformSettings(user)
+  }
+
   viewAuditLogs(user: AuthzPrincipal): boolean {
     return user.memberPermissions?.has('platform:audit_view') ?? false
   }

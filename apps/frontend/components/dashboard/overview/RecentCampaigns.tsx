@@ -3,6 +3,7 @@
 import { Megaphone } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
+import { useOrgTimeZone } from '@/hooks/use-org-timezone'
 import { formatCampaignDate } from '@/components/dashboard/campaigns/campaign-utils'
 import { DashboardPanel } from '../ui/DashboardPanel'
 import { DashboardSectionHeader } from '../ui/DashboardSectionHeader'
@@ -21,6 +22,7 @@ export function RecentCampaigns() {
   const router = useRouter()
   const { campaigns, campaignsLoading, campaignsError, refetchCampaigns, orgsLoading } =
     useDashboardOverview()
+  const timeZone = useOrgTimeZone()
 
   const loading = campaignsLoading || orgsLoading
 
@@ -59,7 +61,7 @@ export function RecentCampaigns() {
                 name={campaign.name}
                 status={cardStatus}
                 statusLabel={statusLabel}
-                when={formatCampaignDate(campaign.scheduledAt ?? campaign.createdAt)}
+                when={formatCampaignDate(campaign.scheduledAt ?? campaign.createdAt, timeZone)}
                 sentLabel={t('campaigns.sent')}
                 deliveredLabel={t('campaigns.delivered')}
                 progressLabel={progressLabel}

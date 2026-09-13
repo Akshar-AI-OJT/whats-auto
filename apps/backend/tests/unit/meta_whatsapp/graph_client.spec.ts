@@ -487,4 +487,65 @@ test.group('HttpMetaGraphClient', () => {
       '4::handle',
     ])
   })
+
+  test('listMessageTemplateLibrary hits /message_template_library', async ({ assert }) => {
+    let seenUrl = ''
+    const fetchImpl: typeof fetch = async (input) => {
+      seenUrl = String(input)
+      return new Response(JSON.stringify({ data: [{ name: 'order_1', language: 'en_US' }] }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const client = new HttpMetaGraphClient({
+      appId: 'app',
+      appSecret: 'secret',
+      graphVersion: 'v25.0',
+      fetchImpl,
+    })
+
+    const result = await client.listMessageTemplateLibrary({
+      accessToken: 'sys-tok',
+      industry: 'E_COMMERCE',
+      language: 'en_US',
+    })
+
+    assert.include(seenUrl, '/v25.0/message_template_library')
+    assert.include(seenUrl, 'industry=E_COMMERCE')
+    assert.equal(result.data[0].name, 'order_1')
+  })
+
+  test('createMessageTemplateFromLibrary posts library_template_name', async ({ assert }) => {
+    let seenUrl = ''
+    let seenBody: Record<string, unknown> = {}
+    const fetchImpl: typeof fetch = async (input, init) => {
+      seenUrl = String(input)
+      seenBody = JSON.parse(String(init?.body)) as Record<string, unknown>
+      return new Response(JSON.stringify({ id: 'tmpl-lib-1', status: 'PENDING' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
+    const client = new HttpMetaGraphClient({
+      appId: 'app',
+      appSecret: 'secret',
+      graphVersion: 'v25.0',
+      fetchImpl,
+    })
+
+    await client.createMessageTemplateFromLibrary({
+      wabaId: 'waba-9',
+      accessToken: 'tok',
+      name: 'order_update',
+      language: 'en_US',
+      category: 'UTILITY',
+      libraryTemplateName: 'order_management_1',
+    })
+
+    assert.include(seenUrl, '/v25.0/waba-9/message_templates')
+    assert.equal(seenBody.library_template_name, 'order_management_1')
+    assert.equal(seenBody.name, 'order_update')
+  })
 })

@@ -706,6 +706,7 @@ export type WhatsappMessageTemplate = {
   parameterSchema?: WhatsappTemplateParameterSchema | null
   status: WhatsappTemplateStatus
   metaTemplateId?: string | null
+  catalogTemplateId?: string | null
   rejectionReason?: string | null
   qualityScore?: string | null
   submissionError?: string | null
@@ -1408,6 +1409,7 @@ export type ConversationFlow = {
   isDefault: boolean
   triggerType: ConversationFlowTriggerType | string
   publishedVersionId: string | null
+  catalogFlowId?: string | null
   createdAt: string
   updatedAt: string | null
   triggerConfig?: ConversationFlowTriggerConfig
@@ -1456,6 +1458,113 @@ export type UpdateConversationFlowBody = {
 export type ConversationFlowValidateResult = {
   valid: boolean
   errors: ConversationFlowValidationError[]
+}
+
+export type CatalogTemplateStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
+export type CatalogTemplateSource = 'META_LIBRARY' | 'MANUAL'
+
+export type PlatformTemplateCatalogItem = {
+  id: string
+  slug: string
+  name: string
+  category: string
+  language: string
+  headerType: string | null
+  headerContent: string | null
+  bodyText: string
+  footerText: string | null
+  buttons: unknown
+  sampleValues: unknown
+  parameterSchema: unknown
+  libraryTemplateName: string | null
+  libraryTopic: string | null
+  libraryUsecase: string | null
+  libraryIndustry: string | null
+  source: CatalogTemplateSource | string
+  status: CatalogTemplateStatus | string
+  sortOrder: number
+  createdAt: string
+  updatedAt: string | null
+}
+
+export type ListPlatformTemplateCatalogParams = {
+  page?: number
+  perPage?: number
+  search?: string
+  category?: string
+  language?: string
+  industry?: string
+  topic?: string
+  status?: CatalogTemplateStatus | string
+  source?: CatalogTemplateSource | string
+}
+
+export type MetaTemplateLibraryItem = {
+  id?: string
+  name?: string
+  language?: string
+  category?: string
+  topic?: string
+  usecase?: string
+  industry?: string
+  header?: string
+  body?: string
+  footer?: string
+  buttons?: Array<Record<string, unknown>>
+  components?: unknown[]
+}
+
+export type MetaTemplateLibraryList = {
+  data: MetaTemplateLibraryItem[]
+  paging?: { cursors?: { before?: string; after?: string }; next?: string }
+}
+
+export type CreatePlatformTemplateCatalogBody = {
+  name: string
+  category: string
+  language: string
+  headerType?: string
+  headerContent?: string
+  bodyText: string
+  footerText?: string
+  buttons?: unknown[]
+  sampleValues?: unknown
+  slug?: string
+}
+
+export type PlatformFlowCatalogItem = {
+  id: string
+  slug: string
+  name: string
+  description: string | null
+  status: CatalogTemplateStatus | string
+  triggerType: ConversationFlowTriggerType | string
+  publishedVersionId: string | null
+  requiredFeatureKeys: string[]
+  extraRequiredFeatureKeys: string[]
+  sortOrder: number
+  createdAt: string
+  updatedAt: string | null
+  triggerConfig?: ConversationFlowTriggerConfig
+  settings?: ConversationFlowSettings
+  createdByUserId?: string | null
+  version?: ConversationFlow['version']
+}
+
+export type ListPlatformFlowCatalogParams = {
+  page?: number
+  perPage?: number
+  search?: string
+  status?: CatalogTemplateStatus | string
+}
+
+export type CreatePlatformFlowCatalogBody = {
+  name: string
+  description?: string | null
+  triggerType?: ConversationFlowTriggerType
+  triggerConfig?: ConversationFlowTriggerConfig
+  settings?: Partial<ConversationFlowSettings>
+  extraRequiredFeatureKeys?: string[]
 }
 
 export type UpdateSuperAdminSubscriptionBody = {

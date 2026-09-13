@@ -11,6 +11,7 @@ import JobQueueManager from '#services/job_queue/job_queue_manager'
 import { JOB_NAMES } from '#services/job_queue/job_names'
 import { CampaignService } from '#services/campaign_service'
 import { CampaignExecutionService } from '#services/campaign_execution_service'
+import { CampaignRecipientDispatchService } from '#services/campaigns/campaign_recipient_dispatch_service'
 import WhatsappOutboundService from '#services/whatsapp_outbound_service'
 import { runWithTenant } from '#services/tenant_context'
 
@@ -239,8 +240,34 @@ test.group('CampaignExecutionService', (group) => {
       campaignId: campaign.id,
     })
     assert.equal(result.claimed, 1)
-    assert.equal(result.remaining, 0)
-    assert.isTrue(result.finalized)
+    assert.equal(result.remaining, 1)
+    assert.isFalse(result.finalized)
+
+    await runWithTenant(organizationId, async () => {
+      const row = await db.from('broadcasts').where('id', campaign.id).first()
+      const recipient = await db
+        .from('broadcast_recipients')
+        .where('broadcastId', campaign.id)
+        .first()
+      assert.equal(row.status, 'sending')
+      assert.isNull(row.finalizedAt)
+      assert.equal(recipient.status, 'queued')
+      assert.isNotNull(recipient.messageId)
+
+      await new CampaignRecipientDispatchService().applyProviderReceipt({
+        organizationId,
+        messageId: recipient.messageId as string,
+        status: 'sent',
+        providerStatusAt: new Date(),
+      })
+    })
+
+    const finalized = await execution.executeCampaign({
+      organizationId,
+      campaignId: campaign.id,
+    })
+    assert.equal(finalized.remaining, 0)
+    assert.isTrue(finalized.finalized)
 
     await runWithTenant(organizationId, async () => {
       const row = await db.from('broadcasts').where('id', campaign.id).first()
@@ -250,8 +277,86 @@ test.group('CampaignExecutionService', (group) => {
         .first()
       assert.equal(row.status, 'sent')
       assert.isNotNull(row.finalizedAt)
-      assert.equal(recipient.status, 'queued')
-      assert.isNotNull(recipient.messageId)
+      assert.equal(recipient.status, 'sent')
+    })
+  })
+
+  test('one queue-time failure plus a queued recipient does not finalize as failed', async ({
+    assert,
+  }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const userId = await seedUser()
+    const seeded = await seedTemplateAndConfig(organizationId)
+
+    const secondContactId = await runWithTenant(organizationId, async () => {
+      const phone = `1555${String(Math.floor(Math.random() * 1e7)).padStart(7, '0')}`
+      const [contact] = await db
+        .table('contacts')
+        .insert({
+          organizationId,
+          phone,
+          phoneNormalized: phone,
+          name: 'Second Contact',
+          customFields: {},
+        })
+        .returning(['id'])
+      return contact.id as string
+    })
+
+    const outbound = new WhatsappOutboundService(fakeGraph())
+    let queueCalls = 0
+    const originalQueue = outbound.queueTemplate.bind(outbound)
+    outbound.queueTemplate = (async (
+      params: Parameters<WhatsappOutboundService['queueTemplate']>[0]
+    ) => {
+      queueCalls += 1
+      if (queueCalls === 1) {
+        throw new Error('queue boom')
+      }
+      return originalQueue(params)
+    }) as WhatsappOutboundService['queueTemplate']
+
+    const { campaigns, execution } = makeCampaignServices(outbound)
+
+    const campaign = await campaigns.createCampaign({
+      organizationId,
+      actorUserId: userId,
+      name: 'Partial queue fail',
+      whatsappConfigId: seeded.whatsappConfigId,
+      messageTemplateId: seeded.messageTemplateId,
+    })
+
+    await execution.replaceRecipients({
+      organizationId,
+      campaignId: campaign.id,
+      contactIds: [seeded.contactId, secondContactId],
+    })
+
+    await campaigns.sendCampaign({
+      campaignId: campaign.id,
+      organizationId,
+    })
+
+    const result = await execution.executeCampaign({
+      organizationId,
+      campaignId: campaign.id,
+    })
+    assert.equal(result.claimed, 2)
+    assert.isFalse(result.finalized)
+    assert.isAbove(result.remaining, 0)
+
+    await runWithTenant(organizationId, async () => {
+      const row = await db.from('broadcasts').where('id', campaign.id).first()
+      const recipients = await db
+        .from('broadcast_recipients')
+        .where('broadcastId', campaign.id)
+        .select('status')
+      const statuses = recipients.map((r) => r.status as string).sort()
+      assert.equal(row.status, 'sending')
+      assert.isNull(row.finalizedAt)
+      assert.equal(Number(row.failedCount), 1)
+      assert.includeMembers(statuses, ['failed', 'queued'])
     })
   })
 
@@ -654,15 +759,15 @@ test.group('CampaignExecutionService', (group) => {
       campaignId: campaign.id,
     })
     assert.equal(due.claimed, 1)
-    assert.equal(due.remaining, 0)
-    assert.isTrue(due.finalized)
+    assert.equal(due.remaining, 1)
+    assert.isFalse(due.finalized)
 
     const afterDue = await campaigns.getCampaignById({
       campaignId: campaign.id,
       organizationId,
     })
     assert.notEqual(afterDue.status, 'scheduled')
-    assert.equal(afterDue.status, 'sent')
+    assert.equal(afterDue.status, 'sending')
 
     await runWithTenant(organizationId, async () => {
       const recipient = await db
@@ -671,7 +776,24 @@ test.group('CampaignExecutionService', (group) => {
         .first()
       assert.equal(recipient.status, 'queued')
       assert.isNotNull(recipient.messageId)
+      await new CampaignRecipientDispatchService().applyProviderReceipt({
+        organizationId,
+        messageId: recipient.messageId as string,
+        status: 'sent',
+        providerStatusAt: new Date(),
+      })
     })
+
+    const finalized = await execution.executeCampaign({
+      organizationId,
+      campaignId: campaign.id,
+    })
+    assert.isTrue(finalized.finalized)
+    const sent = await campaigns.getCampaignById({
+      campaignId: campaign.id,
+      organizationId,
+    })
+    assert.equal(sent.status, 'sent')
 
     const outboundAfterDue = driver.enqueued.filter(
       (job) => job.name === JOB_NAMES.WHATSAPP_OUTBOUND_DISPATCH
