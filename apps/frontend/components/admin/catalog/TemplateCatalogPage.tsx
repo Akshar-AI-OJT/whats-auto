@@ -113,7 +113,7 @@ export function TemplateCatalogPage() {
       setActionError(null)
       await queryClient.invalidateQueries({ queryKey: ['admin', 'template-catalog'] })
     },
-    onError: (err) => setActionError((err as ApiError).message),
+    onError: (err) => setActionError((err as unknown as ApiError).message),
   })
 
   const createMutation = useMutation({
@@ -126,7 +126,7 @@ export function TemplateCatalogPage() {
       setManual({ name: '', category: 'UTILITY', language: 'en_US', bodyText: '' })
       await queryClient.invalidateQueries({ queryKey: ['admin', 'template-catalog'] })
     },
-    onError: (err) => setActionError((err as ApiError).message),
+    onError: (err) => setActionError((err as unknown as ApiError).message),
   })
 
   const archiveMutation = useMutation({
@@ -134,7 +134,7 @@ export function TemplateCatalogPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['admin', 'template-catalog'] })
     },
-    onError: (err) => setActionError((err as ApiError).message),
+    onError: (err) => setActionError((err as unknown as ApiError).message),
   })
 
   const publishMutation = useMutation({
@@ -142,13 +142,13 @@ export function TemplateCatalogPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['admin', 'template-catalog'] })
     },
-    onError: (err) => setActionError((err as ApiError).message),
+    onError: (err) => setActionError((err as unknown as ApiError).message),
   })
 
   const libraryMissing =
     tab === 'library' &&
     libraryQuery.isError &&
-    (libraryQuery.error as ApiError)?.code === 'E_TEMPLATE_LIBRARY_TOKEN_MISSING'
+    (libraryQuery.error as unknown as ApiError)?.code === 'E_TEMPLATE_LIBRARY_TOKEN_MISSING'
 
   const libraryItems = libraryQuery.data?.data ?? []
   const savedItems = savedQuery.data?.items ?? []
@@ -213,7 +213,7 @@ export function TemplateCatalogPage() {
             </div>
           ) : libraryQuery.isError ? (
             <p role="alert" className="text-sm text-destructive">
-              {(libraryQuery.error as ApiError).message}
+              {(libraryQuery.error as unknown as ApiError).message}
             </p>
           ) : (
             <div className="space-y-4">

@@ -8,7 +8,8 @@ import {
   MoreHorizontal,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { formatCampaignScheduledAt } from '@/lib/org-datetime'
+import { useOrgTimeZone } from '@/hooks/use-org-timezone'
+import { formatCampaignScheduledAt, formatTimeZoneAbbreviation } from '@/lib/org-datetime'
 
 export type CampaignStatus = 'sent' | 'scheduled' | 'draft'
 
@@ -26,9 +27,9 @@ export type CampaignCardProps = {
   status: CampaignStatus
   statusLabel: string
   when: string
-  /** UTC ISO instant from the API. When set, formatted in UTC. */
+  /** UTC ISO instant from the API. When set, formatted in the organization timezone. */
   scheduledAt?: string | null
-  /** @deprecated Campaign timestamps are always shown in UTC. */
+  /** Organization IANA timezone; falls back to the active org / browser zone. */
   timeZone?: string
   sentLabel: string
   deliveredLabel: string
@@ -83,7 +84,7 @@ export function CampaignCard({
   statusLabel,
   when,
   scheduledAt,
-  timeZone: _timeZone,
+  timeZone,
   sentLabel,
   deliveredLabel,
   progressLabel,
@@ -94,6 +95,8 @@ export function CampaignCard({
   onClick,
   className,
 }: CampaignCardProps) {
+  const orgTimeZone = useOrgTimeZone()
+  const displayTimeZone = timeZone || orgTimeZone
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const menuId = useId()
@@ -105,8 +108,10 @@ export function CampaignCard({
   const whenLabel =
     scheduledAt
       ? (() => {
-          const formatted = formatCampaignScheduledAt(scheduledAt)
-          return formatted ? `${formatted} UTC` : when
+          const formatted = formatCampaignScheduledAt(scheduledAt, displayTimeZone)
+          return formatted
+            ? `${formatted} ${formatTimeZoneAbbreviation(displayTimeZone)}`
+            : when
         })()
       : when
 

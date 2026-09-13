@@ -220,7 +220,10 @@ test.group('Platform template catalog HTTP', (group) => {
       topic: 'ORDER_MANAGEMENT',
     }
 
-    const first = await client.post(`${ADMIN_CATALOG}/import`).json({ items: [item] }).bearerToken(token)
+    const first = await client
+      .post(`${ADMIN_CATALOG}/import`)
+      .json({ items: [item] })
+      .bearerToken(token)
     first.assertStatus(200)
     const second = await client
       .post(`${ADMIN_CATALOG}/import`)
@@ -229,8 +232,9 @@ test.group('Platform template catalog HTTP', (group) => {
     second.assertStatus(200)
 
     const listed = await client.get(ADMIN_CATALOG).qs({ perPage: 100 }).bearerToken(token)
-    const matches = (listed.body().data as Array<{ libraryTemplateName: string; language: string }>)
-      .filter((row) => row.libraryTemplateName === 'order_management_1' && row.language === 'en_US')
+    const matches = (
+      listed.body().data as Array<{ libraryTemplateName: string; language: string }>
+    ).filter((row) => row.libraryTemplateName === 'order_management_1' && row.language === 'en_US')
     assert.equal(matches.length, 1)
   })
 
@@ -297,9 +301,7 @@ test.group('Platform template catalog HTTP', (group) => {
         .bearerToken(token)
       customCreate.assertStatus(403)
 
-      const installed = await client
-        .post(`${ORG_CATALOG}/${catalog.id}/install`)
-        .bearerToken(token)
+      const installed = await client.post(`${ORG_CATALOG}/${catalog.id}/install`).bearerToken(token)
       installed.assertStatus(200)
       assert.equal(installed.body().data.catalogTemplateId, catalog.id)
 

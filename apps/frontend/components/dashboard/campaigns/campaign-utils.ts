@@ -1,6 +1,6 @@
 import type { Campaign, PaginationMeta, WhatsappMessageTemplate } from '@/lib/api'
 import { unwrapList, unwrapPage, unwrapSingle } from '@/lib/api-unwrap'
-import { formatCampaignScheduledAt } from '@/lib/org-datetime'
+import { formatCampaignScheduledAt, formatTimeZoneAbbreviation } from '@/lib/org-datetime'
 
 export type CampaignViewMode = 'cards' | 'list'
 
@@ -38,11 +38,14 @@ export function ratePercent(part: number, total: number): number {
   return Math.round((part / total) * 1000) / 10
 }
 
-/** Format a campaign timestamp in UTC and label it. */
-export function formatCampaignDate(value: string | null | undefined): string {
+/** Format a campaign timestamp in the organization timezone and label it. */
+export function formatCampaignDate(
+  value: string | null | undefined,
+  timeZone?: string | null
+): string {
   if (!value) return '—'
-  const formatted = formatCampaignScheduledAt(value)
-  return formatted ? `${formatted} UTC` : '—'
+  const formatted = formatCampaignScheduledAt(value, timeZone)
+  return formatted ? `${formatted} ${formatTimeZoneAbbreviation(timeZone)}` : '—'
 }
 
 /** Content/audience edits are draft-only; scheduled campaigns must be cancelled first. */

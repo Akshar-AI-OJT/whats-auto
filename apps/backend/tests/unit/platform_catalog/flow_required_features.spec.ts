@@ -1,6 +1,9 @@
 import { test } from '@japa/runner'
 import { FlowNodeType } from '#enums/flow_node_type'
-import { deriveRequiredFeatureKeys, mergeRequiredFeatureKeys } from '#lib/flow/flow_required_features'
+import {
+  deriveRequiredFeatureKeys,
+  mergeRequiredFeatureKeys,
+} from '#lib/flow/flow_required_features'
 import type { FlowGraph } from '#lib/flow/flow_graph'
 
 function graph(types: string[]): FlowGraph {
@@ -30,10 +33,11 @@ test.group('deriveRequiredFeatureKeys', () => {
   })
 
   test('AI_RAG adds flowAdvancedNodes and aiAutonomous', ({ assert }) => {
-    assert.deepEqual(
-      deriveRequiredFeatureKeys(graph([FlowNodeType.AI_RAG])).sort(),
-      ['aiAutonomous', 'flowAdvancedNodes', 'flowBuilder']
-    )
+    assert.deepEqual(deriveRequiredFeatureKeys(graph([FlowNodeType.AI_RAG])).sort(), [
+      'aiAutonomous',
+      'flowAdvancedNodes',
+      'flowBuilder',
+    ])
   })
 
   test('extra keys union with derived and cannot drop them', ({ assert }) => {

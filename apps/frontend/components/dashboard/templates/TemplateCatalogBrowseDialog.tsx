@@ -97,7 +97,7 @@ export function TemplateCatalogBrowseDialog({
       setActionError(null)
       await queryClient.invalidateQueries({ queryKey: queryKeys.templates.all })
     },
-    onError: (err) => setActionError((err as ApiError).message),
+    onError: (err) => setActionError((err as unknown as ApiError).message),
   })
 
   const items = catalogQuery.data?.items ?? []

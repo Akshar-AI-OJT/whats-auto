@@ -82,7 +82,7 @@ export function FlowCatalogBrowseDialog({
       onOpenChange(false)
       if (flow?.id) router.push(`/dashboard/flows/${flow.id}`)
     },
-    onError: (err) => setActionError((err as ApiError).message),
+    onError: (err) => setActionError((err as unknown as ApiError).message),
   })
 
   const items = catalogQuery.data?.items ?? []

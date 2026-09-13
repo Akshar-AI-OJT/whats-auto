@@ -2,6 +2,8 @@ import { Exception } from '@adonisjs/core/exceptions'
 import type { HttpContext } from '@adonisjs/core/http'
 
 export default class PlatformCatalogException extends Exception {
+  graphErrors?: unknown[]
+
   static templateNotFound() {
     return new this('Template catalog item not found', {
       status: 404,
@@ -31,12 +33,12 @@ export default class PlatformCatalogException extends Exception {
   }
 
   static invalidGraph(errors: unknown[]) {
-    const err = new this('Catalog flow graph is invalid', {
+    const error = new this('Catalog flow graph is invalid', {
       status: 422,
       code: 'E_FLOW_CATALOG_INVALID',
     })
-    ;(err as this & { graphErrors: unknown[] }).graphErrors = errors
-    return err
+    error.graphErrors = errors
+    return error
   }
 
   static archived() {
@@ -61,10 +63,7 @@ export default class PlatformCatalogException extends Exception {
   }
 
   handle(error: this, { response }: HttpContext) {
-    const extra =
-      error.code === 'E_FLOW_CATALOG_INVALID' && 'graphErrors' in error
-        ? { errors: (error as this & { graphErrors: unknown[] }).graphErrors }
-        : {}
+    const extra = error.graphErrors ? { errors: error.graphErrors } : {}
     return response.status(error.status).send({
       error: error.message,
       code: error.code,

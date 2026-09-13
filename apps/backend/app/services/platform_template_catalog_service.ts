@@ -33,9 +33,9 @@ export type ManualCatalogCreateInput = {
   category: string
   language: string
   headerType?: string
-  headerContent?: string
+  headerContent?: string | null
   bodyText: string
-  footerText?: string
+  footerText?: string | null
   buttons?: Array<Record<string, unknown>>
   sampleValues?: unknown
   slug?: string

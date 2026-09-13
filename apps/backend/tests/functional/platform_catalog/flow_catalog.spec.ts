@@ -26,7 +26,10 @@ async function mintToken(email: string, activeOrgId?: string): Promise<string> {
   const sessionRow = await db.from('sessions').where('token', result.token).select('id').first()
   if (!sessionRow?.id) throw new Error(`No session row after sign-in for ${email}`)
   if (activeOrgId) {
-    await db.from('sessions').where('id', sessionRow.id).update({ activeOrganizationId: activeOrgId })
+    await db
+      .from('sessions')
+      .where('id', sessionRow.id)
+      .update({ activeOrganizationId: activeOrgId })
   }
   const payload = await new AccessTokenClaimsService().build({
     user: { id: result.user.id, email, name: result.user.name ?? email },
@@ -330,9 +333,9 @@ test.group('Platform flow catalog HTTP', (group) => {
         const token = await mintToken(DEMO_USERS.harborOwner, FIXTURE_IDS.orgs.harbor)
         const response = await client.post(`${ORG}/${parent.row.id}/install`).bearerToken(token)
         response.assertStatus(200)
-        const subNode = response.body().data.version.nodes.find(
-          (node: { id: string }) => node.id === 'sub'
-        )
+        const subNode = response
+          .body()
+          .data.version.nodes.find((node: { id: string }) => node.id === 'sub')
         assert.notEqual(subNode.data.subflowId, child.row.id)
 
         const childClone = await runWithTenant(FIXTURE_IDS.orgs.harbor, () =>
@@ -381,13 +384,13 @@ test.group('Platform flow catalog HTTP', (group) => {
     assert,
   }) => {
     const token = await mintToken(DEMO_USERS.superadmin)
-    const created = await client.post(ADMIN).json({ name: `AI catalog ${Date.now()}` }).bearerToken(token)
+    const created = await client
+      .post(ADMIN)
+      .json({ name: `AI catalog ${Date.now()}` })
+      .bearerToken(token)
     created.assertStatus(200)
     const id = created.body().data.id as string
-    const saved = await client
-      .patch(`${ADMIN}/${id}`)
-      .json(aiGraph())
-      .bearerToken(token)
+    const saved = await client.patch(`${ADMIN}/${id}`).json(aiGraph()).bearerToken(token)
     saved.assertStatus(200)
     assert.includeMembers(saved.body().data.requiredFeatureKeys, [
       'flowBuilder',

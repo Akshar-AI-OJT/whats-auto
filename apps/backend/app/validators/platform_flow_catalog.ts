@@ -75,7 +75,9 @@ export const createPlatformFlowCatalogValidator = vine.create(
     triggerType: vine.enum(FLOW_TRIGGER_TYPES).optional(),
     triggerConfig: flowTriggerConfigSchema.optional(),
     settings: flowSettingsSchema.optional(),
-    extraRequiredFeatureKeys: vine.array(vine.string().trim().minLength(1).maxLength(80)).optional(),
+    extraRequiredFeatureKeys: vine
+      .array(vine.string().trim().minLength(1).maxLength(80))
+      .optional(),
     slug: vine.string().trim().maxLength(80).optional(),
   })
 )
@@ -87,7 +89,9 @@ export const updatePlatformFlowCatalogValidator = vine.create(
     triggerType: vine.enum(FLOW_TRIGGER_TYPES).optional(),
     triggerConfig: flowTriggerConfigSchema.optional(),
     settings: flowSettingsSchema.optional(),
-    extraRequiredFeatureKeys: vine.array(vine.string().trim().minLength(1).maxLength(80)).optional(),
+    extraRequiredFeatureKeys: vine
+      .array(vine.string().trim().minLength(1).maxLength(80))
+      .optional(),
     sortOrder: vine.number().withoutDecimals().optional(),
     nodes: vine.array(flowNodeSchema).optional(),
     edges: vine.array(flowEdgeSchema).optional(),

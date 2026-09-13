@@ -6,9 +6,11 @@ import { Loader2 } from 'lucide-react'
 import type { Campaign, CampaignPreview } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { useOrgTimeZone } from '@/hooks/use-org-timezone'
 import {
   isoInstantToDateTimeLocal,
   isCampaignScheduleInFuture,
+  formatTimeZoneAbbreviation,
 } from '@/lib/org-datetime'
 import {
   Dialog,
@@ -221,17 +223,19 @@ export function CampaignRescheduleDialog({
 }: CampaignRescheduleDialogProps) {
   const t = useTranslations('dashboard.campaigns.reschedule')
   const tForm = useTranslations('dashboard.campaigns.form')
-  const campaignKey = open && campaign ? `${campaign.id}:${campaign.scheduledAt ?? ''}` : ''
+  const timeZone = useOrgTimeZone()
+  const timeZoneLabel = formatTimeZoneAbbreviation(timeZone)
+  const campaignKey = open && campaign ? `${campaign.id}:${campaign.scheduledAt ?? ''}:${timeZone}` : ''
   const [trackedKey, setTrackedKey] = useState(campaignKey)
   const [scheduledAt, setScheduledAt] = useState(() =>
-    isoInstantToDateTimeLocal(campaign?.scheduledAt)
+    isoInstantToDateTimeLocal(campaign?.scheduledAt, timeZone)
   )
   const [localError, setLocalError] = useState<string | null>(null)
 
   if (campaignKey !== trackedKey) {
     setTrackedKey(campaignKey)
     if (campaignKey) {
-      setScheduledAt(isoInstantToDateTimeLocal(campaign?.scheduledAt))
+      setScheduledAt(isoInstantToDateTimeLocal(campaign?.scheduledAt, timeZone))
       setLocalError(null)
     }
   }
@@ -241,7 +245,7 @@ export function CampaignRescheduleDialog({
       setLocalError(tForm('errors.scheduledAtRequired'))
       return
     }
-    if (!isCampaignScheduleInFuture(scheduledAt)) {
+    if (!isCampaignScheduleInFuture(scheduledAt, timeZone)) {
       setLocalError(tForm('errors.scheduledAtFuture'))
       return
     }
@@ -254,12 +258,14 @@ export function CampaignRescheduleDialog({
       <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md" showCloseButton>
         <DialogHeader className="border-b border-dash-border px-5 py-4 text-left sm:px-6">
           <DialogTitle>{t('title')}</DialogTitle>
-          <DialogDescription>{t('body', { name: campaign?.name ?? '' })}</DialogDescription>
+          <DialogDescription>
+            {t('body', { name: campaign?.name ?? '', timeZone: timeZoneLabel })}
+          </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 px-5 py-4 sm:px-6">
           <div className="space-y-1.5">
             <label htmlFor="campaign-reschedule-at" className="text-sm font-medium text-ink">
-              {t('scheduledAt')}
+              {t('scheduledAt', { timeZone: timeZoneLabel })}
             </label>
             <div className="flex items-center gap-2">
               <Input
@@ -272,9 +278,11 @@ export function CampaignRescheduleDialog({
                   setLocalError(null)
                 }}
               />
-              <span className="shrink-0 text-sm font-medium text-mute">{t('utcLabel')}</span>
+              <span className="shrink-0 text-sm font-medium text-mute">
+                {t('utcLabel', { timeZone: timeZoneLabel })}
+              </span>
             </div>
-            <p className="text-xs text-mute">{t('hint')}</p>
+            <p className="text-xs text-mute">{t('hint', { timeZone: timeZoneLabel })}</p>
           </div>
           {localError || error ? (
             <p role="alert" className="text-sm text-negative">

@@ -82,13 +82,16 @@ export class PlatformFlowCatalogRepository {
     return row ? mapCatalogRow(row as Record<string, unknown>) : null
   }
 
-  async list(filters: {
-    page?: number
-    perPage?: number
-    search?: string
-    status?: string
-    publishedOnly?: boolean
-  }, client: DbClient = db) {
+  async list(
+    filters: {
+      page?: number
+      perPage?: number
+      search?: string
+      status?: string
+      publishedOnly?: boolean
+    },
+    client: DbClient = db
+  ) {
     const page = filters.page ?? 1
     const perPage = filters.perPage ?? 20
     let query = client.from('platform_flow_catalog')
@@ -173,7 +176,11 @@ export class PlatformFlowCatalogRepository {
         payload[key] = jsonValue(payload[key])
       }
     }
-    const [row] = await client.from('platform_flow_catalog').where('id', id).update(payload).returning('*')
+    const [row] = await client
+      .from('platform_flow_catalog')
+      .where('id', id)
+      .update(payload)
+      .returning('*')
     return row ? mapCatalogRow(row as Record<string, unknown>) : null
   }
 

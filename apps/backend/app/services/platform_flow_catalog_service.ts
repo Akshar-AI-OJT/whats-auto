@@ -32,10 +32,7 @@ import { PlatformTemplateCatalogRepository } from '#repositories/platform_templa
 import { EntitlementService } from '#services/billing/entitlement_service'
 import { PlatformTemplateCatalogService } from '#services/platform_template_catalog_service'
 import { runWithTenant } from '#services/tenant_context'
-import {
-  transformFlowDetail,
-  type FlowDetailResponse,
-} from '#transformers/flow_transformer'
+import { transformFlowDetail, type FlowDetailResponse } from '#transformers/flow_transformer'
 import {
   transformPlatformFlowCatalogDetail,
   transformPlatformFlowCatalogSummary,
@@ -90,7 +87,9 @@ export class PlatformFlowCatalogService {
   }) {
     const page = params.page ?? 1
     const perPage = params.perPage ?? 20
-    const orgFeatures = new Set(await this.entitlements.listEnabledFeatureKeys(params.organizationId))
+    const orgFeatures = new Set(
+      await this.entitlements.listEnabledFeatureKeys(params.organizationId)
+    )
     const published = await this.catalog.listPublished()
     const visible = published.filter((row) => {
       if (params.search) {
@@ -247,8 +246,7 @@ export class PlatformFlowCatalogService {
           extra
         )
 
-        const shouldFork =
-          row.publishedVersionId !== null && version.id === row.publishedVersionId
+        const shouldFork = row.publishedVersionId !== null && version.id === row.publishedVersionId
 
         if (shouldFork) {
           version = await this.catalog.insertVersion(
@@ -403,7 +401,9 @@ export class PlatformFlowCatalogService {
     organizationId: string
     userId?: string
   }): Promise<FlowDetailResponse> {
-    const orgFeatures = new Set(await this.entitlements.listEnabledFeatureKeys(params.organizationId))
+    const orgFeatures = new Set(
+      await this.entitlements.listEnabledFeatureKeys(params.organizationId)
+    )
     const root = await this.requireRow(params.catalogId)
     if (root.status !== CatalogStatus.PUBLISHED || !this.#orgCanUse(root, orgFeatures)) {
       throw PlatformCatalogException.flowNotFound()
@@ -539,20 +539,18 @@ export class PlatformFlowCatalogService {
       }),
     }
 
-    const flow = await this.flows.insertFlow(
-      {
-        organizationId: params.organizationId,
-        name: catalog.name,
-        description: catalog.description,
-        status: FlowStatus.DRAFT,
-        isDefault: false,
-        triggerType: catalog.triggerType,
-        triggerConfig: parseTriggerConfig(catalog.triggerConfig),
-        settings: parseFlowSettings(catalog.settings),
-        catalogFlowId: catalog.id,
-        createdByUserId: params.userId ?? null,
-      }
-    )
+    const flow = await this.flows.insertFlow({
+      organizationId: params.organizationId,
+      name: catalog.name,
+      description: catalog.description,
+      status: FlowStatus.DRAFT,
+      isDefault: false,
+      triggerType: catalog.triggerType,
+      triggerConfig: parseTriggerConfig(catalog.triggerConfig),
+      settings: parseFlowSettings(catalog.settings),
+      catalogFlowId: catalog.id,
+      createdByUserId: params.userId ?? null,
+    })
 
     const version = await this.flows.insertVersion({
       organizationId: params.organizationId,

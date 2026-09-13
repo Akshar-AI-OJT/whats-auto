@@ -51,7 +51,7 @@ export function FlowCatalogListPage() {
       await queryClient.invalidateQueries({ queryKey: ['admin', 'flow-catalog'] })
       if (flow?.id) router.push(`/admin/flow-catalog/${flow.id}`)
     },
-    onError: (err) => setActionError((err as ApiError).message),
+    onError: (err) => setActionError((err as unknown as ApiError).message),
   })
 
   const archiveMutation = useMutation({
@@ -59,7 +59,7 @@ export function FlowCatalogListPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['admin', 'flow-catalog'] })
     },
-    onError: (err) => setActionError((err as ApiError).message),
+    onError: (err) => setActionError((err as unknown as ApiError).message),
   })
 
   const items = listQuery.data?.items ?? []
