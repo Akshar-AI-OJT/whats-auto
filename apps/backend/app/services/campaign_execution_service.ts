@@ -8,6 +8,7 @@ import { assertApprovedTemplate, assertConnectedWhatsappConfig } from '#services
 import { enqueueCampaignWake } from '#services/campaign_queue'
 import { runWithTenant } from '#services/tenant_context'
 import WhatsappOutboundService from '#services/whatsapp_outbound_service'
+import { CampaignRecipientDispatchService } from '#services/campaigns/campaign_recipient_dispatch_service'
 import { CampaignService, type CampaignDto } from '#services/campaign_service'
 
 const CAMPAIGN_LIBRARY_RETENTION_DAYS = 30
@@ -28,7 +29,8 @@ export class CampaignExecutionService {
     protected campaigns: CampaignService,
     protected outbound: WhatsappOutboundService,
     protected webhookRepo: WhatsappWebhookRepository,
-    protected mediaReferences: MediaAssetReferenceRepository
+    protected mediaReferences: MediaAssetReferenceRepository,
+    protected campaignRecipients: CampaignRecipientDispatchService = new CampaignRecipientDispatchService()
   ) {}
 
   /**
@@ -260,18 +262,22 @@ export class CampaignExecutionService {
         return { claimed, remaining: 0, finalized: true }
       }
 
-      // More work left (should be rare with full claim loop) — re-wake.
-      await enqueueCampaignWake({
-        organizationId: params.organizationId,
-        campaignId: params.campaignId,
-      })
+      const pending = await this.#countClaimableRecipients(params)
+      if (pending > 0) {
+        // More claimable work (SKIP LOCKED contention) — re-wake.
+        await enqueueCampaignWake({
+          organizationId: params.organizationId,
+          campaignId: params.campaignId,
+        })
+      }
 
       return { claimed, remaining, finalized: false }
     })
   }
 
   /**
-   * Recovery: wake overdue scheduled campaigns and in-progress campaigns with pending recipients.
+   * Recovery: wake overdue scheduled campaigns and in-progress sending campaigns.
+   * Sending campaigns recompute denormalized counters before the wake.
    */
   async recoverOverdueCampaigns(params?: {
     organizationId?: string
@@ -319,10 +325,18 @@ export class CampaignExecutionService {
           })
           .orderBy('updatedAt', 'asc')
           .limit(remaining)
-          .select('id')
+          .select('id', 'status')
       })
 
       for (const row of due) {
+        if (row.status === 'sending') {
+          await runWithTenant(organizationId, async () => {
+            await this.campaignRecipients.recomputeCounters({
+              organizationId,
+              campaignId: row.id as string,
+            })
+          })
+        }
         await enqueueCampaignWake({
           organizationId,
           campaignId: row.id as string,
@@ -453,6 +467,20 @@ export class CampaignExecutionService {
   }
 
   async #countPendingRecipients(params: {
+    organizationId: string
+    campaignId: string
+  }): Promise<number> {
+    const row = await db
+      .from('broadcast_recipients')
+      .where('organizationId', params.organizationId)
+      .where('broadcastId', params.campaignId)
+      .whereIn('status', ['pending', 'sending', 'queued'])
+      .count('* as total')
+      .first()
+    return Number(row?.total ?? 0)
+  }
+
+  async #countClaimableRecipients(params: {
     organizationId: string
     campaignId: string
   }): Promise<number> {

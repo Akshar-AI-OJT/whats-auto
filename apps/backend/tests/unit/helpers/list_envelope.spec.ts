@@ -3,10 +3,14 @@ import { assertListEnvelope } from '#tests/helpers/list_envelope'
 
 test.group('assertListEnvelope', () => {
   test('accepts { data: T[], meta }', ({ assert }) => {
-    assertListEnvelope(assert, {
-      data: [{ id: '1' }],
-      meta: { total: 1, perPage: 20, currentPage: 1, lastPage: 1 },
-    }, { paginated: true })
+    assertListEnvelope(
+      assert,
+      {
+        data: [{ id: '1' }],
+        meta: { total: 1, perPage: 20, currentPage: 1, lastPage: 1 },
+      },
+      { paginated: true }
+    )
   })
 
   test('accepts { data: T[] } without requiring meta', ({ assert }) => {

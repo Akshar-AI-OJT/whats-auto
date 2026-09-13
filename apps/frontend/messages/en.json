@@ -1639,6 +1639,7 @@
       "title": "Conversation flows",
       "subtitle": "Build keyword and inbound WhatsApp menus. Publish a version to start routing inbound messages.",
       "createCta": "New flow",
+      "browseCta": "Browse Flows",
       "searchPlaceholder": "Search by name…",
       "loading": "Loading flows…",
       "retry": "Retry",
@@ -3639,11 +3640,13 @@
         "status": {
           "sent": "Sent",
           "scheduled": "Scheduled",
+          "sending": "Sending",
           "draft": "Draft"
         },
         "progress": {
           "sent": "Delivery",
           "scheduled": "Ready",
+          "sending": "Sending",
           "draft": "Progress"
         },
         "actions": {
@@ -3935,10 +3938,10 @@
       },
       "reschedule": {
         "title": "Reschedule this campaign?",
-        "body": "Choose a new UTC launch time for “{name}”. The previous schedule is replaced.",
-        "scheduledAt": "Date and time (UTC)",
-        "utcLabel": "UTC",
-        "hint": "Enter the wall-clock time in UTC. The campaign launches automatically at this instant.",
+        "body": "Choose a new launch time for “{name}”. The previous schedule is replaced.",
+        "scheduledAt": "Date and time ({timeZone})",
+        "utcLabel": "{timeZone}",
+        "hint": "Time is in your organization timezone ({timeZone}). The campaign launches automatically at this instant.",
         "dismiss": "Keep current",
         "confirm": "Reschedule",
         "saving": "Rescheduling…",
@@ -3985,10 +3988,10 @@
         "schedule": "Schedule",
         "sendNow": "Send Now",
         "scheduleLater": "Schedule for Later",
-        "scheduledAt": "Date and time (UTC)",
-        "utcLabel": "UTC",
-        "scheduleHint": "Send Now launches immediately after recipients are saved. Schedule for Later queues a future send in UTC.",
-        "scheduleLaterHint": "The campaign launches automatically at this UTC time. Messages are not sent until then.",
+        "scheduledAt": "Date and time ({timeZone})",
+        "utcLabel": "{timeZone}",
+        "scheduleHint": "Send Now launches immediately after recipients are saved. Schedule for Later queues a future send in your organization timezone.",
+        "scheduleLaterHint": "The campaign launches automatically at this time ({timeZone}). Messages are not sent until then.",
         "cancel": "Cancel",
         "reviewConfirm": "Save draft",
         "confirmSend": "Save & send",
@@ -4111,6 +4114,8 @@
       "analytics": "Analytics",
       "auditLogs": "Audit Logs",
       "aiSettings": "AI Settings",
+      "templateCatalog": "Template Catalog",
+      "flowCatalog": "Flow Catalog",
       "settings": "Settings"
     },
     "sidebar": {
@@ -5382,6 +5387,80 @@
       "plan": "Plans",
       "subscription": "Subscriptions",
       "invoice": "Invoices"
+    }
+  },
+  "catalog": {
+    "templates": {
+      "loading": "Loading templates…",
+      "prev": "Previous",
+      "next": "Next",
+      "filters": {
+        "search": "Search templates…",
+        "category": "Category",
+        "allCategories": "All categories",
+        "language": "Language",
+        "allLanguages": "All languages",
+        "industry": "Industry",
+        "topic": "Topic",
+        "status": "Status",
+        "allStatuses": "All statuses",
+        "source": "Source",
+        "allSources": "All sources",
+        "clear": "Clear filters"
+      },
+      "admin": {
+        "title": "Template catalog",
+        "subtitle": "Import Meta Template Library designs, or add a manual fallback. Publishing makes a design available for organizations to install onto their own WhatsApp account.",
+        "tabs": {
+          "library": "Meta Library",
+          "saved": "Saved catalog"
+        },
+        "libraryTokenMissing": "Set META_SYSTEM_USER_ACCESS_TOKEN to browse Meta’s Template Library. You can still add templates manually.",
+        "importCta": "Import selected ({count})",
+        "alreadyImported": "Already in catalog",
+        "manualCreate": "Add manual template",
+        "manual": {
+          "name": "Template name",
+          "body": "Body text",
+          "submit": "Save draft"
+        },
+        "publish": "Publish",
+        "archive": "Archive"
+      },
+      "org": {
+        "title": "Browse templates",
+        "subtitle": "Install a published catalog design onto this organization’s WhatsApp account. Approval is per account, not shared.",
+        "loading": "Loading catalog…",
+        "alreadyAdded": "Already added",
+        "useTemplate": "Use template",
+        "prev": "Previous",
+        "next": "Next"
+      }
+    },
+    "flows": {
+      "admin": {
+        "title": "Flow catalog",
+        "subtitle": "Author shared conversation flows. Organizations see published flows only when their plan includes every required feature.",
+        "createPlaceholder": "Flow name",
+        "createCta": "Create flow",
+        "search": "Search flows…",
+        "searchCta": "Search",
+        "loading": "Loading flows…",
+        "archive": "Archive",
+        "prev": "Previous",
+        "next": "Next"
+      },
+      "org": {
+        "title": "Browse flows",
+        "subtitle": "Install a published catalog flow as a draft in this organization. Templates and nested catalog flows are copied with it.",
+        "search": "Search flows…",
+        "searchCta": "Search",
+        "loading": "Loading catalog…",
+        "openInstalled": "Open draft",
+        "useFlow": "Use flow",
+        "prev": "Previous",
+        "next": "Next"
+      }
     }
   }
 }

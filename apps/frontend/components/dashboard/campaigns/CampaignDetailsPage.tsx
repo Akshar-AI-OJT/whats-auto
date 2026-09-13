@@ -29,7 +29,14 @@ import {
   unwrapTemplateItems,
 } from './campaign-utils'
 import { toCampaignScheduledAtPayload } from '@/lib/org-datetime'
+import { useOrgTimeZone } from '@/hooks/use-org-timezone'
 import { queryKeys } from '@/lib/query-keys'
+import {
+  campaignQueryRefetchInterval,
+  campaignQueryStaleTime,
+  campaignLiveRefreshMode,
+  toCampaignLiveRefreshInput,
+} from '@/lib/campaign-live-refresh'
 
 type CampaignDetailsPageProps = {
   campaignId: string
@@ -50,6 +57,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
     canPauseCampaigns,
     isLoading: orgsLoading,
   } = useOrganizations()
+  const timeZone = useOrgTimeZone()
 
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -68,6 +76,20 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
     queryFn: async () => {
       const { data } = await api.campaigns.get(campaignId)
       return unwrapCampaign(data)
+    },
+    refetchInterval: (query) => {
+      const campaign = query.state.data
+      if (!campaign) return false
+      return campaignQueryRefetchInterval(
+        campaignLiveRefreshMode(toCampaignLiveRefreshInput(campaign))
+      )
+    },
+    staleTime: (query) => {
+      const campaign = query.state.data
+      if (!campaign) return 5 * 60_000
+      return campaignQueryStaleTime(
+        campaignLiveRefreshMode(toCampaignLiveRefreshInput(campaign))
+      )
     },
   })
 
@@ -110,7 +132,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
 
   const rescheduleMutation = useMutation({
     mutationFn: async (scheduledAtLocal: string) => {
-      const scheduledAt = toCampaignScheduledAtPayload(scheduledAtLocal)
+      const scheduledAt = toCampaignScheduledAtPayload(scheduledAtLocal, timeZone)
       const { data } = await api.campaigns.schedule(campaignId, { scheduledAt })
       return unwrapCampaign(data)
     },
@@ -243,7 +265,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
   const read = ratePercent(campaign.readCount, campaign.totalRecipients)
   const failed = ratePercent(campaign.failedCount, campaign.totalRecipients)
   const pending = Math.max(
-    campaign.totalRecipients - campaign.deliveredCount - campaign.failedCount,
+    campaign.totalRecipients - campaign.sentCount - campaign.failedCount,
     0
   )
   const pendingRate = ratePercent(pending, campaign.totalRecipients)
@@ -289,7 +311,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
           </div>
           <p className="mt-2 text-sm text-body">
             {t('details.createdMeta', {
-              date: formatCampaignDate(campaign.createdAt),
+              date: formatCampaignDate(campaign.createdAt, timeZone),
               template: templateName ?? t('noTemplate'),
             })}
           </p>
@@ -443,12 +465,12 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
           <ol className="mt-5 space-y-4">
             <TimelineStep
               label={t('timeline.created')}
-              detail={formatCampaignDate(campaign.createdAt)}
+              detail={formatCampaignDate(campaign.createdAt, timeZone)}
               active
             />
             <TimelineStep
               label={t('timeline.scheduled')}
-              detail={campaign.scheduledAt ? formatCampaignDate(campaign.scheduledAt) : '—'}
+              detail={campaign.scheduledAt ? formatCampaignDate(campaign.scheduledAt, timeZone) : '—'}
               active={Boolean(campaign.scheduledAt) || ['scheduled', 'sending', 'sent', 'failed'].includes(campaign.status)}
             />
             <TimelineStep
@@ -458,7 +480,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
             />
             <TimelineStep
               label={t('timeline.completed')}
-              detail={campaign.status === 'sent' ? formatCampaignDate(campaign.updatedAt) : '—'}
+              detail={campaign.status === 'sent' ? formatCampaignDate(campaign.updatedAt, timeZone) : '—'}
               active={campaign.status === 'sent'}
             />
           </ol>

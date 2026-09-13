@@ -303,3 +303,27 @@ export type MetaCreateMessageTemplateResult = {
   status?: string
   category?: string
 }
+
+/** Row from GET /message_template_library. Shape is loosely specified by Meta. */
+export type MetaTemplateLibraryItem = {
+  id?: string
+  name?: string
+  language?: string
+  category?: string
+  topic?: string
+  usecase?: string
+  industry?: string
+  header?: string
+  body?: string
+  footer?: string
+  buttons?: Array<Record<string, unknown>>
+  components?: MetaTemplateComponent[]
+}
+
+export type MetaListTemplateLibraryResult = {
+  data: MetaTemplateLibraryItem[]
+  paging?: {
+    cursors?: { before?: string; after?: string }
+    next?: string
+  }
+}

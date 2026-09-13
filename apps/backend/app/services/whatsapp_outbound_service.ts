@@ -582,12 +582,45 @@ export default class WhatsappOutboundService {
       try {
         providerMessageId = await this.#sendToMeta(dispatch)
         reconcile = await db.transaction(async (trx) => {
-          return this.outboundRepo.markSentAndReconcile(trx, {
+          const result = await this.outboundRepo.markSentAndReconcile(trx, {
             organizationId: params.organizationId,
             dispatchId: dispatch.id,
             messageId: dispatch.messageId,
             providerMessageId,
           })
+          if (isCampaignDispatch) {
+            await this.campaignRecipients.applyProviderReceipt(
+              {
+                organizationId: params.organizationId,
+                messageId: dispatch.messageId,
+                status: 'sent',
+                providerStatusAt: new Date(),
+              },
+              trx
+            )
+            const receiptStatus =
+              result.receipt?.updated === true ? result.receipt.message.status : null
+            if (
+              receiptStatus === 'delivered' ||
+              receiptStatus === 'read' ||
+              receiptStatus === 'failed'
+            ) {
+              await this.campaignRecipients.applyProviderReceipt(
+                {
+                  organizationId: params.organizationId,
+                  messageId: dispatch.messageId,
+                  status: receiptStatus,
+                  providerStatusAt: result.receipt?.updated
+                    ? new Date(result.receipt.message.providerStatusAt as string | Date)
+                    : new Date(),
+                  errorMessage:
+                    result.receipt?.updated === true ? result.receipt.message.errorMessage : null,
+                },
+                trx
+              )
+            }
+          }
+          return result
         })
       } catch (error) {
         return this.#handleSendFailure({
@@ -599,12 +632,6 @@ export default class WhatsappOutboundService {
       }
 
       await this.#incrementMessagesMeter(params.organizationId)
-      if (isCampaignDispatch) {
-        await this.campaignRecipients.markRecipientSent({
-          organizationId: params.organizationId,
-          messageId: dispatch.messageId,
-        })
-      }
 
       // Side effects after durable sent must never call markFailed / retry.
       const conversationId =
@@ -789,6 +816,18 @@ export default class WhatsappOutboundService {
           errorMessage,
           errorCode,
         })
+        if (params.isCampaignDispatch) {
+          await this.campaignRecipients.applyProviderReceipt(
+            {
+              organizationId: params.organizationId,
+              messageId: params.dispatch.messageId,
+              status: 'failed',
+              providerStatusAt: new Date(),
+              errorMessage,
+            },
+            trx
+          )
+        }
       })
 
       const conversationId = await this.#loadMessageConversationId({
@@ -813,14 +852,6 @@ export default class WhatsappOutboundService {
         messageId: params.dispatch.messageId,
         errorMessage,
       })
-
-      if (params.isCampaignDispatch) {
-        await this.campaignRecipients.markRecipientFailed({
-          organizationId: params.organizationId,
-          messageId: params.dispatch.messageId,
-          errorMessage,
-        })
-      }
 
       return {
         outcome: 'failed',

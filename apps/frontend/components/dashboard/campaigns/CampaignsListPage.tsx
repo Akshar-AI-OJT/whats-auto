@@ -23,6 +23,12 @@ import {
   unwrapTemplateItems,
 } from './campaign-utils'
 import { queryKeys } from '@/lib/query-keys'
+import {
+  campaignQueryRefetchInterval,
+  campaignQueryStaleTime,
+  campaignsLiveRefreshMode,
+  toCampaignLiveRefreshInput,
+} from '@/lib/campaign-live-refresh'
 import { DashboardToast, useDashboardToast } from '@/components/dashboard/ui/use-dashboard-toast'
 
 export function CampaignsListPage() {
@@ -71,6 +77,18 @@ export function CampaignsListPage() {
     queryFn: async () => {
       const { data } = await api.campaigns.list(listParams)
       return unwrapCampaignList(data)
+    },
+    refetchInterval: (query) => {
+      const items = query.state.data?.items ?? []
+      return campaignQueryRefetchInterval(
+        campaignsLiveRefreshMode(items.map(toCampaignLiveRefreshInput))
+      )
+    },
+    staleTime: (query) => {
+      const items = query.state.data?.items ?? []
+      return campaignQueryStaleTime(
+        campaignsLiveRefreshMode(items.map(toCampaignLiveRefreshInput))
+      )
     },
   })
 

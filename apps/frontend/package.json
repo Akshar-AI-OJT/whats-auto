@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "node ./scripts/prepare-tuyau-types.mjs && tsc --noEmit",
-    "test:unit": "node --experimental-strip-types --test ./lib/organization-access-gate.test.mts"
+    "test:unit": "node --experimental-strip-types --test ./lib/*.test.mts"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

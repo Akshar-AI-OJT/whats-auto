@@ -14,7 +14,7 @@ export class PlanEnforcementService {
 
   async requireFeature(
     organizationId: string,
-    featureKey: PlanFeatureKey,
+    featureKey: PlanFeatureKey | string,
     requiredPlan = 'Professional'
   ): Promise<void> {
     const ok = await this.entitlements.hasFeature(organizationId, featureKey)

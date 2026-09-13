@@ -183,9 +183,7 @@ test.group('whatsapp:seed-config', (group) => {
     assert.equal(org.status, OrganizationStatus.VERIFIED_SETUP)
   })
 
-  test('forces organization status to verified_setup from any live status', async ({
-    assert,
-  }) => {
+  test('forces organization status to verified_setup from any live status', async ({ assert }) => {
     const organizationId = await createPendingOrgOwnedBy(ownerUserId)
     orgIds.push(organizationId)
     await db

@@ -3,6 +3,7 @@ import {
   callPublicAs,
   definedQuery,
   protectedBlobRequest,
+  protectedJsonRequest,
   protectedTuyau,
   publicJsonRequest,
   publicTuyau,
@@ -35,6 +36,16 @@ function trimmed(value: string | undefined | null) {
 
 function unlessAll(value: string | undefined) {
   return value && value !== 'all' ? value : undefined
+}
+
+function catalogQs(params: Record<string, unknown>) {
+  const next = definedQuery(params)
+  const search = new URLSearchParams()
+  for (const [key, value] of Object.entries(next)) {
+    search.set(key, String(value))
+  }
+  const qs = search.toString()
+  return qs ? `?${qs}` : ''
 }
 
 function auditQuery(params: {
@@ -608,6 +619,44 @@ export function createApi() {
         ),
     },
 
+    templateCatalog: {
+      list: (params: ListPlatformTemplateCatalogParams = {}) =>
+        protectedJsonRequest<Paginated<PlatformTemplateCatalogItem>>(
+          `/api/v1/template-catalog${catalogQs({
+            page: params.page,
+            perPage: params.perPage,
+            search: trimmed(params.search),
+            category: params.category,
+            language: trimmed(params.language),
+            industry: trimmed(params.industry),
+            topic: trimmed(params.topic),
+          })}`
+        ),
+
+      install: (id: string) =>
+        protectedJsonRequest<{ data?: WhatsappMessageTemplate } & WhatsappMessageTemplate>(
+          `/api/v1/template-catalog/${id}/install`,
+          { method: 'POST' }
+        ),
+    },
+
+    flowCatalog: {
+      list: (params: ListPlatformFlowCatalogParams = {}) =>
+        protectedJsonRequest<Paginated<PlatformFlowCatalogItem>>(
+          `/api/v1/flow-catalog${catalogQs({
+            page: params.page,
+            perPage: params.perPage,
+            search: trimmed(params.search),
+          })}`
+        ),
+
+      install: (id: string) =>
+        protectedJsonRequest<{ data?: ConversationFlow } & ConversationFlow>(
+          `/api/v1/flow-catalog/${id}/install`,
+          { method: 'POST' }
+        ),
+    },
+
     media: {
       list: (params: ListMediaParams = {}) =>
         prot<Paginated<MediaAsset>>((c, options) =>
@@ -1124,6 +1173,127 @@ export function createApi() {
             })
           ),
       },
+
+      templateLibrary: {
+        list: (params: ListPlatformTemplateCatalogParams & { usecase?: string; after?: string } = {}) =>
+          protectedJsonRequest<MetaTemplateLibraryList>(
+            `/api/v1/super-admin/template-library${catalogQs({
+              search: trimmed(params.search),
+              category: params.category,
+              language: trimmed(params.language),
+              industry: trimmed(params.industry),
+              topic: trimmed(params.topic),
+              usecase: trimmed(params.usecase),
+              after: trimmed(params.after),
+            })}`
+          ),
+      },
+
+      templateCatalog: {
+        list: (params: ListPlatformTemplateCatalogParams = {}) =>
+          protectedJsonRequest<Paginated<PlatformTemplateCatalogItem>>(
+            `/api/v1/super-admin/template-catalog${catalogQs({
+              page: params.page,
+              perPage: params.perPage,
+              search: trimmed(params.search),
+              category: params.category,
+              language: trimmed(params.language),
+              industry: trimmed(params.industry),
+              topic: trimmed(params.topic),
+              status: params.status,
+              source: params.source,
+            })}`
+          ),
+
+        get: (id: string) =>
+          protectedJsonRequest<{ data?: PlatformTemplateCatalogItem } & PlatformTemplateCatalogItem>(
+            `/api/v1/super-admin/template-catalog/${id}`
+          ),
+
+        create: (body: CreatePlatformTemplateCatalogBody) =>
+          protectedJsonRequest<{ data?: PlatformTemplateCatalogItem } & PlatformTemplateCatalogItem>(
+            '/api/v1/super-admin/template-catalog',
+            { method: 'POST', body: JSON.stringify(body) }
+          ),
+
+        importItems: (items: MetaTemplateLibraryItem[]) =>
+          protectedJsonRequest<{
+            data?: {
+              imported: PlatformTemplateCatalogItem[]
+              skipped: Array<{ name: string; reason: string }>
+            }
+          }>(
+            '/api/v1/super-admin/template-catalog/import',
+            { method: 'POST', body: JSON.stringify({ items }) }
+          ),
+
+        update: (id: string, body: Partial<CreatePlatformTemplateCatalogBody> & { sortOrder?: number }) =>
+          protectedJsonRequest<{ data?: PlatformTemplateCatalogItem } & PlatformTemplateCatalogItem>(
+            `/api/v1/super-admin/template-catalog/${id}`,
+            { method: 'PATCH', body: JSON.stringify(body) }
+          ),
+
+        publish: (id: string) =>
+          protectedJsonRequest<{ data?: PlatformTemplateCatalogItem } & PlatformTemplateCatalogItem>(
+            `/api/v1/super-admin/template-catalog/${id}/publish`,
+            { method: 'POST' }
+          ),
+
+        archive: (id: string) =>
+          protectedJsonRequest<{ data?: PlatformTemplateCatalogItem } & PlatformTemplateCatalogItem>(
+            `/api/v1/super-admin/template-catalog/${id}`,
+            { method: 'DELETE' }
+          ),
+      },
+
+      flowCatalog: {
+        list: (params: ListPlatformFlowCatalogParams = {}) =>
+          protectedJsonRequest<Paginated<PlatformFlowCatalogItem>>(
+            `/api/v1/super-admin/flow-catalog${catalogQs({
+              page: params.page,
+              perPage: params.perPage,
+              search: trimmed(params.search),
+              status: params.status,
+            })}`
+          ),
+
+        get: (id: string) =>
+          protectedJsonRequest<{ data?: PlatformFlowCatalogItem } & PlatformFlowCatalogItem>(
+            `/api/v1/super-admin/flow-catalog/${id}`
+          ),
+
+        create: (body: CreatePlatformFlowCatalogBody) =>
+          protectedJsonRequest<{ data?: PlatformFlowCatalogItem } & PlatformFlowCatalogItem>(
+            '/api/v1/super-admin/flow-catalog',
+            { method: 'POST', body: JSON.stringify(body) }
+          ),
+
+        update: (id: string, body: UpdateConversationFlowBody & { extraRequiredFeatureKeys?: string[] }) =>
+          protectedJsonRequest<{ data?: PlatformFlowCatalogItem } & PlatformFlowCatalogItem>(
+            `/api/v1/super-admin/flow-catalog/${id}`,
+            { method: 'PATCH', body: JSON.stringify(body) }
+          ),
+
+        validate: (id: string, body: UpdateConversationFlowBody = {}) =>
+          protectedJsonRequest<
+            { data?: ConversationFlowValidateResult } & ConversationFlowValidateResult
+          >(`/api/v1/super-admin/flow-catalog/${id}/validate`, {
+            method: 'POST',
+            body: JSON.stringify(body),
+          }),
+
+        publish: (id: string) =>
+          protectedJsonRequest<{ data?: PlatformFlowCatalogItem } & PlatformFlowCatalogItem>(
+            `/api/v1/super-admin/flow-catalog/${id}/publish`,
+            { method: 'POST' }
+          ),
+
+        archive: (id: string) =>
+          protectedJsonRequest<{ data?: PlatformFlowCatalogItem } & PlatformFlowCatalogItem>(
+            `/api/v1/super-admin/flow-catalog/${id}`,
+            { method: 'DELETE' }
+          ),
+      },
     },
   }
 }
@@ -1193,6 +1363,14 @@ type ConversationFlow = import('@/lib/api').ConversationFlow
 type CreateConversationFlowBody = import('@/lib/api').CreateConversationFlowBody
 type UpdateConversationFlowBody = import('@/lib/api').UpdateConversationFlowBody
 type ConversationFlowValidateResult = import('@/lib/api').ConversationFlowValidateResult
+type ListPlatformTemplateCatalogParams = import('@/lib/api').ListPlatformTemplateCatalogParams
+type PlatformTemplateCatalogItem = import('@/lib/api').PlatformTemplateCatalogItem
+type MetaTemplateLibraryItem = import('@/lib/api').MetaTemplateLibraryItem
+type MetaTemplateLibraryList = import('@/lib/api').MetaTemplateLibraryList
+type CreatePlatformTemplateCatalogBody = import('@/lib/api').CreatePlatformTemplateCatalogBody
+type ListPlatformFlowCatalogParams = import('@/lib/api').ListPlatformFlowCatalogParams
+type PlatformFlowCatalogItem = import('@/lib/api').PlatformFlowCatalogItem
+type CreatePlatformFlowCatalogBody = import('@/lib/api').CreatePlatformFlowCatalogBody
 type ListMediaParams = import('@/lib/api').ListMediaParams
 type MediaAsset = import('@/lib/api').MediaAsset
 type MediaQuota = import('@/lib/api').MediaQuota

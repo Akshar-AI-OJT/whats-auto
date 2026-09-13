@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Loader2, Plus, Search, Workflow } from 'lucide-react'
+import { LayoutGrid, Loader2, Plus, Search, Workflow } from 'lucide-react'
 import {
   api,
   type ApiError,
@@ -21,6 +21,7 @@ import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
 import { queryKeys } from '@/lib/query-keys'
+import { FlowCatalogBrowseDialog } from './FlowCatalogBrowseDialog'
 import { FlowsCreateDialog, FlowsDeleteDialog, FlowsPublishDialog } from './FlowsDialogs'
 import {
   flowStatusBadgeClass,
@@ -50,6 +51,7 @@ export function FlowsListPage() {
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
+  const [browseOpen, setBrowseOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ConversationFlow | null>(null)
@@ -198,20 +200,32 @@ export function FlowsListPage() {
           title={t('title')}
           description={t('subtitle')}
           action={
-            canCreate ? (
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
               <Button
                 type="button"
+                variant="outline"
                 className="w-full gap-2 sm:w-auto"
-                onClick={() => {
-                  setCreateError(null)
-                  setCreateOpen(true)
-                }}
+                onClick={() => setBrowseOpen(true)}
                 disabled={busy}
               >
-                <Plus className="size-4" aria-hidden />
-                {t('createCta')}
+                <LayoutGrid className="size-4" aria-hidden />
+                {t('browseCta')}
               </Button>
-            ) : undefined
+              {canCreate ? (
+                <Button
+                  type="button"
+                  className="w-full gap-2 sm:w-auto"
+                  onClick={() => {
+                    setCreateError(null)
+                    setCreateOpen(true)
+                  }}
+                  disabled={busy}
+                >
+                  <Plus className="size-4" aria-hidden />
+                  {t('createCta')}
+                </Button>
+              ) : null}
+            </div>
           }
         />
       </div>
@@ -382,6 +396,11 @@ export function FlowsListPage() {
         onConfirm={() => {
           if (publishTarget) publishMutation.mutate(publishTarget.id)
         }}
+      />
+      <FlowCatalogBrowseDialog
+        open={browseOpen}
+        organizationId={tenantOrganizationId}
+        onOpenChange={setBrowseOpen}
       />
     </div>
   )

@@ -40,6 +40,7 @@ export type MessageTemplateDto = {
   qualityScore: string | null
   submissionError: string | null
   lastSubmittedAt: string | null
+  catalogTemplateId: string | null
   createdAt: string
   updatedAt: string | null
 }
@@ -58,6 +59,9 @@ export type CreateMessageTemplateInput = {
   footerText?: string
   buttons?: Array<Record<string, unknown>>
   sampleValues?: unknown
+  catalogTemplateId?: string
+  libraryTemplateName?: string | null
+  skipCustomTemplatesFeature?: boolean
 }
 
 export class MessageTemplateService {
@@ -103,6 +107,7 @@ export class MessageTemplateService {
       qualityScore: row.qualityScore ?? null,
       submissionError: row.submissionError ?? null,
       lastSubmittedAt: row.lastSubmittedAt ? new Date(row.lastSubmittedAt).toISOString() : null,
+      catalogTemplateId: row.catalogTemplateId ?? null,
       createdAt: new Date(row.createdAt).toISOString(),
       updatedAt: row.updatedAt ? new Date(row.updatedAt).toISOString() : null,
     }
@@ -188,8 +193,12 @@ export class MessageTemplateService {
   /**
    * Fetch a single message template by ID.
    */
-  async getTemplateById(id: string): Promise<MessageTemplateDto> {
-    const row = await db.from('message_templates').where('id', id).first()
+  async getTemplateById(id: string, organizationId: string): Promise<MessageTemplateDto> {
+    const row = await db
+      .from('message_templates')
+      .where('id', id)
+      .where('organizationId', organizationId)
+      .first()
     if (!row) {
       throw MessageTemplateException.notFound()
     }
@@ -393,7 +402,9 @@ export class MessageTemplateService {
    * Create message template locally and submit to Meta Graph API.
    */
   async createTemplate(payload: CreateMessageTemplateInput): Promise<MessageTemplateDto> {
-    await new PlanEnforcementService().requireFeature(payload.organizationId, 'customTemplates')
+    if (!payload.skipCustomTemplatesFeature) {
+      await new PlanEnforcementService().requireFeature(payload.organizationId, 'customTemplates')
+    }
 
     const templateCountRow = await db
       .from('message_templates')
@@ -409,6 +420,17 @@ export class MessageTemplateService {
     const name = payload.name.toLowerCase().trim()
     const category = payload.category.toUpperCase().trim()
     const language = payload.language.trim()
+
+    if (payload.catalogTemplateId) {
+      const alreadyInstalled = await db
+        .from('message_templates')
+        .where('organizationId', payload.organizationId)
+        .where('catalogTemplateId', payload.catalogTemplateId)
+        .first()
+      if (alreadyInstalled) {
+        return this.toDto(alreadyInstalled)
+      }
+    }
 
     const existing = await db
       .from('message_templates')
@@ -488,7 +510,20 @@ export class MessageTemplateService {
     if (configRow && configRow.wabaId && configRow.accessToken) {
       try {
         const accessToken = decryptWhatsappAccessToken(configRow.accessToken)
-        if (this.graphClient.createMessageTemplate) {
+        if (payload.libraryTemplateName && this.graphClient.createMessageTemplateFromLibrary) {
+          const metaRes = await this.graphClient.createMessageTemplateFromLibrary({
+            wabaId: configRow.wabaId,
+            accessToken,
+            name,
+            category,
+            language,
+            libraryTemplateName: payload.libraryTemplateName,
+          })
+          metaTemplateId = metaRes.id
+          if (metaRes.status) {
+            status = metaRes.status.toLowerCase()
+          }
+        } else if (this.graphClient.createMessageTemplate) {
           const metaRes = await this.graphClient.createMessageTemplate({
             wabaId: configRow.wabaId,
             accessToken,
@@ -536,6 +571,7 @@ export class MessageTemplateService {
         parameterSchema: JSON.stringify(parameterSchema),
         status,
         metaTemplateId,
+        catalogTemplateId: payload.catalogTemplateId ?? null,
         submissionError,
         lastSubmittedAt: configRow ? new Date() : null,
         createdAt: new Date(),

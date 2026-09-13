@@ -5,6 +5,7 @@ import { Megaphone } from 'lucide-react'
 import type { Campaign } from '@/lib/api'
 import { CampaignActionsMenu } from './CampaignCards'
 import { CampaignStatusBadge } from './CampaignStatusBadge'
+import { useOrgTimeZone } from '@/hooks/use-org-timezone'
 import { formatCampaignDate, ratePercent } from './campaign-utils'
 
 type CampaignTableProps = {
@@ -35,6 +36,7 @@ export function CampaignTable({
   onDelete,
 }: CampaignTableProps) {
   const t = useTranslations('dashboard.campaigns')
+  const timeZone = useOrgTimeZone()
 
   return (
     <div className="overflow-x-auto rounded-2xl border border-dash-border">
@@ -98,7 +100,7 @@ export function CampaignTable({
                   <span className="text-mute"> ({read}%)</span>
                 </td>
                 <td className="px-4 py-3 whitespace-nowrap text-body">
-                  {formatCampaignDate(campaign.createdAt)}
+                  {formatCampaignDate(campaign.createdAt, timeZone)}
                 </td>
                 <td className="px-4 py-3 text-right">
                   <CampaignActionsMenu

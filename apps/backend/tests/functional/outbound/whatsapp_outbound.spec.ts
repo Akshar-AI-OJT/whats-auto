@@ -597,6 +597,83 @@ test.group('WhatsApp outbound service', (group) => {
     })
   })
 
+  test('campaign dispatch with buffered delivered receipt increments deliveredCount', async ({
+    assert,
+  }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const seeded = await seedConversation(organizationId)
+
+    const service = new WhatsappOutboundService(fakeGraph())
+    Object.assign(service, {
+      campaignRateLimit: {
+        checkAndConsume: async () => ({ allowed: true, current: 1, limit: 60 }),
+      },
+    })
+
+    const queued = await service.queueText({
+      organizationId,
+      conversationId: seeded.conversationId,
+      text: 'Campaign early receipt',
+    })
+
+    await runWithTenant(organizationId, async () => {
+      const [broadcast] = await db
+        .table('broadcasts')
+        .insert({
+          organizationId,
+          name: 'Outbound campaign receipt',
+          status: 'sending',
+          totalRecipients: 1,
+          sentCount: 0,
+          deliveredCount: 0,
+          readCount: 0,
+          failedCount: 0,
+        })
+        .returning(['id'])
+      await db.table('broadcast_recipients').insert({
+        organizationId,
+        broadcastId: broadcast.id,
+        contactId: seeded.contactId,
+        status: 'queued',
+        messageId: queued.messageId,
+      })
+      await db.table('unmatched_provider_receipts').insert({
+        organizationId,
+        whatsappConfigId: seeded.whatsappConfigId,
+        providerMessageId: 'wamid.out.text',
+        status: 'delivered',
+        providerStatusAt: new Date('2024-06-01T00:02:00.000Z'),
+        errorMessage: null,
+        metadata: {},
+      })
+    })
+
+    const result = await service.executeDispatch({
+      organizationId,
+      dispatchId: queued.dispatchId,
+      lockOwner: 'test-worker-campaign',
+    })
+    assert.equal(result.outcome, 'sent')
+
+    await runWithTenant(organizationId, async () => {
+      const campaign = await db
+        .from('broadcasts')
+        .where('organizationId', organizationId)
+        .where('name', 'Outbound campaign receipt')
+        .first()
+      const recipient = await db
+        .from('broadcast_recipients')
+        .where('organizationId', organizationId)
+        .where('messageId', queued.messageId)
+        .first()
+      assert.equal(Number(campaign.sentCount), 1)
+      assert.equal(Number(campaign.deliveredCount), 1)
+      assert.equal(recipient.status, 'delivered')
+      assert.isNotNull(recipient.deliveredAt)
+    })
+  })
+
   test('InboxStatusUpdated failure after sent does not mark dispatch failed', async ({
     assert,
   }) => {
