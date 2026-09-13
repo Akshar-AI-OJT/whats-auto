@@ -3473,11 +3473,13 @@
         "status": {
           "sent": "भेजा",
           "scheduled": "निर्धारित",
+          "sending": "भेजा जा रहा है",
           "draft": "ड्राफ्ट"
         },
         "progress": {
           "sent": "डिलीवरी",
           "scheduled": "तैयार",
+          "sending": "भेजा जा रहा है",
           "draft": "प्रगति"
         },
         "actions": {

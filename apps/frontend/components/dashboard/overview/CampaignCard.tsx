@@ -11,7 +11,7 @@ import { cn } from '@/lib/utils'
 import { useOrgTimeZone } from '@/hooks/use-org-timezone'
 import { formatCampaignScheduledAt, formatTimeZoneAbbreviation } from '@/lib/org-datetime'
 
-export type CampaignStatus = 'sent' | 'scheduled' | 'draft'
+export type CampaignStatus = 'sent' | 'scheduled' | 'draft' | 'sending'
 
 export type CampaignCardAction = {
   id: string
@@ -55,6 +55,11 @@ const STATUS_META: Record<
     badge: 'bg-primary-pale text-positive-deep ring-1 ring-primary/30',
     bar: 'bg-primary',
     icon: CheckCircle2,
+  },
+  sending: {
+    badge: 'bg-dash-info-soft text-dash-info ring-1 ring-accent-cyan/35',
+    bar: 'bg-accent-cyan',
+    icon: Clock3,
   },
   scheduled: {
     badge: 'bg-dash-info-soft text-dash-info ring-1 ring-accent-cyan/35',

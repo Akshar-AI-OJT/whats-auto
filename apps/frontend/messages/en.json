@@ -3640,11 +3640,13 @@
         "status": {
           "sent": "Sent",
           "scheduled": "Scheduled",
+          "sending": "Sending",
           "draft": "Draft"
         },
         "progress": {
           "sent": "Delivery",
           "scheduled": "Ready",
+          "sending": "Sending",
           "draft": "Progress"
         },
         "actions": {

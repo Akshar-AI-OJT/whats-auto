@@ -31,6 +31,12 @@ import {
 import { toCampaignScheduledAtPayload } from '@/lib/org-datetime'
 import { useOrgTimeZone } from '@/hooks/use-org-timezone'
 import { queryKeys } from '@/lib/query-keys'
+import {
+  campaignQueryRefetchInterval,
+  campaignQueryStaleTime,
+  campaignLiveRefreshMode,
+  toCampaignLiveRefreshInput,
+} from '@/lib/campaign-live-refresh'
 
 type CampaignDetailsPageProps = {
   campaignId: string
@@ -70,6 +76,20 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
     queryFn: async () => {
       const { data } = await api.campaigns.get(campaignId)
       return unwrapCampaign(data)
+    },
+    refetchInterval: (query) => {
+      const campaign = query.state.data
+      if (!campaign) return false
+      return campaignQueryRefetchInterval(
+        campaignLiveRefreshMode(toCampaignLiveRefreshInput(campaign))
+      )
+    },
+    staleTime: (query) => {
+      const campaign = query.state.data
+      if (!campaign) return 5 * 60_000
+      return campaignQueryStaleTime(
+        campaignLiveRefreshMode(toCampaignLiveRefreshInput(campaign))
+      )
     },
   })
 
@@ -245,7 +265,7 @@ export function CampaignDetailsPage({ campaignId }: CampaignDetailsPageProps) {
   const read = ratePercent(campaign.readCount, campaign.totalRecipients)
   const failed = ratePercent(campaign.failedCount, campaign.totalRecipients)
   const pending = Math.max(
-    campaign.totalRecipients - campaign.deliveredCount - campaign.failedCount,
+    campaign.totalRecipients - campaign.sentCount - campaign.failedCount,
     0
   )
   const pendingRate = ratePercent(pending, campaign.totalRecipients)

@@ -6,6 +6,12 @@ import type { AuthorizationAuditEvent, Campaign, InboxConversation } from '@/lib
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { queryKeys } from '@/lib/query-keys'
 import {
+  campaignQueryRefetchInterval,
+  campaignQueryStaleTime,
+  campaignsLiveRefreshMode,
+  toCampaignLiveRefreshInput,
+} from '@/lib/campaign-live-refresh'
+import {
   buildAuditActivityItems,
   fetchOverviewAudit,
   fetchOverviewCampaigns,
@@ -80,6 +86,18 @@ export function DashboardOverviewProvider({
     queryKey: queryKeys.overview.campaigns(tenantOrganizationId),
     enabled,
     queryFn: fetchOverviewCampaigns,
+    refetchInterval: (query) => {
+      const items = query.state.data ?? []
+      return campaignQueryRefetchInterval(
+        campaignsLiveRefreshMode(items.map(toCampaignLiveRefreshInput))
+      )
+    },
+    staleTime: (query) => {
+      const items = query.state.data ?? []
+      return campaignQueryStaleTime(
+        campaignsLiveRefreshMode(items.map(toCampaignLiveRefreshInput))
+      )
+    },
   })
 
   const auditQuery = useQuery({
