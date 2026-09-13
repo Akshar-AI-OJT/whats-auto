@@ -68,6 +68,8 @@ export const queryKeys = {
     detail: (id: string) => [...queryKeys.templates.all, 'detail', id] as const,
     whatsappConnected: (orgId?: string | null) =>
       [...queryKeys.templates.all, 'whatsapp-connected', orgId ?? 'none'] as const,
+    catalog: (orgId?: string | null, params?: Record<string, unknown>) =>
+      [...queryKeys.templates.all, 'catalog', orgId ?? 'none', params ?? {}] as const,
   },
   media: {
     all: ['media-library'] as const,
@@ -89,6 +91,8 @@ export const queryKeys = {
       [...queryKeys.flows.all, 'list', orgId ?? 'none', params ?? {}] as const,
     detail: (orgId?: string | null, id?: string | null) =>
       [...queryKeys.flows.all, 'detail', orgId ?? 'none', id ?? 'none'] as const,
+    catalog: (orgId?: string | null, params?: Record<string, unknown>) =>
+      [...queryKeys.flows.all, 'catalog', orgId ?? 'none', params ?? {}] as const,
   },
   customerGroups: {
     all: ['customer-groups'] as const,
@@ -219,6 +223,14 @@ export const queryKeys = {
     },
     aiConfig: ['admin', 'ai-config'] as const,
     platformSettings: ['admin', 'platform-settings'] as const,
+    templateLibrary: (params?: Record<string, unknown>) =>
+      ['admin', 'template-library', params ?? {}] as const,
+    templateCatalog: (params?: Record<string, unknown>) =>
+      ['admin', 'template-catalog', params ?? {}] as const,
+    flowCatalog: (params?: Record<string, unknown>) =>
+      ['admin', 'flow-catalog', params ?? {}] as const,
+    flowCatalogDetail: (id?: string | null) =>
+      ['admin', 'flow-catalog', 'detail', id ?? 'none'] as const,
   },
 } as const
 

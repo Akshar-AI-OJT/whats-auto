@@ -7,6 +7,7 @@ import type {
   MetaCreateMessageTemplateResult,
   MetaGraphErrorBody,
   MetaListMessageTemplatesResult,
+  MetaListTemplateLibraryResult,
   MetaPhoneNumberDetails,
   MetaSendMessageResult,
   MetaSendTemplateComponent,
@@ -105,6 +106,28 @@ export interface MetaGraphClient {
     accessToken: string
     name: string
   }): Promise<{ success: boolean }>
+  listMessageTemplateLibrary?(params: {
+    accessToken: string
+    search?: string
+    topic?: string
+    usecase?: string
+    industry?: string
+    language?: string
+    name?: string
+    category?: string
+    after?: string
+    limit?: number
+  }): Promise<MetaListTemplateLibraryResult>
+  createMessageTemplateFromLibrary?(params: {
+    wabaId: string
+    accessToken: string
+    name: string
+    language: string
+    category: string
+    libraryTemplateName: string
+    libraryTemplateBodyInputs?: Record<string, unknown>
+    libraryTemplateButtonInputs?: unknown[]
+  }): Promise<MetaCreateMessageTemplateResult>
   /**
    * Resumable Upload API — create an upload session for template sample media.
    * Uses the app id from env; pass the WABA / business access token.
@@ -588,6 +611,72 @@ export class HttpMetaGraphClient implements MetaGraphClient {
     })
 
     return { success: json.success === true }
+  }
+
+  async listMessageTemplateLibrary(params: {
+    accessToken: string
+    search?: string
+    topic?: string
+    usecase?: string
+    industry?: string
+    language?: string
+    name?: string
+    category?: string
+    after?: string
+    limit?: number
+  }): Promise<MetaListTemplateLibraryResult> {
+    const search = new URLSearchParams()
+    if (params.search) search.set('search', params.search)
+    if (params.topic) search.set('topic', params.topic)
+    if (params.usecase) search.set('usecase', params.usecase)
+    if (params.industry) search.set('industry', params.industry)
+    if (params.language) search.set('language', params.language)
+    if (params.name) search.set('name', params.name)
+    if (params.category) search.set('category', params.category)
+    if (params.after) search.set('after', params.after)
+    if (params.limit) search.set('limit', String(params.limit))
+
+    const query = search.toString() ? `?${search.toString()}` : ''
+    const url = `${this.baseUrl}/message_template_library${query}`
+
+    return this.requestJson<MetaListTemplateLibraryResult>('listTemplateLibrary', url, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${params.accessToken}` },
+    })
+  }
+
+  async createMessageTemplateFromLibrary(params: {
+    wabaId: string
+    accessToken: string
+    name: string
+    language: string
+    category: string
+    libraryTemplateName: string
+    libraryTemplateBodyInputs?: Record<string, unknown>
+    libraryTemplateButtonInputs?: unknown[]
+  }): Promise<MetaCreateMessageTemplateResult> {
+    const url = `${this.baseUrl}/${encodeURIComponent(params.wabaId)}/message_templates`
+    const body: Record<string, unknown> = {
+      name: params.name,
+      language: params.language,
+      category: params.category,
+      library_template_name: params.libraryTemplateName,
+    }
+    if (params.libraryTemplateBodyInputs) {
+      body.library_template_body_inputs = params.libraryTemplateBodyInputs
+    }
+    if (params.libraryTemplateButtonInputs) {
+      body.library_template_button_inputs = params.libraryTemplateButtonInputs
+    }
+
+    return this.requestJson<MetaCreateMessageTemplateResult>('createTemplateFromLibrary', url, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${params.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    })
   }
 
   protected async requestJson<T = Record<string, unknown>>(

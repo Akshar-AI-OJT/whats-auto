@@ -1212,4 +1212,87 @@ test.group('WhatsApp webhook ingestion', (group) => {
       )
     })
   })
+
+  test('status webhook bumps campaign counters when recipient messageId matches', async ({
+    client,
+    assert,
+  }) => {
+    const fixture = await createFixture()
+    const seeded = await seedOutboundMessage({
+      organizationId: fixture.organizationId,
+      whatsappConfigId: fixture.whatsappConfigId,
+      contactWaId: '15550000021',
+      providerMessageId: 'wamid.campaign.1',
+      status: 'sent',
+      providerStatusAt: new Date('2024-06-01T00:00:00.000Z'),
+    })
+
+    const campaignId = await runWithTenant(fixture.organizationId, async () => {
+      const [broadcast] = await db
+        .table('broadcasts')
+        .insert({
+          organizationId: fixture.organizationId,
+          name: 'Webhook receipt campaign',
+          status: 'sending',
+          totalRecipients: 1,
+          sentCount: 1,
+          deliveredCount: 0,
+          readCount: 0,
+          failedCount: 0,
+        })
+        .returning(['id'])
+      await db.table('broadcast_recipients').insert({
+        organizationId: fixture.organizationId,
+        broadcastId: broadcast.id,
+        contactId: seeded.contactId,
+        status: 'sent',
+        messageId: seeded.messageId,
+        sentAt: new Date('2024-06-01T00:00:00.000Z'),
+      })
+      return broadcast.id as string
+    })
+
+    const delivered = signedPayload({
+      object: 'whatsapp_business_account',
+      entry: [
+        {
+          id: 'waba',
+          changes: [
+            {
+              field: 'messages',
+              value: messagesValue({
+                phoneNumberId: fixture.phoneNumberId,
+                statuses: [
+                  {
+                    id: 'wamid.campaign.1',
+                    status: 'delivered',
+                    timestamp: '1717200000',
+                    recipient_id: '15550000021',
+                  },
+                ],
+              }),
+            },
+          ],
+        },
+      ],
+    })
+
+    const response = await client
+      .post('/api/v1/webhooks/whatsapp')
+      .header('X-Hub-Signature-256', delivered.signature)
+      .json(delivered.payload)
+    response.assertStatus(200)
+
+    await runWithTenant(fixture.organizationId, async () => {
+      const campaign = await db.from('broadcasts').where('id', campaignId).first()
+      const recipient = await db
+        .from('broadcast_recipients')
+        .where('broadcastId', campaignId)
+        .first()
+      assert.equal(Number(campaign.deliveredCount), 1)
+      assert.equal(Number(campaign.sentCount), 1)
+      assert.equal(recipient.status, 'delivered')
+      assert.isNotNull(recipient.deliveredAt)
+    })
+  })
 })

@@ -69,6 +69,9 @@ export default await Env.create(new URL('../', import.meta.url), {
 
   META_GRAPH_API_VERSION: Env.schema.string(),
 
+  /** Optional system-user token for GET /message_template_library (platform catalog import). */
+  META_SYSTEM_USER_ACCESS_TOKEN: Env.schema.string.optional(),
+
   // Secrets only — model/debounce knobs live on platform_ai_configs.
   OPENAI_API_KEY: Env.schema.secret.optional(),
   GOOGLE_AI_API_KEY: Env.schema.secret.optional(),

@@ -221,3 +221,13 @@ export function extractSubflowIds(graph: FlowGraph): string[] {
   }
   return ids
 }
+
+export function extractTemplateIds(graph: FlowGraph): string[] {
+  const ids: string[] = []
+  for (const node of graph.nodes) {
+    if (node.type !== FlowNodeType.TEMPLATE) continue
+    const templateId = asString(node.data.messageTemplateId)?.trim()
+    if (templateId) ids.push(templateId)
+  }
+  return ids
+}

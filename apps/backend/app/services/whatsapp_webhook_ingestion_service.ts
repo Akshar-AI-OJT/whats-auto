@@ -9,6 +9,7 @@ import type { MessageMetadata } from '#lib/meta_whatsapp/types'
 import { WhatsappWebhookRepository } from '#repositories/whatsapp_webhook_repository'
 import { MemoryWorkingSetService } from '#services/ai/contracts/memory_working_set_service'
 import RedisMemoryWorkingSetService from '#services/ai/redis_memory_working_set_service'
+import { CampaignRecipientDispatchService } from '#services/campaigns/campaign_recipient_dispatch_service'
 import CampaignAttributionService from '#services/campaign_attribution_service'
 import { runWithTenant } from '#services/tenant_context'
 
@@ -22,6 +23,7 @@ export default class WhatsappWebhookIngestionService {
   constructor(
     private repository: WhatsappWebhookRepository,
     private attribution: CampaignAttributionService,
+    private campaignRecipients: CampaignRecipientDispatchService = new CampaignRecipientDispatchService(),
     private memory: MemoryWorkingSetService = new RedisMemoryWorkingSetService()
   ) {}
 
@@ -224,6 +226,17 @@ export default class WhatsappWebhookIngestionService {
               previousStatus: result.previousStatus,
             },
             'whatsapp.webhook.receipt'
+          )
+
+          await this.campaignRecipients.applyProviderReceipt(
+            {
+              organizationId: config.organizationId,
+              messageId: result.message.id,
+              status: result.message.status as 'sent' | 'delivered' | 'read' | 'failed',
+              providerStatusAt: receipt.providerStatusAt,
+              errorMessage: receipt.errorMessage,
+            },
+            trx
           )
 
           pendingEvents.push(

@@ -25,6 +25,7 @@ export function FlowToolbar({
   validating,
   publishing,
   settingsOpen,
+  backHref = '/dashboard/flows',
   onNameChange,
   onSave,
   onValidate,
@@ -43,6 +44,7 @@ export function FlowToolbar({
   validating: boolean
   publishing: boolean
   settingsOpen: boolean
+  backHref?: string
   onNameChange: (value: string) => void
   onSave: () => void
   onValidate: () => void
@@ -64,7 +66,7 @@ export function FlowToolbar({
     <div className="flex flex-col gap-3 rounded-xl border border-dash-border bg-canvas px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
       <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
         <Link
-          href="/dashboard/flows"
+          href={backHref}
           className={cn(
             'inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-ink bg-canvas px-3 text-sm font-semibold text-ink',
             'hover:bg-canvas-soft'

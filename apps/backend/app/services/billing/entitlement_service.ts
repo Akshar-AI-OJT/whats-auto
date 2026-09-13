@@ -52,6 +52,23 @@ export class EntitlementService {
     })
   }
 
+  async listEnabledFeatureKeys(organizationId: string): Promise<string[]> {
+    return runWithTenant(organizationId, async () => {
+      const subscription = await this.subscriptions.findCurrentForEntitlements(organizationId)
+      if (!subscription) return []
+
+      const plan = await this.plans.findById(subscription.planId)
+      if (!plan) return []
+
+      const metadata = (plan.metadata ?? {}) as Record<string, unknown>
+      const features = Array.isArray(metadata.features)
+        ? (metadata.features as Array<{ key: string; enabled: boolean }>)
+        : []
+
+      return features.filter((feature) => feature.enabled === true).map((feature) => feature.key)
+    })
+  }
+
   private async getLimitValue(organizationId: string, key: string): Promise<unknown> {
     return runWithTenant(organizationId, async () => {
       const subscription = await this.subscriptions.findCurrentForEntitlements(organizationId)
