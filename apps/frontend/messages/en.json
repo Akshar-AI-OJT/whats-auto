@@ -5394,6 +5394,8 @@
       "loading": "Loading templates…",
       "prev": "Previous",
       "next": "Next",
+      "empty": "No templates match these filters.",
+      "pageOf": "Page {page} of {lastPage}",
       "filters": {
         "search": "Search templates…",
         "category": "Category",
@@ -5401,7 +5403,9 @@
         "language": "Language",
         "allLanguages": "All languages",
         "industry": "Industry",
+        "allIndustries": "All industries",
         "topic": "Topic",
+        "allTopics": "All topics",
         "status": "Status",
         "allStatuses": "All statuses",
         "source": "Source",
@@ -5420,9 +5424,13 @@
         "alreadyImported": "Already in catalog",
         "manualCreate": "Add manual template",
         "manual": {
+          "subtitle": "Save a draft catalog design. Publishing later makes it available for organizations to install.",
           "name": "Template name",
+          "category": "Category",
+          "language": "Language",
           "body": "Body text",
-          "submit": "Save draft"
+          "submit": "Save draft",
+          "cancel": "Cancel"
         },
         "publish": "Publish",
         "archive": "Archive"
@@ -5448,7 +5456,8 @@
         "loading": "Loading flows…",
         "archive": "Archive",
         "prev": "Previous",
-        "next": "Next"
+        "next": "Next",
+        "empty": "No flows match these filters."
       },
       "org": {
         "title": "Browse flows",
@@ -5456,10 +5465,25 @@
         "search": "Search flows…",
         "searchCta": "Search",
         "loading": "Loading catalog…",
-        "openInstalled": "Open draft",
+        "openInstalled": "Open existing",
         "useFlow": "Use flow",
+        "previewCta": "Preview",
+        "alreadyInstalled": "Already installed",
+        "alreadyInstalledWarning": "This organization already has a live copy of this catalog flow ({name}). The canvas below is that copy, including any edits. Open it to keep working, or archive it first to install a fresh catalog clone.",
+        "archiveExisting": "Archive existing copy",
+        "archiveConfirmTitle": "Archive this copy?",
+        "archiveConfirmBody": "Archive “{name}” so you can install a fresh clone from the catalog. The archived flow stays in history.",
+        "archiveConfirmSessions": "Open WhatsApp conversations keep using the archived flow. A new install is a draft and will not answer inbound messages until you publish it.",
+        "archiveConfirm": "Archive copy",
+        "archiveConfirming": "Archiving…",
+        "archiveCancel": "Cancel",
+        "previewHint": "Published catalog design. Use flow creates a draft copy you can edit.",
+        "previewHintInstalled": "This canvas is this organization’s existing copy, including any edits.",
+        "previewLoading": "Loading flow canvas…",
+        "selectToPreview": "Select a flow to preview its nodes.",
         "prev": "Previous",
-        "next": "Next"
+        "next": "Next",
+        "empty": "No flows match these filters."
       }
     }
   }

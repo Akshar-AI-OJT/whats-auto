@@ -121,6 +121,22 @@ export class PlatformFlowCatalogService {
     return transformPlatformFlowCatalogDetail(row, version)
   }
 
+  async getPublishedForOrganization(
+    id: string,
+    organizationId: string
+  ): Promise<PlatformFlowCatalogDetail> {
+    const row = await this.requireRow(id)
+    const orgFeatures = new Set(await this.entitlements.listEnabledFeatureKeys(organizationId))
+    if (row.status !== CatalogStatus.PUBLISHED || !this.#orgCanUse(row, orgFeatures)) {
+      throw PlatformCatalogException.flowNotFound()
+    }
+    const version = row.publishedVersionId
+      ? await this.catalog.findVersionById(row.publishedVersionId)
+      : await this.requireLatestVersion(id)
+    if (!version) throw PlatformCatalogException.flowNotFound()
+    return transformPlatformFlowCatalogDetail(row, version)
+  }
+
   async create(params: {
     actorUserId: string
     name: string
@@ -471,6 +487,7 @@ export class PlatformFlowCatalogService {
     const existing = await this.flows.findByCatalogFlowId({
       organizationId: params.organizationId,
       catalogFlowId: params.catalogId,
+      liveOnly: true,
     })
     if (existing) {
       const version = await this.flows.findLatestVersion({

@@ -64,12 +64,13 @@ export function resolveIsResolvingAccess(
   if (input.pendingActiveId) return true
   if (!input.isSignedIn) return false
 
-  // Keep permission gates in "loading" until access-context settles — empty permissions
-  // otherwise hide sidebar modules after a hard refresh / cold mount.
+  // Keep permission gates in "loading" until access-context is present for the
+  // active org. A fetched null (common after login pre-setActive cache) must not
+  // clear isResolvingAccess — empty permissions would hide the sidebar.
   if (input.accessQueryLoading) return true
   if (input.activeOrgId && input.tokenReadyOrgId !== input.activeOrgId) return true
   if (input.activeOrgId && !tenantOrganizationId) return true
-  if (input.activeOrgId && !input.hasAccessContext && !input.accessQueryFetched) return true
+  if (input.activeOrgId && !input.hasAccessContext) return true
   if (!input.activeOrgId && input.accessQueryLoading) return true
 
   return false

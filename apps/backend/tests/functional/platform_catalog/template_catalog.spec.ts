@@ -101,6 +101,14 @@ test.group('Platform template catalog HTTP', (group) => {
     assert.equal(response.body().code, 'E_TEMPLATE_LIBRARY_TOKEN_MISSING')
   })
 
+  test('library list rejects partial topic and industry values', async ({ client }) => {
+    const token = await mintToken(DEMO_USERS.superadmin)
+    const topic = await client.get(ADMIN_LIBRARY).qs({ topic: 'h' }).bearerToken(token)
+    topic.assertStatus(422)
+    const industry = await client.get(ADMIN_LIBRARY).qs({ industry: 'i' }).bearerToken(token)
+    industry.assertStatus(422)
+  })
+
   test('tenant cannot call super-admin library routes', async ({ client }) => {
     const token = await mintToken(DEMO_USERS.northstarOwner, FIXTURE_IDS.orgs.northstar)
     const response = await client.get(ADMIN_LIBRARY).bearerToken(token)
@@ -139,6 +147,34 @@ test.group('Platform template catalog HTTP', (group) => {
     response.assertStatus(200)
     const names = (response.body().data as Array<{ name: string }>).map((row) => row.name)
     assert.deepEqual(names, ['util_en'])
+  })
+
+  test('admin catalog filters language codes beyond the original five locales', async ({
+    client,
+    assert,
+  }) => {
+    await insertCatalog({
+      slug: 'util_zh',
+      name: 'util_zh',
+      category: 'UTILITY',
+      language: 'zh_CN',
+    })
+    await insertCatalog({
+      slug: 'util_en_only',
+      name: 'util_en_only',
+      category: 'UTILITY',
+      language: 'en_US',
+    })
+
+    const token = await mintToken(DEMO_USERS.superadmin)
+    const response = await client
+      .get(ADMIN_CATALOG)
+      .qs({ language: 'zh_CN', perPage: 50 })
+      .bearerToken(token)
+
+    response.assertStatus(200)
+    const names = (response.body().data as Array<{ name: string }>).map((row) => row.name)
+    assert.deepEqual(names, ['util_zh'])
   })
 
   test('org catalog hides drafts and ignores status/source query', async ({ client, assert }) => {

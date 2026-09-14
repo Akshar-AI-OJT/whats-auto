@@ -399,7 +399,7 @@ export function PlatformSettingsPage() {
         </DashboardPanel>
       ) : form && live ? (
         <form
-          className="flex flex-col gap-5 sm:gap-6"
+          className="flex flex-col gap-5 pb-28 sm:gap-6 sm:pb-24"
           onSubmit={(event) => {
             event.preventDefault()
             void handleSave()
@@ -853,16 +853,22 @@ export function PlatformSettingsPage() {
             </SettingsSection>
           </div>
 
-          <DashboardPanel
-            as="div"
-            className="sticky bottom-0 z-10 flex flex-col gap-3 px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-6"
+          <div
+            className={cn(
+              'fixed inset-x-0 bottom-0 z-20 border-t border-dash-border',
+              'bg-canvas/95 backdrop-blur-sm',
+              'px-3 py-3.5 sm:px-4 lg:left-[var(--sidebar-w,0px)] lg:px-5',
+              'pb-[max(0.875rem,env(safe-area-inset-bottom,0px))]'
+            )}
           >
-            <p className="text-xs leading-5 text-mute sm:max-w-md">{t('saveFooterHint')}</p>
-            <Button type="submit" size="sm" className="w-full gap-2 sm:w-auto" disabled={saving}>
-              {saving ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
-              {saving ? t('saving') : t('save')}
-            </Button>
-          </DashboardPanel>
+            <div className="flex flex-col gap-3 rounded-[24px] border border-dash-border bg-canvas px-4 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+              <p className="text-xs leading-5 text-mute sm:max-w-md">{t('saveFooterHint')}</p>
+              <Button type="submit" size="sm" className="w-full gap-2 sm:w-auto" disabled={saving}>
+                {saving ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
+                {saving ? t('saving') : t('save')}
+              </Button>
+            </div>
+          </div>
         </form>
       ) : null}
     </div>

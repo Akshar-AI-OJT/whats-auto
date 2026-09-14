@@ -89,6 +89,29 @@ describe('organization access gate regression', () => {
     assert.equal(resolving, true)
   })
 
+  it('keeps isResolvingAccess true when access fetched null but active org exists', () => {
+    const tenantId = 'org-1'
+    const resolving = resolveIsResolvingAccess(
+      {
+        activeOrgId: 'org-1',
+        accessContextOrgId: null,
+        sessionOrgId: 'org-1',
+        activatedOrganizationId: 'org-1',
+        tokenReadyOrgId: 'org-1',
+        pendingActiveId: null,
+        accessQueryLoading: false,
+        sessionPending: false,
+        orgsLoading: false,
+        bootstrapping: false,
+        isSignedIn: true,
+        accessQueryFetched: true,
+        hasAccessContext: false,
+      },
+      tenantId
+    )
+    assert.equal(resolving, true)
+  })
+
   it('stops resolving once access-context has fetched', () => {
     const tenantId = 'org-1'
     const resolving = resolveIsResolvingAccess(

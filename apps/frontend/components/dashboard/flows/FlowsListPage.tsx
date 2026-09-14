@@ -16,12 +16,11 @@ import { hasPermission, PERMISSIONS } from '@/lib/rbac'
 import { cn } from '@/lib/utils'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { Link, useRouter } from '@/i18n/navigation'
-import { Button } from '@/components/ui/button'
+import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
 import { queryKeys } from '@/lib/query-keys'
-import { FlowCatalogBrowseDialog } from './FlowCatalogBrowseDialog'
 import { FlowsCreateDialog, FlowsDeleteDialog, FlowsPublishDialog } from './FlowsDialogs'
 import {
   flowStatusBadgeClass,
@@ -51,7 +50,6 @@ export function FlowsListPage() {
   const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(1)
-  const [browseOpen, setBrowseOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ConversationFlow | null>(null)
@@ -201,16 +199,17 @@ export function FlowsListPage() {
           description={t('subtitle')}
           action={
             <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full gap-2 sm:w-auto"
-                onClick={() => setBrowseOpen(true)}
-                disabled={busy}
+              <Link
+                href="/dashboard/flows/browse"
+                className={cn(
+                  buttonVariants({ variant: 'outline' }),
+                  'w-full gap-2 sm:w-auto',
+                  busy ? 'pointer-events-none opacity-50' : null
+                )}
               >
                 <LayoutGrid className="size-4" aria-hidden />
                 {t('browseCta')}
-              </Button>
+              </Link>
               {canCreate ? (
                 <Button
                   type="button"
@@ -396,11 +395,6 @@ export function FlowsListPage() {
         onConfirm={() => {
           if (publishTarget) publishMutation.mutate(publishTarget.id)
         }}
-      />
-      <FlowCatalogBrowseDialog
-        open={browseOpen}
-        organizationId={tenantOrganizationId}
-        onOpenChange={setBrowseOpen}
       />
     </div>
   )

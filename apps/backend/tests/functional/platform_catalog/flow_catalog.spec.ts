@@ -241,6 +241,50 @@ test.group('Platform flow catalog HTTP', (group) => {
     )
   })
 
+  test('org can preview a published catalog graph and hidden rows 404', async ({
+    client,
+    assert,
+  }) => {
+    const visible = await seedCatalogFlow({
+      name: 'preview_welcome',
+      requiredFeatureKeys: ['flowBuilder'],
+      graph: linearMessageGraph(),
+    })
+    const hidden = await seedCatalogFlow({
+      name: 'preview_hidden',
+      requiredFeatureKeys: ['flowBuilder', 'flowAdvancedNodes', 'aiAutonomous'],
+      graph: aiGraph(),
+    })
+    const draft = await new PlatformFlowCatalogRepository().insert({
+      slug: `draft_${Date.now().toString(36)}`,
+      name: 'draft_only',
+      triggerType: FlowTriggerType.KEYWORD,
+      triggerConfig: { keywords: ['hi'], matchType: 'exact' },
+      settings: DEFAULT_FLOW_SETTINGS,
+      requiredFeatureKeys: ['flowBuilder'],
+      extraRequiredFeatureKeys: [],
+      status: CatalogStatus.DRAFT,
+    })
+
+    await withPlanFeatures([{ key: 'flowBuilder', enabled: true }], async () => {
+      const token = await mintToken(DEMO_USERS.northstarOwner, FIXTURE_IDS.orgs.northstar)
+      const preview = await client.get(`${ORG}/${visible.row.id}`).bearerToken(token)
+      preview.assertStatus(200)
+      const nodes = preview.body().data.version.nodes as Array<{ id: string }>
+      assert.include(
+        nodes.map((node) => node.id),
+        'message'
+      )
+
+      const hiddenResponse = await client.get(`${ORG}/${hidden.row.id}`).bearerToken(token)
+      hiddenResponse.assertStatus(404)
+      assert.equal(hiddenResponse.body().code, 'E_FLOW_CATALOG_NOT_FOUND')
+
+      const draftResponse = await client.get(`${ORG}/${draft.id}`).bearerToken(token)
+      draftResponse.assertStatus(404)
+    })
+  })
+
   test('install of a hidden flow returns not found', async ({ client }) => {
     const hidden = await seedCatalogFlow({
       name: 'hidden_ai',
@@ -347,6 +391,41 @@ test.group('Platform flow catalog HTTP', (group) => {
         )
         assert.equal(subNode.data.subflowId, childClone.id)
         assert.equal(response.body().data.status, 'DRAFT')
+      },
+      FIXTURE_IDS.plans.starter
+    )
+  })
+
+  test('install after archiving the live clone creates a new draft', async ({
+    client,
+    assert,
+  }) => {
+    const catalog = await seedCatalogFlow({
+      name: 'reinstall_after_archive',
+      requiredFeatureKeys: ['flowBuilder'],
+      graph: linearMessageGraph(),
+    })
+
+    await withPlanFeatures(
+      [{ key: 'flowBuilder', enabled: true }],
+      async () => {
+        const token = await mintToken(DEMO_USERS.harborOwner, FIXTURE_IDS.orgs.harbor)
+        const first = await client.post(`${ORG}/${catalog.row.id}/install`).bearerToken(token)
+        first.assertStatus(200)
+        const firstId = first.body().data.id as string
+        const again = await client.post(`${ORG}/${catalog.row.id}/install`).bearerToken(token)
+        again.assertStatus(200)
+        assert.equal(again.body().data.id, firstId)
+
+        const archived = await client.delete(`/api/v1/flows/${firstId}`).bearerToken(token)
+        archived.assertStatus(200)
+        assert.equal(archived.body().data.status, 'ARCHIVED')
+
+        const second = await client.post(`${ORG}/${catalog.row.id}/install`).bearerToken(token)
+        second.assertStatus(200)
+        assert.notEqual(second.body().data.id, firstId)
+        assert.equal(second.body().data.status, 'DRAFT')
+        assert.equal(second.body().data.catalogFlowId, catalog.row.id)
       },
       FIXTURE_IDS.plans.starter
     )
