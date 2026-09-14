@@ -872,6 +872,7 @@ router
 router
   .group(() => {
     router.get('/', [FlowCatalogController, 'index'])
+    router.get('/:id', [FlowCatalogController, 'show'])
     router.post('/:id/install', [FlowCatalogController, 'install'])
   })
   .prefix('/api/v1/flow-catalog')

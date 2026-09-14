@@ -9,6 +9,11 @@ import {
   TEMPLATE_CATEGORIES,
   TEMPLATE_LANGUAGES,
 } from '@/components/dashboard/templates/template-utils'
+import {
+  META_TEMPLATE_LIBRARY_INDUSTRIES,
+  META_TEMPLATE_LIBRARY_TOPICS,
+  formatMetaEnumLabel,
+} from '@/components/catalog/catalog-utils'
 
 export type CatalogTemplateFilterValues = {
   search: string
@@ -93,20 +98,32 @@ export function CatalogTemplateFilters({
             </option>
           ))}
         </select>
-        <Input
+        <select
+          className={selectClassName}
           value={values.industry}
           onChange={(event) => onChange({ industry: event.target.value })}
-          placeholder={t('industry')}
           aria-label={t('industry')}
-          className="h-10 rounded-xl"
-        />
-        <Input
+        >
+          <option value="">{t('allIndustries')}</option>
+          {META_TEMPLATE_LIBRARY_INDUSTRIES.map((value) => (
+            <option key={value} value={value}>
+              {formatMetaEnumLabel(value)}
+            </option>
+          ))}
+        </select>
+        <select
+          className={selectClassName}
           value={values.topic}
           onChange={(event) => onChange({ topic: event.target.value })}
-          placeholder={t('topic')}
           aria-label={t('topic')}
-          className="h-10 rounded-xl"
-        />
+        >
+          <option value="">{t('allTopics')}</option>
+          {META_TEMPLATE_LIBRARY_TOPICS.map((value) => (
+            <option key={value} value={value}>
+              {formatMetaEnumLabel(value)}
+            </option>
+          ))}
+        </select>
         {showAdminFilters ? (
           <>
             <select

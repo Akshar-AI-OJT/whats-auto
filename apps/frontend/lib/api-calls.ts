@@ -650,6 +650,11 @@ export function createApi() {
           })}`
         ),
 
+      get: (id: string) =>
+        protectedJsonRequest<{ data?: PlatformFlowCatalogItem } & PlatformFlowCatalogItem>(
+          `/api/v1/flow-catalog/${id}`
+        ),
+
       install: (id: string) =>
         protectedJsonRequest<{ data?: ConversationFlow } & ConversationFlow>(
           `/api/v1/flow-catalog/${id}/install`,
@@ -1175,7 +1180,7 @@ export function createApi() {
       },
 
       templateLibrary: {
-        list: (params: ListPlatformTemplateCatalogParams & { usecase?: string; after?: string } = {}) =>
+        list: (params: ListPlatformTemplateCatalogParams & { usecase?: string; after?: string; limit?: number } = {}) =>
           protectedJsonRequest<MetaTemplateLibraryList>(
             `/api/v1/super-admin/template-library${catalogQs({
               search: trimmed(params.search),
@@ -1185,6 +1190,7 @@ export function createApi() {
               topic: trimmed(params.topic),
               usecase: trimmed(params.usecase),
               after: trimmed(params.after),
+              limit: params.limit,
             })}`
           ),
       },

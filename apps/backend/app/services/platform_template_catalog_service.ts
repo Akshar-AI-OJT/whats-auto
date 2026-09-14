@@ -86,6 +86,7 @@ export class PlatformTemplateCatalogService {
     name?: string
     category?: string
     after?: string
+    limit?: number
   }) {
     const token = this.#systemUserToken()
     if (!token) {
@@ -104,6 +105,7 @@ export class PlatformTemplateCatalogService {
       name: params.name,
       category: params.category,
       after: params.after,
+      limit: params.limit,
     })
   }
 
