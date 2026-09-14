@@ -1,6 +1,6 @@
 import db from '@adonisjs/lucid/services/db'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
-import { normalizeContactPhone } from '#services/contact_service'
+import { normalizeWhatsappWaId } from '#lib/contact_phone'
 import type { MessageMetadata } from '#lib/meta_whatsapp/types'
 import type { MetaWebhookStatusName } from '#lib/meta_whatsapp/types'
 import {
@@ -69,7 +69,7 @@ export class WhatsappWebhookRepository {
         .join('organizations as org', 'org.id', 'wc.organizationId')
         .where('wc.phoneNumberId', phoneNumberId)
         .where('wc.status', 'connected')
-        .where('org.status', true)
+        .where('org.status', 'active')
         .whereNull('org.deletedAt')
         .select('wc.id', 'wc.organizationId')
         .first()
@@ -87,7 +87,9 @@ export class WhatsappWebhookRepository {
 
   /**
    * Upsert contact by org + normalized WhatsApp id.
-   * Profile name is set only on insert so CRM-managed names are preserved.
+   * Soft-deleted rows are restored (most recent) so existing conversations reappear
+   * in inbox (list joins require deletedAt IS NULL). Profile name is set only on
+   * insert so CRM-managed names are preserved.
    * Atomic ON CONFLICT — try/catch unique-violation would abort the open transaction.
    */
   async upsertContactByWaId(
@@ -98,8 +100,41 @@ export class WhatsappWebhookRepository {
       profileName: string | null
     }
   ): Promise<WebhookContactRow> {
-    const phoneNormalized = normalizeContactPhone(params.waId)
+    const phoneNormalized = normalizeWhatsappWaId(params.waId)
     const name = params.profileName?.trim() || null
+
+    const restored = await trx.rawQuery(
+      `UPDATE "contacts"
+       SET "deletedAt" = NULL
+       WHERE "id" = (
+         SELECT "id"
+         FROM "contacts"
+         WHERE "organizationId" = ?
+           AND "phoneNormalized" = ?
+           AND "deletedAt" IS NOT NULL
+           AND NOT EXISTS (
+             SELECT 1
+             FROM "contacts" AS live
+             WHERE live."organizationId" = ?
+               AND live."phoneNormalized" = ?
+               AND live."deletedAt" IS NULL
+           )
+         ORDER BY "deletedAt" DESC
+         LIMIT 1
+       )
+       RETURNING
+         "id",
+         "organizationId",
+         "phone",
+         "phoneNormalized",
+         "name"`,
+      [params.organizationId, phoneNormalized, params.organizationId, phoneNormalized]
+    )
+
+    const restoredRow = (restored.rows?.[0] ?? restored[0]) as WebhookContactRow | undefined
+    if (restoredRow) {
+      return restoredRow
+    }
 
     const result = await trx.rawQuery(
       `INSERT INTO "contacts" (
@@ -121,7 +156,7 @@ export class WhatsappWebhookRepository {
          "phone",
          "phoneNormalized",
          "name"`,
-      [params.organizationId, params.waId, phoneNormalized, name as string]
+      [params.organizationId, phoneNormalized, phoneNormalized, name as string]
     )
 
     const row = (result.rows?.[0] ?? result[0]) as WebhookContactRow | undefined
@@ -170,6 +205,23 @@ export class WhatsappWebhookRepository {
       throw new Error('findOrCreateConversation returned no row')
     }
     return row
+  }
+
+  /**
+   * Connected WhatsApp config for the tenant, if any.
+   */
+  async findConnectedConfigId(
+    trx: TransactionClientContract,
+    organizationId: string
+  ): Promise<string | null> {
+    const row = await trx
+      .from('whatsapp_configs')
+      .where('organizationId', organizationId)
+      .where('status', 'connected')
+      .select('id')
+      .first()
+
+    return row ? (row.id as string) : null
   }
 
   /**

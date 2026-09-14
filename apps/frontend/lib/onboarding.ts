@@ -1,10 +1,32 @@
 /** Client-side onboarding helpers — no backend coupling beyond API contracts. */
 
+import {
+  isOrganizationId,
+  readOrganizationIdQueryParam,
+} from '@/lib/organization-profile'
+
+export {
+  CREATE_PLACEHOLDER_ADDRESS,
+  CREATE_PLACEHOLDER_PAN,
+  isCreatePlaceholderAddress,
+  isCreatePlaceholderPan,
+  ORG_PROFILE_PATH,
+  organizationProfilePath,
+  readOrganizationIdQueryParam,
+} from '@/lib/organization-profile'
+
 const PENDING_PHONE_KEY = 'wa-onboarding-phone'
 const PENDING_EMAIL_KEY = 'wa-onboarding-email'
 const CHECKLIST_KEY = 'wa-onboarding-checklist'
+const PENDING_PLAN_KEY = 'wa-onboarding-plan'
+const PENDING_ORG_KEY = 'wa-onboarding-organization-id'
 
 export const ORG_SETUP_PATH = '/onboarding/organization'
+/** First-activation plan selection (not dashboard billing renewals). */
+export const ONBOARDING_PLAN_PATH = '/onboarding/plan'
+export const ONBOARDING_PAYMENT_PATH = '/onboarding/payment'
+export const ONBOARDING_PLAN_ID_QUERY = 'planId'
+export const ONBOARDING_PLAN_NAME_QUERY = 'planName'
 export const TEAM_MEMBERS_PATH = '/dashboard/team'
 export const ASSIGNABLE_ROLES = ['admin', 'agent', 'viewer'] as const
 export type AssignableRole = (typeof ASSIGNABLE_ROLES)[number]
@@ -51,6 +73,25 @@ export function isValidWebsiteUrl(value: string): boolean {
   }
 }
 
+/** Indian PAN: 5 letters, 4 digits, 1 letter. */
+export const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]$/
+
+/** Indian GSTIN: 15 chars (state + PAN + entity + Z + check). */
+export const GSTIN_REGEX = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/
+
+export function normalizeTaxId(value: string): string {
+  return value.trim().replace(/\s+/g, '').toUpperCase()
+}
+
+export function isValidPan(value: string): boolean {
+  return PAN_REGEX.test(normalizeTaxId(value))
+}
+
+export function isValidGstin(value: string): boolean {
+  const normalized = normalizeTaxId(value)
+  return normalized.length > 0 && GSTIN_REGEX.test(normalized)
+}
+
 export function savePendingOnboardingContact(input: {
   email: string
   phone: string
@@ -91,25 +132,6 @@ export function clearPendingOnboardingContact() {
   }
 }
 
-/**
- * Organizations now come from the API, but earlier builds cached them in
- * localStorage, which is shared across accounts on the same browser. Drop the
- * old keys so testers don't keep another account's workspaces around.
- */
-const LEGACY_ORG_CACHE_KEYS = [
-  'wa-local-organizations',
-  'wa-local-active-organization',
-]
-
-export function clearLegacyOrganizationCache() {
-  if (typeof window === 'undefined') return
-  try {
-    LEGACY_ORG_CACHE_KEYS.forEach((key) => window.localStorage.removeItem(key))
-  } catch {
-    /* ignore */
-  }
-}
-
 /** Common IANA zones for the company-info dropdown (browser zone always prepended). */
 export const COMMON_TIMEZONES = [
   'Asia/Kolkata',
@@ -137,6 +159,13 @@ export function getTimezoneOptions(): string[] {
 }
 
 /**
+ * Backend create still requires address/PAN/country. PAN/address sentinels live in
+ * `organization-profile.ts` (shared with the completion gate). Country `IN` is a
+ * create-time default, not a profile-completion placeholder.
+ */
+export const CREATE_PLACEHOLDER_COUNTRY = 'IN'
+
+/**
  * Maps wizard state to the POST /api/v1/organizations request body.
  * Only includes optional keys when the user provided a value.
  */
@@ -144,9 +173,13 @@ export function buildCreateOrganizationPayload(input: {
   name: string
   slug: string
   email: string
-  phone?: string
+  phone: string
   website?: string
   industry?: string
+  organizationType: 'company' | 'partnership' | 'sole_proprietorship' | 'other'
+  address: string
+  pan: string
+  gstin?: string
   country: string
   timezone: string
   currency?: string
@@ -155,9 +188,13 @@ export function buildCreateOrganizationPayload(input: {
     name: string
     slug: string
     email: string
+    phone: string
     country: string
     timezone: string
-    phone?: string
+    organizationType: 'company' | 'partnership' | 'sole_proprietorship' | 'other'
+    address: string
+    pan: string
+    gstin?: string
     website?: string
     industry?: string
     currency?: string
@@ -165,12 +202,13 @@ export function buildCreateOrganizationPayload(input: {
     name: input.name.trim(),
     slug: input.slug.trim(),
     email: input.email.trim(),
+    phone: input.phone.trim(),
+    organizationType: input.organizationType,
+    address: input.address.trim(),
+    pan: normalizeTaxId(input.pan),
     country: input.country.trim(),
     timezone: input.timezone.trim(),
   }
-
-  const phone = input.phone?.trim()
-  if (phone) payload.phone = phone
 
   const website = input.website?.trim()
   if (website) payload.website = website
@@ -178,15 +216,18 @@ export function buildCreateOrganizationPayload(input: {
   const industry = input.industry?.trim()
   if (industry) payload.industry = industry
 
+  const gstin = input.gstin ? normalizeTaxId(input.gstin) : ''
+  if (gstin) payload.gstin = gstin
+
   const currency = input.currency?.trim()
   if (currency) payload.currency = currency
 
   return payload
 }
 
-const PREFERENCES_KEY = 'wa-workspace-preferences'
+const PREFERENCES_KEY = 'wa-organization-preferences'
 
-export type PendingWorkspacePreferences = {
+export type PendingOrganizationPreferences = {
   companySize: string
   logoFileName: string
   defaultLanguage: string
@@ -196,8 +237,8 @@ export type PendingWorkspacePreferences = {
   notifications: string[]
 }
 
-export function savePendingWorkspacePreferences(
-  prefs: PendingWorkspacePreferences
+export function savePendingOrganizationPreferences(
+  prefs: PendingOrganizationPreferences
 ) {
   if (typeof window === 'undefined') return
   try {
@@ -207,13 +248,66 @@ export function savePendingWorkspacePreferences(
   }
 }
 
-export function clearPendingWorkspacePreferences() {
+export function readPendingOrganizationPreferences(): PendingOrganizationPreferences | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.sessionStorage.getItem(PREFERENCES_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as PendingOrganizationPreferences
+    if (!parsed || typeof parsed !== 'object') return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+export function clearPendingOrganizationPreferences() {
   if (typeof window === 'undefined') return
   try {
     window.sessionStorage.removeItem(PREFERENCES_KEY)
   } catch {
     /* ignore */
   }
+}
+
+const CREATED_ORGANIZATION_ID_KEY = 'wa-created-organization-id'
+
+export function saveCreatedOrganizationId(organizationId: string) {
+  if (typeof window === 'undefined') return
+  if (!isOrganizationId(organizationId)) return
+  try {
+    window.sessionStorage.setItem(CREATED_ORGANIZATION_ID_KEY, organizationId)
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+export function readCreatedOrganizationId(): string | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const value = window.sessionStorage.getItem(CREATED_ORGANIZATION_ID_KEY)
+    return isOrganizationId(value) ? value : null
+  } catch {
+    return null
+  }
+}
+
+export function clearCreatedOrganizationId() {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.removeItem(CREATED_ORGANIZATION_ID_KEY)
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Organization the create-org wizard must complete next.
+ * Query param wins (refresh / shared URL); sessionStorage is the same-tab backup.
+ * Never fall back to the current/active organization here.
+ */
+export function readProfileCompletionOrganizationId(): string | null {
+  return readOrganizationIdQueryParam() ?? readCreatedOrganizationId()
 }
 
 export function markOnboardingChecklistVisible() {
@@ -243,4 +337,160 @@ export function dismissOnboardingChecklist() {
   } catch {
     /* ignore */
   }
+}
+
+/**
+ * Stores the onboarding-selected subscription plan so the app can read it
+ * after redirecting to the dashboard (UI-only for now).
+ */
+export function savePendingOrganizationPlan(planId: string) {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.setItem(PENDING_PLAN_KEY, planId)
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+export function readPendingOrganizationPlan(): string | null {
+  if (typeof window === 'undefined') return null
+  try {
+    return window.sessionStorage.getItem(PENDING_PLAN_KEY)
+  } catch {
+    return null
+  }
+}
+
+export function clearPendingOrganizationPlan() {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.removeItem(PENDING_PLAN_KEY)
+  } catch {
+    /* ignore */
+  }
+}
+
+/** New org id from onboarding create — used until profile completion finishes.
+ * Key: `wa-onboarding-organization-id`. This is a same-tab backup distinct from
+ * `wa-created-organization-id` (`saveCreatedOrganizationId`), which is the
+ * profile-completion / payment backup. Create writes both; completion prefers
+ * the query param, then created-org id, then this pending id.
+ */
+export function savePendingOnboardingOrganizationId(organizationId: string) {
+  if (typeof window === 'undefined') return
+  if (!isOrganizationId(organizationId)) return
+  try {
+    window.sessionStorage.setItem(PENDING_ORG_KEY, organizationId)
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+export function readPendingOnboardingOrganizationId(): string | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const value = window.sessionStorage.getItem(PENDING_ORG_KEY)
+    return isOrganizationId(value) ? value : null
+  } catch {
+    return null
+  }
+}
+
+export function clearPendingOnboardingOrganizationId() {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.removeItem(PENDING_ORG_KEY)
+  } catch {
+    /* ignore */
+  }
+}
+
+const CHECKOUT_SESSION_KEY = 'wa-onboarding-checkout'
+
+export type OnboardingCheckoutSession = {
+  planId: string
+  checkoutPlanId: string
+  planName?: string
+}
+
+/** Payment URL with plan id in the query — survives refresh without sessionStorage. */
+export function onboardingPaymentPath(input: {
+  planId: string
+  planName?: string
+}): string {
+  const params = new URLSearchParams({ [ONBOARDING_PLAN_ID_QUERY]: input.planId })
+  const name = input.planName?.trim()
+  if (name) params.set(ONBOARDING_PLAN_NAME_QUERY, name)
+  return `${ONBOARDING_PAYMENT_PATH}?${params.toString()}`
+}
+
+export function readOnboardingPaymentPlanFromUrl(): OnboardingCheckoutSession | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const params = new URLSearchParams(window.location.search)
+    const planId = params.get(ONBOARDING_PLAN_ID_QUERY)?.trim()
+    if (!planId || !isOrganizationId(planId)) return null
+    const planName = params.get(ONBOARDING_PLAN_NAME_QUERY)?.trim() || undefined
+    return {
+      planId,
+      checkoutPlanId: planId,
+      planName,
+    }
+  } catch {
+    return null
+  }
+}
+
+export function saveOnboardingCheckoutSession(session: OnboardingCheckoutSession) {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.setItem(CHECKOUT_SESSION_KEY, JSON.stringify(session))
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+export function readOnboardingCheckoutSession(): OnboardingCheckoutSession | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.sessionStorage.getItem(CHECKOUT_SESSION_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as OnboardingCheckoutSession
+    if (!parsed?.planId || !parsed?.checkoutPlanId) return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+export function clearOnboardingCheckoutSession() {
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage.removeItem(CHECKOUT_SESSION_KEY)
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Resolve the plan for `/onboarding/payment` (pure read — no storage writes).
+ * Prefer URL query (stable), then sessionStorage backup.
+ */
+export function resolveOnboardingCheckoutSession(): OnboardingCheckoutSession | null {
+  const fromUrl = readOnboardingPaymentPlanFromUrl()
+  if (fromUrl) return fromUrl
+  const stored = readOnboardingCheckoutSession()
+  if (stored?.planId) return stored
+  const pendingPlan = readPendingOrganizationPlan()
+  if (!pendingPlan || !isOrganizationId(pendingPlan)) return null
+  return {
+    planId: pendingPlan,
+    checkoutPlanId: pendingPlan,
+  }
+}
+
+/** Persist a resolved checkout session for same-tab backup (call from effects, not render). */
+export function persistOnboardingCheckoutSession(session: OnboardingCheckoutSession) {
+  saveOnboardingCheckoutSession(session)
+  savePendingOrganizationPlan(session.planId)
 }

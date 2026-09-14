@@ -31,9 +31,18 @@ export class WhatsappWebhookService {
       !params.challenge ||
       params.verifyToken !== expected
     ) {
+      logger.warn(
+        {
+          mode: params.mode ?? null,
+          hasVerifyToken: Boolean(params.verifyToken),
+          hasChallenge: Boolean(params.challenge),
+        },
+        'whatsapp.webhook.verify_failed'
+      )
       throw WhatsappWebhookException.invalidVerifyToken()
     }
 
+    logger.info({ mode: params.mode }, 'whatsapp.webhook.verify_ok')
     return params.challenge
   }
 
@@ -46,6 +55,7 @@ export class WhatsappWebhookService {
     payload: MetaWebhookPayload
   }): Promise<void> {
     if (params.rawBody === null || params.rawBody === undefined) {
+      logger.warn({ outcome: 'missing_raw_body' }, 'whatsapp.webhook.rejected')
       throw WhatsappWebhookException.missingRawBody()
     }
 
@@ -53,6 +63,14 @@ export class WhatsappWebhookService {
     const valid = verifyMetaWebhookSignature(params.rawBody, params.signatureHeader, appSecret)
 
     if (!valid) {
+      logger.warn(
+        {
+          outcome: 'invalid_signature',
+          hasSignature: Boolean(params.signatureHeader),
+          rawBodyLength: params.rawBody.length,
+        },
+        'whatsapp.webhook.rejected'
+      )
       throw WhatsappWebhookException.invalidSignature()
     }
 
@@ -64,20 +82,6 @@ export class WhatsappWebhookService {
    * Unknown/malformed values are logged and skipped; DB errors propagate for Meta retry.
    */
   protected async processPayload(payload: MetaWebhookPayload): Promise<void> {
-    const entryCount = payload.entry?.length ?? 0
-    const fields =
-      payload.entry?.flatMap((entry) => entry.changes?.map((c) => c.field).filter(Boolean) ?? []) ??
-      []
-
-    logger.info(
-      {
-        object: payload.object,
-        entryCount,
-        fields,
-      },
-      'whatsapp.webhook.received'
-    )
-
     for (const entry of payload.entry ?? []) {
       for (const change of entry.changes ?? []) {
         await this.ingestion.processChangeValue({

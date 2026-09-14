@@ -1,11 +1,15 @@
 packages:
   - 'apps/*'
 
+overrides:
+  '@adonisjs/ace': 14.1.1
+
 allowBuilds:
   '@parcel/watcher': false
   '@swc/core': true
   better-sqlite3: true
   esbuild: true
+  msgpackr-extract: true
   sharp: false
   unrs-resolver: false
 onlyBuiltDependencies:

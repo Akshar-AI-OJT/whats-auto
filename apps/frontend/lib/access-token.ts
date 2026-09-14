@@ -131,6 +131,17 @@ export function peekAccessTokenOrgId(): string | null {
   return decodeJwtPayload(accessToken)?.org_id ?? null
 }
 
+/** Ensure in-memory JWT org_id matches the selected organization after set-active. */
+export async function ensureAccessTokenForOrganization(organizationId: string): Promise<void> {
+  await getValidAccessToken()
+  if (peekAccessTokenOrgId() === organizationId) return
+
+  await forceRemintAccessToken()
+  if (peekAccessTokenOrgId() !== organizationId) {
+    throw new Error('Access token organization did not match the selected organization')
+  }
+}
+
 /** Role claim from the cached JWT (e.g. `superadmin`) — metadata only. */
 export function peekAccessTokenRole(): string | null {
   if (!accessToken) return null

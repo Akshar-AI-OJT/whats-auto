@@ -7,6 +7,7 @@ import { Link, usePathname } from '@/i18n/navigation'
 import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
 import { MobileMenu } from '@/components/layout/MobileMenu'
 import { MobileMenuTrigger } from '@/components/layout/MobileMenuTrigger'
+import { AppLogo } from '@/components/branding/AppLogo'
 import type { NavAnchorLink, NavData } from '@/components/layout/types'
 import { cn } from '@/lib/utils'
 
@@ -24,17 +25,17 @@ const loginButtonClassName = cn(
 const getStartedClassName = cn(
   buttonVariants({ size: 'sm' }),
   'rounded-xl border-transparent bg-primary px-5 font-semibold text-on-primary',
-  'shadow-[0_1px_2px_rgb(14_15_12/0.06),0_6px_14px_rgb(159_232_112/0.35)]',
+  'shadow-[0_1px_2px_rgb(14_15_12/0.06),0_6px_14px_rgb(37_99_235/0.35)]',
   'transition-[transform,box-shadow,background] duration-300',
   'hover:-translate-y-px hover:bg-primary-active',
-  'hover:shadow-[0_2px_4px_rgb(14_15_12/0.06),0_12px_24px_rgb(159_232_112/0.48)]',
+  'hover:shadow-[0_2px_4px_rgb(14_15_12/0.06),0_12px_24px_rgb(37_99_235/0.48)]',
   'active:translate-y-0',
   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2'
 )
 
 function navItemClassName(active: boolean) {
   return cn(
-    'relative inline-flex h-9 items-center rounded-xl px-3 text-sm font-medium',
+    'relative inline-flex h-9 cursor-pointer items-center rounded-xl px-3 text-sm font-medium',
     'transition-[color,background-color,transform] duration-300',
     'hover:bg-[#F1F5F9] hover:text-ink',
     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2',
@@ -188,12 +189,7 @@ export function NavbarClient({ nav }: NavbarClientProps) {
             scrolled ? 'h-[68px]' : 'h-20'
           )}
         >
-          <Link
-            href="/"
-            className="font-display shrink-0 text-xl leading-none tracking-tight text-ink transition-opacity duration-300 hover:opacity-80 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2"
-          >
-            {nav.brand}
-          </Link>
+          <AppLogo href="/" size="lg" priority className="rounded-xl" />
 
           <div className="hidden flex-1 items-center gap-0.5 lg:flex">
             <div className="ml-6 flex items-center gap-0.5 xl:ml-8">

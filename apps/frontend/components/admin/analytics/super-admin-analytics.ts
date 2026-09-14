@@ -1,0 +1,325 @@
+'use client'
+
+import {
+  api,
+  type AuthorizationAuditEvent,
+  type PaginationMeta,
+  type PlatformAnalyticsSummary,
+  type SuperAdminInvoiceSummary,
+  type SuperAdminOrganization,
+  type SuperAdminPlan,
+  type SuperAdminPlatformUser,
+  type SuperAdminSubscription,
+} from '@/lib/api'
+import { unwrapList, unwrapPage } from '@/lib/api-unwrap'
+import { mapOrganizationUiStatus } from '../organizations/organization-api'
+
+export type BreakdownItem = {
+  key: string
+  label: string
+  value: number
+}
+
+export type GrowthPoint = {
+  key: string
+  label: string
+  created: number
+  cumulative: number
+}
+
+function unwrapPaginated<T>(payload: unknown): { items: T[]; meta: PaginationMeta | null } {
+  return unwrapPage<T>(payload)
+}
+
+function unwrapObject<T extends object>(payload: unknown, marker: keyof T): T | null {
+  if (!payload || typeof payload !== 'object') return null
+  const root = payload as { data?: T } & T
+  if (root.data && typeof root.data === 'object' && marker in root.data) return root.data
+  if (marker in root) return root as T
+  return null
+}
+
+export async function fetchPlatformAnalyticsSummary(): Promise<PlatformAnalyticsSummary> {
+  const { data } = await api.superAdmin.analytics.summary()
+  const summary = unwrapObject<PlatformAnalyticsSummary>(data, 'totalOrganizations')
+  if (!summary) {
+    throw new Error('Platform analytics summary was empty')
+  }
+  return summary
+}
+
+export async function fetchAllOrganizations(): Promise<{
+  items: SuperAdminOrganization[]
+  total: number
+}> {
+  const perPage = 100
+  const { data } = await api.superAdmin.organizations.list({ page: 1, perPage })
+  const first = unwrapPaginated<SuperAdminOrganization>(data)
+  const total = first.meta?.total ?? first.items.length
+  const lastPage = first.meta?.lastPage ?? 1
+  const items = [...first.items]
+
+  for (let page = 2; page <= lastPage; page += 1) {
+    const next = await api.superAdmin.organizations.list({ page, perPage })
+    const nextUnwrapped = unwrapPaginated<SuperAdminOrganization>(next.data)
+    items.push(...nextUnwrapped.items)
+  }
+
+  return { items, total }
+}
+
+export async function fetchAllSubscriptions(): Promise<SuperAdminSubscription[]> {
+  const perPage = 100
+  const { data } = await api.superAdmin.subscriptions.list({ page: 1, perPage })
+  const first = unwrapPaginated<SuperAdminSubscription>(data)
+  const lastPage = first.meta?.lastPage ?? 1
+  const items = [...first.items]
+
+  for (let page = 2; page <= lastPage; page += 1) {
+    const next = await api.superAdmin.subscriptions.list({ page, perPage })
+    const nextUnwrapped = unwrapPaginated<SuperAdminSubscription>(next.data)
+    items.push(...nextUnwrapped.items)
+  }
+
+  return items
+}
+
+export async function fetchAllPlans(): Promise<SuperAdminPlan[]> {
+  const { data } = await api.superAdmin.plans.list({ status: 'all' })
+  const root = data as { data?: { items?: SuperAdminPlan[] } }
+  return Array.isArray(root?.data?.items) ? root.data.items : []
+}
+
+export async function fetchInvoiceSummary(params: {
+  issueMonth?: string
+} = {}): Promise<SuperAdminInvoiceSummary | null> {
+  const { data } = await api.superAdmin.invoices.summary({
+    issueMonth: params.issueMonth,
+  })
+  if (!data) return null
+  if (typeof data === 'object' && data !== null && 'totalCount' in data) {
+    return data as SuperAdminInvoiceSummary
+  }
+  const root = data as { data?: SuperAdminInvoiceSummary }
+  return root.data ?? null
+}
+
+export function getCurrentIssueMonth(date = new Date()): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+}
+
+/** Paid invoice total for the current calendar month (matches revenue trend chart). */
+export async function fetchCurrentMonthPaidRevenue(): Promise<number> {
+  const summary = await fetchInvoiceSummary({ issueMonth: getCurrentIssueMonth() })
+  return summary?.paidAmount ?? 0
+}
+
+export async function fetchPlatformUserTotal(): Promise<number> {
+  const { data } = await api.superAdmin.platformUsers.list({ page: 1, perPage: 1 })
+  const { meta } = unwrapPaginated<SuperAdminPlatformUser>(data)
+  return meta?.total ?? 0
+}
+
+export async function fetchRecentAudit(): Promise<AuthorizationAuditEvent[]> {
+  const { data } = await api.superAdmin.auditLogs.list({ limit: 10 })
+  return unwrapList<AuthorizationAuditEvent>(data)
+}
+
+export function countOrganizationsByUiStatus(organizations: SuperAdminOrganization[]) {
+  let active = 0
+  let suspended = 0
+  let pending = 0
+  let archived = 0
+
+  for (const org of organizations) {
+    const uiStatus = mapOrganizationUiStatus(org)
+    if (uiStatus === 'active') active += 1
+    else if (uiStatus === 'suspended') suspended += 1
+    else if (uiStatus === 'pending') pending += 1
+    else archived += 1
+  }
+
+  return { active, suspended, pending, archived }
+}
+
+function isEntitledSubscriptionStatus(status: string): boolean {
+  const normalized = status.toLowerCase()
+  return normalized === 'active' || normalized === 'trialing'
+}
+
+export function buildOrganizationGrowth(
+  organizations: SuperAdminOrganization[],
+  locale: string,
+  months = 6
+): GrowthPoint[] {
+  const now = new Date()
+  const monthStarts: Date[] = []
+
+  for (let i = months - 1; i >= 0; i -= 1) {
+    monthStarts.push(new Date(now.getFullYear(), now.getMonth() - i, 1))
+  }
+
+  const createdByMonth = new Map<string, number>()
+  for (const row of organizations) {
+    const date = new Date(row.createdAt)
+    if (Number.isNaN(date.getTime())) continue
+    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+    createdByMonth.set(key, (createdByMonth.get(key) ?? 0) + 1)
+  }
+
+  const firstMonthStart = monthStarts[0]!
+  let baselineTotal = 0
+  for (const row of organizations) {
+    const date = new Date(row.createdAt)
+    if (Number.isNaN(date.getTime())) continue
+    if (date < firstMonthStart) baselineTotal += 1
+  }
+
+  let cumulative = baselineTotal
+  return monthStarts.map((monthDate) => {
+    const key = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`
+    const created = createdByMonth.get(key) ?? 0
+    cumulative += created
+    return {
+      key,
+      label: new Intl.DateTimeFormat(locale, { month: 'short' }).format(monthDate),
+      created,
+      cumulative,
+    }
+  })
+}
+
+export function computeCurrentOrganizationSplit(
+  organizations: SuperAdminOrganization[]
+): BreakdownItem[] {
+  let active = 0
+  let inactive = 0
+
+  for (const org of organizations) {
+    const uiStatus = mapOrganizationUiStatus(org)
+    if (uiStatus === 'archived') continue
+    if (uiStatus === 'active') active += 1
+    else inactive += 1
+  }
+
+  return [
+    { key: 'active', label: 'active', value: active },
+    { key: 'inactive', label: 'inactive', value: inactive },
+  ]
+}
+
+export function computePlanDistribution(
+  subscriptions: SuperAdminSubscription[],
+  plans: SuperAdminPlan[]
+): BreakdownItem[] {
+  const planNameById = new Map(plans.map((plan) => [plan.id, plan.name]))
+  const counts = new Map<string, BreakdownItem>()
+
+  for (const subscription of subscriptions) {
+    if (!isEntitledSubscriptionStatus(String(subscription.status))) continue
+
+    const planId = subscription.planId
+    const existing = counts.get(planId)
+    if (existing) {
+      existing.value += 1
+      continue
+    }
+    counts.set(planId, {
+      key: planId,
+      label: planNameById.get(planId) ?? planId,
+      value: 1,
+    })
+  }
+
+  return [...counts.values()].sort((a, b) => b.value - a.value)
+}
+
+export function countTrialOrganizations(subscriptions: SuperAdminSubscription[]): number {
+  const trialingOrgs = new Set<string>()
+  for (const subscription of subscriptions) {
+    if (String(subscription.status).toLowerCase() === 'trialing') {
+      trialingOrgs.add(subscription.organizationId)
+    }
+  }
+  return trialingOrgs.size
+}
+
+export type MonthlyRevenuePoint = {
+  key: string
+  label: string
+  revenue: number
+}
+
+export async function fetchMonthlyRevenueTrend(
+  locale: string,
+  months = 6
+): Promise<MonthlyRevenuePoint[]> {
+  const now = new Date()
+  const monthStarts: Date[] = []
+  for (let i = months - 1; i >= 0; i -= 1) {
+    monthStarts.push(new Date(now.getFullYear(), now.getMonth() - i, 1))
+  }
+
+  const results = await Promise.all(
+    monthStarts.map(async (date) => {
+      const issueMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+      const summary = await fetchInvoiceSummary({ issueMonth })
+
+      return {
+        key: issueMonth,
+        label: new Intl.DateTimeFormat(locale, { month: 'short' }).format(date),
+        revenue: summary?.paidAmount ?? 0,
+      }
+    })
+  )
+
+  return results
+}
+
+/** Platform billing currency — invoice summary amounts are stored and summed in INR. */
+export const PLATFORM_CURRENCY = 'INR'
+export const PLATFORM_BILLING_CURRENCY = PLATFORM_CURRENCY
+
+export function formatCurrency(
+  value: number,
+  locale: string,
+  currency = PLATFORM_CURRENCY
+): string {
+  const code = (currency ?? PLATFORM_CURRENCY).trim().toUpperCase() || PLATFORM_CURRENCY
+  try {
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: code,
+      minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
+      maximumFractionDigits: 2,
+    }).format(value)
+  } catch {
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: PLATFORM_CURRENCY,
+      minimumFractionDigits: Number.isInteger(value) ? 0 : 2,
+      maximumFractionDigits: 2,
+    }).format(value)
+  }
+}
+
+export function formatShortCurrency(
+  value: number,
+  locale: string,
+  currency = PLATFORM_CURRENCY
+): string {
+  if (value >= 1000) {
+    try {
+      return new Intl.NumberFormat(locale, {
+        style: 'currency',
+        currency,
+        notation: 'compact',
+        maximumFractionDigits: 1,
+      }).format(value)
+    } catch {
+      return formatCurrency(value, locale, currency)
+    }
+  }
+
+  return formatCurrency(value, locale, currency)
+}

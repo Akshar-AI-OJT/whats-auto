@@ -8,17 +8,6 @@ export type RazorpayCustomer = {
   notes?: RazorpayNotes
 }
 
-export type RazorpaySubscription = {
-  id: string
-  plan_id: string
-  customer_id?: string | null
-  status: string
-  short_url?: string | null
-  current_start?: number | null
-  current_end?: number | null
-  notes?: RazorpayNotes
-}
-
 export type CreateRazorpayCustomerParams = {
   name: string
   email: string
@@ -28,13 +17,21 @@ export type CreateRazorpayCustomerParams = {
   failExisting?: '0' | '1'
 }
 
-export type CreateRazorpaySubscriptionParams = {
-  planId: string
-  customerId: string
-  totalCount: number
-  quantity?: number
-  customerNotify?: boolean
-  notes: RazorpayNotes
+export type CreateRazorpayOrderParams = {
+  amount: number
+  currency: string
+  receipt?: string
+  notes?: RazorpayNotes
+}
+
+export type RazorpayOrder = {
+  id: string
+  amount: number
+  currency: string
+  status: string
+  receipt?: string | null
+  notes?: RazorpayNotes
+  created_at?: number
 }
 
 /**
@@ -42,5 +39,6 @@ export type CreateRazorpaySubscriptionParams = {
  */
 export interface RazorpayClient {
   createCustomer(params: CreateRazorpayCustomerParams): Promise<RazorpayCustomer>
-  createSubscription(params: CreateRazorpaySubscriptionParams): Promise<RazorpaySubscription>
+  createOrder(params: CreateRazorpayOrderParams): Promise<RazorpayOrder>
+  fetchOrder(orderId: string): Promise<RazorpayOrder>
 }

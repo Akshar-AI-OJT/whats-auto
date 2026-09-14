@@ -1,9 +1,9 @@
 'use client'
 
 import { useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { authClient } from '@/lib/auth-client'
 import { clearAccessToken } from '@/lib/access-token'
-import { clearLegacyOrganizationCache } from '@/lib/onboarding'
 import type { ProfileUser } from '@/lib/api'
 
 type AuthState = {
@@ -30,6 +30,7 @@ function toIso(value: Date | string | undefined | null): string | null {
 }
 
 export function useAuth(): AuthState {
+  const queryClient = useQueryClient()
   const { data, isPending, error, refetch } = authClient.useSession()
 
   const rawUser = data?.user
@@ -54,11 +55,15 @@ export function useAuth(): AuthState {
     try {
       await authClient.signOut()
     } finally {
-      // Session cookie is gone; in-memory JWT would otherwise stay valid until exp.
+      // Drop JWT immediately so no protected call races with navigation.
       clearAccessToken()
-      clearLegacyOrganizationCache()
+      // Defer React Query wipe until after the current turn so callers can
+      // router.replace('/login') without thrashing the dashboard tree first.
+      queueMicrotask(() => {
+        queryClient.clear()
+      })
     }
-  }, [])
+  }, [queryClient])
 
   return {
     user,

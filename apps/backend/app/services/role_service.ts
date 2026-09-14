@@ -3,6 +3,7 @@ import type { Permission } from '#abilities/permissions'
 import { AuthorizationService } from '#services/authorization_service'
 import RoleException from '#exceptions/role_exception'
 import { bumpMembersByRolePermissionVersion } from '#lib/permission_version_bumps'
+import { PlanEnforcementService } from '#services/billing/plan_enforcement_service'
 
 /** Global system roles — blocked from custom-role creation. */
 export const SYSTEM_ROLE_NAMES = ['owner', 'superadmin', 'admin', 'agent', 'viewer'] as const
@@ -152,6 +153,8 @@ export class RoleService {
     managerPermissions: Set<Permission>
   }) {
     const { organizationId, name, permissions, actorUserId, managerPermissions } = params
+
+    await new PlanEnforcementService().requireFeature(organizationId, 'customRoles')
 
     const authz = new AuthorizationService()
     if (!authz.canGrant(managerPermissions, permissions)) {
@@ -397,6 +400,14 @@ export class RoleService {
     actorUserId: string
   }) {
     const { organizationId, role, desired, reason, actorUserId } = params
+    // Defense in depth: never rewrite role_permissions for immutable global roles
+    // (DB triggers also reject owner/superadmin mutations without the seeder GUC).
+    if (role.organizationId === null) {
+      throw RoleException.protectedRole(role.name)
+    }
+    if ((UNASSIGNABLE_ROLE_NAMES as readonly string[]).includes(role.name)) {
+      throw RoleException.protectedRole(role.name)
+    }
     const permissionIds = await this.resolvePermissionIds([...desired])
 
     const existing = await db

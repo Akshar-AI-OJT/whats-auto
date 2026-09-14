@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
-import { Loader2, Pencil, Trash2 } from 'lucide-react'
+import { Copy, Loader2, Trash2 } from 'lucide-react'
 import { api, type ApiError } from '@/lib/api'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { useRouter } from '@/i18n/navigation'
@@ -12,14 +12,16 @@ import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { TemplateStatusBadge } from './TemplateStatusBadge'
 import { TemplatePreview, templateToPreviewProps } from './TemplatePreview'
 import { TemplateDeleteDialog } from './TemplateDialogs'
-import { templateQueryKeys } from './TemplatesListPage'
+import { queryKeys } from '@/lib/query-keys'
 import {
   buildSubmissionHistory,
   extractBodyVariables,
+  formatHeaderType,
   formatRelativeDate,
   formatTemplateCategory,
   formatTemplateLanguage,
   normalizeButtons,
+  normalizeSampleValues,
   unwrapTemplate,
 } from './template-utils'
 
@@ -27,13 +29,14 @@ export function TemplateDetailsPage({ templateId }: { templateId: string }) {
   const t = useTranslations('dashboard.templates')
   const router = useRouter()
   const queryClient = useQueryClient()
-  const { canViewWhatsapp, canManageWhatsapp, isLoading: orgsLoading } = useOrganizations()
+  const { canViewTemplates, canCreateTemplates, canDeleteTemplates, isLoading: orgsLoading } =
+    useOrganizations()
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const detailQuery = useQuery({
-    queryKey: templateQueryKeys.detail(templateId),
-    enabled: Boolean(templateId) && canViewWhatsapp && !orgsLoading,
+    queryKey: queryKeys.templates.detail(templateId),
+    enabled: Boolean(templateId) && canViewTemplates && !orgsLoading,
     queryFn: async () => {
       const { data } = await api.whatsapp.getTemplate(templateId)
       return unwrapTemplate(data)
@@ -45,7 +48,7 @@ export function TemplateDetailsPage({ templateId }: { templateId: string }) {
       await api.whatsapp.deleteTemplate(templateId)
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: templateQueryKeys.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.templates.all })
       router.push('/dashboard/templates')
     },
     onError: (err) => {
@@ -53,9 +56,9 @@ export function TemplateDetailsPage({ templateId }: { templateId: string }) {
     },
   })
 
-  if (!orgsLoading && !canViewWhatsapp) {
+  if (!orgsLoading && !canViewTemplates) {
     return (
-      <DashboardPanel className="mx-auto max-w-[1200px] px-4 py-5">
+      <DashboardPanel className="w-full min-w-0 px-4 py-5">
         <p className="text-sm text-negative">{t('errors.permissionDenied')}</p>
       </DashboardPanel>
     )
@@ -63,7 +66,7 @@ export function TemplateDetailsPage({ templateId }: { templateId: string }) {
 
   if (detailQuery.isLoading || orgsLoading) {
     return (
-      <div className="mx-auto flex w-full max-w-[1200px] items-center justify-center gap-2 py-24 text-sm text-body">
+      <div className="flex w-full min-w-0 items-center justify-center gap-2 py-24 text-sm text-body">
         <Loader2 className="size-4 animate-spin" aria-hidden />
         {t('loading')}
       </div>
@@ -72,7 +75,7 @@ export function TemplateDetailsPage({ templateId }: { templateId: string }) {
 
   if (detailQuery.isError || !detailQuery.data) {
     return (
-      <DashboardPanel className="mx-auto max-w-[1200px] px-4 py-5">
+      <DashboardPanel className="w-full min-w-0 px-4 py-5">
         <p className="text-sm text-negative">
           {(detailQuery.error as unknown as ApiError)?.message || t('errors.loadFailed')}
         </p>
@@ -91,6 +94,7 @@ export function TemplateDetailsPage({ templateId }: { templateId: string }) {
   const template = detailQuery.data
   const variables = extractBodyVariables(template.bodyText)
   const buttons = normalizeButtons(template.buttons)
+  const samples = normalizeSampleValues(template.sampleValues)
   const history = buildSubmissionHistory(template)
   const statusKey = template.status.toLowerCase()
   const statusLabel =
@@ -104,8 +108,10 @@ export function TemplateDetailsPage({ templateId }: { templateId: string }) {
             ? t('status.draft')
             : template.status
 
+  const isLocalDraft = statusKey === 'draft' && !template.metaTemplateId
+
   return (
-    <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5">
+    <div className="flex w-full min-w-0 flex-col gap-5">
       <DashboardPanel as="section" className="p-4 sm:p-5 md:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
@@ -122,6 +128,9 @@ export function TemplateDetailsPage({ templateId }: { templateId: string }) {
               </span>
             </div>
             <p className="mt-2 text-sm text-body">{formatTemplateLanguage(template.language)}</p>
+            {isLocalDraft ? (
+              <p className="mt-2 text-sm text-mute">{t('details.localDraftNotice')}</p>
+            ) : null}
           </div>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -131,18 +140,18 @@ export function TemplateDetailsPage({ templateId }: { templateId: string }) {
             >
               {t('backToList')}
             </Button>
-            {canManageWhatsapp ? (
+            {canCreateTemplates ? (
               <Button
                 type="button"
                 variant="outline"
                 className="gap-2"
                 onClick={() => router.push(`/dashboard/templates/create?from=${template.id}`)}
               >
-                <Pencil className="size-4" aria-hidden />
-                {t('actions.edit')}
+                <Copy className="size-4" aria-hidden />
+                {t('actions.duplicate')}
               </Button>
             ) : null}
-            {canManageWhatsapp ? (
+            {canDeleteTemplates ? (
               <Button
                 type="button"
                 variant="outline"
@@ -165,14 +174,15 @@ export function TemplateDetailsPage({ templateId }: { templateId: string }) {
           <DashboardPanel className="p-4 sm:p-5">
             <h2 className="text-base font-semibold text-ink">{t('details.content')}</h2>
             <div className="mt-4 space-y-4 text-sm">
-              {template.headerContent ? (
-                <div>
-                  <p className="text-xs font-semibold tracking-wide text-mute uppercase">
-                    {t('details.header')}
-                  </p>
-                  <p className="mt-1 text-ink">{template.headerContent}</p>
-                </div>
-              ) : null}
+              <div>
+                <p className="text-xs font-semibold tracking-wide text-mute uppercase">
+                  {t('details.header')}
+                </p>
+                <p className="mt-1 text-ink">
+                  {formatHeaderType(template.headerType)}
+                  {template.headerContent ? ` — ${template.headerContent}` : ''}
+                </p>
+              </div>
               <div>
                 <p className="text-xs font-semibold tracking-wide text-mute uppercase">
                   {t('details.body')}
@@ -194,15 +204,32 @@ export function TemplateDetailsPage({ templateId }: { templateId: string }) {
                 {variables.length === 0 ? (
                   <p className="mt-1 text-body">{t('details.noVariables')}</p>
                 ) : (
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {variables.map((variable) => (
-                      <span
-                        key={variable}
-                        className="rounded-md bg-dash-surface px-2 py-0.5 font-mono text-xs text-ink"
-                      >
-                        {`{{${variable}}}`}
-                      </span>
-                    ))}
+                  <div className="mt-2 space-y-2">
+                    <div className="flex flex-wrap gap-1.5">
+                      {variables.map((variable) => (
+                        <span
+                          key={variable}
+                          className="rounded-md bg-dash-surface px-2 py-0.5 font-mono text-xs text-ink"
+                        >
+                          {`{{${variable}}}`}
+                        </span>
+                      ))}
+                    </div>
+                    {Object.keys(samples).length > 0 ? (
+                      <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        {variables.map((variable) =>
+                          samples[variable] ? (
+                            <div
+                              key={`sample-${variable}`}
+                              className="rounded-lg border border-dash-border px-3 py-2"
+                            >
+                              <dt className="font-mono text-xs text-mute">{`{{${variable}}}`}</dt>
+                              <dd className="mt-0.5 text-ink">{samples[variable]}</dd>
+                            </div>
+                          ) : null
+                        )}
+                      </dl>
+                    ) : null}
                   </div>
                 )}
               </div>
@@ -219,8 +246,13 @@ export function TemplateDetailsPage({ templateId }: { templateId: string }) {
                         key={`${button.text}-${index}`}
                         className="rounded-lg border border-dash-border px-3 py-2 text-ink"
                       >
-                        <span className="font-medium">{button.text || t('preview.buttonFallback')}</span>
+                        <span className="font-medium">
+                          {button.text || t('preview.buttonFallback')}
+                        </span>
                         <span className="ml-2 text-xs text-mute">{button.type}</span>
+                        {button.url ? (
+                          <p className="mt-1 truncate text-xs text-mute">{String(button.url)}</p>
+                        ) : null}
                       </li>
                     ))}
                   </ul>
@@ -231,17 +263,21 @@ export function TemplateDetailsPage({ templateId }: { templateId: string }) {
 
           <DashboardPanel className="p-4 sm:p-5">
             <h2 className="text-base font-semibold text-ink">{t('details.history')}</h2>
-            <ol className="mt-4 space-y-3 border-l border-dash-border pl-4">
-              {history.map((event) => (
-                <li key={event.key} className="relative">
-                  <span className="absolute top-1.5 -left-[1.35rem] size-2.5 rounded-full bg-primary" />
-                  <p className="text-sm font-medium text-ink">
-                    {t(`details.historyEvents.${event.labelKey}`)}
-                  </p>
-                  <p className="text-xs text-mute">{formatRelativeDate(event.at)}</p>
-                </li>
-              ))}
-            </ol>
+            {history.length === 0 ? (
+              <p className="mt-3 text-sm text-body">{t('details.noHistory')}</p>
+            ) : (
+              <ol className="mt-4 space-y-3 border-l border-dash-border pl-4">
+                {history.map((event) => (
+                  <li key={event.key} className="relative">
+                    <span className="absolute top-1.5 -left-[1.35rem] size-2.5 rounded-full bg-primary" />
+                    <p className="text-sm font-medium text-ink">
+                      {t(`details.historyEvents.${event.labelKey}`)}
+                    </p>
+                    <p className="text-xs text-mute">{formatRelativeDate(event.at)}</p>
+                  </li>
+                ))}
+              </ol>
+            )}
             {template.rejectionReason || template.submissionError ? (
               <div className="mt-4 rounded-xl border border-negative/25 bg-negative/5 px-3 py-2 text-sm text-negative">
                 {template.rejectionReason || template.submissionError}
@@ -269,6 +305,22 @@ export function TemplateDetailsPage({ templateId }: { templateId: string }) {
                 <dd className="text-ink">{formatTemplateLanguage(template.language)}</dd>
               </div>
               <div className="flex justify-between gap-3">
+                <dt className="text-mute">{t('table.header')}</dt>
+                <dd className="text-ink">{formatHeaderType(template.headerType)}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-mute">{t('table.quality')}</dt>
+                <dd className="text-ink">
+                  {template.qualityScore || t('table.qualityEmpty')}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-mute">{t('details.metaTemplateId')}</dt>
+                <dd className="max-w-[55%] truncate font-mono text-xs text-ink">
+                  {template.metaTemplateId || t('details.metaNotSynced')}
+                </dd>
+              </div>
+              <div className="flex justify-between gap-3">
                 <dt className="text-mute">{t('details.templateId')}</dt>
                 <dd className="font-mono text-xs text-ink">{template.id.slice(0, 8)}…</dd>
               </div>
@@ -278,6 +330,12 @@ export function TemplateDetailsPage({ templateId }: { templateId: string }) {
                   {formatRelativeDate(template.updatedAt ?? template.createdAt)}
                 </dd>
               </div>
+              {template.lastSubmittedAt ? (
+                <div className="flex justify-between gap-3">
+                  <dt className="text-mute">{t('details.lastSubmitted')}</dt>
+                  <dd className="text-ink">{formatRelativeDate(template.lastSubmittedAt)}</dd>
+                </div>
+              ) : null}
             </dl>
           </DashboardPanel>
 

@@ -4,12 +4,17 @@ import { PLATFORM_PERMISSIONS, PRODUCT_PERMISSIONS, type Permission } from '#abi
 import { SEEDED_ROLES } from '#abilities/role_seeds'
 
 const ALL_PERMISSIONS: Permission[] = [...PRODUCT_PERMISSIONS, ...PLATFORM_PERMISSIONS]
+
+/** Transaction-local GUC that unlocks owner/superadmin role_permissions mutations. */
+const IMMUTABLE_ROLE_SYNC_GUC = 'app.allow_immutable_role_permission_sync'
+
 /**
  * Populates the relational RBAC catalog: `roles`, `permissions`, `role_permissions`.
  *
  * `permissions.ts` (code) is still the source of truth for *which permission keys
  * exist* — this seeder is what turns that catalog into DB rows. Once seeded,
- * `role_permissions`  is what `AuthorizationService` reads at request time.
+ * `role_permissions` is what `AuthorizationService` reads at request time
+ * (including owner / superadmin — no in-memory short-circuit).
  *
  * Idempotent: safe to run on every deploy.
  * - roles: insert-if-missing
@@ -17,12 +22,15 @@ const ALL_PERMISSIONS: Permission[] = [...PRODUCT_PERMISSIONS, ...PLATFORM_PERMI
  * - role_permissions: full delete-then-insert per role, so removing a permission
  *   from a role's array here actually revokes it on re-seed (no drift/orphans)
  *
- * `owner` and `superadmin` are seeded with the full permission catalog for
- * completeness/consistency, even though `AuthorizationService` short-circuits
- * both roles without querying `role_permissions`. `organization_role_permissions`
- * overrides are blocked for both roles at the DB level
- * Note: renaming a permission key in permission.ts leaves the old row orphaned in permission.ts
- * manual clean up is required for old rows
+ * `owner` and `superadmin` catalogs are immutable except via this seeder
+ * (DB triggers + `SET LOCAL` GUC). After syncing those roles, permissionVersion
+ * is bumped for all holders so JWTs with embedded scopes remint.
+ *
+ * `organization_role_permissions` overrides are blocked for owner/superadmin
+ * at the DB level.
+ *
+ * Note: renaming a permission key in permissions.ts leaves the old row orphaned;
+ * manual clean up is required for old rows.
  */
 export default class extends BaseSeeder {
   async run() {
@@ -36,6 +44,9 @@ export default class extends BaseSeeder {
     const roleNames = Object.keys(rolePermissions)
 
     await db.transaction(async (trx) => {
+      // Unlock immutable owner/superadmin role_permissions for this transaction only.
+      await trx.rawQuery(`SELECT set_config(?, 'on', true)`, [IMMUTABLE_ROLE_SYNC_GUC])
+
       // 1. Roles — insert any missing global roles (partial unique on name WHERE org IS NULL).
       for (const name of roleNames) {
         const existing = await trx
@@ -96,6 +107,24 @@ export default class extends BaseSeeder {
         if (rows.length > 0) {
           await trx.table('role_permissions').multiInsert(rows)
         }
+      }
+
+      // 4. Invalidate JWTs that embed owner/superadmin scopes after catalog sync.
+      const ownerRoleId = roleIdByName.get('owner')
+      const superadminRoleId = roleIdByName.get('superadmin')
+
+      if (ownerRoleId) {
+        await trx
+          .from('organization_members')
+          .where('roleId', ownerRoleId)
+          .increment('permissionVersion', 1)
+      }
+      if (superadminRoleId) {
+        await trx
+          .from('user_roles')
+          .where('roleId', superadminRoleId)
+          .whereNull('organizationId')
+          .increment('permissionVersion', 1)
       }
     })
   }

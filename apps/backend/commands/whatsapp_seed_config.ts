@@ -1,6 +1,8 @@
 import { BaseCommand, flags } from '@adonisjs/core/ace'
 import type { CommandOptions } from '@adonisjs/core/types/ace'
 import db from '@adonisjs/lucid/services/db'
+import { OrganizationStatus } from '#enums/organization_status'
+import { runWithTenant } from '#services/tenant_context'
 import { WhatsappConfigService } from '#services/whatsapp_config_service'
 
 /**
@@ -9,6 +11,10 @@ import { WhatsappConfigService } from '#services/whatsapp_config_service'
  * Use the test business number from App Dashboard > WhatsApp > API Setup
  * (phone number id, WABA id, and the temporary or system-user token).
  * The token is encrypted through the same path as the real flow.
+ *
+ * Also writes D70 snapshot columns (`businessId`, `metaVerificationStatus=verified`)
+ * and forces organizations.status to verified_setup (any live status). Pass
+ * `--business-id` for the Meta Business Portfolio id.
  */
 export default class WhatsappSeedConfig extends BaseCommand {
   static commandName = 'whatsapp:seed-config'
@@ -33,6 +39,12 @@ export default class WhatsappSeedConfig extends BaseCommand {
   })
   declare user?: string
 
+  @flags.string({
+    flagName: 'business-id',
+    description: 'Meta Business Portfolio ID (whatsapp_configs.businessId)',
+  })
+  declare businessId?: string
+
   async run() {
     const missing = (['org', 'phoneNumberId', 'wabaId', 'token'] as const).filter((f) => !this[f])
     if (missing.length) {
@@ -48,18 +60,70 @@ export default class WhatsappSeedConfig extends BaseCommand {
       return
     }
 
-    const config = await new WhatsappConfigService().upsertFromEmbeddedSignup({
-      organizationId: this.org,
-      userId,
-      phoneNumberId: this.phoneNumberId,
-      wabaId: this.wabaId,
-      accessTokenPlain: this.token,
-      status: 'connected',
-      subscribed: true,
-      registered: true,
-    })
+    const businessId = this.businessId?.trim() || undefined
 
-    this.logger.success(`Seeded WhatsApp config ${config.id}`)
+    const organizationStatus = await this.forceVerifiedSetup()
+    if (this.exitCode === 1) {
+      return
+    }
+
+    const config = await runWithTenant(this.org, async () =>
+      new WhatsappConfigService().upsertFromEmbeddedSignup({
+        organizationId: this.org,
+        userId,
+        phoneNumberId: this.phoneNumberId,
+        wabaId: this.wabaId,
+        accessTokenPlain: this.token,
+        status: 'connected',
+        subscribed: true,
+        registered: true,
+        ...(businessId !== undefined ? { businessId } : {}),
+        metaVerificationStatus: 'verified',
+      })
+    )
+
+    this.logger.success(
+      `Seeded WhatsApp config ${config.id} (status=${config.status}, verification=${config.metaVerificationStatus}, businessId=${config.businessId ?? 'null'}, orgStatus=${organizationStatus})`
+    )
+    if (!config.businessId) {
+      this.logger.warning(
+        'businessId is null. Re-run with --business-id=<Meta portfolio id> if you need the D70 snapshot column filled.'
+      )
+    }
+  }
+
+  /**
+   * Force organizations.status to verified_setup from any live status.
+   * No-op when already verified_setup. Soft-deleted rows are not revived.
+   */
+  private async forceVerifiedSetup(): Promise<string> {
+    const org = await db
+      .from('organizations')
+      .where('id', this.org)
+      .whereNull('deletedAt')
+      .select('status')
+      .first()
+
+    if (!org) {
+      this.logger.error('Organization not found')
+      this.exitCode = 1
+      return 'missing'
+    }
+
+    const current = org.status as string
+    if (current === OrganizationStatus.VERIFIED_SETUP) {
+      this.logger.info(`organization status is ${current}; leaving it unchanged`)
+      return current
+    }
+
+    await db
+      .from('organizations')
+      .where('id', this.org)
+      .whereNull('deletedAt')
+      .update({ status: OrganizationStatus.VERIFIED_SETUP })
+
+    this.logger.info(`organization status ${current} → ${OrganizationStatus.VERIFIED_SETUP}`)
+    return OrganizationStatus.VERIFIED_SETUP
   }
 
   private async resolveOwnerUserId(): Promise<string | undefined> {

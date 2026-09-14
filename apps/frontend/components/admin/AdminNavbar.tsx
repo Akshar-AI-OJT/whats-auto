@@ -4,8 +4,8 @@ import { useState } from 'react'
 import { LogOut, Menu } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
+import { useAuth } from '@/hooks/useAuth'
 import { cn } from '@/lib/utils'
-import { clearDevSuperAdminSession } from '@/lib/dev-super-admin-auth'
 import {
   Sheet,
   SheetContent,
@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/sheet'
 import { ThemeToggle } from '@/components/theme/ThemeToggle'
 import { AdminSidebar } from './AdminSidebar'
+import { GlobalSearch } from '@/components/search/GlobalSearch'
 
 type AdminNavbarProps = {
   className?: string
@@ -23,19 +24,18 @@ type AdminNavbarProps = {
 export function AdminNavbar({ className }: AdminNavbarProps) {
   const t = useTranslations('admin')
   const router = useRouter()
+  const { signOut } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
 
-  function handleLogout() {
-    // TEMPORARY: clear dev-only marker before redirecting to tenant login.
-    clearDevSuperAdminSession()
+  async function handleLogout() {
+    await signOut()
     router.replace('/login')
-    router.refresh()
   }
 
   return (
     <header
       className={cn(
-        'sticky top-0 z-30 flex h-16 shrink-0 items-center gap-3 border-b border-dash-border bg-canvas/90 px-3 backdrop-blur-md sm:gap-4 sm:px-5',
+        'relative z-40 flex h-16 shrink-0 items-center gap-3 border-b border-dash-border bg-canvas/90 px-3 backdrop-blur-md sm:gap-4 sm:px-5',
         'dash-soft-shadow',
         className
       )}
@@ -67,16 +67,18 @@ export function AdminNavbar({ className }: AdminNavbarProps) {
         </SheetContent>
       </Sheet>
 
-      <div className="min-w-0 flex-1">
+      <div className="hidden min-w-0 shrink-0 sm:block lg:max-w-[14rem]">
         <p className="truncate text-sm font-semibold text-ink sm:text-base">
           {t('navbar.title')}
         </p>
-        <p className="hidden truncate text-xs text-mute sm:block">{t('navbar.subtitle')}</p>
+        <p className="hidden truncate text-xs text-mute lg:block">{t('navbar.subtitle')}</p>
       </div>
+
+      <GlobalSearch scope="platform" className="min-w-0 flex-1" />
 
       <button
         type="button"
-        onClick={handleLogout}
+        onClick={() => void handleLogout()}
         className={cn(
           'inline-flex h-10 shrink-0 items-center gap-2 rounded-xl border border-dash-border px-3 text-sm font-medium text-body',
           'transition-[background-color,border-color,color] duration-200 hover:bg-dash-surface hover:text-ink',

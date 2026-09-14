@@ -1,0 +1,32 @@
+/** Meta Template Library `industry` query values. */
+export const META_TEMPLATE_LIBRARY_INDUSTRIES = [
+  'E_COMMERCE',
+  'FINANCIAL_SERVICES',
+  'TELECOMMUNICATION',
+] as const
+
+/** Meta Template Library `topic` query values. */
+export const META_TEMPLATE_LIBRARY_TOPICS = [
+  'ACCOUNT_OR_PRODUCT_PROTECTION',
+  'ACCOUNT_UPDATES',
+  'AI_AGENTS',
+  'CALL_PERMISSIONS',
+  'CONTACT_REQUEST',
+  'CUSTOMER_FEEDBACK',
+  'CUSTOMER_RE_ENGAGEMENT',
+  'EVENT_REMINDER',
+  'FIXED_TEMPLATE_PRICE_TEST',
+  'GROUP_INVITE_LINK',
+  'IDENTITY_VERIFICATION',
+  'LEGAL_REGULATORY_COMPLIANCE',
+  'ORDER_MANAGEMENT',
+  'PAYMENTS',
+  'PUBLIC_ANNOUNCEMENTS',
+  'PUBLIC_DISRUPTION',
+  'PUBLIC_SAFETY',
+  'PUBLIC_SERVICE',
+  'REGULATORY_COMPLIANCE',
+] as const
+
+export type MetaTemplateLibraryIndustry = (typeof META_TEMPLATE_LIBRARY_INDUSTRIES)[number]
+export type MetaTemplateLibraryTopic = (typeof META_TEMPLATE_LIBRARY_TOPICS)[number]

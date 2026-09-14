@@ -1,17 +1,17 @@
 'use client'
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import {
   ChevronLeft,
   ChevronRight,
   Loader2,
-  Mail,
+  Pencil,
   Search,
   Trash2,
   UserPlus,
   Users,
-  X,
 } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
 import { useRouter, usePathname } from '@/i18n/navigation'
@@ -21,8 +21,9 @@ import {
   type OrganizationAdminUser,
   type OrganizationMember,
   type PaginationMeta,
-  type PendingInvitation,
 } from '@/lib/api'
+import { unwrapList, unwrapPage } from '@/lib/api-unwrap'
+import { queryKeys } from '@/lib/query-keys'
 import { ASSIGNABLE_ROLES, type AssignableRole } from '@/lib/onboarding'
 import { cn } from '@/lib/utils'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
@@ -31,7 +32,8 @@ import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
 import { InviteMemberSheet } from '@/components/dashboard/team/InviteMemberSheet'
-import { WorkspaceAvatar } from '@/components/dashboard/WorkspaceSwitcher'
+import { EditOrgAdminUserDialog } from '@/components/dashboard/team/EditOrgAdminUserDialog'
+import { OrganizationAvatar } from '@/components/dashboard/OrganizationSwitcher'
 
 const DEFAULT_PER_PAGE = 20
 
@@ -44,46 +46,15 @@ type TeamMemberRow = {
   email: string
   role: string
   isActive?: boolean
-}
-
-function unwrapList<T>(data: { data?: T[] } | T[] | undefined): T[] {
-  if (!data) return []
-  if (Array.isArray(data)) return data
-  if (Array.isArray(data.data)) return data.data
-  return []
+  emailVerified?: boolean
 }
 
 function unwrapPaginatedUsers(payload: unknown): {
   users: OrganizationAdminUser[]
   meta: PaginationMeta | null
 } {
-  if (!payload || typeof payload !== 'object') {
-    return { users: [], meta: null }
-  }
-
-  const root = payload as {
-    data?: unknown
-    meta?: PaginationMeta
-  }
-
-  // serialize(paginate) → { data: [...], meta }
-  if (Array.isArray(root.data) && root.meta) {
-    return { users: root.data as OrganizationAdminUser[], meta: root.meta }
-  }
-
-  // Nested wrap edge case: { data: { data: [...], meta } }
-  if (root.data && typeof root.data === 'object' && !Array.isArray(root.data)) {
-    const nested = root.data as { data?: OrganizationAdminUser[]; meta?: PaginationMeta }
-    if (Array.isArray(nested.data)) {
-      return { users: nested.data, meta: nested.meta ?? root.meta ?? null }
-    }
-  }
-
-  if (Array.isArray(root.data)) {
-    return { users: root.data as OrganizationAdminUser[], meta: root.meta ?? null }
-  }
-
-  return { users: [], meta: null }
+  const page = unwrapPage<OrganizationAdminUser>(payload)
+  return { users: page.items, meta: page.meta }
 }
 
 function fromAdminUser(user: OrganizationAdminUser): TeamMemberRow {
@@ -94,6 +65,7 @@ function fromAdminUser(user: OrganizationAdminUser): TeamMemberRow {
     email: user.email,
     role: user.role,
     isActive: user.isActive,
+    emailVerified: user.emailVerified,
   }
 }
 
@@ -104,6 +76,7 @@ function fromMember(member: OrganizationMember): TeamMemberRow {
     name: member.name,
     email: member.email,
     role: member.role,
+    emailVerified: member.emailVerified,
   }
 }
 
@@ -134,7 +107,7 @@ function isAssignableRole(role: string): role is AssignableRole {
 }
 
 const roleSelectClassName = cn(
-  'h-9 shrink-0 rounded-lg border border-dash-border bg-canvas px-2.5 text-xs font-semibold tracking-wide text-ink uppercase outline-none',
+  'h-9 shrink-0 cursor-pointer rounded-lg border border-dash-border bg-canvas px-2.5 text-xs font-semibold tracking-wide text-ink uppercase outline-none',
   'transition-[border-color,box-shadow] duration-200',
   'hover:border-dash-border-strong',
   'focus-visible:border-primary/55 focus-visible:ring-2 focus-visible:ring-primary/30',
@@ -142,7 +115,7 @@ const roleSelectClassName = cn(
 )
 
 const filterSelectClassName = cn(
-  'h-10 shrink-0 rounded-xl border border-dash-border bg-canvas px-3 text-sm text-ink outline-none',
+  'h-10 shrink-0 cursor-pointer rounded-xl border border-dash-border bg-canvas px-3 text-sm text-ink outline-none',
   'transition-[border-color,box-shadow] duration-200',
   'hover:border-dash-border-strong',
   'focus-visible:border-primary/55 focus-visible:ring-2 focus-visible:ring-primary/30'
@@ -155,8 +128,6 @@ export function TeamMembersPage() {
   const pathname = usePathname()
   const removeTitleId = useId()
   const removeDescId = useId()
-  const cancelTitleId = useId()
-  const cancelDescId = useId()
   const {
     tenantOrganizationId,
     accessContext,
@@ -165,136 +136,124 @@ export function TeamMembersPage() {
     canAssignRole,
     canRemoveMember,
     isLoading: orgsLoading,
+    isResolvingAccess,
   } = useOrganizations()
 
   const inviteFromQuery = searchParams.get('invite') === '1'
   const [inviteForced, setInviteForced] = useState(false)
   const inviteOpen = canInviteMembers && (inviteFromQuery || inviteForced)
+  const queryClient = useQueryClient()
 
-  const [members, setMembers] = useState<TeamMemberRow[]>([])
-  const [pendingInvites, setPendingInvites] = useState<PendingInvitation[]>([])
-  const [listLoading, setListLoading] = useState(true)
-  const [listError, setListError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
   const [rolePendingId, setRolePendingId] = useState<string | null>(null)
   const [removeTarget, setRemoveTarget] = useState<TeamMemberRow | null>(null)
   const [removePending, setRemovePending] = useState(false)
   const [removeError, setRemoveError] = useState<string | null>(null)
-  const [cancelTarget, setCancelTarget] = useState<PendingInvitation | null>(null)
-  const [cancelPending, setCancelPending] = useState(false)
-  const [cancelError, setCancelError] = useState<string | null>(null)
+  const [resendPendingId, setResendPendingId] = useState<string | null>(null)
+  const [editUserId, setEditUserId] = useState<string | null>(null)
 
   const [page, setPage] = useState(1)
-  const [perPage] = useState(DEFAULT_PER_PAGE)
-  const [meta, setMeta] = useState<PaginationMeta | null>(null)
+  const perPage = DEFAULT_PER_PAGE
   const [searchQuery, setSearchQuery] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState<'all' | AssignableRole | 'owner'>('all')
-  const [paginatedSource, setPaginatedSource] = useState(false)
 
-  // Bumped when a newer load starts so stale responses are ignored.
-  const loadGenerationRef = useRef(0)
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearch(searchQuery), 250)
+    return () => window.clearTimeout(timer)
+  }, [searchQuery])
 
-  // Reset list/filter state when workspace changes (render-time — avoids setState-in-effect).
-  const [listWorkspaceId, setListWorkspaceId] = useState(tenantOrganizationId)
-  if (tenantOrganizationId !== listWorkspaceId) {
-    setListWorkspaceId(tenantOrganizationId)
+  const filterKey = `${debouncedSearch}|${roleFilter}`
+  const [appliedFilterKey, setAppliedFilterKey] = useState(filterKey)
+  const filtersChanged = filterKey !== appliedFilterKey
+  if (filtersChanged) {
+    setAppliedFilterKey(filterKey)
+    setPage(1)
+  }
+  const listPage = filtersChanged ? 1 : page
+
+  // Reset filter/pagination when organization changes.
+  const [listOrganizationId, setListOrganizationId] = useState(tenantOrganizationId)
+  if (tenantOrganizationId !== listOrganizationId) {
+    setListOrganizationId(tenantOrganizationId)
     setPage(1)
     setSearchQuery('')
+    setDebouncedSearch('')
     setRoleFilter('all')
-    setMembers([])
-    setPendingInvites([])
-    setMeta(null)
-    setPaginatedSource(false)
-    setListError(null)
-    setListLoading(true)
   }
 
-  const loadTeam = useCallback(
-    async (organizationId: string, pageToLoad: number, generation: number) => {
-      if (!canViewTeam) {
-        if (generation !== loadGenerationRef.current) return
-        setMembers([])
-        setPendingInvites([])
-        setMeta(null)
-        setPaginatedSource(false)
-        setListLoading(false)
-        return
-      }
+  const listParams = useMemo(
+    () => ({
+      page: listPage,
+      perPage,
+      search: debouncedSearch.trim() || undefined,
+      role: roleFilter === 'all' ? undefined : roleFilter,
+    }),
+    [listPage, perPage, debouncedSearch, roleFilter]
+  )
 
-      setListLoading(true)
-      setListError(null)
+  const teamEnabled =
+    !orgsLoading && !isResolvingAccess && Boolean(tenantOrganizationId) && canViewTeam
+
+  const membersQuery = useQuery({
+    queryKey: queryKeys.team.list(tenantOrganizationId, listParams),
+    queryFn: async () => {
       try {
-        const invitesPromise = api.invitations
-          .list()
-          .catch(() => ({ data: [] as PendingInvitation[] }))
-
-        // Prefer paginated org-admin users; fall back to members list on 403
-        // (endpoint is Owner/Admin on the backend — no frontend role-name check).
-        let usedPaginated = false
-        try {
-          const [usersResult, invitesResult] = await Promise.all([
-            api.organizationAdmin.listUsers({ page: pageToLoad, perPage }),
-            invitesPromise,
-          ])
-          if (generation !== loadGenerationRef.current) return
-
-          const { users, meta: nextMeta } = unwrapPaginatedUsers(usersResult.data)
-          setMembers(users.map(fromAdminUser))
-          setMeta(
-            nextMeta ?? {
+        const usersResult = await api.organizationAdmin.listUsers({
+          page: listParams.page,
+          perPage: listParams.perPage,
+          search: listParams.search,
+          role: listParams.role,
+        })
+        const { users, meta: nextMeta } = unwrapPaginatedUsers(usersResult.data)
+        return {
+          members: users.map(fromAdminUser),
+          meta:
+            nextMeta ??
+            ({
               total: users.length,
               perPage,
-              currentPage: pageToLoad,
+              currentPage: listPage,
               lastPage: 1,
-            }
-          )
-          setPaginatedSource(true)
-          setPendingInvites(unwrapList(invitesResult.data))
-          usedPaginated = true
-        } catch (err) {
-          const apiError = err as ApiError
-          if (
-            apiError.status !== 403 &&
-            apiError.code !== 'NOT_ORGANIZATION_ADMIN' &&
-            apiError.code !== 'PERMISSION_DENIED'
-          ) {
-            throw err
-          }
-        }
-
-        if (!usedPaginated) {
-          const [membersResult, invitesResult] = await Promise.all([
-            api.members.list(),
-            invitesPromise,
-          ])
-          if (generation !== loadGenerationRef.current) return
-
-          setMembers(unwrapList(membersResult.data).map(fromMember))
-          setMeta(null)
-          setPaginatedSource(false)
-          setPendingInvites(unwrapList(invitesResult.data))
+            } satisfies PaginationMeta),
+          paginatedSource: true as const,
         }
       } catch (err) {
-        if (generation !== loadGenerationRef.current) return
-        setMembers([])
-        setPendingInvites([])
-        setMeta(null)
         const apiError = err as ApiError
-        setListError(apiError.message || t('errors.loadFailed'))
-      } finally {
-        if (generation === loadGenerationRef.current) {
-          setListLoading(false)
+        if (
+          apiError.status !== 403 &&
+          apiError.code !== 'NOT_ORGANIZATION_ADMIN' &&
+          apiError.code !== 'PERMISSION_DENIED'
+        ) {
+          throw err
+        }
+        const membersResult = await api.members.list()
+        return {
+          members: unwrapList<OrganizationMember>(membersResult.data).map(fromMember),
+          meta: null,
+          paginatedSource: false as const,
         }
       }
     },
-    [canViewTeam, perPage, t]
-  )
+    enabled: teamEnabled,
+    staleTime: 60_000,
+  })
 
-  useEffect(() => {
-    if (orgsLoading || !tenantOrganizationId) return
-    const generation = ++loadGenerationRef.current
-    void loadTeam(tenantOrganizationId, page, generation)
-  }, [orgsLoading, tenantOrganizationId, page, loadTeam])
+  const members = useMemo(() => membersQuery.data?.members ?? [], [membersQuery.data])
+  const meta = membersQuery.data?.meta ?? null
+  const paginatedSource = membersQuery.data?.paginatedSource ?? false
+  const listLoading =
+    membersQuery.isLoading || orgsLoading || isResolvingAccess || !tenantOrganizationId
+  const listError = membersQuery.error
+    ? (membersQuery.error as unknown as ApiError).message || t('errors.loadFailed')
+    : null
+
+  async function invalidateTeam() {
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.team.all(tenantOrganizationId),
+    })
+  }
+
   useEffect(() => {
     if (orgsLoading || canInviteMembers || !inviteFromQuery) return
     router.replace(pathname)
@@ -329,9 +288,28 @@ export function TeamMembersPage() {
     if (apiError.code === 'E_ROLE_MISSING' || apiError.code === 'E_ROLE_ASSIGN_OWNER') {
       return t('errors.roleInvalid')
     }
-    if (apiError.code === 'E_INVITE_NOT_PENDING') return t('errors.inviteNotPending')
-    if (apiError.code === 'E_INVITE_NOT_FOUND') return t('errors.inviteNotFound')
+    if (apiError.code === 'E_INVITE_PASSWORD_ALREADY_SET') return t('errors.resendInviteError')
+    if (apiError.code === 'E_ORG_SMTP_REQUIRED') return t('errors.smtpRequired')
     return apiError.message || t('errors.actionFailed')
+  }
+
+  async function handleResendInvite(member: TeamMemberRow) {
+    if (!canInviteMembers || member.emailVerified !== false) return
+    setActionError(null)
+    setResendPendingId(member.memberId)
+    try {
+      await api.members.resendInvite(member.memberId)
+      setActionError(null)
+    } catch (err) {
+      const apiError = err as ApiError
+      if (apiError.code === 'E_ORG_SMTP_REQUIRED') {
+        router.push('/dashboard/settings?section=smtp')
+        return
+      }
+      setActionError(mapMemberActionError(err))
+    } finally {
+      setResendPendingId(null)
+    }
   }
 
   async function handleRoleChange(member: TeamMemberRow, nextRole: string) {
@@ -339,18 +317,32 @@ export function TeamMembersPage() {
 
     setActionError(null)
     setRolePendingId(member.memberId)
-    setMembers((prev) =>
-      prev.map((row) =>
-        row.memberId === member.memberId ? { ...row, role: nextRole } : row
-      )
+    queryClient.setQueryData(
+      queryKeys.team.list(tenantOrganizationId, listParams),
+      (old: typeof membersQuery.data) => {
+        if (!old) return old
+        return {
+          ...old,
+          members: old.members.map((row) =>
+            row.memberId === member.memberId ? { ...row, role: nextRole } : row
+          ),
+        }
+      }
     )
     try {
       await api.members.assignRole(member.memberId, nextRole)
     } catch (err) {
-      setMembers((prev) =>
-        prev.map((row) =>
-          row.memberId === member.memberId ? { ...row, role: member.role } : row
-        )
+      queryClient.setQueryData(
+        queryKeys.team.list(tenantOrganizationId, listParams),
+        (old: typeof membersQuery.data) => {
+          if (!old) return old
+          return {
+            ...old,
+            members: old.members.map((row) =>
+              row.memberId === member.memberId ? { ...row, role: member.role } : row
+            ),
+          }
+        }
       )
       setActionError(mapMemberActionError(err))
     } finally {
@@ -363,34 +355,20 @@ export function TeamMembersPage() {
     setRemoveError(null)
     setRemovePending(true)
     try {
-      await api.members.remove(removeTarget.memberId)
-      setMembers((prev) => prev.filter((row) => row.memberId !== removeTarget.memberId))
+      // Prefer org-admin soft-delete (by userId) when the list came from that API;
+      // otherwise fall back to membership remove (team:remove).
+      if (paginatedSource) {
+        await api.organizationAdmin.softDeleteUser(removeTarget.userId)
+      } else {
+        await api.members.remove(removeTarget.memberId)
+      }
       setRemoveTarget(null)
       setActionError(null)
-      if (tenantOrganizationId && paginatedSource) {
-        const generation = ++loadGenerationRef.current
-        void loadTeam(tenantOrganizationId, page, generation)
-      }
+      await invalidateTeam()
     } catch (err) {
       setRemoveError(mapMemberActionError(err))
     } finally {
       setRemovePending(false)
-    }
-  }
-
-  async function handleCancelInviteConfirm() {
-    if (!cancelTarget || !canInviteMembers) return
-    setCancelError(null)
-    setCancelPending(true)
-    try {
-      await api.invitations.cancel(cancelTarget.id)
-      setPendingInvites((prev) => prev.filter((row) => row.id !== cancelTarget.id))
-      setCancelTarget(null)
-      setActionError(null)
-    } catch (err) {
-      setCancelError(mapMemberActionError(err))
-    } finally {
-      setCancelPending(false)
     }
   }
 
@@ -409,20 +387,23 @@ export function TeamMembersPage() {
     })
   }, [members, searchQuery, roleFilter])
 
-  const showEmpty =
-    !listLoading && !listError && members.length === 0
+  const hasActiveFilters = paginatedSource
+    ? Boolean(debouncedSearch.trim()) || roleFilter !== 'all'
+    : Boolean(searchQuery.trim()) || roleFilter !== 'all'
+  const displayMembers = paginatedSource ? members : filteredMembers
+  const showEmpty = !listLoading && !listError && !hasActiveFilters && members.length === 0
   const showNoMatches =
-    !listLoading && !listError && members.length > 0 && filteredMembers.length === 0
+    !listLoading && !listError && hasActiveFilters && displayMembers.length === 0
   const currentMemberId = accessContext?.memberId ?? null
   const lastPage = meta?.lastPage ?? 1
-  const currentPage = meta?.currentPage ?? page
-  const total = meta?.total ?? members.length
+  const currentPage = meta?.currentPage ?? listPage
+  const total = meta?.total ?? (paginatedSource ? members.length : displayMembers.length)
   const canGoPrev = paginatedSource && currentPage > 1
   const canGoNext = paginatedSource && currentPage < lastPage
 
-  if (!orgsLoading && !canViewTeam) {
+  if (!orgsLoading && !isResolvingAccess && !canViewTeam) {
     return (
-      <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 sm:gap-6">
+      <div className="flex w-full min-w-0 flex-col gap-5 sm:gap-6">
         <DashboardPanel as="section" className="px-4 py-5 sm:px-6 sm:py-6">
           <p className="text-sm font-semibold tracking-wide text-positive-deep uppercase">
             {t('eyebrow')}
@@ -442,7 +423,7 @@ export function TeamMembersPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 sm:gap-6">
+    <div className="flex w-full min-w-0 flex-col gap-5 sm:gap-6">
       <DashboardPanel
         as="section"
         className="relative overflow-hidden px-4 py-5 sm:px-6 sm:py-6 md:px-7 md:py-7"
@@ -460,11 +441,7 @@ export function TeamMembersPage() {
             </p>
           </div>
           {canInviteMembers ? (
-            <Button
-              type="button"
-              className="shrink-0 gap-2"
-              onClick={() => setInviteForced(true)}
-            >
+            <Button type="button" className="shrink-0 gap-2" onClick={() => setInviteForced(true)}>
               <UserPlus className="size-4" aria-hidden />
               {t('inviteCta')}
             </Button>
@@ -473,10 +450,7 @@ export function TeamMembersPage() {
       </DashboardPanel>
 
       <DashboardPanel as="section" className="p-4 sm:p-5 md:p-6">
-        <DashboardSectionHeader
-          title={t('membersTitle')}
-          description={t('membersDescription')}
-        />
+        <DashboardSectionHeader title={t('membersTitle')} description={t('membersDescription')} />
 
         {!listLoading && !listError ? (
           <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -496,9 +470,7 @@ export function TeamMembersPage() {
             <select
               className={filterSelectClassName}
               value={roleFilter}
-              onChange={(e) =>
-                setRoleFilter(e.target.value as 'all' | AssignableRole | 'owner')
-              }
+              onChange={(e) => setRoleFilter(e.target.value as 'all' | AssignableRole | 'owner')}
               aria-label={t('roleFilterAria')}
             >
               <option value="all">{t('roleFilterAll')}</option>
@@ -510,10 +482,6 @@ export function TeamMembersPage() {
               ))}
             </select>
           </div>
-        ) : null}
-
-        {paginatedSource && searchQuery.trim() ? (
-          <p className="mt-2 text-xs text-mute">{t('searchPageHint')}</p>
         ) : null}
 
         {actionError ? (
@@ -552,13 +520,15 @@ export function TeamMembersPage() {
         ) : (
           <>
             <ul className="mt-6 divide-y divide-dash-border overflow-hidden rounded-2xl border border-dash-border">
-              {filteredMembers.map((member) => {
+              {displayMembers.map((member) => {
                 const roleKey = roleLabelKey(member.role)
                 const isOwner = member.role.toLowerCase() === 'owner'
                 const isSelf = Boolean(currentMemberId && member.memberId === currentMemberId)
                 const canEditRole =
                   canAssignRole && !isOwner && !isSelf && isAssignableRole(member.role)
                 const canRemove = canRemoveMember && !isOwner && !isSelf
+                // Profile edit/deactivate uses organization-admin APIs (Owner/Admin list path).
+                const canEditProfile = paginatedSource
                 const roleBusy = rolePendingId === member.memberId
 
                 return (
@@ -567,7 +537,7 @@ export function TeamMembersPage() {
                     className="flex flex-col gap-3 bg-canvas px-4 py-3.5 sm:flex-row sm:items-center sm:gap-3 sm:px-5"
                   >
                     <div className="flex min-w-0 flex-1 items-center gap-3">
-                      <WorkspaceAvatar
+                      <OrganizationAvatar
                         initials={initialsFromName(member.name, member.email)}
                         size="md"
                       />
@@ -582,6 +552,11 @@ export function TeamMembersPage() {
                           {member.isActive === false ? (
                             <span className="ml-1.5 text-xs font-normal text-warning">
                               ({t('inactive')})
+                            </span>
+                          ) : null}
+                          {member.emailVerified === false ? (
+                            <span className="ml-1.5 text-xs font-normal text-warning">
+                              ({t('passwordNotSet')})
                             </span>
                           ) : null}
                         </p>
@@ -621,6 +596,40 @@ export function TeamMembersPage() {
                           {roleKey === 'other' ? member.role : t(`roles.${roleKey}`)}
                         </span>
                       )}
+
+                      {canInviteMembers && member.emailVerified === false ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-9"
+                          disabled={resendPendingId === member.memberId}
+                          onClick={() => {
+                            void handleResendInvite(member)
+                          }}
+                        >
+                          {resendPendingId === member.memberId ? (
+                            <Loader2 className="size-4 animate-spin" aria-hidden />
+                          ) : (
+                            t('resendInvite')
+                          )}
+                        </Button>
+                      ) : null}
+
+                      {canEditProfile ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className="size-9"
+                          aria-label={t('editAria', {
+                            name: member.name.trim() || member.email,
+                          })}
+                          onClick={() => setEditUserId(member.userId)}
+                        >
+                          <Pencil className="size-4" aria-hidden />
+                        </Button>
+                      ) : null}
 
                       {canRemove ? (
                         <Button
@@ -685,70 +694,26 @@ export function TeamMembersPage() {
         )}
       </DashboardPanel>
 
-      {!listLoading && !listError && pendingInvites.length > 0 ? (
-        <DashboardPanel as="section" className="p-4 sm:p-5 md:p-6">
-          <DashboardSectionHeader
-            title={t('pendingTitle')}
-            description={t('pendingDescription')}
-          />
-          <ul className="mt-6 divide-y divide-dash-border overflow-hidden rounded-2xl border border-dash-border">
-            {pendingInvites.map((invite) => {
-              const roleKey = roleLabelKey(invite.role)
-              return (
-                <li
-                  key={invite.id}
-                  className="flex flex-col gap-3 bg-canvas px-4 py-3.5 sm:flex-row sm:items-center sm:gap-3 sm:px-5"
-                >
-                  <div className="flex min-w-0 flex-1 items-center gap-3">
-                    <span className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg bg-dash-surface text-positive-deep">
-                      <Mail className="size-4" aria-hidden />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium text-ink">{invite.email}</p>
-                      <p className="truncate text-sm text-body">
-                        {t('pendingInvitedBy', { name: invite.inviterName })}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
-                    <span className="rounded-md bg-warning/15 px-2.5 py-1 text-xs font-semibold tracking-wide text-ink uppercase">
-                      {roleKey === 'other' ? invite.role : t(`roles.${roleKey}`)}
-                    </span>
-                    {canInviteMembers ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="icon"
-                        className="size-9 border-dash-border text-body hover:bg-dash-surface hover:text-ink"
-                        aria-label={t('cancelInviteAria', { email: invite.email })}
-                        disabled={cancelPending}
-                        onClick={() => {
-                          setCancelError(null)
-                          setCancelTarget(invite)
-                        }}
-                      >
-                        <X className="size-4" aria-hidden />
-                      </Button>
-                    ) : null}
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        </DashboardPanel>
-      ) : null}
-
       {canInviteMembers ? (
         <InviteMemberSheet
           open={inviteOpen}
           onOpenChange={handleInviteOpenChange}
           onInvited={() => {
-            if (!tenantOrganizationId) return
-            const generation = ++loadGenerationRef.current
-            void loadTeam(tenantOrganizationId, page, generation)
+            void invalidateTeam()
           }}
         />
       ) : null}
+
+      <EditOrgAdminUserDialog
+        open={Boolean(editUserId)}
+        userId={editUserId}
+        onOpenChange={(next) => {
+          if (!next) setEditUserId(null)
+        }}
+        onUpdated={() => {
+          void invalidateTeam()
+        }}
+      />
 
       {removeTarget ? (
         <div
@@ -806,67 +771,6 @@ export function TeamMembersPage() {
                   </>
                 ) : (
                   t('removeConfirm')
-                )}
-              </Button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {cancelTarget ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4 backdrop-blur-[2px]"
-          role="presentation"
-          onClick={() => {
-            if (!cancelPending) setCancelTarget(null)
-          }}
-        >
-          <div
-            role="alertdialog"
-            aria-modal="true"
-            aria-labelledby={cancelTitleId}
-            aria-describedby={cancelDescId}
-            className="w-full max-w-md rounded-2xl border border-dash-border bg-canvas p-5 shadow-[0_20px_50px_rgb(15_23_42/0.18)] sm:p-6"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 id={cancelTitleId} className="font-display text-lg tracking-tight text-ink">
-              {t('cancelInviteConfirmTitle')}
-            </h2>
-            <p id={cancelDescId} className="mt-2 text-sm leading-6 text-body">
-              {t('cancelInviteConfirmBody', { email: cancelTarget.email })}
-            </p>
-
-            {cancelError ? (
-              <p role="alert" className="mt-3 text-sm text-negative">
-                {cancelError}
-              </p>
-            ) : null}
-
-            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={cancelPending}
-                onClick={() => setCancelTarget(null)}
-              >
-                {t('cancelInviteDismiss')}
-              </Button>
-              <Button
-                type="button"
-                variant="destructive"
-                disabled={cancelPending}
-                className="gap-2"
-                onClick={() => {
-                  void handleCancelInviteConfirm()
-                }}
-              >
-                {cancelPending ? (
-                  <>
-                    <Loader2 className="size-4 animate-spin" aria-hidden />
-                    {t('cancelingInvite')}
-                  </>
-                ) : (
-                  t('cancelInviteConfirm')
                 )}
               </Button>
             </div>

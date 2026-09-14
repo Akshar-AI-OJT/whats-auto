@@ -1,4 +1,7 @@
 import db from '@adonisjs/lucid/services/db'
+import logger from '@adonisjs/core/services/logger'
+import { NotificationService } from '#services/notification_service'
+import { revokeTeammateSetupAccess } from '#services/invitation_service'
 import { DateTime } from 'luxon'
 
 const ORGANIZATION_USER_SELECT = [
@@ -7,6 +10,7 @@ const ORGANIZATION_USER_SELECT = [
   'u.firstname',
   'u.lastname',
   'u.email',
+  'u.emailVerified',
   'u.isActive',
   'u.createdAt',
   'u.updatedAt',
@@ -19,6 +23,18 @@ export type UpdateOrganizationAdminUserInput = {
   lastname?: string
   email?: string
   isActive?: boolean
+}
+
+export type ListOrganizationAdminUsersParams = {
+  organizationId: string
+  page: number
+  perPage: number
+  search?: string
+  role?: string
+}
+
+function escapeIlike(value: string): string {
+  return `%${value.replace(/[%_\\]/g, '\\$&')}%`
 }
 
 export class OrganizationAdminUsersService {
@@ -37,14 +53,32 @@ export class OrganizationAdminUsersService {
   /**
    * Paginated users for a single organization (Organization Admin).
    * Scoped via organization_members; excludes soft-deleted memberships.
+   * Search and role filters are applied before pagination so meta.total
+   * reflects the filtered set.
    */
-  async listUsersPaginated(params: { organizationId: string; page: number; perPage: number }) {
+  async listUsersPaginated(params: ListOrganizationAdminUsersParams) {
     const { organizationId, page, perPage } = params
+    const query = this.organizationUsersQuery(organizationId).select(...ORGANIZATION_USER_SELECT)
 
-    return this.organizationUsersQuery(organizationId)
-      .select(...ORGANIZATION_USER_SELECT)
-      .orderBy('u.createdAt', 'desc')
-      .paginate(page, perPage)
+    const search = params.search?.trim()
+    if (search) {
+      const pattern = escapeIlike(search)
+      query.where((builder) => {
+        builder
+          .whereILike('u.name', pattern)
+          .orWhereILike('u.firstname', pattern)
+          .orWhereILike('u.lastname', pattern)
+          .orWhereILike('u.email', pattern)
+          .orWhereILike('r.name', pattern)
+      })
+    }
+
+    const role = params.role?.trim()
+    if (role) {
+      query.where('r.name', role)
+    }
+
+    return query.orderBy('u.createdAt', 'desc').paginate(page, perPage)
   }
 
   /**
@@ -115,6 +149,10 @@ export class OrganizationAdminUsersService {
 
     updates.updatedBy = actorUserId
 
+    const previousIsActive = Boolean(existing.isActive)
+    const nextIsActive =
+      updates.isActive !== undefined ? Boolean(updates.isActive) : previousIsActive
+
     await db.transaction(async (trx) => {
       await trx.from('users').where('id', userId).update(updates)
 
@@ -133,6 +171,20 @@ export class OrganizationAdminUsersService {
         after: JSON.stringify(updates),
       })
     })
+
+    if (previousIsActive === true && nextIsActive === false) {
+      const organizationName = await this.#loadOrganizationName(organizationId)
+      await this.#notifyUserBestEffort({
+        organizationId,
+        userId,
+        actorUserId,
+        type: 'team_user_deactivated',
+        title: 'Your account was deactivated',
+        body: organizationName
+          ? `Your account was deactivated in ${organizationName}.`
+          : 'Your account was deactivated.',
+      })
+    }
 
     const updated = await this.getUserById({ organizationId, userId })
     if (!updated) {
@@ -167,6 +219,17 @@ export class OrganizationAdminUsersService {
         deletedAt,
       })
 
+      await revokeTeammateSetupAccess(trx, {
+        organizationId,
+        userId,
+      })
+
+      await trx
+        .from('sessions')
+        .where('userId', userId)
+        .where('activeOrganizationId', organizationId)
+        .update({ activeOrganizationId: null })
+
       await trx.table('authorization_audits').insert({
         organizationId,
         actorUserId,
@@ -186,5 +249,43 @@ export class OrganizationAdminUsersService {
     })
 
     return { ok: true as const }
+  }
+
+  async #loadOrganizationName(organizationId: string): Promise<string | null> {
+    const org = await db.from('organizations').where('id', organizationId).select('name').first()
+    return (org?.name as string | undefined) ?? null
+  }
+
+  /**
+   * Best-effort in-app notification for an organization user. Never throws.
+   */
+  async #notifyUserBestEffort(params: {
+    organizationId: string
+    userId: string
+    actorUserId: string
+    type: string
+    title: string
+    body: string
+  }): Promise<void> {
+    try {
+      await new NotificationService().createNotification({
+        organizationId: params.organizationId,
+        userId: params.userId,
+        type: params.type,
+        title: params.title,
+        body: params.body,
+        actorUserId: params.actorUserId,
+      })
+    } catch (error) {
+      logger.error(
+        {
+          organizationId: params.organizationId,
+          userId: params.userId,
+          type: params.type,
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'team.notification_failed'
+      )
+    }
   }
 }

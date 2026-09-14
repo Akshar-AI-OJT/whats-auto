@@ -1,34 +1,25 @@
 'use client'
 
-import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { useId, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { Loader2, Plus, RefreshCw, Shield, Trash2 } from 'lucide-react'
-import {
-  api,
-  type ApiError,
-  type OrganizationRole,
-} from '@/lib/api'
+import { api, type ApiError, type OrganizationRole } from '@/lib/api'
+import { unwrapList } from '@/lib/api-unwrap'
+import { queryKeys } from '@/lib/query-keys'
 import { PRODUCT_PERMISSIONS } from '@/lib/product-permissions'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
-import {
-  PermissionBadges,
-} from '@/components/dashboard/team/RoleEditorSheet'
+import { PermissionBadges } from '@/components/dashboard/team/RoleEditorSheet'
 import { useRouter } from '@/i18n/navigation'
-
-function unwrapList<T>(data: { data?: T[] } | T[] | undefined): T[] {
-  if (!data) return []
-  if (Array.isArray(data)) return data
-  if (Array.isArray(data.data)) return data.data
-  return []
-}
 
 export function RolesPage() {
   const t = useTranslations('dashboard.roles')
   const router = useRouter()
+  const queryClient = useQueryClient()
   const deleteTitleId = useId()
   const deleteDescId = useId()
   const resetTitleId = useId()
@@ -38,11 +29,9 @@ export function RolesPage() {
     canViewRoles,
     canManageRoles,
     isLoading: orgsLoading,
+    isResolvingAccess,
   } = useOrganizations()
 
-  const [roles, setRoles] = useState<OrganizationRole[]>([])
-  const [listLoading, setListLoading] = useState(true)
-  const [listError, setListError] = useState<string | null>(null)
   const [actionError, setActionError] = useState<string | null>(null)
 
   const [deleteTarget, setDeleteTarget] = useState<OrganizationRole | null>(null)
@@ -56,46 +45,28 @@ export function RolesPage() {
   const [resetError, setResetError] = useState<string | null>(null)
   const [resetPending, setResetPending] = useState(false)
 
-  const organizationIdRef = useRef(tenantOrganizationId)
-  organizationIdRef.current = tenantOrganizationId
-
-  const loadRoles = useCallback(
-    async (organizationId: string) => {
-      if (!canViewRoles) {
-        setRoles([])
-        setListLoading(false)
-        return
-      }
-
-      setListLoading(true)
-      setListError(null)
-      try {
-        const { data } = await api.roles.list()
-        if (organizationId !== organizationIdRef.current) return
-        setRoles(unwrapList(data))
-      } catch (err) {
-        if (organizationId !== organizationIdRef.current) return
-        setRoles([])
-        const apiError = err as ApiError
-        setListError(apiError.message || t('errors.loadFailed'))
-      } finally {
-        if (organizationId === organizationIdRef.current) {
-          setListLoading(false)
-        }
-      }
+  const rolesQuery = useQuery({
+    queryKey: queryKeys.roles.list(tenantOrganizationId),
+    queryFn: async () => {
+      const { data } = await api.roles.list()
+      return unwrapList<OrganizationRole>(data)
     },
-    [canViewRoles, t]
-  )
+    enabled: !orgsLoading && !isResolvingAccess && Boolean(tenantOrganizationId) && canViewRoles,
+    staleTime: 2 * 60_000,
+  })
 
-  useEffect(() => {
-    if (orgsLoading) return
-    if (!tenantOrganizationId) {
-      setRoles([])
-      setListLoading(true)
-      return
-    }
-    void loadRoles(tenantOrganizationId)
-  }, [orgsLoading, tenantOrganizationId, loadRoles])
+  const roles = rolesQuery.data ?? []
+  const listLoading =
+    rolesQuery.isPending || orgsLoading || isResolvingAccess || !tenantOrganizationId
+  const listError = rolesQuery.error
+    ? (rolesQuery.error as unknown as ApiError).message || t('errors.loadFailed')
+    : null
+
+  async function refreshRoles() {
+    await queryClient.invalidateQueries({
+      queryKey: queryKeys.roles.all(tenantOrganizationId),
+    })
+  }
 
   function mapActionError(err: unknown): string {
     const apiError = err as ApiError
@@ -131,7 +102,7 @@ export function RolesPage() {
       setDeleteTarget(null)
       setDeleteReason('')
       setActionError(null)
-      if (tenantOrganizationId) void loadRoles(tenantOrganizationId)
+      await refreshRoles()
     } catch (err) {
       setDeleteError(mapActionError(err))
     } finally {
@@ -153,7 +124,7 @@ export function RolesPage() {
       setResetTarget(null)
       setResetReason('')
       setActionError(null)
-      if (tenantOrganizationId) void loadRoles(tenantOrganizationId)
+      await refreshRoles()
     } catch (err) {
       setResetError(mapActionError(err))
     } finally {
@@ -161,13 +132,11 @@ export function RolesPage() {
     }
   }
 
-  const replacementOptions = roles
-    .filter((r) => r.role !== deleteTarget?.role)
-    .map((r) => r.role)
+  const replacementOptions = roles.filter((r) => r.role !== deleteTarget?.role).map((r) => r.role)
 
-  if (!orgsLoading && !canViewRoles) {
+  if (!orgsLoading && !isResolvingAccess && !canViewRoles) {
     return (
-      <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 sm:gap-6">
+      <div className="flex w-full min-w-0 flex-col gap-5 sm:gap-6">
         <DashboardPanel as="section" className="px-4 py-5 sm:px-6 sm:py-6">
           <p className="text-sm font-semibold tracking-wide text-positive-deep uppercase">
             {t('eyebrow')}
@@ -187,7 +156,7 @@ export function RolesPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 sm:gap-6">
+    <div className="flex w-full min-w-0 flex-col gap-5 sm:gap-6">
       <DashboardPanel
         as="section"
         className="relative overflow-hidden px-4 py-5 sm:px-6 sm:py-6 md:px-7 md:py-7"
@@ -252,10 +221,7 @@ export function RolesPage() {
         ) : (
           <ul className="mt-6 divide-y divide-dash-border overflow-hidden rounded-2xl border border-dash-border">
             {roles.map((role) => (
-              <li
-                key={role.role}
-                className="flex flex-col gap-3 bg-canvas px-4 py-4 sm:px-5"
-              >
+              <li key={role.role} className="flex flex-col gap-3 bg-canvas px-4 py-4 sm:px-5">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
@@ -288,9 +254,7 @@ export function RolesPage() {
                         type="button"
                         variant="outline"
                         size="sm"
-                        onClick={() =>
-                          router.push(`/dashboard/team/roles/edit/${role.role}`)
-                        }
+                        onClick={() => router.push(`/dashboard/team/roles/edit/${role.role}`)}
                       >
                         {t('editCta')}
                       </Button>

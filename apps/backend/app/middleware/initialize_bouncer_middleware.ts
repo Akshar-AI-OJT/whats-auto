@@ -15,9 +15,10 @@ import '#types/http'
  * bouncer.authorize. Do not use ctx.auth.user — this app authenticates via
  * Better Auth session + jwtAuth.
  *
- * Authz split (Path A):
- * - Flat permission → requirePermission middleware / AuthorizationService
- * - Resource + state → Bouncer policies (add when contacts/inbox exist)
+ * Authz split:
+ * - Cross-cutting role gates → abilities in `#abilities/main` (`accessOrgAdmin`, `accessPlatform`)
+ * - Feature + resource/state → Bouncer policies in controllers
+ * - `requirePermission` middleware remains available for flat route gates when no policy exists
  */
 export default class InitializeBouncerMiddleware {
   async handle(ctx: HttpContext, next: NextFn) {

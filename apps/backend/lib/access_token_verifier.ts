@@ -3,7 +3,11 @@ import accessTokenConfig from '#config/access_token'
 import { parseScope } from '#lib/access_token_permissions'
 import type { AccessTokenClaims, AccessTokenUse } from '#types/access_token'
 
-const jwks = createRemoteJWKSet(new URL(accessTokenConfig.jwksUrl))
+const jwks = createRemoteJWKSet(new URL(accessTokenConfig.jwksUrl), {
+  // Default 30s cooldown blocks refetch when JWKS rows are rotated (test reseed,
+  // or production key rotation). Unknown kid must hit the JWKS endpoint immediately.
+  cooldownDuration: 0,
+})
 
 export class AccessTokenVerificationError extends Error {
   constructor(

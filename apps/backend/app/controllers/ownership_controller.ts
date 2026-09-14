@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import OwnershipPolicy from '#policies/ownership_policy'
 import { OrganizationService } from '#services/organization_service'
 import { mapRbacError } from '#lib/map_rbac_error'
 import { attachRemintedAccessToken } from '#lib/access_token_response'
@@ -18,13 +19,8 @@ export default class OwnershipController {
    * @responseBody 403 - { "error": "Only the organization owner can transfer ownership.", "code": "NOT_OWNER" }
    * @responseBody 422 - { "error": "Cannot transfer ownership to the same member", "code": "E_OWNERSHIP_SAME_MEMBER" }
    */
-  async transfer({ request, response, serialize }: HttpContext) {
-    if (request.activeMember!.role !== 'owner') {
-      return response.forbidden({
-        error: 'Only the organization owner can transfer ownership.',
-        code: 'NOT_OWNER',
-      })
-    }
+  async transfer({ bouncer, request, response, serialize }: HttpContext) {
+    await bouncer.with(OwnershipPolicy).authorize('transfer')
 
     const payload = await request.validateUsing(transferOwnershipValidator)
 

@@ -4,19 +4,22 @@ import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api, type AccessContext, type OrganizationSummary } from '@/lib/api'
 import { authClient } from '@/lib/auth-client'
+import { ensureAccessTokenForOrganization, peekAccessTokenOrgId } from '@/lib/access-token'
 import {
-  forceRemintAccessToken,
-  getValidAccessToken,
-  peekAccessTokenOrgId,
-} from '@/lib/access-token'
+  hasFullProductAccess as computeFullProductAccess,
+  isOrganizationRequiredProfileComplete,
+  isSubscriptionPending,
+} from '@/lib/organization-profile'
+import {
+  resolveIsResolvingAccess,
+  resolveTenantOrganizationId,
+} from '@/lib/organization-access-gate'
+import {
+  fetchAccessContext,
+  fetchOrganizationList,
+} from '@/lib/organization-queries'
 import { hasPermission, PERMISSIONS } from '@/lib/rbac'
-
-/** Shared query keys for org-scoped cache invalidation after create/switch. */
-export const organizationQueryKeys = {
-  all: ['organizations'] as const,
-  list: () => [...organizationQueryKeys.all, 'list'] as const,
-  accessContext: () => [...organizationQueryKeys.all, 'access-context'] as const,
-}
+import { isTenantScopedQueryKey, queryKeys } from '@/lib/query-keys'
 
 const EMPTY_ORGANIZATIONS: OrganizationSummary[] = []
 
@@ -32,6 +35,8 @@ type OrganizationsContextValue = {
   accessContext: AccessContext | null
   /** Flat permission list from GET /api/v1/access-context. */
   permissions: string[]
+  /** True when the active membership role is owner. */
+  isOwner: boolean
   hasOrganizations: boolean
   /** Convenience flags — derived only from permission keys, never role names. */
   canManageSettings: boolean
@@ -45,11 +50,42 @@ type OrganizationsContextValue = {
   canManageRoles: boolean
   canViewContacts: boolean
   canCreateContacts: boolean
+  canEditContacts: boolean
+  canDeleteContacts: boolean
+  canImportContacts: boolean
   canViewInbox: boolean
   canViewWhatsapp: boolean
   canConnectWhatsapp: boolean
   canManageWhatsapp: boolean
+  canViewTemplates: boolean
+  canCreateTemplates: boolean
+  canSyncTemplates: boolean
+  canDeleteTemplates: boolean
+  canViewCampaigns: boolean
+  canCreateCampaigns: boolean
+  canEditCampaigns: boolean
+  canDeleteCampaigns: boolean
+  canLaunchCampaigns: boolean
+  canPauseCampaigns: boolean
+  canViewBilling: boolean
+  canManageBilling: boolean
+  /** Setup required fields are filled. */
+  isSetupComplete: boolean
+  /** Organization exists but billing has not activated it yet. */
+  isSubscriptionPending: boolean
+  /** Setup complete and subscription active — product features may be used. */
+  hasFullProductAccess: boolean
   isLoading: boolean
+  /**
+   * Session + org membership list only (not bootstrap / access remint).
+   * Used by DashboardMembershipGate so the shell can render while set-active runs.
+   */
+  isMembershipLoading: boolean
+  /**
+   * True until session/orgs/access-context are ready for permission checks.
+   * Includes in-flight organization activate/switch (when accessContext is cleared).
+   */
+  isResolvingAccess: boolean
   error: string | null
   refresh: () => Promise<{
     organizations: OrganizationSummary[]
@@ -59,22 +95,6 @@ type OrganizationsContextValue = {
 }
 
 const OrganizationsContext = createContext<OrganizationsContextValue | null>(null)
-
-function unwrapList(
-  data: { data?: OrganizationSummary[] } | OrganizationSummary[] | undefined
-): OrganizationSummary[] {
-  if (!data) return []
-  if (Array.isArray(data)) return data
-  if (Array.isArray(data.data)) return data.data
-  return []
-}
-
-function unwrapContext(
-  data: ({ data?: AccessContext } & AccessContext) | undefined
-): AccessContext | null {
-  if (!data) return null
-  return data.data ?? (data.organizationId ? data : null)
-}
 
 function errorMessage(err: unknown, fallback: string): string {
   if (err && typeof err === 'object' && 'message' in err) {
@@ -90,27 +110,12 @@ function readSessionOrganizationId(
   return session?.activeOrganizationId ?? null
 }
 
-function orgInList(organizations: OrganizationSummary[], organizationId: string | null): string | null {
+function orgInList(
+  organizations: OrganizationSummary[],
+  organizationId: string | null
+): string | null {
   if (!organizationId) return null
   return organizations.some((org) => org.id === organizationId) ? organizationId : null
-}
-
-/**
- * Access context returns 403 until the session has an active organization,
- * which is a normal state right after signup — not an error.
- */
-async function fetchAccessContext(): Promise<AccessContext | null> {
-  try {
-    const { data } = await api.access.context()
-    return unwrapContext(data)
-  } catch {
-    return null
-  }
-}
-
-async function fetchOrganizationList(): Promise<OrganizationSummary[]> {
-  const { data } = await api.organizations.list()
-  return unwrapList(data)
 }
 
 async function refreshSharedSession(): Promise<string | null> {
@@ -118,35 +123,84 @@ async function refreshSharedSession(): Promise<string | null> {
   return readSessionOrganizationId(result.data?.session)
 }
 
-/** Ensure in-memory JWT org_id matches the selected workspace. */
-async function ensureAccessTokenForOrganization(organizationId: string): Promise<void> {
-  await getValidAccessToken()
-  if (peekAccessTokenOrgId() === organizationId) return
-
-  await forceRemintAccessToken()
-  if (peekAccessTokenOrgId() !== organizationId) {
-    throw new Error('Access token organization did not match the selected workspace')
-  }
-}
-
 /**
- * Server-backed source of truth for the signed-in user's workspaces.
+ * Server-backed source of truth for the signed-in user's organizations.
  * Active org: Better Auth session, then access-context (JWT remint may update either).
  */
 export function OrganizationsProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient()
-  const { data: sessionData, isPending: sessionPending } = authClient.useSession()
-  const sessionOrgId = readSessionOrganizationId(sessionData?.session)
-  const isSignedIn = Boolean(sessionData?.user)
+  const {
+    data: sessionData,
+    isPending: sessionPending,
+    isRefetching: sessionRefetching,
+  } = authClient.useSession()
+
+  const rawUserId = sessionData?.user?.id ?? null
+  const rawSessionOrgId = readSessionOrganizationId(sessionData?.session)
+
+  // Better Auth can briefly clear session `data` during broadcast/online refetch.
+  // Mirror DashboardAuthGate: keep last known user/org in state so tenant query keys
+  // and module gates do not reset (that reloaded every module on tab return).
+  const [stickyUserId, setStickyUserId] = useState<string | null>(rawUserId)
+  const [stickySessionOrgId, setStickySessionOrgId] = useState<string | null>(rawSessionOrgId)
+
+  if (rawUserId) {
+    if (stickyUserId !== rawUserId) setStickyUserId(rawUserId)
+    if (stickySessionOrgId !== rawSessionOrgId) setStickySessionOrgId(rawSessionOrgId)
+  } else if (!sessionPending && !sessionRefetching && stickyUserId) {
+    setStickyUserId(null)
+    setStickySessionOrgId(null)
+  }
+
+  const sessionTransient =
+    (sessionPending || sessionRefetching) && Boolean(stickyUserId) && !rawUserId
+  const userId = rawUserId ?? (sessionTransient ? stickyUserId : null)
+  const sessionOrgId = rawUserId
+    ? rawSessionOrgId
+    : sessionTransient
+      ? stickySessionOrgId
+      : null
+  const isSignedIn = Boolean(userId)
+  // Cold-start only — do not treat transient session clears as "still loading auth".
+  const effectiveSessionPending = sessionPending && !userId
+  const previousUserIdRef = useRef<string | null>(userId)
 
   /** Optimistic UI selection while set-active + session remint are in flight. */
   const [pendingActiveId, setPendingActiveId] = useState<string | null>(null)
+  /**
+   * Last org that set-active + JWT remint succeeded for. Better Auth's useSession()
+   * often keeps a stale activeOrganizationId after switch until a full reload.
+   */
+  const [activatedOrganizationId, setActivatedOrganizationId] = useState<string | null>(null)
   const [switchError, setSwitchError] = useState<string | null>(null)
   const [isBootstrapping, setIsBootstrapping] = useState(false)
   const bootstrapStarted = useRef(false)
+  const lastTenantOrganizationIdRef = useRef<string | null>(null)
+
+  // Drop cached orgs/permissions only on a real account switch (A → B), never on
+  // transient null userId during session refetch (that wiped module caches on tab return).
+  // activatedOrganizationId is safe to leave: orgInList() drops ids not in the new list.
+  useEffect(() => {
+    const prev = previousUserIdRef.current
+    if (prev === userId) return
+
+    if (userId == null) {
+      if (!sessionPending && !sessionRefetching) {
+        previousUserIdRef.current = null
+        lastTenantOrganizationIdRef.current = null
+      }
+      return
+    }
+
+    if (prev != null && prev !== userId) {
+      lastTenantOrganizationIdRef.current = null
+      queryClient.removeQueries({ queryKey: queryKeys.organizations.all })
+    }
+    previousUserIdRef.current = userId
+  }, [userId, sessionPending, sessionRefetching, queryClient])
 
   const orgsQuery = useQuery({
-    queryKey: organizationQueryKeys.list(),
+    queryKey: queryKeys.organizations.list(userId),
     queryFn: fetchOrganizationList,
     enabled: isSignedIn,
   })
@@ -157,20 +211,28 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
   // session.activeOrganizationId — Better Auth client often omits that field briefly
   // after login, which previously left KPIs/switcher stuck forever.
   const accessQuery = useQuery({
-    queryKey: organizationQueryKeys.accessContext(),
+    queryKey: queryKeys.organizations.accessContext(userId),
     queryFn: fetchAccessContext,
     enabled: isSignedIn,
   })
 
   // Ignore stale local switch/bootstrap state after logout.
   const livePendingActiveId = isSignedIn ? pendingActiveId : null
+  const liveActivatedOrganizationId = isSignedIn ? activatedOrganizationId : null
   const liveSwitchError = isSignedIn ? switchError : null
   const liveBootstrapping = isSignedIn && isBootstrapping
 
+  const accessOrgId = orgInList(organizations, accessQuery.data?.organizationId ?? null)
+  // JWT is reminted in set-active; prefer it over a stale session hook value.
+  const jwtAlignedAccessOrgId =
+    accessOrgId && peekAccessTokenOrgId() === accessOrgId ? accessOrgId : null
+
   const resolvedActiveId =
     orgInList(organizations, livePendingActiveId) ??
+    orgInList(organizations, liveActivatedOrganizationId) ??
+    jwtAlignedAccessOrgId ??
     orgInList(organizations, sessionOrgId) ??
-    orgInList(organizations, accessQuery.data?.organizationId ?? null)
+    accessOrgId
 
   const activeId = resolvedActiveId
 
@@ -179,6 +241,34 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
     livePendingActiveId && livePendingActiveId !== accessQuery.data?.organizationId
       ? null
       : (accessQuery.data ?? null)
+
+  const accessRetryForOrgRef = useRef<string | null>(null)
+
+  // Login prefetch used to cache a pre-setActive null access-context as "fresh".
+  // When the tenant JWT is ready but permissions are still missing, force one refetch
+  // so the sidebar does not stay stuck with only ungated items (dashboard).
+  useEffect(() => {
+    if (!isSignedIn || !userId || !activeId) return
+    if (peekAccessTokenOrgId() !== activeId) return
+    if (accessQuery.data?.organizationId === activeId) {
+      accessRetryForOrgRef.current = null
+      return
+    }
+    if (accessQuery.isFetching) return
+    if (accessRetryForOrgRef.current === activeId) return
+    accessRetryForOrgRef.current = activeId
+
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.organizations.accessContext(userId),
+    })
+  }, [
+    isSignedIn,
+    userId,
+    activeId,
+    accessQuery.data?.organizationId,
+    accessQuery.isFetching,
+    queryClient,
+  ])
 
   // Reset bootstrap latch when the session drops (logout / account switch).
   useEffect(() => {
@@ -214,11 +304,17 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
         await api.organizations.setActive(fallbackId)
         await refreshSharedSession()
         await ensureAccessTokenForOrganization(fallbackId)
-        await queryClient.invalidateQueries({ queryKey: organizationQueryKeys.accessContext() })
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.organizations.accessContext(userId),
+        })
+        setActivatedOrganizationId(fallbackId)
+        await queryClient.invalidateQueries({
+          queryKey: queryKeys.search.all,
+        })
         setSwitchError(null)
       } catch (err) {
         bootstrapStarted.current = false
-        setSwitchError(errorMessage(err, 'Failed to activate workspace'))
+        setSwitchError(errorMessage(err, 'Failed to activate organization'))
       } finally {
         setPendingActiveId(null)
         setIsBootstrapping(false)
@@ -226,6 +322,7 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
     })()
   }, [
     isSignedIn,
+    userId,
     orgsQuery.isLoading,
     orgsQuery.data,
     accessQuery.isLoading,
@@ -238,26 +335,25 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
     try {
       await refreshSharedSession()
       const nextOrgs = await queryClient.fetchQuery({
-        queryKey: organizationQueryKeys.list(),
+        queryKey: queryKeys.organizations.list(userId),
         queryFn: fetchOrganizationList,
       })
       await queryClient.invalidateQueries({
-        queryKey: organizationQueryKeys.accessContext(),
+        queryKey: queryKeys.organizations.accessContext(userId),
       })
 
       const nextSessionOrgId = await refreshSharedSession()
       const access = await queryClient.fetchQuery({
-        queryKey: organizationQueryKeys.accessContext(),
+        queryKey: queryKeys.organizations.accessContext(userId),
         queryFn: fetchAccessContext,
       })
       const nextActiveId =
-        orgInList(nextOrgs, nextSessionOrgId) ??
-        orgInList(nextOrgs, access?.organizationId ?? null)
+        orgInList(nextOrgs, nextSessionOrgId) ?? orgInList(nextOrgs, access?.organizationId ?? null)
 
       setSwitchError(null)
       return { organizations: nextOrgs, activeId: nextActiveId }
     } catch (err) {
-      setSwitchError(errorMessage(err, 'Failed to load workspaces'))
+      setSwitchError(errorMessage(err, 'Failed to load organizations'))
       return { organizations: [], activeId: null }
     }
   }
@@ -267,6 +363,12 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
 
     setPendingActiveId(organizationId)
     setSwitchError(null)
+    // Drop idle tenant caches only. Removing observed queries cancels in-flight
+    // fetches and React Query v5 observers often stay empty until a hard refresh.
+    queryClient.removeQueries({
+      predicate: (query) =>
+        isTenantScopedQueryKey(query.queryKey) && query.getObserversCount() === 0,
+    })
 
     try {
       // set-active remints JWT via set-auth-jwt (applied in api.ts).
@@ -275,10 +377,18 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
       // Best-effort session store sync — do not fail the switch if the client
       // omits activeOrganizationId; access-context + JWT are authoritative.
       await refreshSharedSession().catch(() => null)
-      await queryClient.invalidateQueries({ queryKey: organizationQueryKeys.accessContext() })
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.organizations.accessContext(userId),
+      })
+      setActivatedOrganizationId(organizationId)
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.search.all,
+      })
     } catch (err) {
-      setSwitchError(errorMessage(err, 'Failed to switch workspace'))
-      throw err instanceof Error ? err : new Error(errorMessage(err, 'Failed to switch workspace'))
+      setSwitchError(errorMessage(err, 'Failed to switch organization'))
+      throw err instanceof Error
+        ? err
+        : new Error(errorMessage(err, 'Failed to switch organization'))
     } finally {
       setPendingActiveId(null)
     }
@@ -288,17 +398,91 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
     ? (organizations.find((org) => org.id === activeId) ?? null)
     : null
 
+  const setupComplete = activeOrganization
+    ? isOrganizationRequiredProfileComplete(activeOrganization)
+    : false
+  const subscriptionPending = isSubscriptionPending(
+    accessContext?.status ?? activeOrganization?.status
+  )
+  // Prefer access-context status; fall back to org-list status so overview can
+  // unlock without waiting on a slow access-context round-trip.
+  const fullProductAccess = computeFullProductAccess({
+    status: accessContext?.status ?? activeOrganization?.status,
+    organization: activeOrganization,
+  })
+
   const sessionOrgFromContext = accessContext?.organizationId ?? null
-  const tenantOrganizationId =
-    sessionOrgFromContext &&
-    activeOrganization?.id &&
-    sessionOrgFromContext === activeOrganization.id
-      ? sessionOrgFromContext
+  const activeOrgId = activeOrganization?.id ?? null
+
+  // Remint as soon as the selected org is known — do not wait for access-context
+  // (that was serializing JWT mint behind access and delaying all tenant queries).
+  const [remintedForOrgId, setRemintedForOrgId] = useState<string | null>(null)
+  useEffect(() => {
+    if (!isSignedIn || !activeOrgId) return
+    // Login prefetch often already minted for this org — jwtMatchesActive covers it.
+    if (peekAccessTokenOrgId() === activeOrgId) return
+
+    let cancelled = false
+    void ensureAccessTokenForOrganization(activeOrgId)
+      .then(() => {
+        if (!cancelled) setRemintedForOrgId(activeOrgId)
+      })
+      .catch(() => {
+        if (!cancelled) setRemintedForOrgId(null)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [isSignedIn, activeOrgId])
+
+  const jwtMatchesActive =
+    Boolean(activeOrgId) && peekAccessTokenOrgId() === activeOrgId
+  const tokenReadyOrgId =
+    jwtMatchesActive || remintedForOrgId === activeOrgId ? activeOrgId : null
+
+  // Prefetch (login) remints JWT before the provider mounts. Treat JWT-aligned org
+  // as activated so tenant gates do not wait on a stale useSession org id.
+  const prefetchAlignedOrgId =
+    !liveActivatedOrganizationId && isSignedIn
+      ? (() => {
+          const orgId = accessOrgId ?? orgInList(organizations, sessionOrgId)
+          return orgId && peekAccessTokenOrgId() === orgId ? orgId : null
+        })()
       : null
+  const effectiveActivatedOrganizationId =
+    liveActivatedOrganizationId ?? prefetchAlignedOrgId
+
+  // Prefer access-context / session; also accept activatedOrganizationId so post-login
+  // works when Better Auth useSession still omits activeOrganizationId.
+  const tenantOrganizationId = resolveTenantOrganizationId({
+    activeOrgId,
+    tokenReadyOrgId,
+    accessContextOrgId: sessionOrgFromContext,
+    sessionOrgId,
+    activatedOrganizationId: effectiveActivatedOrganizationId,
+  })
+
+  // After A → (null) → B, drop idle leftover caches and refetch mounted tenant queries
+  // with the aligned JWT. removeQueries on observed queries was cancelling that refetch.
+  useEffect(() => {
+    const previous = lastTenantOrganizationIdRef.current
+    if (tenantOrganizationId) {
+      lastTenantOrganizationIdRef.current = tenantOrganizationId
+    }
+    if (!previous || !tenantOrganizationId || previous === tenantOrganizationId) return
+    queryClient.removeQueries({
+      predicate: (query) =>
+        isTenantScopedQueryKey(query.queryKey) && query.getObserversCount() === 0,
+    })
+    void queryClient.invalidateQueries({
+      predicate: (query) => isTenantScopedQueryKey(query.queryKey),
+    })
+  }, [tenantOrganizationId, queryClient])
 
   const permissions = accessContext?.permissions ?? []
   const listError = orgsQuery.error
-    ? errorMessage(orgsQuery.error, 'Failed to load workspaces')
+    ? errorMessage(orgsQuery.error, 'Failed to load organizations')
     : null
 
   const value: OrganizationsContextValue = {
@@ -308,6 +492,7 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
     tenantOrganizationId,
     accessContext,
     permissions,
+    isOwner: Boolean(accessContext?.isOwner),
     hasOrganizations: organizations.length > 0,
     canViewOrg: hasPermission(permissions, PERMISSIONS.ORG_VIEW),
     canManageSettings: hasPermission(permissions, PERMISSIONS.ORG_SETTINGS_MANAGE),
@@ -322,12 +507,59 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
     canManageRoles: hasPermission(permissions, PERMISSIONS.ROLES_MANAGE),
     canViewContacts: hasPermission(permissions, PERMISSIONS.CONTACTS_VIEW),
     canCreateContacts: hasPermission(permissions, PERMISSIONS.CONTACTS_CREATE),
+    canEditContacts: hasPermission(permissions, PERMISSIONS.CONTACTS_EDIT),
+    canDeleteContacts: hasPermission(permissions, PERMISSIONS.CONTACTS_DELETE),
+    canImportContacts: hasPermission(permissions, PERMISSIONS.CONTACTS_IMPORT),
     canViewInbox: hasPermission(permissions, PERMISSIONS.INBOX_VIEW),
     canViewWhatsapp: hasPermission(permissions, PERMISSIONS.WHATSAPP_VIEW),
     canConnectWhatsapp: hasPermission(permissions, PERMISSIONS.WHATSAPP_CONNECT),
     canManageWhatsapp: hasPermission(permissions, PERMISSIONS.WHATSAPP_MANAGE),
-    // Do not treat workspace switch / access refetch as full-shell loading.
-    isLoading: sessionPending || orgsQuery.isLoading || liveBootstrapping,
+    canViewTemplates:
+      hasPermission(permissions, PERMISSIONS.TEMPLATES_VIEW) ||
+      hasPermission(permissions, PERMISSIONS.WHATSAPP_VIEW),
+    canCreateTemplates:
+      hasPermission(permissions, PERMISSIONS.TEMPLATES_CREATE) ||
+      hasPermission(permissions, PERMISSIONS.WHATSAPP_MANAGE),
+    canSyncTemplates:
+      hasPermission(permissions, PERMISSIONS.TEMPLATES_SYNC) ||
+      hasPermission(permissions, PERMISSIONS.WHATSAPP_MANAGE),
+    canDeleteTemplates:
+      hasPermission(permissions, PERMISSIONS.TEMPLATES_DELETE) ||
+      hasPermission(permissions, PERMISSIONS.WHATSAPP_MANAGE),
+    canViewCampaigns: hasPermission(permissions, PERMISSIONS.CAMPAIGNS_VIEW),
+    canCreateCampaigns: hasPermission(permissions, PERMISSIONS.CAMPAIGNS_CREATE),
+    canEditCampaigns: hasPermission(permissions, PERMISSIONS.CAMPAIGNS_EDIT),
+    canDeleteCampaigns: hasPermission(permissions, PERMISSIONS.CAMPAIGNS_DELETE),
+    canLaunchCampaigns: hasPermission(permissions, PERMISSIONS.CAMPAIGNS_LAUNCH),
+    canPauseCampaigns: hasPermission(permissions, PERMISSIONS.CAMPAIGNS_PAUSE),
+    canViewBilling: hasPermission(permissions, PERMISSIONS.BILLING_VIEW),
+    canManageBilling: hasPermission(permissions, PERMISSIONS.BILLING_MANAGE),
+    isSetupComplete: setupComplete,
+    isSubscriptionPending: subscriptionPending,
+    hasFullProductAccess: fullProductAccess,
+    // Shell / list loading — avoid treating access refetch alone as full-shell load.
+    isLoading: effectiveSessionPending || orgsQuery.isLoading || liveBootstrapping,
+    // Membership gate only — do not block the dashboard chrome on set-active bootstrap.
+    isMembershipLoading: effectiveSessionPending || orgsQuery.isLoading,
+    // Wait for JWT + tenant id + access-context settle so permissions are not [].
+    isResolvingAccess: resolveIsResolvingAccess(
+      {
+        activeOrgId,
+        accessContextOrgId: sessionOrgFromContext,
+        sessionOrgId,
+        activatedOrganizationId: effectiveActivatedOrganizationId,
+        tokenReadyOrgId,
+        pendingActiveId: livePendingActiveId,
+        accessQueryLoading: accessQuery.isLoading,
+        sessionPending: effectiveSessionPending,
+        orgsLoading: orgsQuery.isLoading,
+        bootstrapping: liveBootstrapping,
+        isSignedIn,
+        accessQueryFetched: accessQuery.isFetched,
+        hasAccessContext: Boolean(accessContext),
+      },
+      tenantOrganizationId
+    ),
     error: liveSwitchError ?? listError,
     refresh,
     selectOrganization,
@@ -342,4 +574,8 @@ export function useOrganizations(): OrganizationsContextValue {
     throw new Error('useOrganizations must be used within an OrganizationsProvider')
   }
   return context
+}
+
+export function useOrganizationsOptional(): OrganizationsContextValue | null {
+  return useContext(OrganizationsContext)
 }

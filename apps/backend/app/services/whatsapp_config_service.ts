@@ -1,10 +1,14 @@
 import db from '@adonisjs/lucid/services/db'
+import logger from '@adonisjs/core/services/logger'
 import WhatsappConfigException from '#exceptions/whatsapp_config_exception'
 import {
   decryptWhatsappAccessToken,
   encryptWhatsappAccessToken,
 } from '#lib/meta_whatsapp/access_token_crypto'
 import { createMetaGraphClient, type MetaGraphClient } from '#lib/meta_whatsapp/graph_client'
+import { PlanEnforcementService } from '#services/billing/plan_enforcement_service'
+import { NotificationService } from '#services/notification_service'
+import { OrganizationService } from '#services/organization_service'
 
 export type WhatsappConfigStatus = 'connected' | 'disconnected' | 'error'
 
@@ -14,6 +18,8 @@ export type WhatsappConfigDto = {
   organizationId: string
   phoneNumberId: string
   wabaId: string | null
+  businessId: string | null
+  metaVerificationStatus: string | null
   status: WhatsappConfigStatus
   connectedAt: string | null
   registeredAt: string | null
@@ -28,6 +34,8 @@ type WhatsappConfigRow = {
   organizationId: string
   phoneNumberId: string
   wabaId: string | null
+  businessId: string | null
+  metaVerificationStatus: string | null
   accessToken: string
   status: string
   connectedAt: string | null
@@ -37,6 +45,22 @@ type WhatsappConfigRow = {
   createdAt: string
   updatedAt: string | null
 }
+
+const CONFIG_SELECT = [
+  'id',
+  'organizationId',
+  'phoneNumberId',
+  'wabaId',
+  'businessId',
+  'metaVerificationStatus',
+  'status',
+  'connectedAt',
+  'registeredAt',
+  'subscribedAppsAt',
+  'createdByUserId',
+  'createdAt',
+  'updatedAt',
+] as const
 
 /**
  * Tenant WhatsApp number configs. Filters by organizationId in app code
@@ -51,6 +75,8 @@ export class WhatsappConfigService {
       organizationId: row.organizationId,
       phoneNumberId: row.phoneNumberId,
       wabaId: row.wabaId,
+      businessId: row.businessId ?? null,
+      metaVerificationStatus: row.metaVerificationStatus ?? null,
       status: row.status as WhatsappConfigStatus,
       connectedAt: row.connectedAt,
       registeredAt: row.registeredAt,
@@ -68,19 +94,7 @@ export class WhatsappConfigService {
     const rows = await db
       .from('whatsapp_configs')
       .where('organizationId', organizationId)
-      .select(
-        'id',
-        'organizationId',
-        'phoneNumberId',
-        'wabaId',
-        'status',
-        'connectedAt',
-        'registeredAt',
-        'subscribedAppsAt',
-        'createdByUserId',
-        'createdAt',
-        'updatedAt'
-      )
+      .select(...CONFIG_SELECT)
       .orderBy('createdAt', 'desc')
 
     return rows.map((r) =>
@@ -127,7 +141,49 @@ export class WhatsappConfigService {
     status: WhatsappConfigStatus
     subscribed: boolean
     registered: boolean
+    businessId?: string | null
+    metaVerificationStatus?: string | null
   }): Promise<WhatsappConfigDto> {
+    const org = await db
+      .from('organizations')
+      .where('id', params.organizationId)
+      .whereNull('deletedAt')
+      .select('status')
+      .first()
+
+    const unpaidSetup = org?.status === 'pending_setup' || org?.status === 'verified_setup'
+
+    // D70: Embedded Signup runs before payment — skip plan entitlements for unpaid setup.
+    if (!unpaidSetup) {
+      await new PlanEnforcementService().requireFeature(params.organizationId, 'wabaConnection')
+    }
+
+    const existingForPhone = await db
+      .from('whatsapp_configs')
+      .where('phoneNumberId', params.phoneNumberId)
+      .first()
+    const isUpdateForOrg = existingForPhone?.organizationId === params.organizationId
+    if (!isUpdateForOrg) {
+      const countRow = await db
+        .from('whatsapp_configs')
+        .where('organizationId', params.organizationId)
+        .count('* as total')
+        .first()
+      const currentCount = Number(countRow?.total ?? 0)
+      if (!unpaidSetup) {
+        await new PlanEnforcementService().requireUnderLimit(
+          params.organizationId,
+          'whatsappNumbers',
+          currentCount
+        )
+      } else if (currentCount >= 1) {
+        // Unpaid orgs may connect a single number for activation.
+        throw WhatsappConfigException.metaAccountUnusable(
+          'Disconnect the existing WhatsApp number before connecting another during setup.'
+        )
+      }
+    }
+
     const encrypted = encryptWhatsappAccessToken(params.accessTokenPlain)
     const now = new Date()
 
@@ -147,6 +203,14 @@ export class WhatsappConfigService {
           organizationId: params.organizationId,
           phoneNumberId: params.phoneNumberId,
           wabaId: params.wabaId,
+          businessId:
+            params.businessId !== undefined
+              ? params.businessId
+              : ((existing?.businessId as string | null | undefined) ?? null),
+          metaVerificationStatus:
+            params.metaVerificationStatus !== undefined
+              ? params.metaVerificationStatus
+              : ((existing?.metaVerificationStatus as string | null | undefined) ?? null),
           accessToken: encrypted,
           status: params.status,
           connectedAt: params.status === 'connected' ? now : (existing?.connectedAt ?? null),
@@ -160,38 +224,14 @@ export class WhatsappConfigService {
             .from('whatsapp_configs')
             .where('id', existing.id)
             .update(payload)
-            .returning([
-              'id',
-              'organizationId',
-              'phoneNumberId',
-              'wabaId',
-              'status',
-              'connectedAt',
-              'registeredAt',
-              'subscribedAppsAt',
-              'createdByUserId',
-              'createdAt',
-              'updatedAt',
-            ])
+            .returning([...CONFIG_SELECT])
           return this.toDto({ ...(row as WhatsappConfigRow), accessToken: '' })
         }
 
         const [row] = await trx
           .table('whatsapp_configs')
           .insert(payload)
-          .returning([
-            'id',
-            'organizationId',
-            'phoneNumberId',
-            'wabaId',
-            'status',
-            'connectedAt',
-            'registeredAt',
-            'subscribedAppsAt',
-            'createdByUserId',
-            'createdAt',
-            'updatedAt',
-          ])
+          .returning([...CONFIG_SELECT])
         return this.toDto({ ...(row as WhatsappConfigRow), accessToken: '' })
       })
     } catch (error) {
@@ -205,29 +245,32 @@ export class WhatsappConfigService {
   /**
    * Mark disconnected. Keeps encrypted token so a future reconnect/retry can
    * re-subscribe without forcing a full Embedded Signup (product can clear later).
+   * Unpaid verified_setup orgs demote to pending_setup ([D70]).
    */
   async disconnect(configId: string, organizationId: string): Promise<WhatsappConfigDto> {
     const existing = await this.findRowOrFail(configId, organizationId)
+    const wasAlreadyDisconnected = existing.status === 'disconnected'
+
     const [row] = await db
       .from('whatsapp_configs')
       .where('id', existing.id)
       .where('organizationId', organizationId)
       .update({ status: 'disconnected' })
-      .returning([
-        'id',
-        'organizationId',
-        'phoneNumberId',
-        'wabaId',
-        'status',
-        'connectedAt',
-        'registeredAt',
-        'subscribedAppsAt',
-        'createdByUserId',
-        'createdAt',
-        'updatedAt',
-      ])
+      .returning([...CONFIG_SELECT])
 
-    return this.toDto({ ...(row as WhatsappConfigRow), accessToken: '' })
+    const dto = this.toDto({ ...(row as WhatsappConfigRow), accessToken: '' })
+
+    await new OrganizationService().demoteToPendingSetup(organizationId)
+
+    // Notify only when status actually transitions into disconnected.
+    if (!wasAlreadyDisconnected) {
+      await this.#notifyOwnerDisconnectedBestEffort({
+        organizationId,
+        phoneNumberId: existing.phoneNumberId,
+      })
+    }
+
+    return dto
   }
 
   /**
@@ -278,5 +321,59 @@ export class WhatsappConfigService {
     if (!error || typeof error !== 'object') return false
     const code = (error as { code?: string }).code
     return code === '23505'
+  }
+
+  async #resolveOwnerUserId(organizationId: string): Promise<string | null> {
+    const row = await db
+      .from('organization_members')
+      .join('roles', 'roles.id', 'organization_members.roleId')
+      .where('organization_members.organizationId', organizationId)
+      .where('roles.name', 'owner')
+      .where('organization_members.isDeleted', false)
+      .select('organization_members.userId')
+      .first()
+
+    return (row?.userId as string | undefined) ?? null
+  }
+
+  /**
+   * Best-effort owner notification after WhatsApp disconnect. Never throws.
+   * actorUserId is null — disconnect() has no authenticated userId in its signature.
+   */
+  async #notifyOwnerDisconnectedBestEffort(params: {
+    organizationId: string
+    phoneNumberId: string
+  }): Promise<void> {
+    try {
+      const ownerUserId = await this.#resolveOwnerUserId(params.organizationId)
+      if (!ownerUserId) {
+        logger.warn(
+          {
+            organizationId: params.organizationId,
+            type: 'whatsapp_disconnected',
+          },
+          'whatsapp.notification_skipped_no_owner'
+        )
+        return
+      }
+
+      await new NotificationService().createNotification({
+        organizationId: params.organizationId,
+        userId: ownerUserId,
+        type: 'whatsapp_disconnected',
+        title: 'WhatsApp disconnected',
+        body: `WhatsApp was disconnected for phone number ID ${params.phoneNumberId}.`,
+        actorUserId: null,
+      })
+    } catch (error) {
+      logger.error(
+        {
+          organizationId: params.organizationId,
+          type: 'whatsapp_disconnected',
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'whatsapp.notification_failed'
+      )
+    }
   }
 }

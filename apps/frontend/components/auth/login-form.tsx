@@ -1,18 +1,17 @@
 'use client'
 
 import { useEffect, useId, useState, startTransition } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useLocale, useTranslations } from 'next-intl'
+import { useSearchParams } from 'next/navigation'
 import { Loader2, Lock, Mail } from 'lucide-react'
 import { FcGoogle } from 'react-icons/fc'
 import { cn } from '@/lib/utils'
 import type { ApiError } from '@/lib/api'
-import { authClient, formatBetterAuthError } from '@/lib/auth-client'
+import { authClient, flushAuthCookies, formatBetterAuthError } from '@/lib/auth-client'
+import { buildLocalizedAppUrl } from '@/lib/app-origin'
 import { getValidAccessToken } from '@/lib/access-token'
-import {
-  DEV_SUPER_ADMIN_DASHBOARD_PATH,
-  markDevSuperAdminSession,
-  matchesDevSuperAdminCredentials,
-} from '@/lib/dev-super-admin-auth'
+import { prefetchDashboardOrganizationQueries } from '@/lib/organization-queries'
 import { Button } from '@/components/ui/button'
 import {
   Field,
@@ -31,12 +30,8 @@ import {
   authPrimaryButtonClassName,
 } from '@/components/auth/auth-field-styles'
 import { Link, useRouter } from '@/i18n/navigation'
-import {
-  authHandoffHref,
-  invitationIdFromPath,
-  resolvePostAuthPath,
-  savePendingInvitationId,
-} from '@/lib/post-auth-redirect'
+import { ORG_SETUP_PATH } from '@/lib/onboarding'
+import { authContinuePath, authHandoffHref, resolvePostAuthPath, safeCallbackPath } from '@/lib/post-auth-redirect'
 
 const REMEMBER_EMAIL_KEY = 'whats-auto-remember-email'
 
@@ -49,27 +44,27 @@ function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 }
 
-/** Only allow same-origin relative paths (blocks open redirects). */
-function safeCallbackPath(raw: string | null): string | null {
-  if (!raw) return null
-  if (!raw.startsWith('/') || raw.startsWith('//')) return null
-  return raw
-}
-
-function readCallbackFromWindow(): string | null {
-  if (typeof window === 'undefined') return null
-  try {
-    return safeCallbackPath(new URLSearchParams(window.location.search).get('callbackURL'))
-  } catch {
-    return null
-  }
-}
-
 export function LoginForm({ className, ...props }: React.ComponentProps<'form'>) {
   const t = useTranslations('auth.login')
   const locale = useLocale()
   const router = useRouter()
-  const [callbackPath] = useState<string | null>(() => readCallbackFromWindow())
+  const queryClient = useQueryClient()
+  const searchParams = useSearchParams()
+  const callbackPath = safeCallbackPath(searchParams.get('callbackURL'))
+  const oauthErrorParam = searchParams.get('error')
+  const isAccountNotFound =
+    oauthErrorParam === 'account_not_found' ||
+    oauthErrorParam === 'sign_up_disabled' ||
+    oauthErrorParam === 'signup_disabled' ||
+    oauthErrorParam === 'user_not_found'
+  const oauthFailed =
+    !isAccountNotFound &&
+    (oauthErrorParam === 'oauth_failed' ||
+      oauthErrorParam === 'state_mismatch' ||
+      oauthErrorParam === 'state_security_mismatch' ||
+      oauthErrorParam === 'account_not_linked' ||
+      oauthErrorParam === 'unable_to_create_user' ||
+      oauthErrorParam === 'unable_to_create_session')
   const formErrorId = useId()
   const emailId = useId()
   const passwordId = useId()
@@ -85,11 +80,9 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState<'idle' | 'email' | 'google'>('idle')
   const isPending = pending !== 'idle'
-
-  useEffect(() => {
-    const inviteId = invitationIdFromPath(callbackPath)
-    if (inviteId) savePendingInvitationId(inviteId)
-  }, [callbackPath])
+  const displayError =
+    error ??
+    (isAccountNotFound ? t('errors.accountNotFound') : oauthFailed ? t('errors.oauthFailed') : null)
 
   useEffect(() => {
     try {
@@ -104,6 +97,12 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
       /* ignore storage errors */
     }
   }, [])
+
+  // Failed OAuth / half-dead sessions leave sticky cookies that block the next attempt.
+  useEffect(() => {
+    if (!oauthErrorParam) return
+    void flushAuthCookies()
+  }, [oauthErrorParam])
 
   function validate(): FieldErrors {
     const next: FieldErrors = {}
@@ -139,18 +138,25 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
     setPending('google')
 
     try {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL
-      const redirectPath = callbackPath ?? '/dashboard'
-      const callbackURL = `${appUrl}/${locale}${redirectPath}`
+      await flushAuthCookies()
+      const callbackURL = buildLocalizedAppUrl(locale, authContinuePath(callbackPath))
+      const errorCallbackURL = buildLocalizedAppUrl(locale, '/login')
       const { error: authErr } = await authClient.signIn.social({
         provider: 'google',
         callbackURL,
+        errorCallbackURL,
       })
       if (authErr) throw formatBetterAuthError(authErr)
       // Successful social auth redirects the browser; keep pending if we somehow stay.
     } catch (err) {
       const apiError = err as ApiError
-      if (apiError.code === 'EMAIL_ALREADY_EXISTS') {
+      if (
+        apiError.code === 'ACCOUNT_NOT_FOUND' ||
+        apiError.code === 'SIGN_UP_DISABLED' ||
+        apiError.code === 'SIGNUP_DISABLED'
+      ) {
+        setError(t('errors.accountNotFound'))
+      } else if (apiError.code === 'EMAIL_ALREADY_EXISTS') {
         setError(t('errors.emailExists'))
       } else {
         setError(apiError.message || t('errors.generic'))
@@ -159,7 +165,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
     }
   }
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault()
     setError(null)
 
@@ -172,13 +178,7 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
     setPending('email')
 
     try {
-      // TEMPORARY: isolated Super Admin bypass — remove with lib/dev-super-admin-auth.ts
-      if (matchesDevSuperAdminCredentials(trimmedEmail, password)) {
-        markDevSuperAdminSession()
-        router.push(DEV_SUPER_ADMIN_DASHBOARD_PATH)
-        return
-      }
-
+      await flushAuthCookies()
       const { error: authErr } = await authClient.signIn.email({
         email: trimmedEmail,
         password,
@@ -186,12 +186,18 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
       if (authErr) throw formatBetterAuthError(authErr)
 
       // JWT plugin seeds on get-session; mint before first protected call.
-      await authClient.getSession({ query: { disableCookieCache: true } })
+      const sessionResult = await authClient.getSession({ query: { disableCookieCache: true } })
       await getValidAccessToken()
 
+      const userId = sessionResult.data?.user?.id ?? null
+      // Activate/warm org state before onboarding routing so nextStep sees an
+      // active organization (fresh sign-in leaves session org null).
+      await prefetchDashboardOrganizationQueries(queryClient, userId, {
+        sessionOrganizationId: sessionResult.data?.session?.activeOrganizationId ?? null,
+      })
       const nextPath = await resolvePostAuthPath({
         preferredCallback: callbackPath,
-        fallback: '/dashboard',
+        fallback: ORG_SETUP_PATH,
       })
       router.push(nextPath)
       router.refresh()
@@ -208,12 +214,12 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
       onSubmit={handleSubmit}
       noValidate
       aria-busy={isPending}
-      aria-describedby={error ? formErrorId : undefined}
+      aria-describedby={displayError ? formErrorId : undefined}
       {...props}
     >
-      <FieldGroup className="gap-8">
-        <div className="flex flex-col gap-3 text-left">
-          <h1 className="font-display text-[1.75rem] leading-8 tracking-tight text-ink sm:text-2xl">
+      <FieldGroup className="gap-5 sm:gap-6">
+        <div className="flex flex-col gap-1.5 text-left sm:gap-2">
+          <h1 className="font-display text-[1.625rem] leading-8 tracking-tight text-ink sm:text-2xl">
             {t('title')}
           </h1>
           <p className="text-sm leading-6 text-pretty text-body">{t('subtitle')}</p>
@@ -331,13 +337,13 @@ export function LoginForm({ className, ...props }: React.ComponentProps<'form'>)
           </Link>
         </div>
 
-        {error ? (
+        {displayError ? (
           <div
             id={formErrorId}
             role="alert"
             className="rounded-xl border border-negative/25 bg-negative/5 px-4 py-3 text-left text-sm leading-5 text-negative"
           >
-            {error}
+            {displayError}
           </div>
         ) : null}
 

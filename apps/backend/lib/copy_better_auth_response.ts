@@ -1,11 +1,30 @@
 import type { HttpContext } from '@adonisjs/core/http'
 
+/**
+ * Copy a Better Auth Fetch Response onto Adonis, preserving every Set-Cookie.
+ * Headers.forEach collapses duplicate set-cookie entries; getSetCookie does not.
+ */
 export async function copyBetterAuthResponse({ response }: HttpContext, webResponse: Response) {
   response.status(webResponse.status)
 
+  const setCookieHeaders =
+    typeof (webResponse.headers as unknown as { getSetCookie?: () => string[] }).getSetCookie ===
+    'function'
+      ? (webResponse.headers as unknown as { getSetCookie: () => string[] }).getSetCookie()
+      : null
+
+  if (setCookieHeaders && setCookieHeaders.length > 0) {
+    for (const cookie of setCookieHeaders) {
+      response.append('Set-Cookie', cookie)
+    }
+  }
+
   webResponse.headers.forEach((value, key) => {
-    if (key.toLowerCase() === 'set-cookie') {
-      response.append('Set-Cookie', value)
+    const lowerKey = key.toLowerCase()
+    if (lowerKey === 'set-cookie') {
+      if (!setCookieHeaders) {
+        response.append('Set-Cookie', value)
+      }
     } else {
       response.header(key, value)
     }
@@ -13,7 +32,5 @@ export async function copyBetterAuthResponse({ response }: HttpContext, webRespo
 
   const body = Buffer.from(await webResponse.arrayBuffer())
 
-  if (body.length > 0) {
-    return response.send(body)
-  }
+  return response.send(body)
 }

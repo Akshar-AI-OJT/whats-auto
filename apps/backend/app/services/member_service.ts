@@ -1,11 +1,38 @@
 import db from '@adonisjs/lucid/services/db'
+import logger from '@adonisjs/core/services/logger'
 import { AuthorizationService } from '#services/authorization_service'
 import type { Permission } from '#abilities/permissions'
 import RoleException from '#exceptions/role_exception'
 import { resolveAssignableRoleForOrg } from '#services/role_service'
+import { revokeTeammateSetupAccess } from '#services/invitation_service'
+import { NotificationService } from '#services/notification_service'
 import { DateTime } from 'luxon'
 
 export class MemberService {
+  /**
+   * Fetch one membership row for authorization / display (excludes soft-deleted).
+   */
+  async getMemberById(params: { organizationId: string; memberId: string }) {
+    const row = await db
+      .from('organization_members as m')
+      .innerJoin('users as u', 'u.id', 'm.userId')
+      .innerJoin('roles as r', 'r.id', 'm.roleId')
+      .where('m.id', params.memberId)
+      .where('m.organizationId', params.organizationId)
+      .where('m.isDeleted', false)
+      .select('m.id', 'm.userId', 'm.organizationId', 'r.name as role')
+      .first()
+
+    if (!row) return null
+
+    return {
+      id: row.id as string,
+      userId: row.userId as string,
+      organizationId: row.organizationId as string,
+      role: row.role as string,
+    }
+  }
+
   /**
    * List members of one organization (excludes soft-deleted memberships).
    */
@@ -16,7 +43,16 @@ export class MemberService {
       .innerJoin('roles as r', 'r.id', 'm.roleId')
       .where('m.organizationId', organizationId)
       .where('m.isDeleted', false)
-      .select('m.id', 'm.createdAt', 'u.id as userId', 'u.name', 'u.email', 'r.name as role')
+      .select(
+        'm.id',
+        'm.createdAt',
+        'm.designation',
+        'u.id as userId',
+        'u.name',
+        'u.email',
+        'u.emailVerified',
+        'r.name as role'
+      )
       .orderBy('u.name', 'asc')
 
     return rows.map((r) => ({
@@ -24,7 +60,9 @@ export class MemberService {
       userId: r.userId as string,
       name: r.name as string,
       email: r.email as string,
+      emailVerified: Boolean(r.emailVerified),
       role: r.role as string,
+      designation: (r.designation as string | null) ?? null,
       createdAt: r.createdAt as string,
     }))
   }
@@ -68,6 +106,8 @@ export class MemberService {
       throw new Error('Cannot change the Owner role directly. Use ownership transfer.')
     }
 
+    const oldRole = member.role as string
+
     await db.transaction(async (trx) => {
       await trx.rawQuery(
         `UPDATE "organization_members"
@@ -85,6 +125,7 @@ export class MemberService {
       await trx.table('authorization_audits').insert({
         organizationId,
         actorUserId,
+        roleId: role.id,
         targetType: 'member',
         targetId: memberId,
         eventType: 'member.role_assigned',
@@ -92,6 +133,20 @@ export class MemberService {
         after: JSON.stringify({ role: newRole }),
       })
     })
+
+    if (oldRole !== newRole) {
+      const organizationName = await this.#loadOrganizationName(organizationId)
+      await this.#notifyMemberBestEffort({
+        organizationId,
+        userId: member.userId as string,
+        actorUserId,
+        type: 'team_member_role_changed',
+        title: 'Your role was updated',
+        body: organizationName
+          ? `Your role in ${organizationName} changed from ${oldRole} to ${newRole}.`
+          : `Your role changed from ${oldRole} to ${newRole}.`,
+      })
+    }
   }
 
   /**
@@ -120,6 +175,19 @@ export class MemberService {
         deletedAt: DateTime.utc().toSQL(),
       })
 
+      await revokeTeammateSetupAccess(trx, {
+        organizationId,
+        userId: member.userId as string,
+      })
+
+      // Drop this org from the removed user's sessions so login/onboarding
+      // cannot keep treating them as still active in it.
+      await trx
+        .from('sessions')
+        .where('userId', member.userId as string)
+        .where('activeOrganizationId', organizationId)
+        .update({ activeOrganizationId: null })
+
       await trx.table('authorization_audits').insert({
         organizationId,
         actorUserId,
@@ -133,5 +201,55 @@ export class MemberService {
         }),
       })
     })
+
+    const organizationName = await this.#loadOrganizationName(organizationId)
+    await this.#notifyMemberBestEffort({
+      organizationId,
+      userId: member.userId as string,
+      actorUserId,
+      type: 'team_member_removed',
+      title: 'You were removed from this organization',
+      body: organizationName
+        ? `You were removed from ${organizationName}.`
+        : 'You were removed from this organization.',
+    })
+  }
+
+  async #loadOrganizationName(organizationId: string): Promise<string | null> {
+    const org = await db.from('organizations').where('id', organizationId).select('name').first()
+    return (org?.name as string | undefined) ?? null
+  }
+
+  /**
+   * Best-effort in-app notification for a team member. Never throws.
+   */
+  async #notifyMemberBestEffort(params: {
+    organizationId: string
+    userId: string
+    actorUserId: string
+    type: string
+    title: string
+    body: string
+  }): Promise<void> {
+    try {
+      await new NotificationService().createNotification({
+        organizationId: params.organizationId,
+        userId: params.userId,
+        type: params.type,
+        title: params.title,
+        body: params.body,
+        actorUserId: params.actorUserId,
+      })
+    } catch (error) {
+      logger.error(
+        {
+          organizationId: params.organizationId,
+          userId: params.userId,
+          type: params.type,
+          err: error instanceof Error ? error.message : 'unknown',
+        },
+        'team.notification_failed'
+      )
+    }
   }
 }

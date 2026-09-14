@@ -48,10 +48,10 @@ function RequirePermissionInner({
   children,
 }: Omit<RequirePermissionProps, 'withShell'>) {
   const t = useTranslations('dashboard.accessDenied')
-  const { isLoading: orgsLoading } = useOrganizations()
+  const { isResolvingAccess } = useOrganizations()
   const { isLoading, hasPermission, hasAnyPermission, hasAllPermissions } = usePermissions()
 
-  const loading = orgsLoading || isLoading
+  const loading = isResolvingAccess || isLoading
   const ok = allowed(hasPermission, hasAnyPermission, hasAllPermissions, {
     permission,
     anyOf,

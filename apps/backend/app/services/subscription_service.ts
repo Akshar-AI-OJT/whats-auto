@@ -1,5 +1,7 @@
 import SubscriptionException from '#exceptions/subscription_exception'
+import { insertAuthorizationAudit } from '#lib/authorization_audit'
 import OrganizationSubscription from '#models/organization_subscription'
+import { OrganizationService } from '#services/organization_service'
 import { runWithTenant } from '#services/tenant_context'
 import { SUBSCRIPTION_SOFT_DELETED_STATUS } from '#validators/subscription_crud'
 import db from '@adonisjs/lucid/services/db'
@@ -7,6 +9,10 @@ import { DateTime } from 'luxon'
 
 function toDateTime(date: DateTime | Date): DateTime {
   return date instanceof Date ? DateTime.fromJSDate(date) : date
+}
+
+function isEntitledStatus(status: string): boolean {
+  return status === 'active' || status === 'trialing'
 }
 
 export type CreateSubscriptionInput = {
@@ -26,17 +32,52 @@ export type UpdateSubscriptionInput = {
   cancelAt?: DateTime | Date | null
 }
 
+export type ListSubscriptionsParams = {
+  page: number
+  perPage: number
+  search?: string
+  status?: string
+  plan?: string
+  billing?: 'monthly' | 'custom' | 'all' | string
+}
+
+export type SubscriptionListSummary = {
+  active: number
+  trialing: number
+  past_due: number
+  cancelled: number
+}
+
+function escapeIlike(value: string): string {
+  return `%${value.replace(/[%_\\]/g, '\\$&')}%`
+}
+
+/**
+ * Matches frontend `planBillingKind`: custom when the plan is missing, price is
+ * null, billing period is custom, or customPricing metadata is set; otherwise monthly.
+ */
+const PLAN_CUSTOM_BILLING_SQL = `(
+  p.id IS NULL
+  OR p.price IS NULL
+  OR lower(coalesce(p.metadata->>'billingPeriod', '')) = 'custom'
+  OR lower(p."billingInterval") = 'custom'
+  OR coalesce(p.metadata->>'customPricing', 'false') IN ('true', 't', '1')
+)`
+
 export class SubscriptionService {
   /**
-   * Base query for platform-wide subscription reads.
-   * Excludes soft-deleted rows (status = cancelled).
+   * Base query for platform-wide Super Admin subscription reads.
+   * Includes cancelled rows — that status is a real lifecycle value (create/update
+   * and billing webhooks). Super Admin delete also sets status=cancelled because
+   * this table has no deletedAt; cancelled subscriptions stay queryable.
    */
   protected subscriptionsQuery() {
-    return OrganizationSubscription.query().whereNot('status', SUBSCRIPTION_SOFT_DELETED_STATUS)
+    return OrganizationSubscription.query()
   }
 
   /**
-   * Load an active subscription or throw not found.
+   * Load a subscription or throw not found. Cancelled (lifecycle / Super Admin
+   * delete) rows remain readable so they can be listed, viewed, and updated.
    */
   protected async findSubscriptionOrFail(subscriptionId: string) {
     const subscription = await this.subscriptionsQuery().where('id', subscriptionId).first()
@@ -62,31 +103,117 @@ export class SubscriptionService {
   }
 
   /**
-   * Platform-wide paginated subscription list for Super Admin.
+   * Platform-wide filtered query for Super Admin list/summary.
+   * Includes cancelled lifecycle rows. Search/status/plan/billing apply before pagination.
+   * Joins org/plan for search and billing.
    */
-  async listSubscriptionsPaginated(params: { page: number; perPage: number }) {
+  protected filteredSubscriptionsQuery(params: Omit<ListSubscriptionsParams, 'page' | 'perPage'>) {
+    const query = db
+      .from('organization_subscriptions as s')
+      .innerJoin('organizations as o', 'o.id', 's.organizationId')
+      .leftJoin('plans as p', 'p.id', 's.planId')
+
+    const search = params.search?.trim()
+    if (search) {
+      const pattern = escapeIlike(search)
+      query.where((builder) => {
+        builder
+          .whereILike('o.name', pattern)
+          .orWhereILike('o.website', pattern)
+          .orWhereILike('p.name', pattern)
+          .orWhereILike('p.code', pattern)
+          .orWhereILike('s.status', pattern)
+          .orWhereRaw('cast(s."organizationId" as text) ilike ?', [pattern])
+      })
+    }
+
+    const status = params.status?.trim()
+    if (status && status !== 'all') {
+      query.where('s.status', status)
+    }
+
+    const plan = params.plan?.trim()
+    if (plan) {
+      query.where('s.planId', plan)
+    }
+
+    const billing = params.billing?.trim()
+    if (billing && billing !== 'all') {
+      if (billing === 'custom') {
+        query.whereRaw(PLAN_CUSTOM_BILLING_SQL)
+      } else if (billing === 'monthly') {
+        query.whereRaw(`NOT ${PLAN_CUSTOM_BILLING_SQL}`)
+      }
+    }
+
+    return query
+  }
+
+  /**
+   * Platform-wide paginated subscription list for Super Admin.
+   * Search/status/plan/billing are applied before pagination so meta.total matches the filtered set.
+   */
+  async listSubscriptionsPaginated(params: ListSubscriptionsParams) {
     const { page, perPage } = params
+    const query = this.filteredSubscriptionsQuery(params)
+
+    const countRows = (await query
+      .clone()
+      .clearSelect()
+      .clearOrder()
+      .select('s.status')
+      .count({ total: '*' })
+      .groupBy('s.status')) as Array<{ status: string; total: string | number }>
+
+    const summary: SubscriptionListSummary = {
+      active: 0,
+      trialing: 0,
+      past_due: 0,
+      cancelled: 0,
+    }
+    for (const row of countRows) {
+      const total = Number(row.total) || 0
+      if (row.status === 'active') summary.active = total
+      else if (row.status === 'trialing') summary.trialing = total
+      else if (row.status === 'past_due') summary.past_due = total
+      else if (row.status === 'cancelled') summary.cancelled = total
+    }
 
     // Query builder: DB columns are camelCase; Lucid orderBy would emit created_at.
-    return db
-      .from('organization_subscriptions')
-      .whereNot('status', SUBSCRIPTION_SOFT_DELETED_STATUS)
-      .orderBy('createdAt', 'desc')
+    const paginator = await query
+      .clone()
+      .clearSelect()
+      .select('s.*')
+      .orderBy('s.createdAt', 'desc')
       .paginate(page, perPage)
+
+    return {
+      data: paginator.all(),
+      meta: paginator.getMeta(),
+      summary,
+    }
   }
 
   /**
    * Fetch one subscription by id for Super Admin.
+   * Uses Knex (not Lucid) so the JSON shape matches {@link listSubscriptionsPaginated}.
+   * Returns a plain row (including cancelled).
    */
   async getSubscriptionById(subscriptionId: string) {
-    return this.findSubscriptionOrFail(subscriptionId)
+    const row = await db.from('organization_subscriptions').where('id', subscriptionId).first()
+
+    if (!row) {
+      throw SubscriptionException.notFound()
+    }
+
+    return row
   }
 
   /**
    * Create a subscription for an organization (Super Admin).
    * Uses runWithTenant so RLS WITH CHECK passes for the target organization.
    */
-  async createSubscription(data: CreateSubscriptionInput) {
+  async createSubscription(data: CreateSubscriptionInput, actorUserId?: string | null) {
     const start = toDateTime(data.currentPeriodStart)
     const end = toDateTime(data.currentPeriodEnd)
 
@@ -125,6 +252,19 @@ export class SubscriptionService {
         })
         .returning('*')
 
+      await insertAuthorizationAudit({
+        organizationId: data.organizationId,
+        actorUserId: actorUserId ?? null,
+        targetType: 'subscription',
+        targetId: created.id,
+        eventType: 'subscription.created',
+        after: { planId: created.planId, status: created.status },
+      })
+
+      if (isEntitledStatus(String(created.status))) {
+        await new OrganizationService().promoteToActive(data.organizationId)
+      }
+
       return created
     })
   }
@@ -133,7 +273,11 @@ export class SubscriptionService {
    * Partial update for Super Admin. Only provided fields are changed.
    * Uses runWithTenant so RLS passes for the subscription's organization.
    */
-  async updateSubscription(subscriptionId: string, patch: UpdateSubscriptionInput) {
+  async updateSubscription(
+    subscriptionId: string,
+    patch: UpdateSubscriptionInput,
+    actorUserId?: string | null
+  ) {
     const existing = await this.findSubscriptionOrFail(subscriptionId)
 
     if (patch.planId !== undefined) {
@@ -182,15 +326,29 @@ export class SubscriptionService {
         .update(updates)
         .returning('*')
 
+      await insertAuthorizationAudit({
+        organizationId: existing.organizationId,
+        actorUserId: actorUserId ?? null,
+        targetType: 'subscription',
+        targetId: updated.id,
+        eventType: 'subscription.updated',
+        after: { planId: updated.planId, status: updated.status },
+      })
+
+      if (isEntitledStatus(String(updated.status))) {
+        await new OrganizationService().promoteToActive(existing.organizationId)
+      }
+
       return updated
     })
   }
 
   /**
-   * Soft-delete a subscription without removing the row.
-   * Uses status = cancelled and sets cancelAt (this table has no deletedAt column).
+   * Cancel a subscription without removing the row.
+   * Sets status = cancelled and cancelAt (this table has no deletedAt column).
+   * The row stays in Super Admin list/summary under status=cancelled.
    */
-  async softDeleteSubscription(subscriptionId: string) {
+  async softDeleteSubscription(subscriptionId: string, actorUserId?: string | null) {
     const subscription = await this.findSubscriptionIncludingDeleted(subscriptionId)
 
     if (subscription.status === SUBSCRIPTION_SOFT_DELETED_STATUS) {
@@ -198,13 +356,19 @@ export class SubscriptionService {
     }
 
     return runWithTenant(subscription.organizationId, async () => {
-      await db
-        .from('organization_subscriptions')
-        .where('id', subscriptionId)
-        .update({
-          status: SUBSCRIPTION_SOFT_DELETED_STATUS,
-          cancelAt: DateTime.utc().toJSDate(),
-        })
+      await db.from('organization_subscriptions').where('id', subscriptionId).update({
+        status: SUBSCRIPTION_SOFT_DELETED_STATUS,
+        cancelAt: DateTime.utc().toJSDate(),
+      })
+
+      await insertAuthorizationAudit({
+        organizationId: subscription.organizationId,
+        actorUserId: actorUserId ?? null,
+        targetType: 'subscription',
+        targetId: subscriptionId,
+        eventType: 'subscription.cancelled',
+        after: { status: SUBSCRIPTION_SOFT_DELETED_STATUS },
+      })
     })
   }
 }

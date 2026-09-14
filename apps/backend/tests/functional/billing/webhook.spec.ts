@@ -17,7 +17,6 @@ async function seedBillingOrg() {
   const planId = randomUUID()
   const subscriptionId = randomUUID()
   const slug = `bill-wh-${organizationId.slice(0, 8)}`
-  const gatewaySubscriptionId = `sub_${organizationId.slice(0, 8)}`
 
   await db.table('organizations').insert({
     id: organizationId,
@@ -27,7 +26,7 @@ async function seedBillingOrg() {
     country: 'IN',
     timezone: 'UTC',
     currency: 'INR',
-    status: true,
+    status: 'active',
     gateway: 'razorpay',
     gatewayCustomerId: `cust_${organizationId.slice(0, 8)}`,
   })
@@ -35,7 +34,7 @@ async function seedBillingOrg() {
   await db.table('plans').insert({
     id: planId,
     code: `plan_${organizationId.slice(0, 8)}`,
-    name: 'Growth WH',
+    name: `Growth WH ${organizationId.slice(0, 8)}`,
     price: 2499,
     currency: 'INR',
     billingInterval: 'month',
@@ -55,7 +54,6 @@ async function seedBillingOrg() {
       organizationId,
       planId,
       gateway: 'razorpay',
-      gatewaySubscriptionId,
       status: 'trialing',
       currentPeriodStart: new Date(Date.now() - 86400000),
       currentPeriodEnd: new Date(Date.now() + 20 * 86400000),
@@ -64,10 +62,10 @@ async function seedBillingOrg() {
     })
   })
 
-  return { organizationId, subscriptionId, gatewaySubscriptionId }
+  return { organizationId, subscriptionId }
 }
 
-function capturedBody(organizationId: string, paymentId: string, gatewaySubscriptionId: string) {
+function capturedBody(organizationId: string, paymentId: string) {
   return {
     event: 'payment.captured',
     payload: {
@@ -78,7 +76,6 @@ function capturedBody(organizationId: string, paymentId: string, gatewaySubscrip
           currency: 'INR',
           method: 'upi',
           order_id: `order_${paymentId}`,
-          subscription_id: gatewaySubscriptionId,
           notes: { organizationId },
           captured_at: Math.floor(Date.now() / 1000),
         },
@@ -90,15 +87,14 @@ function capturedBody(organizationId: string, paymentId: string, gatewaySubscrip
 test.group('Billing Razorpay webhook HTTP', (group) => {
   group.each.setup(async () => {
     const manager = await app.container.make(JobQueueManager)
-    const driver = manager.use('null') as NullJobQueueDriver
+    const driver = (await manager.ensureStarted()) as NullJobQueueDriver
     driver.clearEnqueued()
-    await manager.start('null')
   })
 
   test('POST accepts valid signature and inserts ledger row', async ({ client, assert }) => {
     const seeded = await seedBillingOrg()
     const paymentId = `pay_${randomUUID().slice(0, 8)}`
-    const payload = capturedBody(seeded.organizationId, paymentId, seeded.gatewaySubscriptionId)
+    const payload = capturedBody(seeded.organizationId, paymentId)
     const rawBody = JSON.stringify(payload)
     const signature = signRazorpayWebhookPayload(
       rawBody,
@@ -121,7 +117,7 @@ test.group('Billing Razorpay webhook HTTP', (group) => {
     assert.equal(row?.provider, 'razorpay')
 
     const manager = await app.container.make(JobQueueManager)
-    const driver = manager.use('null') as NullJobQueueDriver
+    const driver = (await manager.ensureStarted()) as NullJobQueueDriver
     assert.isAtLeast(driver.enqueued.length, 1)
     assert.equal(driver.enqueued[0]?.name, JOB_NAMES.BILLING_PAYMENT_WEBHOOK_PROCESS)
   })
@@ -140,7 +136,7 @@ test.group('Billing Razorpay webhook HTTP', (group) => {
     const seeded = await seedBillingOrg()
     const paymentId = `pay_${randomUUID().slice(0, 8)}`
     const eventId = `evt_${paymentId}`
-    const payload = capturedBody(seeded.organizationId, paymentId, seeded.gatewaySubscriptionId)
+    const payload = capturedBody(seeded.organizationId, paymentId)
     const rawBody = JSON.stringify(payload)
     const signature = signRazorpayWebhookPayload(
       rawBody,
@@ -178,7 +174,7 @@ test.group('Billing webhook worker', () => {
   test('processById mutates subscription from pending ledger row', async ({ assert }) => {
     const seeded = await seedBillingOrg()
     const paymentId = `pay_${randomUUID().slice(0, 8)}`
-    const payload = capturedBody(seeded.organizationId, paymentId, seeded.gatewaySubscriptionId)
+    const payload = capturedBody(seeded.organizationId, paymentId)
 
     const repo = new PaymentWebhookEventRepository()
     const { row } = await repo.insertOrGetExisting({
@@ -195,7 +191,9 @@ test.group('Billing webhook worker', () => {
     const sub = await runWithTenant(seeded.organizationId, async () => {
       return db.from('organization_subscriptions').where('id', seeded.subscriptionId).first()
     })
-    assert.equal(sub?.status, 'active')
+    // payment.captured is ledger-only; activation happens on order.paid.
+    assert.equal(sub?.status, 'trialing')
+    assert.equal(sub?.lastPaymentStatus, 'captured')
 
     const ledger = await db.from('payment_webhook_events').where('id', row.id).first()
     assert.equal(ledger?.status, 'processed')
@@ -220,7 +218,7 @@ test.group('Billing webhook worker', () => {
   test('service ingress + worker end-to-end without HTTP', async ({ assert }) => {
     const seeded = await seedBillingOrg()
     const paymentId = `pay_${randomUUID().slice(0, 8)}`
-    const payload = capturedBody(seeded.organizationId, paymentId, seeded.gatewaySubscriptionId)
+    const payload = capturedBody(seeded.organizationId, paymentId)
     const rawBody = JSON.stringify(payload)
     const signature = signRazorpayWebhookPayload(
       rawBody,

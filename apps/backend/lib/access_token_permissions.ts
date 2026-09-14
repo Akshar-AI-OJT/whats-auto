@@ -1,9 +1,4 @@
-import {
-  PERMISSIONS,
-  PLATFORM_PERMISSIONS,
-  PRODUCT_PERMISSIONS,
-  type Permission,
-} from '#abilities/permissions'
+import { PERMISSIONS, type Permission } from '#abilities/permissions'
 import type { AccessTokenClaims } from '#types/access_token'
 
 export const KNOWN_PERMISSIONS = new Set<string>(Object.values(PERMISSIONS))
@@ -32,12 +27,10 @@ export function parseScope(scope: string): Set<Permission> {
 
 /**
  * Resolve effective permissions from verified claims.
- * owner / superadmin expand from in-memory catalogs (tokens omit their full scope).
+ * All roles (including owner / superadmin) use the minted `scope` string.
  */
 export function permissionsFromClaims(
   claims: Pick<AccessTokenClaims, 'role' | 'scope'>
 ): Set<Permission> {
-  if (claims.role === 'owner') return new Set(PRODUCT_PERMISSIONS)
-  if (claims.role === 'superadmin') return new Set(PLATFORM_PERMISSIONS)
   return parseScope(claims.scope)
 }

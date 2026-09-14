@@ -1,0 +1,10 @@
+export enum FlowSessionStatus {
+  ACTIVE = 'ACTIVE',
+  WAITING_FOR_INPUT = 'WAITING_FOR_INPUT',
+  PAUSED_FOR_AI = 'PAUSED_FOR_AI',
+  PAUSED_FOR_HUMAN = 'PAUSED_FOR_HUMAN',
+  COMPLETED = 'COMPLETED',
+  TERMINATED = 'TERMINATED',
+}
+
+export const FLOW_SESSION_STATUSES = Object.values(FlowSessionStatus)

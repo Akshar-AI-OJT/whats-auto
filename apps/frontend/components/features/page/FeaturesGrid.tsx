@@ -63,7 +63,7 @@ export async function FeaturesGrid() {
                       'shadow-[0_1px_2px_rgb(15_23_42/0.04),0_12px_32px_rgb(15_23_42/0.05)]',
                       'transition-[transform,box-shadow,border-color] duration-200 ease-out',
                       'hover:-translate-y-1 hover:border-primary/60',
-                      'hover:shadow-[0_16px_40px_rgb(15_23_42/0.1),0_0_0_4px_rgb(159_232_112/0.18)]'
+                      'hover:shadow-[0_16px_40px_rgb(15_23_42/0.1),0_0_0_4px_rgb(37_99_235/0.18)]'
                     )}
                   >
                     <span
@@ -72,7 +72,7 @@ export async function FeaturesGrid() {
                         'bg-primary-pale text-positive-deep',
                         'transition-[transform,box-shadow,background-color] duration-200',
                         'group-hover:scale-105 group-hover:bg-primary/25',
-                        'group-hover:shadow-[0_0_0_4px_rgb(159_232_112/0.22),0_8px_20px_rgb(159_232_112/0.3)]'
+                        'group-hover:shadow-[0_0_0_4px_rgb(37_99_235/0.22),0_8px_20px_rgb(37_99_235/0.3)]'
                       )}
                     >
                       <Icon className="size-5" aria-hidden />

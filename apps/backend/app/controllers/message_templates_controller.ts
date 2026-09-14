@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import MessageTemplatePolicy from '#policies/message_template_policy'
 import { MessageTemplateService } from '#services/message_template_service'
 import {
   createMessageTemplateValidator,
@@ -11,25 +12,31 @@ export default class MessageTemplatesController {
   /**
    * @index
    * @summary List message templates for active organization
-   * @description Returns paginated list of WhatsApp message templates. Requires whatsapp:view or templates:view permission.
+   * @description Returns paginated list of WhatsApp message templates. Supports search, status, category, and language. Language is applied before pagination. Requires whatsapp:view or templates:view permission.
    * @tag WhatsApp Templates
    * @security BearerAuth
    * @paramQuery page - Page number (default 1) - @type(number)
    * @paramQuery perPage - Items per page (1-100, default 20) - @type(number)
    * @paramQuery status - Filter by status (approved, pending, rejected, draft) - @type(string)
    * @paramQuery category - Filter by category (UTILITY, MARKETING, AUTHENTICATION) - @type(string)
+   * @paramQuery language - Filter by language code (e.g. en_US, hi) - @type(string)
    * @paramQuery search - Search term for template name or body text - @type(string)
    * @responseBody 200 - { "data": [{ "id": "uuid", "name": "order_update", "category": "UTILITY", "language": "en_US", "status": "approved", "bodyText": "Hello {{1}}" }], "meta": { "total": 1, "perPage": 20, "currentPage": 1, "lastPage": 1 } }
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 403 - { "error": "Permission denied: whatsapp:view", "code": "PERMISSION_DENIED" }
    */
-  async index({ request, serialize }: HttpContext) {
+  async index({ bouncer, request, serialize }: HttpContext) {
+    await bouncer.with(MessageTemplatePolicy).authorize('viewList')
+
     const params = await request.validateUsing(listMessageTemplatesValidator, {
       data: request.qs(),
     })
 
-    const templates = await new MessageTemplateService().listTemplatesPaginated(params)
-    return serialize(templates)
+    const templates = await new MessageTemplateService().listTemplatesPaginated({
+      ...params,
+      organizationId: request.activeMember?.organizationId ?? request.activeOrganizationId!,
+    })
+    return serialize.withoutWrapping(templates)
   }
 
   /**
@@ -43,12 +50,18 @@ export default class MessageTemplatesController {
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 404 - { "error": "Message template not found", "code": "E_MESSAGE_TEMPLATE_NOT_FOUND" }
    */
-  async show({ request, params, serialize }: HttpContext) {
+  async show({ bouncer, request, params, serialize }: HttpContext) {
     const { id } = await request.validateUsing(templateIdParamValidator, {
       data: params,
     })
 
-    const template = await new MessageTemplateService().getTemplateById(id)
+    const organizationId = request.activeMember?.organizationId ?? request.activeOrganizationId!
+    await bouncer.with(MessageTemplatePolicy).authorize('view', {
+      organizationId,
+      id,
+    })
+
+    const template = await new MessageTemplateService().getTemplateById(id, organizationId)
     return serialize(template)
   }
 
@@ -63,7 +76,9 @@ export default class MessageTemplatesController {
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 409 - { "error": "Template \"order_confirmation_v2\" (en_US) already exists", "code": "E_MESSAGE_TEMPLATE_DUPLICATE" }
    */
-  async store({ request, serialize }: HttpContext) {
+  async store({ bouncer, request, serialize }: HttpContext) {
+    await bouncer.with(MessageTemplatePolicy).authorize('create')
+
     const payload = await request.validateUsing(createMessageTemplateValidator)
 
     const template = await new MessageTemplateService().createTemplate({
@@ -85,7 +100,9 @@ export default class MessageTemplatesController {
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 422 - { "error": "No connected WhatsApp configuration found", "code": "E_WA_CONFIG_NOT_FOUND" }
    */
-  async sync({ request, serialize }: HttpContext) {
+  async sync({ bouncer, request, serialize }: HttpContext) {
+    await bouncer.with(MessageTemplatePolicy).authorize('sync')
+
     const result = await new MessageTemplateService().syncTemplatesFromMeta(
       request.activeOrganizationId!
     )
@@ -103,9 +120,14 @@ export default class MessageTemplatesController {
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 404 - { "error": "Message template not found", "code": "E_MESSAGE_TEMPLATE_NOT_FOUND" }
    */
-  async destroy({ request, params, serialize }: HttpContext) {
+  async destroy({ bouncer, request, params, serialize }: HttpContext) {
     const { id } = await request.validateUsing(templateIdParamValidator, {
       data: params,
+    })
+
+    await bouncer.with(MessageTemplatePolicy).authorize('destroy', {
+      organizationId: request.activeMember?.organizationId ?? request.activeOrganizationId!,
+      id,
     })
 
     const result = await new MessageTemplateService().deleteTemplate(id)

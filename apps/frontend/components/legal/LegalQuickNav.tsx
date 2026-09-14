@@ -188,7 +188,7 @@ function NavList({
               className={cn(
                 'group flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm transition-[background-color,color,transform,box-shadow] duration-200',
                 active
-                  ? 'bg-primary-pale font-semibold text-positive-deep shadow-[0_0_0_1px_rgb(159_232_112/0.35)]'
+                  ? 'bg-primary-pale font-semibold text-positive-deep shadow-[0_0_0_1px_rgb(37_99_235/0.35)]'
                   : 'font-medium text-body hover:translate-x-0.5 hover:bg-[#F8FAFC] hover:text-ink'
               )}
             >
@@ -196,7 +196,7 @@ function NavList({
                 className={cn(
                   'flex size-7 shrink-0 items-center justify-center rounded-lg transition-[background-color,color,box-shadow] duration-200',
                   active
-                    ? 'bg-primary text-on-primary shadow-[0_4px_12px_rgb(159_232_112/0.35)]'
+                    ? 'bg-primary text-on-primary shadow-[0_4px_12px_rgb(37_99_235/0.35)]'
                     : 'bg-[#F8FAFC] text-mute group-hover:text-positive-deep'
                 )}
               >

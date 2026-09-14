@@ -2,6 +2,7 @@ import { Mail } from 'lucide-react'
 import { FaGithub, FaLinkedin, FaXTwitter } from 'react-icons/fa6'
 import { getTranslations } from 'next-intl/server'
 import { Link } from '@/i18n/navigation'
+import { AppLogo } from '@/components/branding/AppLogo'
 import { cn } from '@/lib/utils'
 
 type FooterLink =
@@ -74,7 +75,7 @@ function FooterNavItem({
   }
 
   const className =
-    'text-sm text-body transition-colors duration-200 hover:text-positive-deep'
+    'cursor-pointer text-sm text-body transition-colors duration-200 hover:text-positive-deep'
 
   if (link.href.startsWith('mailto:') || link.href.startsWith('http')) {
     return (
@@ -110,12 +111,7 @@ export async function Footer() {
       <div className="mx-auto max-w-[1200px] px-4 py-14 sm:px-6 md:py-16 lg:py-20">
         <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-4 lg:gap-12">
           <div className="sm:col-span-2 lg:col-span-1">
-            <Link
-              href="/"
-              className="font-display text-xl tracking-tight text-ink transition-opacity duration-200 hover:opacity-80"
-            >
-              {t('brand')}
-            </Link>
+            <AppLogo href="/" size="md" />
             <p className="mt-4 max-w-sm text-sm leading-6 text-body">
               {t('description')}
             </p>
@@ -129,11 +125,11 @@ export async function Footer() {
                       ? { target: '_blank', rel: 'noopener noreferrer' }
                       : {})}
                     className={cn(
-                      'flex size-10 items-center justify-center rounded-xl border border-[#E2E8F0] bg-canvas text-body',
+                      'flex size-10 cursor-pointer items-center justify-center rounded-xl border border-[#E2E8F0] bg-canvas text-body',
                       'shadow-[0_1px_2px_rgb(15_23_42/0.04)]',
                       'transition-[transform,color,border-color,box-shadow,background-color] duration-200',
                       'hover:-translate-y-0.5 hover:border-primary/50 hover:bg-primary-pale hover:text-positive-deep',
-                      'hover:shadow-[0_8px_20px_rgb(159_232_112/0.25)]'
+                      'hover:shadow-[0_8px_20px_rgb(37_99_235/0.25)]'
                     )}
                   >
                     <Icon className="size-4" aria-hidden />

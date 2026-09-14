@@ -8,7 +8,7 @@
 | (same as web/test).
 |
 | Usage:
-|   JOB_QUEUE_WORKER=1 JOB_QUEUE_DRIVER=pgboss node --import=tsx bin/worker.ts
+|   JOB_QUEUE_WORKER=1 JOB_QUEUE_DRIVER=bullmq REDIS_URL=redis://127.0.0.1:6379 node --import=tsx bin/worker.ts
 |   or after build: JOB_QUEUE_WORKER=1 node build/bin/worker.js
 |
 */
@@ -52,30 +52,8 @@ try {
   const driver = await manager.start()
   await registerJobHandlers(driver)
 
-  const { JOB_NAMES, WHATSAPP_OUTBOUND_RECOVERY_CRON, MEDIA_PENDING_UPLOAD_CLEANUP_CRON } =
-    await import('#services/job_queue/job_names')
-  if (typeof driver.schedule === 'function') {
-    await driver.schedule(
-      JOB_NAMES.WHATSAPP_OUTBOUND_RECOVERY,
-      WHATSAPP_OUTBOUND_RECOVERY_CRON,
-      {},
-      {
-        key: 'outbound-recovery',
-      }
-    )
-    logger.info({ cron: WHATSAPP_OUTBOUND_RECOVERY_CRON }, 'job_queue.outbound_recovery.scheduled')
-
-    await driver.schedule(
-      JOB_NAMES.MEDIA_PENDING_UPLOAD_CLEANUP,
-      MEDIA_PENDING_UPLOAD_CLEANUP_CRON,
-      {},
-      { key: 'media-pending-upload-cleanup' }
-    )
-    logger.info(
-      { cron: MEDIA_PENDING_UPLOAD_CLEANUP_CRON },
-      'job_queue.media_pending_upload_cleanup.scheduled'
-    )
-  }
+  const { scheduleWorkerCrons } = await import('#services/job_queue/schedule_worker_crons')
+  await scheduleWorkerCrons(driver, logger)
 
   const driverName = app.config.get('job_queue.default')
   logger.info({ driver: driverName }, 'job_queue.worker.started')

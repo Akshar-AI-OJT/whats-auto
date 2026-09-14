@@ -101,6 +101,50 @@ test.group('parseWebhookChange', () => {
     assert.equal(result.messages[3].contentType, 'interactive')
     assert.equal(result.messages[3].metadata.interactive?.buttonReply?.title, 'Yes')
     assert.equal(result.messages[3].contentText, 'Yes')
+    assert.isNull(result.messages[3].contextProviderMessageId)
+  })
+
+  test('parses context.id and referral onto inbound metadata', ({ assert }) => {
+    const result = parseWebhookChange({
+      field: 'messages',
+      value: {
+        metadata: { phone_number_id: 'pn-1' },
+        contacts: [{ wa_id: '15551234567' }],
+        messages: [
+          {
+            from: '15551234567',
+            id: 'wamid.reply',
+            timestamp: '1700000004',
+            type: 'interactive',
+            context: { id: 'wamid.out.campaign', from: '15550001111' },
+            referral: {
+              source_type: 'ad',
+              source_id: 'ad-1',
+              source_url: 'https://fb.me/ad',
+              headline: 'Sale',
+              ctwa_clid: 'clid-1',
+            },
+            interactive: {
+              type: 'button_reply',
+              button_reply: { id: 'yes', title: 'Yes' },
+            },
+          },
+        ],
+      },
+    })
+
+    assert.equal(result.kind, 'inbox')
+    if (result.kind !== 'inbox') return
+
+    const inbound = result.messages[0]!
+    assert.equal(inbound.contextProviderMessageId, 'wamid.out.campaign')
+    assert.deepEqual(inbound.metadata.context, {
+      id: 'wamid.out.campaign',
+      from: '15550001111',
+    })
+    assert.equal(inbound.metadata.referral?.sourceId, 'ad-1')
+    assert.equal(inbound.metadata.referral?.sourceType, 'ad')
+    assert.equal(inbound.metadata.referral?.ctwaClid, 'clid-1')
   })
 
   test('parses delivery status receipts including failures', ({ assert }) => {

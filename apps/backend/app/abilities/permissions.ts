@@ -24,6 +24,9 @@ export const PERMISSIONS = {
   CONTACTS_EXPORT: 'contacts:export',
 
   MEDIA_UPLOAD: 'media:upload',
+  MEDIA_VIEW: 'media:view',
+  MEDIA_DELETE: 'media:delete',
+  MEDIA_PURGE: 'media:purge',
 
   TEMPLATES_VIEW: 'templates:view',
   TEMPLATES_CREATE: 'templates:create',

@@ -4,7 +4,9 @@ import { PERMISSIONS } from '@/lib/rbac'
 
 export default function TemplatesPage() {
   return (
-    <RequirePermission permission={PERMISSIONS.WHATSAPP_VIEW}>
+    <RequirePermission
+      anyOf={[PERMISSIONS.TEMPLATES_VIEW, PERMISSIONS.WHATSAPP_VIEW]}
+    >
       <TemplatesListPage />
     </RequirePermission>
   )

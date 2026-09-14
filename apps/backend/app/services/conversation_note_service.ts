@@ -28,7 +28,7 @@ const NOTE_COLUMNS = [
 ] as const
 
 function toIso(value: unknown): string | null {
-  if (value == null) return null
+  if (value === null) return null
   if (value instanceof Date) return value.toISOString()
   return String(value)
 }
@@ -118,10 +118,7 @@ export class ConversationNoteService {
     })
   }
 
-  private async findConversationOrFail(params: {
-    organizationId: string
-    conversationId: string
-  }) {
+  private async findConversationOrFail(params: { organizationId: string; conversationId: string }) {
     const row = await db
       .from('conversations')
       .where('id', params.conversationId)

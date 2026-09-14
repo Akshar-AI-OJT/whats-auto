@@ -7,21 +7,17 @@ import { FileText, LayoutGrid, Loader2, Plus, RefreshCw } from 'lucide-react'
 import {
   api,
   type ApiError,
+  type WhatsappConfigSummary,
   type WhatsappMessageTemplate,
 } from '@/lib/api'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
-import { useRouter } from '@/i18n/navigation'
-import { Button } from '@/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { unwrapList } from '@/components/dashboard/inbox/inbox-utils'
+import { Link, useRouter } from '@/i18n/navigation'
+import { Button, buttonVariants } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
+import { TemplateCards } from './TemplateCards'
 import { TemplateFilters } from './TemplateFilters'
 import { TemplateTable } from './TemplateTable'
 import {
@@ -31,15 +27,10 @@ import {
 } from './TemplateDialogs'
 import {
   type TemplateStatusTab,
+  type TemplateViewMode,
   unwrapTemplateList,
 } from './template-utils'
-
-export const templateQueryKeys = {
-  all: ['whatsapp-templates'] as const,
-  list: (orgId: string | null | undefined, params: Record<string, string | number>) =>
-    [...templateQueryKeys.all, 'list', orgId ?? 'none', params] as const,
-  detail: (id: string) => [...templateQueryKeys.all, 'detail', id] as const,
-}
+import { queryKeys } from '@/lib/query-keys'
 
 export function TemplatesListPage() {
   const t = useTranslations('dashboard.templates')
@@ -47,15 +38,20 @@ export function TemplatesListPage() {
   const queryClient = useQueryClient()
   const {
     tenantOrganizationId,
-    canViewWhatsapp,
-    canManageWhatsapp,
+    canViewTemplates,
+    canCreateTemplates,
+    canSyncTemplates,
+    canDeleteTemplates,
     isLoading: orgsLoading,
   } = useOrganizations()
+
+  const canManageTemplates = canCreateTemplates || canDeleteTemplates
 
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('')
   const [language, setLanguage] = useState('')
   const [statusTab, setStatusTab] = useState<TemplateStatusTab>('all')
+  const [viewMode, setViewMode] = useState<TemplateViewMode>('cards')
   const [page, setPage] = useState(1)
   const [deleteTarget, setDeleteTarget] = useState<WhatsappMessageTemplate | null>(null)
   const [deleteError, setDeleteError] = useState<string | null>(null)
@@ -63,7 +59,6 @@ export function TemplatesListPage() {
   const [syncError, setSyncError] = useState<string | null>(null)
   const [syncedCount, setSyncedCount] = useState<number | null>(null)
   const [syncPending, setSyncPending] = useState(false)
-  const [browseComingSoonOpen, setBrowseComingSoonOpen] = useState(false)
   const { progress, complete: completeProgress } = useSyncProgress(syncPending)
 
   const listParams = useMemo(
@@ -73,18 +68,37 @@ export function TemplatesListPage() {
       ...(statusTab !== 'all' ? { status: statusTab } : {}),
       ...(category ? { category } : {}),
       ...(search.trim() ? { search: search.trim() } : {}),
+      ...(language.trim() ? { language: language.trim() } : {}),
     }),
-    [page, statusTab, category, search]
+    [page, statusTab, category, search, language]
+  )
+
+  const hasActiveFilters = Boolean(
+    search.trim() || category || language || statusTab !== 'all'
   )
 
   const templatesQuery = useQuery({
-    queryKey: templateQueryKeys.list(tenantOrganizationId, listParams),
-    enabled: Boolean(tenantOrganizationId) && canViewWhatsapp && !orgsLoading,
+    queryKey: queryKeys.templates.list(tenantOrganizationId, listParams),
+    enabled: Boolean(tenantOrganizationId) && canViewTemplates && !orgsLoading,
     queryFn: async () => {
       const { data } = await api.whatsapp.listTemplates(listParams)
       return unwrapTemplateList(data)
     },
   })
+
+  const whatsappQuery = useQuery({
+    queryKey: queryKeys.templates.whatsappConnected(tenantOrganizationId),
+    enabled: Boolean(tenantOrganizationId) && canViewTemplates && !orgsLoading,
+    queryFn: async () => {
+      const { data } = await api.whatsapp.listConfigs()
+      return unwrapList<WhatsappConfigSummary>(data)
+    },
+  })
+
+  const whatsappConnected = useMemo(
+    () => (whatsappQuery.data ?? []).some((cfg) => cfg.status === 'connected'),
+    [whatsappQuery.data]
+  )
 
   const deleteMutation = useMutation({
     mutationFn: async (templateId: string) => {
@@ -93,7 +107,7 @@ export function TemplatesListPage() {
     onSuccess: async () => {
       setDeleteTarget(null)
       setDeleteError(null)
-      await queryClient.invalidateQueries({ queryKey: templateQueryKeys.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.templates.all })
     },
     onError: (err) => {
       setDeleteError((err as unknown as ApiError).message || t('errors.deleteFailed'))
@@ -119,7 +133,7 @@ export function TemplatesListPage() {
       setSyncedCount(count)
       completeProgress()
       setSyncPending(false)
-      await queryClient.invalidateQueries({ queryKey: templateQueryKeys.all })
+      await queryClient.invalidateQueries({ queryKey: queryKeys.templates.all })
     },
     onError: (err) => {
       setSyncError((err as unknown as ApiError).message || t('errors.syncFailed'))
@@ -128,19 +142,27 @@ export function TemplatesListPage() {
     },
   })
 
-  const items = useMemo(() => {
-    const rows = templatesQuery.data?.items ?? []
-    if (!language) return rows
-    return rows.filter((row) => (row.language ?? '') === language)
-  }, [templatesQuery.data?.items, language])
+  const items = templatesQuery.data?.items ?? []
 
   const meta = templatesQuery.data?.meta
   const total = meta?.total ?? items.length
   const lastPage = meta?.lastPage ?? 1
 
-  if (!orgsLoading && !canViewWhatsapp) {
+  function clearFilters() {
+    setSearch('')
+    setCategory('')
+    setLanguage('')
+    setStatusTab('all')
+    setPage(1)
+  }
+
+  function openDuplicate(template: WhatsappMessageTemplate) {
+    router.push(`/dashboard/templates/create?from=${template.id}`)
+  }
+
+  if (!orgsLoading && !canViewTemplates) {
     return (
-      <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5">
+      <div className="flex w-full min-w-0 flex-col gap-5">
         <DashboardPanel as="section" className="px-4 py-5 sm:px-6 sm:py-6">
           <p className="text-sm font-semibold tracking-wide text-positive-deep uppercase">
             {t('eyebrow')}
@@ -160,10 +182,10 @@ export function TemplatesListPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-5 sm:gap-6">
-      <DashboardPanel as="section" className="px-4 py-5 sm:px-6 sm:py-6 md:px-7 md:py-7">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-          <div>
+    <div className="flex w-full min-w-0 flex-col gap-5 sm:gap-6">
+      <DashboardPanel as="section" className="overflow-visible px-4 py-5 sm:px-6 sm:py-6 md:px-7 md:py-7">
+        <div className="flex min-w-0 flex-col gap-4">
+          <div className="min-w-0">
             <p className="text-sm font-semibold tracking-wide text-positive-deep uppercase">
               {t('eyebrow')}
             </p>
@@ -174,40 +196,69 @@ export function TemplatesListPage() {
               {t('subtitle')}
             </p>
           </div>
-          <div className="flex shrink-0 flex-nowrap items-center gap-2 overflow-x-auto">
-            {canManageWhatsapp ? (
+
+          {/*
+            Mobile: full-width stacked CTAs so labels never clip.
+            sm+: compact row that wraps instead of nowrap + overflow-x.
+          */}
+          <div className="grid w-full min-w-0 grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:flex sm:flex-wrap sm:justify-start md:justify-end">
+            {canSyncTemplates ? (
               <Button
                 type="button"
                 variant="outline"
-                className="shrink-0 gap-2"
-                disabled={syncMutation.isPending}
-                onClick={() => syncMutation.mutate()}
+                className="w-full justify-center gap-2 sm:w-auto"
+                disabled={syncMutation.isPending || !whatsappConnected}
+                title={!whatsappConnected ? t('whatsappRequired.syncHint') : undefined}
+                onClick={() => {
+                  if (!whatsappConnected) return
+                  syncMutation.mutate()
+                }}
               >
-                <RefreshCw className="size-4" aria-hidden />
-                {t('syncCta')}
+                <RefreshCw className="size-4 shrink-0" aria-hidden />
+                <span className="truncate">{t('syncCta')}</span>
               </Button>
             ) : null}
-            <Button
-              type="button"
-              variant="outline"
-              className="shrink-0 gap-2"
-              onClick={() => setBrowseComingSoonOpen(true)}
+            <Link
+              href="/dashboard/templates/browse"
+              className={cn(
+                buttonVariants({ variant: 'outline' }),
+                'w-full justify-center gap-2 sm:w-auto'
+              )}
             >
-              <LayoutGrid className="size-4" aria-hidden />
-              {t('browseCta')}
-            </Button>
-            {canManageWhatsapp ? (
+              <LayoutGrid className="size-4 shrink-0" aria-hidden />
+              <span className="truncate">{t('browseCta')}</span>
+            </Link>
+            {canCreateTemplates ? (
               <Button
                 type="button"
-                className="shrink-0 gap-2"
+                className="w-full justify-center gap-2 min-[420px]:col-span-2 sm:col-span-1 sm:w-auto"
                 onClick={() => router.push('/dashboard/templates/create')}
               >
-                <Plus className="size-4" aria-hidden />
-                {t('createCta')}
+                <Plus className="size-4 shrink-0" aria-hidden />
+                <span className="truncate">{t('createCta')}</span>
               </Button>
             ) : null}
           </div>
         </div>
+
+        {!whatsappQuery.isLoading && !whatsappConnected ? (
+          <div
+            role="status"
+            className="mt-5 rounded-xl border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-ink"
+          >
+            <p className="font-medium">{t('whatsappRequired.title')}</p>
+            <p className="mt-1 text-body">{t('whatsappRequired.body')}</p>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="mt-3 w-full sm:w-auto"
+              onClick={() => router.push('/dashboard/whatsapp')}
+            >
+              {t('whatsappRequired.cta')}
+            </Button>
+          </div>
+        ) : null}
       </DashboardPanel>
 
       <DashboardPanel as="section" className="p-4 sm:p-5 md:p-6">
@@ -219,6 +270,8 @@ export function TemplatesListPage() {
             category={category}
             statusTab={statusTab}
             language={language}
+            viewMode={viewMode}
+            hasActiveFilters={hasActiveFilters}
             onSearchChange={(value) => {
               setSearch(value)
               setPage(1)
@@ -235,6 +288,8 @@ export function TemplatesListPage() {
               setLanguage(value)
               setPage(1)
             }}
+            onViewModeChange={setViewMode}
+            onClearFilters={clearFilters}
           />
         </div>
 
@@ -257,21 +312,42 @@ export function TemplatesListPage() {
             </span>
             <p className="font-medium text-ink">{t('emptyTitle')}</p>
             <p className="max-w-sm text-sm text-body">{t('emptyDescription')}</p>
+            {canCreateTemplates ? (
+              <Button
+                type="button"
+                className="mt-2 gap-2"
+                onClick={() => router.push('/dashboard/templates/create')}
+              >
+                <Plus className="size-4" aria-hidden />
+                {t('createCta')}
+              </Button>
+            ) : null}
           </div>
         ) : (
           <div className="mt-5 space-y-4">
-            <TemplateTable
-              templates={items}
-              canManage={canManageWhatsapp}
-              onView={(template) => router.push(`/dashboard/templates/${template.id}`)}
-              onEdit={(template) =>
-                router.push(`/dashboard/templates/create?from=${template.id}`)
-              }
-              onDelete={(template) => {
-                setDeleteError(null)
-                setDeleteTarget(template)
-              }}
-            />
+            {viewMode === 'cards' ? (
+              <TemplateCards
+                templates={items}
+                canManage={canManageTemplates}
+                onView={(template) => router.push(`/dashboard/templates/${template.id}`)}
+                onDuplicate={openDuplicate}
+                onDelete={(template) => {
+                  setDeleteError(null)
+                  setDeleteTarget(template)
+                }}
+              />
+            ) : (
+              <TemplateTable
+                templates={items}
+                canManage={canManageTemplates}
+                onView={(template) => router.push(`/dashboard/templates/${template.id}`)}
+                onDuplicate={openDuplicate}
+                onDelete={(template) => {
+                  setDeleteError(null)
+                  setDeleteTarget(template)
+                }}
+              />
+            )}
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs text-mute">
                 {t('pagination', {
@@ -322,28 +398,14 @@ export function TemplatesListPage() {
       <TemplateSyncDialog
         open={syncOpen}
         pending={syncMutation.isPending}
-        progress={syncMutation.isPending ? progress : syncedCount != null || syncError ? 100 : progress}
+        progress={
+          syncMutation.isPending ? progress : syncedCount != null || syncError ? 100 : progress
+        }
         syncedCount={syncedCount}
         error={syncError}
         onOpenChange={setSyncOpen}
         onRetry={() => syncMutation.mutate()}
       />
-
-      <Dialog open={browseComingSoonOpen} onOpenChange={setBrowseComingSoonOpen}>
-        <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-md" showCloseButton>
-          <DialogHeader className="border-b border-dash-border px-5 py-4 text-left sm:px-6">
-            <DialogTitle>{t('browseComingSoon.title')}</DialogTitle>
-            <DialogDescription>{t('browseComingSoon.body')}</DialogDescription>
-          </DialogHeader>
-          <div className="px-5 py-4 sm:px-6">
-            <DialogFooter className="border-0 bg-transparent p-0 sm:justify-end">
-              <Button type="button" onClick={() => setBrowseComingSoonOpen(false)}>
-                {t('browseComingSoon.dismiss')}
-              </Button>
-            </DialogFooter>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

@@ -28,14 +28,14 @@ export async function AboutVision() {
             <article
               className={cn(
                 'relative rounded-[28px] border border-[#E2E8F0] bg-canvas/90 px-6 py-10 text-center backdrop-blur-sm sm:px-12 sm:py-14',
-                'shadow-[0_1px_2px_rgb(15_23_42/0.04),0_16px_40px_rgb(15_23_42/0.06),0_0_0_1px_rgb(159_232_112/0.08)]'
+                'shadow-[0_1px_2px_rgb(15_23_42/0.04),0_16px_40px_rgb(15_23_42/0.06),0_0_0_1px_rgb(37_99_235/0.08)]'
               )}
             >
               <span
                 className={cn(
                   'mx-auto mb-6 flex size-14 items-center justify-center rounded-2xl sm:size-16',
                   'bg-primary-pale text-positive-deep',
-                  'shadow-[0_0_0_6px_rgb(159_232_112/0.18),0_10px_24px_rgb(159_232_112/0.28)]'
+                  'shadow-[0_0_0_6px_rgb(37_99_235/0.18),0_10px_24px_rgb(37_99_235/0.28)]'
                 )}
               >
                 <Compass className="size-6 sm:size-7" aria-hidden />

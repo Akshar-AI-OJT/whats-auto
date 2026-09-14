@@ -58,7 +58,7 @@ function Chip({ label, icon, tone }: Chip) {
 }
 
 export type FeaturesHeroMockCopy = {
-  workspaceTitle: string
+  organizationTitle: string
   inboxLabel: string
   online: string
   threadName: string
@@ -75,7 +75,7 @@ export type FeaturesHeroMockCopy = {
   }
 }
 
-/** Premium WhatsApp workspace preview with floating capability chips. */
+/** Premium WhatsApp organization preview with floating capability chips. */
 export function FeaturesHeroMockup({
   label,
   copy,
@@ -96,7 +96,7 @@ export function FeaturesHeroMockup({
         className="pointer-events-none absolute top-1/2 left-1/2 size-[260px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/14 blur-[100px]"
       />
 
-      {/* Workspace card */}
+      {/* Organization card */}
       <div
         className={cn(
           'absolute top-1/2 left-1/2 z-20 w-[min(100%,280px)] -translate-x-1/2 -translate-y-1/2 sm:w-[300px]',
@@ -106,7 +106,7 @@ export function FeaturesHeroMockup({
       >
         <div className="flex items-center justify-between border-b border-[#E2E8F0] bg-[#F8FAFC] px-4 py-3">
           <div>
-            <p className="text-sm font-semibold text-ink">{copy.workspaceTitle}</p>
+            <p className="text-sm font-semibold text-ink">{copy.organizationTitle}</p>
             <p className="text-[10px] font-medium text-mute">{copy.inboxLabel}</p>
           </div>
           <span className="inline-flex items-center gap-1 rounded-full bg-primary-pale px-2 py-0.5 text-[10px] font-semibold text-positive-deep">

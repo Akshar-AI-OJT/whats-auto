@@ -1,5 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
+import SuperAdminPolicy from '#policies/super_admin_policy'
 import { SubscriptionService } from '#services/subscription_service'
 import {
   createSuperAdminSubscriptionValidator,
@@ -12,27 +13,40 @@ import '#types/http'
 export default class SuperAdminSubscriptionsController {
   /**
    * @summary List all subscriptions (Super Admin)
-   * @description Platform-wide paginated subscription list. Requires Super Admin role and platform:tenants_billing permission.
+   * @description Platform-wide paginated subscription list. Optional search/status/plan/billing filters are applied before pagination. Requires Super Admin role and platform:tenants_billing permission.
    * @tag Super Admin
    * @security BearerAuth
    * @paramQuery page - Page number (default 1) - @type(number)
    * @paramQuery perPage - Items per page (1-100, default 20) - @type(number)
-   * @responseBody 200 - { "data": [{ "id": "uuid", "organizationId": "uuid", "planId": "uuid", "status": "active" }], "meta": { "total": 1, "perPage": 20, "currentPage": 1, "lastPage": 1 } }
+   * @paramQuery search - Match organization name/website, plan name/code, status, or organization id - @type(string)
+   * @paramQuery status - trialing | active | past_due | cancelled | all - @type(string)
+   * @paramQuery plan - Plan id (uuid) - @type(string)
+   * @paramQuery billing - monthly | custom | all - @type(string)
+   * @responseBody 200 - { "data": [{ "id": "uuid", "organizationId": "uuid", "planId": "uuid", "status": "active" }], "meta": { "total": 1, "perPage": 20, "currentPage": 1, "lastPage": 1 }, "summary": { "trialing": 0, "active": 1, "past_due": 0, "cancelled": 0 } }
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 403 - { "error": "Permission denied: platform:tenants_billing", "code": "PERMISSION_DENIED" }
    */
   @inject()
-  async index({ request, serialize }: HttpContext, subscriptions: SubscriptionService) {
-    const { page, perPage } = await request.validateUsing(listSuperAdminSubscriptionsValidator, {
-      data: request.qs(),
-    })
+  async index({ bouncer, request, serialize }: HttpContext, subscriptions: SubscriptionService) {
+    await bouncer.with(SuperAdminPolicy).authorize('manageBilling')
+
+    const { page, perPage, search, status, plan, billing } = await request.validateUsing(
+      listSuperAdminSubscriptionsValidator,
+      {
+        data: request.qs(),
+      }
+    )
 
     const result = await subscriptions.listSubscriptionsPaginated({
       page: page ?? 1,
       perPage: perPage ?? 20,
+      search,
+      status,
+      plan,
+      billing,
     })
 
-    return serialize(result)
+    return serialize.withoutWrapping(result)
   }
 
   /**
@@ -48,10 +62,12 @@ export default class SuperAdminSubscriptionsController {
    * @responseBody 422 - { "error": "currentPeriodEnd must be after currentPeriodStart", "code": "E_SUBSCRIPTION_INVALID_PERIOD" }
    */
   @inject()
-  async store({ request, serialize }: HttpContext, subscriptions: SubscriptionService) {
+  async store({ bouncer, request, serialize }: HttpContext, subscriptions: SubscriptionService) {
+    await bouncer.with(SuperAdminPolicy).authorize('manageBilling')
+
     const payload = await request.validateUsing(createSuperAdminSubscriptionValidator)
 
-    const subscription = await subscriptions.createSubscription(payload)
+    const subscription = await subscriptions.createSubscription(payload, request.authUser!.id)
 
     return serialize(subscription)
   }
@@ -68,7 +84,12 @@ export default class SuperAdminSubscriptionsController {
    * @responseBody 404 - { "error": "Subscription Not Found", "code": "E_SUBSCRIPTION_NOT_FOUND" }
    */
   @inject()
-  async show({ request, params, serialize }: HttpContext, subscriptions: SubscriptionService) {
+  async show(
+    { bouncer, request, params, serialize }: HttpContext,
+    subscriptions: SubscriptionService
+  ) {
+    await bouncer.with(SuperAdminPolicy).authorize('manageBilling')
+
     const { id } = await request.validateUsing(subscriptionIdParamValidator, {
       data: params,
     })
@@ -92,20 +113,25 @@ export default class SuperAdminSubscriptionsController {
    * @responseBody 422 - { "error": "currentPeriodEnd must be after currentPeriodStart", "code": "E_SUBSCRIPTION_INVALID_PERIOD" }
    */
   @inject()
-  async update({ request, params, serialize }: HttpContext, subscriptions: SubscriptionService) {
+  async update(
+    { bouncer, request, params, serialize }: HttpContext,
+    subscriptions: SubscriptionService
+  ) {
+    await bouncer.with(SuperAdminPolicy).authorize('manageBilling')
+
     const { id } = await request.validateUsing(subscriptionIdParamValidator, {
       data: params,
     })
     const payload = await request.validateUsing(updateSuperAdminSubscriptionValidator)
 
-    const subscription = await subscriptions.updateSubscription(id, payload)
+    const subscription = await subscriptions.updateSubscription(id, payload, request.authUser!.id)
 
     return serialize(subscription)
   }
 
   /**
-   * @summary Soft-delete a subscription (Super Admin)
-   * @description Marks the subscription as cancelled without removing the row. Requires Super Admin role and platform:tenants_billing permission.
+   * @summary Cancel a subscription (Super Admin)
+   * @description Sets status to cancelled without removing the row. Cancelled subscriptions remain in the list and summary. Requires Super Admin role and platform:tenants_billing permission.
    * @tag Super Admin
    * @security BearerAuth
    * @paramPath id - Subscription id - @type(string)
@@ -117,14 +143,16 @@ export default class SuperAdminSubscriptionsController {
    */
   @inject()
   async softDelete(
-    { request, params, serialize }: HttpContext,
+    { bouncer, request, params, serialize }: HttpContext,
     subscriptions: SubscriptionService
   ) {
+    await bouncer.with(SuperAdminPolicy).authorize('manageBilling')
+
     const { id } = await request.validateUsing(subscriptionIdParamValidator, {
       data: params,
     })
 
-    await subscriptions.softDeleteSubscription(id)
+    await subscriptions.softDeleteSubscription(id, request.authUser!.id)
 
     return serialize({ ok: true })
   }

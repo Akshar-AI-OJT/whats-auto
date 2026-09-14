@@ -1,11 +1,13 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { auth } from '#lib/auth'
+import { copyBetterAuthResponse } from '#lib/copy_better_auth_response'
 
 /**
  * Forwards an Adonis request to better-auth's Fetch API handler and
  * copies the Web Response back onto the Adonis response.
  */
-export async function handleBetterAuth({ request, response }: HttpContext) {
+export async function handleBetterAuth(ctx: HttpContext) {
+  const { request } = ctx
   const headers = new Headers()
 
   for (const [key, value] of Object.entries(request.headers())) {
@@ -24,19 +26,6 @@ export async function handleBetterAuth({ request, response }: HttpContext) {
   const webRequest = new Request(request.completeUrl(true), init)
   const webResponse = await auth.handler(webRequest)
 
-  response.status(webResponse.status)
-
-  webResponse.headers.forEach((value, key) => {
-    if (key.toLowerCase() === 'set-cookie') {
-      response.append('Set-Cookie', value)
-    } else {
-      response.header(key, value)
-    }
-  })
-
-  const body = Buffer.from(await webResponse.arrayBuffer())
-
-  if (body.length > 0) {
-    return response.send(body)
-  }
+  // Always send, including empty 302 OAuth callbacks, so Set-Cookie + Location flush.
+  return copyBetterAuthResponse(ctx, webResponse)
 }

@@ -33,6 +33,13 @@ export default class MessageTemplateException extends Exception {
     })
   }
 
+  static invalidHeaderMedia(message = 'Header media asset is invalid or not ready') {
+    return new this(message, {
+      status: 422,
+      code: 'E_TEMPLATE_INVALID_HEADER_MEDIA',
+    })
+  }
+
   handle(error: this, { response }: HttpContext) {
     return response.status(error.status).send({
       error: error.message,

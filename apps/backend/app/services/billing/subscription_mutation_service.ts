@@ -1,18 +1,14 @@
-import db from '@adonisjs/lucid/services/db'
 import {
   OrganizationSubscriptionRepository,
   type OrganizationSubscriptionRow,
 } from '#repositories/organization_subscription_repository'
 import { PaymentTransactionRepository } from '#repositories/payment_transaction_repository'
+import { BillingOrderRepository } from '#repositories/billing_order_repository'
+import { BillingOrderApplyService } from '#services/billing/billing_order_apply_service'
+import { notifyBillingOwnerBestEffort } from '#services/billing/billing_owner_notify'
 import { runWithTenant } from '#services/tenant_context'
 
-export const HANDLED_RAZORPAY_EVENTS = [
-  'payment.captured',
-  'payment.failed',
-  'subscription.charged',
-  'subscription.halted',
-  'subscription.cancelled',
-] as const
+export const HANDLED_RAZORPAY_EVENTS = ['order.paid', 'payment.captured', 'payment.failed'] as const
 
 export type HandledRazorpayEvent = (typeof HANDLED_RAZORPAY_EVENTS)[number]
 
@@ -29,7 +25,9 @@ type RazorpayEntity = Record<string, unknown>
 export class SubscriptionMutationService {
   constructor(
     protected subscriptions: OrganizationSubscriptionRepository = new OrganizationSubscriptionRepository(),
-    protected payments: PaymentTransactionRepository = new PaymentTransactionRepository()
+    protected payments: PaymentTransactionRepository = new PaymentTransactionRepository(),
+    protected orders: BillingOrderRepository = new BillingOrderRepository(),
+    protected applyService: BillingOrderApplyService = new BillingOrderApplyService()
   ) {}
 
   isHandledEvent(eventType: string): eventType is HandledRazorpayEvent {
@@ -46,21 +44,17 @@ export class SubscriptionMutationService {
 
     const organizationId = await this.resolveOrganizationId(params.payload, params.eventType)
     if (!organizationId) {
-      throw new Error('Unable to resolve organizationId from Razorpay payload')
+      return { outcome: 'ignored', reason: 'unresolvable_organization' }
     }
 
     return runWithTenant(organizationId, async () => {
       switch (params.eventType) {
+        case 'order.paid':
+          return this.#onOrderPaid(organizationId, params.payload)
         case 'payment.captured':
           return this.#onPaymentCaptured(organizationId, params.payload)
         case 'payment.failed':
           return this.#onPaymentFailed(organizationId, params.payload)
-        case 'subscription.charged':
-          return this.#onSubscriptionCharged(organizationId, params.payload)
-        case 'subscription.halted':
-          return this.#onSubscriptionHalted(organizationId, params.payload)
-        case 'subscription.cancelled':
-          return this.#onSubscriptionCancelled(organizationId, params.payload)
         default:
           return { outcome: 'ignored', reason: `unhandled_event:${params.eventType}` }
       }
@@ -77,32 +71,52 @@ export class SubscriptionMutationService {
       return notes.organizationId
     }
 
-    const subscriptionId = this.#subscriptionIdFromPayload(payload, eventType, entity)
-    if (subscriptionId) {
-      const sub = await this.subscriptions.findByGatewaySubscriptionId({
-        gateway: 'razorpay',
-        gatewaySubscriptionId: subscriptionId,
-      })
-      if (sub) {
-        return sub.organizationId
-      }
-    }
-
-    const customerId = this.#asString(entity?.customer_id)
-    if (customerId) {
-      const org = await db
-        .from('organizations')
-        .where('gateway', 'razorpay')
-        .where('gatewayCustomerId', customerId)
-        .whereNull('deletedAt')
-        .select('id')
-        .first()
-      if (org?.id) {
-        return org.id as string
+    if (eventType === 'payment.failed' || eventType === 'payment.captured') {
+      const orderId = this.#asString(entity?.order_id)
+      if (orderId) {
+        const order = await this.orders.findByGatewayOrderId({
+          gateway: 'razorpay',
+          gatewayOrderId: orderId,
+        })
+        if (order) {
+          return order.organizationId
+        }
       }
     }
 
     return null
+  }
+
+  async #onOrderPaid(
+    organizationId: string,
+    payload: Record<string, unknown>
+  ): Promise<MutationResult> {
+    const orderEntity = this.#entityAt(payload, 'order')
+    const gatewayOrderId = this.#asString(orderEntity?.id)
+    if (!gatewayOrderId) {
+      return { outcome: 'ignored', reason: 'missing_order_id' }
+    }
+
+    const payment = this.#entityAt(payload, 'payment')
+    const gatewayPaymentId = this.#asString(payment?.id)
+    if (!gatewayPaymentId) {
+      return { outcome: 'ignored', reason: 'missing_payment_id' }
+    }
+
+    const result = await this.applyService.applyPaidOrder({
+      gatewayOrderId,
+      gatewayPaymentId,
+      paymentMethod: this.#asString(payment?.method),
+      paidAt: this.#unixToDate(payment?.captured_at) ?? new Date(),
+      source: 'webhook',
+      organizationId,
+    })
+
+    if (!result) {
+      return { outcome: 'ignored', reason: 'billing_order_not_found' }
+    }
+
+    return { outcome: 'applied', organizationId, subscriptionId: result.subscriptionId }
   }
 
   async #onPaymentCaptured(
@@ -119,26 +133,7 @@ export class SubscriptionMutationService {
       return { outcome: 'ignored', reason: 'missing_payment_id' }
     }
 
-    const subscription = await this.#findSubscriptionForPayment(organizationId, payload, payment)
-    if (
-      subscription &&
-      (subscription.status === 'cancelled' || subscription.status === 'expired')
-    ) {
-      await this.payments.upsertByGatewayPaymentId({
-        organizationId,
-        subscriptionId: subscription.id,
-        gateway: 'razorpay',
-        gatewayPaymentId,
-        gatewayOrderId: this.#asString(payment.order_id),
-        gatewayInvoiceId: this.#asString(payment.invoice_id),
-        amount: this.#paiseToMajor(payment.amount),
-        currency: (this.#asString(payment.currency) ?? 'INR').toUpperCase(),
-        status: 'captured',
-        paymentMethod: this.#asString(payment.method),
-        paidAt: this.#unixToDate(payment.captured_at) ?? new Date(),
-      })
-      return { outcome: 'applied', organizationId, subscriptionId: subscription.id }
-    }
+    const subscription = await this.#findSubscriptionForPayment(organizationId)
 
     await this.payments.upsertByGatewayPaymentId({
       organizationId,
@@ -154,31 +149,7 @@ export class SubscriptionMutationService {
       paidAt: this.#unixToDate(payment.captured_at) ?? new Date(),
     })
 
-    if (
-      subscription &&
-      (subscription.status === 'trialing' || subscription.status === 'past_due')
-    ) {
-      const patch: Record<string, unknown> = {
-        status: 'active',
-        lastPaymentStatus: 'captured',
-        lastPaymentAt: new Date(),
-        checkoutUrl: null,
-        metadata: {
-          ...(typeof subscription.metadata === 'object' && subscription.metadata
-            ? subscription.metadata
-            : {}),
-          checkoutPending: false,
-        },
-      }
-      if (!subscription.activatedAt) {
-        patch.activatedAt = new Date()
-      }
-      await this.subscriptions.updateById({
-        organizationId,
-        subscriptionId: subscription.id,
-        patch,
-      })
-    } else if (subscription) {
+    if (subscription) {
       await this.subscriptions.updateById({
         organizationId,
         subscriptionId: subscription.id,
@@ -206,7 +177,31 @@ export class SubscriptionMutationService {
       return { outcome: 'ignored', reason: 'missing_payment_id' }
     }
 
-    const subscription = await this.#findSubscriptionForPayment(organizationId, payload, payment)
+    const subscription = await this.#findSubscriptionForPayment(organizationId)
+
+    const gatewayOrderId = this.#asString(payment.order_id)
+    if (gatewayOrderId) {
+      const billingOrder = await this.orders.findByGatewayOrderId({
+        gateway: 'razorpay',
+        gatewayOrderId,
+      })
+      if (billingOrder && billingOrder.status === 'created') {
+        await this.orders.updateById({
+          organizationId: billingOrder.organizationId,
+          orderId: billingOrder.id,
+          patch: {
+            status: 'failed',
+            failureReason: this.#asString(payment.error_description),
+          },
+        })
+      }
+    }
+
+    const existingPayment = await this.payments.findByGatewayPaymentId({
+      gateway: 'razorpay',
+      gatewayPaymentId,
+    })
+    const alreadyFailed = existingPayment?.status === 'failed'
 
     await this.payments.upsertByGatewayPaymentId({
       organizationId,
@@ -233,185 +228,31 @@ export class SubscriptionMutationService {
           lastPaymentAt: new Date(),
         },
       })
+
+      await notifyBillingOwnerBestEffort({
+        organizationId,
+        type: 'billing_subscription_past_due',
+        title: 'Subscription past due',
+        body: 'Your subscription is past due. Renew payment to restore full access.',
+      })
+    }
+
+    // Webhook retries for the same gateway payment id must not re-notify.
+    if (!alreadyFailed) {
+      await notifyBillingOwnerBestEffort({
+        organizationId,
+        type: 'billing_payment_failed',
+        title: 'Payment failed',
+        body: 'A subscription payment failed. Update your payment method to avoid interruption.',
+      })
     }
 
     return { outcome: 'applied', organizationId, subscriptionId: subscription?.id ?? null }
   }
 
-  async #onSubscriptionCharged(
-    organizationId: string,
-    payload: Record<string, unknown>
-  ): Promise<MutationResult> {
-    const subscriptionEntity = this.#entityAt(payload, 'subscription')
-    const gatewaySubscriptionId = this.#asString(subscriptionEntity?.id)
-    if (!gatewaySubscriptionId) {
-      return { outcome: 'ignored', reason: 'missing_subscription_id' }
-    }
-
-    const subscription = await this.subscriptions.findByGatewaySubscriptionId({
-      gateway: 'razorpay',
-      gatewaySubscriptionId,
-    })
-    if (!subscription || subscription.organizationId !== organizationId) {
-      return { outcome: 'ignored', reason: 'subscription_not_found' }
-    }
-    if (subscription.status === 'cancelled' || subscription.status === 'expired') {
-      return { outcome: 'applied', organizationId, subscriptionId: subscription.id }
-    }
-
-    const periodStart = this.#unixToDate(subscriptionEntity?.current_start)
-    const periodEnd = this.#unixToDate(subscriptionEntity?.current_end)
-
-    const patch: Record<string, unknown> = {
-      status: 'active',
-      lastPaymentStatus: 'captured',
-      lastPaymentAt: new Date(),
-      checkoutUrl: null,
-      metadata: {
-        ...(typeof subscription.metadata === 'object' && subscription.metadata
-          ? subscription.metadata
-          : {}),
-        checkoutPending: false,
-      },
-    }
-    if (!subscription.activatedAt) {
-      patch.activatedAt = new Date()
-    }
-    if (periodStart) patch.currentPeriodStart = periodStart
-    if (periodEnd) patch.currentPeriodEnd = periodEnd
-
-    await this.subscriptions.updateById({
-      organizationId,
-      subscriptionId: subscription.id,
-      patch,
-    })
-
-    const payment = this.#entityAt(payload, 'payment')
-    const gatewayPaymentId = this.#asString(payment?.id)
-    if (payment && gatewayPaymentId) {
-      await this.payments.upsertByGatewayPaymentId({
-        organizationId,
-        subscriptionId: subscription.id,
-        gateway: 'razorpay',
-        gatewayPaymentId,
-        gatewayOrderId: this.#asString(payment.order_id),
-        gatewayInvoiceId: this.#asString(payment.invoice_id),
-        amount: this.#paiseToMajor(payment.amount),
-        currency: (this.#asString(payment.currency) ?? 'INR').toUpperCase(),
-        status: 'captured',
-        paymentMethod: this.#asString(payment.method),
-        paidAt: this.#unixToDate(payment.captured_at) ?? new Date(),
-      })
-    }
-
-    return { outcome: 'applied', organizationId, subscriptionId: subscription.id }
-  }
-
-  async #onSubscriptionHalted(
-    organizationId: string,
-    payload: Record<string, unknown>
-  ): Promise<MutationResult> {
-    const subscriptionEntity = this.#entityAt(payload, 'subscription')
-    const gatewaySubscriptionId = this.#asString(subscriptionEntity?.id)
-    if (!gatewaySubscriptionId) {
-      return { outcome: 'ignored', reason: 'missing_subscription_id' }
-    }
-
-    const subscription = await this.subscriptions.findByGatewaySubscriptionId({
-      gateway: 'razorpay',
-      gatewaySubscriptionId,
-    })
-    if (!subscription || subscription.organizationId !== organizationId) {
-      return { outcome: 'ignored', reason: 'subscription_not_found' }
-    }
-
-    await this.subscriptions.updateById({
-      organizationId,
-      subscriptionId: subscription.id,
-      patch: {
-        status: 'past_due',
-        lastPaymentStatus: 'failed',
-        lastPaymentAt: new Date(),
-        metadata: {
-          ...(typeof subscription.metadata === 'object' && subscription.metadata
-            ? subscription.metadata
-            : {}),
-          halted: true,
-        },
-      },
-    })
-
-    return { outcome: 'applied', organizationId, subscriptionId: subscription.id }
-  }
-
-  async #onSubscriptionCancelled(
-    organizationId: string,
-    payload: Record<string, unknown>
-  ): Promise<MutationResult> {
-    const subscriptionEntity = this.#entityAt(payload, 'subscription')
-    const gatewaySubscriptionId = this.#asString(subscriptionEntity?.id)
-    if (!gatewaySubscriptionId) {
-      return { outcome: 'ignored', reason: 'missing_subscription_id' }
-    }
-
-    const subscription = await this.subscriptions.findByGatewaySubscriptionId({
-      gateway: 'razorpay',
-      gatewaySubscriptionId,
-    })
-    if (!subscription || subscription.organizationId !== organizationId) {
-      return { outcome: 'ignored', reason: 'subscription_not_found' }
-    }
-
-    const now = new Date()
-    const periodEnd = new Date(subscription.currentPeriodEnd)
-    const atPeriodEnd = subscription.cancelAtPeriodEnd && periodEnd > now
-
-    if (atPeriodEnd) {
-      await this.subscriptions.updateById({
-        organizationId,
-        subscriptionId: subscription.id,
-        patch: {
-          cancelledAt: now,
-          cancelAtPeriodEnd: true,
-          // keep status active/past_due until period end
-          status: subscription.status === 'past_due' ? 'past_due' : 'active',
-        },
-      })
-    } else {
-      await this.subscriptions.updateById({
-        organizationId,
-        subscriptionId: subscription.id,
-        patch: {
-          status: 'cancelled',
-          cancelledAt: now,
-          endedAt: now,
-          cancelAtPeriodEnd: false,
-        },
-      })
-    }
-
-    return { outcome: 'applied', organizationId, subscriptionId: subscription.id }
-  }
-
   async #findSubscriptionForPayment(
-    organizationId: string,
-    payload: Record<string, unknown>,
-    payment: RazorpayEntity
+    organizationId: string
   ): Promise<OrganizationSubscriptionRow | null> {
-    const gatewaySubscriptionId =
-      this.#asString(payment.subscription_id) ??
-      this.#asString(this.#entityAt(payload, 'subscription')?.id)
-
-    if (gatewaySubscriptionId) {
-      const sub = await this.subscriptions.findByGatewaySubscriptionId({
-        gateway: 'razorpay',
-        gatewaySubscriptionId,
-      })
-      if (sub && sub.organizationId === organizationId) {
-        return sub
-      }
-    }
-
     return this.subscriptions.findCurrentForEntitlements(organizationId)
   }
 
@@ -419,24 +260,10 @@ export class SubscriptionMutationService {
     if (eventType.startsWith('payment.')) {
       return this.#entityAt(payload, 'payment')
     }
-    if (eventType.startsWith('subscription.')) {
-      return this.#entityAt(payload, 'subscription')
+    if (eventType.startsWith('order.')) {
+      return this.#entityAt(payload, 'order')
     }
     return null
-  }
-
-  #subscriptionIdFromPayload(
-    payload: Record<string, unknown>,
-    eventType: string,
-    entity: RazorpayEntity | null
-  ): string | null {
-    if (eventType.startsWith('subscription.')) {
-      return this.#asString(entity?.id)
-    }
-    return (
-      this.#asString(entity?.subscription_id) ??
-      this.#asString(this.#entityAt(payload, 'subscription')?.id)
-    )
   }
 
   #entityAt(payload: Record<string, unknown>, key: string): RazorpayEntity | null {

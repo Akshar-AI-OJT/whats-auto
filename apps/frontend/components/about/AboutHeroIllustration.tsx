@@ -145,7 +145,7 @@ export function AboutHeroIllustration({
             'flex items-center gap-2.5 rounded-xl p-2.5'
           )}
         >
-          <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-on-primary shadow-[0_4px_12px_rgb(159_232_112/0.35)]">
+          <span className="flex size-8 items-center justify-center rounded-lg bg-primary text-on-primary shadow-[0_4px_12px_rgb(37_99_235/0.35)]">
             <Bot className="size-3.5" aria-hidden />
           </span>
           <div className="min-w-0">
@@ -239,8 +239,8 @@ function WorkflowNode({
         className={cn(
           'size-2 rounded-full',
           tone === 'slate' && 'bg-mute',
-          tone === 'green' && 'bg-primary shadow-[0_0_0_3px_rgb(159_232_112/0.35)]',
-          tone === 'mint' && 'bg-[#25D366]'
+          tone === 'green' && 'bg-primary shadow-[0_0_0_3px_rgb(37_99_235/0.35)]',
+          tone === 'mint' && 'bg-[#2563eb]'
         )}
         aria-hidden
       />

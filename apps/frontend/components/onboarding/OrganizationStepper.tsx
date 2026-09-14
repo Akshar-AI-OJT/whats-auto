@@ -46,12 +46,14 @@ export function OrganizationStepper({
                   )}
                   aria-current={active ? 'step' : undefined}
                 >
-                  {done ? <Check className="size-3.5" aria-hidden /> : step.id}
+                  {done ? <Check className="size-3.5 stroke-[2.5]" aria-hidden /> : step.id}
                 </span>
                 <span
                   className={cn(
                     'max-w-[5.5rem] text-center text-[11px] leading-4 font-medium sm:max-w-none sm:text-xs',
-                    active || done ? 'text-ink' : 'text-mute'
+                    active && 'text-primary',
+                    done && !active && 'text-ink',
+                    !done && !active && 'text-mute'
                   )}
                 >
                   {step.label}
@@ -60,12 +62,12 @@ export function OrganizationStepper({
 
               {!isLast ? (
                 <div
-                  className="mt-4 h-px min-w-[0.75rem] flex-1 bg-[#E2E8F0] sm:mx-2"
+                  className="mt-4 h-0.5 min-w-[0.75rem] flex-1 rounded-full bg-[#E2E8F0] sm:mx-3"
                   aria-hidden
                 >
                   <div
                     className={cn(
-                      'h-full bg-primary transition-[width] duration-300',
+                      'h-full rounded-full bg-primary transition-[width] duration-300',
                       done ? 'w-full' : 'w-0'
                     )}
                   />

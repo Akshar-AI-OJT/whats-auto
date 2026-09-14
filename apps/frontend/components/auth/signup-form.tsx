@@ -1,12 +1,14 @@
 'use client'
 
 import { useEffect, useId, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { useLocale, useTranslations } from 'next-intl'
 import { ArrowLeft, Clock3, Loader2, Lock, Mail, Phone, User } from 'lucide-react'
 import { FcGoogle } from 'react-icons/fc'
 import { cn } from '@/lib/utils'
 import { api, type ApiError } from '@/lib/api'
 import { authClient, formatBetterAuthError } from '@/lib/auth-client'
+import { buildLocalizedAppUrl } from '@/lib/app-origin'
 import { getValidAccessToken } from '@/lib/access-token'
 import {
   isValidEmail,
@@ -14,12 +16,12 @@ import {
   ORG_SETUP_PATH,
   savePendingOnboardingContact,
 } from '@/lib/onboarding'
+import { prefetchDashboardOrganizationQueries } from '@/lib/organization-queries'
 import {
+  authContinuePath,
   authHandoffHref,
-  invitationIdFromPath,
-  isAcceptInvitationPath,
   resolvePostAuthPath,
-  savePendingInvitationId,
+  safeCallbackPath,
 } from '@/lib/post-auth-redirect'
 import { Button } from '@/components/ui/button'
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field'
@@ -54,25 +56,27 @@ type FieldErrors = {
 
 const OTP_LENGTH = 6
 
-/** Only allow same-origin relative paths (blocks open redirects). */
-function safeCallbackPath(raw: string | null): string | null {
-  if (!raw) return null
-  if (!raw.startsWith('/') || raw.startsWith('//')) return null
-  return raw
-}
-
-function readSignupQuery(): { callbackPath: string | null; email: string } {
+function readSignupQuery(): {
+  callbackPath: string | null
+  email: string
+  oauthFailed: boolean
+} {
   if (typeof window === 'undefined') {
-    return { callbackPath: null, email: '' }
+    return { callbackPath: null, email: '', oauthFailed: false }
   }
   try {
     const params = new URLSearchParams(window.location.search)
+    const oauthError = params.get('error')
     return {
       callbackPath: safeCallbackPath(params.get('callbackURL')),
       email: (params.get('email') ?? '').trim(),
+      oauthFailed:
+        oauthError === 'oauth_failed' ||
+        oauthError === 'state_mismatch' ||
+        oauthError === 'state_security_mismatch',
     }
   } catch {
-    return { callbackPath: null, email: '' }
+    return { callbackPath: null, email: '', oauthFailed: false }
   }
 }
 
@@ -125,6 +129,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
   const t = useTranslations('auth.register')
   const locale = useLocale()
   const router = useRouter()
+  const queryClient = useQueryClient()
 
   const formErrorId = useId()
   const firstnameId = useId()
@@ -151,9 +156,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
   const [firstname, setFirstname] = useState('')
   const [lastname, setLastname] = useState('')
   const [email, setEmail] = useState(signupQuery.email)
-  const [emailLocked] = useState(
-    () => Boolean(signupQuery.email) && isAcceptInvitationPath(signupQuery.callbackPath)
-  )
+  const [emailLocked] = useState(() => Boolean(signupQuery.email))
   const [callbackPath] = useState(signupQuery.callbackPath)
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
@@ -167,11 +170,8 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
   const [pending, setPending] = useState<Pending>('idle')
   const [resendCooldown, setResendCooldown] = useState(0)
   const [cooldownUntil, setCooldownUntil] = useState<number | null>(null)
+  const displayError = error ?? (signupQuery.oauthFailed ? t('errors.oauthFailed') : null)
 
-  useEffect(() => {
-    const inviteId = invitationIdFromPath(callbackPath)
-    if (inviteId) savePendingInvitationId(inviteId)
-  }, [callbackPath])
   const otpInputRefs = useRef<Array<HTMLInputElement | null>>([])
 
   const isPending = pending !== 'idle'
@@ -258,13 +258,14 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
     setPending('google')
 
     try {
-      const appUrl = process.env.NEXT_PUBLIC_APP_URL
-      // Pre-auth: only invite callbackURL (or create-org default) can be used.
-      const redirectPath = callbackPath ?? ORG_SETUP_PATH
-      const callbackURL = `${appUrl}/${locale}${redirectPath}`
+      // Post-OAuth: resolve via /auth/continue (zero orgs → org setup, not dashboard).
+      const redirectPath = authContinuePath(callbackPath ?? ORG_SETUP_PATH)
+      const callbackURL = buildLocalizedAppUrl(locale, redirectPath)
+      const errorCallbackURL = buildLocalizedAppUrl(locale, '/signup?error=oauth_failed')
       const { error: authErr } = await authClient.signIn.social({
         provider: 'google',
         callbackURL,
+        errorCallbackURL,
       })
       if (authErr) throw formatBetterAuthError(authErr)
       // Successful social auth redirects the browser; keep pending if we somehow stay.
@@ -326,9 +327,13 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
       await api.auth.verifyOtp({ email, otp, password })
 
       // Custom OTP route sets the session cookie; bootstrap shared session + JWT next.
-      await authClient.getSession({ query: { disableCookieCache: true } })
+      const sessionResult = await authClient.getSession({ query: { disableCookieCache: true } })
       await getValidAccessToken()
 
+      const userId = sessionResult.data?.user?.id ?? null
+      await prefetchDashboardOrganizationQueries(queryClient, userId, {
+        sessionOrganizationId: sessionResult.data?.session?.activeOrganizationId ?? null,
+      })
       const nextPath = await resolvePostAuthPath({
         preferredCallback: callbackPath,
         fallback: ORG_SETUP_PATH,
@@ -428,13 +433,13 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
     }
 
     return (
-      <AuthLayout branding={<AuthBranding variant="otp" />} showBrandLink={false} compact>
+      <AuthLayout branding={<AuthBranding variant="otp" />} compact>
         <form
           className={cn('flex w-full min-w-0 flex-col', className)}
           onSubmit={handleVerifyOtp}
           noValidate
           aria-busy={isPending}
-          aria-describedby={error ? formErrorId : undefined}
+          aria-describedby={displayError ? formErrorId : undefined}
           {...props}
         >
           <FieldGroup className="gap-4">
@@ -442,7 +447,7 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
               <h1 className="font-display text-[1.5rem] leading-7 tracking-tight text-ink sm:text-[1.65rem]">
                 {t('otpTitle')}
               </h1>
-              <p className="text-sm leading-5 text-pretty break-words text-body">
+              <p className="text-sm leading-5 text-pretty wrap-break-word text-body">
                 {email ? t('otpSubtitleWithEmail', { email }) : t('otpSubtitle')}
               </p>
               <button
@@ -539,13 +544,13 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
               </button>
             </div>
 
-            {error ? (
+            {displayError ? (
               <div
                 id={formErrorId}
                 role="alert"
                 className="rounded-xl border border-negative/25 bg-negative/5 px-4 py-3 text-left text-sm leading-5 text-negative"
               >
-                {error}
+                {displayError}
               </div>
             ) : null}
 
@@ -583,13 +588,13 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
   }
 
   return (
-    <AuthLayout branding={<AuthBranding variant="register" />} showBrandLink={false} compact>
+    <AuthLayout branding={<AuthBranding variant="register" />} compact>
       <form
         className={cn('flex w-full min-w-0 flex-col', className)}
         onSubmit={handleRegister}
         noValidate
         aria-busy={isPending}
-        aria-describedby={error ? formErrorId : undefined}
+        aria-describedby={displayError ? formErrorId : undefined}
         {...props}
       >
         <FieldGroup className="gap-3.5">
@@ -891,13 +896,13 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
             ) : null}
           </Field>
 
-          {error ? (
+          {displayError ? (
             <div
               id={formErrorId}
               role="alert"
               className="rounded-xl border border-negative/25 bg-negative/5 px-4 py-3 text-left text-sm leading-5 text-negative"
             >
-              {error}
+              {displayError}
             </div>
           ) : null}
 

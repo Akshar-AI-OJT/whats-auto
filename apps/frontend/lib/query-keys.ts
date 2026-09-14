@@ -1,0 +1,266 @@
+/**
+ * Central query-key factory for tenant-scoped and platform-admin caches.
+ * Prefer these keys for all useQuery / invalidateQueries call sites.
+ * Prefix strings are kept stable for cache continuity with prior colocated keys.
+ */
+export const queryKeys = {
+  organizations: {
+    all: ['organizations'] as const,
+    list: (userId?: string | null) =>
+      [...queryKeys.organizations.all, userId ?? 'anonymous', 'list'] as const,
+    accessContext: (userId?: string | null) =>
+      [...queryKeys.organizations.all, userId ?? 'anonymous', 'access-context'] as const,
+    ownershipMembers: (orgId?: string | null) =>
+      [...queryKeys.organizations.all, 'ownership-members', orgId ?? null] as const,
+    smtp: (orgId?: string | null) =>
+      [...queryKeys.organizations.all, 'smtp', orgId ?? null] as const,
+  },
+  profile: {
+    all: ['account-profile'] as const,
+    detail: () => [...queryKeys.profile.all, 'detail'] as const,
+  },
+  contacts: {
+    all: (orgId?: string | null) => ['contacts', orgId ?? 'none'] as const,
+    list: (orgId?: string | null, params?: Record<string, unknown>) =>
+      [...queryKeys.contacts.all(orgId), 'list', params ?? {}] as const,
+    detail: (orgId?: string | null, contactId?: string | null) =>
+      [...queryKeys.contacts.all(orgId), 'detail', contactId ?? 'none'] as const,
+  },
+  team: {
+    all: (orgId?: string | null) => ['team', orgId ?? 'none'] as const,
+    list: (orgId?: string | null, params?: Record<string, unknown>) =>
+      [...queryKeys.team.all(orgId), 'list', params ?? {}] as const,
+    invites: (orgId?: string | null) => [...queryKeys.team.all(orgId), 'invites'] as const,
+    members: (orgId?: string | null) => [...queryKeys.team.all(orgId), 'members'] as const,
+    /** GET /api/v1/organization-admin/users/:userId */
+    userDetail: (orgId?: string | null, userId?: string | null) =>
+      [...queryKeys.team.all(orgId), 'user', userId ?? 'none'] as const,
+  },
+  roles: {
+    all: (orgId?: string | null) => ['roles', orgId ?? 'none'] as const,
+    list: (orgId?: string | null) => [...queryKeys.roles.all(orgId), 'list'] as const,
+    detail: (orgId?: string | null, roleKey?: string) =>
+      [...queryKeys.roles.all(orgId), 'detail', roleKey ?? 'none'] as const,
+  },
+  notifications: {
+    all: (orgId?: string | null) => ['notifications', orgId ?? 'none'] as const,
+    list: (orgId?: string | null, page?: number) =>
+      [...queryKeys.notifications.all(orgId), 'list', { page: page ?? 1 }] as const,
+  },
+  billing: {
+    all: ['billing'] as const,
+    subscription: (orgId?: string | null) =>
+      [...queryKeys.billing.all, 'subscription', orgId ?? 'none'] as const,
+    plans: (orgId?: string | null) =>
+      [...queryKeys.billing.all, 'plans', orgId ?? 'none'] as const,
+    entitlements: (orgId?: string | null) =>
+      [...queryKeys.billing.all, 'entitlements', orgId ?? 'none'] as const,
+  },
+  whatsapp: {
+    configs: (orgId?: string | null) => ['whatsapp-configs', orgId ?? 'none'] as const,
+    templates: (orgId?: string | null) => ['whatsapp-templates', orgId ?? 'none'] as const,
+  },
+  /** Message templates (Meta) — prefix kept as `whatsapp-templates` for cache continuity. */
+  templates: {
+    all: ['whatsapp-templates'] as const,
+    list: (orgId?: string | null, params?: Record<string, string | number>) =>
+      [...queryKeys.templates.all, 'list', orgId ?? 'none', params ?? {}] as const,
+    detail: (id: string) => [...queryKeys.templates.all, 'detail', id] as const,
+    whatsappConnected: (orgId?: string | null) =>
+      [...queryKeys.templates.all, 'whatsapp-connected', orgId ?? 'none'] as const,
+    catalog: (orgId?: string | null, params?: Record<string, unknown>) =>
+      [...queryKeys.templates.all, 'catalog', orgId ?? 'none', params ?? {}] as const,
+  },
+  media: {
+    all: ['media-library'] as const,
+    list: (orgId?: string | null, params?: Record<string, string | number>) =>
+      [...queryKeys.media.all, 'list', orgId ?? 'none', params ?? {}] as const,
+    quota: (orgId?: string | null) =>
+      [...queryKeys.media.all, 'quota', orgId ?? 'none'] as const,
+  },
+  knowledge: {
+    all: ['knowledge-documents'] as const,
+    list: (orgId?: string | null, params?: Record<string, string | number>) =>
+      [...queryKeys.knowledge.all, 'list', orgId ?? 'none', params ?? {}] as const,
+    quota: (orgId?: string | null) =>
+      [...queryKeys.knowledge.all, 'quota', orgId ?? 'none'] as const,
+  },
+  flows: {
+    all: ['flows'] as const,
+    list: (orgId?: string | null, params?: Record<string, string | number>) =>
+      [...queryKeys.flows.all, 'list', orgId ?? 'none', params ?? {}] as const,
+    detail: (orgId?: string | null, id?: string | null) =>
+      [...queryKeys.flows.all, 'detail', orgId ?? 'none', id ?? 'none'] as const,
+    catalog: (orgId?: string | null, params?: Record<string, unknown>) =>
+      [...queryKeys.flows.all, 'catalog', orgId ?? 'none', params ?? {}] as const,
+    catalogDetail: (orgId?: string | null, id?: string | null) =>
+      [...queryKeys.flows.all, 'catalog', 'detail', orgId ?? 'none', id ?? 'none'] as const,
+  },
+  customerGroups: {
+    all: ['customer-groups'] as const,
+    list: (organizationId?: string | null) =>
+      [...queryKeys.customerGroups.all, 'list', organizationId ?? 'none'] as const,
+    summary: (organizationId?: string | null) =>
+      [...queryKeys.customerGroups.all, 'summary', organizationId ?? 'none'] as const,
+    detail: (organizationId?: string | null, id?: string) =>
+      [...queryKeys.customerGroups.all, 'detail', organizationId ?? 'none', id ?? 'none'] as const,
+    members: (organizationId?: string | null, id?: string) =>
+      [...queryKeys.customerGroups.all, 'members', organizationId ?? 'none', id ?? 'none'] as const,
+    contacts: (organizationId?: string | null) =>
+      [...queryKeys.customerGroups.all, 'contacts', organizationId ?? null] as const,
+  },
+  campaigns: {
+    all: ['campaigns'] as const,
+    list: (orgId?: string | null, params?: Record<string, string | number>) =>
+      [...queryKeys.campaigns.all, 'list', orgId ?? 'none', params ?? {}] as const,
+    detail: (id: string) => [...queryKeys.campaigns.all, 'detail', id] as const,
+  },
+  inbox: {
+    all: (orgId?: string | null) => ['inbox', orgId ?? 'none'] as const,
+    lists: (orgId?: string | null) => [...queryKeys.inbox.all(orgId), 'list'] as const,
+    list: (
+      orgId?: string | null,
+      params?: {
+        page?: number
+        search?: string
+        status?: string
+        assignedAgentId?: string
+      }
+    ) => [...queryKeys.inbox.lists(orgId), params ?? {}] as const,
+    detail: (orgId?: string | null, conversationId?: string) =>
+      [...queryKeys.inbox.all(orgId), 'detail', conversationId ?? 'none'] as const,
+    messages: (orgId?: string | null, conversationId?: string) =>
+      [...queryKeys.inbox.all(orgId), 'messages', conversationId ?? 'none'] as const,
+    notes: (orgId?: string | null, conversationId?: string) =>
+      [...queryKeys.inbox.all(orgId), 'notes', conversationId ?? 'none'] as const,
+  },
+  integrations: {
+    all: (orgId?: string | null) => ['integrations', orgId ?? 'none'] as const,
+    connections: (orgId?: string | null) =>
+      [...queryKeys.integrations.all(orgId), 'connections'] as const,
+    apiKeys: (orgId?: string | null) => [...queryKeys.integrations.all(orgId), 'api-keys'] as const,
+  },
+  analytics: {
+    all: ['tenant-analytics'] as const,
+    summary: (orgId?: string | null) =>
+      [...queryKeys.analytics.all, 'summary', orgId ?? 'none'] as const,
+    campaigns: (orgId?: string | null) =>
+      [...queryKeys.analytics.all, 'campaigns', orgId ?? 'none'] as const,
+    configs: (orgId?: string | null) =>
+      [...queryKeys.analytics.all, 'configs', orgId ?? 'none'] as const,
+    audit: (orgId?: string | null) =>
+      [...queryKeys.analytics.all, 'audit', orgId ?? 'none'] as const,
+  },
+  overview: {
+    all: ['dashboard-overview'] as const,
+    contacts: (organizationId?: string | null) =>
+      ['dashboard-overview', 'contacts', organizationId ?? null] as const,
+    conversations: (organizationId?: string | null) =>
+      ['dashboard-overview', 'conversations', organizationId ?? null] as const,
+    campaigns: (organizationId?: string | null) =>
+      ['dashboard-overview', 'campaigns', organizationId ?? null] as const,
+    audit: (organizationId?: string | null) =>
+      ['dashboard-overview', 'audit', organizationId ?? null] as const,
+  },
+  audit: {
+    org: (orgId?: string | null, params?: Record<string, unknown>) =>
+      ['org-audit-logs', orgId ?? null, params ?? {}] as const,
+  },
+  onboarding: {
+    plans: ['onboarding', 'plans'] as const,
+    billingSubscription: ['onboarding', 'billing', 'subscription'] as const,
+  },
+  search: {
+    all: ['global-search'] as const,
+    query: (scope: 'organization' | 'platform', q: string, organizationId?: string | null) =>
+      scope === 'platform'
+        ? ([...queryKeys.search.all, 'platform', q] as const)
+        : ([...queryKeys.search.all, 'organization', organizationId ?? 'none', q] as const),
+  },
+  admin: {
+    organizations: (params?: Record<string, unknown>) =>
+      ['admin', 'organizations', params ?? {}] as const,
+    organizationDetail: (organizationId: string) =>
+      ['admin', 'organizations', 'detail', organizationId] as const,
+    organizationMembers: (organizationId: string) =>
+      ['admin', 'organizations', 'members', organizationId] as const,
+    organizationSubscription: (organizationId: string) =>
+      ['admin', 'organizations', 'subscription', organizationId] as const,
+    organizationActivity: (organizationId?: string | null) =>
+      ['admin-org-activity', organizationId ?? null] as const,
+    /** Prefix for invalidating all plan list/detail queries. */
+    plansRoot: ['admin', 'plans'] as const,
+    plans: (params?: Record<string, unknown>) => ['admin', 'plans', params ?? {}] as const,
+    planDetail: (planId?: string | null) => ['admin', 'plans', 'detail', planId ?? 'none'] as const,
+    /** Prefix for invalidating all subscription list/summary queries. */
+    subscriptionsRoot: ['admin', 'subscriptions'] as const,
+    subscriptions: (params?: Record<string, unknown>) =>
+      ['admin', 'subscriptions', params ?? {}] as const,
+    subscriptionDetail: (subscriptionId?: string | null) =>
+      ['admin', 'subscriptions', 'detail', subscriptionId ?? 'none'] as const,
+    /** Prefix for invalidating all invoice list/summary queries. */
+    invoicesRoot: ['admin', 'invoices'] as const,
+    invoices: (params?: Record<string, unknown>) => ['admin', 'invoices', params ?? {}] as const,
+    invoiceSummary: (params?: Record<string, unknown>) =>
+      ['admin', 'invoices', 'summary', params ?? {}] as const,
+    invoiceBillingProfile: ['admin', 'invoices', 'billing-profile'] as const,
+    platformUsers: (params?: Record<string, unknown>) =>
+      ['admin', 'platform-users', params ?? {}] as const,
+    auditLogs: (params?: Record<string, unknown>) =>
+      ['admin-audit-logs', params ?? {}] as const,
+    auditLogOrganizations: ['admin-audit-log-organizations'] as const,
+    analytics: {
+      all: ['super-admin-analytics'] as const,
+      organizations: ['super-admin-analytics', 'organizations'] as const,
+      subscriptions: ['super-admin-analytics', 'subscriptions'] as const,
+      plans: ['super-admin-analytics', 'plans'] as const,
+      invoiceSummary: ['super-admin-analytics', 'invoice-summary'] as const,
+      summary: ['super-admin-analytics', 'summary'] as const,
+      currentMonthPaidRevenue: ['super-admin-analytics', 'current-month-paid-revenue'] as const,
+      platformUsersTotal: ['super-admin-analytics', 'platform-users-total'] as const,
+      platformUsers: ['super-admin-analytics', 'platform-users'] as const,
+      audit: ['super-admin-analytics', 'audit'] as const,
+      monthlyRevenue: (locale: string, months = 6) =>
+        ['super-admin-analytics', 'monthly-revenue', locale, months] as const,
+    },
+    aiConfig: ['admin', 'ai-config'] as const,
+    platformSettings: ['admin', 'platform-settings'] as const,
+    templateLibrary: (params?: Record<string, unknown>) =>
+      ['admin', 'template-library', params ?? {}] as const,
+    templateCatalog: (params?: Record<string, unknown>) =>
+      ['admin', 'template-catalog', params ?? {}] as const,
+    flowCatalog: (params?: Record<string, unknown>) =>
+      ['admin', 'flow-catalog', params ?? {}] as const,
+    flowCatalogDetail: (id?: string | null) =>
+      ['admin', 'flow-catalog', 'detail', id ?? 'none'] as const,
+  },
+} as const
+
+/** Root keys for organization-scoped React Query caches (not orgs list / access-context). */
+const TENANT_QUERY_ROOTS = new Set<string>([
+  'contacts',
+  'team',
+  'roles',
+  'notifications',
+  'billing',
+  'whatsapp-configs',
+  'whatsapp-templates',
+  'media-library',
+  'knowledge-documents',
+  'flows',
+  'customer-groups',
+  'campaigns',
+  'inbox',
+  'integrations',
+  'tenant-analytics',
+  'dashboard-overview',
+  'org-audit-logs',
+  'global-search',
+  'organization-logo',
+])
+
+/** True when a query cache belongs to the active tenant (drop/refetch on org switch). */
+export function isTenantScopedQueryKey(queryKey: readonly unknown[]): boolean {
+  const root = queryKey[0]
+  return typeof root === 'string' && TENANT_QUERY_ROOTS.has(root)
+}

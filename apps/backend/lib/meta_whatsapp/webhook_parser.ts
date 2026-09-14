@@ -1,15 +1,19 @@
 import type {
   MessageMetadata,
   MessageMetadataError,
+  MessageMetadataContext,
   MessageMetadataInteractive,
   MessageMetadataLocation,
   MessageMetadataMedia,
+  MessageMetadataReferral,
   MetaWebhookContact,
+  MetaWebhookContext,
   MetaWebhookError,
   MetaWebhookInteractive,
   MetaWebhookLocation,
   MetaWebhookMedia,
   MetaWebhookMessage,
+  MetaWebhookReferral,
   MetaWebhookStatus,
   MetaWebhookStatusName,
 } from '#lib/meta_whatsapp/types'
@@ -21,10 +25,11 @@ export type ParsedInboundMessage = {
   providerMessageId: string
   fromWaId: string
   occurredAt: Date
-  contentType: 'text' | 'image' | 'video' | 'document' | 'location' | 'interactive'
+  contentType: 'text' | 'image' | 'document' | 'location' | 'interactive'
   contentText: string | null
   metadata: MessageMetadata
   profileName: string | null
+  contextProviderMessageId: string | null
 }
 
 export type ParsedDeliveryReceipt = {
@@ -92,6 +97,26 @@ function parseLocation(raw: unknown): MetaWebhookLocation | undefined {
     name: asOptionalString(raw.name),
     address: asOptionalString(raw.address),
     url: asOptionalString(raw.url),
+  }
+}
+
+function parseContext(raw: unknown): MetaWebhookContext | undefined {
+  if (!isRecord(raw)) return undefined
+  const id = asOptionalString(raw.id)
+  const from = asOptionalString(raw.from)
+  if (!id && !from) return undefined
+  return { id, from }
+}
+
+function parseReferral(raw: unknown): MetaWebhookReferral | undefined {
+  if (!isRecord(raw)) return undefined
+  return {
+    source_url: asOptionalString(raw.source_url),
+    source_type: asOptionalString(raw.source_type),
+    source_id: asOptionalString(raw.source_id),
+    headline: asOptionalString(raw.headline),
+    body: asOptionalString(raw.body),
+    ctwa_clid: asOptionalString(raw.ctwa_clid),
   }
 }
 
@@ -179,6 +204,43 @@ function toMetadataLocation(
   }
 }
 
+function toMetadataContext(
+  context: MetaWebhookContext | undefined
+): MessageMetadataContext | undefined {
+  if (!context) return undefined
+  const mapped: MessageMetadataContext = {
+    id: context.id,
+    from: context.from,
+  }
+  if (!mapped.id && !mapped.from) return undefined
+  return mapped
+}
+
+function toMetadataReferral(
+  referral: MetaWebhookReferral | undefined
+): MessageMetadataReferral | undefined {
+  if (!referral) return undefined
+  const mapped: MessageMetadataReferral = {
+    sourceUrl: referral.source_url,
+    sourceType: referral.source_type,
+    sourceId: referral.source_id,
+    headline: referral.headline,
+    body: referral.body,
+    ctwaClid: referral.ctwa_clid,
+  }
+  if (
+    !mapped.sourceUrl &&
+    !mapped.sourceType &&
+    !mapped.sourceId &&
+    !mapped.headline &&
+    !mapped.body &&
+    !mapped.ctwaClid
+  ) {
+    return undefined
+  }
+  return mapped
+}
+
 function toMetadataInteractive(
   interactive: MetaWebhookInteractive | undefined
 ): MessageMetadataInteractive | undefined {
@@ -247,10 +309,11 @@ function parseMessage(raw: unknown): MetaWebhookMessage | null {
     type,
     text,
     image: parseMedia(raw.image),
-    video: parseMedia(raw.video),
     document: parseMedia(raw.document),
     location: parseLocation(raw.location),
     interactive: parseInteractive(raw.interactive),
+    context: parseContext(raw.context),
+    referral: parseReferral(raw.referral),
     errors: parseErrors(raw.errors),
   }
 }
@@ -286,7 +349,7 @@ function toInboundMessage(
   const occurredAt = parseUnixTimestamp(message.timestamp)
   if (!occurredAt) return null
 
-  const supportedTypes = new Set(['text', 'image', 'video', 'document', 'location', 'interactive'])
+  const supportedTypes = new Set(['text', 'image', 'document', 'location', 'interactive'])
   if (!supportedTypes.has(message.type)) {
     return null
   }
@@ -300,14 +363,8 @@ function toInboundMessage(
       contentText = message.text?.body?.trim() || null
       break
     case 'image':
-    case 'video':
     case 'document': {
-      const media =
-        contentType === 'image'
-          ? message.image
-          : contentType === 'video'
-            ? message.video
-            : message.document
+      const media = contentType === 'image' ? message.image : message.document
       const mapped = toMetadataMedia(media)
       if (mapped) metadata.media = mapped
       contentText = mapped?.caption?.trim() || mapped?.filename?.trim() || null
@@ -332,6 +389,12 @@ function toInboundMessage(
     metadata.errors = metadataErrors
   }
 
+  const mappedContext = toMetadataContext(message.context)
+  if (mappedContext) metadata.context = mappedContext
+
+  const mappedReferral = toMetadataReferral(message.referral)
+  if (mappedReferral) metadata.referral = mappedReferral
+
   return {
     providerMessageId: message.id,
     fromWaId: message.from,
@@ -340,6 +403,7 @@ function toInboundMessage(
     contentText,
     metadata,
     profileName: profileNameForWaId(contacts, message.from),
+    contextProviderMessageId: mappedContext?.id ?? null,
   }
 }
 

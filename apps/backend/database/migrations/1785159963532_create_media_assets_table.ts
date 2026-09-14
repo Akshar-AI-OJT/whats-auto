@@ -9,7 +9,7 @@ export default class extends BaseSchema {
       table.uuid('organizationId').notNullable().references('organizations.id').onDelete('cascade')
       table.string('fileName', 255).notNullable()
       table.text('filePath').notNullable()
-      table.string('mimeType', 255).notNullable() //image(jpg,png,jpeg,gif), text, video(ogv,webm, mp4, mkv etc)
+      table.string('mimeType', 255).notNullable() //image(jpg,png,jpeg,gif), text
       table.bigInteger('fileSize').notNullable()
       table.uuid('uploadedBy').nullable().references('users.id').onDelete('set null')
       table.timestamp('uploadedAt', { useTz: true }).notNullable().defaultTo(this.raw('now()'))

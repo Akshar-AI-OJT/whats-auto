@@ -1,4 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
+import WhatsappConfigPolicy from '#policies/whatsapp_config_policy'
 import { WhatsappEmbeddedSignupService } from '#services/whatsapp_embedded_signup_service'
 import { completeEmbeddedSignupValidator } from '#validators/whatsapp_embedded_signup'
 import '#types/http'
@@ -13,7 +14,9 @@ export default class WhatsappEmbeddedSignupController {
    * @responseBody 200 - { "data": { "appId": "123", "configId": "456", "graphVersion": "v25.0" } }
    * @responseBody 403 - { "error": "Permission denied: whatsapp:connect", "code": "PERMISSION_DENIED" }
    */
-  async session({ serialize }: HttpContext) {
+  async session({ bouncer, serialize }: HttpContext) {
+    await bouncer.with(WhatsappConfigPolicy).authorize('connect')
+
     const session = new WhatsappEmbeddedSignupService().getSession()
     return serialize(session)
   }
@@ -29,7 +32,9 @@ export default class WhatsappEmbeddedSignupController {
    * @responseBody 409 - { "error": "This WhatsApp phone number is already connected to another organization", "code": "E_WA_PHONE_OWNED" }
    * @responseBody 422 - { "error": "...", "code": "E_WA_META_GRAPH" }
    */
-  async complete({ request, serialize }: HttpContext) {
+  async complete({ bouncer, request, serialize }: HttpContext) {
+    await bouncer.with(WhatsappConfigPolicy).authorize('connect')
+
     const payload = await request.validateUsing(completeEmbeddedSignupValidator)
     const config = await new WhatsappEmbeddedSignupService().complete({
       organizationId: request.activeMember!.organizationId,

@@ -1,52 +1,11 @@
 import type {
   InboxConversation,
   InboxMessage,
-  PaginationMeta,
 } from '@/lib/api'
+import { unwrapList, unwrapPage, unwrapSingle } from '@/lib/api-unwrap'
 
-export function unwrapPaginated<T>(payload: unknown): {
-  items: T[]
-  meta: PaginationMeta | null
-} {
-  if (!payload) return { items: [], meta: null }
-  if (Array.isArray(payload)) return { items: payload, meta: null }
-
-  const root = payload as {
-    data?: T[] | { data?: T[]; meta?: PaginationMeta }
-    meta?: PaginationMeta
-  }
-
-  if (Array.isArray(root.data)) {
-    return { items: root.data, meta: root.meta ?? null }
-  }
-
-  if (root.data && typeof root.data === 'object' && Array.isArray(root.data.data)) {
-    return { items: root.data.data, meta: root.data.meta ?? root.meta ?? null }
-  }
-
-  return { items: [], meta: null }
-}
-
-export function unwrapList<T>(payload: unknown): T[] {
-  if (!payload) return []
-  if (Array.isArray(payload)) return payload
-  if (typeof payload === 'object' && payload !== null && 'data' in payload) {
-    const wrapped = payload as { data?: T[] }
-    if (Array.isArray(wrapped.data)) return wrapped.data
-  }
-  return []
-}
-
-export function unwrapSingle<T>(payload: unknown): T | null {
-  if (!payload) return null
-  if (typeof payload === 'object' && payload !== null && 'data' in payload) {
-    const wrapped = payload as { data?: T }
-    if (wrapped.data && typeof wrapped.data === 'object') {
-      return wrapped.data
-    }
-  }
-  return payload as T
-}
+export { unwrapList, unwrapSingle }
+export const unwrapPaginated = unwrapPage
 
 /** Merge lifecycle API responses that omit nested `contact`. */
 export function mergeConversationUpdate(
@@ -118,4 +77,27 @@ export function messageBodyText(message: InboxMessage) {
 
 export function isCustomerMessage(message: InboxMessage) {
   return message.direction === 'inbound' || message.senderType === 'contact'
+}
+
+/** Stable key for consecutive same-direction / same-sender grouping. */
+export function messageGroupKey(message: InboxMessage): string {
+  const senderId = message.senderId ?? message.sender.id ?? message.sender.name ?? ''
+  return `${message.direction}:${message.senderType}:${senderId}`
+}
+
+export type MessageGroupPosition = {
+  isGroupStart: boolean
+  isGroupEnd: boolean
+}
+
+export function getMessageGroupPositions(messages: InboxMessage[]): MessageGroupPosition[] {
+  return messages.map((message, index) => {
+    const key = messageGroupKey(message)
+    const prevKey = index > 0 ? messageGroupKey(messages[index - 1]!) : null
+    const nextKey = index < messages.length - 1 ? messageGroupKey(messages[index + 1]!) : null
+    return {
+      isGroupStart: key !== prevKey,
+      isGroupEnd: key !== nextKey,
+    }
+  })
 }

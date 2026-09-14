@@ -6,6 +6,7 @@ import {
   type AuthBrandingVariant,
 } from '@/components/auth/auth-branding.config'
 import { AuthBrandingShell } from '@/components/auth/auth-branding-shell'
+import { AppLogo } from '@/components/branding/AppLogo'
 import {
   authFloatingCardClassName,
   authFloatingChipClassName,
@@ -15,7 +16,7 @@ import { cn } from '@/lib/utils'
 export type { AuthBrandingVariant }
 
 const sceneFrameClassName =
-  'relative mx-auto h-[250px] w-full max-w-[280px] sm:h-[270px] md:mx-0 md:max-w-none md:h-[285px]'
+  'relative mx-auto h-[250px] w-full max-w-[280px] lg:mx-0 lg:h-[285px] lg:max-w-none'
 
 function ChecklistRows({
   items,
@@ -228,7 +229,7 @@ export function AuthBranding({ variant }: { variant: AuthBrandingVariant }) {
   return (
     <AuthBrandingShell footer={config.footer}>
       <div className="flex flex-col gap-3">
-        <p className="font-eyebrow text-xs text-brand">Whats-Auto</p>
+        <AppLogo size="sm" />
         <h2 className={config.headingClassName}>{config.heading}</h2>
         <p className={config.subtitleClassName}>{config.subtitle}</p>
       </div>

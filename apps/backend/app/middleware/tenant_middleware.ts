@@ -1,14 +1,74 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import type { NextFn } from '@adonisjs/core/types/http'
 import db from '@adonisjs/lucid/services/db'
+import { OrganizationStatus } from '#enums/organization_status'
+import type { OrganizationStatusValue } from '#enums/organization_status'
+import OrganizationException from '#exceptions/organization_exception'
 import { AuthorizationService } from '#services/authorization_service'
 import { permissionsFromClaims } from '#lib/access_token_permissions'
 import { checkTenantPermissionVersion } from '#lib/permission_version'
+import {
+  assertOrganizationProfileComplete,
+  organizationProfileSourceFromOrgRow,
+} from '#middleware/organization_profile_completion_middleware'
 import { runWithTenant } from '#services/tenant_context'
 import '#types/http'
 
+const ORGANIZATION_PROFILE_SELECT = [
+  'o.name as orgName',
+  'o.email as orgEmail',
+  'o.industry',
+  'o.businessSize',
+  'o.pan',
+  'o.country',
+  'o.address',
+] as const
+
+export type TenantMiddlewareOptions = {
+  /**
+   * Opt out of the provisioning gate (billing, orgs mutate, access-context).
+   * Default is fail-closed: only `active` orgs proceed.
+   */
+  skipActiveGate?: boolean
+  /**
+   * Opt out of the organization profile-completion gate (profile update, billing,
+   * access-context, onboarding logo upload). Default is fail-closed.
+   */
+  skipProfileCompletionGate?: boolean
+}
+
+function asOrganizationStatus(value: unknown): OrganizationStatusValue {
+  if (
+    value === OrganizationStatus.PENDING_SETUP ||
+    value === OrganizationStatus.VERIFIED_SETUP ||
+    value === OrganizationStatus.ACTIVE ||
+    value === OrganizationStatus.SUSPENDED ||
+    value === OrganizationStatus.FALSE
+  ) {
+    return value
+  }
+  // DEFAULT 'active' on the column; treat unexpected/null as active for grandfathered rows.
+  return OrganizationStatus.ACTIVE
+}
+
+/** Fail-closed product gate ([D70]): active only; unpaid statuses get distinct codes. */
+function assertOrganizationProvisioned(status: string | undefined): void {
+  if (status === OrganizationStatus.ACTIVE) return
+  if (status === OrganizationStatus.PENDING_SETUP) {
+    throw OrganizationException.whatsappRequired()
+  }
+  if (status === OrganizationStatus.VERIFIED_SETUP) {
+    throw OrganizationException.paymentRequired()
+  }
+  throw OrganizationException.paymentRequired()
+}
+
 export default class TenantMiddleware {
-  async handle({ request, response }: HttpContext, next: NextFn) {
+  async handle(
+    { request, response }: HttpContext,
+    next: NextFn,
+    options: TenantMiddlewareOptions = {}
+  ) {
     // Bearer path — hydrate membership + permissions from verified claims.
     if (request.authMethod === 'bearer' && request.accessTokenClaims) {
       const claims = request.accessTokenClaims
@@ -21,11 +81,21 @@ export default class TenantMiddleware {
       }
 
       // Freshness check against organization_members.permissionVersion (before RLS stamp).
+      // status rides the same query — zero extra round-trips.
       const memberRow = await db
-        .from('organization_members')
-        .where('id', claims.member_id)
-        .where('isDeleted', false)
-        .select('id', 'userId', 'organizationId', 'permissionVersion')
+        .from('organization_members as m')
+        .innerJoin('organizations as o', 'o.id', 'm.organizationId')
+        .where('m.id', claims.member_id)
+        .where('m.isDeleted', false)
+        .whereNull('o.deletedAt')
+        .select(
+          'm.id',
+          'm.userId',
+          'm.organizationId',
+          'm.permissionVersion',
+          'o.status',
+          ...ORGANIZATION_PROFILE_SELECT
+        )
         .first()
 
       const versionCheck = checkTenantPermissionVersion({
@@ -56,6 +126,7 @@ export default class TenantMiddleware {
         roleId: claims.role_id,
         role: claims.role,
       }
+      request.organizationStatus = asOrganizationStatus(memberRow?.status)
 
       try {
         request.memberPermissions = permissionsFromClaims(claims)
@@ -64,6 +135,14 @@ export default class TenantMiddleware {
           error: 'Access token contains unknown permission scopes',
           code: 'UNKNOWN_SCOPE',
         })
+      }
+
+      if (!options.skipActiveGate) {
+        assertOrganizationProvisioned(request.organizationStatus)
+      }
+
+      if (!options.skipProfileCompletionGate) {
+        assertOrganizationProfileComplete(organizationProfileSourceFromOrgRow(memberRow))
       }
 
       return runWithTenant(claims.org_id, () => next())
@@ -82,10 +161,20 @@ export default class TenantMiddleware {
     const member = await db
       .from('organization_members as m')
       .innerJoin('roles as r', 'r.id', 'm.roleId')
+      .innerJoin('organizations as o', 'o.id', 'm.organizationId')
       .where('m.organizationId', orgId)
       .where('m.userId', request.authUser!.id)
       .where('m.isDeleted', false)
-      .select('m.id', 'm.organizationId', 'm.userId', 'm.roleId', 'r.name as role')
+      .whereNull('o.deletedAt')
+      .select(
+        'm.id',
+        'm.organizationId',
+        'm.userId',
+        'm.roleId',
+        'r.name as role',
+        'o.status',
+        ...ORGANIZATION_PROFILE_SELECT
+      )
       .first()
 
     if (!member) {
@@ -102,9 +191,18 @@ export default class TenantMiddleware {
       roleId: member.roleId as string,
       role: member.role as string,
     }
+    request.organizationStatus = asOrganizationStatus(member.status)
 
     const authz = new AuthorizationService()
     request.memberPermissions = await authz.resolvePermissions(orgId, member.roleId as string)
+
+    if (!options.skipActiveGate) {
+      assertOrganizationProvisioned(request.organizationStatus)
+    }
+
+    if (!options.skipProfileCompletionGate) {
+      assertOrganizationProfileComplete(organizationProfileSourceFromOrgRow(member))
+    }
 
     // Bind org to ALS for the rest of the request. TenantRlsProvider stamps
     // app.current_organization_id on every connection acquire from this context.

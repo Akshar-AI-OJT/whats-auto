@@ -68,6 +68,13 @@ export default class WhatsappOutboundException extends Exception {
     })
   }
 
+  static invalidInteractive(message: string) {
+    return new this(message, {
+      status: 422,
+      code: 'E_OUTBOUND_INTERACTIVE_LIMITS',
+    })
+  }
+
   static mediaTypeNotAllowedForChannel(mediaType: string, channel: string) {
     return new this(`Media type "${mediaType}" is not allowed for ${channel} sends`, {
       status: 422,

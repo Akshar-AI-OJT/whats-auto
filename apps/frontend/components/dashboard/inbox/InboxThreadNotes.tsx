@@ -1,17 +1,16 @@
 'use client'
 
-import { useCallback, useEffect, useId, useRef, useState } from 'react'
+import { useId, useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { Loader2, StickyNote } from 'lucide-react'
 import { api, type ApiError, type InboxConversationNote } from '@/lib/api'
+import { queryKeys } from '@/lib/query-keys'
 import { cn } from '@/lib/utils'
 import { hasPermission, PERMISSIONS } from '@/lib/rbac'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { Button } from '@/components/ui/button'
-import {
-  DashboardToast,
-  useDashboardToast,
-} from '@/components/dashboard/ui/use-dashboard-toast'
+import { DashboardToast, useDashboardToast } from '@/components/dashboard/ui/use-dashboard-toast'
 import { formatMessageTime, unwrapList, unwrapSingle } from './inbox-utils'
 
 type InboxThreadNotesProps = {
@@ -30,67 +29,49 @@ function mapNoteError(apiError: ApiError, t: (key: string) => string): string {
 
 export function InboxThreadNotes({ conversationId, active }: InboxThreadNotesProps) {
   const t = useTranslations('dashboard.inbox.thread.notes')
-  const { permissions, isLoading: orgsLoading } = useOrganizations()
+  const { tenantOrganizationId, permissions, isLoading: orgsLoading } = useOrganizations()
+  const queryClient = useQueryClient()
   const textareaId = useId()
   const { toast, showToast, clearToast } = useDashboardToast()
-  const conversationIdRef = useRef(conversationId)
-
-  useEffect(() => {
-    conversationIdRef.current = conversationId
-  }, [conversationId])
-
-  const [notes, setNotes] = useState<InboxConversationNote[]>([])
-  const [loading, setLoading] = useState(false)
   const [draft, setDraft] = useState('')
-  const [saving, setSaving] = useState(false)
 
   const canCreate = hasPermission(permissions, PERMISSIONS.INBOX_REPLY)
   const trimmed = draft.trim()
-  const canSave = canCreate && trimmed.length > 0 && !saving && !orgsLoading
+  const notesKey = queryKeys.inbox.notes(tenantOrganizationId, conversationId)
 
-  const loadNotes = useCallback(async (id: string) => {
-    setLoading(true)
-    try {
-      const res = await api.inbox.listNotes(id)
-      if (conversationIdRef.current !== id) return
-      setNotes(unwrapList<InboxConversationNote>(res.data))
-    } catch (err) {
-      if (conversationIdRef.current !== id) return
-      setNotes([])
-      showToast(mapNoteError(err as ApiError, t), 'error')
-    } finally {
-      if (conversationIdRef.current === id) setLoading(false)
-    }
-  }, [showToast, t])
+  const notesQuery = useQuery({
+    queryKey: notesKey,
+    queryFn: async () => {
+      const res = await api.inbox.listNotes(conversationId)
+      return unwrapList<InboxConversationNote>(res.data)
+    },
+    enabled: active && !orgsLoading && Boolean(tenantOrganizationId) && Boolean(conversationId),
+    staleTime: 30_000,
+  })
 
-  useEffect(() => {
-    if (!active) return
-    const handle = window.setTimeout(() => {
-      void loadNotes(conversationId)
-    }, 0)
-    return () => window.clearTimeout(handle)
-  }, [active, conversationId, loadNotes])
-
-  const handleSave = useCallback(async () => {
-    if (!canSave) return
-
-    setSaving(true)
-    clearToast()
-    try {
-      const res = await api.inbox.createNote(conversationId, { noteText: trimmed })
+  const createMutation = useMutation({
+    mutationFn: (noteText: string) => api.inbox.createNote(conversationId, { noteText }),
+    onSuccess: (res) => {
       const created = unwrapSingle<InboxConversationNote>(res.data)
       if (created) {
-        setNotes((prev) => [...prev, created])
+        queryClient.setQueryData<InboxConversationNote[]>(notesKey, (old) => [
+          ...(old ?? []),
+          created,
+        ])
       } else {
-        await loadNotes(conversationId)
+        void queryClient.invalidateQueries({ queryKey: notesKey })
       }
       setDraft('')
-    } catch (err) {
-      showToast(mapNoteError(err as ApiError, t), 'error')
-    } finally {
-      setSaving(false)
-    }
-  }, [canSave, clearToast, conversationId, loadNotes, showToast, t, trimmed])
+    },
+    onError: (err) => {
+      showToast(mapNoteError(err as unknown as ApiError, t), 'error')
+    },
+  })
+
+  const notes = notesQuery.data ?? []
+  const loading = notesQuery.isLoading
+  const saving = createMutation.isPending
+  const canSave = canCreate && trimmed.length > 0 && !saving && !orgsLoading
 
   if (!active) return null
 
@@ -114,9 +95,7 @@ export function InboxThreadNotes({ conversationId, active }: InboxThreadNotesPro
           <ul className="flex flex-col gap-3">
             {notes.map((note) => {
               const author =
-                note.createdBy.name?.trim() ||
-                note.createdBy.email?.trim() ||
-                t('unknownAuthor')
+                note.createdBy.name?.trim() || note.createdBy.email?.trim() || t('unknownAuthor')
               return (
                 <li
                   key={note.id}
@@ -182,7 +161,8 @@ export function InboxThreadNotes({ conversationId, active }: InboxThreadNotesPro
               className="shrink-0"
               disabled={!canSave}
               onClick={() => {
-                void handleSave()
+                clearToast()
+                createMutation.mutate(trimmed)
               }}
             >
               {saving ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}

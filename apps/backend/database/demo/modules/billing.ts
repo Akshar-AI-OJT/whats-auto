@@ -4,7 +4,12 @@ import type { DemoSeedModule } from '#database/demo/types'
 
 export const billingModule: DemoSeedModule = {
   id: 'billing',
-  ownedTables: ['organization_subscriptions', 'payment_transactions', 'usage_meters'],
+  ownedTables: [
+    'billing_orders',
+    'organization_subscriptions',
+    'payment_transactions',
+    'usage_meters',
+  ],
   dependsOn: ['organizations', 'plans'],
   async seed(ctx) {
     const periodStart = daysAgo(10)
@@ -23,8 +28,6 @@ export const billingModule: DemoSeedModule = {
           organizationId: FIXTURE_IDS.orgs.northstar,
           planId: FIXTURE_IDS.plans.growth,
           gateway: 'razorpay',
-          gatewaySubscriptionId: 'sub_demo_northstar',
-          checkoutUrl: null,
           status: 'active',
           currentPeriodStart: periodStart,
           currentPeriodEnd: periodEnd,
@@ -117,8 +120,6 @@ export const billingModule: DemoSeedModule = {
           organizationId: FIXTURE_IDS.orgs.harbor,
           planId: FIXTURE_IDS.plans.starter,
           gateway: null,
-          gatewaySubscriptionId: null,
-          checkoutUrl: null,
           status: 'active',
           currentPeriodStart: periodStart,
           currentPeriodEnd: periodEnd,

@@ -1,0 +1,187 @@
+import vine from '@vinejs/vine'
+
+/** Soft-deleted campaigns use status = deleted (`broadcasts` has no deletedAt column). */
+export const CAMPAIGN_SOFT_DELETED_STATUS = 'deleted' as const
+
+/** Statuses allowed when creating a campaign — draft only; schedule via POST /schedule. */
+export const CAMPAIGN_CREATE_STATUSES = ['draft'] as const
+
+/**
+ * Statuses eligible for POST /campaigns/:id/send.
+ * Scheduled campaigns cannot Send now — cancel to draft first.
+ */
+export const CAMPAIGN_SENDABLE_STATUSES = ['draft'] as const
+
+/** In-progress status after a successful send kickoff (product "Running"). */
+export const CAMPAIGN_SENDING_STATUS = 'sending' as const
+
+/**
+ * Statuses eligible for POST /campaigns/:id/schedule (includes reschedule).
+ */
+export const CAMPAIGN_SCHEDULABLE_STATUSES = ['draft', 'scheduled'] as const
+
+/** Status after a successful schedule kickoff. */
+export const CAMPAIGN_SCHEDULED_STATUS = 'scheduled' as const
+
+/**
+ * Statuses eligible for PATCH /campaigns/:id/cancel.
+ * Matches the product UI (scheduled + in-flight sending).
+ */
+export const CAMPAIGN_CANCELLABLE_STATUSES = ['scheduled', 'sending'] as const
+
+/**
+ * Status after canceling a scheduled or sending campaign.
+ * `broadcasts` has no "cancelled" status — cancel returns the campaign to draft.
+ */
+export const CAMPAIGN_DRAFT_STATUS = 'draft' as const
+
+/** Active lifecycle statuses returned by list/get (excludes soft-deleted). */
+export const CAMPAIGN_STATUSES = [
+  'draft',
+  'scheduled',
+  'sending',
+  'sent',
+  'failed',
+  'cancelled',
+] as const
+
+/** Whitelisted sort columns on `broadcasts` (camelCase DB columns). */
+export const CAMPAIGN_SORT_FIELDS = [
+  'createdAt',
+  'updatedAt',
+  'name',
+  'status',
+  'scheduledAt',
+  'totalRecipients',
+  'sentCount',
+  'deliveredCount',
+] as const
+
+export const CAMPAIGN_VARIABLE_MAPPING_SOURCES = [
+  'contact_field',
+  'custom_field',
+  'static',
+] as const
+
+export type CampaignVariableMappingSource = (typeof CAMPAIGN_VARIABLE_MAPPING_SOURCES)[number]
+
+export type CampaignVariableMapping =
+  | { source: 'contact_field'; field: string }
+  | { source: 'custom_field'; field: string }
+  | { source: 'static'; value: string }
+
+export type CampaignVariableMappings = Record<string, CampaignVariableMapping>
+
+/** Contact field supported by campaign `contact_field` mappings. */
+export const CAMPAIGN_CONTACT_MAPPING_FIELDS = ['name'] as const
+
+export type CampaignContactMappingField = (typeof CAMPAIGN_CONTACT_MAPPING_FIELDS)[number]
+
+const campaignVariableMappingSchema = vine.union([
+  vine.union.if(
+    (value) => vine.helpers.isObject(value) && value.source === 'contact_field',
+    vine.object({
+      source: vine.enum(['contact_field'] as const),
+      field: vine.enum(CAMPAIGN_CONTACT_MAPPING_FIELDS),
+    })
+  ),
+  vine.union.if(
+    (value) => vine.helpers.isObject(value) && value.source === 'custom_field',
+    vine.object({
+      source: vine.enum(['custom_field'] as const),
+      field: vine.string().trim().minLength(1),
+    })
+  ),
+  vine.union.if(
+    (value) => vine.helpers.isObject(value) && value.source === 'static',
+    vine.object({
+      source: vine.enum(['static'] as const),
+      value: vine.string(),
+    })
+  ),
+  vine.union.else(
+    vine.object({
+      source: vine.enum(CAMPAIGN_VARIABLE_MAPPING_SOURCES),
+    })
+  ),
+])
+
+const campaignVariableMappingsSchema = vine.record(campaignVariableMappingSchema)
+
+/**
+ * UTC-only scheduledAt: ISO-8601 instant ending in `Z`.
+ * Rejects naive strings, numeric offsets, and non-Z forms.
+ * Full calendar/validity is checked again in CampaignService via parseUtcScheduledAt.
+ */
+const utcScheduledAtString = vine
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?Z$/i)
+
+export const createCampaignValidator = vine.create(
+  vine.object({
+    name: vine.string().trim().minLength(1).maxLength(200),
+    whatsappConfigId: vine.string().trim().uuid().optional(),
+    messageTemplateId: vine.string().trim().uuid().optional(),
+    headerMediaAssetId: vine.string().trim().uuid().optional(),
+    variableMappings: campaignVariableMappingsSchema.optional(),
+  })
+)
+
+export const listCampaignsValidator = vine.create(
+  vine.object({
+    page: vine.number().withoutDecimals().min(1).optional(),
+    /** Page size — preferred query name for this endpoint. */
+    limit: vine.number().withoutDecimals().min(1).max(100).optional(),
+    /** Alias for `limit` (matches other modules that use `perPage`). */
+    perPage: vine.number().withoutDecimals().min(1).max(100).optional(),
+    search: vine.string().trim().minLength(1).maxLength(200).optional(),
+    status: vine.enum(CAMPAIGN_STATUSES).optional(),
+    startDate: vine.date().optional(),
+    endDate: vine.date().optional(),
+    sortBy: vine.enum(CAMPAIGN_SORT_FIELDS).optional(),
+    sortOrder: vine.enum(['asc', 'desc'] as const).optional(),
+  })
+)
+
+export const campaignIdParamValidator = vine.create(
+  vine.object({
+    id: vine.string().trim().uuid(),
+  })
+)
+
+/**
+ * Optional variable overrides for campaign preview.
+ * When omitted, the linked template's `sampleValues` are used.
+ */
+export const previewCampaignValidator = vine.create(
+  vine.object({
+    variables: vine.record(vine.string()).optional(),
+  })
+)
+
+/** Required future UTC schedule datetime for POST /campaigns/:id/schedule. */
+export const scheduleCampaignValidator = vine.create(
+  vine.object({
+    scheduledAt: utcScheduledAtString,
+  })
+)
+
+export const replaceCampaignRecipientsValidator = vine.create(
+  vine.object({
+    contactIds: vine.array(vine.string().trim().uuid()).optional(),
+    tagId: vine.string().trim().uuid().optional(),
+    variables: vine.record(vine.string()).optional(),
+  })
+)
+
+/** Editable campaign fields only — counters, org, creator, and timestamps are immutable. */
+export const updateCampaignValidator = vine.create(
+  vine.object({
+    name: vine.string().trim().minLength(1).maxLength(200).optional(),
+    whatsappConfigId: vine.string().trim().uuid().nullable().optional(),
+    messageTemplateId: vine.string().trim().uuid().nullable().optional(),
+    headerMediaAssetId: vine.string().trim().uuid().nullable().optional(),
+    variableMappings: campaignVariableMappingsSchema.nullable().optional(),
+  })
+)

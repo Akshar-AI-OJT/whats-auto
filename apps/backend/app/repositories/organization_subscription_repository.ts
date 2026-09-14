@@ -6,8 +6,6 @@ export type OrganizationSubscriptionRow = {
   organizationId: string
   planId: string
   gateway: string | null
-  gatewaySubscriptionId: string | null
-  checkoutUrl: string | null
   status: string
   currentPeriodStart: Date | string
   currentPeriodEnd: Date | string
@@ -19,6 +17,7 @@ export type OrganizationSubscriptionRow = {
   endedAt: Date | string | null
   lastPaymentStatus: string | null
   lastPaymentAt: Date | string | null
+  graceEndsAt: Date | string | null
   metadata: Record<string, unknown>
   createdAt: Date | string
   updatedAt: Date | string | null
@@ -28,18 +27,17 @@ export type InsertOrganizationSubscriptionParams = {
   organizationId: string
   planId: string
   gateway: string
-  gatewaySubscriptionId: string
-  checkoutUrl: string | null
   status: string
   currentPeriodStart: Date
   currentPeriodEnd: Date
   trialEndsAt?: Date | null
+  activatedAt?: Date | null
+  lastPaymentStatus?: string | null
+  lastPaymentAt?: Date | null
   metadata?: Record<string, unknown>
 }
 
 type Db = typeof db | TransactionClientContract
-
-const ENTITLED_STATUSES = ['trialing', 'active', 'past_due'] as const
 
 /**
  * Tenant-scoped organization_subscriptions access. Callers must run under runWithTenant when RLS applies.
@@ -57,20 +55,9 @@ export class OrganizationSubscriptionRepository {
     return (row as OrganizationSubscriptionRow | undefined) ?? null
   }
 
-  async findByGatewaySubscriptionId(
-    params: { gateway: string; gatewaySubscriptionId: string },
-    client: Db = db
-  ): Promise<OrganizationSubscriptionRow | null> {
-    const row = await client
-      .from('organization_subscriptions')
-      .where('gateway', params.gateway)
-      .where('gatewaySubscriptionId', params.gatewaySubscriptionId)
-      .first()
-    return (row as OrganizationSubscriptionRow | undefined) ?? null
-  }
-
   /**
    * Latest subscription that can still grant entitlements for the org.
+   * past_due is entitled only while graceEndsAt is null (legacy) or still in the future.
    */
   async findCurrentForEntitlements(
     organizationId: string,
@@ -81,32 +68,22 @@ export class OrganizationSubscriptionRepository {
       .from('organization_subscriptions')
       .where('organizationId', organizationId)
       .where((q) => {
-        q.whereIn('status', [...ENTITLED_STATUSES]).orWhere((inner) => {
-          inner
-            .where('status', 'cancelled')
-            .where('cancelAtPeriodEnd', true)
-            .where('currentPeriodEnd', '>', now)
-        })
+        q.whereIn('status', ['trialing', 'active'])
+          .orWhere((inner) => {
+            inner.where('status', 'past_due').where((grace) => {
+              grace.whereNull('graceEndsAt').orWhere('graceEndsAt', '>', now)
+            })
+          })
+          .orWhere((inner) => {
+            inner
+              .where('status', 'cancelled')
+              .where('cancelAtPeriodEnd', true)
+              .where('currentPeriodEnd', '>', now)
+          })
       })
       .orderBy('createdAt', 'desc')
       .first()
 
-    return (row as OrganizationSubscriptionRow | undefined) ?? null
-  }
-
-  async findOpenCheckoutForOrg(
-    organizationId: string,
-    client: Db = db
-  ): Promise<OrganizationSubscriptionRow | null> {
-    const row = await client
-      .from('organization_subscriptions')
-      .where('organizationId', organizationId)
-      .where('gateway', 'razorpay')
-      .whereNotNull('gatewaySubscriptionId')
-      .whereNull('activatedAt')
-      .whereIn('status', ['trialing'])
-      .orderBy('createdAt', 'desc')
-      .first()
     return (row as OrganizationSubscriptionRow | undefined) ?? null
   }
 
@@ -120,13 +97,14 @@ export class OrganizationSubscriptionRepository {
         organizationId: params.organizationId,
         planId: params.planId,
         gateway: params.gateway,
-        gatewaySubscriptionId: params.gatewaySubscriptionId,
-        checkoutUrl: params.checkoutUrl,
         status: params.status,
         currentPeriodStart: params.currentPeriodStart,
         currentPeriodEnd: params.currentPeriodEnd,
         trialEndsAt: params.trialEndsAt ?? null,
         cancelAtPeriodEnd: false,
+        activatedAt: params.activatedAt ?? null,
+        lastPaymentStatus: params.lastPaymentStatus ?? null,
+        lastPaymentAt: params.lastPaymentAt ?? null,
         metadata: params.metadata ?? {},
       })
       .returning('*')
@@ -150,5 +128,52 @@ export class OrganizationSubscriptionRepository {
       .returning('*')
 
     return (updated as OrganizationSubscriptionRow | undefined) ?? null
+  }
+
+  async listActivePastPeriodEnd(
+    params: { organizationId: string; now?: Date; limit?: number },
+    client: Db = db
+  ): Promise<OrganizationSubscriptionRow[]> {
+    const now = params.now ?? new Date()
+    const rows = await client
+      .from('organization_subscriptions')
+      .where('organizationId', params.organizationId)
+      .where('status', 'active')
+      .where('currentPeriodEnd', '<=', now)
+      .orderBy('currentPeriodEnd', 'asc')
+      .limit(params.limit ?? 100)
+    return rows as OrganizationSubscriptionRow[]
+  }
+
+  async listPastDuePastGrace(
+    params: { organizationId: string; now?: Date; limit?: number },
+    client: Db = db
+  ): Promise<OrganizationSubscriptionRow[]> {
+    const now = params.now ?? new Date()
+    const rows = await client
+      .from('organization_subscriptions')
+      .where('organizationId', params.organizationId)
+      .where('status', 'past_due')
+      .whereNotNull('graceEndsAt')
+      .where('graceEndsAt', '<=', now)
+      .orderBy('graceEndsAt', 'asc')
+      .limit(params.limit ?? 100)
+    return rows as OrganizationSubscriptionRow[]
+  }
+
+  async listDueForRenewalReminder(
+    params: { organizationId: string; now?: Date; windowEnd: Date; limit?: number },
+    client: Db = db
+  ): Promise<OrganizationSubscriptionRow[]> {
+    const now = params.now ?? new Date()
+    const rows = await client
+      .from('organization_subscriptions')
+      .where('organizationId', params.organizationId)
+      .where('status', 'active')
+      .where('currentPeriodEnd', '>', now)
+      .where('currentPeriodEnd', '<=', params.windowEnd)
+      .orderBy('currentPeriodEnd', 'asc')
+      .limit(params.limit ?? 100)
+    return rows as OrganizationSubscriptionRow[]
   }
 }

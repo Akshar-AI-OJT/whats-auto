@@ -68,7 +68,7 @@ export function DashboardChromeProvider({ children }: { children: React.ReactNod
       collapsed,
       setCollapsed,
       toggleCollapsed,
-      sidebarWidthPx: collapsed ? 80 : 260,
+      sidebarWidthPx: collapsed ? 80 : 320,
     }),
     [collapsed, setCollapsed, toggleCollapsed]
   )

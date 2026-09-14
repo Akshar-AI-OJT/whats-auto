@@ -3,21 +3,18 @@
 | Bouncer abilities
 |--------------------------------------------------------------------------
 |
-| You may export multiple abilities from this file and pre-register them
-| when creating the Bouncer instance.
+| Cross-cutting gates not tied to a single resource instance.
+| Prefer policies when the check needs a loaded model/DTO.
 |
-| Pre-registered policies and abilities can be referenced as a string by their
-| name. Also they are must if want to perform authorization inside Edge
-| templates.
+| This module must only export Bouncer.ability() values — InitializeBouncerMiddleware
+| imports it as `abilities` and plain helpers break the Bouncer generic.
 |
 */
 
-// import { Bouncer } from '@adonisjs/bouncer'
+import { Bouncer } from '@adonisjs/bouncer'
+import { isOrgAdmin, isPlatformActor } from '#abilities/authz_predicates'
+import type { AuthzPrincipal } from '#types/http'
 
-/**
- * Delete the following ability to start from
- * scratch
- */
-// export const editUser = Bouncer.ability(() => {
-//   return true
-// })
+export const accessOrgAdmin = Bouncer.ability((user: AuthzPrincipal) => isOrgAdmin(user))
+
+export const accessPlatform = Bouncer.ability((user: AuthzPrincipal) => isPlatformActor(user))

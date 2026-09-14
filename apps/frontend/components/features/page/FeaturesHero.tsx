@@ -49,7 +49,7 @@ export async function FeaturesHero() {
           <FeaturesHeroMockup
             label={t('hero.visualLabel')}
             copy={{
-              workspaceTitle: t('hero.mock.workspaceTitle'),
+              organizationTitle: t('hero.mock.organizationTitle'),
               inboxLabel: t('hero.mock.inboxLabel'),
               online: t('hero.mock.online'),
               threadName: t('hero.mock.threadName'),

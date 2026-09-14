@@ -28,7 +28,7 @@ async function createOrg() {
       country: 'US',
       timezone: 'UTC',
       currency: 'USD',
-      status: true,
+      status: 'active',
     })
     .returning(['id'])
   return row.id as string
@@ -597,6 +597,83 @@ test.group('WhatsApp outbound service', (group) => {
     })
   })
 
+  test('campaign dispatch with buffered delivered receipt increments deliveredCount', async ({
+    assert,
+  }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const seeded = await seedConversation(organizationId)
+
+    const service = new WhatsappOutboundService(fakeGraph())
+    Object.assign(service, {
+      campaignRateLimit: {
+        checkAndConsume: async () => ({ allowed: true, current: 1, limit: 60 }),
+      },
+    })
+
+    const queued = await service.queueText({
+      organizationId,
+      conversationId: seeded.conversationId,
+      text: 'Campaign early receipt',
+    })
+
+    await runWithTenant(organizationId, async () => {
+      const [broadcast] = await db
+        .table('broadcasts')
+        .insert({
+          organizationId,
+          name: 'Outbound campaign receipt',
+          status: 'sending',
+          totalRecipients: 1,
+          sentCount: 0,
+          deliveredCount: 0,
+          readCount: 0,
+          failedCount: 0,
+        })
+        .returning(['id'])
+      await db.table('broadcast_recipients').insert({
+        organizationId,
+        broadcastId: broadcast.id,
+        contactId: seeded.contactId,
+        status: 'queued',
+        messageId: queued.messageId,
+      })
+      await db.table('unmatched_provider_receipts').insert({
+        organizationId,
+        whatsappConfigId: seeded.whatsappConfigId,
+        providerMessageId: 'wamid.out.text',
+        status: 'delivered',
+        providerStatusAt: new Date('2024-06-01T00:02:00.000Z'),
+        errorMessage: null,
+        metadata: {},
+      })
+    })
+
+    const result = await service.executeDispatch({
+      organizationId,
+      dispatchId: queued.dispatchId,
+      lockOwner: 'test-worker-campaign',
+    })
+    assert.equal(result.outcome, 'sent')
+
+    await runWithTenant(organizationId, async () => {
+      const campaign = await db
+        .from('broadcasts')
+        .where('organizationId', organizationId)
+        .where('name', 'Outbound campaign receipt')
+        .first()
+      const recipient = await db
+        .from('broadcast_recipients')
+        .where('organizationId', organizationId)
+        .where('messageId', queued.messageId)
+        .first()
+      assert.equal(Number(campaign.sentCount), 1)
+      assert.equal(Number(campaign.deliveredCount), 1)
+      assert.equal(recipient.status, 'delivered')
+      assert.isNotNull(recipient.deliveredAt)
+    })
+  })
+
   test('InboxStatusUpdated failure after sent does not mark dispatch failed', async ({
     assert,
   }) => {
@@ -1014,9 +1091,7 @@ test.group('WhatsApp outbound service', (group) => {
     })
   })
 
-  test('queueMedia denies document for tenant channel and allows it for system', async ({
-    assert,
-  }) => {
+  test('queueMedia allows document for tenant and system channels', async ({ assert }) => {
     const organizationId = await createOrg()
     orgIds.push(organizationId)
     const seeded = await seedConversation(organizationId)
@@ -1028,20 +1103,15 @@ test.group('WhatsApp outbound service', (group) => {
       fileSize: 2048,
     })
 
-    try {
-      await service.queueMedia({
-        organizationId,
-        conversationId: seeded.conversationId,
-        mediaType: 'document',
-        mediaAssetId: pdf,
-        channel: 'tenant',
-      })
-      assert.fail('expected tenant document denial')
-    } catch (error) {
-      assert.equal((error as WhatsappOutboundException).code, 'E_OUTBOUND_MEDIA_CHANNEL_DENIED')
-    }
+    const tenantQueued = await service.queueMedia({
+      organizationId,
+      conversationId: seeded.conversationId,
+      mediaType: 'document',
+      mediaAssetId: pdf,
+      channel: 'tenant',
+    })
 
-    const queued = await service.queueMedia({
+    const systemQueued = await service.queueMedia({
       organizationId,
       conversationId: seeded.conversationId,
       mediaType: 'document',
@@ -1050,9 +1120,41 @@ test.group('WhatsApp outbound service', (group) => {
     })
 
     await runWithTenant(organizationId, async () => {
+      const tenantMessage = await db.from('messages').where('id', tenantQueued.messageId).first()
+      const systemMessage = await db.from('messages').where('id', systemQueued.messageId).first()
+      assert.equal(tenantMessage.contentType, 'document')
+      assert.equal(systemMessage.contentType, 'document')
+    })
+  })
+
+  test('queueMedia registers protected media reference on send', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const seeded = await seedConversation(organizationId)
+    const service = new WhatsappOutboundService(fakeGraph())
+    const assetId = await seedMediaAsset(organizationId, {
+      mimeType: 'image/jpeg',
+      filePath: 'https://media.test.local/attached.jpg',
+      fileName: 'attached.jpg',
+    })
+
+    const queued = await service.queueMedia({
+      organizationId,
+      conversationId: seeded.conversationId,
+      mediaType: 'image',
+      mediaAssetId: assetId,
+    })
+
+    await runWithTenant(organizationId, async () => {
       const message = await db.from('messages').where('id', queued.messageId).first()
-      assert.equal(message.contentType, 'document')
+      const ref = await db
+        .from('media_asset_references')
+        .where('mediaAssetId', assetId)
+        .where('ownerId', queued.messageId)
+        .first()
+
       assert.equal(message.status, 'queued')
+      assert.equal(ref.ownerType, 'message')
     })
   })
 
@@ -1095,7 +1197,7 @@ test.group('WhatsApp outbound service', (group) => {
     }
   })
 
-  test('queueTemplate document header is system-only', async ({ assert }) => {
+  test('queueTemplate document header works for tenant and system channels', async ({ assert }) => {
     const organizationId = await createOrg()
     orgIds.push(organizationId)
     const seeded = await seedConversation(organizationId)
@@ -1120,19 +1222,14 @@ test.group('WhatsApp outbound service', (group) => {
       },
     })
 
-    try {
-      await service.queueTemplate({
-        organizationId,
-        conversationId: seeded.conversationId,
-        templateId: template.id,
-        parameters: { id: '42' },
-        headerMediaAssetId: pdf,
-        channel: 'tenant',
-      })
-      assert.fail('expected tenant document header denial')
-    } catch (error) {
-      assert.equal((error as WhatsappOutboundException).code, 'E_OUTBOUND_MEDIA_CHANNEL_DENIED')
-    }
+    const tenantQueued = await service.queueTemplate({
+      organizationId,
+      conversationId: seeded.conversationId,
+      templateId: template.id,
+      parameters: { id: '41' },
+      headerMediaAssetId: pdf,
+      channel: 'tenant',
+    })
 
     const queued = await service.queueTemplate({
       organizationId,
@@ -1144,6 +1241,9 @@ test.group('WhatsApp outbound service', (group) => {
     })
 
     await runWithTenant(organizationId, async () => {
+      const tenantMessage = await db.from('messages').where('id', tenantQueued.messageId).first()
+      assert.equal(tenantMessage?.mediaAssetId, pdf)
+
       const dispatch = await db.from('outbound_dispatches').where('id', queued.dispatchId).first()
       const payload =
         typeof dispatch?.payload === 'string'
@@ -1166,6 +1266,112 @@ test.group('WhatsApp outbound service', (group) => {
       const message = await db.from('messages').where('id', queued.messageId).first()
       assert.equal(message?.mediaAssetId, pdf)
       assert.equal(message?.mediaUrl, 'https://media.test.local/docs/invoice.pdf')
+    })
+  })
+
+  test('queueTemplate sends named URL-button templates', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const seeded = await seedConversation(organizationId)
+    const service = new WhatsappOutboundService(fakeGraph())
+
+    const template = await seedApprovedTemplate(organizationId, seeded.whatsappConfigId, {
+      name: 'order_cta',
+      bodyText: 'Hi {{name}}',
+      parameterSchema: {
+        headerNames: [],
+        bodyNames: ['name'],
+        urlButtons: [{ name: 'cta_url', index: 0 }],
+        sendable: true,
+      },
+    })
+
+    const queued = await service.queueTemplate({
+      organizationId,
+      conversationId: seeded.conversationId,
+      templateId: template.id,
+      parameters: { name: 'Ada', cta_url: 'blue-shirt' },
+      channel: 'system',
+    })
+
+    await runWithTenant(organizationId, async () => {
+      const dispatch = await db.from('outbound_dispatches').where('id', queued.dispatchId).first()
+      const payload =
+        typeof dispatch?.payload === 'string'
+          ? JSON.parse(dispatch.payload as string)
+          : dispatch?.payload
+      assert.equal(payload.kind, 'template')
+      assert.deepEqual(payload.components, [
+        {
+          type: 'body',
+          parameters: [{ type: 'text', parameter_name: 'name', text: 'Ada' }],
+        },
+        {
+          type: 'button',
+          sub_type: 'url',
+          index: '0',
+          parameters: [{ type: 'text', parameter_name: 'cta_url', text: 'blue-shirt' }],
+        },
+      ])
+    })
+  })
+
+  test('queueTemplate system channel accepts allowlisted headerMediaUrl', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    const seeded = await seedConversation(organizationId)
+    const service = new WhatsappOutboundService(fakeGraph())
+    const remoteUrl = 'https://media.test.local/products/banner.jpg'
+
+    const template = await seedApprovedTemplate(organizationId, seeded.whatsappConfigId, {
+      name: 'product_created',
+      headerType: 'image',
+      bodyText: 'New {{sku}}',
+      parameterSchema: {
+        headerNames: [],
+        bodyNames: ['sku'],
+        sendable: true,
+        headerMediaType: 'image',
+      },
+    })
+
+    try {
+      await service.queueTemplate({
+        organizationId,
+        conversationId: seeded.conversationId,
+        templateId: template.id,
+        parameters: { sku: 'A1' },
+        headerMediaUrl: remoteUrl,
+        channel: 'tenant',
+      })
+      assert.fail('expected tenant remote URL rejection')
+    } catch (error) {
+      assert.equal((error as WhatsappOutboundException).code, 'E_OUTBOUND_TEMPLATE_PARAMS')
+    }
+
+    const queued = await service.queueTemplate({
+      organizationId,
+      conversationId: seeded.conversationId,
+      templateId: template.id,
+      parameters: { sku: 'A1' },
+      headerMediaUrl: remoteUrl,
+      channel: 'system',
+    })
+
+    await runWithTenant(organizationId, async () => {
+      const dispatch = await db.from('outbound_dispatches').where('id', queued.dispatchId).first()
+      const payload =
+        typeof dispatch?.payload === 'string'
+          ? JSON.parse(dispatch.payload as string)
+          : dispatch?.payload
+      assert.deepEqual(payload.components[0], {
+        type: 'header',
+        parameters: [{ type: 'image', image: { link: remoteUrl } }],
+      })
+
+      const message = await db.from('messages').where('id', queued.messageId).first()
+      assert.isNull(message?.mediaAssetId)
+      assert.equal(message?.mediaUrl, remoteUrl)
     })
   })
 
@@ -1376,6 +1582,10 @@ test.group('WhatsApp outbound service', (group) => {
       assert.lengthOf(queuedEvents, 1)
       assert.equal((queuedEvents[0] as { messageId: string }).messageId, queued.messageId)
       assert.isNull((queuedEvents[0] as { providerMessageId: null }).providerMessageId)
+      assert.equal((queuedEvents[0] as { contentText: string }).contentText, 'evented')
+      assert.equal((queuedEvents[0] as { status: string }).status, 'queued')
+      assert.equal((queuedEvents[0] as { direction: string }).direction, 'outbound')
+      assert.isString((queuedEvents[0] as { createdAt: string }).createdAt)
 
       const sent = await service.executeDispatch({
         organizationId,
@@ -1388,6 +1598,8 @@ test.group('WhatsApp outbound service', (group) => {
         (sentEvents[0] as { providerMessageId: string }).providerMessageId,
         'wamid.out.text'
       )
+      assert.equal((sentEvents[0] as { status: string }).status, 'sent')
+      assert.equal((sentEvents[0] as { contentText: string }).contentText, 'evented')
 
       const failOrg = await createOrg()
       orgIds.push(failOrg)
@@ -1411,6 +1623,8 @@ test.group('WhatsApp outbound service', (group) => {
       })
       assert.equal(failed.outcome, 'failed')
       assert.lengthOf(failedEvents, 1)
+      assert.equal((failedEvents[0] as { status: string }).status, 'failed')
+      assert.equal((failedEvents[0] as { contentText: string }).contentText, 'will fail')
     } finally {
       InboxMessageQueued.dispatch = originalQueued
       InboxMessageSent.dispatch = originalSent

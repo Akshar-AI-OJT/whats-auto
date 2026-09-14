@@ -14,5 +14,7 @@ export function ThemeSurface({ children }: { children: React.ReactNode }) {
     return <>{children}</>
   }
 
-  return <div className="light-locked flex min-h-dvh flex-col">{children}</div>
+  return (
+    <div className="light-locked flex min-h-dvh w-full shrink-0 flex-col">{children}</div>
+  )
 }

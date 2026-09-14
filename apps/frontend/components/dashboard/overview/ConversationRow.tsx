@@ -87,7 +87,7 @@ export function ConversationRow({
         <span
           className={cn(
             'flex size-10 items-center justify-center rounded-xl text-xs font-bold',
-            'bg-primary text-on-primary shadow-[0_4px_12px_rgb(159_232_112/0.25)]',
+            'bg-primary text-on-primary shadow-[0_4px_12px_rgb(37_99_235/0.25)]',
             'transition-transform duration-200 group-hover:scale-[1.03]'
           )}
         >
@@ -119,7 +119,7 @@ export function ConversationRow({
               className={cn(
                 'inline-flex min-w-5 shrink-0 items-center justify-center rounded-md px-1.5',
                 'bg-primary text-[10px] font-bold text-on-primary',
-                'shadow-[0_2px_8px_rgb(159_232_112/0.35)]'
+                'shadow-[0_2px_8px_rgb(37_99_235/0.35)]'
               )}
               aria-label={`${unread} unread`}
             >

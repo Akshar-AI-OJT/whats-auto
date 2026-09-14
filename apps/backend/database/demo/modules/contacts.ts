@@ -15,8 +15,8 @@ export const contactsModule: DemoSeedModule = {
         FIXTURE_IDS.contacts.northstarPriya,
         {
           organizationId: FIXTURE_IDS.orgs.northstar,
-          phone: '+919811122233',
-          phoneNormalized: '+919811122233',
+          phone: '919811122233',
+          phoneNormalized: '919811122233',
           name: 'Priya Kapoor',
           email: 'priya.kapoor@example.com',
           company: 'Kapoor Interiors',
@@ -32,8 +32,8 @@ export const contactsModule: DemoSeedModule = {
         FIXTURE_IDS.contacts.northstarDeleted,
         {
           organizationId: FIXTURE_IDS.orgs.northstar,
-          phone: '+919844455566',
-          phoneNormalized: '+919844455566',
+          phone: '919844455566',
+          phoneNormalized: '919844455566',
           name: 'Archived Contact',
           email: null,
           company: null,

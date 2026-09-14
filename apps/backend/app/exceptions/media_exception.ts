@@ -6,10 +6,13 @@ import type { HttpContext } from '@adonisjs/core/http'
  */
 export default class MediaException extends Exception {
   static unsupportedMimeType() {
-    return new this('Only JPEG and PNG images can be uploaded by tenants', {
-      status: 422,
-      code: 'E_MEDIA_MIME_UNSUPPORTED',
-    })
+    return new this(
+      'Unsupported media type. Allowed: JPEG/PNG images and PDF/CSV/DOC/DOCX/XLS/XLSX/PPT/PPTX/TXT documents',
+      {
+        status: 422,
+        code: 'E_MEDIA_MIME_UNSUPPORTED',
+      }
+    )
   }
 
   static fileTooLarge(maxBytes: number) {
@@ -40,6 +43,16 @@ export default class MediaException extends Exception {
     })
   }
 
+  static uploadBodyMissing() {
+    return new this(
+      'Upload request body was empty. Ensure Content-Type is set and the file bytes are sent as the PUT body.',
+      {
+        status: 422,
+        code: 'E_MEDIA_UPLOAD_BODY_MISSING',
+      }
+    )
+  }
+
   static uploadMismatch(detail: string) {
     return new this(`Uploaded object does not match the declared metadata: ${detail}`, {
       status: 422,
@@ -52,6 +65,61 @@ export default class MediaException extends Exception {
       status: 422,
       code: 'E_MEDIA_NOT_READY',
     })
+  }
+
+  static quotaExceeded(limitBytes: number) {
+    return new this(
+      `Organization storage quota exceeded (limit ${limitBytes} bytes). Free space or upgrade the plan.`,
+      {
+        status: 422,
+        code: 'E_MEDIA_QUOTA_EXCEEDED',
+      }
+    )
+  }
+
+  static contentRejected(detail: string) {
+    return new this(`Uploaded object failed content inspection: ${detail}`, {
+      status: 422,
+      code: 'E_MEDIA_CONTENT_REJECTED',
+    })
+  }
+
+  static invalidUploadSignature() {
+    return new this('Media upload signature is invalid or expired', {
+      status: 403,
+      code: 'E_MEDIA_UPLOAD_SIGNATURE_INVALID',
+    })
+  }
+
+  static notDeletable(detail: string) {
+    return new this(detail, {
+      status: 422,
+      code: 'E_MEDIA_NOT_DELETABLE',
+    })
+  }
+
+  static notRestorable() {
+    return new this('Media asset cannot be restored', {
+      status: 422,
+      code: 'E_MEDIA_NOT_RESTORABLE',
+    })
+  }
+
+  static alreadyPurged() {
+    return new this('Media asset has already been permanently purged', {
+      status: 422,
+      code: 'E_MEDIA_ALREADY_PURGED',
+    })
+  }
+
+  static hasProtectedReferences() {
+    return new this(
+      'Media asset is referenced by a message, campaign, or template and cannot be deleted',
+      {
+        status: 422,
+        code: 'E_MEDIA_HAS_REFERENCES',
+      }
+    )
   }
 
   handle(error: this, { response }: HttpContext) {

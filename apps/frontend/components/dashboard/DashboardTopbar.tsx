@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from 'react'
-import { Building2, Menu, Plus, Search } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Building2, Menu, Plus } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from '@/i18n/navigation'
 import { useAuth } from '@/hooks/useAuth'
 import { useOrganizations } from './OrganizationsProvider'
+import { useProductAccess } from '@/hooks/useProductAccess'
 import { ORG_SETUP_PATH } from '@/lib/onboarding'
 import { cn } from '@/lib/utils'
 import {
@@ -19,38 +20,18 @@ import { DashboardSidebar } from './DashboardSidebar'
 import { NotificationBell } from './NotificationBell'
 import { UserProfileMenu } from './UserProfileMenu'
 import {
-  WorkspaceSwitcher,
+  OrganizationSwitcher,
   organizationInitials,
-  type WorkspaceSwitcherItem,
-} from './WorkspaceSwitcher'
+  type OrganizationSwitcherItem,
+} from './OrganizationSwitcher'
 import { ThemeToggle } from '@/components/theme/ThemeToggle'
+import { GlobalSearch } from '@/components/search/GlobalSearch'
 
 type DashboardTopbarProps = {
   className?: string
 }
 
-const ACCENTS: WorkspaceSwitcherItem['accent'][] = ['green', 'cyan', 'amber']
-
-function detectMac() {
-  if (typeof navigator === 'undefined') return false
-  return /Mac|iPhone|iPad|iPod/i.test(navigator.platform || navigator.userAgent)
-}
-
-function subscribeNoop() {
-  return () => {}
-}
-
-function subscribeLg(onStoreChange: () => void) {
-  if (typeof window === 'undefined') return () => {}
-  const media = window.matchMedia('(min-width: 1024px)')
-  media.addEventListener('change', onStoreChange)
-  return () => media.removeEventListener('change', onStoreChange)
-}
-
-function getIsLg() {
-  if (typeof window === 'undefined') return false
-  return window.matchMedia('(min-width: 1024px)').matches
-}
+const ACCENTS: OrganizationSwitcherItem['accent'][] = ['green', 'cyan', 'amber']
 
 function formatRoleLabel(role: string): string {
   if (!role) return ''
@@ -64,23 +45,19 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
   const {
     organizations,
     activeOrganizationId,
+    tenantOrganizationId,
     hasOrganizations,
     isLoading: orgsLoading,
     error: organizationsError,
     selectOrganization,
   } = useOrganizations()
+  const { hasFullProductAccess, unlockPath } = useProductAccess()
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [workspaceOpen, setWorkspaceOpen] = useState(false)
+  const [organizationOpen, setOrganizationOpen] = useState(false)
   const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
-  const searchInputRef = useRef<HTMLInputElement>(null)
-  const searchId = useId()
-  const [searchQuery, setSearchQuery] = useState('')
-  const [searchFocused, setSearchFocused] = useState(false)
-  const isMac = useSyncExternalStore(subscribeNoop, detectMac, () => false)
-  const isLg = useSyncExternalStore(subscribeLg, getIsLg, () => false)
 
-  const workspaces = useMemo<WorkspaceSwitcherItem[]>(
+  const switcherOrganizations = useMemo<OrganizationSwitcherItem[]>(
     () =>
       organizations.map((org, index) => ({
         id: org.id,
@@ -108,44 +85,18 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
       .join('') ||
     'WA'
 
-  useEffect(() => {
-    function onKeyDown(event: KeyboardEvent) {
-      const isShortcut =
-        (event.key === 'k' || event.key === 'K') && (event.metaKey || event.ctrlKey)
-      if (!isShortcut) return
-
-      const target = event.target as HTMLElement | null
-      const tag = target?.tagName
-      if (
-        tag === 'INPUT' ||
-        tag === 'TEXTAREA' ||
-        tag === 'SELECT' ||
-        target?.isContentEditable
-      ) {
-        return
-      }
-
-      event.preventDefault()
-      searchInputRef.current?.focus()
-    }
-
-    document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
-  }, [])
-
   async function handleSignOut() {
     setProfileOpen(false)
     await signOut()
-    router.push('/login')
-    router.refresh()
+    router.replace('/login')
   }
 
   function goToOrgOnboarding() {
-    setWorkspaceOpen(false)
+    setOrganizationOpen(false)
     router.push(ORG_SETUP_PATH)
   }
 
-  async function handleWorkspaceChange(nextId: string) {
+  async function handleOrganizationChange(nextId: string) {
     if (nextId === activeOrganizationId) return
     await selectOrganization(nextId)
   }
@@ -153,7 +104,7 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
   return (
     <header
       className={cn(
-        'sticky top-0 z-30 flex shrink-0 flex-wrap items-center gap-x-2 gap-y-2 border-b border-dash-border/90 bg-canvas/90 px-3 py-2 backdrop-blur-md',
+        'relative z-40 flex shrink-0 flex-wrap items-center gap-x-2 gap-y-2 border-b border-dash-border/90 bg-canvas/90 px-3 py-2 backdrop-blur-md',
         'sm:min-h-16 sm:flex-nowrap sm:gap-x-3 sm:px-5 sm:py-2.5',
         'md:gap-x-3',
         'lg:h-[68px] lg:gap-x-3.5 lg:py-0',
@@ -174,7 +125,7 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
         <SheetContent
           side="left"
           showCloseButton
-          className="w-[min(280px,85vw)] border-dash-border bg-canvas p-0 sm:max-w-[280px]"
+          className="w-[min(320px,85vw)] border-dash-border bg-canvas p-0 sm:max-w-[320px]"
         >
           <SheetHeader className="sr-only">
             <SheetTitle>{t('brand')}</SheetTitle>
@@ -202,10 +153,10 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
           </span>
           <span className="min-w-0">
             <span className="block truncate text-sm font-semibold text-positive-deep">
-              {t('workspace.emptyTitle')}
+              {t('organizationSwitcher.emptyTitle')}
             </span>
             <span className="hidden truncate text-[11px] text-mute sm:block">
-              {t('workspace.emptyAction')}
+              {t('organizationSwitcher.emptyAction')}
             </span>
           </span>
           <Plus className="size-4 shrink-0 text-positive-deep" aria-hidden />
@@ -213,93 +164,46 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
       ) : null}
 
       {hasOrganizations && activeOrganizationId ? (
-        <WorkspaceSwitcher
+        <OrganizationSwitcher
           className="order-1 min-w-0 max-w-[11rem] sm:max-w-[13rem] lg:max-w-[15rem]"
-          workspaces={workspaces}
+          organizations={switcherOrganizations}
           value={activeOrganizationId}
-          open={workspaceOpen}
+          open={organizationOpen}
           onOpenChange={(next) => {
-            setWorkspaceOpen(next)
+            setOrganizationOpen(next)
             if (next) {
               setProfileOpen(false)
               setNotificationsOpen(false)
             }
           }}
-          onChange={handleWorkspaceChange}
+          onChange={handleOrganizationChange}
           error={organizationsError}
           labels={{
-            listLabel: t('workspace.listLabel'),
-            active: t('workspace.active'),
-            members: t('workspace.members'),
-            create: t('workspace.create'),
+            listLabel: t('organizationSwitcher.listLabel'),
+            active: t('organizationSwitcher.active'),
+            members: t('organizationSwitcher.members'),
+            create: t('organizationSwitcher.create'),
           }}
-          onCreateWorkspace={goToOrgOnboarding}
+          onCreateOrganization={goToOrgOnboarding}
         />
       ) : null}
 
-      {/* Global search — own row until lg, then flexes in the header */}
-      <div
+      <GlobalSearch
+        scope="organization"
+        organizationId={tenantOrganizationId}
         className={cn(
-          'group/search relative order-last min-w-0 basis-full',
+          'order-last min-w-0 basis-full',
           'sm:order-2 sm:mx-1 sm:flex-1 sm:basis-auto sm:min-w-[13rem]',
           'lg:mx-2 lg:max-w-[42rem]'
         )}
-      >
-        <label htmlFor={searchId} className="sr-only">
-          {t('topbar.searchLabel')}
-        </label>
-        <Search
-          className={cn(
-            'pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-mute',
-            'transition-[transform,color] duration-200 ease-out',
-            'group-hover/search:scale-110 group-hover/search:text-positive-deep',
-            'group-focus-within/search:scale-110 group-focus-within/search:rotate-12 group-focus-within/search:text-positive-deep',
-            searchFocused && 'scale-110 rotate-12 text-positive-deep'
-          )}
-          aria-hidden
-        />
-        <input
-          ref={searchInputRef}
-          id={searchId}
-          type="search"
-          value={searchQuery}
-          placeholder={
-            isLg ? t('topbar.searchPlaceholder') : t('topbar.searchPlaceholderShort')
+        onOpenChange={(open) => {
+          if (open) {
+            setOrganizationOpen(false)
+            setNotificationsOpen(false)
+            setProfileOpen(false)
           }
-          autoComplete="off"
-          aria-describedby={`${searchId}-hint`}
-          onChange={(event) => setSearchQuery(event.target.value)}
-          onFocus={() => setSearchFocused(true)}
-          onBlur={() => setSearchFocused(false)}
-          className={cn(
-            'h-9 w-full min-w-0 rounded-xl border border-dash-border bg-dash-surface/90 py-1.5 pl-9 text-sm text-ink outline-none',
-            'pr-3 lg:pr-[4.5rem]',
-            'placeholder:truncate placeholder:text-mute',
-            'transition-[border-color,box-shadow,background-color] duration-200',
-            'hover:border-dash-border-strong',
-            'focus-visible:border-primary/55 focus-visible:bg-canvas focus-visible:ring-2 focus-visible:ring-primary/30',
-            'cursor-text'
-          )}
-        />
-        <kbd
-          id={`${searchId}-hint`}
-          className={cn(
-            'pointer-events-none absolute top-1/2 right-2.5 hidden -translate-y-1/2 items-center gap-0.5 lg:inline-flex',
-            'rounded-md border border-dash-border bg-canvas px-1.5 py-0.5',
-            'text-[10px] font-semibold tracking-wide text-mute',
-            'shadow-[0_1px_0_rgb(15_23_42/0.04)]',
-            'transition-[border-color,color,opacity] duration-200',
-            searchFocused && 'border-primary/35 text-positive-deep'
-          )}
-          aria-label={t('topbar.searchShortcutLabel', {
-            shortcut: isMac ? '⌘K' : 'Ctrl+K',
-          })}
-        >
-          <span>{isMac ? '⌘' : 'Ctrl'}</span>
-          <span className="opacity-60">+</span>
-          <span>K</span>
-        </kbd>
-      </div>
+        }}
+      />
 
       <div className="order-3 ml-auto flex shrink-0 items-center gap-2 sm:gap-2.5">
         <ThemeToggle />
@@ -309,7 +213,7 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
           onOpenChange={(next) => {
             setNotificationsOpen(next)
             if (next) {
-              setWorkspaceOpen(false)
+              setOrganizationOpen(false)
               setProfileOpen(false)
             }
           }}
@@ -321,7 +225,7 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
             onOpenChange={(next) => {
               setProfileOpen(next)
               if (next) {
-                setWorkspaceOpen(false)
+                setOrganizationOpen(false)
                 setNotificationsOpen(false)
               }
             }}
@@ -330,7 +234,7 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
             initials={initials}
             labels={{
               myProfile: t('topbar.myProfile'),
-              workspace: t('topbar.workspace'),
+              organization: t('topbar.organization'),
               billing: t('topbar.billing'),
               settings: t('topbar.settings'),
               signOut: t('signOut'),
@@ -338,8 +242,14 @@ export function DashboardTopbar({ className }: DashboardTopbarProps) {
             }}
             onSignOut={handleSignOut}
             onSelectItem={(id) => {
-              if (id === 'workspace' || id === 'settings') {
-                router.push('/dashboard/settings')
+              if (id === 'profile') {
+                router.push('/dashboard/profile')
+              }
+              if (id === 'organization' || id === 'settings') {
+                router.push(hasFullProductAccess ? '/dashboard/settings' : unlockPath)
+              }
+              if (id === 'billing') {
+                router.push('/dashboard/billing')
               }
             }}
           />

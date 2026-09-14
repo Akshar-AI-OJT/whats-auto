@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import { getLocale } from 'next-intl/server'
 import { cn } from '@/lib/utils'
+import { WHATS_AUTO_ICON_SRC } from '@/lib/branding'
+import { suppressExtensionNoiseScript } from '@/components/dev/suppress-extension-noise-script'
 import { themeInitScript } from '@/components/theme/theme-script'
 import { manrope, inter, interBody, interHeading } from './fonts'
 import './globals.css'
@@ -8,6 +10,10 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'Whats-Auto',
   description: 'Automate WhatsApp for sales, support, and marketing',
+  icons: {
+    icon: [{ url: WHATS_AUTO_ICON_SRC, type: 'image/png' }],
+    apple: [{ url: WHATS_AUTO_ICON_SRC, type: 'image/png' }],
+  },
 }
 
 export default async function RootLayout({
@@ -31,9 +37,10 @@ export default async function RootLayout({
       )}
     >
       <head>
+        <script dangerouslySetInnerHTML={{ __html: suppressExtensionNoiseScript }} />
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
-      <body className="flex min-h-dvh flex-col overflow-x-clip bg-canvas-soft text-ink">
+      <body className="min-h-dvh bg-canvas-soft text-ink">
         {children}
       </body>
     </html>
