@@ -31,7 +31,7 @@ function sampleInvoice(overrides: Partial<SuperAdminInvoice> = {}): SuperAdminIn
       {
         id: '33333333-3333-4333-8333-333333333333',
         description: 'Growth Plan',
-        detail: 'Monthly subscription',
+        detail: 'growth · monthly',
         quantity: 1,
         unitPrice: 2499,
         amount: 2499,
@@ -58,7 +58,7 @@ function sampleInvoice(overrides: Partial<SuperAdminInvoice> = {}): SuperAdminIn
 }
 
 test.group('invoice PDF generator', () => {
-  test('builds a PDF containing invoice number and billed-to email', ({ assert }) => {
+  test('builds a structured PDF matching preview labels and billed-to email', ({ assert }) => {
     const invoice = sampleInvoice()
     const pdf = buildInvoicePdfBuffer(invoice)
     const text = pdf.toString('latin1')
@@ -68,10 +68,22 @@ test.group('invoice PDF generator', () => {
     assert.include(text, invoice.invoiceNumber)
     assert.include(text, 'billing@acme.test')
     assert.include(text, 'Growth Plan')
+    assert.include(text, 'growth')
+    assert.include(text, 'monthly')
     assert.include(text, 'INR 2948.82')
+    assert.include(text, 'FROM')
+    assert.include(text, 'BILLED TO')
+    assert.include(text, 'SUBSCRIPTION / PLAN')
+    assert.include(text, 'ORGANIZATION')
+    assert.include(text, 'Pending')
     assert.equal(invoicePdfFilename(invoice.invoiceNumber), 'invoice-INV-2026-000512.pdf')
     assert.notInclude(text, RETIRED_MOCK_SELLER_GSTIN)
     assert.include(text, BILLING_PROFILE_NOT_CONFIGURED)
+    // Empty issuer GSTIN uses the same em-dash fallback as the Invoice preview (`—` via WinAnsi).
+    assert.include(text, `GSTIN: ${String.fromCharCode(0x97)}`)
+    // Middle dot in line-item detail must not collapse to `?`.
+    assert.notInclude(text, 'growth ? monthly')
+    assert.include(text, `growth ${String.fromCharCode(0xb7)} monthly`)
   })
 
   test('configured seller identity is printed and mock GSTIN is absent', ({ assert }) => {
@@ -93,8 +105,33 @@ test.group('invoice PDF generator', () => {
     assert.include(text, 'Growth Plan')
     assert.include(text, 'INR 2499.00')
     assert.include(text, 'INR 2948.82')
+    assert.include(text, 'GSTIN: 27AABCU9603R1ZM')
     assert.notInclude(text, RETIRED_MOCK_SELLER_GSTIN)
     assert.notInclude(text, 'Whats-Auto Technologies Pvt. Ltd.')
     assert.notInclude(text, 'billing@whatsauto.com')
+  })
+
+  test('omits customer GSTIN when absent and never invents one', ({ assert }) => {
+    const invoice = sampleInvoice({
+      organization: {
+        id: '22222222-2222-4222-8222-222222222222',
+        name: 'No Gstin Org',
+        email: 'nogstin@acme.test',
+        phone: null,
+        address: null,
+        gstin: null,
+      },
+    })
+    const pdf = buildInvoicePdfBuffer(invoice)
+    const text = pdf.toString('latin1')
+
+    assert.include(text, 'No Gstin Org')
+    assert.include(text, 'nogstin@acme.test')
+    assert.notInclude(text, '06AABCA1234F1Z8')
+    assert.notInclude(text, '27AAAAA0000A1Z5')
+    assert.notInclude(text, RETIRED_MOCK_SELLER_GSTIN)
+    // Only the issuer empty-fallback GSTIN line should appear.
+    const gstinLines = text.split('GSTIN:').length - 1
+    assert.equal(gstinLines, 1)
   })
 })
