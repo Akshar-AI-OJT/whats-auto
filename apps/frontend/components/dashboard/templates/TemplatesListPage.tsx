@@ -12,11 +12,11 @@ import {
 } from '@/lib/api'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { unwrapList } from '@/components/dashboard/inbox/inbox-utils'
-import { useRouter } from '@/i18n/navigation'
-import { Button } from '@/components/ui/button'
+import { Link, useRouter } from '@/i18n/navigation'
+import { Button, buttonVariants } from '@/components/ui/button'
+import { cn } from '@/lib/utils'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
-import { TemplateCatalogBrowseDialog } from './TemplateCatalogBrowseDialog'
 import { TemplateCards } from './TemplateCards'
 import { TemplateFilters } from './TemplateFilters'
 import { TemplateTable } from './TemplateTable'
@@ -59,7 +59,6 @@ export function TemplatesListPage() {
   const [syncError, setSyncError] = useState<string | null>(null)
   const [syncedCount, setSyncedCount] = useState<number | null>(null)
   const [syncPending, setSyncPending] = useState(false)
-  const [browseOpen, setBrowseOpen] = useState(false)
   const { progress, complete: completeProgress } = useSyncProgress(syncPending)
 
   const listParams = useMemo(
@@ -219,15 +218,16 @@ export function TemplatesListPage() {
                 <span className="truncate">{t('syncCta')}</span>
               </Button>
             ) : null}
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full justify-center gap-2 sm:w-auto"
-              onClick={() => setBrowseOpen(true)}
+            <Link
+              href="/dashboard/templates/browse"
+              className={cn(
+                buttonVariants({ variant: 'outline' }),
+                'w-full justify-center gap-2 sm:w-auto'
+              )}
             >
               <LayoutGrid className="size-4 shrink-0" aria-hidden />
               <span className="truncate">{t('browseCta')}</span>
-            </Button>
+            </Link>
             {canCreateTemplates ? (
               <Button
                 type="button"
@@ -405,12 +405,6 @@ export function TemplatesListPage() {
         error={syncError}
         onOpenChange={setSyncOpen}
         onRetry={() => syncMutation.mutate()}
-      />
-
-      <TemplateCatalogBrowseDialog
-        open={browseOpen}
-        organizationId={tenantOrganizationId}
-        onOpenChange={setBrowseOpen}
       />
     </div>
   )

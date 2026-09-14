@@ -21,6 +21,7 @@ type TemplatePreviewProps = {
   sampleValues?: Record<string, string>
   businessName?: string
   className?: string
+  compact?: boolean
 }
 
 export function TemplatePreview({
@@ -34,6 +35,7 @@ export function TemplatePreview({
   sampleValues,
   businessName,
   className,
+  compact = false,
 }: TemplatePreviewProps) {
   const t = useTranslations('dashboard.templates.preview')
   const resolvedButtons = normalizeButtons(buttons)
@@ -46,9 +48,22 @@ export function TemplatePreview({
       : null
 
   return (
-    <div className={cn('rounded-2xl border border-dash-border bg-dash-surface/40 p-4', className)}>
-      <p className="text-xs font-semibold tracking-wide text-mute uppercase">{t('title')}</p>
-      <div className="mt-3 overflow-hidden rounded-[1.6rem] border border-[#D1D5DB] bg-[#ECE5DD] shadow-[0_10px_30px_rgb(15_23_42/0.08)]">
+    <div
+      className={cn(
+        'rounded-2xl border border-dash-border bg-dash-surface/40 p-4',
+        compact && 'border-0 bg-transparent p-0',
+        className
+      )}
+    >
+      {compact ? null : (
+        <p className="text-xs font-semibold tracking-wide text-mute uppercase">{t('title')}</p>
+      )}
+      <div
+        className={cn(
+          'overflow-hidden rounded-[1.6rem] border border-[#D1D5DB] bg-[#ECE5DD] shadow-[0_10px_30px_rgb(15_23_42/0.08)]',
+          compact ? 'mt-0' : 'mt-3'
+        )}
+      >
         <div className="flex items-center gap-2 border-b border-black/5 bg-[#075E54] px-3 py-2.5 text-white">
           <span className="flex size-8 items-center justify-center rounded-full bg-white/15 text-xs font-semibold">
             {(businessName ?? t('businessFallback')).slice(0, 1).toUpperCase()}

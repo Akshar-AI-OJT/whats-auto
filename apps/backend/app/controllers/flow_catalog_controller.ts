@@ -28,6 +28,24 @@ export default class FlowCatalogController {
   }
 
   /**
+   * @show
+   * @summary Get a published catalog flow visible on the current plan
+   * @description Returns the published graph for a read-only preview. Hidden or unpublished rows 404.
+   * @tag Flows
+   * @security BearerAuth
+   */
+  async show({ bouncer, request, params, serialize }: HttpContext) {
+    await bouncer.with(FlowCatalogPolicy).authorize('viewList')
+    const { id } = await catalogFlowIdParamValidator.validate(params)
+    return serialize(
+      await new PlatformFlowCatalogService().getPublishedForOrganization(
+        id,
+        request.activeOrganizationId!
+      )
+    )
+  }
+
+  /**
    * @install
    * @summary Install a catalog flow as a draft organization flow
    * @tag Flows

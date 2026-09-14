@@ -1,6 +1,10 @@
 import vine from '@vinejs/vine'
 import { CATALOG_STATUSES } from '#enums/catalog_status'
 import { CATALOG_TEMPLATE_SOURCES } from '#enums/catalog_template_source'
+import {
+  META_TEMPLATE_LIBRARY_INDUSTRIES,
+  META_TEMPLATE_LIBRARY_TOPICS,
+} from '#lib/meta_whatsapp/template_library_filters'
 import { TEMPLATE_CATEGORIES, TEMPLATE_HEADER_TYPES } from '#validators/message_template'
 
 const catalogIdParam = vine.object({
@@ -38,13 +42,14 @@ export const listOrgTemplateCatalogValidator = vine.create(
 export const listMetaTemplateLibraryValidator = vine.create(
   vine.object({
     search: vine.string().trim().maxLength(255).optional(),
-    topic: vine.string().trim().maxLength(80).optional(),
+    topic: vine.enum(META_TEMPLATE_LIBRARY_TOPICS).optional(),
     usecase: vine.string().trim().maxLength(80).optional(),
-    industry: vine.string().trim().maxLength(80).optional(),
+    industry: vine.enum(META_TEMPLATE_LIBRARY_INDUSTRIES).optional(),
     language: vine.string().trim().minLength(2).maxLength(10).optional(),
     name: vine.string().trim().maxLength(255).optional(),
     category: vine.string().trim().optional(),
     after: vine.string().trim().optional(),
+    limit: vine.number().withoutDecimals().min(1).max(100).optional(),
   })
 )
 

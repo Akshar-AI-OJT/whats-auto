@@ -93,6 +93,8 @@ export const queryKeys = {
       [...queryKeys.flows.all, 'detail', orgId ?? 'none', id ?? 'none'] as const,
     catalog: (orgId?: string | null, params?: Record<string, unknown>) =>
       [...queryKeys.flows.all, 'catalog', orgId ?? 'none', params ?? {}] as const,
+    catalogDetail: (orgId?: string | null, id?: string | null) =>
+      [...queryKeys.flows.all, 'catalog', 'detail', orgId ?? 'none', id ?? 'none'] as const,
   },
   customerGroups: {
     all: ['customer-groups'] as const,
