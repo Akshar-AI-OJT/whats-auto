@@ -139,14 +139,17 @@ export class FlowRepository {
   }
 
   async findByCatalogFlowId(
-    params: { organizationId: string; catalogFlowId: string },
+    params: { organizationId: string; catalogFlowId: string; liveOnly?: boolean },
     client: Db = db
   ): Promise<FlowRow | null> {
-    const row = await client
+    const query = client
       .from('flows')
       .where('organizationId', params.organizationId)
       .where('catalogFlowId', params.catalogFlowId)
-      .first()
+    if (params.liveOnly) {
+      query.whereIn('status', [FlowStatus.DRAFT, FlowStatus.PUBLISHED])
+    }
+    const row = await query.first()
     return row ? mapFlowRow(row as Record<string, unknown>) : null
   }
 

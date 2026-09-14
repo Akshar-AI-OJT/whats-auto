@@ -509,10 +509,14 @@ test.group('HttpMetaGraphClient', () => {
       accessToken: 'sys-tok',
       industry: 'E_COMMERCE',
       language: 'en_US',
+      limit: 20,
+      after: 'CURSOR1',
     })
 
     assert.include(seenUrl, '/v25.0/message_template_library')
     assert.include(seenUrl, 'industry=E_COMMERCE')
+    assert.include(seenUrl, 'limit=20')
+    assert.include(seenUrl, 'after=CURSOR1')
     assert.equal(result.data[0].name, 'order_1')
   })
 

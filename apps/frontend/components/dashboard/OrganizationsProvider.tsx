@@ -504,3 +504,7 @@ export function useOrganizations(): OrganizationsContextValue {
   }
   return context
 }
+
+export function useOrganizationsOptional(): OrganizationsContextValue | null {
+  return useContext(OrganizationsContext)
+}

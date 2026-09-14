@@ -25,7 +25,7 @@ import {
   type WhatsappMessageTemplate,
 } from '@/lib/api'
 import { hasPermission, PERMISSIONS } from '@/lib/rbac'
-import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
+import { useOrganizationsOptional } from '@/components/dashboard/OrganizationsProvider'
 import { Button } from '@/components/ui/button'
 import { queryKeys } from '@/lib/query-keys'
 import { unwrapTemplateList } from '@/components/dashboard/templates/template-utils'
@@ -66,8 +66,14 @@ export function FlowEditorPage({
 }) {
   const t = useTranslations('dashboard.flows')
   const queryClient = useQueryClient()
-  const { tenantOrganizationId, permissions, isLoading: orgsLoading } = useOrganizations()
+  const orgs = useOrganizationsOptional()
   const catalogMode = mode === 'catalog'
+  if (!catalogMode && !orgs) {
+    throw new Error('useOrganizations must be used within an OrganizationsProvider')
+  }
+  const tenantOrganizationId = orgs?.tenantOrganizationId ?? null
+  const permissions = orgs?.permissions ?? []
+  const orgsLoading = orgs?.isLoading ?? false
 
   const canView = catalogMode || hasPermission(permissions, PERMISSIONS.AUTOMATIONS_VIEW)
   const canEdit = catalogMode || hasPermission(permissions, PERMISSIONS.AUTOMATIONS_EDIT)
