@@ -65,19 +65,32 @@ export function InboxOrganizationProvider({ children }: { children: ReactNode })
     }
   }, [])
 
-  const catchUpInboxQueries = useCallback(() => {
-    if (!tenantOrganizationId) return
-    void queryClient.invalidateQueries({
-      queryKey: queryKeys.inbox.all(tenantOrganizationId),
-    })
-  }, [queryClient, tenantOrganizationId])
+  const lastVisibilityCatchUpRef = useRef(0)
+
+  const catchUpInboxQueries = useCallback(
+    (options?: { force?: boolean }) => {
+      if (!tenantOrganizationId) return
+      const force = options?.force === true
+      const now = Date.now()
+      // Tab focus used to invalidate on every visibilitychange — that refetched the
+      // whole inbox. Soft catch-up at most once per soft interval unless forced
+      // (SSE reconnect), so cached conversations stay on screen.
+      if (!force && now - lastVisibilityCatchUpRef.current < SOFT_CATCHUP_MS) return
+      lastVisibilityCatchUpRef.current = now
+      void queryClient.refetchQueries({
+        queryKey: queryKeys.inbox.all(tenantOrganizationId),
+        type: 'active',
+      })
+    },
+    [queryClient, tenantOrganizationId]
+  )
 
   useInboxEventSource({
     enabled: sseEnabled,
     reconnectKey: tenantOrganizationId,
     onEvent: dispatchInboxEvent,
-    onConnected: catchUpInboxQueries,
-    onVisible: catchUpInboxQueries,
+    onConnected: () => catchUpInboxQueries({ force: true }),
+    onVisible: () => catchUpInboxQueries(),
   })
 
   // Soft catch-up while the inbox is open and the tab is visible.
@@ -85,7 +98,7 @@ export function InboxOrganizationProvider({ children }: { children: ReactNode })
     if (!sseEnabled || !tenantOrganizationId) return
     const timer = window.setInterval(() => {
       if (document.visibilityState === 'visible') {
-        catchUpInboxQueries()
+        catchUpInboxQueries({ force: true })
       }
     }, SOFT_CATCHUP_MS)
     return () => window.clearInterval(timer)
