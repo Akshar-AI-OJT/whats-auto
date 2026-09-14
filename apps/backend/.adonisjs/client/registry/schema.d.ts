@@ -294,6 +294,54 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/message_templates_controller').default['destroy']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'template_catalog.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/template-catalog'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/platform_template_catalog').listOrgTemplateCatalogValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/template_catalog_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/template_catalog_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'template_catalog.install': {
+    methods: ["POST"]
+    pattern: '/api/v1/template-catalog/:id/install'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/platform_template_catalog').catalogIdParamValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/platform_template_catalog').catalogIdParamValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/template_catalog_controller').default['install']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/template_catalog_controller').default['install']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'flow_catalog.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/flow-catalog'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/platform_flow_catalog').listOrgFlowCatalogValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/flow_catalog_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/flow_catalog_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'flow_catalog.install': {
+    methods: ["POST"]
+    pattern: '/api/v1/flow-catalog/:id/install'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/platform_flow_catalog').catalogFlowIdParamValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/platform_flow_catalog').catalogFlowIdParamValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/flow_catalog_controller').default['install']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/flow_catalog_controller').default['install']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'pre_signup': {
     methods: ["POST"]
     pattern: '/api/v1/auth/pre-signup'
@@ -664,6 +712,186 @@ export interface Registry {
       query: ExtractQuery<InferInput<(typeof import('#validators/platform_settings').updatePlatformSettingsValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/super_admin_platform_settings_controller').default['update']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/super_admin_platform_settings_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'super_admin_template_catalog.index_library': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/super-admin/template-library'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/platform_template_catalog').listMetaTemplateLibraryValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/super_admin_template_catalog_controller').default['indexLibrary']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/super_admin_template_catalog_controller').default['indexLibrary']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'super_admin_template_catalog.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/super-admin/template-catalog'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/platform_template_catalog').listPlatformTemplateCatalogValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/super_admin_template_catalog_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/super_admin_template_catalog_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'super_admin_template_catalog.import_items': {
+    methods: ["POST"]
+    pattern: '/api/v1/super-admin/template-catalog/import'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/platform_template_catalog').importTemplateCatalogValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/platform_template_catalog').importTemplateCatalogValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/super_admin_template_catalog_controller').default['importItems']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/super_admin_template_catalog_controller').default['importItems']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'super_admin_template_catalog.store': {
+    methods: ["POST"]
+    pattern: '/api/v1/super-admin/template-catalog'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/platform_template_catalog').createPlatformTemplateCatalogValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/platform_template_catalog').createPlatformTemplateCatalogValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/super_admin_template_catalog_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/super_admin_template_catalog_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'super_admin_template_catalog.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/super-admin/template-catalog/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/platform_template_catalog').catalogIdParamValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/super_admin_template_catalog_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/super_admin_template_catalog_controller').default['show']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'super_admin_template_catalog.update': {
+    methods: ["PATCH"]
+    pattern: '/api/v1/super-admin/template-catalog/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/platform_template_catalog').updatePlatformTemplateCatalogValidator)>|InferInput<(typeof import('#validators/platform_template_catalog').catalogIdParamValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/platform_template_catalog').updatePlatformTemplateCatalogValidator)>|InferInput<(typeof import('#validators/platform_template_catalog').catalogIdParamValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/super_admin_template_catalog_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/super_admin_template_catalog_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'super_admin_template_catalog.publish': {
+    methods: ["POST"]
+    pattern: '/api/v1/super-admin/template-catalog/:id/publish'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/platform_template_catalog').catalogIdParamValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/platform_template_catalog').catalogIdParamValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/super_admin_template_catalog_controller').default['publish']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/super_admin_template_catalog_controller').default['publish']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'super_admin_template_catalog.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/v1/super-admin/template-catalog/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/platform_template_catalog').catalogIdParamValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/platform_template_catalog').catalogIdParamValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/super_admin_template_catalog_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/super_admin_template_catalog_controller').default['destroy']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'super_admin_flow_catalog.index': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/super-admin/flow-catalog'
+    types: {
+      body: {}
+      paramsTuple: []
+      params: {}
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/platform_flow_catalog').listPlatformFlowCatalogValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/super_admin_flow_catalog_controller').default['index']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/super_admin_flow_catalog_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'super_admin_flow_catalog.store': {
+    methods: ["POST"]
+    pattern: '/api/v1/super-admin/flow-catalog'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/platform_flow_catalog').createPlatformFlowCatalogValidator)>>
+      paramsTuple: []
+      params: {}
+      query: ExtractQuery<InferInput<(typeof import('#validators/platform_flow_catalog').createPlatformFlowCatalogValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/super_admin_flow_catalog_controller').default['store']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/super_admin_flow_catalog_controller').default['store']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'super_admin_flow_catalog.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/super-admin/flow-catalog/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/platform_flow_catalog').catalogFlowIdParamValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/super_admin_flow_catalog_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/super_admin_flow_catalog_controller').default['show']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'super_admin_flow_catalog.update': {
+    methods: ["PATCH"]
+    pattern: '/api/v1/super-admin/flow-catalog/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/platform_flow_catalog').updatePlatformFlowCatalogValidator)>|InferInput<(typeof import('#validators/platform_flow_catalog').catalogFlowIdParamValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/platform_flow_catalog').updatePlatformFlowCatalogValidator)>|InferInput<(typeof import('#validators/platform_flow_catalog').catalogFlowIdParamValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/super_admin_flow_catalog_controller').default['update']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/super_admin_flow_catalog_controller').default['update']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'super_admin_flow_catalog.validate': {
+    methods: ["POST"]
+    pattern: '/api/v1/super-admin/flow-catalog/:id/validate'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/platform_flow_catalog').validatePlatformFlowCatalogValidator)>|InferInput<(typeof import('#validators/platform_flow_catalog').catalogFlowIdParamValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/platform_flow_catalog').validatePlatformFlowCatalogValidator)>|InferInput<(typeof import('#validators/platform_flow_catalog').catalogFlowIdParamValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/super_admin_flow_catalog_controller').default['validate']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/super_admin_flow_catalog_controller').default['validate']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'super_admin_flow_catalog.publish': {
+    methods: ["POST"]
+    pattern: '/api/v1/super-admin/flow-catalog/:id/publish'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/platform_flow_catalog').catalogFlowIdParamValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/platform_flow_catalog').catalogFlowIdParamValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/super_admin_flow_catalog_controller').default['publish']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/super_admin_flow_catalog_controller').default['publish']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'super_admin_flow_catalog.destroy': {
+    methods: ["DELETE"]
+    pattern: '/api/v1/super-admin/flow-catalog/:id'
+    types: {
+      body: ExtractBody<InferInput<(typeof import('#validators/platform_flow_catalog').catalogFlowIdParamValidator)>>
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQuery<InferInput<(typeof import('#validators/platform_flow_catalog').catalogFlowIdParamValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/super_admin_flow_catalog_controller').default['destroy']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/super_admin_flow_catalog_controller').default['destroy']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'super_admin_ai_config.show': {

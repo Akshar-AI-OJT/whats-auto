@@ -46,6 +46,19 @@ function orgInList(
   return organizations.some((org) => org.id === organizationId) ? organizationId : null
 }
 
+async function fetchAccessContextFresh(
+  queryClient: QueryClient,
+  userId: string
+): Promise<AccessContext | null> {
+  // Bypass staleTime so a pre-setActive 403/null is not reused as "fresh" for 5 minutes
+  // (that left permissions [] and hid the sidebar until a hard refresh).
+  return queryClient.fetchQuery({
+    queryKey: queryKeys.organizations.accessContext(userId),
+    queryFn: fetchAccessContext,
+    staleTime: 0,
+  })
+}
+
 /**
  * Warm org/access caches and ensure an active organization + JWT before the
  * dashboard mounts. Fresh email sign-in leaves session.activeOrganizationId
@@ -64,35 +77,29 @@ export async function prefetchDashboardOrganizationQueries(
   })
 
   if (orgs.length === 0) {
-    await queryClient.prefetchQuery({
-      queryKey: queryKeys.organizations.accessContext(userId),
-      queryFn: fetchAccessContext,
-    })
+    await fetchAccessContextFresh(queryClient, userId)
     return
   }
 
-  const access = await queryClient.fetchQuery({
-    queryKey: queryKeys.organizations.accessContext(userId),
-    queryFn: fetchAccessContext,
-  })
+  const sessionOrgId = orgInList(orgs, options?.sessionOrganizationId)
 
-  const resolvedId =
-    orgInList(orgs, options?.sessionOrganizationId) ??
-    orgInList(orgs, access?.organizationId ?? null)
+  // Avoid fetching access-context before set-active when the new session has no
+  // active org — that 403/null was cached and blocked sidebar permissions.
+  if (!sessionOrgId) {
+    const fallbackId = orgs[0]?.id
+    if (!fallbackId) return
 
-  if (resolvedId) {
-    await ensureAccessTokenForOrganization(resolvedId)
+    await api.organizations.setActive(fallbackId)
+    await authClient.getSession({ query: { disableCookieCache: true } })
+    await ensureAccessTokenForOrganization(fallbackId)
+    await fetchAccessContextFresh(queryClient, userId)
     return
   }
 
-  const fallbackId = orgs[0]?.id
-  if (!fallbackId) return
+  await ensureAccessTokenForOrganization(sessionOrgId)
+  const access = await fetchAccessContextFresh(queryClient, userId)
+  if (access?.organizationId === sessionOrgId) return
 
-  await api.organizations.setActive(fallbackId)
-  await authClient.getSession({ query: { disableCookieCache: true } })
-  await ensureAccessTokenForOrganization(fallbackId)
-  await queryClient.fetchQuery({
-    queryKey: queryKeys.organizations.accessContext(userId),
-    queryFn: fetchAccessContext,
-  })
+  // Token ready but context still missing/mismatched — one more forced read.
+  await fetchAccessContextFresh(queryClient, userId)
 }

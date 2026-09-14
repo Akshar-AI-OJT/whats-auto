@@ -129,10 +129,40 @@ async function refreshSharedSession(): Promise<string | null> {
  */
 export function OrganizationsProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient()
-  const { data: sessionData, isPending: sessionPending } = authClient.useSession()
-  const sessionOrgId = readSessionOrganizationId(sessionData?.session)
-  const isSignedIn = Boolean(sessionData?.user)
-  const userId = sessionData?.user?.id ?? null
+  const {
+    data: sessionData,
+    isPending: sessionPending,
+    isRefetching: sessionRefetching,
+  } = authClient.useSession()
+
+  const rawUserId = sessionData?.user?.id ?? null
+  const rawSessionOrgId = readSessionOrganizationId(sessionData?.session)
+
+  // Better Auth can briefly clear session `data` during broadcast/online refetch.
+  // Mirror DashboardAuthGate: keep last known user/org in state so tenant query keys
+  // and module gates do not reset (that reloaded every module on tab return).
+  const [stickyUserId, setStickyUserId] = useState<string | null>(rawUserId)
+  const [stickySessionOrgId, setStickySessionOrgId] = useState<string | null>(rawSessionOrgId)
+
+  if (rawUserId) {
+    if (stickyUserId !== rawUserId) setStickyUserId(rawUserId)
+    if (stickySessionOrgId !== rawSessionOrgId) setStickySessionOrgId(rawSessionOrgId)
+  } else if (!sessionPending && !sessionRefetching && stickyUserId) {
+    setStickyUserId(null)
+    setStickySessionOrgId(null)
+  }
+
+  const sessionTransient =
+    (sessionPending || sessionRefetching) && Boolean(stickyUserId) && !rawUserId
+  const userId = rawUserId ?? (sessionTransient ? stickyUserId : null)
+  const sessionOrgId = rawUserId
+    ? rawSessionOrgId
+    : sessionTransient
+      ? stickySessionOrgId
+      : null
+  const isSignedIn = Boolean(userId)
+  // Cold-start only — do not treat transient session clears as "still loading auth".
+  const effectiveSessionPending = sessionPending && !userId
   const previousUserIdRef = useRef<string | null>(userId)
 
   /** Optimistic UI selection while set-active + session remint are in flight. */
@@ -147,14 +177,27 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
   const bootstrapStarted = useRef(false)
   const lastTenantOrganizationIdRef = useRef<string | null>(null)
 
-  // Drop cached orgs/permissions when the signed-in user changes (account switch).
+  // Drop cached orgs/permissions only on a real account switch (A → B), never on
+  // transient null userId during session refetch (that wiped module caches on tab return).
+  // activatedOrganizationId is safe to leave: orgInList() drops ids not in the new list.
   useEffect(() => {
-    if (previousUserIdRef.current === userId) return
+    const prev = previousUserIdRef.current
+    if (prev === userId) return
+
+    if (userId == null) {
+      if (!sessionPending && !sessionRefetching) {
+        previousUserIdRef.current = null
+        lastTenantOrganizationIdRef.current = null
+      }
+      return
+    }
+
+    if (prev != null && prev !== userId) {
+      lastTenantOrganizationIdRef.current = null
+      queryClient.removeQueries({ queryKey: queryKeys.organizations.all })
+    }
     previousUserIdRef.current = userId
-    setActivatedOrganizationId(null)
-    lastTenantOrganizationIdRef.current = null
-    queryClient.removeQueries({ queryKey: queryKeys.organizations.all })
-  }, [userId, queryClient])
+  }, [userId, sessionPending, sessionRefetching, queryClient])
 
   const orgsQuery = useQuery({
     queryKey: queryKeys.organizations.list(userId),
@@ -198,6 +241,34 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
     livePendingActiveId && livePendingActiveId !== accessQuery.data?.organizationId
       ? null
       : (accessQuery.data ?? null)
+
+  const accessRetryForOrgRef = useRef<string | null>(null)
+
+  // Login prefetch used to cache a pre-setActive null access-context as "fresh".
+  // When the tenant JWT is ready but permissions are still missing, force one refetch
+  // so the sidebar does not stay stuck with only ungated items (dashboard).
+  useEffect(() => {
+    if (!isSignedIn || !userId || !activeId) return
+    if (peekAccessTokenOrgId() !== activeId) return
+    if (accessQuery.data?.organizationId === activeId) {
+      accessRetryForOrgRef.current = null
+      return
+    }
+    if (accessQuery.isFetching) return
+    if (accessRetryForOrgRef.current === activeId) return
+    accessRetryForOrgRef.current = activeId
+
+    void queryClient.invalidateQueries({
+      queryKey: queryKeys.organizations.accessContext(userId),
+    })
+  }, [
+    isSignedIn,
+    userId,
+    activeId,
+    accessQuery.data?.organizationId,
+    accessQuery.isFetching,
+    queryClient,
+  ])
 
   // Reset bootstrap latch when the session drops (logout / account switch).
   useEffect(() => {
@@ -467,9 +538,9 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
     isSubscriptionPending: subscriptionPending,
     hasFullProductAccess: fullProductAccess,
     // Shell / list loading — avoid treating access refetch alone as full-shell load.
-    isLoading: sessionPending || orgsQuery.isLoading || liveBootstrapping,
+    isLoading: effectiveSessionPending || orgsQuery.isLoading || liveBootstrapping,
     // Membership gate only — do not block the dashboard chrome on set-active bootstrap.
-    isMembershipLoading: sessionPending || orgsQuery.isLoading,
+    isMembershipLoading: effectiveSessionPending || orgsQuery.isLoading,
     // Wait for JWT + tenant id + access-context settle so permissions are not [].
     isResolvingAccess: resolveIsResolvingAccess(
       {
@@ -480,7 +551,7 @@ export function OrganizationsProvider({ children }: { children: React.ReactNode 
         tokenReadyOrgId,
         pendingActiveId: livePendingActiveId,
         accessQueryLoading: accessQuery.isLoading,
-        sessionPending,
+        sessionPending: effectiveSessionPending,
         orgsLoading: orgsQuery.isLoading,
         bootstrapping: liveBootstrapping,
         isSignedIn,

@@ -46,6 +46,14 @@ export interface ApiDefinition {
     sync: typeof routes['message_templates.sync']
     destroy: typeof routes['message_templates.destroy']
   }
+  templateCatalog: {
+    index: typeof routes['template_catalog.index']
+    install: typeof routes['template_catalog.install']
+  }
+  flowCatalog: {
+    index: typeof routes['flow_catalog.index']
+    install: typeof routes['flow_catalog.install']
+  }
   preSignup: typeof routes['pre_signup'] & {
     resend: typeof routes['pre_signup.resend']
   }
@@ -89,6 +97,25 @@ export interface ApiDefinition {
   superAdminPlatformSettings: {
     show: typeof routes['super_admin_platform_settings.show']
     update: typeof routes['super_admin_platform_settings.update']
+  }
+  superAdminTemplateCatalog: {
+    indexLibrary: typeof routes['super_admin_template_catalog.index_library']
+    index: typeof routes['super_admin_template_catalog.index']
+    importItems: typeof routes['super_admin_template_catalog.import_items']
+    store: typeof routes['super_admin_template_catalog.store']
+    show: typeof routes['super_admin_template_catalog.show']
+    update: typeof routes['super_admin_template_catalog.update']
+    publish: typeof routes['super_admin_template_catalog.publish']
+    destroy: typeof routes['super_admin_template_catalog.destroy']
+  }
+  superAdminFlowCatalog: {
+    index: typeof routes['super_admin_flow_catalog.index']
+    store: typeof routes['super_admin_flow_catalog.store']
+    show: typeof routes['super_admin_flow_catalog.show']
+    update: typeof routes['super_admin_flow_catalog.update']
+    validate: typeof routes['super_admin_flow_catalog.validate']
+    publish: typeof routes['super_admin_flow_catalog.publish']
+    destroy: typeof routes['super_admin_flow_catalog.destroy']
   }
   superAdminAiConfig: {
     show: typeof routes['super_admin_ai_config.show']
