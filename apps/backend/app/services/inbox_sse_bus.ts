@@ -9,6 +9,28 @@ import {
 
 export const INBOX_SSE_REDIS_CHANNEL = 'wa:inbox:sse'
 
+/**
+ * `@adonisjs/core/services/logger` is assigned only in `app.booted`.
+ * Provider `boot()` runs earlier — never call logger methods without a fallback
+ * or soft-start will throw and take down the API.
+ */
+function busLog(level: 'info' | 'warn', payload: Record<string, unknown>, message: string): void {
+  try {
+    if (logger && typeof logger[level] === 'function') {
+      logger[level](payload, message)
+      return
+    }
+  } catch {
+    // ignore logger failures
+  }
+  const line = `[inbox_sse_bus] ${message}`
+  if (level === 'warn') {
+    console.warn(line, payload)
+  } else {
+    console.info(line, payload)
+  }
+}
+
 const BUS_EVENT_TYPES = new Set<InboxSseEventType>([
   'message.received',
   'message.queued',
@@ -154,10 +176,11 @@ export default class InboxSseBus {
       }
       this.#started = true
       this.#reconnectAttempt = 0
-      logger.info({ channel: INBOX_SSE_REDIS_CHANNEL }, 'inbox.sse_bus_subscribed')
+      busLog('info', { channel: INBOX_SSE_REDIS_CHANNEL }, 'inbox.sse_bus_subscribed')
     } catch (error) {
       this.#started = false
-      logger.warn(
+      busLog(
+        'warn',
         {
           channel: INBOX_SSE_REDIS_CHANNEL,
           err: error instanceof Error ? error.message : 'unknown',
@@ -218,7 +241,8 @@ export default class InboxSseBus {
       }
       await this.#publisher.publish(INBOX_SSE_REDIS_CHANNEL, JSON.stringify(event))
     } catch (error) {
-      logger.warn(
+      busLog(
+        'warn',
         {
           type: event.type,
           organizationId: event.organizationId,
@@ -239,7 +263,8 @@ export default class InboxSseBus {
       try {
         inboxEventsHub.publish(event)
       } catch (hubError) {
-        logger.warn(
+        busLog(
+          'warn',
           {
             type: event.type,
             organizationId: event.organizationId,
@@ -255,12 +280,13 @@ export default class InboxSseBus {
     try {
       const parsed: unknown = JSON.parse(message)
       if (!isBusEvent(parsed)) {
-        logger.warn({ messageLength: message.length }, 'inbox.sse_bus_invalid_message')
+        busLog('warn', { messageLength: message.length }, 'inbox.sse_bus_invalid_message')
         return
       }
       inboxEventsHub.publish(parsed)
     } catch (error) {
-      logger.warn(
+      busLog(
+        'warn',
         {
           err: error instanceof Error ? error.message : 'unknown',
           messageLength: message.length,

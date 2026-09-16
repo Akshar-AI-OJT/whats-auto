@@ -396,10 +396,7 @@ test.group('Platform flow catalog HTTP', (group) => {
     )
   })
 
-  test('install after archiving the live clone creates a new draft', async ({
-    client,
-    assert,
-  }) => {
+  test('install after archiving the live clone creates a new draft', async ({ client, assert }) => {
     const catalog = await seedCatalogFlow({
       name: 'reinstall_after_archive',
       requiredFeatureKeys: ['flowBuilder'],
