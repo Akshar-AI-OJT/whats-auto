@@ -28,9 +28,13 @@ export default class InboxSseBusProvider {
   }
 
   async boot() {
-    if (this.app.getEnvironment() === 'web') {
+    if (this.app.getEnvironment() !== 'web') return
+
+    // Start after `app.booted` so `@adonisjs/core/services/logger` is bound.
+    // Soft-start still never throws if Redis is down.
+    this.app.booted(async () => {
       await inboxSseBus.start()
-    }
+    })
   }
 
   async shutdown() {
