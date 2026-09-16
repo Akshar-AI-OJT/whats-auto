@@ -97,6 +97,36 @@ test.group('InboxSseBus without Redis', () => {
       /REDIS_URL is required in production/
     )
   })
+
+  test('start with unreachable Redis does not throw; publish still reaches local hub', async ({
+    assert,
+  }) => {
+    // Port 1 is almost never Redis; fail-fast connect must not block API boot.
+    const bus = new InboxSseBus('redis://127.0.0.1:1', false)
+    const forA: string[] = []
+    const unsubA = inboxEventsHub.subscribe({
+      organizationId: ORG_A,
+      write: (chunk) => forA.push(chunk),
+      close: () => {},
+    })
+
+    try {
+      await bus.start()
+      assert.isFalse(bus.isStarted)
+
+      bus.publish({
+        type: 'ai.generation.started',
+        organizationId: ORG_A,
+        payload: { conversationId: CONV, promptAt: '2026-08-11T12:00:00.000Z' },
+      })
+
+      await waitForChunks(forA, 1)
+      assert.include(forA[0]!, 'ai.generation.started')
+    } finally {
+      unsubA()
+      await bus.stop()
+    }
+  })
 })
 
 test.group('InboxSseBus with Redis', () => {
