@@ -41,6 +41,16 @@ export type ParsedDeliveryReceipt = {
   metadataErrors: MessageMetadataError[]
 }
 
+export type ParsedTemplateStatusUpdate = {
+  kind: 'template_status'
+  event: string
+  metaTemplateId: string
+  name: string
+  language: string
+  reason: string | null
+  category: string | null
+}
+
 export type ParsedWebhookValue =
   | {
       kind: 'skip'
@@ -54,6 +64,14 @@ export type ParsedWebhookValue =
       messages: ParsedInboundMessage[]
       statuses: ParsedDeliveryReceipt[]
     }
+  | ParsedTemplateStatusUpdate
+
+/**
+ * Meta may send `en-US`; we store `en_US`. Normalize hyphens to underscores for matching.
+ */
+export function normalizeTemplateLanguage(language: string): string {
+  return language.trim().replace(/-/g, '_')
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -423,8 +441,53 @@ function toDeliveryReceipt(status: MetaWebhookStatus): ParsedDeliveryReceipt | n
   }
 }
 
+function asTemplateId(value: unknown): string | undefined {
+  if (typeof value === 'string' && value.length > 0) return value
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+  return undefined
+}
+
+function parseTemplateStatusUpdate(field: string | null, value: unknown): ParsedWebhookValue {
+  if (!isRecord(value)) {
+    return { kind: 'skip', reason: 'malformed_value', field }
+  }
+
+  const event = asOptionalString(value.event)
+  const name = asOptionalString(value.message_template_name)
+  const languageRaw = asOptionalString(value.message_template_language)
+  const metaTemplateId = asTemplateId(value.message_template_id)
+
+  if (!event || !name || !languageRaw || !metaTemplateId) {
+    return { kind: 'skip', reason: 'malformed_value', field }
+  }
+
+  const reason = typeof value.reason === 'string' && value.reason.length > 0 ? value.reason : null
+  const category = asOptionalString(value.message_template_category) ?? null
+
+  let rejectionDetail: string | null = null
+  if (isRecord(value.rejection_info)) {
+    const infoReason = asOptionalString(value.rejection_info.reason)
+    const recommendation = asOptionalString(value.rejection_info.recommendation)
+    if (infoReason && recommendation) {
+      rejectionDetail = `${infoReason} ${recommendation}`
+    } else {
+      rejectionDetail = infoReason ?? recommendation ?? null
+    }
+  }
+
+  return {
+    kind: 'template_status',
+    event,
+    metaTemplateId,
+    name,
+    language: normalizeTemplateLanguage(languageRaw),
+    reason: rejectionDetail ?? reason,
+    category,
+  }
+}
+
 /**
- * Runtime-narrow a single Meta change into inbox work or a structured skip.
+ * Runtime-narrow a single Meta change into inbox work, template status, or a structured skip.
  * Persistence must never see untyped Meta JSON after this seam.
  */
 export function parseWebhookChange(params: {
@@ -432,6 +495,10 @@ export function parseWebhookChange(params: {
   value: unknown
 }): ParsedWebhookValue {
   const field = params.field ?? null
+
+  if (field === 'message_template_status_update') {
+    return parseTemplateStatusUpdate(field, params.value)
+  }
 
   if (field !== null && field !== 'messages') {
     return { kind: 'skip', reason: 'unsupported_field', field }

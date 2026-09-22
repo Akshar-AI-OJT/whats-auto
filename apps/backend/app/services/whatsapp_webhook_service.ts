@@ -85,6 +85,7 @@ export class WhatsappWebhookService {
     for (const entry of payload.entry ?? []) {
       for (const change of entry.changes ?? []) {
         await this.ingestion.processChangeValue({
+          wabaId: entry.id,
           field: change.field,
           value: change.value,
         })
