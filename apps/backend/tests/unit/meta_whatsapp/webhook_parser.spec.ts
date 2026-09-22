@@ -1,17 +1,81 @@
 import { test } from '@japa/runner'
-import { parseWebhookChange } from '#lib/meta_whatsapp/webhook_parser'
+import { normalizeTemplateLanguage, parseWebhookChange } from '#lib/meta_whatsapp/webhook_parser'
 
 test.group('parseWebhookChange', () => {
-  test('skips unsupported fields', ({ assert }) => {
+  test('parses message_template_status_update APPROVED and normalizes language', ({ assert }) => {
     const result = parseWebhookChange({
       field: 'message_template_status_update',
+      value: {
+        event: 'APPROVED',
+        message_template_id: 1689556908129832,
+        message_template_name: 'order_confirmation',
+        message_template_language: 'en-US',
+        reason: 'NONE',
+        message_template_category: 'UTILITY',
+      },
+    })
+    assert.deepEqual(result, {
+      kind: 'template_status',
+      event: 'APPROVED',
+      metaTemplateId: '1689556908129832',
+      name: 'order_confirmation',
+      language: 'en_US',
+      reason: 'NONE',
+      category: 'UTILITY',
+    })
+  })
+
+  test('parses REJECTED with rejection_info into reason', ({ assert }) => {
+    const result = parseWebhookChange({
+      field: 'message_template_status_update',
+      value: {
+        event: 'REJECTED',
+        message_template_id: 'tmpl-9',
+        message_template_name: 'abandoned_cart',
+        message_template_language: 'en',
+        reason: 'INVALID_FORMAT',
+        message_template_category: 'MARKETING',
+        rejection_info: {
+          reason: 'Variables are adjacent.',
+          recommendation: 'Separate variables with text.',
+        },
+      },
+    })
+    assert.equal(result.kind, 'template_status')
+    if (result.kind !== 'template_status') return
+    assert.equal(result.event, 'REJECTED')
+    assert.equal(result.metaTemplateId, 'tmpl-9')
+    assert.include(result.reason ?? '', 'Variables are adjacent.')
+    assert.include(result.reason ?? '', 'Separate variables with text.')
+  })
+
+  test('skips malformed message_template_status_update', ({ assert }) => {
+    const result = parseWebhookChange({
+      field: 'message_template_status_update',
+      value: { event: 'APPROVED' },
+    })
+    assert.deepEqual(result, {
+      kind: 'skip',
+      reason: 'malformed_value',
+      field: 'message_template_status_update',
+    })
+  })
+
+  test('skips unsupported fields', ({ assert }) => {
+    const result = parseWebhookChange({
+      field: 'message_template_quality_update',
       value: { metadata: { phone_number_id: '1' } },
     })
     assert.deepEqual(result, {
       kind: 'skip',
       reason: 'unsupported_field',
-      field: 'message_template_status_update',
+      field: 'message_template_quality_update',
     })
+  })
+
+  test('normalizeTemplateLanguage replaces hyphens', ({ assert }) => {
+    assert.equal(normalizeTemplateLanguage('en-US'), 'en_US')
+    assert.equal(normalizeTemplateLanguage('pt_BR'), 'pt_BR')
   })
 
   test('skips malformed values', ({ assert }) => {

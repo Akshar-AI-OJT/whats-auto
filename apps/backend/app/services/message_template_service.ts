@@ -206,6 +206,90 @@ export class MessageTemplateService {
   }
 
   /**
+   * Apply a Meta message_template_status_update event to a local row.
+   * Match by metaTemplateId first, then name + language. Does not insert.
+   */
+  async applyStatusFromMetaEvent(params: {
+    organizationId: string
+    metaTemplateId: string
+    name: string
+    language: string
+    event: string
+    reason: string | null
+    category: string | null
+  }): Promise<{ updated: boolean; previousStatus: string | null; nextStatus: string | null }> {
+    const language = params.language.replace(/-/g, '_')
+    const nextStatus = mapMetaTemplateStatusEvent(params.event)
+
+    let existing = await db
+      .from('message_templates')
+      .where('organizationId', params.organizationId)
+      .where('metaTemplateId', params.metaTemplateId)
+      .first()
+
+    if (!existing) {
+      existing = await db
+        .from('message_templates')
+        .where('organizationId', params.organizationId)
+        .where('name', params.name)
+        .whereRaw("COALESCE(language, '') = COALESCE(?, '')", [language])
+        .first()
+    }
+
+    if (!existing) {
+      logger.info(
+        {
+          organizationId: params.organizationId,
+          metaTemplateId: params.metaTemplateId,
+          name: params.name,
+          language,
+          event: params.event,
+        },
+        'message_templates.webhook_status_no_local_row'
+      )
+      return { updated: false, previousStatus: null, nextStatus }
+    }
+
+    const previousStatus = String(existing.status ?? '').toLowerCase()
+    if (
+      previousStatus === nextStatus &&
+      String(existing.metaTemplateId ?? '') === params.metaTemplateId
+    ) {
+      return { updated: false, previousStatus, nextStatus }
+    }
+
+    const rejectionReason =
+      nextStatus === 'rejected'
+        ? (params.reason ?? existing.rejectionReason ?? null)
+        : nextStatus === 'approved'
+          ? null
+          : (existing.rejectionReason ?? null)
+
+    const patch: Record<string, unknown> = {
+      status: nextStatus,
+      metaTemplateId: params.metaTemplateId,
+      rejectionReason,
+      updatedAt: new Date(),
+    }
+    if (params.category) {
+      patch.category = params.category.toUpperCase()
+    }
+
+    await db.from('message_templates').where('id', existing.id).update(patch)
+
+    await this.#notifyTemplateStatusTransitionBestEffort({
+      organizationId: params.organizationId,
+      createdByUserId: (existing.createdByUserId as string | null) ?? null,
+      templateName: String(existing.name ?? params.name),
+      previousStatus,
+      nextStatus,
+      rejectionReason: typeof rejectionReason === 'string' ? rejectionReason : null,
+    })
+
+    return { updated: true, previousStatus, nextStatus }
+  }
+
+  /**
    * Sync message templates from Meta WABA account into local database.
    * Uses GET /{waba-id}/message_templates and follows Graph cursor pagination
    * until all pages are consumed (a single page alone can miss templates).
@@ -776,5 +860,34 @@ export class MessageTemplateService {
 
     await db.from('message_templates').where('id', id).delete()
     return { ok: true }
+  }
+}
+
+/**
+ * Map Meta message_template_status_update event values to local status strings.
+ */
+export function mapMetaTemplateStatusEvent(event: string): string {
+  const normalized = event.trim().toUpperCase()
+  switch (normalized) {
+    case 'APPROVED':
+    case 'REINSTATED':
+    case 'UNARCHIVED':
+    case 'FLAGGED':
+      return 'approved'
+    case 'REJECTED':
+      return 'rejected'
+    case 'PENDING':
+    case 'IN_APPEAL':
+      return 'pending'
+    case 'PAUSED':
+      return 'paused'
+    case 'DISABLED':
+      return 'disabled'
+    case 'DELETED':
+    case 'PENDING_DELETION':
+    case 'ARCHIVED':
+      return 'deleted'
+    default:
+      return normalized.toLowerCase()
   }
 }

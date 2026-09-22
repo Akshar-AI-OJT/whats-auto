@@ -1,4 +1,5 @@
 import db from '@adonisjs/lucid/services/db'
+import logger from '@adonisjs/core/services/logger'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 import { normalizeWhatsappWaId } from '#lib/contact_phone'
 import type { MessageMetadata } from '#lib/meta_whatsapp/types'
@@ -78,6 +79,42 @@ export class WhatsappWebhookRepository {
         return null
       }
 
+      return {
+        id: row.id as string,
+        organizationId: row.organizationId as string,
+      }
+    })
+  }
+
+  /**
+   * Resolve a connected config for a Meta WABA id (entry.id on account-level webhooks)
+   * using the transaction-local webhook RLS GUC.
+   */
+  async resolveConnectedConfigByWabaId(wabaId: string): Promise<ResolvedWhatsappConfig | null> {
+    return db.transaction(async (trx) => {
+      await trx.rawQuery(`SELECT set_config('app.webhook_waba_id', ?, true)`, [wabaId])
+
+      const rows = await trx
+        .from('whatsapp_configs as wc')
+        .join('organizations as org', 'org.id', 'wc.organizationId')
+        .where('wc.wabaId', wabaId)
+        .where('wc.status', 'connected')
+        .where('org.status', 'active')
+        .whereNull('org.deletedAt')
+        .select('wc.id', 'wc.organizationId')
+
+      if (!rows.length) {
+        return null
+      }
+
+      if (rows.length > 1) {
+        logger.warn(
+          { wabaId, matchCount: rows.length, configId: rows[0]!.id },
+          'whatsapp.webhook.waba_ambiguous_config'
+        )
+      }
+
+      const row = rows[0]!
       return {
         id: row.id as string,
         organizationId: row.organizationId as string,

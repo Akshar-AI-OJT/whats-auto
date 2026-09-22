@@ -297,6 +297,13 @@ bash deploy/contabo/migrate.sh rollback   # last batch
 | WhatsApp webhook         | `https://api.ottobot.codecolonies.com/api/v1/webhooks/whatsapp`         |
 | Razorpay webhook         | `https://api.ottobot.codecolonies.com/api/v1/webhooks/billing/razorpay` |
 
+In **Meta App Dashboard → WhatsApp → Configuration → Webhook fields**, subscribe at least:
+
+- `messages` (inbox + delivery receipts)
+- `message_template_status_update` (template approved / rejected / paused, etc.)
+
+`subscribeAppToWaba` only attaches the app to each org’s WABA; field selection is app-level. Without `message_template_status_update`, local template status stays pending until a manual Sync.
+
 ---
 
 ## 9. Verify
