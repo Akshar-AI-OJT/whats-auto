@@ -11,6 +11,7 @@ import { MemoryWorkingSetService } from '#services/ai/contracts/memory_working_s
 import RedisMemoryWorkingSetService from '#services/ai/redis_memory_working_set_service'
 import { CampaignRecipientDispatchService } from '#services/campaigns/campaign_recipient_dispatch_service'
 import CampaignAttributionService from '#services/campaign_attribution_service'
+import { MessageTemplateService } from '#services/message_template_service'
 import { runWithTenant } from '#services/tenant_context'
 
 type PendingEvent = InboxMessageReceived | InboxStatusUpdated
@@ -24,10 +25,15 @@ export default class WhatsappWebhookIngestionService {
     private repository: WhatsappWebhookRepository,
     private attribution: CampaignAttributionService,
     private campaignRecipients: CampaignRecipientDispatchService = new CampaignRecipientDispatchService(),
-    private memory: MemoryWorkingSetService = new RedisMemoryWorkingSetService()
+    private memory: MemoryWorkingSetService = new RedisMemoryWorkingSetService(),
+    private templates: MessageTemplateService = new MessageTemplateService()
   ) {}
 
-  async processChangeValue(params: { field: string | undefined; value: unknown }): Promise<void> {
+  async processChangeValue(params: {
+    field: string | undefined
+    value: unknown
+    wabaId?: string | undefined
+  }): Promise<void> {
     const parsed = parseWebhookChange(params)
 
     if (parsed.kind === 'skip') {
@@ -38,6 +44,14 @@ export default class WhatsappWebhookIngestionService {
         },
         'whatsapp.webhook.skipped'
       )
+      return
+    }
+
+    if (parsed.kind === 'template_status') {
+      await this.#processTemplateStatusUpdate({
+        wabaId: params.wabaId,
+        update: parsed,
+      })
       return
     }
 
@@ -262,6 +276,68 @@ export default class WhatsappWebhookIngestionService {
         await InboxStatusUpdated.dispatch(event.payload)
       }
     }
+  }
+
+  async #processTemplateStatusUpdate(params: {
+    wabaId: string | undefined
+    update: {
+      event: string
+      metaTemplateId: string
+      name: string
+      language: string
+      reason: string | null
+      category: string | null
+    }
+  }): Promise<void> {
+    const wabaId = params.wabaId?.trim()
+    if (!wabaId) {
+      logger.info(
+        {
+          outcome: 'missing_waba_id',
+          field: 'message_template_status_update',
+          metaTemplateId: params.update.metaTemplateId,
+        },
+        'whatsapp.webhook.skipped'
+      )
+      return
+    }
+
+    const config = await this.repository.resolveConnectedConfigByWabaId(wabaId)
+    if (!config) {
+      logger.warn(
+        {
+          outcome: 'config_not_found',
+          wabaId,
+          field: 'message_template_status_update',
+        },
+        'whatsapp.webhook.skipped'
+      )
+      return
+    }
+
+    const result = await runWithTenant(config.organizationId, () =>
+      this.templates.applyStatusFromMetaEvent({
+        organizationId: config.organizationId,
+        metaTemplateId: params.update.metaTemplateId,
+        name: params.update.name,
+        language: params.update.language,
+        event: params.update.event,
+        reason: params.update.reason,
+        category: params.update.category,
+      })
+    )
+
+    logger.info(
+      {
+        outcome: result.updated ? 'template_status_updated' : 'template_status_noop',
+        wabaId,
+        organizationId: config.organizationId,
+        metaTemplateId: params.update.metaTemplateId,
+        previousStatus: result.previousStatus,
+        nextStatus: result.nextStatus,
+      },
+      'whatsapp.webhook.template_status'
+    )
   }
 
   async #appendUserTurn(event: InboxMessageReceived): Promise<void> {
