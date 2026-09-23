@@ -740,6 +740,8 @@ export type CreateWhatsappTemplateBody = {
 
 export type SyncWhatsappTemplatesResult = {
   syncedCount: number
+  /** Local rows marked rejected because Meta no longer lists their metaTemplateId on this WABA. */
+  orphanedCount?: number
 }
 
 export type CampaignStatus =

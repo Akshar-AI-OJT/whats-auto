@@ -101,6 +101,16 @@ export interface MetaGraphClient {
     /** Meta expects NAMED or POSITIONAL when the template has variables. */
     parameterFormat?: 'NAMED' | 'POSITIONAL'
   }): Promise<MetaCreateMessageTemplateResult>
+  /**
+   * GET /{message-template-id} — confirm a create response id is a live HSM node.
+   */
+  getMessageTemplate?(params: { metaTemplateId: string; accessToken: string }): Promise<{
+    id: string
+    name?: string
+    status?: string
+    language?: string
+    rejectedReason?: string
+  }>
   deleteMessageTemplate?(params: {
     wabaId: string
     accessToken: string
@@ -515,6 +525,42 @@ export class HttpMetaGraphClient implements MetaGraphClient {
       },
       body: JSON.stringify(body),
     })
+  }
+
+  async getMessageTemplate(params: { metaTemplateId: string; accessToken: string }): Promise<{
+    id: string
+    name?: string
+    status?: string
+    language?: string
+    rejectedReason?: string
+  }> {
+    const fields = 'id,name,status,language,rejected_reason'
+    const url =
+      `${this.baseUrl}/${encodeURIComponent(params.metaTemplateId)}` +
+      `?fields=${encodeURIComponent(fields)}`
+
+    const json = await this.requestJson<Record<string, unknown>>('getTemplate', url, {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${params.accessToken}` },
+    })
+
+    const id = typeof json.id === 'string' || typeof json.id === 'number' ? String(json.id) : null
+    if (!id) {
+      throw new MetaGraphApiError(
+        'Meta Graph getTemplate returned no id',
+        502,
+        json as MetaGraphErrorBody & Record<string, unknown>,
+        'getTemplate'
+      )
+    }
+
+    return {
+      id,
+      name: typeof json.name === 'string' ? json.name : undefined,
+      status: typeof json.status === 'string' ? json.status : undefined,
+      language: typeof json.language === 'string' ? json.language : undefined,
+      rejectedReason: typeof json.rejected_reason === 'string' ? json.rejected_reason : undefined,
+    }
   }
 
   async createResumableUploadSession(params: {

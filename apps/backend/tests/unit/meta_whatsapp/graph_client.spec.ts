@@ -440,6 +440,65 @@ test.group('HttpMetaGraphClient', () => {
     assert.equal(result.handle, '4::handle-abc')
   })
 
+  test('getMessageTemplate GETs /{id} with status fields', async ({ assert }) => {
+    let seenUrl = ''
+    const fetchImpl: typeof fetch = async (input) => {
+      seenUrl = String(input)
+      return new Response(
+        JSON.stringify({
+          id: '844567648683774',
+          name: 'hello',
+          status: 'PENDING',
+          language: 'en_US',
+          rejected_reason: null,
+        }),
+        { status: 200, headers: { 'Content-Type': 'application/json' } }
+      )
+    }
+
+    const client = new HttpMetaGraphClient({
+      appId: 'app',
+      appSecret: 'secret',
+      graphVersion: 'v25.0',
+      fetchImpl,
+    })
+
+    const result = await client.getMessageTemplate({
+      metaTemplateId: '844567648683774',
+      accessToken: 'tok',
+    })
+
+    assert.include(seenUrl, '/v25.0/844567648683774')
+    assert.include(seenUrl, 'fields=')
+    assert.include(seenUrl, 'id')
+    assert.include(seenUrl, 'status')
+    assert.equal(result.id, '844567648683774')
+    assert.equal(result.status, 'PENDING')
+    assert.equal(result.name, 'hello')
+  })
+
+  test('getMessageTemplate throws when Meta returns no id', async ({ assert }) => {
+    const fetchImpl: typeof fetch = async () =>
+      new Response(JSON.stringify({ error: { message: 'Unsupported get request' } }), {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+    const client = new HttpMetaGraphClient({
+      appId: 'app',
+      appSecret: 'secret',
+      graphVersion: 'v25.0',
+      fetchImpl,
+    })
+
+    await assert.rejects(() =>
+      client.getMessageTemplate({
+        metaTemplateId: 'missing',
+        accessToken: 'tok',
+      })
+    )
+  })
+
   test('createMessageTemplate includes parameter_format and components', async ({ assert }) => {
     let seenBody: Record<string, unknown> = {}
 
