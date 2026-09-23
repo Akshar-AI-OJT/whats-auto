@@ -8,23 +8,18 @@ export const manrope = Manrope({
   weight: ['600', '700', '800'],
 })
 
-/** Body + UI — Wise's actual second face (Inter with calt). */
+/**
+ * Body + UI — single Inter load.
+ * Turbopack rejects multiple next/font/google queries for the same family
+ * ("queries have exactly one entry").
+ */
 export const inter = Inter({
   subsets: ['latin'],
   variable: '--font-sans',
   display: 'swap',
+  weight: ['400', '500', '600', '700'],
 })
 
-/** Alias kept for any legacy --font-body / --font-heading references. */
-export const interBody = Inter({
-  subsets: ['latin'],
-  variable: '--font-body',
-  display: 'swap',
-})
-
-export const interHeading = Inter({
-  subsets: ['latin'],
-  variable: '--font-heading',
-  display: 'swap',
-  weight: ['600', '700'],
-})
+/** Legacy aliases — `--font-body` / `--font-heading` are CSS-aliased to `--font-sans`. */
+export const interBody = inter
+export const interHeading = inter

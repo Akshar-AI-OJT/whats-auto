@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 import { WHATS_AUTO_ICON_SRC } from '@/lib/branding'
 import { suppressExtensionNoiseScript } from '@/components/dev/suppress-extension-noise-script'
 import { themeInitScript } from '@/components/theme/theme-script'
-import { manrope, inter, interBody, interHeading } from './fonts'
+import { manrope, inter } from './fonts'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -27,14 +27,7 @@ export default async function RootLayout({
     <html
       lang={locale}
       suppressHydrationWarning
-      className={cn(
-        'antialiased',
-        manrope.variable,
-        inter.variable,
-        interBody.variable,
-        interHeading.variable,
-        'font-sans'
-      )}
+      className={cn('antialiased', manrope.variable, inter.variable, 'font-sans')}
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: suppressExtensionNoiseScript }} />

@@ -120,6 +120,10 @@
   --canvas-light: #ffffff;
   --canvas-paper: #e8eef6;
   --ink-soft: #334155;
+
+  /* Legacy font vars — Inter is loaded once as --font-sans (Turbopack-safe) */
+  --font-body: var(--font-sans);
+  --font-heading: var(--font-sans);
   /* Deep navy for text accents (blue is CTA fill) */
   --brand: #1e3a8a;
 
