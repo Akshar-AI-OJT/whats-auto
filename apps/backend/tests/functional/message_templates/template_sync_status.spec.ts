@@ -206,4 +206,159 @@ test.group('MessageTemplateService syncTemplatesFromMeta status', (group) => {
     assert.equal(String(inserted?.status), 'approved')
     assert.equal(String(inserted?.language), 'en_US')
   })
+
+  test('marks local pending as rejected when Meta list is empty (orphan)', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    await seedConnectedConfig(organizationId)
+
+    const local = await seedTemplate({
+      organizationId,
+      name: 'ghost_tpl',
+      language: 'en_US',
+      status: 'pending',
+      metaTemplateId: '844567648683774',
+    })
+
+    const graphClient = {
+      listMessageTemplates: async () => ({ data: [] }),
+    } as unknown as MetaGraphClient
+
+    const result = await new MessageTemplateService(graphClient).syncTemplatesFromMeta(
+      organizationId
+    )
+    assert.equal(result.syncedCount, 0)
+    assert.equal(result.orphanedCount, 1)
+
+    const updated = await runWithTenant(organizationId, () =>
+      db.from('message_templates').where('id', local.id).first()
+    )
+    assert.equal(String(updated?.status), 'rejected')
+    assert.include(String(updated?.submissionError ?? ''), 'orphan')
+  })
+
+  test('marks pending without metaTemplateId as rejected when Meta list is empty', async ({
+    assert,
+  }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    await seedConnectedConfig(organizationId)
+
+    const local = await seedTemplate({
+      organizationId,
+      name: 'never_registered',
+      language: 'en_US',
+      status: 'pending',
+      metaTemplateId: null,
+    })
+
+    const graphClient = {
+      listMessageTemplates: async () => ({ data: [] }),
+    } as unknown as MetaGraphClient
+
+    const result = await new MessageTemplateService(graphClient).syncTemplatesFromMeta(
+      organizationId
+    )
+    assert.equal(result.orphanedCount, 1)
+
+    const updated = await runWithTenant(organizationId, () =>
+      db.from('message_templates').where('id', local.id).first()
+    )
+    assert.equal(String(updated?.status), 'rejected')
+  })
+})
+
+test.group('MessageTemplateService createTemplate Meta verification', (group) => {
+  const orgIds: string[] = []
+
+  group.teardown(async () => {
+    for (const organizationId of orgIds) {
+      await runWithTenant(organizationId, async () => {
+        await db.from('message_templates').where('organizationId', organizationId).delete()
+        await db.from('whatsapp_configs').where('organizationId', organizationId).delete()
+      })
+      await db.from('organizations').where('id', organizationId).delete()
+    }
+  })
+
+  test('rejects when Meta create returns an id that GET cannot load', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    await seedConnectedConfig(organizationId)
+
+    const graphClient = {
+      createMessageTemplate: async () => ({ id: 'ghost-id', status: 'PENDING' }),
+      getMessageTemplate: async () => {
+        throw new Error('Unsupported get request')
+      },
+    } as unknown as MetaGraphClient
+
+    const dto = await new MessageTemplateService(graphClient).createTemplate({
+      organizationId,
+      name: `verify_fail_${Date.now()}`,
+      category: 'UTILITY',
+      language: 'en_US',
+      bodyText: 'Hello {{1}}',
+      skipCustomTemplatesFeature: true,
+    })
+
+    assert.equal(dto.status, 'rejected')
+    assert.equal(dto.metaTemplateId, 'ghost-id')
+    assert.include(String(dto.submissionError ?? ''), 'Unsupported get request')
+  })
+
+  test('keeps pending when create id verifies on Meta', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    await seedConnectedConfig(organizationId)
+
+    const graphClient = {
+      createMessageTemplate: async () => ({ id: 'live-id', status: 'PENDING' }),
+      getMessageTemplate: async () => ({
+        id: 'live-id',
+        name: 'ok',
+        status: 'PENDING',
+        language: 'en_US',
+      }),
+    } as unknown as MetaGraphClient
+
+    const dto = await new MessageTemplateService(graphClient).createTemplate({
+      organizationId,
+      name: `verify_ok_${Date.now()}`,
+      category: 'UTILITY',
+      language: 'en_US',
+      bodyText: 'Hello {{1}}',
+      skipCustomTemplatesFeature: true,
+    })
+
+    assert.equal(dto.status, 'pending')
+    assert.equal(dto.metaTemplateId, 'live-id')
+    assert.isNull(dto.submissionError)
+  })
+
+  test('rejects when Meta create returns no template id', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    await seedConnectedConfig(organizationId)
+
+    const graphClient = {
+      createMessageTemplate: async () => ({ status: 'PENDING' }) as { id: string; status: string },
+      getMessageTemplate: async () => {
+        throw new Error('should not be called')
+      },
+    } as unknown as MetaGraphClient
+
+    const dto = await new MessageTemplateService(graphClient).createTemplate({
+      organizationId,
+      name: `verify_noid_${Date.now()}`,
+      category: 'UTILITY',
+      language: 'en_US',
+      bodyText: 'Hello {{1}}',
+      skipCustomTemplatesFeature: true,
+    })
+
+    assert.equal(dto.status, 'rejected')
+    assert.isNull(dto.metaTemplateId)
+    assert.include(String(dto.submissionError ?? ''), 'no template id')
+  })
 })

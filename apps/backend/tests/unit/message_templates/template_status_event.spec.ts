@@ -1,8 +1,21 @@
 import { test } from '@japa/runner'
 import {
+  coerceMetaTemplateId,
   mapMetaTemplateStatusEvent,
   MessageTemplateService,
 } from '#services/message_template_service'
+
+test.group('coerceMetaTemplateId', () => {
+  test('coerces string and finite number ids', ({ assert }) => {
+    assert.equal(coerceMetaTemplateId(' 844567648683774 '), '844567648683774')
+    assert.equal(coerceMetaTemplateId(844567648683774), '844567648683774')
+    assert.isNull(coerceMetaTemplateId(''))
+    assert.isNull(coerceMetaTemplateId('   '))
+    assert.isNull(coerceMetaTemplateId(null))
+    assert.isNull(coerceMetaTemplateId(undefined))
+    assert.isNull(coerceMetaTemplateId(Number.NaN))
+  })
+})
 
 test.group('mapMetaTemplateStatusEvent', () => {
   test('maps known Meta events to local statuses', ({ assert }) => {

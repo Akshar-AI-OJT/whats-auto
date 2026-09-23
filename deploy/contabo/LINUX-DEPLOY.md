@@ -302,7 +302,7 @@ In **Meta App Dashboard → WhatsApp → Configuration → Webhook fields**, sub
 - `messages` (inbox + delivery receipts)
 - `message_template_status_update` (template approved / rejected / paused, etc.)
 
-`subscribeAppToWaba` only attaches the app to each org’s WABA; field selection is app-level. Without `message_template_status_update`, local template status stays pending until a manual Sync.
+`subscribeAppToWaba` only attaches the app to each org’s WABA; field selection is app-level. Without `message_template_status_update`, local template status stays pending until a manual Sync. Sync also marks local rows whose Meta ids are missing from the WABA list as rejected (orphan cleanup).
 
 ---
 
