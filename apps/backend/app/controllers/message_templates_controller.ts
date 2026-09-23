@@ -96,7 +96,7 @@ export default class MessageTemplatesController {
    * @description Fetches all approved, pending, and rejected templates from Meta WABA and syncs into local DB. Requires whatsapp:manage or templates:sync permission.
    * @tag WhatsApp Templates
    * @security BearerAuth
-   * @responseBody 200 - { "data": { "syncedCount": 5 } }
+   * @responseBody 200 - { "data": { "syncedCount": 5, "orphanedCount": 0 } }
    * @responseBody 401 - { "error": "Missing or invalid session" }
    * @responseBody 422 - { "error": "No connected WhatsApp configuration found", "code": "E_WA_CONFIG_NOT_FOUND" }
    */

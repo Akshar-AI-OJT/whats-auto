@@ -294,11 +294,14 @@ export class MessageTemplateService {
    * Uses GET /{waba-id}/message_templates and follows Graph cursor pagination
    * until all pages are consumed (a single page alone can miss templates).
    */
-  async syncTemplatesFromMeta(organizationId: string): Promise<{ syncedCount: number }> {
+  async syncTemplatesFromMeta(
+    organizationId: string
+  ): Promise<{ syncedCount: number; orphanedCount: number }> {
     const configRow = await db
       .from('whatsapp_configs')
       .where('organizationId', organizationId)
       .where('status', 'connected')
+      .orderBy('connectedAt', 'desc')
       .first()
 
     if (!configRow || !configRow.wabaId || !configRow.accessToken) {
@@ -306,7 +309,7 @@ export class MessageTemplateService {
     }
 
     if (!this.graphClient.listMessageTemplates) {
-      return { syncedCount: 0 }
+      return { syncedCount: 0, orphanedCount: 0 }
     }
 
     const accessToken = decryptWhatsappAccessToken(configRow.accessToken)
@@ -314,6 +317,11 @@ export class MessageTemplateService {
       wabaId: configRow.wabaId,
       accessToken,
     })
+
+    const metaIds = new Set<string>()
+    for (const metaTpl of templates) {
+      if (metaTpl.id) metaIds.add(String(metaTpl.id))
+    }
 
     for (const metaTpl of templates) {
       const headerComp = metaTpl.components?.find((c) => c.type === 'HEADER')
@@ -383,7 +391,69 @@ export class MessageTemplateService {
       }
     }
 
-    return { syncedCount: templates.length }
+    const orphanedCount = await this.#markOrphanLocalTemplates({
+      organizationId,
+      metaIdsOnWaba: metaIds,
+    })
+
+    return { syncedCount: templates.length, orphanedCount }
+  }
+
+  /**
+   * Local rows with a metaTemplateId that Meta no longer lists on this WABA
+   * (or pending with no Meta id) are marked rejected so the UI stops lying.
+   */
+  async #markOrphanLocalTemplates(params: {
+    organizationId: string
+    metaIdsOnWaba: Set<string>
+  }): Promise<number> {
+    const locals = await db
+      .from('message_templates')
+      .where('organizationId', params.organizationId)
+      .whereNotIn('status', ['draft', 'deleted', 'rejected'])
+      .select('id', 'status', 'metaTemplateId', 'name', 'createdByUserId')
+
+    let orphanedCount = 0
+    const orphanMessage =
+      'Template is not present on the connected Meta WABA (orphan or never registered).'
+
+    for (const row of locals) {
+      const metaId =
+        row.metaTemplateId === null || row.metaTemplateId === undefined
+          ? ''
+          : String(row.metaTemplateId)
+      const isOrphan =
+        metaId.length > 0 ? !params.metaIdsOnWaba.has(metaId) : String(row.status) === 'pending'
+
+      if (!isOrphan) continue
+
+      const previousStatus = String(row.status ?? '').toLowerCase()
+      await db.from('message_templates').where('id', row.id).update({
+        status: 'rejected',
+        submissionError: orphanMessage,
+        updatedAt: new Date(),
+      })
+
+      orphanedCount += 1
+
+      await this.#notifyTemplateStatusTransitionBestEffort({
+        organizationId: params.organizationId,
+        createdByUserId: (row.createdByUserId as string | null) ?? null,
+        templateName: String(row.name ?? ''),
+        previousStatus,
+        nextStatus: 'rejected',
+        rejectionReason: orphanMessage,
+      })
+    }
+
+    if (orphanedCount > 0) {
+      logger.info(
+        { organizationId: params.organizationId, orphanedCount },
+        'message_templates.orphans_marked_rejected'
+      )
+    }
+
+    return orphanedCount
   }
 
   async #listAllMessageTemplatesFromMeta(params: {
@@ -594,6 +664,8 @@ export class MessageTemplateService {
     if (configRow && configRow.wabaId && configRow.accessToken) {
       try {
         const accessToken = decryptWhatsappAccessToken(configRow.accessToken)
+        let created = false
+
         if (payload.libraryTemplateName && this.graphClient.createMessageTemplateFromLibrary) {
           const metaRes = await this.graphClient.createMessageTemplateFromLibrary({
             wabaId: configRow.wabaId,
@@ -603,10 +675,11 @@ export class MessageTemplateService {
             language,
             libraryTemplateName: payload.libraryTemplateName,
           })
-          metaTemplateId = metaRes.id
+          metaTemplateId = coerceMetaTemplateId(metaRes.id)
           if (metaRes.status) {
             status = metaRes.status.toLowerCase()
           }
+          created = true
         } else if (this.graphClient.createMessageTemplate) {
           const metaRes = await this.graphClient.createMessageTemplate({
             wabaId: configRow.wabaId,
@@ -622,9 +695,36 @@ export class MessageTemplateService {
                   ? 'NAMED'
                   : undefined,
           })
-          metaTemplateId = metaRes.id
+          metaTemplateId = coerceMetaTemplateId(metaRes.id)
           if (metaRes.status) {
             status = metaRes.status.toLowerCase()
+          }
+          created = true
+        }
+
+        if (!created) {
+          status = 'rejected'
+          submissionError = submissionError
+            ? `${submissionError}; Meta template create was not invoked`
+            : 'Meta template create was not invoked (Graph client missing create methods)'
+          metaTemplateId = null
+        } else if (!metaTemplateId) {
+          status = 'rejected'
+          submissionError = submissionError
+            ? `${submissionError}; Meta create returned no template id`
+            : 'Meta create returned no template id'
+        } else {
+          const verified = await this.#verifyCreatedTemplateOnMeta({
+            metaTemplateId,
+            accessToken,
+          })
+          if (!verified.ok) {
+            status = 'rejected'
+            submissionError = submissionError
+              ? `${submissionError}; ${verified.error}`
+              : verified.error
+          } else if (verified.status) {
+            status = verified.status
           }
         }
       } catch (err: any) {
@@ -664,6 +764,43 @@ export class MessageTemplateService {
       .returning('*')
 
     return this.toDto(row)
+  }
+
+  /**
+   * Confirm Meta create id is a loadable HSM. Prevents orphan pending rows when
+   * Graph returns an id that does not exist on the WABA.
+   */
+  async #verifyCreatedTemplateOnMeta(params: {
+    metaTemplateId: string
+    accessToken: string
+  }): Promise<{ ok: true; status: string | null } | { ok: false; error: string }> {
+    if (!this.graphClient.getMessageTemplate) {
+      return { ok: true, status: null }
+    }
+
+    try {
+      const live = await this.graphClient.getMessageTemplate({
+        metaTemplateId: params.metaTemplateId,
+        accessToken: params.accessToken,
+      })
+      if (String(live.id) !== params.metaTemplateId) {
+        return {
+          ok: false,
+          error: `Meta create verification mismatch (expected id ${params.metaTemplateId})`,
+        }
+      }
+      return {
+        ok: true,
+        status: live.status ? live.status.toLowerCase() : null,
+      }
+    } catch (err: any) {
+      return {
+        ok: false,
+        error:
+          err?.message ??
+          'Meta create returned a template id that could not be loaded (create verification failed)',
+      }
+    }
   }
 
   async #resolveHeaderMediaSample(params: {
@@ -861,6 +998,18 @@ export class MessageTemplateService {
     await db.from('message_templates').where('id', id).delete()
     return { ok: true }
   }
+}
+
+/** Meta create responses sometimes return numeric ids in JSON. */
+export function coerceMetaTemplateId(id: unknown): string | null {
+  if (typeof id === 'string') {
+    const trimmed = id.trim()
+    return trimmed.length > 0 ? trimmed : null
+  }
+  if (typeof id === 'number' && Number.isFinite(id)) {
+    return String(id)
+  }
+  return null
 }
 
 /**
