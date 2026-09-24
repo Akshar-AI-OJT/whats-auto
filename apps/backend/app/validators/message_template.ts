@@ -49,5 +49,7 @@ export const createMessageTemplateValidator = vine.create(
     footerText: vine.string().trim().maxLength(60).optional(),
     buttons: vine.array(vine.any()).optional(),
     sampleValues: vine.any().optional(),
+    catalogTemplateId: vine.string().trim().uuid().optional(),
+    libraryTemplateName: vine.string().trim().minLength(1).maxLength(512).optional(),
   })
 )
