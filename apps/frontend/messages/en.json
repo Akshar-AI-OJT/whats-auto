@@ -2919,8 +2919,10 @@
       "next": "Next",
       "createTitle": "Create Template",
       "createFromTitle": "Duplicate Template",
+      "createFromCatalogTitle": "Configure Catalog Template",
       "createSubtitle": "Build a WhatsApp-style template. Without WhatsApp connected it is saved as a local draft — not Meta-approved.",
-      "createFromSubtitle": "Prefills the source template. Choose a new name before creating the draft.",
+      "createFromSubtitle": "Prefills the source template. Choose a new name before creating.",
+      "createFromCatalogSubtitle": "Review body, variables, button labels, and links. Fill sample values before submitting to Meta.",
       "backToList": "Back to templates",
       "view": {
         "cards": "Cards view",
@@ -5440,7 +5442,7 @@
         "subtitle": "Install a published catalog design onto this organization’s WhatsApp account. Approval is per account, not shared.",
         "loading": "Loading catalog…",
         "alreadyAdded": "Already added",
-        "useTemplate": "Use template",
+        "useTemplate": "Configure & use",
         "prev": "Previous",
         "next": "Next"
       }

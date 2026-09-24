@@ -70,6 +70,7 @@ export const queryKeys = {
       [...queryKeys.templates.all, 'whatsapp-connected', orgId ?? 'none'] as const,
     catalog: (orgId?: string | null, params?: Record<string, unknown>) =>
       [...queryKeys.templates.all, 'catalog', orgId ?? 'none', params ?? {}] as const,
+    catalogDetail: (id: string) => [...queryKeys.templates.all, 'catalog-detail', id] as const,
   },
   media: {
     all: ['media-library'] as const,

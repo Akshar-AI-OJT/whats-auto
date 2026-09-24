@@ -29,8 +29,22 @@ export default class TemplateCatalogController {
   }
 
   /**
+   * @show
+   * @summary Get one published catalog template
+   * @description Used to prefill the org create form before submitting to Meta.
+   * @tag WhatsApp Templates
+   * @security BearerAuth
+   */
+  async show({ bouncer, params, serialize }: HttpContext) {
+    await bouncer.with(TemplateCatalogPolicy).authorize('viewList')
+    const { id } = await catalogIdParamValidator.validate(params)
+    return serialize(await new PlatformTemplateCatalogService().getById(id, true))
+  }
+
+  /**
    * @install
    * @summary Install a catalog template into the active organization
+   * @description Programmatic install (e.g. flow catalog deps). Org UI prefers create-form configure.
    * @tag WhatsApp Templates
    * @security BearerAuth
    */

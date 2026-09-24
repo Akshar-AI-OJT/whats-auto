@@ -400,17 +400,26 @@ export class MessageTemplateService {
   }
 
   /**
-   * Local rows with a metaTemplateId that Meta no longer lists on this WABA
-   * (or pending with no Meta id) are marked rejected so the UI stops lying.
+   * Local pending/paused rows whose metaTemplateId is missing from a non-empty
+   * Meta WABA list are marked rejected. Never wipe on an empty Meta list (token /
+   * WABA mismatch), and never demote approved rows — webhooks own that lifecycle.
    */
   async #markOrphanLocalTemplates(params: {
     organizationId: string
     metaIdsOnWaba: Set<string>
   }): Promise<number> {
+    if (params.metaIdsOnWaba.size === 0) {
+      logger.warn(
+        { organizationId: params.organizationId },
+        'message_templates.orphan_skip_empty_meta_list'
+      )
+      return 0
+    }
+
     const locals = await db
       .from('message_templates')
       .where('organizationId', params.organizationId)
-      .whereNotIn('status', ['draft', 'deleted', 'rejected'])
+      .whereIn('status', ['pending', 'paused'])
       .select('id', 'status', 'metaTemplateId', 'name', 'createdByUserId')
 
     let orphanedCount = 0
@@ -556,7 +565,10 @@ export class MessageTemplateService {
    * Create message template locally and submit to Meta Graph API.
    */
   async createTemplate(payload: CreateMessageTemplateInput): Promise<MessageTemplateDto> {
-    if (!payload.skipCustomTemplatesFeature) {
+    const skipCustomFeature = Boolean(
+      payload.skipCustomTemplatesFeature || payload.catalogTemplateId
+    )
+    if (!skipCustomFeature) {
       await new PlanEnforcementService().requireFeature(payload.organizationId, 'customTemplates')
     }
 
@@ -674,6 +686,11 @@ export class MessageTemplateService {
             category,
             language,
             libraryTemplateName: payload.libraryTemplateName,
+            libraryTemplateBodyInputs: this.#libraryBodyInputs({
+              parameterSchema,
+              sampleValues: payload.sampleValues,
+            }),
+            libraryTemplateButtonInputs: this.#libraryButtonInputs(buttons),
           })
           metaTemplateId = coerceMetaTemplateId(metaRes.id)
           if (metaRes.status) {
@@ -719,7 +736,16 @@ export class MessageTemplateService {
             accessToken,
           })
           if (!verified.ok) {
-            status = 'rejected'
+            // Keep pending when Meta returned an id — GET can lag right after create.
+            // Webhooks + Sync own the durable status; do not false-reject here.
+            logger.warn(
+              {
+                organizationId: payload.organizationId,
+                metaTemplateId,
+                err: verified.error,
+              },
+              'message_templates.create_verify_deferred'
+            )
             submissionError = submissionError
               ? `${submissionError}; ${verified.error}`
               : verified.error
@@ -920,13 +946,16 @@ export class MessageTemplateService {
       const format = params.headerType.toUpperCase()
       if (format === 'TEXT' && params.headerContent) {
         const headerExampleValues = params.parameterSchema.headerNames.map(
-          (name) => samples[name] ?? `sample_${name}`
+          (name) => samples[name] ?? ''
         )
+        const hasCompleteHeaderExamples =
+          params.parameterSchema.headerNames.length === 0 ||
+          headerExampleValues.every((value) => value.trim().length > 0)
         metaComponents.push({
           type: 'HEADER',
           format: 'TEXT',
           text: params.headerContent,
-          ...(headerExampleValues.length > 0
+          ...(hasCompleteHeaderExamples && headerExampleValues.length > 0
             ? { example: { header_text: headerExampleValues } }
             : {}),
         })
@@ -939,13 +968,17 @@ export class MessageTemplateService {
       }
     }
 
-    const bodyExampleValues = params.parameterSchema.bodyNames.map(
-      (name) => samples[name] ?? `sample_${name}`
-    )
+    const bodyExampleValues = params.parameterSchema.bodyNames.map((name) => samples[name] ?? '')
+    const hasCompleteBodyExamples =
+      params.parameterSchema.bodyNames.length === 0 ||
+      bodyExampleValues.every((value) => value.trim().length > 0)
+
     metaComponents.push({
       type: 'BODY',
       text: params.bodyText,
-      ...(bodyExampleValues.length > 0 ? { example: { body_text: [bodyExampleValues] } } : {}),
+      ...(hasCompleteBodyExamples && bodyExampleValues.length > 0
+        ? { example: { body_text: [bodyExampleValues] } }
+        : {}),
     })
 
     if (params.footerText) {
@@ -958,11 +991,81 @@ export class MessageTemplateService {
     if (params.buttons && params.buttons.length > 0) {
       metaComponents.push({
         type: 'BUTTONS',
-        buttons: params.buttons,
+        buttons: this.#metaCreateButtons(params.buttons, samples),
       })
     }
 
     return metaComponents
+  }
+
+  #libraryBodyInputs(params: {
+    parameterSchema: TemplateParameterSchema
+    sampleValues?: unknown
+  }): Record<string, unknown> | undefined {
+    const samples = this.#sampleValueMap(params.sampleValues)
+    const names = params.parameterSchema.bodyNames
+    if (names.length === 0) return undefined
+
+    if (params.parameterSchema.parameterFormat === 'named') {
+      const named: Record<string, string> = {}
+      for (const name of names) {
+        const value = samples[name]
+        if (value) named[name] = value
+      }
+      return Object.keys(named).length > 0 ? named : undefined
+    }
+
+    const positional = names
+      .map((name) => samples[name])
+      .filter((value): value is string => Boolean(value))
+    return positional.length > 0 ? { body_text: positional } : undefined
+  }
+
+  #libraryButtonInputs(
+    buttons: Array<Record<string, unknown>> | null | undefined
+  ): unknown[] | undefined {
+    if (!buttons || buttons.length === 0) return undefined
+    const inputs: unknown[] = []
+    for (const button of buttons) {
+      const type = String(button.type ?? '').toUpperCase()
+      if (type === 'URL' && button.url) {
+        inputs.push({
+          type: 'URL',
+          url: String(button.url),
+          ...(Array.isArray(button.example) ? { example: button.example } : {}),
+        })
+      } else if (type === 'PHONE_NUMBER' && (button.phone_number || button.phoneNumber)) {
+        inputs.push({
+          type: 'PHONE_NUMBER',
+          phone_number: String(button.phone_number ?? button.phoneNumber),
+        })
+      }
+    }
+    return inputs.length > 0 ? inputs : undefined
+  }
+
+  #metaCreateButtons(
+    buttons: Array<Record<string, unknown>>,
+    samples: Record<string, string>
+  ): Array<Record<string, unknown>> {
+    return buttons.map((button) => {
+      const type = String(button.type ?? '').toUpperCase()
+      if (type !== 'URL') return button
+
+      const url = String(button.url ?? '')
+      const vars = url.match(/\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*|\d+)\s*\}\}/g)
+      if (!vars || vars.length === 0) return button
+      if (Array.isArray(button.example) && button.example.length > 0) return button
+
+      const examples: string[] = []
+      for (const raw of vars) {
+        const key = raw.replace(/\{\{\s*|\s*\}\}/g, '')
+        const sample = samples[key]
+        if (sample) examples.push(sample)
+      }
+      if (examples.length !== vars.length) return button
+      return { ...button, example: examples }
+    })
   }
 
   /**

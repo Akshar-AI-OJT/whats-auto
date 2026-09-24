@@ -12,6 +12,7 @@ import {
 } from '@/lib/api'
 import { unwrapPage } from '@/lib/api-unwrap'
 import { queryKeys } from '@/lib/query-keys'
+import { useRouter } from '@/i18n/navigation'
 import { Button } from '@/components/ui/button'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
 import { DashboardSectionHeader } from '@/components/dashboard/ui/DashboardSectionHeader'
@@ -57,6 +58,7 @@ export function CatalogTemplateBrowser({
   const tf = useTranslations('catalog.templates')
   const t = variant === 'admin' ? tAdmin : tOrg
   const queryClient = useQueryClient()
+  const router = useRouter()
   const [tab, setTab] = useState<'library' | 'saved'>('library')
   const [filters, setFilters] = useState<CatalogTemplateFilterValues>(emptyFilters)
   const [savedPage, setSavedPage] = useState(1)
@@ -198,17 +200,9 @@ export function CatalogTemplateBrowser({
     onError: (err) => setActionError((err as unknown as ApiError).message),
   })
 
-  const installMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { data } = await api.templateCatalog.install(id)
-      return data
-    },
-    onSuccess: async () => {
-      setActionError(null)
-      await queryClient.invalidateQueries({ queryKey: queryKeys.templates.all })
-    },
-    onError: (err) => setActionError((err as unknown as ApiError).message),
-  })
+  function openCatalogConfigure(id: string) {
+    router.push(`/dashboard/templates/create?catalog=${id}`)
+  }
 
   const libraryMissing =
     showLibrary &&
@@ -449,8 +443,8 @@ export function CatalogTemplateBrowser({
                         <Button
                           type="button"
                           size="sm"
-                          disabled={installed || installMutation.isPending}
-                          onClick={() => installMutation.mutate(item.id)}
+                          disabled={installed}
+                          onClick={() => openCatalogConfigure(item.id)}
                         >
                           {installed ? tOrg('alreadyAdded') : tOrg('useTemplate')}
                         </Button>

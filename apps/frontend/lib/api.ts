@@ -736,6 +736,8 @@ export type CreateWhatsappTemplateBody = {
   footerText?: string
   buttons?: WhatsappTemplateButton[]
   sampleValues?: Record<string, unknown> | unknown
+  catalogTemplateId?: string
+  libraryTemplateName?: string | null
 }
 
 export type SyncWhatsappTemplatesResult = {
