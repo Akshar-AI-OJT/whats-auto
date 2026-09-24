@@ -864,6 +864,7 @@ router
 router
   .group(() => {
     router.get('/', [TemplateCatalogController, 'index'])
+    router.get('/:id', [TemplateCatalogController, 'show'])
     router.post('/:id/install', [TemplateCatalogController, 'install'])
   })
   .prefix('/api/v1/template-catalog')

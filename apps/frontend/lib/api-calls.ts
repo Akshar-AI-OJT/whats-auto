@@ -633,6 +633,11 @@ export function createApi() {
           })}`
         ),
 
+      get: (id: string) =>
+        protectedJsonRequest<{ data?: PlatformTemplateCatalogItem } & PlatformTemplateCatalogItem>(
+          `/api/v1/template-catalog/${id}`
+        ),
+
       install: (id: string) =>
         protectedJsonRequest<{ data?: WhatsappMessageTemplate } & WhatsappMessageTemplate>(
           `/api/v1/template-catalog/${id}/install`,

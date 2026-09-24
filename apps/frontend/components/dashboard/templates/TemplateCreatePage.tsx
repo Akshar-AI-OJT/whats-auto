@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useSyncExternalStore } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { Loader2 } from 'lucide-react'
@@ -8,7 +8,9 @@ import {
   api,
   type ApiError,
   type CreateWhatsappTemplateBody,
+  type PlatformTemplateCatalogItem,
 } from '@/lib/api'
+import { unwrapSingle } from '@/lib/api-unwrap'
 import { useOrganizations } from '@/components/dashboard/OrganizationsProvider'
 import { useRouter } from '@/i18n/navigation'
 import { DashboardPanel } from '@/components/dashboard/ui/DashboardPanel'
@@ -16,13 +18,50 @@ import { TemplateForm, type TemplateFormValues } from './TemplateForm'
 import { queryKeys } from '@/lib/query-keys'
 import { normalizeButtons, normalizeSampleValues, unwrapTemplate } from './template-utils'
 
-/** Avoid useSearchParams — hard refresh can stall pages that suspend on it. */
-function readDuplicateFromId(): string | null {
-  if (typeof window === 'undefined') return null
+function readCreateQueryParams(): { fromId: string | null; catalogId: string | null } {
+  if (typeof window === 'undefined') return { fromId: null, catalogId: null }
   try {
-    return new URLSearchParams(window.location.search).get('from')
+    const sp = new URLSearchParams(window.location.search)
+    return { fromId: sp.get('from'), catalogId: sp.get('catalog') }
   } catch {
-    return null
+    return { fromId: null, catalogId: null }
+  }
+}
+
+function subscribeToLocation(onStoreChange: () => void) {
+  window.addEventListener('popstate', onStoreChange)
+  return () => window.removeEventListener('popstate', onStoreChange)
+}
+
+function useCreateQueryParams() {
+  return useSyncExternalStore(
+    subscribeToLocation,
+    readCreateQueryParams,
+    () => ({ fromId: null, catalogId: null })
+  )
+}
+
+function catalogToFormValues(item: PlatformTemplateCatalogItem): Partial<TemplateFormValues> {
+  const headerTypeRaw = String(item.headerType || 'NONE').toUpperCase()
+  const headerType = (
+    ['NONE', 'TEXT', 'IMAGE', 'DOCUMENT'].includes(headerTypeRaw) ? headerTypeRaw : 'NONE'
+  ) as TemplateFormValues['headerType']
+
+  return {
+    name: String(item.name || '')
+      .toLowerCase()
+      .replace(/\s+/g, '_'),
+    category:
+      (String(item.category).toUpperCase() as TemplateFormValues['category']) || 'UTILITY',
+    language: item.language || 'en_US',
+    headerType,
+    headerContent: headerType === 'TEXT' ? item.headerContent || '' : '',
+    headerMediaAssetId: '',
+    headerMediaUrl: '',
+    bodyText: item.bodyText || '',
+    footerText: item.footerText || '',
+    buttons: normalizeButtons(item.buttons),
+    sampleValues: normalizeSampleValues(item.sampleValues),
   }
 }
 
@@ -35,7 +74,7 @@ export function TemplateCreatePage() {
     canCreateTemplates,
     isLoading: orgsLoading,
   } = useOrganizations()
-  const [fromId] = useState(() => readDuplicateFromId())
+  const { fromId, catalogId } = useCreateQueryParams()
   const [error, setError] = useState<string | null>(null)
 
   const sourceQuery = useQuery({
@@ -47,34 +86,51 @@ export function TemplateCreatePage() {
     },
   })
 
-  const initialValues = useMemo<Partial<TemplateFormValues> | undefined>(() => {
-    const template = sourceQuery.data
-    if (!template) return undefined
-    const headerTypeRaw = String(template.headerType || 'NONE').toUpperCase()
-    const headerType = (
-      ['NONE', 'TEXT', 'IMAGE', 'DOCUMENT'].includes(headerTypeRaw)
-        ? headerTypeRaw
-        : 'NONE'
-    ) as TemplateFormValues['headerType']
+  const catalogQuery = useQuery({
+    queryKey: queryKeys.templates.catalogDetail(catalogId ?? 'none'),
+    enabled: Boolean(catalogId) && !fromId && canCreateTemplates,
+    queryFn: async () => {
+      const { data } = await api.templateCatalog.get(catalogId!)
+      return unwrapSingle<PlatformTemplateCatalogItem>(data)
+    },
+  })
 
-    return {
-      name: '',
-      category:
-        (String(template.category).toUpperCase() as TemplateFormValues['category']) || 'UTILITY',
-      language: template.language || 'en_US',
-      headerType,
-      headerContent: headerType === 'TEXT' ? template.headerContent || '' : '',
-      headerMediaAssetId: '',
-      headerMediaUrl:
-        headerType === 'IMAGE' || headerType === 'DOCUMENT'
-          ? template.headerMediaUrl || ''
-          : '',
-      bodyText: template.bodyText || '',
-      footerText: template.footerText || '',
-      buttons: normalizeButtons(template.buttons),
-      sampleValues: normalizeSampleValues(template.sampleValues),
+  const initialValues = useMemo<Partial<TemplateFormValues> | undefined>(() => {
+    if (fromId && sourceQuery.data) {
+      const template = sourceQuery.data
+      const headerTypeRaw = String(template.headerType || 'NONE').toUpperCase()
+      const headerType = (
+        ['NONE', 'TEXT', 'IMAGE', 'DOCUMENT'].includes(headerTypeRaw)
+          ? headerTypeRaw
+          : 'NONE'
+      ) as TemplateFormValues['headerType']
+
+      return {
+        name: '',
+        category:
+          (String(template.category).toUpperCase() as TemplateFormValues['category']) ||
+          'UTILITY',
+        language: template.language || 'en_US',
+        headerType,
+        headerContent: headerType === 'TEXT' ? template.headerContent || '' : '',
+        headerMediaAssetId: '',
+        headerMediaUrl:
+          headerType === 'IMAGE' || headerType === 'DOCUMENT'
+            ? template.headerMediaUrl || ''
+            : '',
+        bodyText: template.bodyText || '',
+        footerText: template.footerText || '',
+        buttons: normalizeButtons(template.buttons),
+        sampleValues: normalizeSampleValues(template.sampleValues),
+      }
     }
-  }, [sourceQuery.data])
+
+    if (catalogId && catalogQuery.data) {
+      return catalogToFormValues(catalogQuery.data)
+    }
+
+    return undefined
+  }, [catalogId, catalogQuery.data, fromId, sourceQuery.data])
 
   const createMutation = useMutation({
     mutationFn: async (body: CreateWhatsappTemplateBody) => {
@@ -106,7 +162,14 @@ export function TemplateCreatePage() {
     )
   }
 
-  if (fromId && sourceQuery.isLoading) {
+  const sourceLoading =
+    Boolean(fromId) && (sourceQuery.isLoading || sourceQuery.isFetching || !sourceQuery.isFetched)
+  const catalogLoading =
+    Boolean(catalogId) &&
+    !fromId &&
+    (catalogQuery.isLoading || catalogQuery.isFetching || !catalogQuery.isFetched)
+
+  if (sourceLoading || catalogLoading) {
     return (
       <div className="flex w-full min-w-0 items-center justify-center gap-2 py-24 text-sm text-body">
         <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -127,6 +190,35 @@ export function TemplateCreatePage() {
     )
   }
 
+  if (catalogId && !fromId && (catalogQuery.isError || !catalogQuery.data)) {
+    return (
+      <div className="w-full min-w-0">
+        <DashboardPanel className="px-4 py-5 sm:px-6">
+          <p className="text-sm text-negative">
+            {(catalogQuery.error as unknown as ApiError)?.message || t('errors.loadFailed')}
+          </p>
+        </DashboardPanel>
+      </div>
+    )
+  }
+
+  const formKey = fromId
+    ? `from-${fromId}`
+    : catalogId
+      ? `catalog-${catalogId}`
+      : 'new'
+
+  const title = fromId
+    ? t('createFromTitle')
+    : catalogId
+      ? t('createFromCatalogTitle')
+      : t('createTitle')
+  const subtitle = fromId
+    ? t('createFromSubtitle')
+    : catalogId
+      ? t('createFromCatalogSubtitle')
+      : t('createSubtitle')
+
   return (
     <div className="w-full min-w-0">
       <DashboardPanel as="section" className="p-4 sm:p-5 md:p-6">
@@ -135,23 +227,34 @@ export function TemplateCreatePage() {
             {t('eyebrow')}
           </p>
           <h1 className="mt-2 font-display text-[1.7rem] tracking-tight text-ink sm:text-[1.95rem]">
-            {fromId ? t('createFromTitle') : t('createTitle')}
+            {title}
           </h1>
-          <p className="mt-2 text-sm text-body">
-            {fromId ? t('createFromSubtitle') : t('createSubtitle')}
-          </p>
+          <p className="mt-2 text-sm text-body">{subtitle}</p>
         </div>
 
         <TemplateForm
-          key={fromId ?? 'new'}
+          key={formKey}
           initialValues={initialValues}
           pending={createMutation.isPending || !tenantOrganizationId}
           error={error}
           submitLabel={t('form.create')}
-          onCancel={() => router.push('/dashboard/templates')}
+          onCancel={() =>
+            router.push(catalogId ? '/dashboard/templates/browse' : '/dashboard/templates')
+          }
           onSubmit={(body) => {
             setError(null)
-            createMutation.mutate(body)
+            const catalog = catalogQuery.data
+            createMutation.mutate({
+              ...body,
+              ...(catalogId
+                ? {
+                    catalogTemplateId: catalogId,
+                    ...(catalog?.libraryTemplateName
+                      ? { libraryTemplateName: catalog.libraryTemplateName }
+                      : {}),
+                  }
+                : {}),
+            })
           }}
         />
       </DashboardPanel>
