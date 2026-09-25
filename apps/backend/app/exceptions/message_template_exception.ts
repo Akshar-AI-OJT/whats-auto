@@ -33,6 +33,13 @@ export default class MessageTemplateException extends Exception {
     })
   }
 
+  static invalidContent(message: string) {
+    return new this(message, {
+      status: 422,
+      code: 'E_TEMPLATE_INVALID_CONTENT',
+    })
+  }
+
   static invalidHeaderMedia(message = 'Header media asset is invalid or not ready') {
     return new this(message, {
       status: 422,

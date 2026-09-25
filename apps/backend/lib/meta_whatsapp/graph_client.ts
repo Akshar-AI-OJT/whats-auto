@@ -159,6 +159,24 @@ export interface MetaGraphClient {
   }): Promise<{ handle: string }>
 }
 
+/**
+ * Meta's `error.message` for template create is almost always
+ * `(#100) Invalid parameter`. The field-level reason is `error_user_msg`.
+ */
+export function metaGraphErrorMessage(
+  operation: string,
+  httpStatus: number,
+  body: MetaGraphErrorBody | null
+): string {
+  const error = body?.error
+  const base = error?.message ?? `Meta Graph ${operation} failed (HTTP ${httpStatus})`
+  const detail = [error?.error_user_title, error?.error_user_msg, error?.error_data?.details]
+    .map((part) => (typeof part === 'string' ? part.trim() : ''))
+    .filter((part) => part.length > 0 && !base.includes(part))
+  if (detail.length === 0) return base
+  return `${base}: ${detail.join(' — ')}`
+}
+
 export class MetaGraphApiError extends Error {
   constructor(
     message: string,
@@ -626,9 +644,12 @@ export class HttpMetaGraphClient implements MetaGraphClient {
     }
 
     if (!response.ok) {
-      const message =
-        body.error?.message ?? `Meta Graph uploadFile failed (HTTP ${response.status})`
-      throw new MetaGraphApiError(message, response.status, body, 'uploadFile')
+      throw new MetaGraphApiError(
+        metaGraphErrorMessage('uploadFile', response.status, body),
+        response.status,
+        body,
+        'uploadFile'
+      )
     }
 
     const handle = typeof body.h === 'string' ? body.h : null
@@ -744,9 +765,12 @@ export class HttpMetaGraphClient implements MetaGraphClient {
     }
 
     if (!response.ok) {
-      const message =
-        body.error?.message ?? `Meta Graph ${operation} failed (HTTP ${response.status})`
-      throw new MetaGraphApiError(message, response.status, body, operation)
+      throw new MetaGraphApiError(
+        metaGraphErrorMessage(operation, response.status, body),
+        response.status,
+        body,
+        operation
+      )
     }
 
     return body as T
