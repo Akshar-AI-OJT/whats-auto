@@ -47,6 +47,7 @@ function getPaymentLocationKey(): string {
  * Important: do NOT pass `resolveOnboardingCheckoutSession` directly to
  * useSyncExternalStore — it returns a new object every call and React will
  * infinite-re-render until the route error boundary (“This page couldn’t load”).
+ * Snapshot must be a primitive. See docs/constraints.md §17.
  */
 export function OnboardingPaymentPage() {
   const t = useTranslations('onboarding.organization')
