@@ -8,11 +8,13 @@ import {
   deriveParameterSchema,
   resolveParameterSchema,
 } from '#lib/meta_whatsapp/template_parameters'
-import type {
-  MetaTemplateComponent,
-  MetaMessageTemplateItem,
-  TemplateParameterSchema,
-} from '#lib/meta_whatsapp/types'
+import {
+  buildMetaCreateComponents,
+  libraryTemplateButtonInputs,
+  metaTemplateTextIssue,
+  prepareTemplateSubmission,
+} from '#lib/meta_whatsapp/template_create_payload'
+import type { MetaMessageTemplateItem, TemplateParameterSchema } from '#lib/meta_whatsapp/types'
 import { NotificationService } from '#services/notification_service'
 import { PlanEnforcementService } from '#services/billing/plan_enforcement_service'
 import { ObjectStorage } from '#services/object_storage/contracts/object_storage'
@@ -609,15 +611,35 @@ export class MessageTemplateService {
       throw MessageTemplateException.duplicateName(name, language)
     }
 
+    const prepared = prepareTemplateSubmission({
+      headerContent: payload.headerContent,
+      bodyText: payload.bodyText,
+      footerText: payload.footerText,
+      buttons: payload.buttons,
+      sampleValues: payload.sampleValues,
+    })
     const headerType = payload.headerType?.toLowerCase() ?? null
-    const headerContent = payload.headerContent ?? null
-    const buttons = payload.buttons ?? null
+    const headerContent = prepared.headerContent
+    const buttons = prepared.buttons
+    const bodyText = prepared.bodyText
+    const footerText = prepared.footerText
+    const sampleValues = prepared.sampleValues
     const parameterSchema = deriveParameterSchema({
       headerType,
       headerContent,
-      bodyText: payload.bodyText,
+      bodyText,
       buttons,
     })
+    const usesLibrary = Boolean(payload.libraryTemplateName)
+    if (!usesLibrary) {
+      const textIssue = metaTemplateTextIssue({
+        headerType,
+        headerContent,
+        bodyText,
+        footerText,
+      })
+      if (textIssue) throw MessageTemplateException.invalidContent(textIssue)
+    }
 
     const configRow = await db
       .from('whatsapp_configs')
@@ -658,13 +680,13 @@ export class MessageTemplateService {
       headerMediaUrl = payload.headerMediaUrl.trim()
     }
 
-    const metaComponents = this.#buildMetaCreateComponents({
-      headerType: payload.headerType,
-      headerContent: payload.headerContent,
-      bodyText: payload.bodyText,
-      footerText: payload.footerText,
-      buttons: payload.buttons,
-      sampleValues: payload.sampleValues,
+    const metaComponents = buildMetaCreateComponents({
+      headerType,
+      headerContent,
+      bodyText,
+      footerText,
+      buttons,
+      sampleValues,
       parameterSchema,
       headerHandle,
     })
@@ -672,8 +694,16 @@ export class MessageTemplateService {
     let metaTemplateId: string | null = null
     let status = 'pending'
     let submissionError: string | null = mediaUploadError
+    const missingHeaderHandle = isMediaHeader && !headerHandle
+    const blockMissingMedia =
+      !usesLibrary && missingHeaderHandle && Boolean(configRow?.wabaId && configRow?.accessToken)
 
-    if (configRow && configRow.wabaId && configRow.accessToken) {
+    if (blockMissingMedia) {
+      status = 'rejected'
+      submissionError =
+        mediaUploadError ??
+        'Image and document headers need a sample file uploaded to Meta before the template can be submitted'
+    } else if (configRow && configRow.wabaId && configRow.accessToken) {
       try {
         const accessToken = decryptWhatsappAccessToken(configRow.accessToken)
         let created = false
@@ -686,11 +716,7 @@ export class MessageTemplateService {
             category,
             language,
             libraryTemplateName: payload.libraryTemplateName,
-            libraryTemplateBodyInputs: this.#libraryBodyInputs({
-              parameterSchema,
-              sampleValues: payload.sampleValues,
-            }),
-            libraryTemplateButtonInputs: this.#libraryButtonInputs(buttons),
+            libraryTemplateButtonInputs: libraryTemplateButtonInputs(buttons, sampleValues),
           })
           metaTemplateId = coerceMetaTemplateId(metaRes.id)
           if (metaRes.status) {
@@ -774,10 +800,10 @@ export class MessageTemplateService {
         headerType,
         headerContent,
         headerMediaUrl,
-        bodyText: payload.bodyText,
-        footerText: payload.footerText ?? null,
+        bodyText,
+        footerText,
         buttons: buttons ? JSON.stringify(buttons) : null,
-        sampleValues: payload.sampleValues ? JSON.stringify(payload.sampleValues) : null,
+        sampleValues: Object.keys(sampleValues).length > 0 ? JSON.stringify(sampleValues) : null,
         parameterSchema: JSON.stringify(parameterSchema),
         status,
         metaTemplateId,
@@ -914,158 +940,6 @@ export class MessageTemplateService {
     })
 
     return uploaded.handle
-  }
-
-  #sampleValueMap(sampleValues: unknown): Record<string, string> {
-    if (!sampleValues || typeof sampleValues !== 'object' || Array.isArray(sampleValues)) {
-      return {}
-    }
-    const out: Record<string, string> = {}
-    for (const [key, value] of Object.entries(sampleValues as Record<string, unknown>)) {
-      if (value === null || value === undefined) continue
-      const text = String(value).trim()
-      if (text) out[key] = text
-    }
-    return out
-  }
-
-  #buildMetaCreateComponents(params: {
-    headerType?: string
-    headerContent?: string
-    bodyText: string
-    footerText?: string
-    buttons?: Array<Record<string, unknown>>
-    sampleValues?: unknown
-    parameterSchema: TemplateParameterSchema
-    headerHandle: string | null
-  }): MetaTemplateComponent[] {
-    const samples = this.#sampleValueMap(params.sampleValues)
-    const metaComponents: MetaTemplateComponent[] = []
-
-    if (params.headerType && params.headerType.toUpperCase() !== 'NONE') {
-      const format = params.headerType.toUpperCase()
-      if (format === 'TEXT' && params.headerContent) {
-        const headerExampleValues = params.parameterSchema.headerNames.map(
-          (name) => samples[name] ?? ''
-        )
-        const hasCompleteHeaderExamples =
-          params.parameterSchema.headerNames.length === 0 ||
-          headerExampleValues.every((value) => value.trim().length > 0)
-        metaComponents.push({
-          type: 'HEADER',
-          format: 'TEXT',
-          text: params.headerContent,
-          ...(hasCompleteHeaderExamples && headerExampleValues.length > 0
-            ? { example: { header_text: headerExampleValues } }
-            : {}),
-        })
-      } else if (format === 'IMAGE' || format === 'DOCUMENT') {
-        metaComponents.push({
-          type: 'HEADER',
-          format,
-          ...(params.headerHandle ? { example: { header_handle: [params.headerHandle] } } : {}),
-        })
-      }
-    }
-
-    const bodyExampleValues = params.parameterSchema.bodyNames.map((name) => samples[name] ?? '')
-    const hasCompleteBodyExamples =
-      params.parameterSchema.bodyNames.length === 0 ||
-      bodyExampleValues.every((value) => value.trim().length > 0)
-
-    metaComponents.push({
-      type: 'BODY',
-      text: params.bodyText,
-      ...(hasCompleteBodyExamples && bodyExampleValues.length > 0
-        ? { example: { body_text: [bodyExampleValues] } }
-        : {}),
-    })
-
-    if (params.footerText) {
-      metaComponents.push({
-        type: 'FOOTER',
-        text: params.footerText,
-      })
-    }
-
-    if (params.buttons && params.buttons.length > 0) {
-      metaComponents.push({
-        type: 'BUTTONS',
-        buttons: this.#metaCreateButtons(params.buttons, samples),
-      })
-    }
-
-    return metaComponents
-  }
-
-  #libraryBodyInputs(params: {
-    parameterSchema: TemplateParameterSchema
-    sampleValues?: unknown
-  }): Record<string, unknown> | undefined {
-    const samples = this.#sampleValueMap(params.sampleValues)
-    const names = params.parameterSchema.bodyNames
-    if (names.length === 0) return undefined
-
-    if (params.parameterSchema.parameterFormat === 'named') {
-      const named: Record<string, string> = {}
-      for (const name of names) {
-        const value = samples[name]
-        if (value) named[name] = value
-      }
-      return Object.keys(named).length > 0 ? named : undefined
-    }
-
-    const positional = names
-      .map((name) => samples[name])
-      .filter((value): value is string => Boolean(value))
-    return positional.length > 0 ? { body_text: positional } : undefined
-  }
-
-  #libraryButtonInputs(
-    buttons: Array<Record<string, unknown>> | null | undefined
-  ): unknown[] | undefined {
-    if (!buttons || buttons.length === 0) return undefined
-    const inputs: unknown[] = []
-    for (const button of buttons) {
-      const type = String(button.type ?? '').toUpperCase()
-      if (type === 'URL' && button.url) {
-        inputs.push({
-          type: 'URL',
-          url: String(button.url),
-          ...(Array.isArray(button.example) ? { example: button.example } : {}),
-        })
-      } else if (type === 'PHONE_NUMBER' && (button.phone_number || button.phoneNumber)) {
-        inputs.push({
-          type: 'PHONE_NUMBER',
-          phone_number: String(button.phone_number ?? button.phoneNumber),
-        })
-      }
-    }
-    return inputs.length > 0 ? inputs : undefined
-  }
-
-  #metaCreateButtons(
-    buttons: Array<Record<string, unknown>>,
-    samples: Record<string, string>
-  ): Array<Record<string, unknown>> {
-    return buttons.map((button) => {
-      const type = String(button.type ?? '').toUpperCase()
-      if (type !== 'URL') return button
-
-      const url = String(button.url ?? '')
-      const vars = url.match(/\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*|\d+)\s*\}\}/g)
-      if (!vars || vars.length === 0) return button
-      if (Array.isArray(button.example) && button.example.length > 0) return button
-
-      const examples: string[] = []
-      for (const raw of vars) {
-        const key = raw.replace(/\{\{\s*|\s*\}\}/g, '')
-        const sample = samples[key]
-        if (sample) examples.push(sample)
-      }
-      if (examples.length !== vars.length) return button
-      return { ...button, example: examples }
-    })
   }
 
   /**

@@ -149,8 +149,8 @@ export function TemplateForm({
 
   function insertNamedVariable() {
     if (!canInsertNamed) return
-    const name = namedDraft.trim()
-    if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) {
+    const name = namedDraft.trim().toLowerCase()
+    if (!/^[a-z_][a-z0-9_]*$/.test(name)) {
       setFieldErrors((prev) => ({ ...prev, bodyText: t('errors.namedVariableInvalid') }))
       return
     }
@@ -534,7 +534,7 @@ export function TemplateForm({
                     placeholder={t('namedVariablePlaceholder')}
                     className="h-9 max-w-xs"
                     onChange={(e) =>
-                      setNamedDraft(e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))
+                      setNamedDraft(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))
                     }
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {

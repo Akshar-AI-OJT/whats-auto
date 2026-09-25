@@ -184,9 +184,22 @@ export function renderTemplatePreviewText(
 }
 
 export function normalizeButtons(buttons: unknown): WhatsappTemplateButton[] {
-  if (!buttons) return []
-  if (Array.isArray(buttons)) return buttons as WhatsappTemplateButton[]
-  return []
+  if (!Array.isArray(buttons)) return []
+  return buttons.map((button) => {
+    if (!button || typeof button !== 'object') return { type: 'QUICK_REPLY', text: '' }
+    const record = button as WhatsappTemplateButton
+    const url = buttonUrlText(record.url)
+    return url ? { ...record, url } : record
+  })
+}
+
+function buttonUrlText(url: unknown): string {
+  if (typeof url === 'string') return url
+  if (url && typeof url === 'object' && !Array.isArray(url)) {
+    const base = (url as { base_url?: unknown }).base_url
+    if (typeof base === 'string') return base
+  }
+  return ''
 }
 
 export function formatTemplateCategory(category: string) {

@@ -46,6 +46,37 @@ test.group('HttpMetaGraphClient', () => {
     }
   })
 
+  test('requestJson keeps Meta error_user_msg with Invalid parameter', async ({ assert }) => {
+    const fetchImpl = async () =>
+      new Response(
+        JSON.stringify({
+          error: {
+            message: '(#100) Invalid parameter',
+            code: 100,
+            error_user_title: 'Message template not created',
+            error_user_msg: 'component of type BUTTONS is missing expected field(s) (url.base_url)',
+          },
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      )
+
+    const client = new HttpMetaGraphClient({
+      appId: 'app',
+      appSecret: 'secret',
+      graphVersion: 'v25.0',
+      fetchImpl: fetchImpl as typeof fetch,
+    })
+
+    try {
+      await client.subscribeAppToWaba({ wabaId: '1', accessToken: 'bad' })
+      assert.fail('expected MetaGraphApiError')
+    } catch (error) {
+      assert.instanceOf(error, MetaGraphApiError)
+      assert.include((error as MetaGraphApiError).message, '(#100) Invalid parameter')
+      assert.include((error as MetaGraphApiError).message, 'url.base_url')
+    }
+  })
+
   test('sendTemplateMessage posts Cloud API shape', async ({ assert }) => {
     let seenUrl = ''
     let seenBody: Record<string, unknown> = {}

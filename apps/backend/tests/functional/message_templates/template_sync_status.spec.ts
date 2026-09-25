@@ -58,7 +58,7 @@ async function seedTemplate(params: {
         category: 'UTILITY',
         language: params.language,
         headerType: 'none',
-        bodyText: 'Hello {{1}}',
+        bodyText: 'Hello {{1}}, welcome.',
         parameterSchema: {
           headerNames: [],
           bodyNames: ['1'],
@@ -391,7 +391,7 @@ test.group('MessageTemplateService createTemplate Meta verification', (group) =>
       name: `verify_defer_${Date.now()}`,
       category: 'UTILITY',
       language: 'en_US',
-      bodyText: 'Hello {{1}}',
+      bodyText: 'Hello {{1}}, welcome.',
       sampleValues: { '1': 'Ada' },
       skipCustomTemplatesFeature: true,
     })
@@ -421,7 +421,7 @@ test.group('MessageTemplateService createTemplate Meta verification', (group) =>
       name: `verify_ok_${Date.now()}`,
       category: 'UTILITY',
       language: 'en_US',
-      bodyText: 'Hello {{1}}',
+      bodyText: 'Hello {{1}}, welcome.',
       sampleValues: { '1': 'Ada' },
       skipCustomTemplatesFeature: true,
     })
@@ -447,7 +447,7 @@ test.group('MessageTemplateService createTemplate Meta verification', (group) =>
       name: `verify_noid_${Date.now()}`,
       category: 'UTILITY',
       language: 'en_US',
-      bodyText: 'Hello {{1}}',
+      bodyText: 'Hello {{1}}, welcome.',
       sampleValues: { '1': 'Ada' },
       skipCustomTemplatesFeature: true,
     })
@@ -455,5 +455,116 @@ test.group('MessageTemplateService createTemplate Meta verification', (group) =>
     assert.equal(dto.status, 'rejected')
     assert.isNull(dto.metaTemplateId)
     assert.include(String(dto.submissionError ?? ''), 'no template id')
+  })
+
+  test('named body examples use body_text_named_params', async ({ assert }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    await seedConnectedConfig(organizationId)
+
+    let seen: Record<string, unknown> | null = null
+    const graphClient = {
+      createMessageTemplate: async (params: {
+        components: unknown[]
+        parameterFormat?: string
+      }) => {
+        seen = { parameterFormat: params.parameterFormat, components: params.components }
+        return { id: 'named-id', status: 'PENDING' }
+      },
+      getMessageTemplate: async () => ({
+        id: 'named-id',
+        status: 'PENDING',
+      }),
+    } as unknown as MetaGraphClient
+
+    await new MessageTemplateService(graphClient).createTemplate({
+      organizationId,
+      name: `named_${Date.now()}`,
+      category: 'UTILITY',
+      language: 'en_US',
+      bodyText: 'Thanks {{Customer_Name}}, your code is ready.',
+      sampleValues: { Customer_Name: 'Ada' },
+      skipCustomTemplatesFeature: true,
+    })
+
+    assert.equal(seen?.parameterFormat, 'NAMED')
+    const components = seen?.components as Array<Record<string, unknown>>
+    const body = components.find((component) => component.type === 'BODY')
+    assert.equal(body?.text, 'Thanks {{customer_name}}, your code is ready.')
+    assert.deepEqual(body?.example, {
+      body_text_named_params: [{ param_name: 'customer_name', example: 'Ada' }],
+    })
+  })
+
+  test('library configure sends button objects and omits sample body inputs', async ({
+    assert,
+  }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    await seedConnectedConfig(organizationId)
+
+    let seen: Record<string, unknown> | null = null
+    const graphClient = {
+      createMessageTemplateFromLibrary: async (params: Record<string, unknown>) => {
+        seen = params
+        return { id: 'lib-id', status: 'PENDING' }
+      },
+      getMessageTemplate: async () => ({ id: 'lib-id', status: 'PENDING' }),
+    } as unknown as MetaGraphClient
+
+    await new MessageTemplateService(graphClient).createTemplate({
+      organizationId,
+      name: `lib_${Date.now()}`,
+      category: 'UTILITY',
+      language: 'en_US',
+      bodyText: 'Your order {{1}} is confirmed.',
+      sampleValues: { '1': 'A100' },
+      buttons: [
+        { type: 'URL', text: 'Track', url: 'https://shop.example/orders/{{1}}' },
+        { type: 'PHONE_NUMBER', text: 'Call', phone_number: '+15551234567' },
+      ],
+      libraryTemplateName: 'order_management_1',
+      skipCustomTemplatesFeature: true,
+    })
+
+    assert.isUndefined(seen?.libraryTemplateBodyInputs)
+    assert.deepEqual(seen?.libraryTemplateButtonInputs, [
+      {
+        type: 'URL',
+        url: {
+          base_url: 'https://shop.example/orders/{{1}}',
+          url_suffix_example: 'https://shop.example/orders/A100',
+        },
+      },
+      { type: 'PHONE_NUMBER', phone_number: '+15551234567' },
+    ])
+  })
+
+  test('rejects a body that starts or ends with a variable before calling Meta', async ({
+    assert,
+  }) => {
+    const organizationId = await createOrg()
+    orgIds.push(organizationId)
+    await seedConnectedConfig(organizationId)
+
+    const graphClient = {
+      createMessageTemplate: async () => {
+        throw new Error('Meta should not be called')
+      },
+    } as unknown as MetaGraphClient
+
+    await assert.rejects(
+      () =>
+        new MessageTemplateService(graphClient).createTemplate({
+          organizationId,
+          name: `edge_${Date.now()}`,
+          category: 'UTILITY',
+          language: 'en_US',
+          bodyText: 'Hello {{1}}',
+          sampleValues: { '1': 'Ada' },
+          skipCustomTemplatesFeature: true,
+        }),
+      /cannot start or end with a variable/
+    )
   })
 })

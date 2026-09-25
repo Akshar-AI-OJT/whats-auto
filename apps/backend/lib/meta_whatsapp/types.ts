@@ -267,6 +267,9 @@ export type MetaGraphErrorBody = {
     type?: string
     code?: number
     error_subcode?: number
+    error_user_title?: string
+    error_user_msg?: string
+    error_data?: { details?: string }
     fbtrace_id?: string
   }
 }
