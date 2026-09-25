@@ -18,27 +18,23 @@ import { TemplateForm, type TemplateFormValues } from './TemplateForm'
 import { queryKeys } from '@/lib/query-keys'
 import { normalizeButtons, normalizeSampleValues, unwrapTemplate } from './template-utils'
 
-function readCreateQueryParams(): { fromId: string | null; catalogId: string | null } {
-  if (typeof window === 'undefined') return { fromId: null, catalogId: null }
-  try {
-    const sp = new URLSearchParams(window.location.search)
-    return { fromId: sp.get('from'), catalogId: sp.get('catalog') }
-  } catch {
-    return { fromId: null, catalogId: null }
-  }
-}
-
 function subscribeToLocation(onStoreChange: () => void) {
   window.addEventListener('popstate', onStoreChange)
   return () => window.removeEventListener('popstate', onStoreChange)
 }
 
-function useCreateQueryParams() {
-  return useSyncExternalStore(
-    subscribeToLocation,
-    readCreateQueryParams,
-    () => ({ fromId: null, catalogId: null })
-  )
+/** Primitive snapshot — useSyncExternalStore infinite-loops if getSnapshot returns a new object. */
+function getCreateLocationSearch(): string {
+  return window.location.search
+}
+
+function parseCreateQuery(search: string): { fromId: string | null; catalogId: string | null } {
+  try {
+    const sp = new URLSearchParams(search)
+    return { fromId: sp.get('from'), catalogId: sp.get('catalog') }
+  } catch {
+    return { fromId: null, catalogId: null }
+  }
 }
 
 function catalogToFormValues(item: PlatformTemplateCatalogItem): Partial<TemplateFormValues> {
@@ -51,8 +47,7 @@ function catalogToFormValues(item: PlatformTemplateCatalogItem): Partial<Templat
     name: String(item.name || '')
       .toLowerCase()
       .replace(/\s+/g, '_'),
-    category:
-      (String(item.category).toUpperCase() as TemplateFormValues['category']) || 'UTILITY',
+    category: (String(item.category).toUpperCase() as TemplateFormValues['category']) || 'UTILITY',
     language: item.language || 'en_US',
     headerType,
     headerContent: headerType === 'TEXT' ? item.headerContent || '' : '',
@@ -69,12 +64,9 @@ export function TemplateCreatePage() {
   const t = useTranslations('dashboard.templates')
   const router = useRouter()
   const queryClient = useQueryClient()
-  const {
-    tenantOrganizationId,
-    canCreateTemplates,
-    isLoading: orgsLoading,
-  } = useOrganizations()
-  const { fromId, catalogId } = useCreateQueryParams()
+  const { tenantOrganizationId, canCreateTemplates, isLoading: orgsLoading } = useOrganizations()
+  const search = useSyncExternalStore(subscribeToLocation, getCreateLocationSearch, () => '')
+  const { fromId, catalogId } = useMemo(() => parseCreateQuery(search), [search])
   const [error, setError] = useState<string | null>(null)
 
   const sourceQuery = useQuery({
@@ -100,24 +92,19 @@ export function TemplateCreatePage() {
       const template = sourceQuery.data
       const headerTypeRaw = String(template.headerType || 'NONE').toUpperCase()
       const headerType = (
-        ['NONE', 'TEXT', 'IMAGE', 'DOCUMENT'].includes(headerTypeRaw)
-          ? headerTypeRaw
-          : 'NONE'
+        ['NONE', 'TEXT', 'IMAGE', 'DOCUMENT'].includes(headerTypeRaw) ? headerTypeRaw : 'NONE'
       ) as TemplateFormValues['headerType']
 
       return {
         name: '',
         category:
-          (String(template.category).toUpperCase() as TemplateFormValues['category']) ||
-          'UTILITY',
+          (String(template.category).toUpperCase() as TemplateFormValues['category']) || 'UTILITY',
         language: template.language || 'en_US',
         headerType,
         headerContent: headerType === 'TEXT' ? template.headerContent || '' : '',
         headerMediaAssetId: '',
         headerMediaUrl:
-          headerType === 'IMAGE' || headerType === 'DOCUMENT'
-            ? template.headerMediaUrl || ''
-            : '',
+          headerType === 'IMAGE' || headerType === 'DOCUMENT' ? template.headerMediaUrl || '' : '',
         bodyText: template.bodyText || '',
         footerText: template.footerText || '',
         buttons: normalizeButtons(template.buttons),
@@ -202,11 +189,7 @@ export function TemplateCreatePage() {
     )
   }
 
-  const formKey = fromId
-    ? `from-${fromId}`
-    : catalogId
-      ? `catalog-${catalogId}`
-      : 'new'
+  const formKey = fromId ? `from-${fromId}` : catalogId ? `catalog-${catalogId}` : 'new'
 
   const title = fromId
     ? t('createFromTitle')
