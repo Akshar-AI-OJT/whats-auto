@@ -23,7 +23,11 @@ function subscribeToLocation(onStoreChange: () => void) {
   return () => window.removeEventListener('popstate', onStoreChange)
 }
 
-/** Primitive snapshot — useSyncExternalStore infinite-loops if getSnapshot returns a new object. */
+/**
+ * Primitive snapshot. Returning a new object from getSnapshot makes React
+ * re-render forever and the route shows “This page couldn’t load”.
+ * See docs/constraints.md §17.
+ */
 function getCreateLocationSearch(): string {
   return window.location.search
 }
