@@ -44,6 +44,7 @@ test.group('Orphan user cleanup', (group) => {
       userId,
       accountId: userId,
       providerId: 'credential',
+      issuer: 'local:credential',
       password: await hash.make('orphan-test-password'),
     })
 

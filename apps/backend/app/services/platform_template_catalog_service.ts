@@ -2,7 +2,11 @@ import env from '#start/env'
 import { CatalogStatus } from '#enums/catalog_status'
 import { CatalogTemplateSource } from '#enums/catalog_template_source'
 import PlatformCatalogException from '#exceptions/platform_catalog_exception'
-import { createMetaGraphClient, type MetaGraphClient } from '#lib/meta_whatsapp/graph_client'
+import {
+  createMetaGraphClient,
+  MetaGraphApiError,
+  type MetaGraphClient,
+} from '#lib/meta_whatsapp/graph_client'
 import { deriveParameterSchema } from '#lib/meta_whatsapp/template_parameters'
 import type { MetaTemplateLibraryItem } from '#lib/meta_whatsapp/types'
 import {
@@ -95,18 +99,37 @@ export class PlatformTemplateCatalogService {
     if (!this.graphClient.listMessageTemplateLibrary) {
       throw PlatformCatalogException.libraryTokenMissing()
     }
-    return this.graphClient.listMessageTemplateLibrary({
-      accessToken: token,
-      search: params.search,
-      topic: params.topic,
-      usecase: params.usecase,
-      industry: params.industry,
-      language: params.language,
-      name: params.name,
-      category: params.category,
-      after: params.after,
-      limit: params.limit,
-    })
+    try {
+      return await this.graphClient.listMessageTemplateLibrary({
+        accessToken: token,
+        search: params.search,
+        topic: params.topic,
+        usecase: params.usecase,
+        industry: params.industry,
+        language: params.language,
+        name: params.name,
+        category: params.category,
+        after: params.after,
+        limit: params.limit,
+      })
+    } catch (error) {
+      throw this.mapLibraryGraphError(error)
+    }
+  }
+
+  /** Maps Meta OAuth token failures to a stable catalog exception (testable). */
+  protected mapLibraryGraphError(error: unknown): never {
+    if (error instanceof MetaGraphApiError) {
+      const code = error.body?.error?.code
+      const subcode = error.body?.error?.error_subcode
+      // OAuthException 190 = access token invalid/expired/session invalidated.
+      if (error.status === 401 || code === 190) {
+        throw PlatformCatalogException.libraryTokenInvalid(
+          subcode ? `${error.message} (subcode ${subcode})` : error.message
+        )
+      }
+    }
+    throw error
   }
 
   async list(params: CatalogListParams & { publishedOnly?: boolean }) {

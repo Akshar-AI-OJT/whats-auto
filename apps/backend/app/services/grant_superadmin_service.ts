@@ -1,6 +1,7 @@
 import { randomBytes, randomUUID } from 'node:crypto'
 import db from '@adonisjs/lucid/services/db'
 import hash from '@adonisjs/core/services/hash'
+import { CREDENTIAL_ACCOUNT_ISSUER } from '#lib/account_issuer'
 
 export type GrantSuperadminResult = {
   ok: boolean
@@ -85,6 +86,7 @@ export async function bootstrapSuperadminUser(options: {
       userId,
       accountId: userId,
       providerId: 'credential',
+      issuer: CREDENTIAL_ACCOUNT_ISSUER,
       password: passwordHash,
     })
 

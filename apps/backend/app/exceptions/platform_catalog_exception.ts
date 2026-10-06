@@ -25,6 +25,17 @@ export default class PlatformCatalogException extends Exception {
     })
   }
 
+  static libraryTokenInvalid(detail?: string) {
+    const suffix = detail?.trim() ? ` Meta: ${detail.trim()}` : ''
+    return new this(
+      `Meta Template Library token is invalid or expired. Generate a permanent System User token in Meta Business Manager and update META_SYSTEM_USER_ACCESS_TOKEN.${suffix}`,
+      {
+        status: 503,
+        code: 'E_TEMPLATE_LIBRARY_TOKEN_INVALID',
+      }
+    )
+  }
+
   static duplicateSlug(slug: string) {
     return new this(`Catalog slug "${slug}" already exists`, {
       status: 409,
