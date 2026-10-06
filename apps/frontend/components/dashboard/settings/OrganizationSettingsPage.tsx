@@ -19,7 +19,11 @@ import {
   normalizeTaxId,
   ORG_SETUP_PATH,
 } from '@/lib/onboarding'
-import { formatOrganizationAddressLines, isCreatePlaceholderPan } from '@/lib/organization-profile'
+import {
+  formatOrganizationAddressLines,
+  isCreatePlaceholderPan,
+  resolveProfileTimezone,
+} from '@/lib/organization-profile'
 import {
   INDUSTRY_OPTIONS,
   ORGANIZATION_TYPE_OPTIONS,
@@ -88,7 +92,10 @@ function detailsFromOrg(org: OrganizationSummary | null): FormState {
     address: formatOrganizationAddressLines(org?.address, org?.country),
     pan: isCreatePlaceholderPan(org?.pan) ? '' : (org?.pan ?? ''),
     gstin: org?.gstin ?? '',
-    timezone: org?.timezone || getTimezoneOptions()[0] || 'UTC',
+    timezone:
+      resolveProfileTimezone(org?.timezone, org?.country) ||
+      getTimezoneOptions()[0] ||
+      'UTC',
     currency: org?.currency || 'INR',
   }
 }

@@ -44,6 +44,23 @@ export function isCreatePlaceholderAddress(value: string | null | undefined): bo
   return (value ?? '').trim().toLowerCase() === CREATE_PLACEHOLDER_ADDRESS.toLowerCase()
 }
 
+/**
+ * Profile form hydration: country IN + timezone UTC is the create-time drift that
+ * breaks campaign wall-clock scheduling (D78). Prefer Asia/Kolkata until the user
+ * explicitly picks another zone and saves.
+ */
+export function resolveProfileTimezone(
+  timezone: string | null | undefined,
+  country: string | null | undefined
+): string {
+  const zone = timezone?.trim() ?? ''
+  const normalizedCountry = (country ?? '').trim().toUpperCase()
+  const isIndia =
+    normalizedCountry === 'IN' || normalizedCountry === 'IND' || normalizedCountry === 'INDIA'
+  if (isIndia && (!zone || zone === 'UTC')) return 'Asia/Kolkata'
+  return zone
+}
+
 export type OrganizationProfileSource = Pick<
   OrganizationSummary,
   'name' | 'email' | 'country' | 'pan' | 'gstin'
@@ -248,7 +265,7 @@ export function organizationToProfileFormValues(
     state: address?.state?.trim() ?? '',
     postalCode: address?.postalCode?.trim() ?? '',
     country: (org.country ?? '').trim(),
-    timezone: org.timezone?.trim() ?? '',
+    timezone: resolveProfileTimezone(org.timezone, org.country),
     currency: org.currency?.trim() ?? '',
     dateFormat: extras?.dateFormat?.trim() ?? 'DD/MM/YYYY',
     timeFormat: extras?.timeFormat?.trim() ?? '12h',

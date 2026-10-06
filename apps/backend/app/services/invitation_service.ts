@@ -11,6 +11,7 @@ import { OrganizationStatus } from '#enums/organization_status'
 import { PlanEnforcementService } from '#services/billing/plan_enforcement_service'
 import { resolveAssignableRoleForOrg } from '#services/role_service'
 import { OrganizationSmtpService } from '#services/organization_smtp_service'
+import { CREDENTIAL_ACCOUNT_ISSUER } from '#lib/account_issuer'
 import type { TransactionClientContract } from '@adonisjs/lucid/types/database'
 
 const RESET_TOKEN_TTL_HOURS = 24
@@ -164,6 +165,7 @@ export class InvitationService {
             userId: user.id,
             accountId: user.id,
             providerId: 'credential',
+            issuer: CREDENTIAL_ACCOUNT_ISSUER,
             password: lockedPassword,
           })
         } else if (!newlyCreated) {
@@ -179,6 +181,7 @@ export class InvitationService {
               userId: user.id,
               accountId: user.id,
               providerId: 'credential',
+              issuer: CREDENTIAL_ACCOUNT_ISSUER,
               password: lockedPassword,
             })
           }

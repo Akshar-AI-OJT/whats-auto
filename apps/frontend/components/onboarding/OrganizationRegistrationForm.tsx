@@ -39,9 +39,22 @@ import type {
   OrganizationWizardState,
 } from './organization-wizard-types'
 
-function resolveCreateTimezone(): string {
-  if (typeof Intl === 'undefined') return 'UTC'
-  return Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+/**
+ * Prefer the browser IANA zone. When the runtime reports UTC (common on misconfigured
+ * hosts / headless), fall back to Asia/Kolkata for country IN — matches platform
+ * defaultTimezone and avoids D78 scheduling/display drift for Indian orgs.
+ */
+function resolveCreateTimezone(country: string): string {
+  const browser =
+    typeof Intl !== 'undefined'
+      ? Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
+      : 'UTC'
+  if (browser !== 'UTC') return browser
+  const normalized = country.trim().toUpperCase()
+  if (normalized === 'IN' || normalized === 'IND' || normalized === 'INDIA') {
+    return 'Asia/Kolkata'
+  }
+  return browser
 }
 
 function createInitialState(): OrganizationWizardState {
@@ -190,7 +203,7 @@ export function OrganizationRegistrationForm({
       address: CREATE_PLACEHOLDER_ADDRESS,
       pan: CREATE_PLACEHOLDER_PAN,
       country: CREATE_PLACEHOLDER_COUNTRY,
-      timezone: resolveCreateTimezone(),
+      timezone: resolveCreateTimezone(CREATE_PLACEHOLDER_COUNTRY),
       currency: 'INR',
     })
 

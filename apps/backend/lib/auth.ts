@@ -9,6 +9,7 @@ import { pool } from '#lib/db'
 import { deleteStaleJwks, selectDecryptableJwks } from '#lib/jwks_recovery'
 import accessTokenConfig from '#config/access_token'
 import { AccessTokenClaimsService } from '#services/access_token_claims_service'
+import { accountIssuerForProvider } from '#lib/account_issuer'
 import mail from '@adonisjs/mail/services/main'
 
 const googleClientId = env.get('GOOGLE_CLIENT_ID')
@@ -381,6 +382,27 @@ export const auth = betterAuth({
 
           // User already exists (invite/admin/signup path). Abort duplicate insert.
           return false
+        },
+      },
+    },
+    account: {
+      create: {
+        before: async (account) => {
+          const providerId =
+            typeof account.providerId === 'string' ? account.providerId : 'credential'
+          const existingIssuer =
+            typeof (account as { issuer?: unknown }).issuer === 'string'
+              ? String((account as { issuer?: string }).issuer).trim()
+              : ''
+          if (existingIssuer) {
+            return { data: account }
+          }
+          return {
+            data: {
+              ...account,
+              issuer: accountIssuerForProvider(providerId),
+            },
+          }
         },
       },
     },
