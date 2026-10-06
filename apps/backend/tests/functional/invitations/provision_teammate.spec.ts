@@ -165,6 +165,14 @@ test.group('Provision teammate', (group) => {
     assert.exists(user)
     assert.isFalse(Boolean(user?.emailVerified))
 
+    const account = await db
+      .from('accounts')
+      .where('userId', user!.id)
+      .where('providerId', 'credential')
+      .first()
+    assert.exists(account)
+    assert.equal(account?.issuer, 'local:credential')
+
     const member = await db
       .from('organization_members')
       .where('organizationId', orgId)
