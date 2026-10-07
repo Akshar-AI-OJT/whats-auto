@@ -9,8 +9,14 @@ export type ModelPrice = {
  */
 export const LLM_PRICING: Record<string, Record<string, ModelPrice>> = {
   mistral: {
-    'mistral-small-2603': { inputPer1KTokens: 0.0001, outputPer1KTokens: 0.0003 },
-    'ministral-3b-2512': { inputPer1KTokens: 0.00004, outputPer1KTokens: 0.00004 },
+    'mistral-small-latest': { inputPer1KTokens: 0.00015, outputPer1KTokens: 0.0006 },
+    'mistral-small-2603': { inputPer1KTokens: 0.00015, outputPer1KTokens: 0.0006 },
+    'ministral-3b-latest': { inputPer1KTokens: 0.0001, outputPer1KTokens: 0.0001 },
+    'ministral-3b-2512': { inputPer1KTokens: 0.0001, outputPer1KTokens: 0.0001 },
+    'ministral-8b-latest': { inputPer1KTokens: 0.00015, outputPer1KTokens: 0.00015 },
+    'ministral-8b-2512': { inputPer1KTokens: 0.00015, outputPer1KTokens: 0.00015 },
+    'ministral-14b-latest': { inputPer1KTokens: 0.0002, outputPer1KTokens: 0.0002 },
+    'ministral-14b-2512': { inputPer1KTokens: 0.0002, outputPer1KTokens: 0.0002 },
     'mistral-embed': { inputPer1KTokens: 0.0001, outputPer1KTokens: 0 },
   },
   openai: {

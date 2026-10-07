@@ -35,11 +35,20 @@ export const PLATFORM_AI_MODELS: Record<
     },
   },
   mistral: {
-    chat: ['mistral-small-2603', 'ministral-3b-2512'],
+    chat: [
+      'mistral-small-latest',
+      'mistral-small-2603',
+      'ministral-3b-latest',
+      'ministral-3b-2512',
+      'ministral-8b-latest',
+      'ministral-8b-2512',
+      'ministral-14b-latest',
+      'ministral-14b-2512',
+    ],
     embedding: ['mistral-embed'],
     defaults: {
-      chatModel: 'mistral-small-2603',
-      summaryModel: 'ministral-3b-2512',
+      chatModel: 'mistral-small-latest',
+      summaryModel: 'ministral-3b-latest',
       embeddingModel: 'mistral-embed',
     },
   },
