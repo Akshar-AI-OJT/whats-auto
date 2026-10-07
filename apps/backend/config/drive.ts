@@ -1,6 +1,7 @@
 import app from '@adonisjs/core/services/app'
 import { defineConfig, services } from '@adonisjs/drive'
 import type { InferDriveDisks } from '@adonisjs/drive/types'
+import { resolveMediaLocalRoot } from '#services/object_storage/resolve_media_local_root'
 import env from '#start/env'
 
 /**
@@ -18,7 +19,10 @@ if (driver !== driveDisk) {
   throw new Error(`OBJECT_STORAGE_DRIVER (${driver}) must match DRIVE_DISK (${driveDisk})`)
 }
 
-const localRoot = env.get('MEDIA_LOCAL_ROOT') || app.makePath('tmp/media')
+const localRoot = resolveMediaLocalRoot(
+  env.get('MEDIA_LOCAL_ROOT') || 'tmp/media',
+  app.makePath('.')
+)
 
 /**
  * S3 service options are only required at runtime when default is s3.
