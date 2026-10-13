@@ -2,6 +2,7 @@ import { test } from '@japa/runner'
 import { randomUUID } from 'node:crypto'
 import db from '@adonisjs/lucid/services/db'
 import { CREDENTIAL_ACCOUNT_ISSUER, GOOGLE_ACCOUNT_ISSUER } from '#lib/account_issuer'
+import { auth } from '#lib/auth'
 import { hashOtp, hashPassword, storePendingSignup } from '#lib/pre_signup'
 
 test.group('Email registration', () => {
@@ -70,6 +71,35 @@ test.group('Email registration', () => {
 
       response.assertStatus(422)
       assert.equal(response.body().code, 'USE_GOOGLE_SIGN_IN')
+    } finally {
+      await db.from('users').where('id', user.id).delete()
+    }
+  })
+
+  test('Better Auth account insert persists issuer for Google', async ({ assert }) => {
+    const email = `oauth-${randomUUID().slice(0, 8)}@example.com`
+    const [user] = await db
+      .table('users')
+      .insert({
+        name: 'OAuth User',
+        firstname: 'OAuth',
+        lastname: 'User',
+        email,
+        emailVerified: true,
+        isActive: true,
+        isDeleted: false,
+      })
+      .returning(['id'])
+
+    try {
+      const ctx = await auth.$context
+      const account = await ctx.internalAdapter.createAccount({
+        userId: user.id,
+        providerId: 'google',
+        accountId: `google-${user.id}`,
+      })
+
+      assert.equal(account?.issuer, GOOGLE_ACCOUNT_ISSUER)
     } finally {
       await db.from('users').where('id', user.id).delete()
     }

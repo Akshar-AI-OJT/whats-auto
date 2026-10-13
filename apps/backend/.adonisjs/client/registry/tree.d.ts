@@ -48,10 +48,12 @@ export interface ApiDefinition {
   }
   templateCatalog: {
     index: typeof routes['template_catalog.index']
+    show: typeof routes['template_catalog.show']
     install: typeof routes['template_catalog.install']
   }
   flowCatalog: {
     index: typeof routes['flow_catalog.index']
+    show: typeof routes['flow_catalog.show']
     install: typeof routes['flow_catalog.install']
   }
   preSignup: typeof routes['pre_signup'] & {

@@ -213,6 +213,17 @@ export const auth = betterAuth({
 
   account: {
     modelName: 'accounts',
+    // Better Auth only inserts columns declared on the account schema. Without
+    // this field the account hook's issuer is stripped and Postgres rejects the
+    // row (accounts.issuer is NOT NULL).
+    additionalFields: {
+      issuer: {
+        type: 'string',
+        required: true,
+        input: false,
+        returned: false,
+      },
+    },
     // Same email + Google → link to the existing user and sign in.
     // requireLocalEmailVerified defaults to true, which blocks Google login for
     // invited/unverified credential users even though Google is a trusted provider.
