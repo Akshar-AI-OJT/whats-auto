@@ -1,5 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import { fromNodeHeaders } from 'better-auth/node'
+import { CREDENTIAL_ACCOUNT_ISSUER } from '#lib/account_issuer'
 import { auth } from '#lib/auth'
 import { pool } from '#lib/db'
 import { copyBetterAuthResponse } from '#lib/copy_better_auth_response'
@@ -84,10 +85,10 @@ export default class VerifySignupController {
 
       await client.query(
         `INSERT INTO "accounts" (
-          "userId", "accountId", "providerId", "password"
+          "userId", "accountId", "providerId", "issuer", "password"
         )
-        VALUES ($1, $2, 'credential', $3)`,
-        [userId, userId, passwordHash]
+        VALUES ($1, $2, 'credential', $3, $4)`,
+        [userId, userId, CREDENTIAL_ACCOUNT_ISSUER, passwordHash]
       )
 
       // Keep pending OTP until sign-in succeeds so a failed session can retry.

@@ -1,4 +1,5 @@
 /* eslint-disable prettier/prettier */
+/// <reference path="../manifest.d.ts" />
 
 import type { ExtractBody, ExtractErrorResponse, ExtractQuery, ExtractQueryForGet, ExtractResponse } from '@tuyau/core/types'
 import type { InferInput, SimpleError } from '@vinejs/vine/types'
@@ -306,6 +307,18 @@ export interface Registry {
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/template_catalog_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
+  'template_catalog.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/template-catalog/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/platform_template_catalog').catalogIdParamValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/template_catalog_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/template_catalog_controller').default['show']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
   'template_catalog.install': {
     methods: ["POST"]
     pattern: '/api/v1/template-catalog/:id/install'
@@ -328,6 +341,18 @@ export interface Registry {
       query: ExtractQueryForGet<InferInput<(typeof import('#validators/platform_flow_catalog').listOrgFlowCatalogValidator)>>
       response: ExtractResponse<Awaited<ReturnType<import('#controllers/flow_catalog_controller').default['index']>>>
       errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/flow_catalog_controller').default['index']>>> | { status: 422; response: { errors: SimpleError[] } }
+    }
+  }
+  'flow_catalog.show': {
+    methods: ["GET","HEAD"]
+    pattern: '/api/v1/flow-catalog/:id'
+    types: {
+      body: {}
+      paramsTuple: [ParamValue]
+      params: { id: ParamValue }
+      query: ExtractQueryForGet<InferInput<(typeof import('#validators/platform_flow_catalog').catalogFlowIdParamValidator)>>
+      response: ExtractResponse<Awaited<ReturnType<import('#controllers/flow_catalog_controller').default['show']>>>
+      errorResponse: ExtractErrorResponse<Awaited<ReturnType<import('#controllers/flow_catalog_controller').default['show']>>> | { status: 422; response: { errors: SimpleError[] } }
     }
   }
   'flow_catalog.install': {

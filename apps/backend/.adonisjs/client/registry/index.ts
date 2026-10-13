@@ -156,6 +156,12 @@ const routes = {
     tokens: [{"old":"/api/v1/template-catalog","type":0,"val":"api","end":""},{"old":"/api/v1/template-catalog","type":0,"val":"v1","end":""},{"old":"/api/v1/template-catalog","type":0,"val":"template-catalog","end":""}],
     types: placeholder as Registry['template_catalog.index']['types'],
   },
+  'template_catalog.show': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/template-catalog/:id',
+    tokens: [{"old":"/api/v1/template-catalog/:id","type":0,"val":"api","end":""},{"old":"/api/v1/template-catalog/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/template-catalog/:id","type":0,"val":"template-catalog","end":""},{"old":"/api/v1/template-catalog/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['template_catalog.show']['types'],
+  },
   'template_catalog.install': {
     methods: ["POST"],
     pattern: '/api/v1/template-catalog/:id/install',
@@ -167,6 +173,12 @@ const routes = {
     pattern: '/api/v1/flow-catalog',
     tokens: [{"old":"/api/v1/flow-catalog","type":0,"val":"api","end":""},{"old":"/api/v1/flow-catalog","type":0,"val":"v1","end":""},{"old":"/api/v1/flow-catalog","type":0,"val":"flow-catalog","end":""}],
     types: placeholder as Registry['flow_catalog.index']['types'],
+  },
+  'flow_catalog.show': {
+    methods: ["GET","HEAD"],
+    pattern: '/api/v1/flow-catalog/:id',
+    tokens: [{"old":"/api/v1/flow-catalog/:id","type":0,"val":"api","end":""},{"old":"/api/v1/flow-catalog/:id","type":0,"val":"v1","end":""},{"old":"/api/v1/flow-catalog/:id","type":0,"val":"flow-catalog","end":""},{"old":"/api/v1/flow-catalog/:id","type":1,"val":"id","end":""}],
+    types: placeholder as Registry['flow_catalog.show']['types'],
   },
   'flow_catalog.install': {
     methods: ["POST"],
