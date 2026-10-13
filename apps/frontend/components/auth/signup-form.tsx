@@ -308,7 +308,9 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
       startResendCooldown(60)
     } catch (err) {
       const apiError = err as ApiError
-      if (apiError.code === 'EMAIL_ALREADY_EXISTS') {
+      if (apiError.code === 'USE_GOOGLE_SIGN_IN') {
+        setError(t('errors.useGoogle'))
+      } else if (apiError.code === 'EMAIL_ALREADY_EXISTS') {
         setError(t('errors.emailExists'))
       } else {
         setError(apiError.message || t('errors.generic'))
