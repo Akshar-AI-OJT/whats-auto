@@ -340,7 +340,7 @@ export const auth = betterAuth({
             clientId: googleClientId!,
             clientSecret: googleClientSecret!.release(),
             // Both flags: callback reads options.disableSignUp; some paths use disableImplicitSignUp.
-            disableSignUp: true,
+            // disableSignUp: true,
             disableImplicitSignUp: true,
             mapProfileToUser: (profile: {
               given_name?: string
@@ -371,17 +371,26 @@ export const auth = betterAuth({
           }
 
           const state = await findUserAccountStateByEmail(email)
-          if (!state) {
-            throw new APIError('FORBIDDEN', {
-              message: ACCOUNT_NOT_FOUND_MESSAGE,
-              code: 'ACCOUNT_NOT_FOUND',
-            })
+          // if (!state) {
+          //   throw new APIError('FORBIDDEN', {
+          //     message: ACCOUNT_NOT_FOUND_MESSAGE,
+          //     code: 'ACCOUNT_NOT_FOUND',
+          //   })
+          // }
+          if (state) {
+            assertUserCanAuthenticate(state)
+            // User already exists (invite/admin/signup path). Abort duplicate insert.
+            return false
           }
-
-          assertUserCanAuthenticate(state)
-
-          // User already exists (invite/admin/signup path). Abort duplicate insert.
-          return false
+          return {
+            data: {
+              ...user,
+              email,
+              emailVerified: true,
+              isActive: true,
+              isDeleted: false,
+            },
+          }
         },
       },
     },
