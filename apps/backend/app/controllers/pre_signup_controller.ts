@@ -21,15 +21,35 @@ export default class PreSignupController {
    * @requestBody { "firstname": "John", "lastname": "Doe", "email": "john@example.com", "password": "secret1234" }
    * @responseBody 200 - { "status": "otp_sent" }
    * @responseBody 422 - { "error": "An account with this email already exists.", "code": "EMAIL_ALREADY_EXISTS" }
+   * @responseBody 422 - { "error": "This account uses Google sign-in. Please sign in with Google instead.", "code": "USE_GOOGLE_SIGN_IN" }
    * @responseBody 500 - { "error": "Failed to send OTP. Please try again." }
    * @responseBody 429 - { "error": "Too many requests. Please try again later.", "code": "RATE_LIMITED" }
    */
   async handle({ request, response, logger }: HttpContext) {
     const { firstname, lastname, email, password } = await request.validateUsing(preSignupValidator)
 
-    const { rows } = await pool.query(`SELECT id FROM "users" WHERE "email" = $1 LIMIT 1`, [email])
+    const { rows } = await pool.query<{ id: string }>(
+      `SELECT id FROM "users" WHERE LOWER("email") = $1 LIMIT 1`,
+      [email.toLowerCase()]
+    )
 
     if (rows.length > 0) {
+      const { rows: accounts } = await pool.query<{
+        providerId: string
+        password: string | null
+      }>(`SELECT "providerId", "password" FROM "accounts" WHERE "userId" = $1`, [rows[0].id])
+
+      const hasCredential = accounts.some(
+        (account) => account.providerId === 'credential' && Boolean(account.password)
+      )
+
+      if (!hasCredential) {
+        return response.unprocessableEntity({
+          error: 'This account uses Google sign-in. Please sign in with Google instead.',
+          code: 'USE_GOOGLE_SIGN_IN',
+        })
+      }
+
       return response.unprocessableEntity({
         error: 'An account with this email already exists.',
         code: 'EMAIL_ALREADY_EXISTS',

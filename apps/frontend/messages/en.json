@@ -1135,6 +1135,7 @@
         "generic": "Something went wrong. Please try again.",
         "oauthFailed": "Google sign-in failed. Please try again.",
         "emailExists": "An account with this email already exists. Please sign in with your password.",
+        "useGoogle": "This account uses Google sign-in. Please sign in with Google instead.",
         "passwordMismatch": "Passwords do not match.",
         "passwordLength": "Password must be at least 8 characters.",
         "firstnameRequired": "First name is required.",
