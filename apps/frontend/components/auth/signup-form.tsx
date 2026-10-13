@@ -70,10 +70,14 @@ function readSignupQuery(): {
     return {
       callbackPath: safeCallbackPath(params.get('callbackURL')),
       email: (params.get('email') ?? '').trim(),
-      oauthFailed:
-        oauthError === 'oauth_failed' ||
-        oauthError === 'state_mismatch' ||
-        oauthError === 'state_security_mismatch',
+      oauthFailed: Boolean(
+        oauthError &&
+        (oauthError === 'oauth_failed' ||
+          oauthError === 'state_mismatch' ||
+          oauthError === 'state_security_mismatch' ||
+          oauthError === 'access_denied' ||
+          oauthError === 'unable_to_create_user')
+      ),
     }
   } catch {
     return { callbackPath: null, email: '', oauthFailed: false }
@@ -261,9 +265,10 @@ export function SignupForm({ className, ...props }: React.ComponentProps<'form'>
       // Post-OAuth: resolve via /auth/continue (zero orgs → org setup, not dashboard).
       const redirectPath = authContinuePath(callbackPath ?? ORG_SETUP_PATH)
       const callbackURL = buildLocalizedAppUrl(locale, redirectPath)
-      const errorCallbackURL = buildLocalizedAppUrl(locale, '/signup?error=oauth_failed')
+      const errorCallbackURL = buildLocalizedAppUrl(locale, '/register')
       const { error: authErr } = await authClient.signIn.social({
         provider: 'google',
+        requestSignUp: true,
         callbackURL,
         errorCallbackURL,
       })

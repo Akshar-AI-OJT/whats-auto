@@ -17,6 +17,20 @@ const nextConfig: NextConfig = {
   serverless). */
   output: process.env.VERCEL ? undefined : 'standalone',
   transpilePackages: ['backend'],
+  async redirects() {
+    return [
+      {
+        source: '/:locale/signup',
+        destination: '/:locale/register',
+        permanent: false,
+      },
+      {
+        source: '/signup',
+        destination: '/register',
+        permanent: false,
+      },
+    ]
+  },
   async rewrites() {
     return [
       {
